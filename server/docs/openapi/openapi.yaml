@@ -1,0 +1,198 @@
+openapi: 3.1.0
+info:
+  title: Zamil Revamp API
+  version: 0.1.0
+  description: >-
+    Backend API for the Zamil Revamp modernization. Phase 01 exposes only the
+    operational foundation; business endpoints are documented here as they are
+    implemented. Standards: server/docs/02-API_DEVELOPMENT_STANDARDS.md.
+servers:
+  - url: /
+    description: Current host
+tags:
+  - name: Health
+    description: Process and dependency health checks for runtime supervision.
+paths:
+  /health/live:
+    get:
+      operationId: getLiveness
+      tags: [Health]
+      summary: Liveness probe
+      description: >-
+        Confirms that the API process is running and able to respond. Does not
+        check Oracle or any other dependency. No authentication required.
+      responses:
+        '200':
+          description: The process is alive.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Liveness'
+              example:
+                success: true
+                data:
+                  status: UP
+                meta:
+                  requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /health/ready:
+    get:
+      operationId: getReadiness
+      tags: [Health]
+      summary: Readiness probe
+      description: >-
+        Confirms that the instance can serve work: both Oracle connection pools
+        (LOW and HIGH) must complete a bounded, read-only check. Results are reused
+        for a short period and concurrent requests share one check, so frequent
+        probes cannot exhaust the pools. No authentication required. Database
+        identities, hosts and driver errors are never returned.
+      responses:
+        '200':
+          description: The instance is ready.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Readiness'
+              example:
+                success: true
+                data:
+                  status: READY
+                  database:
+                    LOW: UP
+                    HIGH: UP
+                meta:
+                  requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+        '503':
+          description: A required database pool is unavailable.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  message: The service is not ready
+                  details:
+                    - field: database.HIGH
+                      message: Database pool is unavailable
+                meta:
+                  requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  headers:
+    RequestId:
+      description: >-
+        Request correlation ID. A valid incoming X-Request-Id (8–64 characters of
+        A–Z, a–z, 0–9, '.', '_' or '-') is reused; otherwise a UUID is generated.
+      schema:
+        type: string
+  schemas:
+    ResponseMeta:
+      type: object
+      required: [requestId]
+      properties:
+        requestId:
+          type: string
+          description: Correlation ID, identical to the X-Request-Id response header.
+    SuccessResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          const: true
+        data:
+          description: Endpoint-specific payload.
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+    ErrorResponse:
+      type: object
+      required: [success, error, meta]
+      properties:
+        success:
+          const: false
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Stable error code for client-side handling.
+              examples: [VALIDATION_ERROR, RESOURCE_NOT_FOUND, INTERNAL_ERROR]
+            message:
+              type: string
+              description: Safe, user-displayable message.
+            details:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+    Liveness:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          const: UP
+    Readiness:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          type: string
+          const: READY
+        database:
+          type: object
+          required: [LOW, HIGH]
+          properties:
+            LOW:
+              type: string
+              const: UP
+            HIGH:
+              type: string
+              const: UP
+  responses:
+    InternalError:
+      description: Unexpected server error. Internal details are never returned.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: INTERNAL_ERROR
+              message: An unexpected error occurred
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b

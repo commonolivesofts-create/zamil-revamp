@@ -1,0 +1,45 @@
+# Oracle wallets and other credentials live here; never commit them.
+/secrets/
+
+# Local environment files containing credentials
+.env
+
+# ==========================================
+# Project-wide environment protection
+# ==========================================
+.env.*
+!.env.example
+.npmrc
+
+# ==========================================
+# Oracle wallets and sensitive key files
+# ==========================================
+wallet/
+Wallet_*/
+*.sso
+*.p12
+*.pfx
+*.jks
+*.pem
+*.key
+*.keystore
+
+# ==========================================
+# Dependencies
+# ==========================================
+node_modules/
+
+# ==========================================
+# Build and test output
+# ==========================================
+dist/
+dist-ssr/
+build/
+coverage/
+.vite/
+.turbo/
+
+# ==========================================
+# Logs
+# ==========================================
+*.log

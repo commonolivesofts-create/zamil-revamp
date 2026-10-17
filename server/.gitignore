@@ -1,0 +1,15 @@
+node_modules/
+coverage/
+*.log
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Oracle wallet material must never be committed
+wallet/
+*.sso
+*.p12
+*.jks
+*.pem

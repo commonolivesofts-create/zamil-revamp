@@ -1,0 +1,8 @@
+/* Minimal bootstrap styles only. Orvexa/Tailwind styles are integrated in Phase 03. */
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+}

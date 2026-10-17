@@ -1,0 +1,57 @@
+import { Link, useLocation } from 'react-router'
+import RouteNotice from '@/pages/RouteNotice.jsx'
+import { orvexaDemoRoutes } from '@/config/orvexaRoutes.js'
+
+// Keep dashboard main content empty until the actual Orvexa dashboard is migrated.
+export function DashboardShellPage() {
+  return <h1 className="sr-only">Dashboard</h1>
+}
+
+export function DemoUnconvertedPage() {
+  const location = useLocation()
+  const entry = orvexaDemoRoutes.find((item) => item.path === location.pathname.replace(/\/+$/, ''))
+  if (!entry) return <NotFoundPage />
+  return (
+    <RouteNotice
+      eyebrow="Template demo · not yet converted"
+      title={entry.label}
+      description="This original menu entry is preserved for the React migration. Its demo page has not been converted, and no production business module has been created for it."
+      source={entry.href}
+    />
+  )
+}
+
+export function AccessDeniedPage() {
+  return (
+    <RouteNotice
+      eyebrow="403 · Access denied"
+      title="You don't have access to this page"
+      description="Access checks will use your organization's permissions once backend authentication and roles are integrated."
+    />
+  )
+}
+
+export function NotFoundPage() {
+  return (
+    <RouteNotice
+      eyebrow="404 · Page not found"
+      title="We couldn't find that page"
+      description="Check the URL or return to the dashboard. The original template's unconverted demo entries are available under /demo/."
+    />
+  )
+}
+
+export function RouteErrorPage({ error }) {
+  const message = import.meta.env.DEV && error instanceof Error ? error.message : null
+  return (
+    <div className="zrv-route-page">
+      <section className="zrv-route-notice" role="alert">
+        <p className="zrv-route-notice__eyebrow">Application error</p>
+        <h1 className="zrv-route-notice__title">This page couldn't be displayed</h1>
+        <p className="zrv-route-notice__description">An unexpected error occurred while loading the route. You can return to the dashboard or reload.</p>
+        {message && <p className="zrv-route-notice__source">{message}</p>}
+        <Link className="zrv-route-notice__action" to="/dashboard">Back to dashboard</Link>
+      </section>
+    </div>
+  )
+}

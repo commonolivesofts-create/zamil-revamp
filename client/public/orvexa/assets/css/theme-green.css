@@ -1,0 +1,180 @@
+/* Zamil green testing palette for purchased Orvexa 1.0.0.
+   The original yellow palette remains unmodified and is restored with
+   html[data-accent-theme="yellow"]. Loaded AFTER all purchased CSS. */
+html[data-accent-theme="green"] {
+  --primary: #248759;
+  --primary-2: #146c47;
+  --primary-text: #166841;
+  --glow: rgba(36, 135, 89, .14);
+  --bg: #edf4ef;
+  --surface: rgba(251, 254, 251, .97);
+  --surface-solid: #fbfefb;
+  --surface-2: #edf5ee;
+  --surface-3: #dce9df;
+  --gc-gold: #2f9a68;
+  --gc-gold-deep: #197448;
+  --gc-canvas: #edf4ef;
+  --gc-canvas-deep: #e0ebe3;
+}
+html.dark[data-accent-theme="green"] {
+  --primary: #58c78e;
+  --primary-2: #8de1b0;
+  --primary-text: #91e0b7;
+  --glow: rgba(88, 199, 142, .17);
+  --gc-gold: #58c78e;
+  --gc-gold-deep: #91e0b7;
+  --gc-canvas: #0b1614;
+  --gc-canvas-deep: #0f1d19;
+  --bg: #0b1515;
+}
+/* Dashboard's original --cc25-amber variable was primarily used as an accent.
+   Preserve semantic warning orange in issue badges separately. */
+html[data-accent-theme="green"] .cc25-dashboard {
+  --cc25-amber: #2c9762;
+  --cc25-amber-deep: #186f49;
+  --cc25-amber-soft: #b0e3c5;
+}
+html.dark[data-accent-theme="green"] .cc25-dashboard {
+  --cc25-amber: #64d49a;
+  --cc25-amber-deep: #9aeabf;
+}
+html[data-accent-theme="green"] .cc25-issue:nth-child(2) i,
+html[data-accent-theme="green"] .cc25-issue:nth-child(3) i {
+  color: var(--amber-text);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+}
+html[data-accent-theme="green"] .cc25-issue em:not(.high, .low) {
+  color: var(--amber-text);
+  background: color-mix(in srgb, var(--amber) 9%, transparent);
+}
+/* Original dashboard-specific golden decorative glows and button. */
+html[data-accent-theme="green"] body[data-active-page="command-center"] {
+  background:
+    radial-gradient(circle at 72% 9%,rgba(48,154,105,.14),transparent 25%),
+    radial-gradient(circle at 18% 28%,rgba(88,173,134,.14),transparent 31%),
+    radial-gradient(circle at 50% 74%,rgba(255,255,255,.48),transparent 38%),
+    linear-gradient(145deg,var(--gc-canvas),var(--gc-canvas-deep)) !important;
+}
+html.dark[data-accent-theme="green"] body[data-active-page="command-center"] {
+  background:
+    radial-gradient(circle at 72% 7%,rgba(75,190,130,.12),transparent 27%),
+    radial-gradient(circle at 15% 27%,rgba(88,173,134,.10),transparent 32%),
+    radial-gradient(circle at 50% 76%,rgba(52,78,76,.13),transparent 42%),
+    linear-gradient(145deg,var(--gc-canvas),var(--gc-canvas-deep)) !important;
+}
+html[data-accent-theme="green"] .m16-btn.primary {
+  background:linear-gradient(145deg,#8bd6ac,var(--gc-gold)) !important;
+  color:#0d3825 !important;
+  box-shadow:0 14px 32px rgba(28,111,70,.18),inset 0 1px 0 rgba(255,255,255,.45) !important;
+}
+html[data-accent-theme="green"] .m16-board-inner {
+  background:
+    radial-gradient(ellipse at 51% 16%,rgba(255,255,255,.92),transparent 40%),
+    radial-gradient(ellipse at 55% 25%,rgba(55,170,112,.14),transparent 31%),
+    radial-gradient(ellipse at 15% 30%,rgba(88,173,134,.12),transparent 35%),
+    linear-gradient(155deg,rgba(248,252,249,.86),rgba(225,237,227,.74)) !important;
+}
+html.dark[data-accent-theme="green"] .m16-board-inner {
+  background:
+    radial-gradient(ellipse at 51% 15%,rgba(69,82,80,.24),transparent 41%),
+    radial-gradient(ellipse at 55% 23%,rgba(74,191,133,.10),transparent 31%),
+    radial-gradient(ellipse at 14% 30%,rgba(88,173,134,.075),transparent 36%),
+    linear-gradient(155deg,rgba(20,31,33,.88),rgba(8,16,18,.82)) !important;
+}
+html[data-accent-theme="green"] .m16-scene {
+  background:radial-gradient(circle at 53% 49%,rgba(42,155,97,.14),transparent 17%),radial-gradient(circle at 53% 49%,rgba(88,173,134,.085),transparent 32%) !important;
+}
+html.dark[data-accent-theme="green"] .m16-scene {
+  background:radial-gradient(circle at 53% 49%,rgba(88,200,142,.11),transparent 18%),radial-gradient(circle at 53% 49%,rgba(88,173,134,.065),transparent 33%) !important;
+}
+html[data-accent-theme="green"] .m16-scene::after {
+  background:radial-gradient(ellipse,rgba(43,153,95,.13),transparent 66%) !important;
+}
+/* Shared app shell and dashboard inner canvas retain their original layout. */
+html[data-accent-theme="green"] body[data-app-shell="true"] #app-main {
+  background:
+    radial-gradient(circle at 52% 18%,rgba(215,242,222,.62),transparent 30%),
+    radial-gradient(circle at 34% 40%,rgba(223,245,234,.44),transparent 34%),
+    radial-gradient(circle at 84% 58%,rgba(234,241,255,.25),transparent 32%),
+    linear-gradient(145deg,#f5faf6 0%,#f2f7f3 48%,#f1f7f2 100%);
+}
+html.dark[data-accent-theme="green"] body[data-app-shell="true"] #app-main {
+  background:
+    radial-gradient(circle at 52% 18%,rgba(48,155,90,.09),transparent 30%),
+    radial-gradient(circle at 34% 40%,rgba(66,142,110,.09),transparent 34%),
+    linear-gradient(145deg,#101b18,#111e1a 48%,#101b18) !important;
+}
+html[data-accent-theme="green"] body[data-active-page="command-center"] #main-content {
+  background:
+    radial-gradient(circle at 52% 24%,rgba(211,241,221,.8),transparent 28%),
+    radial-gradient(circle at 36% 42%,rgba(223,245,234,.52),transparent 32%),
+    linear-gradient(145deg,#f6faf6 0%,#f1f8f2 48%,#f1f7f2 100%) !important;
+}
+html.dark[data-accent-theme="green"] body[data-active-page="command-center"] #main-content {
+  background:
+    radial-gradient(circle at 52% 24%,rgba(55,150,87,.12),transparent 28%),
+    radial-gradient(circle at 36% 42%,rgba(66,142,110,.11),transparent 32%),
+    linear-gradient(145deg,#101b18 0%,#111e1a 48%,#101b18 100%) !important;
+}
+html[data-accent-theme="green"] .cc25-flow-range {
+  border-color:rgba(28,141,84,.20);
+  background:linear-gradient(180deg,rgba(244,253,247,.98),rgba(230,246,235,.94));
+  color:#17633c;
+}
+html.dark[data-accent-theme="green"] .cc25-flow-range {
+  border-color:rgba(103,213,151,.20);
+  background:rgba(103,213,151,.09);
+  color:var(--primary-text);
+}
+html[data-accent-theme="green"] .cc25-flow-panel {
+  background:linear-gradient(145deg,rgba(255,255,255,.90),rgba(227,247,233,.73));
+}
+html[data-accent-theme="green"] .cc25-flow-foot span:first-child,
+html[data-accent-theme="green"] .cc25-runtime-foot span:first-child,
+html[data-accent-theme="green"] .cc25-add-app {
+  background:rgba(231,247,235,.94);
+}
+html[data-accent-theme="green"] .cc25-add-app {border-color:rgba(35,137,84,.25)}
+html[data-accent-theme="green"] .cc25-core-haze {
+  background:radial-gradient(circle at 50% 48%,rgba(255,255,255,.74),transparent 38%),radial-gradient(circle at 50% 52%,rgba(158,227,179,.32),transparent 44%);
+}
+html[data-accent-theme="green"] .cc25-robot-aura {
+  background:radial-gradient(circle,rgba(255,255,255,.94),rgba(108,211,151,.25) 42%,rgba(78,180,135,.12) 60%,transparent 73%);
+}
+html[data-accent-theme="green"] .cc25-robot::after {
+  background:radial-gradient(ellipse,rgba(68,177,109,.30),rgba(78,180,135,.15) 45%,transparent 74%);
+}
+html[data-accent-theme="green"] .cc25-core-particles i:not(:nth-child(5), :nth-child(8), :nth-child(14)) {
+  background:rgba(55,167,101,.76);
+  box-shadow:0 0 11px rgba(55,167,101,.64);
+}
+/* Brand and navigation active states have literal gold fills in purchased CSS. */
+html[data-accent-theme="green"] body[data-active-page="command-center"] #sidebar .brand-mark,
+html[data-accent-theme="green"] #sidebar .brand-mark {
+  background:linear-gradient(145deg,#8cddb1,#23895a) !important;
+  color:#103e29 !important;
+}
+@media (min-width:1024px) {
+  html[data-accent-theme="green"] .sidebar-domain.is-active > .sidebar-domain-toggle .sidebar-domain-icon,
+  html.dark[data-accent-theme="green"][data-sidebar-tone="dark"] .sidebar-domain.is-active > .sidebar-domain-toggle .sidebar-domain-icon {
+    color:#103e29 !important;
+    background:linear-gradient(145deg,#a3e6bf,#37a66e) !important;
+    border-color:color-mix(in srgb,var(--primary) 38%,var(--sb-line)) !important;
+    box-shadow:0 10px 25px rgba(21,125,75,.14),inset 0 1px 0 rgba(255,255,255,.34) !important;
+  }
+}
+html[data-accent-theme="green"] .m174-route-stack > i:nth-child(1) {background:linear-gradient(90deg,#289764,#85d6a3)}
+html[data-accent-theme="green"] .m174-route-legend > span:nth-child(1) > i {background:#2f9b6c}
+/* Palette selector: fully scoped, compact, visually consistent with the original customizer. */
+.zrv-accent-options {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.zrv-accent-option {display:flex;min-width:0;align-items:center;gap:9px;padding:9px;border:1px solid var(--line);border-radius:11px;text-align:left;background:var(--surface-solid);color:var(--text);transition:border-color .15s ease,background .15s ease}
+.zrv-accent-option:hover {border-color:var(--line-strong)}
+.zrv-accent-option[aria-pressed="true"] {border-color:var(--primary);background:color-mix(in srgb,var(--primary) 7%,var(--surface-solid))}
+.zrv-accent-swatch {width:26px;height:26px;flex:none;border-radius:8px;border:1px solid rgba(0,0,0,.09)}
+.zrv-accent-swatch--green {background:linear-gradient(145deg,#a2e3bc,#238759)}
+.zrv-accent-swatch--yellow {background:linear-gradient(145deg,#ffd866,#eaa914)}
+.zrv-accent-copy {display:grid;gap:2px;min-width:0}
+.zrv-accent-copy b {font-size:12px;line-height:1.25;font-weight:800}
+.zrv-accent-copy small {font-size:10px;line-height:1.3;color:var(--muted)}
+.zrv-accent-check {width:14px;height:14px;margin-inline-start:auto;flex:none;color:var(--primary-text)}
+@media (max-width:360px) {.zrv-accent-options {grid-template-columns:1fr}}

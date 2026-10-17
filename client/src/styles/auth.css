@@ -1,0 +1,10 @@
+/* Phase 06: scoped React form feedback; original Orvexa auth selectors remain intact. */
+.zrv-auth-page .zrv-auth-feedback{padding:11px 12px;margin:16px 0 0;border:1px solid var(--line-strong);border-radius:11px;background:var(--surface-2);color:var(--text);font-size:12px;line-height:1.55}
+.zrv-auth-page .zrv-auth-feedback--error{border-color:color-mix(in srgb,var(--danger) 38%,var(--line));color:var(--danger-text)}
+.zrv-auth-page .zrv-auth-feedback--success{border-color:color-mix(in srgb,var(--mint) 38%,var(--line));color:var(--mint-text)}
+.zrv-auth-page .zrv-auth-field-error{display:block;margin-top:5px;color:var(--danger-text);font-size:11px}
+.zrv-auth-page .zrv-auth-submit{display:flex;align-items:center;justify-content:center;gap:8px}
+.zrv-auth-page button:disabled{opacity:.56;cursor:not-allowed;transform:none;filter:none}
+.zrv-auth-page .auth-visual{color:#f5f7f9}
+.zrv-auth-page .auth-form-wrap{min-width:0}
+@media(max-width:640px){.zrv-auth-page .auth-form h2{font-size:26px}}
