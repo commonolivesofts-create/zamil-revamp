@@ -16,6 +16,24 @@ describe('API documentation', () => {
     await SwaggerParser.validate(structuredClone(spec));
   });
 
+  it('documents every authentication route with its security requirement', () => {
+    const { paths, components } = loadOpenApiSpec();
+    const expected = [
+      ['get', '/api/v1/auth/password/policy', false],
+      ['post', '/api/v1/auth/login', false],
+      ['get', '/api/v1/auth/me', true],
+      ['get', '/api/v1/auth/csrf', true],
+      ['post', '/api/v1/auth/logout', true],
+    ];
+
+    for (const [method, path, authenticated] of expected) {
+      const operation = paths[path]?.[method];
+      assert.ok(operation, `${method.toUpperCase()} ${path} is documented`);
+      assert.equal(Boolean(operation.security?.length), authenticated, `${path} security`);
+    }
+    assert.equal(components.securitySchemes.sessionCookie.name, config.auth.cookie.name);
+  });
+
   it('serves the specification at /api/openapi.json', async () => {
     const res = await request(app).get('/api/openapi.json').expect(200);
 

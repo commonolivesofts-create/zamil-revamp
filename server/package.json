@@ -12,6 +12,8 @@
     "start": "node --env-file-if-exists=.env src/server.js",
     "dev": "node --watch --env-file-if-exists=.env src/server.js",
     "db:status": "node --env-file-if-exists=.env scripts/db-status.js",
+    "db:verify-auth": "node --env-file-if-exists=.env scripts/verify-auth-sql.js",
+    "db:bootstrap-test": "node --env-file-if-exists=.env scripts/bootstrap-test-rbac.js",
     "test": "node --import ./tests/setup.js --test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -40,6 +40,49 @@ describe('configuration', () => {
     assert.equal(loadConfig(env({ NODE_ENV: 'uat' })).apiDocs.enabled, false);
   });
 
+  it('applies secure authentication defaults', () => {
+    const { auth } = loadConfig(env());
+
+    assert.deepEqual(auth.cookie, { name: '__Host-zr_session', secure: true, sameSite: 'lax' });
+    assert.deepEqual(auth.allowedOrigins, []);
+    assert.deepEqual(auth.argon2, { memoryKiB: 19456, passes: 2, parallelism: 1 });
+    assert.equal(auth.sessionTouchIntervalMs, 60000);
+    assert.deepEqual(auth.loginRateLimit, { max: 60, windowMs: 60000 });
+  });
+
+  it('refuses insecure session cookies outside development and test', () => {
+    assert.throws(
+      () => loadConfig(env({ NODE_ENV: 'production', AUTH_COOKIE_SECURE: 'false' })),
+      /AUTH_COOKIE_SECURE/,
+    );
+  });
+
+  it('refuses a __Host- cookie name without the Secure attribute', () => {
+    assert.throws(() => loadConfig(env({ AUTH_COOKIE_SECURE: 'false' })), /__Host-/);
+    const insecureDev = loadConfig(
+      env({ AUTH_COOKIE_SECURE: 'false', AUTH_SESSION_COOKIE_NAME: 'zr_session' }),
+    );
+    assert.equal(insecureDev.auth.cookie.secure, false);
+  });
+
+  it('parses and validates allowed origins', () => {
+    const parsed = loadConfig(
+      env({ AUTH_ALLOWED_ORIGINS: 'https://app.example, http://localhost:5173' }),
+    );
+    assert.deepEqual(parsed.auth.allowedOrigins, ['https://app.example', 'http://localhost:5173']);
+
+    assert.throws(() => loadConfig(env({ AUTH_ALLOWED_ORIGINS: 'not a url' })), /origin/);
+    assert.throws(
+      () => loadConfig(env({ AUTH_ALLOWED_ORIGINS: 'https://app.example/path' })),
+      /bare origins/,
+    );
+  });
+
+  it('refuses Argon2id costs below the OWASP minimum', () => {
+    assert.throws(() => loadConfig(env({ AUTH_ARGON2_MEMORY_KIB: '4096' })), /MEMORY/);
+    assert.throws(() => loadConfig(env({ AUTH_ARGON2_PASSES: '1' })), /PASSES/);
+  });
+
   it('refuses to enable API docs in production', () => {
     assert.throws(
       () => loadConfig(env({ NODE_ENV: 'production', API_DOCS_ENABLED: 'true' })),
