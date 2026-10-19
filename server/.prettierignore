@@ -1,4 +1,4 @@
 # Approved architecture documents are maintained as authored.
-docs/*.md
+docs/**/*.md
 package-lock.json
 coverage/

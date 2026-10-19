@@ -1,0 +1,214 @@
+# XX_ZRV_PERMISSIONS — Database Design & Security Reference
+**Design status:** **APPROVED AND LOCKED** · **Sequence:** 05/11 · **Columns:** 9 · **Approval:** 17 October 2026 · **Document purpose:** technical preservation, not schema change.
+
+> **Source status:** Table columns and approvals were reconciled against the locked 17-Oct-2026 RBAC discussions and the previously generated, unexecuted `Zamil_Revamp_RBAC_11_Tables_Oracle_ADW.sql` snapshot. Architecture document 01 and API document 02 were discoverable in the project Library; the full text of architecture documents 03–06 was **not available for independent byte-level verification in this run**. Shared standards cited below are corroborated by the RBAC discussion; any unverified detail is explicitly identified. No Oracle database was accessed.
+
+## A. Overview and responsibility
+**Business and technical purpose.** Catalogs executable, protected business actions per resource. Each unique RESOURCE_ID plus ACTION_CODE identifies one permission such as WORK_ORDERS / APPROVE.
+**Why it is necessary.** Roles and direct user exceptions could not refer to stable individual authorization actions.
+**When and where used.** Read by backend permission middleware, role grant administration and user exception handling.
+**Boundary in the RBAC system.** Resource-specific actions. This table participates in the approved 11-table centralized authorization design. It is not a source of Oracle Fusion employee profile attributes. Its responsibilities do not imply direct role or permission grants beyond the approved foreign-key model.
+
+## B. Approved column catalog
+| # | Column | Exact Oracle datatype | Nullability | Default / generation | Key / important validation | Representative value |
+|---:|---|---|---|---|---|---|
+| 1 | `PERMISSION_ID` | `NUMBER(19,0)` | NOT NULL | `GENERATED ALWAYS AS IDENTITY` | PK; NOT NULL / required; identity primary key; verify corresponding FK where present | `1004` |
+| 2 | `RESOURCE_ID` | `NUMBER(19,0)` | NOT NULL | `—` | FK; NOT NULL / required; verify corresponding FK where present | `101` |
+| 3 | `ACTION_CODE` | `VARCHAR2(40 CHAR)` | NOT NULL | `—` | —; NOT NULL / required; uppercase, trimmed, A–Z / 0–9 / underscore, starts with a letter | `APPROVE` |
+| 4 | `DESCRIPTION` | `VARCHAR2(500 CHAR)` | NULL allowed | `—` | —; Type/length/nullability plus table-specific business validation. | `Approve authorized production work orders` |
+| 5 | `IS_ACTIVE` | `NUMBER(1,0)` | NOT NULL | `1` | —; NOT NULL / required; 0 or 1 | `1` |
+| 6 | `CREATED_AT` | `TIMESTAMP(6) WITH TIME ZONE` | NOT NULL | `(SYSTIMESTAMP AT TIME ZONE 'UTC')` | —; NOT NULL / required; UTC event timestamp | `2026-10-17T08:30:00+00:00` |
+| 7 | `CREATED_BY` | `NUMBER(19,0)` | NULL allowed | `—` | FK; verify corresponding FK where present | `1` |
+| 8 | `UPDATED_AT` | `TIMESTAMP(6) WITH TIME ZONE` | NULL allowed | `—` | —; Type/length/nullability plus table-specific business validation. | `NULL` |
+| 9 | `UPDATED_BY` | `NUMBER(19,0)` | NULL allowed | `—` | FK; verify corresponding FK where present | `NULL` |
+
+### Column-by-column semantics, population and mutability
+**`PERMISSION_ID` — `NUMBER(19,0)`.** Stable identity for one resource-specific action, referenced by grants and overrides. **Population/change:** Generated on INSERT by Oracle; must never be rewritten or supplied by ordinary application clients. **Validation/security:** NOT NULL / required; identity primary key; verify corresponding FK where present **Example:** `1004`.
+
+**`RESOURCE_ID` — `NUMBER(19,0)`.** Required FK to XX_ZRV_RESOURCES.RESOURCE_ID defining the protected capability whose business action is cataloged. **Population/change:** Set on creation; any permitted change follows feature validation, RBAC authorization and audit rules. **Validation/security:** NOT NULL / required; verify corresponding FK where present **Example:** `101`.
+
+**`ACTION_CODE` — `VARCHAR2(40 CHAR)`.** Uppercase business-action identifier, such as VIEW/CREATE/UPDATE/APPROVE, unique per resource. **Population/change:** Set on provisioning/registration after normalization; treat as stable after first use and review changes that would affect references. **Validation/security:** NOT NULL / required; uppercase, trimmed, A–Z / 0–9 / underscore, starts with a letter **Example:** `APPROVE`.
+
+**`DESCRIPTION` — `VARCHAR2(500 CHAR)`.** Optional business-purpose explanation; no secrets or sensitive personal data. **Population/change:** Set on creation; any permitted change follows feature validation, RBAC authorization and audit rules. **Validation/security:** Type/length/nullability plus table-specific business validation. **Example:** `Approve authorized production work orders`.
+
+**`IS_ACTIVE` — `NUMBER(1,0)`.** Binary lifecycle switch for resource-specific actions (1 active, 0 inactive); deactivation preserves references and history. A disabled object has no effective authority through this record. **Population/change:** Defaults to 1; authorized administrators may switch 1↔0 with security audit and prompt effective-permission refresh. **Validation/security:** NOT NULL / required; 0 or 1 **Example:** `1`.
+
+**`CREATED_AT` — `TIMESTAMP(6) WITH TIME ZONE`.** UTC timestamp of row creation, with database default SYSTIMESTAMP AT TIME ZONE UTC. In the audit-log table specifically, it represents event recording time. **Population/change:** Set by Oracle UTC default if omitted; creation value must remain unchanged. **Validation/security:** NOT NULL / required; UTC event timestamp **Example:** `2026-10-17T08:30:00+00:00`.
+
+**`CREATED_BY` — `NUMBER(19,0)`.** Authenticated account responsible for creation where attributable. Nullable for approved bootstrap/self-service/system cases; USER_SESSIONS requires authenticated account, matching USER_ID. **Population/change:** Set from validated actor context at INSERT; do not rewrite later. **Validation/security:** verify corresponding FK where present **Example:** `1`.
+
+**`UPDATED_AT` — `TIMESTAMP(6) WITH TIME ZONE`.** UTC timestamp of last permitted record modification, nullable and initially NULL. The RBAC audit-log table is a special case where it must always remain NULL. **Population/change:** Initially NULL; set to the UTC change instant only when a real modification succeeds. **Validation/security:** Type/length/nullability plus table-specific business validation. **Example:** `NULL`.
+
+**`UPDATED_BY` — `NUMBER(19,0)`.** Authenticated account responsible for last permitted modification when attributable; nullable. The RBAC audit-log table is a special case where it must always remain NULL. **Population/change:** Initially NULL; set to validated actor only on permitted modification. **Validation/security:** verify corresponding FK where present **Example:** `NULL`.
+
+## C. Keys, constraints, validation and indexes
+The following constraint names and rules are transcribed from the previously prepared, **unexecuted** DDL snapshot. Database constraints protect row integrity; eligibility and authorization checks remain backend responsibilities.
+
+| Constraint | Approved rule / purpose | Failure prevented |
+|---|---|---|
+| `PK_ZRV_PERM` | Establishes immutable row identity; prevents ambiguous joins and records. `PRIMARY KEY (PERMISSION_ID)` | Without it, dependent FKs and precise event/row references would fail. |
+| `UQ_ZRV_PERM_RES_ACT` | Prohibits duplicate keys or assignment pairs, including previously deactivated rows. `UNIQUE (RESOURCE_ID, ACTION_CODE)` | Without it, repeated grants, inconsistent logins or duplicate policy decisions could occur. |
+| `CK_ZRV_PERM_ACTION` | Enforces canonical, stable machine-readable codes. `CHECK ( ACTION_CODE = TRIM(ACTION_CODE) AND REGEXP_LIKE(ACTION_CODE, '^[A-Z][A-Z0-9_]*$', 'c') )` | Without it, inconsistent casing or spacing could make authorization lookups disagree. |
+| `CK_ZRV_PERM_ACTIVE` | Restricts the column to agreed lifecycle or decision values. `CHECK (IS_ACTIVE IN (0, 1))` | Without it, the backend could receive unknown states and make unsafe policy assumptions. |
+| `FK_ZRV_PERM_RES` | Guarantees an existing referenced parent at insertion/update; ordinary deletion of referenced parent is restricted. `FOREIGN KEY (RESOURCE_ID) REFERENCES XX_ZRV_RESOURCES (RESOURCE_ID)` | Without it, orphan memberships, permissions or unattributable audit references would accumulate. |
+| `FK_ZRV_PERM_CBY` | Guarantees an existing referenced parent at insertion/update; ordinary deletion of referenced parent is restricted. `FOREIGN KEY (CREATED_BY) REFERENCES XX_ZRV_USERS (USER_ID)` | Without it, orphan memberships, permissions or unattributable audit references would accumulate. |
+| `FK_ZRV_PERM_UBY` | Guarantees an existing referenced parent at insertion/update; ordinary deletion of referenced parent is restricted. `FOREIGN KEY (UPDATED_BY) REFERENCES XX_ZRV_USERS (USER_ID)` | Without it, orphan memberships, permissions or unattributable audit references would accumulate. |
+
+**NOT NULL and defaults.** `NOT NULL` requirements are listed per column above. Oracle-generated identity IDs are not user-supplied. Explicit non-identity defaults in this table: `IS_ACTIVE` = `1`, `CREATED_AT` = `(SYSTIMESTAMP AT TIME ZONE 'UTC')`. SQL CHECK constraints do not replace Joi validation or safe backend state transitions.
+
+**Indexes.** Oracle normally supplies supporting indexes for PK/UNIQUE constraints; do not create duplicate equivalents. The separately approved/indexed reverse lookups are:
+No additional standalone index was approved for this table beyond its PK/UNIQUE support.
+
+**Constraint enforcement boundary.** A FK proves a parent row exists, not that the parent remains active; an expiry CHECK cannot consult the continuously changing clock; and a row CHECK cannot evaluate effective permissions across many tables. Those requirements belong in transaction-aware Node.js services and middleware.
+
+## D. Relationships and referential integrity
+**Parent tables:** [XX_ZRV_RESOURCES](XX_ZRV_RESOURCES.md), [XX_ZRV_USERS](XX_ZRV_USERS.md).
+**Child tables referencing this table:** [XX_ZRV_ROLE_PERMISSIONS](XX_ZRV_ROLE_PERMISSIONS.md), [XX_ZRV_USER_PERMISSION_OVERRIDES](XX_ZRV_USER_PERMISSION_OVERRIDES.md).
+
+| FK constraint | Child column | Parent key | Relationship meaning |
+|---|---|---|---|
+| `FK_ZRV_PERM_RES` | `XX_ZRV_PERMISSIONS.RESOURCE_ID` | `XX_ZRV_RESOURCES.RESOURCE_ID` | Many XX_ZRV_PERMISSIONS records can reference one parent record; nullability follows the column definition. |
+| `FK_ZRV_PERM_CBY` | `XX_ZRV_PERMISSIONS.CREATED_BY` | `XX_ZRV_USERS.USER_ID` | Many XX_ZRV_PERMISSIONS records can reference one parent record; nullability follows the column definition. |
+| `FK_ZRV_PERM_UBY` | `XX_ZRV_PERMISSIONS.UPDATED_BY` | `XX_ZRV_USERS.USER_ID` | Many XX_ZRV_PERMISSIONS records can reference one parent record; nullability follows the column definition. |
+
+**Direct parent relationship sketch** (conceptual cardinalities; nullable audit actor FKs may be absent):
+```mermaid
+erDiagram
+    XX_ZRV_RESOURCES ||--o{ XX_ZRV_PERMISSIONS : "references"
+    XX_ZRV_USERS ||--o{ XX_ZRV_PERMISSIONS : "references"
+```
+
+**Insertion/deletion rules:** Create core parents before dependent relationships. Oracle FKs prevent inserting nonexistent parent keys and ordinarily prevent deleting parents that still have referencing rows. Approved administration favors deactivation, revocation or expiration over hard deletion; never enable cascade deletion of access/audit history by convenience. Join through approved numeric IDs for RBAC and through verified employee number for Fusion profile context.
+
+## E. Operational usage and realistic example
+**Create:** When a verified business feature requires an enforceable action, an administrator registers that action for its resource.
+**Read:** At authorization for protected operations and when configuring grants.
+**Update:** IS_ACTIVE or descriptive text may be updated; ACTION_CODE is stable once referenced.
+**Deactivate/revoke/expire:** Set IS_ACTIVE=0; every role or user-level ALLOW referencing the permission becomes ineffective.
+
+**Illustrative record** (not real employee or operational data; credential secrets always redacted):
+| Column | Sample value |
+|---|---|
+| `PERMISSION_ID` | `1004` |
+| `RESOURCE_ID` | `101` |
+| `ACTION_CODE` | `APPROVE` |
+| `DESCRIPTION` | `Approve authorized production work orders` |
+| `IS_ACTIVE` | `1` |
+| `CREATED_AT` | `2026-10-17T08:30:00+00:00` |
+| `CREATED_BY` | `1` |
+| `UPDATED_AT` | `NULL` |
+| `UPDATED_BY` | `NULL` |
+
+**How to interpret the example.** This is one conceptual record in the Zamil-Revamp RBAC model, linked only to demonstrative other records (for example local user 105, production role 20, resource 101). A `NULL` sample is deliberately an allowed absence, not proof that the field is always NULL. Identifiers, employee numbers, times and client IP addresses are illustrative.
+
+## F. Complete record lifecycle
+1. **Pre-create:** Validate relevant parents, eligibility, required field types and authorization before issuing database work. When a verified business feature requires an enforceable action, an administrator registers that action for its resource.
+2. **Create:** Use a bind-variable INSERT omitting generated IDs and allowing the UTC default; populate verified actor and required business fields. Insert any critical security audit event in the same transaction.
+3. **Read/use:** At authorization for protected operations and when configuring grants.
+4. **Modify:** IS_ACTIVE or descriptive text may be updated; ACTION_CODE is stable once referenced. Enforce actual state transitions and audit actor metadata.
+5. **End effective life:** Set IS_ACTIVE=0; every role or user-level ALLOW referencing the permission becomes ineffective.
+6. **Historical/retention treatment:** Preserve referenced security history under the approved non-cascade approach; retention duration, archival implementation and privileged purge access are unresolved policy decisions unless stated otherwise below.
+
+## G. Security, access control and abuse prevention
+**Approved security and business invariants:**
+- UNIQUE (RESOURCE_ID, ACTION_CODE), with uppercase trimmed ACTION_CODE.
+- Action vocabulary can include VIEW, CREATE, UPDATE, APPROVE, REJECT, EXPORT, PRINT, CANCEL, ASSIGN or business-specific actions.
+- Do not automatically generate full CRUD for each resource; register only meaningful implemented actions.
+- A permission definition is neither ALLOW nor DENY: grants and overrides live in separate tables.
+- No implicit action hierarchy: APPROVE does not automatically confer UPDATE.
+
+**Database vs backend responsibilities.** Oracle enforces identity, uniqueness, FK references, supported CHECK conditions and exact typed values. The Node.js service must enforce the right administrator authority, current account/Fusion employee eligibility, active modules/resources/permissions, direct ALLOW/DENY precedence, mandatory MFA, record-level/organizational policy, rate limiting, secure time windows and cross-row concurrency. React may render allowed actions but is never the authoritative policy enforcement point.
+**Abuse cases:** protect against unauthorized self-assignment, stale access after revocation, tampered UI requests, forged identities, insecure logging and race conditions. Use parameterized SQL and least-privilege Oracle runtime grants. Password, TOTP and bearer-token values must never appear in logs or error details.
+
+## H. Audit fields and timezone conventions
+The approved shared standard uses **UTC exact event instants**, persisted as `TIMESTAMP(6) WITH TIME ZONE`, and presentation in **Asia/Riyadh** for Saudi users. The India development workstation timezone must not change stored instants. No event timestamp here is a date-only Oracle DATE business value.
+
+| Field | Population rule | Nullability / lifecycle |
+|---|---|---|
+| `CREATED_AT` | Set by Oracle UTC default if omitted; creation value must remain unchanged. | NOT NULL; UTC default. |
+| `CREATED_BY` | Set from validated actor context at INSERT; do not rewrite later. | NULL permitted; no default. |
+| `UPDATED_AT` | Initially NULL; set to the UTC change instant only when a real modification succeeds. | NULL permitted; no default. |
+| `UPDATED_BY` | Initially NULL; set to validated actor only on permitted modification. | NULL permitted; no default. |
+
+## I. Locked decisions, rejected alternatives, and unresolved items
+### Approved and locked — do not change without explicit authorization
+- UNIQUE (RESOURCE_ID, ACTION_CODE), with uppercase trimmed ACTION_CODE.
+- Action vocabulary can include VIEW, CREATE, UPDATE, APPROVE, REJECT, EXPORT, PRINT, CANCEL, ASSIGN or business-specific actions.
+- Do not automatically generate full CRUD for each resource; register only meaningful implemented actions.
+- A permission definition is neither ALLOW nor DENY: grants and overrides live in separate tables.
+- No implicit action hierarchy: APPROVE does not automatically confer UPDATE.
+
+### Discussed and explicitly excluded from this table
+- PERMISSION_CODE and PERMISSION_NAME (resource+action and resource display name suffice).
+- MODULE_ID/RESOURCE_CODE/RESOURCE_NAME (derivable from resource).
+- ALLOW/DENY flags (not a grant record).
+- API URL and HTTP verb.
+
+### Not Confirmed / Requires Clarification / Not Yet Decided
+- **Open item:** Approved action catalog per feature and handler-to-resource/action mapping: Not Yet Decided.
+
+### Decision rationale and trade-off
+The table is intentionally restricted to **resource-specific actions**. Adding the rejected fields would either duplicate normalized RBAC/Fusion facts, create conflicting sources of truth, or couple access controls to presentation or transport details. The compact design allows controlled expansion **only through a separately approved design change**. The present document records approval history; recommendations or open items are not retroactively approved.
+
+## J. Node.js / Express / React / Oracle integration
+**Expected service behavior.** Read by backend permission middleware, role grant administration and user exception handling. The owning feature service verifies policy and transactions; its repository performs bounded Oracle SQL using binds and shared pooled connections. Controllers validate request contracts using Joi and return sanitized standardized responses. Auth/session and resource/action checks belong in centralized middleware plus domain-level business services. **No API URL is defined or approved by this document.**
+**Typical repository operations.** When a verified business feature requires an enforceable action, an administrator registers that action for its resource. At authorization for protected operations and when configuring grants. IS_ACTIVE or descriptive text may be updated; ACTION_CODE is stable once referenced.
+**Transaction responsibility.** Services own one Oracle connection per transaction and commit related security state/audit inserts together when success must be atomic. For failed attempts, record an independent audit event rather than losing it to a business rollback. Never infer external Fusion integration atomicity from an Oracle local transaction.
+**React responsibilities.** Consume safe projected account/permission metadata only, never hash material, shared secrets, session bearer tokens or privileged raw audit details. Components display roles/permissions for usability; the backend repeats every mandatory check.
+**Error classes to test.** Invalid input (400-style validation), missing parent/not found, duplicate unique key/conflict, inactive or ineligible account, unauthorized action (403), expired/revoked credential, concurrency conflict, Oracle transaction failure and audit-write failure. Final status codes and route contracts remain feature-specific and **not approved here**.
+
+## K. Edge cases and expected handling
+- **Case:** Duplicate (RESOURCE_ID,ACTION_CODE) fails. **Expected:** Reject unsafe state, preserve referenced rows, report a safe error and create a security event where required.
+- **Case:** Lowercase action or invalid RESOURCE_ID fails. **Expected:** Reject unsafe state, preserve referenced rows, report a safe error and create a security event where required.
+- **Case:** Inactive permission denies despite active grants/overrides. **Expected:** Reject unsafe state, preserve referenced rows, report a safe error and create a security event where required.
+- **Case:** APPROVE permission alone does not imply DELETE or UPDATE. **Expected:** Reject unsafe state, preserve referenced rows, report a safe error and create a security event where required.
+
+**Concurrency:** Where multiple administrators or authentication requests act simultaneously, uniqueness and Oracle transactions are the last line of integrity defense; service-level guards must re-check current state while holding appropriate locks or implementing safe atomic updates. **Not Confirmed:** the final distributed cache invalidation and retry strategy.
+
+## L. Implementation checklist and verification guidance
+**Dependency and creation-order guidance:** `XX_ZRV_USERS` first (self-reference permitted), then ROLES and APP_MODULES, RESOURCES, PERMISSIONS, USER_ROLES, ROLE_PERMISSIONS, USER_PERMISSION_OVERRIDES, USER_SESSIONS, ACCOUNT_ACTION_TOKENS, RBAC_AUDIT_LOGS. Existing Fusion master is external, not created here. This order follows the previously produced SQL script; no runtime DDL is executed by these documents.
+
+**Database verification (planned, not executed):** inspect USER_TAB_COLUMNS, USER_CONSTRAINTS, USER_CONS_COLUMNS and USER_INDEXES for exact datatypes/defaults/nullable flags, FK parent names and checks; test required/invalid duplicate inserts in nonproduction and verify error outcomes. Confirm data dictionary and Oracle version compatibility before any deployment.
+
+**Specific acceptance tests (planned, not executed):
+- [ ] Duplicate (RESOURCE_ID,ACTION_CODE) fails.
+- [ ] Lowercase action or invalid RESOURCE_ID fails.
+- [ ] Inactive permission denies despite active grants/overrides.
+- [ ] APPROVE permission alone does not imply DELETE or UPDATE.
+
+**Cross-layer verification (planned, not executed):** exercise normal and failure workflows using Node.js native test runner and Supertest, plus isolated Oracle test data. Verify backend denial even when React controls are manipulated; check JSON/log redaction, role-cache freshness, safe ID precision, and precise UTC/KSA conversions. Record evidence of tests actually executed and never call planned checks "passed".
+
+**New recommendations, not approvals:** validate physical Oracle CHECK/DEFAULT compilation on the target ADW before running in production, secure least-privilege runtime grants, size operational log retention after actual workload measurement, and document an approved rollback/reconciliation plan. None modifies a locked field.
+
+## M. CREATE TABLE statement — documented existing DDL snapshot
+> **IMPORTANT:** The statement below is reproduced verbatim from the previously generated SQL file for technical reference. It has **not been executed or compiled against your Oracle instance**, and its inclusion is not approval to change the schema. Standalone CREATE TABLE may depend on parent tables being present; supporting indexes and append-only trigger, where applicable, follow separately.
+```sql
+CREATE TABLE XX_ZRV_PERMISSIONS (
+    PERMISSION_ID               NUMBER(19,0) GENERATED ALWAYS AS IDENTITY,
+    RESOURCE_ID                 NUMBER(19,0) NOT NULL,
+    ACTION_CODE                 VARCHAR2(40 CHAR) NOT NULL,
+    DESCRIPTION                 VARCHAR2(500 CHAR),
+    IS_ACTIVE                   NUMBER(1,0) DEFAULT 1 NOT NULL,
+    CREATED_AT                  TIMESTAMP(6) WITH TIME ZONE DEFAULT (SYSTIMESTAMP AT TIME ZONE 'UTC') NOT NULL,
+    CREATED_BY                  NUMBER(19,0),
+    UPDATED_AT                  TIMESTAMP(6) WITH TIME ZONE,
+    UPDATED_BY                  NUMBER(19,0),
+    CONSTRAINT PK_ZRV_PERM PRIMARY KEY (PERMISSION_ID),
+    CONSTRAINT UQ_ZRV_PERM_RES_ACT UNIQUE (RESOURCE_ID, ACTION_CODE),
+    CONSTRAINT CK_ZRV_PERM_ACTION CHECK (
+        ACTION_CODE = TRIM(ACTION_CODE)
+        AND REGEXP_LIKE(ACTION_CODE, '^[A-Z][A-Z0-9_]*$', 'c')
+    ),
+    CONSTRAINT CK_ZRV_PERM_ACTIVE CHECK (IS_ACTIVE IN (0, 1)),
+    CONSTRAINT FK_ZRV_PERM_RES FOREIGN KEY (RESOURCE_ID) REFERENCES XX_ZRV_RESOURCES (RESOURCE_ID),
+    CONSTRAINT FK_ZRV_PERM_CBY FOREIGN KEY (CREATED_BY) REFERENCES XX_ZRV_USERS (USER_ID),
+    CONSTRAINT FK_ZRV_PERM_UBY FOREIGN KEY (UPDATED_BY) REFERENCES XX_ZRV_USERS (USER_ID)
+);
+```
+
+## N. Related reading and traceability
+- Other directly related finalized table documents: [XX_ZRV_RESOURCES](XX_ZRV_RESOURCES.md), [XX_ZRV_ROLE_PERMISSIONS](XX_ZRV_ROLE_PERMISSIONS.md), [XX_ZRV_USERS](XX_ZRV_USERS.md), [XX_ZRV_USER_PERMISSION_OVERRIDES](XX_ZRV_USER_PERMISSION_OVERRIDES.md).
+- [README.md](README.md) — cross-table index, decision statuses, outstanding confirmation items and complete system-level authorization flow.
+- Approved backend architecture references (project `server/docs/`): `01-SYSTEM_ARCHITECTURE.md`, `02-API_DEVELOPMENT_STANDARDS.md`, `03-ORACLE_DATABASE_ARCHITECTURE.md`, `04-AUTHENTICATION_RBAC_SECURITY.md`, `05-CONFIGURATION_OPERATIONS.md`, `06-ARCHITECTURE_DECISIONS_GUIDELINES.md`. Only architecture 01/02 were retrievable by file search in this run; explicit RBAC approvals supersede their earlier "tables pending" wording.
+- Oracle DDL reference: previously generated `Zamil_Revamp_RBAC_11_Tables_Oracle_ADW.sql` (unexecuted static snapshot).
+- Documentation status: **Design APPROVED AND LOCKED; database execution and full integration verification NOT PERFORMED.**
