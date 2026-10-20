@@ -11,23 +11,29 @@ const UTC_NOW = "(SYSTIMESTAMP AT TIME ZONE 'UTC')";
 
 const INSERT_SESSION_SQL = `
   INSERT INTO xx_zrv_user_sessions (
-    user_id, session_token_hash, last_activity_at, expires_at,
+    user_id, session_token_hash, last_activity_at, expires_at, mfa_verified_at,
     login_ip_address, user_agent, created_by
   ) VALUES (
     :userId, :tokenHash, ${UTC_NOW}, ${UTC_NOW} + NUMTODSINTERVAL(:absoluteSeconds, 'SECOND'),
+    CASE WHEN :mfaVerified = 1 THEN ${UTC_NOW} END,
     :ipAddress, :userAgent, :userId
   )
   RETURNING session_id, expires_at INTO :sessionId, :expiresAt`;
 
-/** Persists a new session. Only the SHA-256 digest of the bearer token is stored. */
+/**
+ * Persists a new session. Only the SHA-256 digest of the bearer token is stored. `mfaVerified`
+ * records MFA assurance for this session (MFA_VERIFIED_AT). An MFA login challenge is a session row
+ * with a short lifetime and MFA_VERIFIED_AT NULL.
+ */
 export async function insertSession(
   connection,
-  { userId, tokenHash, absoluteSeconds, ipAddress, userAgent },
+  { userId, tokenHash, absoluteSeconds, ipAddress, userAgent, mfaVerified = false },
 ) {
   const result = await connection.execute(INSERT_SESSION_SQL, {
     userId,
     tokenHash,
     absoluteSeconds,
+    mfaVerified: mfaVerified ? 1 : 0,
     ipAddress,
     userAgent,
     sessionId: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 40 },
@@ -47,9 +53,11 @@ const FIND_SESSION_SQL = `
          s.expires_at,
          s.revoked_at,
          s.mfa_verified_at,
+         s.created_at,
          u.employee_number,
          u.account_status,
          u.password_changed_at,
+         u.locked_until,
          CASE WHEN u.mfa_enrolled_at IS NOT NULL OR u.mfa_totp_secret_encrypted IS NOT NULL
               THEN 1 ELSE 0 END AS mfa_enrolled,
          ${PRIVILEGE_COLUMNS.sql},
@@ -84,9 +92,11 @@ export async function findSessionByTokenHash(connection, tokenHash) {
     expiresAt: row.EXPIRES_AT,
     revokedAt: row.REVOKED_AT,
     mfaVerifiedAt: row.MFA_VERIFIED_AT,
+    createdAt: row.CREATED_AT,
     employeeNumber: row.EMPLOYEE_NUMBER,
     accountStatus: row.ACCOUNT_STATUS,
     passwordChangedAt: row.PASSWORD_CHANGED_AT,
+    lockedUntil: row.LOCKED_UNTIL,
     ...mapPrivilegeFlags(row),
     employee: row.EMPLOYEE_FOUND === 1 ? mapEmployee(row) : null,
     dbNow: row.DB_NOW,
@@ -137,4 +147,18 @@ const REVOKE_BY_TOKEN_HASH_SQL = `
 /** Revokes whatever session the browser presented before a new login replaces it. */
 export async function revokeSessionByTokenHash(connection, { tokenHash, actorUserId }) {
   await connection.execute(REVOKE_BY_TOKEN_HASH_SQL, { tokenHash, actorUserId });
+}
+
+const REVOKE_USER_SESSIONS_SQL = `
+  UPDATE xx_zrv_user_sessions
+     SET revoked_at = ${UTC_NOW},
+         updated_at = ${UTC_NOW},
+         updated_by = :actorUserId
+   WHERE user_id = :userId
+     AND revoked_at IS NULL`;
+
+/** Revokes every active session and MFA challenge of a user, e.g. when MFA changes (docs/07 §4). */
+export async function revokeUserSessions(connection, { userId, actorUserId }) {
+  const result = await connection.execute(REVOKE_USER_SESSIONS_SQL, { userId, actorUserId });
+  return result.rowsAffected;
 }

@@ -9,6 +9,17 @@ const SERVER_ROOT = resolve(import.meta.dirname, '../..');
 const ARGON2_MIN_MEMORY_KIB = 19456;
 const ARGON2_MIN_PASSES = 2;
 
+// Base64 that decodes to exactly 32 bytes; the decoded Buffer is what the application receives.
+const mfaKey = Joi.string()
+  .trim()
+  .custom((value, helpers) => {
+    const key = Buffer.from(value, 'base64');
+    if (key.length !== 32 || key.toString('base64') !== value.replace(/\s/g, '')) {
+      return helpers.message('"{{#label}}" must be base64 encoding exactly 32 random bytes');
+    }
+    return key;
+  });
+
 const originList = Joi.string()
   .allow('')
   .default('')
@@ -49,6 +60,13 @@ const poolSchema = (prefix, defaults) => ({
 const envSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'test', 'uat', 'production').required(),
   PORT: Joi.number().port().default(3000),
+  // Listener address. Local development/test binds to loopback only; deployments listen on all
+  // interfaces behind the approved gateway unless configured otherwise.
+  HTTP_HOST: Joi.when('NODE_ENV', {
+    is: Joi.valid(...INSECURE_COOKIE_ENVIRONMENTS),
+    then: Joi.string().ip().default('127.0.0.1'),
+    otherwise: Joi.string().ip().default('0.0.0.0'),
+  }),
   LOG_LEVEL: Joi.string()
     .valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent')
     .default('info'),
@@ -107,12 +125,35 @@ const envSchema = Joi.object({
   AUTH_ARGON2_MEMORY_KIB: Joi.number().integer().min(ARGON2_MIN_MEMORY_KIB).default(19456),
   AUTH_ARGON2_PASSES: Joi.number().integer().min(ARGON2_MIN_PASSES).max(16).default(2),
   AUTH_ARGON2_PARALLELISM: Joi.number().integer().min(1).max(16).default(1),
+
+  // TOTP secret protection key (base64, exactly 32 bytes), held outside Oracle. Without it MFA
+  // cannot be completed and mandatory-MFA users stay blocked (fail closed); required in UAT/prod.
+  AUTH_MFA_ENCRYPTION_KEY: Joi.when('NODE_ENV', {
+    is: Joi.valid(...INSECURE_COOKIE_ENVIRONMENTS),
+    then: mfaKey.optional(),
+    otherwise: mfaKey.required(),
+  }),
+  // Identifies the key inside each stored ciphertext, so a future rotation can tell keys apart.
+  AUTH_MFA_KEY_ID: Joi.string()
+    .pattern(/^[a-z0-9]{1,16}$/)
+    .default('k1'),
+  AUTH_MFA_ISSUER: Joi.string()
+    .trim()
+    .max(64)
+    .pattern(/^[^:]+$/)
+    .default('Zamil Revamp'),
+  AUTH_MFA_COOKIE_NAME: Joi.string()
+    .pattern(/^[A-Za-z0-9_-]+$/)
+    .invalid(Joi.ref('AUTH_SESSION_COOKIE_NAME'))
+    .default('__Host-zr_mfa'),
 })
   .custom((value, helpers) => {
-    if (value.AUTH_SESSION_COOKIE_NAME.startsWith('__Host-') && !value.AUTH_COOKIE_SECURE) {
-      return helpers.message(
-        '"AUTH_SESSION_COOKIE_NAME" with the __Host- prefix requires AUTH_COOKIE_SECURE=true',
-      );
+    for (const name of ['AUTH_SESSION_COOKIE_NAME', 'AUTH_MFA_COOKIE_NAME']) {
+      if (value[name].startsWith('__Host-') && !value.AUTH_COOKIE_SECURE) {
+        return helpers.message(
+          `"${name}" with the __Host- prefix requires AUTH_COOKIE_SECURE=true`,
+        );
+      }
     }
     return value;
   })
@@ -147,6 +188,7 @@ export function loadConfig(env) {
     logLevel: value.LOG_LEVEL,
     shutdownTimeoutMs: value.SHUTDOWN_TIMEOUT_MS,
     http: Object.freeze({
+      host: value.HTTP_HOST,
       trustProxyHops: value.TRUST_PROXY_HOPS,
       bodyLimit: value.REQUEST_BODY_LIMIT,
     }),
@@ -171,6 +213,12 @@ export function loadConfig(env) {
         memoryKiB: value.AUTH_ARGON2_MEMORY_KIB,
         passes: value.AUTH_ARGON2_PASSES,
         parallelism: value.AUTH_ARGON2_PARALLELISM,
+      }),
+      mfa: Object.freeze({
+        encryptionKey: value.AUTH_MFA_ENCRYPTION_KEY ?? null,
+        keyId: value.AUTH_MFA_KEY_ID,
+        issuer: value.AUTH_MFA_ISSUER,
+        cookieName: value.AUTH_MFA_COOKIE_NAME,
       }),
     }),
     database: Object.freeze({

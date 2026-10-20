@@ -268,3 +268,96 @@ export async function recordLoginSuccess(connection, userId) {
   const result = await connection.execute(RECORD_LOGIN_SUCCESS_SQL, { userId });
   return result.rowsAffected === 1;
 }
+
+const FIND_MFA_CREDENTIAL_SQL = `
+  SELECT mfa_totp_secret_encrypted, mfa_last_used_step
+    FROM xx_zrv_users
+   WHERE user_id = :userId
+     AND mfa_totp_secret_encrypted IS NOT NULL
+     AND mfa_enrolled_at IS NOT NULL`;
+
+/**
+ * The enrolled TOTP credential (encrypted secret and last accepted step), or null when the user has
+ * no active authenticator. The encrypted value is passed only to the MFA key ring, never returned.
+ */
+export async function findMfaCredential(connection, userId) {
+  const result = await connection.execute(
+    FIND_MFA_CREDENTIAL_SQL,
+    { userId },
+    { outFormat: oracledb.OUT_FORMAT_OBJECT },
+  );
+  const [row] = result.rows;
+  return row
+    ? { encryptedSecret: row.MFA_TOTP_SECRET_ENCRYPTED, lastUsedStep: row.MFA_LAST_USED_STEP }
+    : null;
+}
+
+const RECORD_MFA_STEP_SQL = `
+  UPDATE xx_zrv_users
+     SET mfa_last_used_step = :step,
+         updated_at = ${UTC_NOW},
+         updated_by = :userId
+   WHERE user_id = :userId
+     AND mfa_totp_secret_encrypted IS NOT NULL
+     AND (mfa_last_used_step IS NULL OR mfa_last_used_step < :step)`;
+
+/**
+ * Atomically consumes a TOTP time step. Returns false when the step (or a later one) was already
+ * used, e.g. by a concurrent request with the same code: the code must then be refused as a replay.
+ */
+export async function recordMfaStep(connection, { userId, step }) {
+  const result = await connection.execute(RECORD_MFA_STEP_SQL, { userId, step });
+  return result.rowsAffected === 1;
+}
+
+const ENROLL_MFA_SQL = `
+  UPDATE xx_zrv_users
+     SET mfa_totp_secret_encrypted = :encryptedSecret,
+         mfa_enrolled_at = ${UTC_NOW},
+         mfa_last_used_step = :step,
+         updated_at = ${UTC_NOW},
+         updated_by = :userId
+   WHERE user_id = :userId
+     AND mfa_totp_secret_encrypted IS NULL
+     AND mfa_enrolled_at IS NULL`;
+
+/**
+ * Activates the first authenticator after proof of possession, recording the verified step.
+ * Satisfies CK_ZRV_USERS_MFA (secret and enrolment time together). Never replaces an existing
+ * authenticator: returns false if one is already enrolled (replacement is a recovery operation).
+ */
+export async function enrollMfa(connection, { userId, encryptedSecret, step }) {
+  const result = await connection.execute(ENROLL_MFA_SQL, { userId, encryptedSecret, step });
+  return result.rowsAffected === 1;
+}
+
+const REPLACE_MFA_SQL = `
+  UPDATE xx_zrv_users
+     SET mfa_totp_secret_encrypted = :encryptedSecret,
+         mfa_enrolled_at = ${UTC_NOW},
+         mfa_last_used_step = :step,
+         updated_at = ${UTC_NOW},
+         updated_by = :userId
+   WHERE user_id = :userId
+     AND mfa_totp_secret_encrypted = :currentEncryptedSecret
+     AND mfa_enrolled_at IS NOT NULL
+     AND account_status = 'ACTIVE'
+     AND (locked_until IS NULL OR locked_until <= SYSTIMESTAMP)`;
+
+/**
+ * Replaces the enrolled authenticator after the new one was verified (optimistic concurrency): the
+ * update applies only while the stored ciphertext is still the one the caller read, and the account
+ * is ACTIVE and not locked. Returns false when another change won; the old secret is then kept.
+ */
+export async function replaceMfa(
+  connection,
+  { userId, currentEncryptedSecret, encryptedSecret, step },
+) {
+  const result = await connection.execute(REPLACE_MFA_SQL, {
+    userId,
+    currentEncryptedSecret,
+    encryptedSecret,
+    step,
+  });
+  return result.rowsAffected === 1;
+}

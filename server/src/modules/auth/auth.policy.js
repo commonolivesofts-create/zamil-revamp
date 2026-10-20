@@ -70,6 +70,25 @@ for (const [name, list] of Object.entries(PRIVILEGE_CLASSIFICATION)) {
   }
 }
 
+/*
+ * Authenticator-app TOTP (RFC 6238) as supported by common authenticator apps: SHA-1, 6 digits,
+ * 30-second steps, a 160-bit secret, and ±1 step of clock tolerance. Each accepted step is recorded in
+ * XX_ZRV_USERS.MFA_LAST_USED_STEP and can never be used again (replay prevention).
+ *
+ * The MFA login challenge is a short-lived XX_ZRV_USER_SESSIONS row with MFA_VERIFIED_AT NULL that is
+ * accepted only by the MFA endpoints; a normal session is issued only after verification.
+ */
+export const MFA_POLICY = Object.freeze({
+  algorithm: 'SHA1',
+  digits: 6,
+  periodSeconds: 30,
+  allowedDriftSteps: 1,
+  secretBytes: 20,
+  challengeLifetimeMs: 10 * MINUTE_MS,
+  // Authenticator replacement requires MFA verified on the current session within this window.
+  replacementRecentVerificationMs: 10 * MINUTE_MS,
+});
+
 // Upper bound accepted at login. Above PASSWORD_POLICY.maxLength so that a password set by an
 // earlier process is never truncated, but small enough to bound hashing work per request.
 export const LOGIN_PASSWORD_MAX_LENGTH = 256;

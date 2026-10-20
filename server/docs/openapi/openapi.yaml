@@ -101,6 +101,17 @@ paths:
         Rate limited per client IP (default 60 attempts per minute, per server
         process). No CSRF token is required (there is no session yet); the
         Origin check applies.
+
+
+        **MFA.** When MFA is mandatory (Zaid, protected administrator roles, any
+        effective security-administration permission) or voluntarily enrolled,
+        a correct password does **not** create a session: the response is
+        `authenticated: false` with an MFA challenge (10-minute, single-use,
+        HttpOnly `__Host-zr_mfa` cookie plus its CSRF token). Complete it with
+        `POST /api/v1/auth/mfa/verify`, or for a first-time authenticator with
+        `/mfa/enrollment` and `/mfa/enrollment/confirm`. The consecutive-failure
+        counter is reset only after MFA succeeds. If the server has no MFA key,
+        such accounts receive `403 MFA_REQUIRED` (fail closed).
       requestBody:
         required: true
         content:
@@ -110,15 +121,19 @@ paths:
       responses:
         '200':
           description: >-
-            Signed in. The session cookie is set; the body contains the profile,
-            session limits, password expiry and the CSRF token for later writes.
+            Either signed in (`authenticated: true`; the session cookie is set and
+            the body contains the profile, session limits, password expiry and the
+            CSRF token), or the password was correct and MFA is still required
+            (`authenticated: false`; only the MFA challenge cookie is set).
           headers:
             X-Request-Id:
               $ref: '#/components/headers/RequestId'
             Set-Cookie:
               description: >-
-                `__Host-zr_session=<opaque token>; Path=/; Expires=<absolute expiry>;
-                HttpOnly; Secure; SameSite=Lax` (cookie name is configurable).
+                Signed in: `__Host-zr_session=<opaque token>; Path=/; Expires=<absolute
+                expiry>; HttpOnly; Secure; SameSite=Lax`. MFA required:
+                `__Host-zr_mfa=<opaque challenge token>; Path=/; Expires=<challenge
+                expiry>; HttpOnly; Secure; SameSite=Lax`. Cookie names are configurable.
               schema:
                 type: string
           content:
@@ -129,7 +144,9 @@ paths:
                   - type: object
                     properties:
                       data:
-                        $ref: '#/components/schemas/LoginResult'
+                        oneOf:
+                          - $ref: '#/components/schemas/LoginResult'
+                          - $ref: '#/components/schemas/MfaChallenge'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -150,14 +167,11 @@ paths:
                   requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
         '403':
           description: >-
-            The password was correct but no session can be issued.
-            `MFA_REQUIRED`: MFA is mandatory for this account (protected
-            administrator, administrator role, security-administration
-            permission, or, until the privileged catalogue is approved, any
-            access grant) or the user has enrolled MFA; MFA verification is not
-            yet available. `PASSWORD_EXPIRED`: the password is 90 or more days
-            old, or no password-change time is recorded. `CSRF_REJECTED`: the
-            Origin check failed.
+            The password was correct but no session or challenge can be issued.
+            `MFA_REQUIRED`: MFA is required but the server has no MFA key
+            configured (fail closed). `PASSWORD_EXPIRED`: the password is 90 or
+            more days old, or no password-change time is recorded.
+            `CSRF_REJECTED`: the Origin check failed.
           headers:
             X-Request-Id:
               $ref: '#/components/headers/RequestId'
@@ -173,7 +187,7 @@ paths:
                       code: MFA_REQUIRED
                       message: >-
                         This account requires multi-factor verification, which is not
-                        yet available. Contact your administrator.
+                        available right now. Contact your administrator.
                     meta:
                       requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
                 passwordExpired:
@@ -190,6 +204,242 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/mfa/enrollment:
+    post:
+      operationId: startMfaEnrollment
+      tags: [Authentication]
+      summary: Start first-time authenticator enrollment
+      description: >-
+        For a user in an MFA challenge who has no authenticator yet. Returns the
+        TOTP secret and `otpauth://` URI to show once (for example as a QR code).
+        Nothing is stored until `/mfa/enrollment/confirm` proves possession. The
+        secret is derived from the challenge, so repeating this call within the
+        same challenge returns the same secret; a new sign-in gives a new one.
+        Never replaces an existing authenticator (`409 MFA_ALREADY_ENROLLED`).
+      security:
+        - mfaChallengeCookie: []
+      parameters:
+        - $ref: '#/components/parameters/MfaCsrfToken'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Enrollment secret (shown once; never logged).
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MfaEnrollment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/MfaChallengeInvalid'
+        '403':
+          $ref: '#/components/responses/CsrfRejected'
+        '409':
+          $ref: '#/components/responses/MfaConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/MfaUnavailable'
+  /api/v1/auth/mfa/enrollment/confirm:
+    post:
+      operationId: confirmMfaEnrollment
+      tags: [Authentication]
+      summary: Confirm authenticator enrollment and sign in
+      description: >-
+        Verifies a code from the new authenticator (proof of possession), stores
+        the encrypted secret, revokes every other session of the user (MFA change)
+        and issues an MFA-verified session. A wrong code counts toward the
+        5-failure / 15-minute lockout.
+      security:
+        - mfaChallengeCookie: []
+      parameters:
+        - $ref: '#/components/parameters/MfaCsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MfaCodeRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/MfaSignedIn'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/MfaVerificationFailed'
+        '403':
+          $ref: '#/components/responses/CsrfRejected'
+        '409':
+          $ref: '#/components/responses/MfaConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/MfaUnavailable'
+  /api/v1/auth/mfa/verify:
+    post:
+      operationId: verifyMfa
+      tags: [Authentication]
+      summary: Verify an authenticator code and sign in
+      description: >-
+        Verifies a 6-digit TOTP code (SHA-1, 30-second steps, ±1 step tolerance)
+        for the challenge's user. Each time step is accepted only once (replays
+        are refused). On success the challenge is revoked and an MFA-verified
+        session is issued (15-minute idle timeout for privileged users, 30 minutes
+        otherwise). Wrong or replayed codes count toward the lockout; a lock ends
+        the challenge.
+      security:
+        - mfaChallengeCookie: []
+      parameters:
+        - $ref: '#/components/parameters/MfaCsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MfaCodeRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/MfaSignedIn'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/MfaVerificationFailed'
+        '403':
+          $ref: '#/components/responses/CsrfRejected'
+        '409':
+          $ref: '#/components/responses/MfaConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/MfaUnavailable'
+  /api/v1/auth/mfa/replacement:
+    post:
+      operationId: startMfaReplacement
+      tags: [Authentication]
+      summary: Start replacing the enrolled authenticator
+      description: >-
+        For a signed-in user whose MFA was verified on the current session within
+        the last 10 minutes (sign in again otherwise). Returns a new candidate TOTP
+        secret, derived under a separate purpose from enrollment and bound to this
+        session and the stored secret; nothing is stored until
+        `/mfa/replacement/confirm`. Refusals are audited as `ACCESS_DENIED`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: New authenticator setup material (shown once; never logged).
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MfaEnrollment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/MfaRecentVerificationRequired'
+        '409':
+          $ref: '#/components/responses/MfaConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/MfaUnavailable'
+  /api/v1/auth/mfa/replacement/confirm:
+    post:
+      operationId: confirmMfaReplacement
+      tags: [Authentication]
+      summary: Confirm the new authenticator and replace the old one
+      description: >-
+        Verifies a code from the NEW authenticator, then atomically replaces the
+        stored secret (only if it is unchanged since it was read) and revokes every
+        session and MFA challenge of the user, including the current session. Both
+        cookies are cleared; sign in again with the password and the new
+        authenticator. Codes from the old authenticator are never accepted again.
+        Recorded as `SESSION_REVOKED` with reason `MFA_REPLACED`. A wrong code is
+        audited as `ACCESS_DENIED` and counts toward the 5-failure lockout; a
+        lockout ends every session of the user.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MfaCodeRequest'
+      responses:
+        '200':
+          description: Authenticator replaced; all sessions revoked and cookies cleared.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Set-Cookie:
+              description: Session and MFA challenge cookies cleared.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MfaReplacementResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/MfaVerificationFailed'
+        '403':
+          $ref: '#/components/responses/MfaRecentVerificationRequired'
+        '409':
+          $ref: '#/components/responses/MfaConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/MfaUnavailable'
   /api/v1/auth/me:
     get:
       operationId: getCurrentUser
@@ -391,12 +641,27 @@ components:
         browser sends it automatically). The cookie name is deployment
         configurable. This scheme describes authentication only; it does not
         imply any business permission.
+    mfaChallengeCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-zr_mfa
+      description: >-
+        Opaque MFA challenge token set by `POST /api/v1/auth/login` after a correct
+        password when MFA is required. Valid for 10 minutes, single use, accepted
+        only by the `/api/v1/auth/mfa/*` endpoints and never as a session.
   parameters:
     CsrfToken:
       name: X-CSRF-Token
       in: header
       required: true
       description: Session-bound CSRF token from the login response or `GET /api/v1/auth/csrf`.
+      schema:
+        type: string
+    MfaCsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: Challenge-bound CSRF token from the login response that issued the challenge.
       schema:
         type: string
   headers:
@@ -509,10 +774,86 @@ components:
         headerName:
           type: string
           const: X-CSRF-Token
+    MfaChallenge:
+      type: object
+      required: [authenticated, mfa, csrf]
+      properties:
+        authenticated:
+          const: false
+        mfa:
+          type: object
+          required: [required, enrollmentRequired, expiresAt]
+          properties:
+            required:
+              const: true
+            enrollmentRequired:
+              type: boolean
+              description: True when no authenticator is set up yet (use the enrollment endpoints).
+            expiresAt:
+              type: string
+              format: date-time
+              description: Challenge expiry (UTC), 10 minutes after the password was verified.
+        csrf:
+          $ref: '#/components/schemas/CsrfToken'
+    MfaEnrollment:
+      type: object
+      required:
+        [secret, otpauthUri, issuer, accountName, algorithm, digits, periodSeconds, expiresAt]
+      properties:
+        secret:
+          type: string
+          description: >-
+            Base32 TOTP secret (160 bits). Show once; never store client-side or copy
+            into chats, tickets or logs.
+        otpauthUri:
+          type: string
+          description: >-
+            Key URI for authenticator apps (render as a QR code). The label is
+            `<issuer>:<accountName>`, each URL-encoded, joined by a literal colon.
+        issuer:
+          type: string
+          description: Issuer shown by the authenticator app.
+        accountName:
+          type: string
+          description: Account name shown by the authenticator app (the USER_NAME).
+        algorithm:
+          const: SHA1
+        digits:
+          const: 6
+        periodSeconds:
+          const: 30
+        expiresAt:
+          type: string
+          format: date-time
+          description: >-
+            Confirm before this time: the challenge expiry (enrollment), or 10 minutes
+            after MFA was verified on the session (replacement).
+    MfaReplacementResult:
+      type: object
+      required: [replaced, sessionsRevoked, reauthenticationRequired]
+      properties:
+        replaced:
+          const: true
+        sessionsRevoked:
+          type: integer
+          description: Sessions and challenges of the user revoked, including the current session.
+        reauthenticationRequired:
+          const: true
+    MfaCodeRequest:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          description: The current 6-digit code from the authenticator app.
     LoginResult:
       type: object
-      required: [user, session, password, csrf]
+      required: [authenticated, user, session, password, csrf]
       properties:
+        authenticated:
+          const: true
         user:
           $ref: '#/components/schemas/AuthUser'
         session:
@@ -602,6 +943,120 @@ components:
               type: string
               const: UP
   responses:
+    MfaSignedIn:
+      description: >-
+        MFA verified and signed in. The session cookie is set (with
+        `mfaVerified: true`) and the MFA challenge cookie is cleared.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+        Set-Cookie:
+          description: Session cookie set; `__Host-zr_mfa` cleared.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LoginResult'
+    MfaChallengeInvalid:
+      description: >-
+        No usable MFA challenge (missing, expired, used, or the account is no
+        longer eligible). Sign in again.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: MFA_CHALLENGE_INVALID
+              message: Your sign-in has expired or is no longer valid. Sign in again.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    MfaVerificationFailed:
+      description: >-
+        `MFA_VERIFICATION_FAILED`: wrong, expired or replayed code (counted toward
+        the lockout). `MFA_CHALLENGE_INVALID`: no usable challenge.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: MFA_VERIFICATION_FAILED
+              message: The verification code is incorrect, expired or already used.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    MfaRecentVerificationRequired:
+      description: >-
+        `MFA_RECENT_VERIFICATION_REQUIRED`: MFA was not verified on this session
+        within the last 10 minutes (or not at all). `CSRF_REJECTED`: the Origin or
+        X-CSRF-Token check failed.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: MFA_RECENT_VERIFICATION_REQUIRED
+              message: Sign in again with your authenticator, then make this change within 10 minutes.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    MfaConflict:
+      description: >-
+        `MFA_ENROLLMENT_REQUIRED`: no authenticator yet (use the enrollment
+        endpoints). `MFA_ALREADY_ENROLLED`: an authenticator exists and cannot be
+        enrolled again (use the replacement endpoints from an MFA-verified
+        session). `MFA_REPLACEMENT_CONFLICT`: the stored authenticator changed
+        concurrently; nothing was replaced by this request.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: MFA_ALREADY_ENROLLED
+              message: An authenticator is already set up for this account.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    MfaUnavailable:
+      description: MFA cannot be completed (no MFA key configured, or a stored secret is unreadable).
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: MFA_UNAVAILABLE
+              message: >-
+                Multi-factor verification is temporarily unavailable. Contact your
+                administrator.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     ValidationError:
       description: Request validation failed. Submitted values are never echoed.
       headers:

@@ -68,6 +68,18 @@ const DML = {
   'session.revokeSessionByTokenHash': (c) =>
     sessionRepository.revokeSessionByTokenHash(c, { tokenHash: dummyHash, actorUserId: null }),
   'audit.insertAuditEvent': (c) => auditRepository.insertAuditEvent(c, {}),
+  'session.revokeUserSessions': (c) =>
+    sessionRepository.revokeUserSessions(c, { userId: '0', actorUserId: null }),
+  'auth.recordMfaStep': (c) => authRepository.recordMfaStep(c, { userId: '0', step: 1 }),
+  'auth.enrollMfa': (c) =>
+    authRepository.enrollMfa(c, { userId: '0', encryptedSecret: 'x', step: 1 }),
+  'auth.replaceMfa': (c) =>
+    authRepository.replaceMfa(c, {
+      userId: '0',
+      currentEncryptedSecret: 'x',
+      encryptedSecret: 'y',
+      step: 1,
+    }),
 };
 
 // --- Synthetic classification vectors (user 1 is the subject) -------------------------------
@@ -299,6 +311,12 @@ try {
         `employeeRowCount=${describeType(row.employee.employeeRowCount)}`,
         `terminationStatus=${row.employee.terminationStatus}`,
       ].join(', ');
+    });
+
+    await check('auth.findMfaCredential (nonexistent user)', async () => {
+      const credential = await authRepository.findMfaCredential(connection, '0');
+      if (credential !== null) throw new Error('expected no credential');
+      return 'no row';
     });
 
     await check('session.findSessionByTokenHash (random digest)', async () => {
