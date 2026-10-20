@@ -454,6 +454,7 @@ export function createTestApp(store, authOverrides) {
       auditRepository: store.auditRepository,
       authorizationRepository: store.authorizationRepository,
       rbacRepository: store.rbacRepository,
+      usersRepository: store.usersRepository,
       argon2Cost: TEST_ARGON2_COST,
     },
   });

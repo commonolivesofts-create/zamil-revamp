@@ -18,6 +18,7 @@ import {
 } from '../src/modules/audit/securityAudit.service.js';
 import * as authorizationRepository from '../src/modules/access-control/authorization.repository.js';
 import * as rbacRepository from '../src/modules/access-control/rbac.repository.js';
+import * as usersRepository from '../src/modules/users/users.repository.js';
 import * as authRepository from '../src/modules/auth/auth.repository.js';
 import * as sessionRepository from '../src/modules/auth/session.repository.js';
 
@@ -150,6 +151,15 @@ const DML = {
     }),
   'rbac.revokeOverride': (c) =>
     rbacRepository.revokeOverride(c, { userId: '0', permissionId: '0', actorUserId: '0' }),
+  // Phase 04 user administration.
+  'users.insertUser': (c) =>
+    usersRepository.insertUser(c, { employeeNumber: 'X', actorUserId: '0' }),
+  'users.activateUser': (c) => usersRepository.activateUser(c, { userId: '0', actorUserId: '0' }),
+  'users.disableUser': (c) => usersRepository.disableUser(c, { userId: '0', actorUserId: '0' }),
+  'users.revokeUserSession': (c) =>
+    usersRepository.revokeUserSession(c, { userId: '0', sessionId: '0', actorUserId: '0' }),
+  'users.revokeActionTokens': (c) =>
+    usersRepository.revokeActionTokens(c, { userId: '0', actorUserId: '0' }),
 };
 
 // --- Synthetic classification vectors (user 1 is the subject) -------------------------------
@@ -574,8 +584,15 @@ try {
         return '0 rows';
       },
       'rbac.findUser (0)': async () => String(await rbacRepository.findUser(connection, '0')),
-      'rbac.listActiveRoleCodes (0)': () =>
-        count(rbacRepository.listActiveRoleCodes(connection, '0')),
+      // The Super Administrator must be classified as privileged by the shared classification.
+      'rbac.findUser (USER_ID 1) classification': async () => {
+        const user = await rbacRepository.findUser(connection, '1');
+        if (!user) return 'no USER_ID 1';
+        if (!user.isPrivilegedRoleMember || !user.hasSecurityAdministration) {
+          throw new Error('Super Administrator not classified as privileged');
+        }
+        return 'privilegedRole=true, securityAdministration=true';
+      },
       'rbac.listRoles': async () => {
         const page = await rbacRepository.listRoles(connection, { limit: 5, offset: 0 });
         return `total=${page.total} (${typeof page.total}), page=${page.items.length}`;
@@ -599,6 +616,74 @@ try {
       'rbac.listUserOverrides (0)': () => count(rbacRepository.listUserOverrides(connection, '0')),
     };
     for (const [label, fn] of Object.entries(reads)) await check(label, fn);
+
+    // Phase 04 user administration SELECTs (counts, types and booleans only; no employee data).
+    const page = { limit: 5, offset: 0 };
+    const userReads = {
+      'users.listUsers (no filter)': async () => {
+        const r = await usersRepository.listUsers(connection, {
+          ...page,
+          sortBy: 'employeeNumber',
+        });
+        return `total=${r.total} (${typeof r.total}), page=${r.items.length}`;
+      },
+      'users.listUsers (all filters, escaped search, desc)': async () => {
+        const r = await usersRepository.listUsers(connection, {
+          ...page,
+          filters: { search: '%\\%\\_%', status: 'ACTIVE', mfaEnrolled: true, locked: false },
+          sortBy: 'lastLoginAt',
+          sortOrder: 'desc',
+        });
+        if (r.total !== 0) throw new Error('escaped wildcard search must match nothing');
+        return 'total=0';
+      },
+      ...Object.fromEntries(
+        ['username', 'createdAt'].map((sortBy) => [
+          `users.listUsers (sort ${sortBy})`,
+          async () =>
+            `page=${(await usersRepository.listUsers(connection, { ...page, sortBy })).items.length}`,
+        ]),
+      ),
+      'users.findUserDetail (0)': async () =>
+        String(await usersRepository.findUserDetail(connection, '0')),
+      'users.findUserDetail (USER_ID 1)': async () => {
+        const u = await usersRepository.findUserDetail(connection, '1');
+        if (!u) return 'no USER_ID 1';
+        return [
+          `status=${u.accountStatus}`,
+          `passwordSet=${u.passwordSet}`,
+          `employee=${u.employee ? 'linked' : 'none'}`,
+          `privilegedRole=${u.isPrivilegedRoleMember}`,
+          `dbNow=${describeType(u.dbNow)}`,
+        ].join(', ');
+      },
+      'users.listActiveSessions (0)': async () =>
+        `${(await usersRepository.listActiveSessions(connection, '0')).length} rows`,
+      'users.findSession (0)': async () =>
+        String(await usersRepository.findSession(connection, { userId: '0', sessionId: '0' })),
+      'users.listEmployeeCandidates': async () => {
+        const r = await usersRepository.listEmployeeCandidates(connection, {
+          ...page,
+          hasAccount: false,
+        });
+        const types = r.items.map((c) => typeof c.usernameCount);
+        return `total=${r.total}, page=${r.items.length}, usernameCount=${types[0] ?? 'n/a'}`;
+      },
+      'users.listEmployeeCandidates (search, with account)': async () => {
+        const r = await usersRepository.listEmployeeCandidates(connection, {
+          ...page,
+          search: '%A%',
+          hasAccount: true,
+        });
+        return `total=${r.total}`;
+      },
+      'users.findEmployeeCandidate (unknown)': async () => {
+        const r = await usersRepository.findEmployeeCandidate(connection, 'ZR-VERIFY-NONE');
+        if (r.length !== 0) throw new Error(`expected 0, got ${r.length}`);
+        return '0 rows';
+      },
+    };
+    for (const [label, fn] of Object.entries(userReads)) await check(label, fn);
 
     // Decision 07: evaluate the deployed CHECK conditions for every catalogue value.
     const checks = await connection.execute(

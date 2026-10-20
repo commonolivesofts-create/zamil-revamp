@@ -744,3 +744,131 @@ describe('RBAC administration rules', () => {
     assert.deepEqual(overrides.body.data, []);
   });
 });
+
+// Phase 03/04 alignment: an account with any *effective* security-administration permission is an
+// administrator account (shared PRIVILEGE_COLUMNS classification), even without an administrator
+// role. Only the Super Administrator may change its roles or overrides.
+describe('security-administration holders are protected accounts', () => {
+  let f;
+  let zaid;
+  let admin;
+  let auditView;
+  beforeEach(async () => {
+    f = setup();
+    zaid = await signIn(f.store, f.zaid);
+    admin = await signIn(f.store, f.admin);
+    auditView = f.rbac.permission(SEC, 'SECURITY_AUDIT', 'VIEW');
+  });
+  const send = (method, path, session, body) => {
+    const req = request(f.app)
+      [method](`${BASE}${path}`)
+      .set('Cookie', session.cookie)
+      .set('X-CSRF-Token', session.csrf);
+    return body === undefined ? req : req.send(body);
+  };
+  const assign = (session) =>
+    send('put', `/users/${f.other.userId}/roles/${f.viewer.roleId}`, session, {});
+  const unassign = (session) =>
+    send('delete', `/users/${f.other.userId}/roles/${f.viewer.roleId}`, session);
+  const setDeny = (session) =>
+    send('put', `/users/${f.other.userId}/overrides/${f.view.permissionId}`, session, {
+      effect: 'DENY',
+      justification: 'regression test',
+    });
+  const revokeDeny = (session) =>
+    send('delete', `/users/${f.other.userId}/overrides/${f.view.permissionId}`, session);
+  const assertProtected = async () => {
+    for (const res of [
+      await assign(admin),
+      await unassign(admin),
+      await setDeny(admin),
+      await revokeDeny(admin),
+    ]) {
+      assert.equal(res.status, 403, JSON.stringify(res.body));
+      assert.equal(res.body.error.code, 'PROTECTED_ACCOUNT');
+      assert.equal(f.store.auditEvents('ACCESS_DENIED').at(-1).reasonCode, 'PROTECTED_ACCOUNT');
+    }
+    assert.equal(
+      f.rbac
+        .tables()
+        .userRoles.some((ur) => ur.userId === f.other.userId && ur.roleId === f.viewer.roleId),
+      false,
+    );
+    // The Super Administrator still may.
+    assert.equal((await assign(zaid)).status, 200);
+    assert.equal((await setDeny(zaid)).status, 200);
+  };
+  const assertOrdinary = async () => {
+    assert.equal((await assign(admin)).status, 200);
+    assert.equal((await setDeny(admin)).status, 200);
+  };
+  const auditors = () => {
+    const role = f.rbac.addRole('SECURITY_AUDITORS');
+    f.rbac.grant(role, auditView);
+    return role;
+  };
+
+  it('protects a direct, active ALLOW override on a security permission', async () => {
+    f.rbac.override(f.other, auditView, 'ALLOW');
+    await assertProtected();
+  });
+
+  it('protects a role-derived security permission without an administrator role', async () => {
+    f.rbac.assign(f.other, auditors());
+    await assertProtected();
+  });
+
+  it('does not protect through an inactive role grant', async () => {
+    const role = auditors();
+    f.rbac.assign(f.other, role);
+    f.rbac.tables().rolePermissions.find((g) => g.roleId === role.roleId).isActive = false;
+    await assertOrdinary();
+  });
+
+  it('does not protect through an expired membership, inactive role or expired ALLOW', async () => {
+    const role = auditors();
+    f.rbac.assign(f.other, role, { expiresAt: new Date(f.store.now().getTime() - 1) });
+    f.rbac.override(f.other, auditView, 'ALLOW', {
+      expiresAt: new Date(f.store.now().getTime() - 1),
+    });
+    await assertOrdinary();
+    f.rbac.tables().userRoles.find((ur) => ur.roleId === role.roleId).expiresAt = null;
+    role.isActive = false;
+    assert.equal((await unassign(admin)).status, 200);
+  });
+
+  it('does not protect through an inactive security permission', async () => {
+    f.rbac.assign(f.other, auditors());
+    auditView.isActive = false;
+    await assertOrdinary();
+  });
+
+  it('does not protect when an effective DENY removes the security permission', async () => {
+    f.rbac.assign(f.other, auditors());
+    f.rbac.override(f.other, auditView, 'DENY');
+    await assertOrdinary();
+    // Lifting that DENY would restore security access: Super Administrator only.
+    const lift = await send(
+      'delete',
+      `/users/${f.other.userId}/overrides/${auditView.permissionId}`,
+      admin,
+    );
+    assert.equal(lift.status, 403);
+    assert.equal(lift.body.error.code, 'SUPER_ADMINISTRATOR_ONLY');
+  });
+
+  it('protects again when an expired DENY no longer removes it', async () => {
+    f.rbac.assign(f.other, auditors());
+    f.rbac.override(f.other, auditView, 'DENY', {
+      expiresAt: new Date(f.store.now().getTime() - 1),
+    });
+    await assertProtected();
+  });
+
+  it('keeps protecting administrator-role holders and the Super Administrator account', async () => {
+    f.rbac.assign(f.other, f.roles.MAIN_ADMINISTRATOR);
+    await assertProtected();
+    const res = await send('put', `/users/${f.zaid.userId}/roles/${f.viewer.roleId}`, admin, {});
+    assert.equal(res.body.error.code, 'PROTECTED_ACCOUNT');
+  });
+});

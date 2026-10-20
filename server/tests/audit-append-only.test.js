@@ -85,7 +85,11 @@ describe('approved audit catalogue (Decision 07)', () => {
   it('uses exactly the approved event codes and outcomes', () => {
     assert.deepEqual(Object.values(AUDIT_EVENTS).sort(), [
       'ACCESS_DENIED',
+      // Phase 04 user administration codes (owner-approved).
+      'ACCOUNT_ACTIVATED',
+      'ACCOUNT_DISABLED',
       'ACCOUNT_LOCKED',
+      'ACCOUNT_PROVISIONED',
       'LOGIN_FAILED',
       'LOGIN_SUCCESS',
       'LOGOUT',
