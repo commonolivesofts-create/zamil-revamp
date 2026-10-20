@@ -110,7 +110,7 @@ function showSetupKey(say, setup, heading) {
 
 const CURRENT_CODE = 'Current 6-digit code from the authenticator app (hidden): ';
 
-async function signInWithMfa(
+export async function signInWithMfa(
   io,
   say,
   call,
@@ -183,7 +183,7 @@ async function checkSession(say, call, signedIn) {
   return true;
 }
 
-async function logout(say, call, signedIn) {
+export async function logout(say, call, signedIn) {
   const result = await call('POST', '/logout', { csrf: signedIn.csrf });
   say(`Logout: ${result.status === 204 ? 'HTTP 204' : describe(result)}`);
   const after = await call('GET', '/me');
