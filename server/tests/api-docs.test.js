@@ -39,6 +39,35 @@ describe('API documentation', () => {
     assert.equal(components.securitySchemes.sessionCookie.name, config.auth.cookie.name);
   });
 
+  it('documents every user-administration route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/users';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/candidates'],
+      ['get', '/{userId}'],
+      ['post', '/{userId}/activate'],
+      ['post', '/{userId}/disable'],
+      ['delete', '/{userId}/sessions'],
+      ['delete', '/{userId}/sessions/{sessionId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((x) => x.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${path} security`);
+      const csrf = (operation.parameters ?? []).some(
+        (p) => p.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+  });
+
   it('documents every access-control route with session security and CSRF on changes', () => {
     const { paths } = loadOpenApiSpec();
     const base = '/api/v1/access-control';

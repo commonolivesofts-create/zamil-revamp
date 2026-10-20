@@ -120,8 +120,10 @@ export function createRbacService({
       await refuse(actor, 'SELF_MODIFICATION_FORBIDDEN', context, denial);
     }
     if (overrides && isZaid(target)) await refuse(actor, 'PROTECTED_ACCOUNT', context, denial);
-    const roleCodes = await read((c) => repository.listActiveRoleCodes(c, target.userId));
-    const isProtected = isZaid(target) || roleCodes.some((code) => PROTECTED_ROLES.has(code));
+    // Same classification as sessions and user administration: an effective protected role or any
+    // effective security-administration permission makes the account an administrator account.
+    const isProtected =
+      isZaid(target) || target.isPrivilegedRoleMember || target.hasSecurityAdministration;
     if (isProtected && !isZaid(actor)) await refuse(actor, 'PROTECTED_ACCOUNT', context, denial);
     return target;
   }

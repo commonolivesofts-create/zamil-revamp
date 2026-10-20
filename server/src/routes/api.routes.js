@@ -11,6 +11,8 @@ import { createAuthService } from '../modules/auth/auth.service.js';
 import { createMfaService } from '../modules/auth/mfa.service.js';
 import { createMfaKeyring } from '../modules/auth/mfaSecret.js';
 import { createSessionService } from '../modules/auth/session.service.js';
+import { createUsersRouter } from '../modules/users/users.routes.js';
+import { createUsersService } from '../modules/users/users.service.js';
 
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
@@ -69,6 +71,15 @@ export function createApiRouter(appConfig, deps = {}) {
     withTransaction: db.withTransaction,
   });
 
+  const usersService = createUsersService({
+    repository: deps.usersRepository,
+    sessionRepository: deps.sessionRepository,
+    rbacRepository: deps.rbacRepository,
+    auditService,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
   const router = Router();
   router.use(createOriginCheck({ allowedOrigins: appConfig.auth.allowedOrigins }));
   router.use(
@@ -86,6 +97,8 @@ export function createApiRouter(appConfig, deps = {}) {
     '/access-control',
     createRbacRouter({ rbacService, authorizationService, authorize, authenticate, auditService }),
   );
+
+  router.use('/users', createUsersRouter({ usersService, authorize, authenticate, auditService }));
 
   return router;
 }

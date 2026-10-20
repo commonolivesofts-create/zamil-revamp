@@ -27,6 +27,11 @@ tags:
       Request-time authorization (default deny; explicit DENY wins) and RBAC
       administration of roles, the permission catalogue, role grants, user roles
       and direct overrides. Administration requires an MFA-verified session.
+  - name: User Administration
+    description: >-
+      Application accounts for employee-master employees: provisioning (PENDING,
+      no password), activation after password setup, disabling and session
+      revocation, under the protected administrator hierarchy.
   - name: Authentication
     description: >-
       Password login, current session and logout. Login username is the employee
@@ -1594,6 +1599,413 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/users:
+    get:
+      operationId: listUsers
+      tags: [User Administration]
+      summary: List application accounts
+      description: >-
+        Accounts joined to the employee master, paginated, with search, filters and
+        an allowlisted sort. Requires `SECURITY_ADMINISTRATION.USER_ACCOUNTS:VIEW`
+        (re-evaluated in Oracle on every request; MFA-verified session required).
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: search
+          in: query
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+            description: Case-insensitive contains-match on employee number, username or full name.
+        - name: status
+          in: query
+          schema:
+            enum: [PENDING, ACTIVE, DISABLED]
+        - name: mfaEnrolled
+          in: query
+          schema:
+            type: boolean
+        - name: locked
+          in: query
+          schema:
+            type: boolean
+            description: Temporarily locked (LOCKED_UNTIL in the future).
+        - name: sortBy
+          in: query
+          schema:
+            enum: [employeeNumber, username, createdAt, lastLoginAt]
+            default: employeeNumber
+        - name: sortOrder
+          in: query
+          schema:
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsers'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      operationId: provisionUser
+      tags: [User Administration]
+      summary: Provision an account
+      description: >-
+        Creates a PENDING account without a password for an eligible employee
+        (CURRENT_EMP_FLAG = Y, no termination on or before today in Asia/Riyadh,
+        single employee-master row, present and unambiguous USER_NAME). No password
+        is generated and nothing is granted. Audited as ACCOUNT_PROVISIONED in the
+        same transaction. Requires `SECURITY_ADMINISTRATION.USER_ACCOUNTS:CREATE`
+        (re-evaluated in Oracle on every request; MFA-verified session required).
+        Requires the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvisionRequest'
+      responses:
+        '201':
+          description: Created.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/UserConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/users/candidates:
+    get:
+      operationId: listProvisioningCandidates
+      tags: [User Administration]
+      summary: Search employees for provisioning
+      description: >-
+        Employee-master rows with their account (if any) and provisioning
+        eligibility. Requires `SECURITY_ADMINISTRATION.USER_ACCOUNTS:CREATE`
+        (re-evaluated in Oracle on every request; MFA-verified session required).
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: search
+          in: query
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+            description: Case-insensitive contains-match on employee number, username or full name.
+        - name: hasAccount
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCandidates'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/users/{userId}:
+    get:
+      operationId: getUser
+      tags: [User Administration]
+      summary: Account details
+      description: >-
+        Account status, lockout, password and MFA state (never hashes, secrets or
+        tokens), employee profile and eligibility, privilege classification,
+        activation readiness, roles and active sessions. Requires
+        `SECURITY_ADMINISTRATION.USER_ACCOUNTS:VIEW` (re-evaluated in Oracle on
+        every request; MFA-verified session required).
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/users/{userId}/activate:
+    post:
+      operationId: activateUser
+      tags: [User Administration]
+      summary: Activate an account
+      description: >-
+        PENDING or DISABLED to ACTIVE when the employee is eligible and a password
+        has been set through the password-setup lifecycle (409
+        ACTIVATION_PREREQUISITES_NOT_MET otherwise). Idempotent. Accounts of
+        administrators are managed only by the Super Administrator; the Super
+        Administrator account and the actor’s own account cannot be changed here.
+        Audited as ACCOUNT_ACTIVATED. Requires
+        `SECURITY_ADMINISTRATION.USER_ACCOUNTS:ACTIVATE` (re-evaluated in Oracle on
+        every request; MFA-verified session required). Requires the `X-CSRF-Token`
+        header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/UserConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/users/{userId}/disable:
+    post:
+      operationId: disableUser
+      tags: [User Administration]
+      summary: Disable an account
+      description: >-
+        Sets DISABLED and, in the same transaction, revokes every session and
+        outstanding action token. Idempotent. Same hierarchy rules as activation.
+        Audited as ACCOUNT_DISABLED (+ SESSION_REVOKED / ACCOUNT_DISABLED when
+        sessions were revoked). Requires
+        `SECURITY_ADMINISTRATION.USER_ACCOUNTS:DISABLE` (re-evaluated in Oracle on
+        every request; MFA-verified session required). Requires the `X-CSRF-Token`
+        header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/users/{userId}/sessions:
+    delete:
+      operationId: revokeUserSessions
+      tags: [User Administration]
+      summary: Revoke all sessions of a user
+      description: >-
+        Revokes every active session and MFA challenge. Same hierarchy rules.
+        Audited as SESSION_REVOKED / ADMIN_REVOKED. Requires
+        `SECURITY_ADMINISTRATION.USER_ACCOUNTS:REVOKE_SESSIONS` (re-evaluated in
+        Oracle on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SessionRevocation'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/users/{userId}/sessions/{sessionId}:
+    delete:
+      operationId: revokeUserSession
+      tags: [User Administration]
+      summary: Revoke one session of a user
+      description: >-
+        Idempotent; 404 when the session does not belong to the user. Same hierarchy
+        rules. Audited as SESSION_REVOKED / ADMIN_REVOKED. Requires
+        `SECURITY_ADMINISTRATION.USER_ACCOUNTS:REVOKE_SESSIONS` (re-evaluated in
+        Oracle on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SessionRevocation'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /health/live:
     get:
       operationId: getLiveness
@@ -1749,6 +2161,14 @@ components:
         pattern: '^[1-9][0-9]{0,18}$'
     PermissionId:
       name: permissionId
+      in: path
+      required: true
+      description: NUMBER(19,0) identifier as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    SessionId:
+      name: sessionId
       in: path
       required: true
       description: NUMBER(19,0) identifier as a decimal string.
@@ -2245,6 +2665,242 @@ components:
         Identifiers of the changed item and its resulting state. `changed` is false
         when the request was a no-op (already in the requested state).
       additionalProperties: true
+    UserListItem:
+      type: object
+      properties:
+        userId:
+          $ref: '#/components/schemas/Id'
+        employeeNumber:
+          type: string
+        username:
+          type: [string, 'null']
+        fullName:
+          type: [string, 'null']
+        department:
+          type: [string, 'null']
+        jobTitle:
+          type: [string, 'null']
+        accountStatus:
+          enum: [PENDING, ACTIVE, DISABLED]
+        locked:
+          type: boolean
+        mfaEnrolled:
+          type: boolean
+        lastLoginAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    PaginatedUsers:
+      type: object
+      required: [success, data, pagination, meta]
+      properties:
+        success:
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserListItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+    EmployeeCandidate:
+      type: object
+      properties:
+        employeeNumber:
+          type: string
+        username:
+          type: [string, 'null']
+        fullName:
+          type: [string, 'null']
+        department:
+          type: [string, 'null']
+        jobTitle:
+          type: [string, 'null']
+        currentEmployeeFlag:
+          type: [string, 'null']
+        terminationStatus:
+          enum: [NONE, FUTURE, ENDED]
+        userId:
+          oneOf:
+            - $ref: '#/components/schemas/Id'
+            - type: 'null'
+        accountStatus:
+          type: [string, 'null']
+        provisionable:
+          type: boolean
+        ineligibilityReason:
+          description: >-
+            EMPLOYEE_AMBIGUOUS, EMPLOYEE_NOT_CURRENT, EMPLOYEE_TERMINATED,
+            USERNAME_MISSING or USERNAME_AMBIGUOUS; null when eligible.
+          type: [string, 'null']
+    PaginatedCandidates:
+      type: object
+      required: [success, data, pagination, meta]
+      properties:
+        success:
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployeeCandidate'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+    ProvisionRequest:
+      type: object
+      additionalProperties: false
+      required: [employeeNumber]
+      properties:
+        employeeNumber:
+          type: string
+          maxLength: 30
+          pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*$'
+          description: XX_DIGI_EMP_MASTER.EMPLOYEE_NUMBER.
+    UserDetail:
+      type: object
+      description: >-
+        Never contains PASSWORD_HASH, MFA secrets or token values. Change responses
+        add `changed` (false for a no-op) and, for disable, `sessionsRevoked`.
+      properties:
+        userId:
+          $ref: '#/components/schemas/Id'
+        employeeNumber:
+          type: string
+        account:
+          type: object
+          properties:
+            status:
+              enum: [PENDING, ACTIVE, DISABLED]
+            locked:
+              type: boolean
+            lockedUntil:
+              type: [string, 'null']
+              format: date-time
+            failedLoginAttempts:
+              type: integer
+            lastFailedLoginAt:
+              type: [string, 'null']
+              format: date-time
+            lastLoginAt:
+              type: [string, 'null']
+              format: date-time
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: [string, 'null']
+              format: date-time
+        password:
+          type: object
+          properties:
+            set:
+              type: boolean
+            changedAt:
+              type: [string, 'null']
+              format: date-time
+            expiresAt:
+              type: [string, 'null']
+              format: date-time
+            expired:
+              type: [boolean, 'null']
+        mfa:
+          type: object
+          properties:
+            enrolled:
+              type: boolean
+            enrolledAt:
+              type: [string, 'null']
+              format: date-time
+        employee:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                username:
+                  type: [string, 'null']
+                fullName:
+                  type: [string, 'null']
+                email:
+                  type: [string, 'null']
+                jobTitle:
+                  type: [string, 'null']
+                department:
+                  type: [string, 'null']
+                currentEmployeeFlag:
+                  type: [string, 'null']
+                terminationStatus:
+                  enum: [NONE, FUTURE, ENDED]
+        eligibility:
+          type: object
+          properties:
+            eligible:
+              type: boolean
+            reason:
+              type: [string, 'null']
+        classification:
+          type: object
+          properties:
+            protectedSuperAdministrator:
+              type: boolean
+            privilegedRoleMember:
+              type: boolean
+            securityAdministration:
+              type: boolean
+            mfaRequired:
+              type: boolean
+        activation:
+          type: object
+          properties:
+            ready:
+              type: boolean
+            unmetPrerequisites:
+              type: array
+              items:
+                type: string
+              description: Employee eligibility reasons and/or PASSWORD_NOT_SET.
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+        activeSessions:
+          type: array
+          items:
+            type: object
+            properties:
+              sessionId:
+                $ref: '#/components/schemas/Id'
+              createdAt:
+                type: string
+                format: date-time
+              lastActivityAt:
+                type: string
+                format: date-time
+              expiresAt:
+                type: string
+                format: date-time
+              mfaVerified:
+                type: boolean
+              ipAddress:
+                type: [string, 'null']
+              userAgent:
+                type: [string, 'null']
+    SessionRevocation:
+      type: object
+      properties:
+        userId:
+          $ref: '#/components/schemas/Id'
+        sessionId:
+          $ref: '#/components/schemas/Id'
+        sessionsRevoked:
+          type: integer
+        revoked:
+          type: boolean
+        changed:
+          type: boolean
     ResponseMeta:
       type: object
       required: [requestId]
@@ -2570,6 +3226,28 @@ components:
             error:
               code: CONFLICT
               message: A role with this code already exists
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    UserConflict:
+      description: >-
+        `ACCOUNT_EXISTS`, `EMPLOYEE_NOT_ELIGIBLE` (reason in details),
+        `ACTIVATION_PREREQUISITES_NOT_MET` (unmet prerequisites in details) or
+        `CONFLICT` (the account changed concurrently).
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: ACTIVATION_PREREQUISITES_NOT_MET
+              message: The account cannot be activated yet
+              details:
+                - field: account
+                  message: PASSWORD_NOT_SET
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     InternalError:

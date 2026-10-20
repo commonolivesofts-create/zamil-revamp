@@ -17,6 +17,8 @@
     "auth:mfa-test": "node --env-file-if-exists=.env scripts/mfa-test-flow.js",
     "auth:rbac-test": "node --env-file-if-exists=.env scripts/rbac-test-flow.js",
     "db:rbac-post-check": "node --env-file-if-exists=.env scripts/rbac-post-check.js",
+    "auth:users-test": "node --env-file-if-exists=.env scripts/users-test-flow.js",
+    "db:users-check": "node --env-file-if-exists=.env scripts/users-integration-check.js",
     "test": "node --import ./tests/setup.js --test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

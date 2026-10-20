@@ -1,4 +1,5 @@
 import oracledb from 'oracledb';
+import { mapPrivilegeFlags, PRIVILEGE_COLUMNS } from '../auth/auth.repository.js';
 
 // SQL for RBAC administration on the locked tables. Values are always bound; table and column names
 // come only from the fixed maps below. IDs (NUMBER(19,0)) are read and bound as strings.
@@ -13,11 +14,20 @@ const rows = async (connection, sql, binds, fetchInfo) =>
 
 // --- Users ---------------------------------------------------------------------------------
 
+/**
+ * A user with the shared privilege classification (PRIVILEGE_COLUMNS, as used by sessions and user
+ * administration): an effective protected administrator role, or any effective
+ * security-administration permission (role-derived or ALLOW, not removed by an effective DENY).
+ */
 export async function findUser(connection, userId) {
   const [row] = await rows(
     connection,
-    `SELECT user_id, employee_number, account_status FROM xx_zrv_users WHERE user_id = :userId`,
-    { userId },
+    `SELECT u.user_id, u.employee_number, u.account_status,
+            CASE WHEN u.mfa_enrolled_at IS NOT NULL OR u.mfa_totp_secret_encrypted IS NOT NULL
+                 THEN 1 ELSE 0 END AS mfa_enrolled,
+            ${PRIVILEGE_COLUMNS.sql}
+       FROM xx_zrv_users u WHERE u.user_id = :userId`,
+    { ...PRIVILEGE_COLUMNS.binds, userId },
     { USER_ID: ID },
   );
   return row
@@ -25,20 +35,9 @@ export async function findUser(connection, userId) {
         userId: row.USER_ID,
         employeeNumber: row.EMPLOYEE_NUMBER,
         accountStatus: row.ACCOUNT_STATUS,
+        ...mapPrivilegeFlags(row),
       }
     : null;
-}
-
-/** Codes of the user's currently effective roles (active, unexpired membership of an active role). */
-export async function listActiveRoleCodes(connection, userId) {
-  const result = await rows(
-    connection,
-    `SELECT r.role_code FROM xx_zrv_user_roles ur JOIN xx_zrv_roles r ON r.role_id = ur.role_id
-      WHERE ur.user_id = :userId AND ur.is_active = 1 AND r.is_active = 1
-        AND (ur.expires_at IS NULL OR ur.expires_at > SYSTIMESTAMP)`,
-    { userId },
-  );
-  return result.map((row) => row.ROLE_CODE);
 }
 
 // --- Roles ---------------------------------------------------------------------------------

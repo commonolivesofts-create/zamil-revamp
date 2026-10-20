@@ -99,18 +99,19 @@ export function installRbac(store, { syncPrivilegeFlags = false } = {}) {
       }))
       .sort(sortKeys);
 
+  const classify = (userId) => ({
+    isPrivilegedRoleMember: activeMemberships(userId).some((ur) =>
+      PRIVILEGE_CLASSIFICATION.privilegedRoleCodes.includes(
+        t().roles.find((r) => r.roleId === ur.roleId).roleCode,
+      ),
+    ),
+    hasSecurityAdministration: effective(userId).some((p) =>
+      PRIVILEGE_CLASSIFICATION.securityAdministrationModuleCodes.includes(p.moduleCode),
+    ),
+  });
   function syncFlags() {
     if (!syncPrivilegeFlags) return;
-    for (const user of store.state.users) {
-      user.isPrivilegedRoleMember = activeMemberships(user.userId).some((ur) =>
-        PRIVILEGE_CLASSIFICATION.privilegedRoleCodes.includes(
-          t().roles.find((r) => r.roleId === ur.roleId).roleCode,
-        ),
-      );
-      user.hasSecurityAdministration = effective(user.userId).some((p) =>
-        PRIVILEGE_CLASSIFICATION.securityAdministrationModuleCodes.includes(p.moduleCode),
-      );
-    }
+    for (const user of store.state.users) Object.assign(user, classify(user.userId));
   }
   const writing =
     (fn) =>
@@ -168,13 +169,10 @@ export function installRbac(store, { syncPrivilegeFlags = false } = {}) {
             userId: user.userId,
             employeeNumber: user.employeeNumber,
             accountStatus: user.accountStatus,
+            // Derived from the tables as PRIVILEGE_COLUMNS derives them in Oracle.
+            ...classify(user.userId),
           }
         : null;
-    },
-    async listActiveRoleCodes(_c, userId) {
-      return activeMemberships(userId).map(
-        (ur) => t().roles.find((r) => r.roleId === ur.roleId).roleCode,
-      );
     },
     async listRoles(_c, { limit, offset }) {
       const sorted = [...t().roles].sort((a, b) => a.roleCode.localeCompare(b.roleCode));
