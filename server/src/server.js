@@ -30,12 +30,12 @@ if (Object.values(pools).every(Boolean)) {
   logger.error({ pools }, 'Oracle unavailable at startup; readiness will report 503');
 }
 
-const server = createApp().listen(config.port, (error) => {
+const server = createApp().listen(config.port, config.http.host, (error) => {
   if (error) {
     logger.fatal({ err: error }, 'HTTP server failed to start');
     process.exit(1);
   }
-  logger.info({ port: config.port }, 'HTTP server listening');
+  logger.info({ host: config.http.host, port: config.port }, 'HTTP server listening');
 });
 
 let shuttingDown = false;

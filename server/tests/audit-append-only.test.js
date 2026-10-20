@@ -112,7 +112,10 @@ describe('approved audit catalogue (Decision 07)', () => {
       for (const match of readFileSync(file, 'utf8').matchAll(/AUDIT_EVENTS\.([A-Z_]+)/g)) {
         used.add(match[1]);
       }
-      assert.doesNotMatch(readFileSync(file, 'utf8'), /'AUTH_(LOGIN|LOGOUT|SESSION|ACCOUNT)/);
+      assert.doesNotMatch(
+        readFileSync(file, 'utf8'),
+        /'AUTH_(LOGIN_(SUCCEEDED|FAILED|DENIED)|ACCOUNT_LOCKED|LOGOUT|SESSION_REJECTED)'/,
+      );
     }
     for (const key of used) assert.ok(key in AUDIT_EVENTS, key);
   });

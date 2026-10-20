@@ -15,7 +15,15 @@ const ORACLE_ENV = {
   ORACLE_HIGH_ALIAS: 'example_high',
 };
 
-const env = (overrides = {}) => ({ NODE_ENV: 'development', ...ORACLE_ENV, ...overrides });
+// Synthetic MFA key: required outside development and test.
+const MFA_KEY = Buffer.alloc(32, 7).toString('base64');
+
+const env = (overrides = {}) => ({
+  NODE_ENV: 'development',
+  ...ORACLE_ENV,
+  AUTH_MFA_ENCRYPTION_KEY: MFA_KEY,
+  ...overrides,
+});
 
 describe('configuration', () => {
   it('fails fast when NODE_ENV is missing', () => {
@@ -32,6 +40,9 @@ describe('configuration', () => {
     assert.equal(config.port, 3000);
     assert.equal(config.http.bodyLimit, '100kb');
     assert.equal(config.http.trustProxyHops, 0);
+    assert.equal(config.http.host, '127.0.0.1', 'loopback in development');
+    assert.equal(loadConfig(env({ NODE_ENV: 'production' })).http.host, '0.0.0.0');
+    assert.throws(() => loadConfig(env({ HTTP_HOST: 'not-an-ip' })), /HTTP_HOST/);
     assert.equal(config.apiDocs.enabled, true);
   });
 
@@ -60,7 +71,11 @@ describe('configuration', () => {
   it('refuses a __Host- cookie name without the Secure attribute', () => {
     assert.throws(() => loadConfig(env({ AUTH_COOKIE_SECURE: 'false' })), /__Host-/);
     const insecureDev = loadConfig(
-      env({ AUTH_COOKIE_SECURE: 'false', AUTH_SESSION_COOKIE_NAME: 'zr_session' }),
+      env({
+        AUTH_COOKIE_SECURE: 'false',
+        AUTH_SESSION_COOKIE_NAME: 'zr_session',
+        AUTH_MFA_COOKIE_NAME: 'zr_mfa',
+      }),
     );
     assert.equal(insecureDev.auth.cookie.secure, false);
   });
@@ -75,6 +90,34 @@ describe('configuration', () => {
     assert.throws(
       () => loadConfig(env({ AUTH_ALLOWED_ORIGINS: 'https://app.example/path' })),
       /bare origins/,
+    );
+  });
+
+  it('validates the MFA encryption key and requires it outside development and test', () => {
+    assert.ok(loadConfig(env()).auth.mfa.encryptionKey.equals(Buffer.alloc(32, 7)));
+    assert.equal(
+      loadConfig(env({ AUTH_MFA_ENCRYPTION_KEY: undefined })).auth.mfa.encryptionKey,
+      null,
+    );
+    for (const bad of [
+      Buffer.alloc(16).toString('base64'),
+      'not base64!',
+      Buffer.alloc(33).toString('base64'),
+    ]) {
+      assert.throws(
+        () => loadConfig(env({ AUTH_MFA_ENCRYPTION_KEY: bad })),
+        /AUTH_MFA_ENCRYPTION_KEY/,
+      );
+    }
+    for (const NODE_ENV of ['uat', 'production']) {
+      assert.throws(
+        () => loadConfig(env({ NODE_ENV, AUTH_MFA_ENCRYPTION_KEY: undefined })),
+        /AUTH_MFA_ENCRYPTION_KEY/,
+      );
+    }
+    assert.throws(
+      () => loadConfig(env({ AUTH_MFA_COOKIE_NAME: '__Host-zr_session' })),
+      /AUTH_MFA_COOKIE_NAME/,
     );
   });
 

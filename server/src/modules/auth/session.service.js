@@ -194,6 +194,9 @@ export function createSessionService({
           expiresAt: row.expiresAt,
           idleTimeoutMs: evaluation.idleTimeoutMs,
           mfaVerified: Boolean(row.mfaVerifiedAt),
+          // For recent-verification checks (MFA replacement); database clock, UTC.
+          mfaVerifiedAt: row.mfaVerifiedAt,
+          dbNow: row.dbNow,
           // An expired password does not end a valid bounded session (docs/07 §4).
           passwordExpired: password.expired,
           passwordExpiresAt: password.expiresAt,
