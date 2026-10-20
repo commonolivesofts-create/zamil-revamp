@@ -2021,7 +2021,8 @@ paths:
       summary: Request a password reset or MFA recovery link
       description: >-
         Anonymous self-service request. Always 202 with the same body for every
-        username (no enumeration). PASSWORD_RESET: ordinary employees and the Super
+        username (no enumeration); the account lookup, token and e-mail are processed
+        after the response, so its timing does not depend on the account. PASSWORD_RESET: ordinary employees and the Super
         Administrator; MFA_RECOVERY: the Super Administrator only (pinned address).
         Other privileged accounts are recovered by the Super Administrator. 503
         DELIVERY_UNAVAILABLE for every request while no delivery channel is

@@ -80,3 +80,37 @@ export function createFailureRecorder({ authRepository, auditService, withTransa
     return { locked: !attempt || attempt.locked };
   };
 }
+
+/**
+ * A lockout reached from inside an authenticated session ends every session of the user (fail
+ * closed). Revocation and its SESSION_REVOKED / ACCOUNT_LOCKED audit row (SYSTEM actor) commit
+ * together; a failure is logged and does not change the caller's response.
+ */
+export async function revokeSessionsAfterLockout(
+  { sessionRepository, auditService, withTransaction, logger },
+  userId,
+  context,
+) {
+  try {
+    await withTransaction(POOLS.LOW, async (connection) => {
+      const sessionsRevoked = await sessionRepository.revokeUserSessions(connection, {
+        userId,
+        actorUserId: null,
+      });
+      if (sessionsRevoked > 0) {
+        await auditService.record(connection, {
+          eventCode: AUDIT_EVENTS.SESSION_REVOKED,
+          outcome: AUDIT_OUTCOMES.SUCCESS,
+          actorType: ACTOR_TYPES.SYSTEM,
+          subjectUserId: userId,
+          target: { type: 'USER', id: userId },
+          reasonCode: 'ACCOUNT_LOCKED',
+          details: { sessionsRevoked },
+          context,
+        });
+      }
+    });
+  } catch (error) {
+    logger.error({ errorName: error?.name }, 'Sessions could not be revoked after lockout');
+  }
+}

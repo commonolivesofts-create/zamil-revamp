@@ -10,7 +10,7 @@ import { createUnconfiguredDelivery, DeliveryUnavailable } from '../notification
 import * as defaultUsersRepository from '../users/users.repository.js';
 import * as defaultAuthRepository from './auth.repository.js';
 import { evaluateEmployeeEligibility } from './auth.eligibility.js';
-import { createFailureRecorder } from './auth.lockout.js';
+import { createFailureRecorder, revokeSessionsAfterLockout } from './auth.lockout.js';
 import { ACTION_TOKEN_POLICY, MFA_POLICY, PRIVILEGE_CLASSIFICATION } from './auth.policy.js';
 import { MfaSecretUnreadable } from './mfaSecret.js';
 import { checkPasswordPolicy, hashPassword, verifyPassword } from './password.js';
@@ -88,6 +88,8 @@ export function createRecoveryService({
   keyring = null,
   issuer = 'Zamil Revamp',
   argon2Cost,
+  // Optional Set that tracks background self-service work (tests await it; production ignores it).
+  backgroundTasks = null,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
 }) {
@@ -146,7 +148,7 @@ export function createRecoveryService({
         ) {
           throw new Throttled();
         }
-        await recoveryRepository.revokeOutstandingTokens(c, {
+        const previousTokensRevoked = await recoveryRepository.revokeOutstandingTokens(c, {
           userId: account.userId,
           actionType,
           actorUserId,
@@ -165,7 +167,7 @@ export function createRecoveryService({
           subjectUserId: account.userId,
           target: { type: 'ACTION_TOKEN', id: issued.tokenId },
           reasonCode: actionType,
-          details: { recipientSource: recipient.source, ...details },
+          details: { recipientSource: recipient.source, previousTokensRevoked, ...details },
           context,
         });
         // Last step: if the provider refuses, the transaction (token and audit row) rolls back.
@@ -291,7 +293,7 @@ export function createRecoveryService({
   /** Revokes every session (and challenge) plus outstanding reset tokens; audits revoked sessions. */
   async function endSessions(c, userId, actorUserId, reasonCode, context) {
     const sessionsRevoked = await sessionRepository.revokeUserSessions(c, { userId, actorUserId });
-    await recoveryRepository.revokeOutstandingTokens(c, {
+    const resetTokensRevoked = await recoveryRepository.revokeOutstandingTokens(c, {
       userId,
       actionType: TOKEN_TYPES.RESET,
       actorUserId,
@@ -307,7 +309,7 @@ export function createRecoveryService({
         }),
       );
     }
-    return sessionsRevoked;
+    return { sessionsRevoked, resetTokensRevoked };
   }
 
   async function completePasswordToken(actionType, { token, newPassword }, context) {
@@ -353,7 +355,7 @@ export function createRecoveryService({
         actorUserId: found.userId,
       });
       if (!updated) throw conflict();
-      const revoked = await endSessions(
+      const ended = await endSessions(
         c,
         found.userId,
         found.userId,
@@ -366,6 +368,7 @@ export function createRecoveryService({
           eventCode: AUDIT_EVENTS.PASSWORD_CHANGED,
           reasonCode: actionType,
           target: { type: 'ACTION_TOKEN', id: found.tokenId },
+          details: ended,
         }),
       );
       if (setup) {
@@ -378,7 +381,7 @@ export function createRecoveryService({
           }),
         );
       }
-      return revoked;
+      return ended.sessionsRevoked;
     });
     return {
       passwordChanged: true,
@@ -443,56 +446,73 @@ export function createRecoveryService({
     return { found, account, candidate, credential };
   }
 
-  return {
-    TOKEN_TYPES,
-
-    /** Self-service request (anonymous): always the same outcome for the caller. */
-    async requestSelfService({ username, purpose }, context) {
-      // Uniform for every username: without a channel nothing can ever be sent.
-      if (!delivery.configured) throw deliveryUnavailable();
-      const candidates = await read((c) => authRepository.findLoginCandidates(c, username));
-      const linked = candidates.length === 1 ? candidates[0].account : null;
-      const account = linked ? await loadAccount(linked.userId) : null;
-      const reason =
-        candidates.length === 0
-          ? 'UNKNOWN_USERNAME'
-          : candidates.length > 1
-            ? 'AMBIGUOUS_USERNAME'
-            : !account
-              ? 'NO_LOCAL_ACCOUNT'
-              : selfServiceDenial(account, purpose);
-      if (reason) {
-        await denied(reason, context, {
-          subjectUserId: account?.userId ?? null,
+  /** Account-dependent part of a self-service request; outcomes are audited, never returned. */
+  async function processSelfService({ username, purpose }, context) {
+    const candidates = await read((c) => authRepository.findLoginCandidates(c, username));
+    const linked = candidates.length === 1 ? candidates[0].account : null;
+    const account = linked ? await loadAccount(linked.userId) : null;
+    const reason =
+      candidates.length === 0
+        ? 'UNKNOWN_USERNAME'
+        : candidates.length > 1
+          ? 'AMBIGUOUS_USERNAME'
+          : !account
+            ? 'NO_LOCAL_ACCOUNT'
+            : selfServiceDenial(account, purpose);
+    if (reason) {
+      await denied(reason, context, {
+        subjectUserId: account?.userId ?? null,
+        details: { purpose },
+      });
+      return;
+    }
+    try {
+      await issueToken(account, purpose, {
+        actorUserId: null,
+        context,
+        details: { selfService: true },
+      });
+    } catch (error) {
+      if (error instanceof Throttled) {
+        await denied('RECOVERY_THROTTLED', context, {
+          subjectUserId: account.userId,
           details: { purpose },
         });
         return;
       }
-      try {
-        await issueToken(account, purpose, {
-          actorUserId: null,
-          context,
-          details: { selfService: true },
-        });
-      } catch (error) {
-        if (error instanceof Throttled) {
-          await denied('RECOVERY_THROTTLED', context, {
+      if (error instanceof DeliveryUnavailable) {
+        if (error.reason === 'RECIPIENT_UNAVAILABLE') {
+          await denied('RECIPIENT_UNAVAILABLE', context, {
             subjectUserId: account.userId,
             details: { purpose },
           });
-          return;
         }
-        if (error instanceof DeliveryUnavailable) {
-          if (error.reason === 'RECIPIENT_UNAVAILABLE') {
-            await denied('RECIPIENT_UNAVAILABLE', context, {
-              subjectUserId: account.userId,
-              details: { purpose },
-            });
-          }
-          return; // Same response; the failure is audited and logged.
-        }
-        throw error;
+        return; // Same response; the failure is audited and logged.
       }
+      throw error;
+    }
+  }
+
+  return {
+    TOKEN_TYPES,
+
+    /**
+     * Self-service request (anonymous). Only the account-independent configuration check runs
+     * before the response; the lookup, token transaction and SMTP send run in the background, so
+     * neither the response nor its timing depends on whether the username exists or is eligible.
+     * Returns `{ completion }` (never awaited by the controller).
+     */
+    requestSelfService(input, context) {
+      // Uniform for every username: without a channel nothing can ever be sent.
+      if (!delivery.configured) throw deliveryUnavailable();
+      const completion = processSelfService(input, context).catch((error) => {
+        logger.error({ errorName: error?.name }, 'Self-service recovery request failed');
+      });
+      if (backgroundTasks) {
+        backgroundTasks.add(completion);
+        completion.finally(() => backgroundTasks.delete(completion));
+      }
+      return { completion };
     },
 
     /**
@@ -603,8 +623,10 @@ export function createRecoveryService({
           },
         );
         if (locked) {
-          await withTransaction(POOLS.LOW, (c) =>
-            sessionRepository.revokeUserSessions(c, { userId: auth.userId, actorUserId: null }),
+          await revokeSessionsAfterLockout(
+            { sessionRepository, auditService, withTransaction, logger },
+            auth.userId,
+            context,
           );
         }
         throw new AppError(403, 'CURRENT_PASSWORD_INVALID', 'The current password is not correct');
@@ -627,15 +649,16 @@ export function createRecoveryService({
           actorUserId: auth.userId,
         });
         if (!updated) throw conflict();
-        const revoked = await endSessions(c, auth.userId, auth.userId, 'PASSWORD_CHANGE', context);
+        const ended = await endSessions(c, auth.userId, auth.userId, 'PASSWORD_CHANGE', context);
         await auditService.record(
           c,
           selfAudit(auth.userId, context, {
             eventCode: AUDIT_EVENTS.PASSWORD_CHANGED,
             reasonCode: 'PASSWORD_CHANGE',
+            details: ended,
           }),
         );
-        return revoked;
+        return ended.sessionsRevoked;
       });
       return { passwordChanged: true, sessionsRevoked, signInRequired: true };
     },

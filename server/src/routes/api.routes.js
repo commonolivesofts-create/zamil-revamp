@@ -85,6 +85,7 @@ export function createApiRouter(appConfig, deps = {}) {
     keyring,
     issuer: mfa.issuer,
     argon2Cost: deps.argon2Cost ?? appConfig.auth.argon2,
+    backgroundTasks: deps.backgroundTasks,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
   });

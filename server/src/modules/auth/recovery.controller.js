@@ -9,7 +9,8 @@ export function createRecoveryController({ recoveryService, cookieConfig }) {
   return {
     // Same 202 for every username and outcome (no enumeration); nothing about delivery leaks.
     async requestRecovery(req, res) {
-      await recoveryService.requestSelfService(req.body, ctx(req));
+      // Not awaited: the response must not depend on the account (see requestSelfService).
+      recoveryService.requestSelfService(req.body, ctx(req));
       sendSuccess(
         res,
         {

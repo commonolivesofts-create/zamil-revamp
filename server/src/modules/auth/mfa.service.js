@@ -12,7 +12,7 @@ import {
   evaluateMfaRequirement,
   evaluatePasswordExpiry,
 } from './auth.eligibility.js';
-import { createFailureRecorder } from './auth.lockout.js';
+import { createFailureRecorder, revokeSessionsAfterLockout } from './auth.lockout.js';
 import { MFA_POLICY } from './auth.policy.js';
 import { issueSessionInTransaction, sessionResult } from './auth.service.js';
 import { MfaSecretUnreadable } from './mfaSecret.js';
@@ -200,15 +200,12 @@ export function createMfaService({
       context,
     });
 
-  async function revokeAllSessions(userId) {
-    try {
-      await withTransaction(POOLS.LOW, (connection) =>
-        sessionRepository.revokeUserSessions(connection, { userId, actorUserId: null }),
-      );
-    } catch (error) {
-      logger.error({ err: error }, 'Sessions could not be revoked after lockout');
-    }
-  }
+  const revokeAllSessions = (userId, context) =>
+    revokeSessionsAfterLockout(
+      { sessionRepository, auditService, withTransaction, logger },
+      userId,
+      context,
+    );
 
   /**
    * Preconditions shared by both replacement steps: MFA verified on this session within the
@@ -276,7 +273,25 @@ export function createMfaService({
           });
           if (!enrolled) throw new CompletionAborted('ALREADY_ENROLLED');
           // An MFA change revokes every active session and challenge of the user (docs/07 §4).
-          await sessionRepository.revokeUserSessions(connection, { userId, actorUserId: userId });
+          // The count includes the completing challenge itself; only other sessions are audited.
+          const otherSessionsRevoked =
+            (await sessionRepository.revokeUserSessions(connection, {
+              userId,
+              actorUserId: userId,
+            })) - 1;
+          if (otherSessionsRevoked > 0) {
+            await auditService.record(connection, {
+              eventCode: AUDIT_EVENTS.SESSION_REVOKED,
+              outcome: AUDIT_OUTCOMES.SUCCESS,
+              actorType: ACTOR_TYPES.USER,
+              actorUserId: userId,
+              subjectUserId: userId,
+              target: { type: 'USER', id: userId },
+              reasonCode: 'MFA_ENROLLED',
+              details: { sessionsRevoked: otherSessionsRevoked },
+              context,
+            });
+          }
         } else {
           // Atomic replay guard: the step must be later than any step accepted before.
           if (!(await authRepository.recordMfaStep(connection, { userId, step }))) {
@@ -459,7 +474,7 @@ export function createMfaService({
           },
         );
         // A lockout reached from inside a session ends every session of the user (fail closed).
-        if (locked) await revokeAllSessions(userId);
+        if (locked) await revokeAllSessions(userId, context);
         throw verificationFailed();
       }
 

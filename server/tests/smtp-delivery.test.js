@@ -402,17 +402,21 @@ describe('SMTP delivery through the recovery API (fake transport)', () => {
       employee: { employeeNumber: '4001', username: 'sara.k', email: 'sara.k@example.invalid' },
     });
     store.delivery = delivery({ transport, dbName }).channel;
+    store.backgroundTasks = new Set();
     return { store, app: createTestApp(store) };
   }
-  const reset = (app) =>
-    request(app)
+  const reset = async (app, store) => {
+    const res = await request(app)
       .post('/api/v1/auth/recovery/request')
       .send({ username: 'sara.k', purpose: 'PASSWORD_RESET' });
+    await Promise.all([...store.backgroundTasks]); // the request completes in the background
+    return res;
+  };
 
   it('mails only the test mailbox; the link completes the reset', async () => {
     const transport = fakeTransport();
     const { store, app } = await setup(transport);
-    const res = await reset(app);
+    const res = await reset(app, store);
     assert.equal(res.status, 202);
     assert.equal(JSON.stringify(res.body).includes('token'), false);
     const [mail] = transport.sent;
@@ -435,7 +439,7 @@ describe('SMTP delivery through the recovery API (fake transport)', () => {
       [fakeTransport(), 'OTHER_DB', 'DATABASE_IDENTITY_UNVERIFIED'],
     ]) {
       const { store, app } = await setup(transport, dbName);
-      const res = await reset(app);
+      const res = await reset(app, store);
       assert.equal(res.status, 202); // anonymous callers learn nothing
       assert.equal(store.state.actionTokens.length, 0);
       const failure = store.auditEvents('ACTION_TOKEN_ISSUED').at(-1);
