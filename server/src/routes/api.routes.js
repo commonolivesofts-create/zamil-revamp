@@ -4,6 +4,8 @@ import { createOriginCheck } from '../middleware/csrf.js';
 import { createSecurityAuditService } from '../modules/audit/securityAudit.service.js';
 import { createAuthRouter } from '../modules/auth/auth.routes.js';
 import { createAuthService } from '../modules/auth/auth.service.js';
+import { createMfaService } from '../modules/auth/mfa.service.js';
+import { createMfaKeyring } from '../modules/auth/mfaSecret.js';
 import { createSessionService } from '../modules/auth/session.service.js';
 
 /**
@@ -26,10 +28,24 @@ export function createApiRouter(appConfig, deps = {}) {
     withTransaction: db.withTransaction,
     touchIntervalMs: appConfig.auth.sessionTouchIntervalMs,
   });
+  // MFA can be completed only with the TOTP key ring; without it mandatory-MFA users stay blocked.
+  const { mfa } = appConfig.auth;
+  const mfaService = mfa.encryptionKey
+    ? createMfaService({
+        keyring: createMfaKeyring({ encryptionKey: mfa.encryptionKey, keyId: mfa.keyId }),
+        issuer: mfa.issuer,
+        authRepository: deps.authRepository,
+        sessionRepository: deps.sessionRepository,
+        auditService,
+        withConnection: db.withConnection,
+        withTransaction: db.withTransaction,
+      })
+    : null;
   const authService = createAuthService({
     authRepository: deps.authRepository,
     sessionRepository: deps.sessionRepository,
     auditService,
+    mfaService,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
     argon2Cost: deps.argon2Cost ?? appConfig.auth.argon2,
@@ -43,6 +59,7 @@ export function createApiRouter(appConfig, deps = {}) {
     createAuthRouter({
       authService,
       sessionService,
+      mfaService,
       auditService,
       authenticate,
       authConfig: appConfig.auth,

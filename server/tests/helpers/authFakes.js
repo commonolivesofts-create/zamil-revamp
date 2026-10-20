@@ -67,11 +67,27 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
     auditInsert: false,
     sessionInsert: false,
     failedAttemptUpdate: false,
+    mfaStepUpdate: false,
     resetUpdate: false,
     revokeUpdate: false,
   };
 
   const now = () => new Date(nowMs);
+
+  // Race simulation: a read registered with holdReads() returns its already-captured result only
+  // once `count` callers have read, so concurrent requests all read before any of them writes.
+  const barriers = new Map();
+  let transactionQueue = Promise.resolve();
+  async function barrier(name) {
+    const gate = barriers.get(name);
+    if (!gate) return;
+    gate.arrived += 1;
+    if (gate.arrived >= gate.count) {
+      barriers.delete(name);
+      gate.release();
+    }
+    await gate.promise;
+  }
   const isActivelyLocked = (user) => user.lockedUntil && user.lockedUntil.getTime() > nowMs;
   const findUser = (userId) => state.users.find((user) => user.userId === userId);
 
@@ -104,7 +120,16 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
     async withConnection(_pool, work) {
       return work({});
     },
+    // Transactions run one at a time (as Oracle row locks serialise writers of the same rows), so
+    // a rollback restores only its own changes. Reads outside transactions stay concurrent.
     async withTransaction(_pool, work) {
+      const previous = transactionQueue;
+      let done;
+      transactionQueue = new Promise((resolve) => {
+        done = resolve;
+      });
+      await previous;
+
       const snapshot = clone(state);
       try {
         const result = await work({});
@@ -114,6 +139,8 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
         Object.assign(state, snapshot);
         stats.rollbacks += 1;
         throw error;
+      } finally {
+        done();
       }
     },
   };
@@ -167,6 +194,52 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
       user.lockedUntil = null;
     },
 
+    async findMfaCredential(_connection, userId) {
+      const user = findUser(userId);
+      const credential =
+        user.mfaTotpSecretEncrypted && user.mfaEnrolledAt
+          ? { encryptedSecret: user.mfaTotpSecretEncrypted, lastUsedStep: user.mfaLastUsedStep }
+          : null;
+      await barrier('findMfaCredential');
+      return credential;
+    },
+
+    async recordMfaStep(_connection, { userId, step }) {
+      if (failures.mfaStepUpdate) throw new Error('simulated MFA step update failure');
+      const user = findUser(userId);
+      if (!user.mfaTotpSecretEncrypted) return false;
+      if (user.mfaLastUsedStep !== null && user.mfaLastUsedStep >= step) return false;
+      user.mfaLastUsedStep = step;
+      return true;
+    },
+
+    async enrollMfa(_connection, { userId, encryptedSecret, step }) {
+      const user = findUser(userId);
+      if (user.mfaTotpSecretEncrypted !== null || user.mfaEnrolledAt !== null) return false;
+      user.mfaTotpSecretEncrypted = encryptedSecret;
+      user.mfaEnrolledAt = now();
+      user.mfaLastUsedStep = step;
+      return true;
+    },
+
+    async replaceMfa(_connection, { userId, currentEncryptedSecret, encryptedSecret, step }) {
+      const user = findUser(userId);
+      if (
+        user.mfaTotpSecretEncrypted !== currentEncryptedSecret ||
+        !user.mfaEnrolledAt ||
+        user.accountStatus !== 'ACTIVE' ||
+        isActivelyLocked(user)
+      ) {
+        return false;
+      }
+      Object.assign(user, {
+        mfaTotpSecretEncrypted: encryptedSecret,
+        mfaEnrolledAt: now(),
+        mfaLastUsedStep: step,
+      });
+      return true;
+    },
+
     async recordLoginSuccess(_connection, userId) {
       const user = findUser(userId);
       if (user.accountStatus !== 'ACTIVE' || !user.passwordHash || isActivelyLocked(user)) {
@@ -180,7 +253,10 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
   };
 
   const sessionRepository = {
-    async insertSession(_connection, { userId, tokenHash, absoluteSeconds, ipAddress, userAgent }) {
+    async insertSession(
+      _connection,
+      { userId, tokenHash, absoluteSeconds, ipAddress, userAgent, mfaVerified = false },
+    ) {
       if (failures.sessionInsert) throw new Error('simulated session insert failure');
       const session = {
         sessionId: String(nextSessionId++),
@@ -189,7 +265,8 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
         lastActivityAt: now(),
         expiresAt: new Date(nowMs + absoluteSeconds * 1000),
         revokedAt: null,
-        mfaVerifiedAt: null,
+        mfaVerifiedAt: mfaVerified ? now() : null,
+        createdAt: now(),
         ipAddress,
         userAgent,
         createdBy: userId,
@@ -211,14 +288,20 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
         expiresAt: session.expiresAt,
         revokedAt: session.revokedAt,
         mfaVerifiedAt: session.mfaVerifiedAt,
+        createdAt: session.createdAt,
         employeeNumber: user.employeeNumber,
         accountStatus: user.accountStatus,
         passwordChangedAt: user.passwordChangedAt,
+        lockedUntil: user.lockedUntil,
         ...privilegeFlags(user),
         dbNow: now(),
       };
-      if (employees.length === 0) return [{ ...base, employee: null }];
-      return employees.slice(0, 2).map((employee) => ({ ...base, employee: toEmployee(employee) }));
+      const rows =
+        employees.length === 0
+          ? [{ ...base, employee: null }]
+          : employees.slice(0, 2).map((employee) => ({ ...base, employee: toEmployee(employee) }));
+      await barrier('findSessionByTokenHash');
+      return rows;
     },
 
     async touchSession(_connection, { sessionId, userId }) {
@@ -237,6 +320,18 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
       session.revokedAt = now();
       session.updatedBy = actorUserId;
       return true;
+    },
+
+    async revokeUserSessions(_connection, { userId, actorUserId }) {
+      let count = 0;
+      for (const session of state.sessions) {
+        if (session.userId === userId && !session.revokedAt) {
+          session.revokedAt = now();
+          session.updatedBy = actorUserId;
+          count += 1;
+        }
+      }
+      return count;
     },
 
     async revokeSessionByTokenHash(_connection, { tokenHash, actorUserId }) {
@@ -265,6 +360,13 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
     sessionRepository,
     auditRepository,
     now,
+    holdReads(name, count) {
+      let release;
+      const promise = new Promise((resolve) => {
+        release = resolve;
+      });
+      barriers.set(name, { count, arrived: 0, promise, release });
+    },
     advance(ms) {
       nowMs += ms;
     },
@@ -295,6 +397,8 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
         lockedUntil: null,
         lastLoginAt: null,
         mfaEnrolledAt: null,
+        mfaTotpSecretEncrypted: null,
+        mfaLastUsedStep: null,
         isPrivilegedRoleMember: false,
         hasSecurityAdministration: false,
         ...overrides,
@@ -325,12 +429,16 @@ export async function addActiveAccount(store, { password, employee = {}, user = 
   return { employee: emp, user: account };
 }
 
+// Synthetic key for tests only; never a real key.
+export const TEST_MFA_KEY = Buffer.alloc(32, 9);
+
 export function testAuthConfig(overrides = {}) {
   return {
     ...config,
     auth: {
       ...config.auth,
       ...overrides,
+      mfa: { ...config.auth.mfa, ...overrides.mfa },
       loginRateLimit: { ...config.auth.loginRateLimit, max: 1000, ...overrides.loginRateLimit },
     },
   };

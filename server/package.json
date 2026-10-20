@@ -14,6 +14,7 @@
     "db:status": "node --env-file-if-exists=.env scripts/db-status.js",
     "db:verify-auth": "node --env-file-if-exists=.env scripts/verify-auth-sql.js",
     "db:bootstrap-test": "node --env-file-if-exists=.env scripts/bootstrap-test-rbac.js",
+    "auth:mfa-test": "node --env-file-if-exists=.env scripts/mfa-test-flow.js",
     "test": "node --import ./tests/setup.js --test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

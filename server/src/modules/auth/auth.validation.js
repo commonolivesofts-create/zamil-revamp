@@ -17,3 +17,16 @@ export const loginSchema = Joi.object({
 
 // Endpoints that take no input still reject unexpected query parameters.
 export const emptyQuerySchema = Joi.object({});
+
+// Endpoints that take no body still reject unexpected fields.
+export const emptyBodySchema = Joi.object({});
+
+// A six-digit code from the authenticator app; nothing else is accepted.
+export const mfaCodeSchema = Joi.object({
+  code: Joi.string()
+    .pattern(/^\d{6}$/)
+    .required()
+    .messages({
+      'string.pattern.base': 'code must be the 6-digit code from your authenticator app',
+    }),
+});

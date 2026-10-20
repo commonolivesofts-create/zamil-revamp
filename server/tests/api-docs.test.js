@@ -24,6 +24,11 @@ describe('API documentation', () => {
       ['get', '/api/v1/auth/me', true],
       ['get', '/api/v1/auth/csrf', true],
       ['post', '/api/v1/auth/logout', true],
+      ['post', '/api/v1/auth/mfa/enrollment', true],
+      ['post', '/api/v1/auth/mfa/enrollment/confirm', true],
+      ['post', '/api/v1/auth/mfa/verify', true],
+      ['post', '/api/v1/auth/mfa/replacement', true],
+      ['post', '/api/v1/auth/mfa/replacement/confirm', true],
     ];
 
     for (const [method, path, authenticated] of expected) {

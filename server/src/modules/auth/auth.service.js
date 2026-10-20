@@ -12,7 +12,8 @@ import {
   evaluateMfaRequirement,
   evaluatePasswordExpiry,
 } from './auth.eligibility.js';
-import { LOCKOUT_POLICY, SESSION_POLICY } from './auth.policy.js';
+import { createFailureRecorder } from './auth.lockout.js';
+import { SESSION_POLICY } from './auth.policy.js';
 import { hashPassword, verifyPassword } from './password.js';
 import * as defaultSessionRepository from './session.repository.js';
 import {
@@ -36,7 +37,7 @@ const mfaRequired = () =>
   new AppError(
     403,
     'MFA_REQUIRED',
-    'This account requires multi-factor verification, which is not yet available. Contact your administrator.',
+    'This account requires multi-factor verification, which is not available right now. Contact your administrator.',
   );
 
 const passwordExpired = () =>
@@ -89,14 +90,91 @@ function preVerificationDenial(candidate) {
   return eligibility.eligible ? null : eligibility.reason;
 }
 
+/**
+ * Issues a normal authenticated session inside the caller's transaction: re-checks that the
+ * account is ACTIVE, has a password and is not locked (resetting the failure counter and setting
+ * LAST_LOGIN_AT), revokes any session cookie the browser presented, inserts the session (with
+ * MFA_VERIFIED_AT when MFA was verified) and records LOGIN_SUCCESS. Returns null when the account no
+ * longer qualifies; the caller must then roll back and refuse.
+ */
+export async function issueSessionInTransaction(
+  connection,
+  { authRepository, sessionRepository, auditService },
+  { userId, presentedToken, mfaVerified, privileged, reasonCode = null, context },
+) {
+  if (!(await authRepository.recordLoginSuccess(connection, userId))) return null;
+
+  if (isWellFormedToken(presentedToken)) {
+    await sessionRepository.revokeSessionByTokenHash(connection, {
+      tokenHash: hashSessionToken(presentedToken),
+      actorUserId: userId,
+    });
+  }
+
+  const token = generateSessionToken();
+  const created = await sessionRepository.insertSession(connection, {
+    userId,
+    tokenHash: hashSessionToken(token),
+    absoluteSeconds: SESSION_POLICY.absoluteLifetimeMs / 1000,
+    ipAddress: context.ipAddress?.slice(0, 45) ?? null,
+    userAgent: context.userAgent?.slice(0, 512) ?? null,
+    mfaVerified,
+  });
+  const idleTimeoutMs = privileged
+    ? SESSION_POLICY.privilegedIdleTimeoutMs
+    : SESSION_POLICY.idleTimeoutMs;
+
+  await auditService.record(connection, {
+    eventCode: AUDIT_EVENTS.LOGIN_SUCCESS,
+    outcome: AUDIT_OUTCOMES.SUCCESS,
+    actorType: ACTOR_TYPES.USER,
+    actorUserId: userId,
+    subjectUserId: userId,
+    target: { type: 'USER_SESSION', id: created.sessionId },
+    reasonCode,
+    details: { idleTimeoutMinutes: idleTimeoutMs / 60000, mfaVerified },
+    context,
+  });
+
+  return { token, sessionId: created.sessionId, expiresAt: created.expiresAt, idleTimeoutMs };
+}
+
+/** Response model shared by password login and MFA completion. */
+export function sessionResult(
+  { userId, employeeNumber, employee },
+  issued,
+  passwordState,
+  mfaVerified,
+) {
+  return {
+    kind: 'SESSION',
+    token: issued.token,
+    csrfToken: deriveCsrfToken(issued.token),
+    user: toUserProfile(userId, employeeNumber, employee),
+    session: {
+      expiresAt: issued.expiresAt,
+      idleTimeoutSeconds: issued.idleTimeoutMs / 1000,
+      mfaVerified,
+    },
+    password: { expired: false, expiresAt: passwordState.expiresAt },
+  };
+}
+
 export function createAuthService({
   authRepository = defaultAuthRepository,
   sessionRepository = defaultSessionRepository,
   auditService,
+  mfaService = null,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
   argon2Cost,
 }) {
+  const recordAuthenticationFailure = createFailureRecorder({
+    authRepository,
+    auditService,
+    withTransaction,
+  });
+
   // Verifying against a fixed dummy hash when no real hash is available keeps the response time
   // of unknown, unlinked and ineligible usernames close to that of a wrong password.
   async function burnVerification(password) {
@@ -123,51 +201,9 @@ export function createAuthService({
       context,
     });
 
-  async function handleWrongPassword(account, context) {
-    let attempt;
-    try {
-      attempt = await withTransaction(POOLS.LOW, (connection) =>
-        authRepository.recordFailedAttempt(connection, {
-          userId: account.userId,
-          maxFailures: LOCKOUT_POLICY.maxConsecutiveFailures,
-          lockSeconds: LOCKOUT_POLICY.lockDurationMs / 1000,
-        }),
-      );
-    } catch (error) {
-      // The counter could not be updated; the failed attempt is still recorded.
-      await loginFailed('INVALID_PASSWORD', context, {
-        subjectUserId: account.userId,
-        details: { lockoutCounterUpdated: false },
-      });
-      throw error;
-    }
-
-    await loginFailed(attempt ? 'INVALID_PASSWORD' : 'ACCOUNT_LOCKED', context, {
-      subjectUserId: account.userId,
-      outcome: attempt ? AUDIT_OUTCOMES.FAILURE : AUDIT_OUTCOMES.DENIED,
-      details: attempt ? { consecutiveFailures: attempt.failedAttempts } : undefined,
-    });
-
-    if (attempt?.locked) {
-      await auditService.recordIndependently({
-        eventCode: AUDIT_EVENTS.ACCOUNT_LOCKED,
-        outcome: AUDIT_OUTCOMES.SUCCESS,
-        actorType: ACTOR_TYPES.SYSTEM,
-        subjectUserId: account.userId,
-        target: { type: 'USER', id: account.userId },
-        reasonCode: 'CONSECUTIVE_FAILED_LOGINS',
-        details: {
-          consecutiveFailures: attempt.failedAttempts,
-          lockMinutes: LOCKOUT_POLICY.lockDurationMs / 60000,
-        },
-        context,
-      });
-    }
-  }
-
   async function denyAfterPassword(account, reasonCode, details, context) {
-    // The password was correct, so the consecutive-failure state is cleared even though no
-    // session is issued. The denial is recorded even if that reset fails.
+    // The password was correct and no further factor can follow, so the consecutive-failure state
+    // is cleared even though no session is issued. The denial is recorded even if the reset fails.
     try {
       await withTransaction(POOLS.LOW, (connection) =>
         authRepository.resetFailedAttempts(connection, account.userId),
@@ -181,51 +217,17 @@ export function createAuthService({
     }
   }
 
-  async function issueSession(candidate, presentedToken, context) {
-    const { account } = candidate;
-    const token = generateSessionToken();
-
-    const session = await withTransaction(POOLS.LOW, async (connection) => {
-      if (!(await authRepository.recordLoginSuccess(connection, account.userId))) return null;
-
-      // A cookie from an earlier session in this browser is revoked rather than left usable.
-      if (isWellFormedToken(presentedToken)) {
-        await sessionRepository.revokeSessionByTokenHash(connection, {
-          tokenHash: hashSessionToken(presentedToken),
-          actorUserId: account.userId,
-        });
-      }
-
-      const created = await sessionRepository.insertSession(connection, {
-        userId: account.userId,
-        tokenHash: hashSessionToken(token),
-        absoluteSeconds: SESSION_POLICY.absoluteLifetimeMs / 1000,
-        ipAddress: context.ipAddress?.slice(0, 45) ?? null,
-        userAgent: context.userAgent?.slice(0, 512) ?? null,
-      });
-
-      await auditService.record(connection, {
-        eventCode: AUDIT_EVENTS.LOGIN_SUCCESS,
-        outcome: AUDIT_OUTCOMES.SUCCESS,
-        actorType: ACTOR_TYPES.USER,
-        actorUserId: account.userId,
-        subjectUserId: account.userId,
-        target: { type: 'USER_SESSION', id: created.sessionId },
-        // Sessions issued here are never privileged: privileged users require MFA (Phase 02).
-        details: { idleTimeoutMinutes: SESSION_POLICY.idleTimeoutMs / 60000 },
-        context,
-      });
-
-      return created;
-    });
-
-    return session && { token, ...session };
+  async function denyExpiredPassword(account, passwordState, context) {
+    const reason = passwordState.missing ? 'PASSWORD_CHANGE_TIME_MISSING' : 'PASSWORD_EXPIRED';
+    await denyAfterPassword(account, reason, null, context);
+    throw passwordExpired();
   }
 
   return {
     /**
-     * Password login. Throws AppError on every failure; persists failed/denied events and the
-     * lockout state before throwing.
+     * Password login. Returns `{ kind: 'SESSION', ... }` for a completed login, or
+     * `{ kind: 'MFA_CHALLENGE', ... }` when MFA must still be verified. Throws AppError on every
+     * failure; persists failed/denied events and the lockout state before throwing.
      *
      * @param {{ username: string, password: string }} credentials Joi-validated input.
      * @param {{ requestId: string, ipAddress?: string, userAgent?: string }} context
@@ -270,26 +272,40 @@ export function createAuthService({
         throw authenticationFailed();
       }
       if (verification === 'MISMATCH') {
-        await handleWrongPassword(account, context);
+        await recordAuthenticationFailure(account.userId, 'INVALID_PASSWORD', context);
         throw authenticationFailed();
       }
 
-      // Phase 01 cannot verify MFA, so a required MFA step always fails closed.
       const mfa = evaluateMfaRequirement(account);
-      if (mfa.required) {
-        await denyAfterPassword(account, 'MFA_REQUIRED', { basis: mfa.basis }, context);
-        throw mfaRequired();
-      }
-
       const passwordState = evaluatePasswordExpiry(account.passwordChangedAt, candidate.dbNow);
-      if (passwordState.expired) {
-        const reason = passwordState.missing ? 'PASSWORD_CHANGE_TIME_MISSING' : 'PASSWORD_EXPIRED';
-        await denyAfterPassword(account, reason, null, context);
-        throw passwordExpired();
+
+      if (mfa.required) {
+        // Without the MFA key ring, MFA cannot be completed: fail closed exactly as in Phase 01.
+        if (!mfaService) {
+          await denyAfterPassword(account, 'MFA_REQUIRED', { basis: mfa.basis }, context);
+          throw mfaRequired();
+        }
+        if (passwordState.expired) await denyExpiredPassword(account, passwordState, context);
+        // The failure counter is deliberately not reset here: only a completed MFA resets it.
+        return mfaService.issueChallenge(candidate, mfa, context);
       }
 
-      const session = await issueSession(candidate, presentedToken, context);
-      if (!session) {
+      if (passwordState.expired) await denyExpiredPassword(account, passwordState, context);
+
+      const issued = await withTransaction(POOLS.LOW, (connection) =>
+        issueSessionInTransaction(
+          connection,
+          { authRepository, sessionRepository, auditService },
+          {
+            userId: account.userId,
+            presentedToken,
+            mfaVerified: false,
+            privileged: false,
+            context,
+          },
+        ),
+      );
+      if (!issued) {
         // Disabled or locked between the lookup and the transaction.
         await loginFailed('ACCOUNT_STATE_CHANGED', context, {
           subjectUserId: account.userId,
@@ -298,17 +314,16 @@ export function createAuthService({
         throw authenticationFailed();
       }
 
-      return {
-        token: session.token,
-        csrfToken: deriveCsrfToken(session.token),
-        user: toUserProfile(account.userId, candidate.employeeNumber, candidate.employee),
-        session: {
-          expiresAt: session.expiresAt,
-          idleTimeoutSeconds: SESSION_POLICY.idleTimeoutMs / 1000,
-          mfaVerified: false,
+      return sessionResult(
+        {
+          userId: account.userId,
+          employeeNumber: candidate.employeeNumber,
+          employee: candidate.employee,
         },
-        password: { expired: false, expiresAt: passwordState.expiresAt },
-      };
+        issued,
+        passwordState,
+        false,
+      );
     },
   };
 }

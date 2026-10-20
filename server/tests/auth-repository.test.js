@@ -7,6 +7,8 @@ import {
   privilegeColumnsSql,
   recordFailedAttempt,
   recordLoginSuccess,
+  recordMfaStep,
+  enrollMfa,
   terminationStatusSql,
 } from '../src/modules/auth/auth.repository.js';
 import {
@@ -143,6 +145,42 @@ describe('auth repositories', () => {
         actorUserId: null,
       }),
       true,
+    );
+  });
+});
+
+describe('MFA repository atomicity', () => {
+  // Oracle serialises concurrent UPDATEs of the same row and re-evaluates the WHERE clause for the
+  // waiting statement after the first commits, so only one can affect the row. These tests pin
+  // the guards in the SQL and the rowsAffected handling that the service relies on.
+  it('consumes a TOTP step only if it is later than the last accepted step', async () => {
+    const connection = recordingConnection({ rowsAffected: 1 });
+    assert.equal(await recordMfaStep(connection, { userId: '1', step: 42 }), true);
+
+    const { sql, binds } = connection.calls[0];
+    assert.match(sql, /^\s*UPDATE xx_zrv_users/);
+    assert.match(sql, /mfa_last_used_step = :step/);
+    assert.match(sql, /\(mfa_last_used_step IS NULL OR mfa_last_used_step < :step\)/);
+    assert.deepEqual(binds, { userId: '1', step: 42 });
+    assert.equal(await recordMfaStep(recordingConnection({ rowsAffected: 0 }), binds), false);
+  });
+
+  it('enrolls only when no authenticator exists', async () => {
+    const connection = recordingConnection({ rowsAffected: 1 });
+    assert.equal(
+      await enrollMfa(connection, { userId: '1', encryptedSecret: 'v1.k1.x', step: 7 }),
+      true,
+    );
+
+    const { sql } = connection.calls[0];
+    assert.match(sql, /mfa_totp_secret_encrypted IS NULL\s+AND mfa_enrolled_at IS NULL/);
+    assert.equal(
+      await enrollMfa(recordingConnection({ rowsAffected: 0 }), {
+        userId: '1',
+        encryptedSecret: 'v1.k1.x',
+        step: 7,
+      }),
+      false,
     );
   });
 });
