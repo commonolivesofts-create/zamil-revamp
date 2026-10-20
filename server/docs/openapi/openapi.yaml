@@ -22,6 +22,11 @@ servers:
 tags:
   - name: Health
     description: Process and dependency health checks for runtime supervision.
+  - name: Access Control
+    description: >-
+      Request-time authorization (default deny; explicit DENY wins) and RBAC
+      administration of roles, the permission catalogue, role grants, user roles
+      and direct overrides. Administration requires an MFA-verified session.
   - name: Authentication
     description: >-
       Password login, current session and logout. Login username is the employee
@@ -543,6 +548,1052 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/me/permissions:
+    get:
+      operationId: getMyPermissions
+      tags: [Access Control]
+      summary: My effective permissions
+      description: >-
+        Every permission the signed-in user currently holds (role grants and ALLOW
+        overrides, minus DENY overrides; active catalogue only; at most 1,000).
+        Requires an authenticated session only.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MyPermissions'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/roles:
+    get:
+      operationId: listRoles
+      tags: [Access Control]
+      summary: List roles
+      description: >-
+        Roles ordered by code, paginated. Requires
+        `SECURITY_ADMINISTRATION.ROLES:VIEW` (re-evaluated in Oracle on every
+        request; MFA-verified session required).
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRoles'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      operationId: createRole
+      tags: [Access Control]
+      summary: Create a role
+      description: >-
+        Creates an active role. Audited as RBAC_ROLE_CREATED in the same
+        transaction. Requires `SECURITY_ADMINISTRATION.ROLES:CREATE` (re-evaluated
+        in Oracle on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreateRequest'
+      responses:
+        '201':
+          description: Created.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/roles/{roleId}:
+    patch:
+      operationId: updateRole
+      tags: [Access Control]
+      summary: Update a role
+      description: >-
+        Changes the name and/or description. Protected administrator roles cannot be
+        changed (PROTECTED_ROLE). Audited as RBAC_ROLE_UPDATED. Requires
+        `SECURITY_ADMINISTRATION.ROLES:UPDATE` (re-evaluated in Oracle on every
+        request; MFA-verified session required). Requires the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleUpdateRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/roles/{roleId}/activate:
+    post:
+      operationId: activateRole
+      tags: [Access Control]
+      summary: Activate a role
+      description: >-
+        Idempotent. Protected administrator roles cannot be changed. Audited as
+        RBAC_ROLE_ACTIVATED when the state changes. Requires
+        `SECURITY_ADMINISTRATION.ROLES:UPDATE` (re-evaluated in Oracle on every
+        request; MFA-verified session required). Requires the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/roles/{roleId}/deactivate:
+    post:
+      operationId: deactivateRole
+      tags: [Access Control]
+      summary: Deactivate a role
+      description: >-
+        Idempotent; members lose the role’s permissions on their next request.
+        Protected administrator roles cannot be deactivated. Audited as
+        RBAC_ROLE_DEACTIVATED when the state changes. Requires
+        `SECURITY_ADMINISTRATION.ROLES:DEACTIVATE` (re-evaluated in Oracle on every
+        request; MFA-verified session required). Requires the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/catalog:
+    get:
+      operationId: getPermissionCatalog
+      tags: [Access Control]
+      summary: Permission catalogue
+      description: >-
+        Modules with their resources and actions, including inactive items (at most
+        2,000 rows). Requires `SECURITY_ADMINISTRATION.PERMISSION_CATALOG:VIEW`
+        (re-evaluated in Oracle on every request; MFA-verified session required).
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CatalogModule'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/modules:
+    post:
+      operationId: createModule
+      tags: [Access Control]
+      summary: Create a module
+      description: >-
+        Audited as RBAC_CATALOG_CHANGED (MODULE_CREATED). Requires
+        `SECURITY_ADMINISTRATION.PERMISSION_CATALOG:MANAGE` (re-evaluated in Oracle
+        on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModuleCreateRequest'
+      responses:
+        '201':
+          description: Created.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/modules/{moduleId}:
+    patch:
+      operationId: setModuleActive
+      tags: [Access Control]
+      summary: Activate or deactivate a module
+      description: >-
+        The security-administration module cannot be changed (PROTECTED_CATALOG).
+        Audited as RBAC_CATALOG_CHANGED when the state changes. Requires
+        `SECURITY_ADMINISTRATION.PERMISSION_CATALOG:MANAGE` (re-evaluated in Oracle
+        on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/ModuleId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivationRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/modules/{moduleId}/resources:
+    post:
+      operationId: createResource
+      tags: [Access Control]
+      summary: Create a resource
+      description: >-
+        Resources in the security-administration module can be created only by the
+        Super Administrator. Audited as RBAC_CATALOG_CHANGED (RESOURCE_CREATED).
+        Requires `SECURITY_ADMINISTRATION.PERMISSION_CATALOG:MANAGE` (re-evaluated
+        in Oracle on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/ModuleId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceCreateRequest'
+      responses:
+        '201':
+          description: Created.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/resources/{resourceId}:
+    patch:
+      operationId: setResourceActive
+      tags: [Access Control]
+      summary: Activate or deactivate a resource
+      description: >-
+        Not allowed in the security-administration module. Audited as
+        RBAC_CATALOG_CHANGED when the state changes. Requires
+        `SECURITY_ADMINISTRATION.PERMISSION_CATALOG:MANAGE` (re-evaluated in Oracle
+        on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivationRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/resources/{resourceId}/permissions:
+    post:
+      operationId: createPermission
+      tags: [Access Control]
+      summary: Create a permission (action)
+      description: >-
+        Security-administration actions can be created only by the Super
+        Administrator. Audited as RBAC_CATALOG_CHANGED (PERMISSION_CREATED).
+        Requires `SECURITY_ADMINISTRATION.PERMISSION_CATALOG:MANAGE` (re-evaluated
+        in Oracle on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermissionCreateRequest'
+      responses:
+        '201':
+          description: Created.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/permissions/{permissionId}:
+    patch:
+      operationId: setPermissionActive
+      tags: [Access Control]
+      summary: Activate or deactivate a permission
+      description: >-
+        Not allowed in the security-administration module. A deactivated permission
+        is denied to everyone on the next request. Requires
+        `SECURITY_ADMINISTRATION.PERMISSION_CATALOG:MANAGE` (re-evaluated in Oracle
+        on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/PermissionId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivationRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/roles/{roleId}/permissions:
+    get:
+      operationId: listRolePermissions
+      tags: [Access Control]
+      summary: List role grants
+      description: >-
+        Active and inactive grants of the role (at most 1,000). Requires
+        `SECURITY_ADMINISTRATION.ROLE_PERMISSIONS:VIEW` (re-evaluated in Oracle on
+        every request; MFA-verified session required).
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RolePermission'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/roles/{roleId}/permissions/{permissionId}:
+    put:
+      operationId: grantRolePermission
+      tags: [Access Control]
+      summary: Grant a permission to a role
+      description: >-
+        Idempotent. The role and the whole permission chain must be active (409
+        INACTIVE_TARGET). Only the Super Administrator changes administrator-role
+        grants or grants security-administration permissions; other actors may grant
+        only permissions they hold (PRIVILEGE_ESCALATION_FORBIDDEN). Audited as
+        RBAC_PERMISSION_GRANTED. Requires
+        `SECURITY_ADMINISTRATION.ROLE_PERMISSIONS:GRANT` (re-evaluated in Oracle on
+        every request; MFA-verified session required). Requires the `X-CSRF-Token`
+        header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '#/components/parameters/PermissionId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      operationId: revokeRolePermission
+      tags: [Access Control]
+      summary: Revoke a permission from a role
+      description: >-
+        Idempotent; effective on the next request. Security permissions are never
+        revoked from SUPER_ADMINISTRATOR. Audited as RBAC_PERMISSION_REVOKED.
+        Requires `SECURITY_ADMINISTRATION.ROLE_PERMISSIONS:REVOKE` (re-evaluated in
+        Oracle on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '#/components/parameters/PermissionId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/users/{userId}/roles:
+    get:
+      operationId: listUserRoles
+      tags: [Access Control]
+      summary: List a user’s roles
+      description: >-
+        Memberships with their expiry and whether each is currently effective (at
+        most 500). Requires `SECURITY_ADMINISTRATION.USER_ROLES:VIEW` (re-evaluated
+        in Oracle on every request; MFA-verified session required).
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserRole'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/users/{userId}/roles/{roleId}:
+    put:
+      operationId: assignUserRole
+      tags: [Access Control]
+      summary: Assign a role to a user
+      description: >-
+        Creates or re-activates the membership with an optional future expiry.
+        SUPER_ADMINISTRATOR is never assigned through the API; administrator roles
+        and accounts holding them are managed only by the Super Administrator;
+        nobody changes their own roles; other actors must hold every permission of
+        the role. Audited as RBAC_ROLE_ASSIGNED. Requires
+        `SECURITY_ADMINISTRATION.USER_ROLES:ASSIGN` (re-evaluated in Oracle on every
+        request; MFA-verified session required). Requires the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleAssignRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      operationId: unassignUserRole
+      tags: [Access Control]
+      summary: Remove a role from a user
+      description: >-
+        Idempotent; effective on the next request. The same identity protections
+        apply. Audited as RBAC_ROLE_UNASSIGNED. Requires
+        `SECURITY_ADMINISTRATION.USER_ROLES:REVOKE` (re-evaluated in Oracle on every
+        request; MFA-verified session required). Requires the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/users/{userId}/effective-permissions:
+    get:
+      operationId: getUserEffectivePermissions
+      tags: [Access Control]
+      summary: A user’s effective permissions
+      description: >-
+        Same computation as the request-time check (at most 1,000). Requires
+        `SECURITY_ADMINISTRATION.USER_ROLES:VIEW` (re-evaluated in Oracle on every
+        request; MFA-verified session required).
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EffectivePermission'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/users/{userId}/overrides:
+    get:
+      operationId: listUserOverrides
+      tags: [Access Control]
+      summary: List a user’s direct overrides
+      description: >-
+        Active and inactive ALLOW/DENY overrides with justification and expiry (at
+        most 500). Requires `SECURITY_ADMINISTRATION.USER_PERMISSION_OVERRIDES:VIEW`
+        (re-evaluated in Oracle on every request; MFA-verified session required).
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserOverride'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/access-control/users/{userId}/overrides/{permissionId}:
+    put:
+      operationId: setUserOverride
+      tags: [Access Control]
+      summary: Set a direct override
+      description: >-
+        Creates or replaces the user’s single override for the permission. An
+        active, unexpired DENY wins over every grant. The Super Administrator
+        account is never overridden; no self-overrides; security-administration
+        permissions and protected accounts are Super Administrator only; an ALLOW
+        requires the actor to hold the permission. Audited as RBAC_OVERRIDE_SET (the
+        justification is stored, not audited). Requires
+        `SECURITY_ADMINISTRATION.USER_PERMISSION_OVERRIDES:GRANT` (re-evaluated in
+        Oracle on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/PermissionId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OverrideRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      operationId: revokeUserOverride
+      tags: [Access Control]
+      summary: Revoke a direct override
+      description: >-
+        Idempotent. Lifting a DENY restores access, so the actor must hold the
+        permission. Audited as RBAC_OVERRIDE_REVOKED. Requires
+        `SECURITY_ADMINISTRATION.USER_PERMISSION_OVERRIDES:REVOKE` (re-evaluated in
+        Oracle on every request; MFA-verified session required). Requires the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/PermissionId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChangeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /health/live:
     get:
       operationId: getLiveness
@@ -664,6 +1715,46 @@ components:
       description: Challenge-bound CSRF token from the login response that issued the challenge.
       schema:
         type: string
+    RoleId:
+      name: roleId
+      in: path
+      required: true
+      description: NUMBER(19,0) identifier as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: NUMBER(19,0) identifier as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    ModuleId:
+      name: moduleId
+      in: path
+      required: true
+      description: NUMBER(19,0) identifier as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    ResourceId:
+      name: resourceId
+      in: path
+      required: true
+      description: NUMBER(19,0) identifier as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    PermissionId:
+      name: permissionId
+      in: path
+      required: true
+      description: NUMBER(19,0) identifier as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
   headers:
     RequestId:
       description: >-
@@ -872,6 +1963,288 @@ components:
           $ref: '#/components/schemas/SessionInfo'
         password:
           $ref: '#/components/schemas/PasswordState'
+    Id:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+    Role:
+      type: object
+      required: [roleId, roleCode, roleName, isActive]
+      properties:
+        roleId:
+          $ref: '#/components/schemas/Id'
+        roleCode:
+          type: string
+        roleName:
+          type: string
+        description:
+          type: [string, 'null']
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: [string, 'null']
+          format: date-time
+    RoleCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [roleCode, roleName]
+      properties:
+        roleCode:
+          type: string
+          maxLength: 60
+          pattern: '^[A-Z][A-Z0-9_]*$'
+        roleName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: [string, 'null']
+          maxLength: 500
+    RoleUpdateRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        roleName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: [string, 'null']
+          maxLength: 500
+    Pagination:
+      type: object
+      required: [page, limit, total, totalPages, hasNextPage, hasPreviousPage]
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNextPage:
+          type: boolean
+        hasPreviousPage:
+          type: boolean
+    PaginatedRoles:
+      type: object
+      required: [success, data, pagination, meta]
+      properties:
+        success:
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+    CatalogModule:
+      type: object
+      properties:
+        moduleId:
+          $ref: '#/components/schemas/Id'
+        moduleCode:
+          type: string
+        moduleName:
+          type: string
+        displayOrder:
+          type: integer
+        isActive:
+          type: boolean
+        resources:
+          type: array
+          items:
+            type: object
+            properties:
+              resourceId:
+                $ref: '#/components/schemas/Id'
+              resourceCode:
+                type: string
+              resourceName:
+                type: string
+              isActive:
+                type: boolean
+              permissions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    permissionId:
+                      $ref: '#/components/schemas/Id'
+                    actionCode:
+                      type: string
+                    description:
+                      type: [string, 'null']
+                    isActive:
+                      type: boolean
+    ModuleCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [moduleCode, moduleName]
+      properties:
+        moduleCode:
+          type: string
+          maxLength: 60
+          pattern: '^[A-Z][A-Z0-9_]*$'
+        moduleName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: [string, 'null']
+          maxLength: 500
+        displayOrder:
+          type: integer
+          minimum: 0
+          maximum: 99999
+    ResourceCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [resourceCode, resourceName]
+      properties:
+        resourceCode:
+          type: string
+          maxLength: 80
+          pattern: '^[A-Z][A-Z0-9_]*$'
+        resourceName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: [string, 'null']
+          maxLength: 500
+    PermissionCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [actionCode]
+      properties:
+        actionCode:
+          type: string
+          maxLength: 40
+          pattern: '^[A-Z][A-Z0-9_]*$'
+        description:
+          type: [string, 'null']
+          maxLength: 500
+    ActivationRequest:
+      type: object
+      additionalProperties: false
+      required: [isActive]
+      properties:
+        isActive:
+          type: boolean
+    PermissionKey:
+      type: object
+      required: [permissionId, moduleCode, resourceCode, actionCode]
+      properties:
+        permissionId:
+          $ref: '#/components/schemas/Id'
+        moduleCode:
+          type: string
+        resourceCode:
+          type: string
+        actionCode:
+          type: string
+    RolePermission:
+      allOf:
+        - $ref: '#/components/schemas/PermissionKey'
+        - type: object
+          properties:
+            isActive:
+              type: boolean
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: [string, 'null']
+              format: date-time
+    EffectivePermission:
+      allOf:
+        - $ref: '#/components/schemas/PermissionKey'
+        - type: object
+          properties:
+            viaRole:
+              type: boolean
+            viaOverride:
+              type: boolean
+    MyPermissions:
+      type: object
+      properties:
+        userId:
+          $ref: '#/components/schemas/Id'
+        mfaVerified:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffectivePermission'
+    UserRole:
+      type: object
+      properties:
+        roleId:
+          $ref: '#/components/schemas/Id'
+        roleCode:
+          type: string
+        roleName:
+          type: string
+        roleActive:
+          type: boolean
+        isActive:
+          type: boolean
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+        effective:
+          type: boolean
+          description: Active, unexpired membership of an active role.
+    UserRoleAssignRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+          description: ISO 8601 instant in the future; null or absent for no expiry.
+    UserOverride:
+      allOf:
+        - $ref: '#/components/schemas/PermissionKey'
+        - type: object
+          properties:
+            effect:
+              enum: [ALLOW, DENY]
+            justification:
+              type: string
+            isActive:
+              type: boolean
+            expiresAt:
+              type: [string, 'null']
+              format: date-time
+    OverrideRequest:
+      type: object
+      additionalProperties: false
+      required: [effect, justification]
+      properties:
+        effect:
+          enum: [ALLOW, DENY]
+        justification:
+          type: string
+          minLength: 1
+          maxLength: 500
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+          description: ISO 8601 instant in the future; null or absent for no expiry.
+    ChangeResult:
+      type: object
+      description: >-
+        Identifiers of the changed item and its resulting state. `changed` is false
+        when the request was a no-op (already in the requested state).
+      additionalProperties: true
     ResponseMeta:
       type: object
       required: [requestId]
@@ -1146,6 +2519,57 @@ components:
             error:
               code: SERVICE_UNAVAILABLE
               message: The service is temporarily unavailable
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    AccessDenied:
+      description: >-
+        Refused. `FORBIDDEN`: the session lacks the permission (default deny, explicit DENY, inactive catalogue item or MFA not verified). Administration rules: `PROTECTED_ROLE`, `PROTECTED_ACCOUNT`, `PROTECTED_CATALOG`, `SUPER_ADMINISTRATOR_ONLY`, `SELF_MODIFICATION_FORBIDDEN`, `PRIVILEGE_ESCALATION_FORBIDDEN`. `CSRF_REJECTED`: origin or token check failed. Every refusal is audited as `ACCESS_DENIED`.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: FORBIDDEN
+              message: You do not have permission for this action.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    NotFound:
+      description: >-
+        The role, user, module, resource or permission does not exist.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: RESOURCE_NOT_FOUND
+              message: The role was not found
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    Conflict:
+      description: >-
+        `CONFLICT`: the code already exists (unique key). `INACTIVE_TARGET`: the role or permission chain is not active.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: CONFLICT
+              message: A role with this code already exists
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     InternalError:

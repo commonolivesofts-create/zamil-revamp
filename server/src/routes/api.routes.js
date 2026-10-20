@@ -1,5 +1,9 @@
 import { Router } from 'express';
 import { createAuthenticate } from '../middleware/authenticate.js';
+import { createAuthorize } from '../middleware/authorize.js';
+import { createAuthorizationService } from '../modules/access-control/authorization.service.js';
+import { createRbacRouter } from '../modules/access-control/rbac.routes.js';
+import { createRbacService } from '../modules/access-control/rbac.service.js';
 import { createOriginCheck } from '../middleware/csrf.js';
 import { createSecurityAuditService } from '../modules/audit/securityAudit.service.js';
 import { createAuthRouter } from '../modules/auth/auth.routes.js';
@@ -51,6 +55,19 @@ export function createApiRouter(appConfig, deps = {}) {
     argon2Cost: deps.argon2Cost ?? appConfig.auth.argon2,
   });
   const authenticate = createAuthenticate({ sessionService, cookieConfig: appConfig.auth.cookie });
+  const authorizationService = createAuthorizationService({
+    repository: deps.authorizationRepository,
+    auditService,
+    withConnection: db.withConnection,
+  });
+  const authorize = createAuthorize({ authorizationService });
+  const rbacService = createRbacService({
+    repository: deps.rbacRepository,
+    authorizationService,
+    auditService,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
 
   const router = Router();
   router.use(createOriginCheck({ allowedOrigins: appConfig.auth.allowedOrigins }));
@@ -64,6 +81,10 @@ export function createApiRouter(appConfig, deps = {}) {
       authenticate,
       authConfig: appConfig.auth,
     }),
+  );
+  router.use(
+    '/access-control',
+    createRbacRouter({ rbacService, authorizationService, authorize, authenticate, auditService }),
   );
 
   return router;

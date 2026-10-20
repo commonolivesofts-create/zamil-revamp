@@ -39,6 +39,54 @@ describe('API documentation', () => {
     assert.equal(components.securitySchemes.sessionCookie.name, config.auth.cookie.name);
   });
 
+  it('documents every access-control route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/access-control';
+    const expected = [
+      ['get', '/me/permissions'],
+      ['get', '/roles'],
+      ['post', '/roles'],
+      ['patch', '/roles/{roleId}'],
+      ['post', '/roles/{roleId}/activate'],
+      ['post', '/roles/{roleId}/deactivate'],
+      ['get', '/catalog'],
+      ['post', '/modules'],
+      ['patch', '/modules/{moduleId}'],
+      ['post', '/modules/{moduleId}/resources'],
+      ['patch', '/resources/{resourceId}'],
+      ['post', '/resources/{resourceId}/permissions'],
+      ['patch', '/permissions/{permissionId}'],
+      ['get', '/roles/{roleId}/permissions'],
+      ['put', '/roles/{roleId}/permissions/{permissionId}'],
+      ['delete', '/roles/{roleId}/permissions/{permissionId}'],
+      ['get', '/users/{userId}/roles'],
+      ['put', '/users/{userId}/roles/{roleId}'],
+      ['delete', '/users/{userId}/roles/{roleId}'],
+      ['get', '/users/{userId}/effective-permissions'],
+      ['get', '/users/{userId}/overrides'],
+      ['put', '/users/{userId}/overrides/{permissionId}'],
+      ['delete', '/users/{userId}/overrides/{permissionId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path.startsWith(base))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => [method, path.slice(base.length)]),
+      );
+    assert.deepEqual(
+      documented.map((x) => x.join(' ')).sort(),
+      expected.map((x) => x.join(' ')).sort(),
+    );
+
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${path} security`);
+      const csrf = (operation.parameters ?? []).some(
+        (p) => p.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+  });
+
   it('serves the specification at /api/openapi.json', async () => {
     const res = await request(app).get('/api/openapi.json').expect(200);
 

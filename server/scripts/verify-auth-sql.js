@@ -16,6 +16,8 @@ import {
   AUDIT_EVENTS,
   AUDIT_OUTCOMES,
 } from '../src/modules/audit/securityAudit.service.js';
+import * as authorizationRepository from '../src/modules/access-control/authorization.repository.js';
+import * as rbacRepository from '../src/modules/access-control/rbac.repository.js';
 import * as authRepository from '../src/modules/auth/auth.repository.js';
 import * as sessionRepository from '../src/modules/auth/session.repository.js';
 
@@ -80,6 +82,74 @@ const DML = {
       encryptedSecret: 'y',
       step: 1,
     }),
+  // Phase 03 RBAC administration (INSERT/UPDATE/MERGE).
+  'rbac.insertRole': (c) =>
+    rbacRepository.insertRole(c, {
+      roleCode: 'X',
+      roleName: 'x',
+      description: null,
+      actorUserId: '0',
+    }),
+  'rbac.updateRole': (c) =>
+    rbacRepository.updateRole(c, {
+      roleId: '0',
+      roleName: 'x',
+      description: null,
+      actorUserId: '0',
+    }),
+  'rbac.insertModule': (c) =>
+    rbacRepository.insertModule(c, {
+      moduleCode: 'X',
+      moduleName: 'x',
+      description: null,
+      displayOrder: 0,
+      actorUserId: '0',
+    }),
+  'rbac.insertResource': (c) =>
+    rbacRepository.insertResource(c, {
+      moduleId: '0',
+      resourceCode: 'X',
+      resourceName: 'x',
+      description: null,
+      actorUserId: '0',
+    }),
+  'rbac.insertPermission': (c) =>
+    rbacRepository.insertPermission(c, {
+      resourceId: '0',
+      actionCode: 'X',
+      description: null,
+      actorUserId: '0',
+    }),
+  ...Object.fromEntries(
+    ['ROLE', 'MODULE', 'RESOURCE', 'PERMISSION'].map((entity) => [
+      `rbac.setActive(${entity})`,
+      (c) => rbacRepository.setActive(c, { entity, id: '0', isActive: true, actorUserId: '0' }),
+    ]),
+  ),
+  'rbac.grantRolePermission': (c) =>
+    rbacRepository.grantRolePermission(c, { roleId: '0', permissionId: '0', actorUserId: '0' }),
+  'rbac.revokeRolePermission': (c) =>
+    rbacRepository.revokeRolePermission(c, { roleId: '0', permissionId: '0', actorUserId: '0' }),
+  'rbac.assignUserRole': (c) =>
+    rbacRepository.assignUserRole(c, {
+      userId: '0',
+      roleId: '0',
+      expiresAt: null,
+      actorUserId: '0',
+    }),
+  'rbac.unassignUserRole': (c) =>
+    rbacRepository.unassignUserRole(c, { userId: '0', roleId: '0', actorUserId: '0' }),
+  'rbac.setOverride': (c) =>
+    rbacRepository.setOverride(c, {
+      userId: '0',
+      permissionId: '0',
+      effect: 'DENY',
+      justification: 'x',
+      expiresAt: null,
+      actorUserId: '0',
+    }),
+  'rbac.revokeOverride': (c) =>
+    rbacRepository.revokeOverride(c, { userId: '0', permissionId: '0', actorUserId: '0' }),
 };
 
 // --- Synthetic classification vectors (user 1 is the subject) -------------------------------
@@ -182,6 +252,86 @@ const CLASSIFICATION_VECTORS = [
   },
 ];
 
+// Phase 03 request-time decision [catalogActive, denied, allowedByOverride, allowedByRole] for
+// permission 1000 (SECURITY_ADMINISTRATION.SECURITY_AUDIT:VIEW); role 5 holds it.
+const DECISION_VECTORS = [
+  { label: 'no grants (default deny)', expect: [1, 0, 0, 0] },
+  { label: 'role grant', userRoles: [[5, ACTIVE]], expect: [1, 0, 0, 1] },
+  {
+    label: 'role grant, future expiry',
+    userRoles: [[5, { active: 1, expires: FUTURE }]],
+    expect: [1, 0, 0, 1],
+  },
+  {
+    label: 'membership expired',
+    userRoles: [[5, { active: 1, expires: PAST }]],
+    expect: [1, 0, 0, 0],
+  },
+  {
+    label: 'membership inactive',
+    userRoles: [[5, { active: 0, expires: NO_EXPIRY }]],
+    expect: [1, 0, 0, 0],
+  },
+  { label: 'role inactive', userRoles: [[5, ACTIVE]], inactive: ['role5'], expect: [1, 0, 0, 0] },
+  {
+    label: 'role grant inactive',
+    userRoles: [[5, ACTIVE]],
+    inactive: ['rolePermission'],
+    expect: [1, 0, 0, 0],
+  },
+  { label: 'ALLOW override', overrides: [[1000, 'ALLOW', ACTIVE]], expect: [1, 0, 1, 0] },
+  {
+    label: 'expired ALLOW',
+    overrides: [[1000, 'ALLOW', { active: 1, expires: PAST }]],
+    expect: [1, 0, 0, 0],
+  },
+  {
+    label: 'DENY + role grant',
+    userRoles: [[5, ACTIVE]],
+    overrides: [[1000, 'DENY', ACTIVE]],
+    expect: [1, 1, 0, 1],
+  },
+  {
+    label: 'expired DENY',
+    userRoles: [[5, ACTIVE]],
+    overrides: [[1000, 'DENY', { active: 1, expires: PAST }]],
+    expect: [1, 0, 0, 1],
+  },
+  {
+    label: 'inactive DENY',
+    userRoles: [[5, ACTIVE]],
+    overrides: [[1000, 'DENY', { active: 0, expires: NO_EXPIRY }]],
+    expect: [1, 0, 0, 1],
+  },
+  {
+    label: 'ALLOW + DENY',
+    overrides: [
+      [1000, 'ALLOW', ACTIVE],
+      [1000, 'DENY', ACTIVE],
+    ],
+    expect: [1, 1, 1, 0],
+  },
+  {
+    label: 'permission inactive',
+    userRoles: [[5, ACTIVE]],
+    inactive: ['permission1000'],
+    expect: [0, 0, 0, 1],
+  },
+  {
+    label: 'resource inactive',
+    userRoles: [[5, ACTIVE]],
+    inactive: ['resource100'],
+    expect: [0, 0, 0, 1],
+  },
+  {
+    label: 'module inactive',
+    userRoles: [[5, ACTIVE]],
+    inactive: ['module10'],
+    expect: [0, 0, 0, 1],
+  },
+  { label: 'ordinary role does not grant it', userRoles: [[4, ACTIVE]], expect: [1, 0, 0, 0] },
+];
+
 function rows(columns, data) {
   if (data.length === 0) {
     return `SELECT ${columns.map((column) => `CAST(NULL AS NUMBER) ${column}`).join(', ')} FROM dual WHERE 1 = 0`;
@@ -194,7 +344,7 @@ function rows(columns, data) {
     .join(' UNION ALL ');
 }
 
-function classificationProbeSql({ userRoles = [], overrides = [], inactive = [] }) {
+function syntheticTables({ userRoles = [], overrides = [], inactive = [] }) {
   const on = (key) => (inactive.includes(key) ? 0 : 1);
   const tables = {
     xx_zrv_users: rows(['user_id'], [[1]]),
@@ -206,17 +356,17 @@ function classificationProbeSql({ userRoles = [], overrides = [], inactive = [] 
       ],
     ),
     xx_zrv_resources: rows(
-      ['resource_id', 'module_id', 'is_active'],
+      ['resource_id', 'module_id', 'resource_code', 'is_active'],
       [
-        [100, 10, on('resource100')],
-        [200, 20, 1],
+        [100, 10, "'SECURITY_AUDIT'", on('resource100')],
+        [200, 20, "'WORK_ORDERS'", 1],
       ],
     ),
     xx_zrv_permissions: rows(
-      ['permission_id', 'resource_id', 'is_active'],
+      ['permission_id', 'resource_id', 'action_code', 'is_active'],
       [
-        [1000, 100, on('permission1000')],
-        [2000, 200, 1],
+        [1000, 100, "'VIEW'", on('permission1000')],
+        [2000, 200, "'VIEW'", 1],
       ],
     ),
     xx_zrv_roles: rows(
@@ -226,7 +376,7 @@ function classificationProbeSql({ userRoles = [], overrides = [], inactive = [] 
         [2, "'MAIN_ADMINISTRATOR'", 1],
         [3, "'ADMINISTRATOR'", on('role3')],
         [4, "'PRODUCTION_SUPERVISOR'", 1],
-        [5, "'AUDIT_VIEWER'", 1],
+        [5, "'AUDIT_VIEWER'", on('role5')],
       ],
     ),
     xx_zrv_role_permissions: rows(
@@ -261,8 +411,13 @@ function classificationProbeSql({ userRoles = [], overrides = [], inactive = [] 
   const withClause = Object.entries(tables)
     .map(([name, query]) => `${name} AS (${query})`)
     .join(',\n');
-  return `WITH ${withClause}\nSELECT ${authRepository.PRIVILEGE_COLUMNS.sql} FROM xx_zrv_users u`;
+  return `WITH ${withClause}\n`;
 }
+
+const classificationProbeSql = (vector) =>
+  `${syntheticTables(vector)}SELECT ${authRepository.PRIVILEGE_COLUMNS.sql} FROM xx_zrv_users u`;
+const decisionProbeSql = (vector) =>
+  `${syntheticTables(vector)}${authorizationRepository.PERMISSION_DECISION_SQL}`;
 
 const describeType = (value) =>
   value === null ? 'null' : value instanceof Date ? 'Date' : typeof value;
@@ -377,6 +532,74 @@ try {
       });
     }
 
+    // Phase 03: the request-time decision SQL on the same synthetic rows (no writes).
+    for (const vector of DECISION_VECTORS) {
+      await check(`decision: ${vector.label}`, async () => {
+        const result = await connection.execute(decisionProbeSql(vector), {
+          userId: 1,
+          moduleCode: 'SECURITY_ADMINISTRATION',
+          resourceCode: 'SECURITY_AUDIT',
+          actionCode: 'VIEW',
+        });
+        if (result.rows.length !== 1) throw new Error(`expected 1 row, got ${result.rows.length}`);
+        const actual = result.rows[0].slice(1);
+        if (JSON.stringify(actual) !== JSON.stringify(vector.expect)) {
+          throw new Error(
+            `expected ${JSON.stringify(vector.expect)}, got ${JSON.stringify(actual)}`,
+          );
+        }
+        return JSON.stringify(actual);
+      });
+    }
+
+    // Phase 03 read-only RBAC SELECTs against the real tables (counts and booleans only).
+    const count = async (promise) => `${(await promise).length} rows`;
+    const reads = {
+      'authorization.findPermissionDecision (user 0)': async () => {
+        const facts = await authorizationRepository.findPermissionDecision(connection, {
+          userId: '0',
+          moduleCode: 'SECURITY_ADMINISTRATION',
+          resourceCode: 'ROLES',
+          actionCode: 'VIEW',
+        });
+        if (!facts) return 'permission not in catalogue';
+        if (facts.denied || facts.allowedByOverride || facts.allowedByRole) {
+          throw new Error('a nonexistent user must hold nothing');
+        }
+        return `catalogActive=${facts.catalogActive}`;
+      },
+      'authorization.listEffectivePermissions (user 0)': async () => {
+        const list = await authorizationRepository.listEffectivePermissions(connection, '0');
+        if (list.length !== 0) throw new Error(`expected 0, got ${list.length}`);
+        return '0 rows';
+      },
+      'rbac.findUser (0)': async () => String(await rbacRepository.findUser(connection, '0')),
+      'rbac.listActiveRoleCodes (0)': () =>
+        count(rbacRepository.listActiveRoleCodes(connection, '0')),
+      'rbac.listRoles': async () => {
+        const page = await rbacRepository.listRoles(connection, { limit: 5, offset: 0 });
+        return `total=${page.total} (${typeof page.total}), page=${page.items.length}`;
+      },
+      'rbac.findRole (0)': async () => String(await rbacRepository.findRole(connection, '0')),
+      'rbac.listCatalog': async () => {
+        const modules = await rbacRepository.listCatalog(connection);
+        const resources = modules.reduce((n, m) => n + m.resources.length, 0);
+        return `${modules.length} module(s), ${resources} resource(s)`;
+      },
+      'rbac.findModule (0)': async () => String(await rbacRepository.findModule(connection, '0')),
+      'rbac.findResource (0)': async () =>
+        String(await rbacRepository.findResource(connection, '0')),
+      'rbac.findPermission (0)': async () =>
+        String(await rbacRepository.findPermission(connection, '0')),
+      'rbac.listRolePermissions (0)': () =>
+        count(rbacRepository.listRolePermissions(connection, '0')),
+      'rbac.listActiveRoleGrantKeys (0)': () =>
+        count(rbacRepository.listActiveRoleGrantKeys(connection, '0')),
+      'rbac.listUserRoles (0)': () => count(rbacRepository.listUserRoles(connection, '0')),
+      'rbac.listUserOverrides (0)': () => count(rbacRepository.listUserOverrides(connection, '0')),
+    };
+    for (const [label, fn] of Object.entries(reads)) await check(label, fn);
+
     // Decision 07: evaluate the deployed CHECK conditions for every catalogue value.
     const checks = await connection.execute(
       `SELECT constraint_name, search_condition_vc FROM user_constraints
@@ -432,7 +655,7 @@ try {
     for (const [label, call] of Object.entries(DML)) {
       await check(`${label} (parse only)`, async () => {
         const sql = await captureSql(call);
-        if (!/^\s*(INSERT|UPDATE)\b/i.test(sql)) throw new Error('refusing to parse non-DML');
+        if (!/^\s*(INSERT|UPDATE|MERGE)\b/i.test(sql)) throw new Error('refusing to parse non-DML');
         await connection.execute(PARSE_ONLY, { statement: sql.trim() });
       });
     }

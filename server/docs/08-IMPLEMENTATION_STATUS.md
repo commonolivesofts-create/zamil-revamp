@@ -1,9 +1,9 @@
 # Zamil Revamp — Authentication/RBAC Implementation Status
 
-**Last reviewed:** 19 October 2026 (after the approved Oracle TEST bootstrap was executed; awaiting developer review, uncommitted).
+**Last reviewed:** 20 October 2026 (Phase 03 authorization and RBAC administration implemented on `feat/rbac-authorization`, uncommitted; Phases 01–02 merged).
 **Scope:** Backend and Oracle only; `client/` intentionally deferred.
 **Status:** Phase 01 authentication foundation implemented with the seven security-review decisions and the approved administrator classification; approved TEST bootstrap **executed** (61 rows; Zaid USER_ID 1, ACTIVE, SUPER_ADMINISTRATOR); post-bootstrap `npm run db:verify-auth` passed. Ordinary-user Oracle login/session lifecycle **not yet integration-tested**.
-**Current development branch reported by owner:** `feat/auth-foundation` (verify with read-only Git status before acting).
+**Current development branch reported by owner:** `feat/rbac-authorization` (verify with read-only Git status before acting).
 
 ## Project snapshot
 
@@ -20,12 +20,20 @@
 |---|---|---|---|
 | 00 | Read-only backend / Oracle readiness inspection | **COMPLETE** | Existing infra inventoried; baseline `npm run check` 64/64 tests passed; no repository changes; see `handoffs/PHASE-00-READINESS.md`. |
 | 01 | Authentication foundation and password login | **MERGED** (`main`, #2) |  5 endpoints under `/api/v1/auth`; seven review decisions and the approved administrator classification applied; `npm run check` 236/236 (Oracle mocked); `npm run db:verify-auth` 61/61 read-only on TEST (SELECTs, date, CHECK and 21 classification vectors executed; DML parse-only). Approved TEST bootstrap **executed** by the developer (61 rows); post-bootstrap `db:verify-auth` all passed (developer-reported). **Not done:** ordinary-user real Oracle login/session/logout/lockout integration test; Zaid's login is blocked by design until Phase 02 MFA. See `handoffs/PHASE-01-AUTH-FOUNDATION.md`. |
-| 02 | Full MFA and session management | **IN PROGRESS — first slice implemented, uncommitted** (`feat/auth-mfa`) | TOTP login challenge (10-min `XX_ZRV_USER_SESSIONS` row, `MFA_VERIFIED_AT` NULL), first-time enrollment with proof of possession (candidate secret derived per challenge; AES-256-GCM at rest), verification with replay guard (`MFA_LAST_USED_STEP`), MFA failures share the 5/15 lockout. Endpoints `POST /api/v1/auth/mfa/enrollment`, `/mfa/enrollment/confirm`, `/mfa/verify`, plus authenticator replacement `/mfa/replacement` and `/mfa/replacement/confirm` (MFA verified on the session within 10 min; separate derivation purpose; optimistic replace; revokes every session incl. the current one; `SESSION_REVOKED`/`MFA_REPLACED`, refusals `ACCESS_DENIED`). **Oracle TEST (developer-run, 2026-10-20):** Zaid enrolled, logged out, verified again and logged out; read-only post-check passed (2 challenges + 2 MFA-verified sessions, all revoked; audit LOGIN_SUCCESS ×2, LOGOUT ×2, no failures). The enrolled TOTP secret was then exposed and is treated as **compromised: replacement on TEST pending** (`npm run auth:mfa-test -- --replace`). Challenge issuance writes no audit event; `LOGIN_SUCCESS` only when the MFA-verified session is created; failed codes `LOGIN_FAILED`. Concurrent same-step and double-enrollment races proven to fail one request (atomic UPDATE guards). Approved: 10-min challenge, counter reset only after MFA, password-only first enrollment **provisionally for controlled TEST enrollment of Zaid only** (not the production policy). `npm run check` 295/295 (Oracle mocked); `db:verify-auth` all passed read-only (new DML incl. `replaceMfa` parse-only). **Not done:** replacement of Zaid's compromised secret on TEST (approval pending), voluntary enrollment from an ordinary session, step-up for other sensitive actions, MFA recovery (Phase 08), key rotation. Without the key, mandatory-MFA users still get `403 MFA_REQUIRED`. |
-| 03 | Authorization evaluator and middleware | NOT STARTED | Depends on session/account identity and the approved permission catalogue. |
+| 02 | Full MFA and session management | **MERGED** (`main`, #3; retrospective `handoffs/PHASE-02-MFA.md`). Compromised TEST secret replaced; read-only post-check 18/18 passed (developer-run). History below. | TOTP login challenge (10-min `XX_ZRV_USER_SESSIONS` row, `MFA_VERIFIED_AT` NULL), first-time enrollment with proof of possession (candidate secret derived per challenge; AES-256-GCM at rest), verification with replay guard (`MFA_LAST_USED_STEP`), MFA failures share the 5/15 lockout. Endpoints `POST /api/v1/auth/mfa/enrollment`, `/mfa/enrollment/confirm`, `/mfa/verify`, plus authenticator replacement `/mfa/replacement` and `/mfa/replacement/confirm` (MFA verified on the session within 10 min; separate derivation purpose; optimistic replace; revokes every session incl. the current one; `SESSION_REVOKED`/`MFA_REPLACED`, refusals `ACCESS_DENIED`). **Oracle TEST (developer-run, 2026-10-20):** Zaid enrolled, logged out, verified again and logged out; read-only post-check passed (2 challenges + 2 MFA-verified sessions, all revoked; audit LOGIN_SUCCESS ×2, LOGOUT ×2, no failures). The enrolled TOTP secret was then exposed and is treated as **compromised: replacement on TEST pending** (`npm run auth:mfa-test -- --replace`). Challenge issuance writes no audit event; `LOGIN_SUCCESS` only when the MFA-verified session is created; failed codes `LOGIN_FAILED`. Concurrent same-step and double-enrollment races proven to fail one request (atomic UPDATE guards). Approved: 10-min challenge, counter reset only after MFA, password-only first enrollment **provisionally for controlled TEST enrollment of Zaid only** (not the production policy). `npm run check` 295/295 (Oracle mocked); `db:verify-auth` all passed read-only (new DML incl. `replaceMfa` parse-only). **Not done:** replacement of Zaid's compromised secret on TEST (approval pending), voluntary enrollment from an ordinary session, step-up for other sensitive actions, MFA recovery (Phase 08), key rotation. Without the key, mandatory-MFA users still get `403 MFA_REQUIRED`. |
+| 03 | Authorization evaluator and middleware + RBAC administration APIs | **IMPLEMENTED — uncommitted** (`feat/rbac-authorization`) | `authorize('MODULE.RESOURCE', 'ACTION')` evaluated in Oracle per request (default deny, explicit DENY wins, active catalogue chain, MFA-verified session for security permissions; denials `403` + `ACCESS_DENIED`). 23 operations under `/api/v1/access-control` (roles, catalogue, role grants, user roles, overrides, effective permissions) with Super Administrator protections, no-escalation and no-self-modification rules; owner-approved `RBAC_*` audit codes in the same transaction. Tests: 44 new (in-memory doubles), mutation-checked; `npm run check` 340/340 passed (lint, format, tests; Oracle mocked). **Oracle TEST (owner-approved, 2026-10-20):**
+- `db:verify-auth`: 112/112 read-only checks passed.
+- `auth:rbac-test`: all checks passed. Run as Zaid via MFA. It covered authorized reads, protected-role/catalogue, self-modification, CSRF and validation refusals, and a temporary `ZRV_IT_TEMP_*` role taken through create, 409 duplicate, update, grant/revoke with read-back, deactivation and an inactive-role 409.
+- `db:rbac-post-check`: all passed. The audit trail was CREATED > UPDATED > GRANTED > REVOKED > DEACTIVATED. The temp role is inactive with no active grants or members. Zaid's account, memberships, the 23 SUPER grants and the catalogue are unchanged, and no run session is open.
+
+**Not done:**
+- ordinary-user authorization on Oracle (403 default deny, assignments, overrides): needs the item-4 account;
+- assignment/override audit codes not yet written on Oracle;
+- read access not audited. Phases 06/07 API scope (catalogue, role/user grants, overrides) is covered here. See `handoffs/PHASE-03-RBAC-AUTHORIZATION.md`. |
 | 04 | Employee provisioning / setup / activation | NOT STARTED | No automatic login access or role grants; must set `PASSWORD_CHANGED_AT`. |
 | 05 | User and administrator account management | NOT STARTED | Enforce protected hierarchy. |
-| 06 | Roles, modules, resources and permission catalog APIs | NOT STARTED | Locked schema; business resources/actions. |
-| 07 | User-role, role-permission and user override APIs | NOT STARTED | Effective DENY precedence. |
+| 06 | Roles, modules, resources and permission catalog APIs | **API implemented in Phase 03** | Business resources/actions still to be defined per business module. |
+| 07 | User-role, role-permission and user override APIs | **API implemented in Phase 03** | Effective DENY precedence implemented. |
 | 08 | Password/MFA recovery and Zaid authorization | NOT STARTED | No pending-approval queue; must set `PASSWORD_CHANGED_AT`. |
 | 09 | Audit retrieval, reminders and security hardening | NOT STARTED | Application failure-audit persistence implemented in Phase 01; DB immutability still blocked. |
 | 10 | Integration, OpenAPI and regression verification | NOT STARTED | Scope/release review. |
@@ -64,12 +72,15 @@
 6. Expired passwords / NULL change times cannot be resolved until a password setup/change/reset phase exists.
 7. Hosting/CSRF: Origin check needs correct `TRUST_PROXY_HOPS` or `AUTH_ALLOWED_ORIGINS`; cross-site frontend hosting would break `SameSite=Lax` cookies.
 
+8. Phase 03: RBAC read access (effective permissions, lists) is not audited; no approved read-audit code.
+9. Phase 03: ordinary-user authorization not yet verified on Oracle; depends on item 4.
+
 ## Immediate next action
 
-1. Developer reviews Phase 01 (`git diff --stat`, `git diff --check`, untracked files) and `handoffs/PHASE-01-AUTH-FOUNDATION.md`, then commits.
-2. Owner names the ordinary TEST account (item 4) so the full login/session lifecycle can be integration-tested on Oracle; schedules items 2 and 3 before production.
-3. Optional pre-MFA check with Zaid on TEST: correct password → `403 MFA_REQUIRED`, no session row, `LOGIN_FAILED`/DENIED audit row (writes audit rows; needs approval).
-4. Phase 02 (MFA) only after the above.
+1. Developer reviews Phase 03 (`git diff --ignore-cr-at-eol --stat`, untracked files) and `handoffs/PHASE-03-RBAC-AUTHORIZATION.md` / `PHASE-02-MFA.md`, then commits.
+2. ~~Read-only `db:verify-auth` and the controlled Super Administrator RBAC API run on TEST~~: **done, all passed** (2026-10-20). Rerun with `npm run db:verify-auth`, `npm run auth:rbac-test` (interactive; server running) and `npm run db:rbac-post-check`.
+3. Owner names the ordinary TEST account (item 4). Then, with authorization, test ordinary-user authorization on Oracle: 403 default deny, role assignment/removal, ALLOW/DENY overrides and immediate revocation.
+4. Schedule blockers 2 and 3 before production.
 
 ## Update rules after each major feature
 
