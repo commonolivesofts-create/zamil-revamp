@@ -55,3 +55,7 @@ export const ADMINISTRATOR_ROLE_DEFINITIONS = Object.freeze([
 
 // Zaid: owner-approved immutable identity of the only Super Administrator (docs/07 §5, §10A).
 export const SUPER_ADMINISTRATOR_EMPLOYEE_NUMBER = '2172';
+
+// docs/07 §5: Zaid recovers his own account only through this pinned address (never a value read
+// from the employee master or supplied by a client).
+export const SUPER_ADMINISTRATOR_RECOVERY_EMAIL = 'zaid.sayyed@zamilplastic.com';

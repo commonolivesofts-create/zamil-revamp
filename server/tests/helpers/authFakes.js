@@ -360,6 +360,7 @@ export function createAuthStore({ start = new Date('2026-10-19T08:00:00Z') } = {
     sessionRepository,
     auditRepository,
     now,
+    barrier,
     holdReads(name, count) {
       let release;
       const promise = new Promise((resolve) => {
@@ -455,6 +456,8 @@ export function createTestApp(store, authOverrides) {
       authorizationRepository: store.authorizationRepository,
       rbacRepository: store.rbacRepository,
       usersRepository: store.usersRepository,
+      recoveryRepository: store.recoveryRepository,
+      delivery: store.delivery,
       argon2Cost: TEST_ARGON2_COST,
     },
   });

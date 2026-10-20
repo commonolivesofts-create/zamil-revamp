@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { POOLS, withConnection } from '../database/oracle.js';
 import { createAuthenticate } from '../middleware/authenticate.js';
 import { createAuthorize } from '../middleware/authorize.js';
 import { createAuthorizationService } from '../modules/access-control/authorization.service.js';
@@ -9,6 +10,10 @@ import { createSecurityAuditService } from '../modules/audit/securityAudit.servi
 import { createAuthRouter } from '../modules/auth/auth.routes.js';
 import { createAuthService } from '../modules/auth/auth.service.js';
 import { createMfaService } from '../modules/auth/mfa.service.js';
+import { createRecoveryService } from '../modules/auth/recovery.service.js';
+import { findDatabaseName } from '../modules/notifications/databaseIdentity.repository.js';
+import { createUnconfiguredDelivery } from '../modules/notifications/delivery.js';
+import { createSmtpDelivery } from '../modules/notifications/smtpDelivery.js';
 import { createMfaKeyring } from '../modules/auth/mfaSecret.js';
 import { createSessionService } from '../modules/auth/session.service.js';
 import { createUsersRouter } from '../modules/users/users.routes.js';
@@ -36,9 +41,12 @@ export function createApiRouter(appConfig, deps = {}) {
   });
   // MFA can be completed only with the TOTP key ring; without it mandatory-MFA users stay blocked.
   const { mfa } = appConfig.auth;
-  const mfaService = mfa.encryptionKey
+  const keyring = mfa.encryptionKey
+    ? createMfaKeyring({ encryptionKey: mfa.encryptionKey, keyId: mfa.keyId })
+    : null;
+  const mfaService = keyring
     ? createMfaService({
-        keyring: createMfaKeyring({ encryptionKey: mfa.encryptionKey, keyId: mfa.keyId }),
+        keyring,
         issuer: mfa.issuer,
         authRepository: deps.authRepository,
         sessionRepository: deps.sessionRepository,
@@ -55,6 +63,30 @@ export function createApiRouter(appConfig, deps = {}) {
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
     argon2Cost: deps.argon2Cost ?? appConfig.auth.argon2,
+  });
+  // Office 365 SMTP when enabled; otherwise unconfigured, so delivery-dependent flows fail closed.
+  const withDatabase = db.withConnection ?? withConnection;
+  const delivery =
+    deps.delivery ??
+    (appConfig.smtp?.enabled
+      ? createSmtpDelivery({
+          smtp: appConfig.smtp,
+          links: appConfig.links,
+          readDatabaseName: () => withDatabase(POOLS.LOW, findDatabaseName),
+        })
+      : createUnconfiguredDelivery());
+  const recoveryService = createRecoveryService({
+    recoveryRepository: deps.recoveryRepository,
+    usersRepository: deps.usersRepository,
+    authRepository: deps.authRepository,
+    sessionRepository: deps.sessionRepository,
+    auditService,
+    delivery,
+    keyring,
+    issuer: mfa.issuer,
+    argon2Cost: deps.argon2Cost ?? appConfig.auth.argon2,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
   });
   const authenticate = createAuthenticate({ sessionService, cookieConfig: appConfig.auth.cookie });
   const authorizationService = createAuthorizationService({
@@ -89,6 +121,7 @@ export function createApiRouter(appConfig, deps = {}) {
       sessionService,
       mfaService,
       auditService,
+      recoveryService,
       authenticate,
       authConfig: appConfig.auth,
     }),
@@ -98,7 +131,10 @@ export function createApiRouter(appConfig, deps = {}) {
     createRbacRouter({ rbacService, authorizationService, authorize, authenticate, auditService }),
   );
 
-  router.use('/users', createUsersRouter({ usersService, authorize, authenticate, auditService }));
+  router.use(
+    '/users',
+    createUsersRouter({ usersService, recoveryService, authorize, authenticate, auditService }),
+  );
 
   return router;
 }

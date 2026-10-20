@@ -90,9 +90,13 @@ describe('approved audit catalogue (Decision 07)', () => {
       'ACCOUNT_DISABLED',
       'ACCOUNT_LOCKED',
       'ACCOUNT_PROVISIONED',
+      // Phase 05 recovery codes (owner-approved).
+      'ACTION_TOKEN_ISSUED',
       'LOGIN_FAILED',
       'LOGIN_SUCCESS',
       'LOGOUT',
+      'MFA_RECOVERED',
+      'PASSWORD_CHANGED',
       // Phase 03 RBAC administration codes (owner-approved).
       'RBAC_CATALOG_CHANGED',
       'RBAC_OVERRIDE_REVOKED',

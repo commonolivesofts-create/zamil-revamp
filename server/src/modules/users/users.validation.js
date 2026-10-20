@@ -25,6 +25,14 @@ export const listUsersQuerySchema = Joi.object({
 
 export const candidatesQuerySchema = Joi.object({ page, limit, search, hasAccount: Joi.boolean() });
 
+// Explicit authorization (docs/07 §5 Option A): the operator re-enters the target employee number.
+const confirmEmployeeNumber = Joi.string().max(30).required();
+export const passwordSetupIssueSchema = Joi.object({ confirmEmployeeNumber });
+export const recoveryIssueSchema = Joi.object({
+  purpose: Joi.string().valid('PASSWORD_RESET', 'MFA_RECOVERY').required(),
+  confirmEmployeeNumber,
+});
+
 export const userIdParams = Joi.object({ userId: id.required() });
 export const userSessionParams = Joi.object({ userId: id.required(), sessionId: id.required() });
 

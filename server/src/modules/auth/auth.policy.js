@@ -89,6 +89,23 @@ export const MFA_POLICY = Object.freeze({
   replacementRecentVerificationMs: 10 * MINUTE_MS,
 });
 
+/**
+ * Single-use account action tokens (docs/07 §4; XX_ZRV_ACCOUNT_ACTION_TOKENS.ACTION_TYPE). Only the
+ * SHA-256 digest is stored; the raw token is handed only to the delivery channel. One outstanding
+ * token per user and type: issuing a new one revokes the previous one. A second token of the same
+ * type is not issued within `issueCooldownMs` (self-service request flooding).
+ */
+export const ACTION_TOKEN_POLICY = Object.freeze({
+  lifetimeMs: Object.freeze({
+    PASSWORD_SETUP: 24 * 60 * MINUTE_MS,
+    PASSWORD_RESET: 30 * MINUTE_MS,
+    MFA_RECOVERY: 15 * MINUTE_MS,
+  }),
+  issueCooldownMs: 5 * MINUTE_MS,
+  // Super Administrator recovery authorization of another privileged account (docs/07 §5 Option A).
+  recentVerificationMs: 10 * MINUTE_MS,
+});
+
 // Upper bound accepted at login. Above PASSWORD_POLICY.maxLength so that a password set by an
 // earlier process is never truncated, but small enough to bound hashing work per request.
 export const LOGIN_PASSWORD_MAX_LENGTH = 256;

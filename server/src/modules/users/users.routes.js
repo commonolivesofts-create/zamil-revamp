@@ -7,7 +7,9 @@ import {
   emptyBodySchema,
   emptyQuerySchema,
   listUsersQuerySchema,
+  passwordSetupIssueSchema,
   provisionSchema,
+  recoveryIssueSchema,
   userIdParams,
   userSessionParams,
 } from './users.validation.js';
@@ -19,18 +21,24 @@ const USER_ACCOUNTS = 'SECURITY_ADMINISTRATION.USER_ACCOUNTS';
  * and the USER_ACCOUNTS action (re-evaluated in Oracle per request; MFA-verified session required);
  * changes also require the session-bound CSRF token. Validation runs after authorization.
  */
-export function createUsersRouter({ usersService, authorize, authenticate, auditService }) {
-  const controller = createUsersController({ usersService });
+export function createUsersRouter({
+  usersService,
+  recoveryService,
+  authorize,
+  authenticate,
+  auditService,
+}) {
+  const controller = createUsersController({ usersService, recoveryService });
   const requireCsrfToken = createRequireCsrfToken({ auditService });
   const read = (action, schemas) => [
     authenticate,
     authorize(USER_ACCOUNTS, action),
     validate({ query: emptyQuerySchema, ...schemas }),
   ];
-  const write = (action, schemas) => [
+  const write = (action, schemas, resource = USER_ACCOUNTS) => [
     authenticate,
     requireCsrfToken,
-    authorize(USER_ACCOUNTS, action),
+    authorize(resource, action),
     validate({ query: emptyQuerySchema, body: emptyBodySchema, ...schemas }),
   ];
   const router = Router();
@@ -58,6 +66,22 @@ export function createUsersRouter({ usersService, authorize, authenticate, audit
     '/:userId/disable',
     ...write('DISABLE', { params: userIdParams }),
     controller.disable,
+  );
+  // Password setup link for a PENDING account (USER_ACCOUNTS:CREATE) and recovery links
+  // (ACCOUNT_RECOVERY:ISSUE); both fail closed until a delivery channel is configured.
+  router.post(
+    '/:userId/password-setup',
+    ...write('CREATE', { params: userIdParams, body: passwordSetupIssueSchema }),
+    controller.issueToken(false),
+  );
+  router.post(
+    '/:userId/recovery',
+    ...write(
+      'ISSUE',
+      { params: userIdParams, body: recoveryIssueSchema },
+      'SECURITY_ADMINISTRATION.ACCOUNT_RECOVERY',
+    ),
+    controller.issueToken(true),
   );
   router.delete(
     '/:userId/sessions',
