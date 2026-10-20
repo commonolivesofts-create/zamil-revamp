@@ -46,6 +46,7 @@ async function setup({ delivery = createRecordingDelivery() } = {}) {
   installUsers(store);
   installRecovery(store);
   store.delivery = delivery ?? undefined;
+  store.backgroundTasks = new Set();
   const { roles } = rbac.seedSecurityCatalog();
 
   const account = async (employeeNumber, username, user = {}) =>
@@ -101,10 +102,13 @@ describe('authentication recovery', () => {
     admin = await signIn(f.store, f.admin);
     zaid = await signIn(f.store, f.zaid);
   });
-  const post = (path, body, session) => {
+  // Self-service requests finish in the background; the helper waits for that work.
+  const post = async (path, body, session) => {
     const req = request(f.app).post(path);
     if (session) req.set('Cookie', session.cookie).set('X-CSRF-Token', session.csrf);
-    return req.send(body);
+    const res = await req.send(body);
+    await Promise.all([...f.store.backgroundTasks]);
+    return res;
   };
   const issue = (session, userId, body, kind = 'recovery') =>
     post(`/api/v1/users/${userId}/${kind}`, body, session);
