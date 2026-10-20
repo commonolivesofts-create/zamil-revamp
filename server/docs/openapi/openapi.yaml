@@ -32,6 +32,14 @@ tags:
       Application accounts for employee-master employees: provisioning (PENDING,
       no password), activation after password setup, disabling and session
       revocation, under the protected administrator hierarchy.
+  - name: Authentication Recovery
+    description: >-
+      Password setup, reset and change and MFA recovery with single-use hashed
+      tokens delivered by Office 365 SMTP to XX_DIGI_EMP_MASTER.EMAIL_ADDRESS (the
+      Super Administrator: pinned address only; outside production: the approved
+      test mailbox only). The token is only ever in the e-mailed link's URL
+      fragment. Without SMTP configuration, delivery-dependent requests fail
+      closed with 503 DELIVERY_UNAVAILABLE.
   - name: Authentication
     description: >-
       Password login, current session and logout. Login username is the employee
@@ -2006,6 +2014,378 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/recovery/request:
+    post:
+      operationId: requestRecovery
+      tags: [Authentication Recovery]
+      summary: Request a password reset or MFA recovery link
+      description: >-
+        Anonymous self-service request. Always 202 with the same body for every
+        username (no enumeration). PASSWORD_RESET: ordinary employees and the Super
+        Administrator; MFA_RECOVERY: the Super Administrator only (pinned address).
+        Other privileged accounts are recovered by the Super Administrator. 503
+        DELIVERY_UNAVAILABLE for every request while no delivery channel is
+        configured. Rate limited per client; one link per account and type per 5
+        minutes.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecoveryRequest'
+      responses:
+        '202':
+          description: Accepted.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RecoveryAccepted'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/DeliveryUnavailable'
+  /api/v1/auth/password/setup:
+    post:
+      operationId: completePasswordSetup
+      tags: [Authentication Recovery]
+      summary: Set the first password (PENDING account)
+      description: >-
+        Consumes a PASSWORD_SETUP token (24 h, single use), applies the password
+        policy, sets the Argon2id hash and PASSWORD_CHANGED_AT and activates the
+        account if the employee is still eligible. Audited as PASSWORD_CHANGED /
+        PASSWORD_SETUP and ACCOUNT_ACTIVATED. Sign in afterwards.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordTokenRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PasswordChangeResult'
+        '400':
+          $ref: '#/components/responses/RecoveryError'
+        '403':
+          $ref: '#/components/responses/RecoveryRefused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/password/reset:
+    post:
+      operationId: completePasswordReset
+      tags: [Authentication Recovery]
+      summary: Reset the password with a reset link
+      description: >-
+        Consumes a PASSWORD_RESET token (30 min, single use). The new password must
+        satisfy the policy and differ from the current one. Clears the lockout,
+        revokes every session and outstanding reset token. MFA remains required at
+        the next sign-in. Audited as PASSWORD_CHANGED / PASSWORD_RESET.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordTokenRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PasswordChangeResult'
+        '400':
+          $ref: '#/components/responses/RecoveryError'
+        '403':
+          $ref: '#/components/responses/RecoveryRefused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/password/change:
+    post:
+      operationId: changePassword
+      tags: [Authentication Recovery]
+      summary: Change the password (signed in)
+      description: >-
+        Requires the current password (wrong values count toward the 5-failure
+        lockout) and the X-CSRF-Token header. Revokes every session including the
+        current one and clears the session cookie. Audited as PASSWORD_CHANGED /
+        PASSWORD_CHANGE.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PasswordChangeResult'
+        '400':
+          $ref: '#/components/responses/RecoveryError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/RecoveryRefused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/mfa/recovery/start:
+    post:
+      operationId: startMfaRecovery
+      tags: [Authentication Recovery]
+      summary: Start MFA recovery
+      description: >-
+        MFA_RECOVERY token (15 min) plus the current password; returns the setup key
+        of a NEW authenticator (shown once). Nothing is stored and the existing
+        authenticator stays valid until confirmation. Wrong passwords count toward
+        the lockout.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MfaRecoveryStartRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MfaEnrollment'
+        '400':
+          $ref: '#/components/responses/RecoveryError'
+        '401':
+          $ref: '#/components/responses/RecoveryRefused'
+        '403':
+          $ref: '#/components/responses/RecoveryRefused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/mfa/recovery/confirm:
+    post:
+      operationId: confirmMfaRecovery
+      tags: [Authentication Recovery]
+      summary: Confirm MFA recovery
+      description: >-
+        Token, current password and a code from the new authenticator. Consumes the
+        token, replaces the stored secret (only if unchanged), revokes every session
+        and clears the session cookie. The account is never left without MFA.
+        Audited as MFA_RECOVERED.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MfaRecoveryConfirmRequest'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MfaRecoveryResult'
+        '400':
+          $ref: '#/components/responses/RecoveryError'
+        '401':
+          $ref: '#/components/responses/RecoveryRefused'
+        '403':
+          $ref: '#/components/responses/RecoveryRefused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/users/{userId}/password-setup:
+    post:
+      operationId: issuePasswordSetup
+      tags: [User Administration]
+      summary: Send a password-setup link
+      description: >-
+        For a PENDING account without a password and an eligible employee. Requires
+        `SECURITY_ADMINISTRATION.USER_ACCOUNTS:CREATE`, the X-CSRF-Token header and
+        the target employee number as explicit confirmation. Privileged accounts:
+        Super Administrator only, MFA verified within 10 minutes. The token is sent
+        only to the delivery channel and never returned. 503 DELIVERY_UNAVAILABLE
+        (NO_CHANNEL_CONFIGURED / RECIPIENT_UNAVAILABLE / DELIVERY_FAILED) until
+        delivery is configured. Audited as ACTION_TOKEN_ISSUED.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordSetupIssueRequest'
+      responses:
+        '202':
+          description: Accepted.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TokenIssued'
+        '400':
+          $ref: '#/components/responses/RecoveryError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/RecoveryNotApplicable'
+        '429':
+          $ref: '#/components/responses/RecoveryThrottled'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/DeliveryUnavailable'
+  /api/v1/users/{userId}/recovery:
+    post:
+      operationId: issueRecovery
+      tags: [User Administration]
+      summary: Send a password-reset or MFA-recovery link
+      description: >-
+        Administrator-assisted recovery (docs/07 §5). Requires
+        `SECURITY_ADMINISTRATION.ACCOUNT_RECOVERY:ISSUE`, the X-CSRF-Token header
+        and explicit confirmation. Ordinary employees: any holder of the permission.
+        Main Administrators, Administrators and other security-permission holders:
+        only the Super Administrator with MFA verified within 10 minutes (direct
+        authorization, no approval queue). Never for the Super Administrator account
+        (self-recovery only) or the actor. Audited as ACTION_TOKEN_ISSUED.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecoveryIssueRequest'
+      responses:
+        '202':
+          description: Accepted.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TokenIssued'
+        '400':
+          $ref: '#/components/responses/RecoveryError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/RecoveryNotApplicable'
+        '429':
+          $ref: '#/components/responses/RecoveryThrottled'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/DeliveryUnavailable'
   /health/live:
     get:
       operationId: getLiveness
@@ -2901,6 +3281,134 @@ components:
           type: boolean
         changed:
           type: boolean
+    RecoveryRequest:
+      type: object
+      additionalProperties: false
+      required: [username, purpose]
+      properties:
+        username:
+          type: string
+          maxLength: 100
+        purpose:
+          enum: [PASSWORD_RESET, MFA_RECOVERY]
+    RecoveryAccepted:
+      type: object
+      properties:
+        accepted:
+          const: true
+        message:
+          type: string
+    PasswordTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [token, newPassword]
+      properties:
+        token:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{43}$'
+          description: Single-use token from the delivered link (request body only, never a URL).
+        newPassword:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Must satisfy GET /api/v1/auth/password/policy.
+    PasswordChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          minLength: 1
+          maxLength: 256
+        newPassword:
+          type: string
+          minLength: 1
+          maxLength: 256
+    PasswordChangeResult:
+      type: object
+      properties:
+        passwordChanged:
+          const: true
+        accountStatus:
+          const: ACTIVE
+        sessionsRevoked:
+          type: integer
+        signInRequired:
+          const: true
+    MfaRecoveryStartRequest:
+      type: object
+      additionalProperties: false
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{43}$'
+          description: Single-use token from the delivered link (request body only, never a URL).
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+    MfaRecoveryConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [token, password, code]
+      properties:
+        token:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{43}$'
+          description: Single-use token from the delivered link (request body only, never a URL).
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+    MfaRecoveryResult:
+      type: object
+      properties:
+        mfaRecovered:
+          const: true
+        sessionsRevoked:
+          type: integer
+        signInRequired:
+          const: true
+    PasswordSetupIssueRequest:
+      type: object
+      additionalProperties: false
+      required: [confirmEmployeeNumber]
+      properties:
+        confirmEmployeeNumber:
+          type: string
+          maxLength: 30
+          description: The employee number of the target account, re-entered as explicit authorization.
+    RecoveryIssueRequest:
+      type: object
+      additionalProperties: false
+      required: [purpose, confirmEmployeeNumber]
+      properties:
+        purpose:
+          enum: [PASSWORD_RESET, MFA_RECOVERY]
+        confirmEmployeeNumber:
+          type: string
+          maxLength: 30
+          description: The employee number of the target account, re-entered as explicit authorization.
+    TokenIssued:
+      type: object
+      description: Never contains the token.
+      properties:
+        userId:
+          $ref: '#/components/schemas/Id'
+        actionType:
+          enum: [PASSWORD_SETUP, PASSWORD_RESET, MFA_RECOVERY]
+        expiresAt:
+          type: string
+          format: date-time
+        delivered:
+          const: true
+        authorizedBySuperAdministrator:
+          type: boolean
     ResponseMeta:
       type: object
       required: [requestId]
@@ -3248,6 +3756,103 @@ components:
               details:
                 - field: account
                   message: PASSWORD_NOT_SET
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    RecoveryError:
+      description: >-
+        `VALIDATION_ERROR`, `TOKEN_INVALID` (unknown, expired, used, revoked or
+        wrong-purpose token: one message), `PASSWORD_POLICY_VIOLATION` (unmet rules
+        in details), `PASSWORD_REUSED` or `CONFIRMATION_MISMATCH`.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: TOKEN_INVALID
+              message: This link is invalid or has expired. Request a new one.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    RecoveryRefused:
+      description: >-
+        `RECOVERY_FAILED` (token, account or password check failed),
+        `MFA_VERIFICATION_FAILED`, `CURRENT_PASSWORD_INVALID`,
+        `ACCOUNT_NOT_ELIGIBLE` or `CSRF_REJECTED`.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: RECOVERY_FAILED
+              message: The recovery could not be completed.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    RecoveryNotApplicable:
+      description: >-
+        `RECOVERY_NOT_APPLICABLE` with the reason in details (for example
+        `ACCOUNT_ACTIVE`, `PASSWORD_ALREADY_SET`, `MFA_NOT_ENROLLED`, an
+        employee-eligibility reason) or `CONFLICT`.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: RECOVERY_NOT_APPLICABLE
+              message: This action does not apply to the account
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    RecoveryThrottled:
+      description: >-
+        A link of this type was sent to the account within the last 5 minutes.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: RECOVERY_THROTTLED
+              message: A message was sent recently. Wait a few minutes before sending another.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    DeliveryUnavailable:
+      description: >-
+        Office 365 SMTP is not enabled, no approved recipient exists for the account
+        (privileged accounts need separate approval; missing EMAIL_ADDRESS), the
+        TEST-recipient override could not prove the TEST database, or SMTP refused
+        or failed the message. No usable token remains. Details (administrators
+        only) carry `NO_CHANNEL_CONFIGURED`, `RECIPIENT_UNAVAILABLE`,
+        `DATABASE_IDENTITY_UNVERIFIED`, `RECIPIENT_NOT_PERMITTED`,
+        `LINK_NOT_CONFIGURED` or `DELIVERY_FAILED`.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: DELIVERY_UNAVAILABLE
+              message: Account recovery messages cannot be sent right now. Contact your administrator.
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     InternalError:

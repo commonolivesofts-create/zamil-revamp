@@ -3,7 +3,7 @@ import { sendPaginated, sendSuccess } from '../../shared/responses/apiResponse.j
 import { searchPattern } from './users.service.js';
 
 /** HTTP adapter for user administration; rules live in users.service.js. */
-export function createUsersController({ usersService }) {
+export function createUsersController({ usersService, recoveryService }) {
   const ctx = requestContext;
 
   return {
@@ -42,6 +42,19 @@ export function createUsersController({ usersService }) {
     },
     async revokeSessions(req, res) {
       sendSuccess(res, await usersService.revokeSessions(req.auth, req.params.userId, ctx(req)));
+    },
+    // The token goes only to the delivery channel; the response says that it was delivered.
+    issueToken(purposeFromBody) {
+      return async (req, res) => {
+        const purpose = purposeFromBody ? req.body.purpose : 'PASSWORD_SETUP';
+        const result = await recoveryService.issueForUser(
+          req.auth,
+          req.params.userId,
+          { purpose, confirmEmployeeNumber: req.body.confirmEmployeeNumber },
+          ctx(req),
+        );
+        sendSuccess(res, result, 202);
+      };
     },
     async revokeSession(req, res) {
       const { userId, sessionId } = req.params;

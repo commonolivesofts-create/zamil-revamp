@@ -20,6 +20,12 @@ describe('API documentation', () => {
     const { paths, components } = loadOpenApiSpec();
     const expected = [
       ['get', '/api/v1/auth/password/policy', false],
+      ['post', '/api/v1/auth/recovery/request', false],
+      ['post', '/api/v1/auth/password/setup', false],
+      ['post', '/api/v1/auth/password/reset', false],
+      ['post', '/api/v1/auth/password/change', true],
+      ['post', '/api/v1/auth/mfa/recovery/start', false],
+      ['post', '/api/v1/auth/mfa/recovery/confirm', false],
       ['post', '/api/v1/auth/login', false],
       ['get', '/api/v1/auth/me', true],
       ['get', '/api/v1/auth/csrf', true],
@@ -49,6 +55,8 @@ describe('API documentation', () => {
       ['get', '/{userId}'],
       ['post', '/{userId}/activate'],
       ['post', '/{userId}/disable'],
+      ['post', '/{userId}/password-setup'],
+      ['post', '/{userId}/recovery'],
       ['delete', '/{userId}/sessions'],
       ['delete', '/{userId}/sessions/{sessionId}'],
     ];

@@ -5,6 +5,19 @@ const DOCS_ALLOWED_ENVIRONMENTS = ['development', 'test'];
 const INSECURE_COOKIE_ENVIRONMENTS = ['development', 'test'];
 const SERVER_ROOT = resolve(import.meta.dirname, '../..');
 
+// Office 365 SMTP (owner decision, Phase 05): fixed endpoint, STARTTLS on 587, verified certificates.
+export const SMTP_ENDPOINT = Object.freeze({ host: 'smtp.office365.com', port: 587 });
+// The only mailbox that may receive redirected ordinary-user messages outside production.
+export const APPROVED_TEST_RECIPIENT = 'shaikh.azim@olivesofts.com';
+const email = Joi.string()
+  .trim()
+  .lowercase()
+  .email({ tlds: { allow: false } })
+  .max(254);
+const routePath = Joi.string().pattern(/^\/[A-Za-z0-9/_-]*$/);
+const smtpRequired = (schema) =>
+  schema.when('SMTP_ENABLED', { is: true, then: Joi.required(), otherwise: Joi.optional() });
+
 // OWASP Password Storage Cheat Sheet minimum for Argon2id: 19 MiB, 2 passes, 1 lane.
 const ARGON2_MIN_MEMORY_KIB = 19456;
 const ARGON2_MIN_PASSES = 2;
@@ -146,8 +159,83 @@ const envSchema = Joi.object({
     .pattern(/^[A-Za-z0-9_-]+$/)
     .invalid(Joi.ref('AUTH_SESSION_COOKIE_NAME'))
     .default('__Host-zr_mfa'),
+
+  // Account e-mail (password setup / reset / MFA recovery) through Office 365 SMTP. Disabled by
+  // default: every delivery-dependent flow then fails closed. Secrets come from the environment only.
+  SMTP_ENABLED: Joi.boolean().default(false),
+  // OAUTH2 = SMTP AUTH XOAUTH2 with an Entra ID app (client credentials); PASSWORD only where the
+  // tenant still permits basic SMTP AUTH for the mailbox.
+  SMTP_AUTH_METHOD: Joi.string().valid('OAUTH2', 'PASSWORD').default('OAUTH2'),
+  SMTP_USER: smtpRequired(email),
+  SMTP_FROM: email,
+  SMTP_FROM_NAME: Joi.string()
+    .trim()
+    .max(64)
+    .pattern(/^[^\r\n<>"]+$/)
+    .default('Zamil Revamp'),
+  SMTP_OAUTH_TENANT_ID: Joi.when('SMTP_AUTH_METHOD', {
+    is: 'OAUTH2',
+    then: smtpRequired(Joi.string().pattern(/^[A-Za-z0-9.-]{1,100}$/)),
+    otherwise: Joi.forbidden(),
+  }),
+  SMTP_OAUTH_CLIENT_ID: Joi.when('SMTP_AUTH_METHOD', {
+    is: 'OAUTH2',
+    then: smtpRequired(Joi.string().guid()),
+    otherwise: Joi.forbidden(),
+  }),
+  SMTP_OAUTH_CLIENT_SECRET: Joi.when('SMTP_AUTH_METHOD', {
+    is: 'OAUTH2',
+    then: smtpRequired(Joi.string().min(1).max(512)),
+    otherwise: Joi.forbidden(),
+  }),
+  SMTP_PASSWORD: Joi.when('SMTP_AUTH_METHOD', {
+    is: 'PASSWORD',
+    then: smtpRequired(Joi.string().min(1).max(512)),
+    otherwise: Joi.forbidden(),
+  }),
+  // Outside production every ordinary-user message goes to the approved test mailbox only, and only
+  // after the connected database proves to be the configured TEST database (checked in Oracle).
+  SMTP_TEST_RECIPIENT_OVERRIDE: Joi.when('NODE_ENV', {
+    is: 'production',
+    then: Joi.forbidden().messages({
+      'any.unknown': '"SMTP_TEST_RECIPIENT_OVERRIDE" is not allowed in production',
+    }),
+    otherwise: email
+      .valid(APPROVED_TEST_RECIPIENT)
+      .when('SMTP_ENABLED', { is: true, then: Joi.required() }),
+  }),
+  SMTP_TEST_DATABASE_NAME: Joi.when('SMTP_TEST_RECIPIENT_OVERRIDE', {
+    is: Joi.exist(),
+    then: Joi.string()
+      .pattern(/^[A-Za-z0-9_$#]{1,128}$/)
+      .pattern(/TEST/i, 'test database name')
+      .required(),
+    otherwise: Joi.forbidden(),
+  }),
+  // Privileged-account (incl. Super Administrator) recovery e-mail needs separate approval; it is
+  // never redirected to the test mailbox.
+  SMTP_PRIVILEGED_DELIVERY_ENABLED: Joi.boolean()
+    .default(false)
+    .when('SMTP_TEST_RECIPIENT_OVERRIDE', { is: Joi.exist(), then: Joi.valid(false) }),
+  // Frontend routes that receive the token (in the URL fragment). No frontend change is implied.
+  AUTH_FRONTEND_BASE_URL: smtpRequired(
+    Joi.string()
+      .uri({ scheme: ['https', 'http'] })
+      .max(200),
+  ),
+  AUTH_PASSWORD_SETUP_PATH: routePath.default('/password/setup'),
+  AUTH_PASSWORD_RESET_PATH: routePath.default('/password/reset'),
+  AUTH_MFA_RECOVERY_PATH: routePath.default('/mfa/recovery'),
 })
   .custom((value, helpers) => {
+    if (
+      value.AUTH_FRONTEND_BASE_URL?.startsWith('http:') &&
+      !INSECURE_COOKIE_ENVIRONMENTS.includes(value.NODE_ENV)
+    ) {
+      return helpers.message(
+        '"AUTH_FRONTEND_BASE_URL" must use https outside development and test',
+      );
+    }
     for (const name of ['AUTH_SESSION_COOKIE_NAME', 'AUTH_MFA_COOKIE_NAME']) {
       if (value[name].startsWith('__Host-') && !value.AUTH_COOKIE_SECURE) {
         return helpers.message(
@@ -220,6 +308,31 @@ export function loadConfig(env) {
         issuer: value.AUTH_MFA_ISSUER,
         cookieName: value.AUTH_MFA_COOKIE_NAME,
       }),
+    }),
+    smtp: Object.freeze({
+      enabled: value.SMTP_ENABLED,
+      ...SMTP_ENDPOINT,
+      authMethod: value.SMTP_AUTH_METHOD,
+      user: value.SMTP_USER ?? null,
+      from: Object.freeze({
+        address: value.SMTP_FROM ?? value.SMTP_USER ?? null,
+        name: value.SMTP_FROM_NAME,
+      }),
+      oauth: Object.freeze({
+        tenantId: value.SMTP_OAUTH_TENANT_ID ?? null,
+        clientId: value.SMTP_OAUTH_CLIENT_ID ?? null,
+        clientSecret: value.SMTP_OAUTH_CLIENT_SECRET ?? null,
+      }),
+      password: value.SMTP_PASSWORD ?? null,
+      testRecipientOverride: value.SMTP_TEST_RECIPIENT_OVERRIDE ?? null,
+      testDatabaseName: value.SMTP_TEST_DATABASE_NAME ?? null,
+      privilegedDeliveryEnabled: value.SMTP_PRIVILEGED_DELIVERY_ENABLED,
+    }),
+    links: Object.freeze({
+      baseUrl: value.AUTH_FRONTEND_BASE_URL ?? null,
+      PASSWORD_SETUP: value.AUTH_PASSWORD_SETUP_PATH,
+      PASSWORD_RESET: value.AUTH_PASSWORD_RESET_PATH,
+      MFA_RECOVERY: value.AUTH_MFA_RECOVERY_PATH,
     }),
     database: Object.freeze({
       user: value.ORACLE_USER,

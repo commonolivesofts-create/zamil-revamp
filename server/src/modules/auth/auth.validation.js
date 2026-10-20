@@ -30,3 +30,29 @@ export const mfaCodeSchema = Joi.object({
       'string.pattern.base': 'code must be the 6-digit code from your authenticator app',
     }),
 });
+
+// Account action tokens are 256-bit base64url values (43 characters), carried in the body only.
+const actionToken = Joi.string()
+  .pattern(/^[A-Za-z0-9_-]{43}$/)
+  .required()
+  .messages({ 'string.pattern.base': 'token is not valid' });
+// Policy compliance is checked by the service (rule-by-rule result); Joi only bounds the size.
+const newPassword = Joi.string().min(1).max(LOGIN_PASSWORD_MAX_LENGTH).required();
+const currentPassword = Joi.string().min(1).max(LOGIN_PASSWORD_MAX_LENGTH).required();
+const sixDigitCode = Joi.string()
+  .pattern(/^\d{6}$/)
+  .required()
+  .messages({ 'string.pattern.base': 'code must be the 6-digit code from your authenticator app' });
+
+export const recoveryRequestSchema = Joi.object({
+  username: loginSchema.extract('username'),
+  purpose: Joi.string().valid('PASSWORD_RESET', 'MFA_RECOVERY').required(),
+});
+export const passwordTokenSchema = Joi.object({ token: actionToken, newPassword });
+export const passwordChangeSchema = Joi.object({ currentPassword, newPassword });
+export const mfaRecoveryStartSchema = Joi.object({ token: actionToken, password: currentPassword });
+export const mfaRecoveryConfirmSchema = Joi.object({
+  token: actionToken,
+  password: currentPassword,
+  code: sixDigitCode,
+});

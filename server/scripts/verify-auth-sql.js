@@ -19,6 +19,8 @@ import {
 import * as authorizationRepository from '../src/modules/access-control/authorization.repository.js';
 import * as rbacRepository from '../src/modules/access-control/rbac.repository.js';
 import * as usersRepository from '../src/modules/users/users.repository.js';
+import * as recoveryRepository from '../src/modules/auth/recovery.repository.js';
+import { PASSWORD_POLICY } from '../src/modules/auth/auth.policy.js';
 import * as authRepository from '../src/modules/auth/auth.repository.js';
 import * as sessionRepository from '../src/modules/auth/session.repository.js';
 
@@ -160,6 +162,32 @@ const DML = {
     usersRepository.revokeUserSession(c, { userId: '0', sessionId: '0', actorUserId: '0' }),
   'users.revokeActionTokens': (c) =>
     usersRepository.revokeActionTokens(c, { userId: '0', actorUserId: '0' }),
+  // Phase 05 recovery (the row lock is parsed only, never executed).
+  'recovery.lockUser': (c) => recoveryRepository.lockUser(c, '0'),
+  'recovery.revokeOutstandingTokens': (c) =>
+    recoveryRepository.revokeOutstandingTokens(c, {
+      userId: '0',
+      actionType: 'PASSWORD_RESET',
+      actorUserId: '0',
+    }),
+  'recovery.insertToken': (c) =>
+    recoveryRepository.insertToken(c, {
+      userId: '0',
+      actionType: 'PASSWORD_RESET',
+      tokenHash: dummyHash,
+      lifetimeSeconds: 60,
+      actorUserId: '0',
+    }),
+  'recovery.consumeToken': (c) =>
+    recoveryRepository.consumeToken(c, { tokenId: '0', actorUserId: '0' }),
+  'recovery.setPassword': (c) =>
+    recoveryRepository.setPassword(c, {
+      userId: '0',
+      passwordHash: 'x',
+      expectedStatus: 'PENDING',
+      activate: true,
+      actorUserId: '0',
+    }),
 };
 
 // --- Synthetic classification vectors (user 1 is the subject) -------------------------------
@@ -685,6 +713,33 @@ try {
     };
     for (const [label, fn] of Object.entries(userReads)) await check(label, fn);
 
+    // Phase 05 recovery SELECTs (counts and booleans only).
+    const recoveryReads = {
+      'recovery.hasRecentToken (user 0)': async () =>
+        String(
+          await recoveryRepository.hasRecentToken(connection, {
+            userId: '0',
+            actionType: 'PASSWORD_RESET',
+            seconds: 300,
+          }),
+        ),
+      'recovery.findToken (random digest)': async () => {
+        const found = await recoveryRepository.findToken(connection, randomBytes(32));
+        if (found !== null) throw new Error('a random digest must not match');
+        return 'null';
+      },
+      'recovery.findPasswordHash (user 0)': async () =>
+        String(await recoveryRepository.findPasswordHash(connection, '0')),
+      ...Object.fromEntries(
+        PASSWORD_POLICY.expiryReminderDays.map((daysBefore) => [
+          `recovery.listPasswordExpiryReminders (${daysBefore} days)`,
+          async () =>
+            `${(await recoveryRepository.listPasswordExpiryReminders(connection, { daysBefore, expiryDays: PASSWORD_POLICY.expiryDays })).length} due`,
+        ]),
+      ),
+    };
+    for (const [label, fn] of Object.entries(recoveryReads)) await check(label, fn);
+
     // Decision 07: evaluate the deployed CHECK conditions for every catalogue value.
     const checks = await connection.execute(
       `SELECT constraint_name, search_condition_vc FROM user_constraints
@@ -740,7 +795,10 @@ try {
     for (const [label, call] of Object.entries(DML)) {
       await check(`${label} (parse only)`, async () => {
         const sql = await captureSql(call);
-        if (!/^\s*(INSERT|UPDATE|MERGE)\b/i.test(sql)) throw new Error('refusing to parse non-DML');
+        const rowLock = /^\s*SELECT\b[\s\S]*\bFOR UPDATE\s*$/i.test(sql);
+        if (!rowLock && !/^\s*(INSERT|UPDATE|MERGE)\b/i.test(sql)) {
+          throw new Error('refusing to parse non-DML');
+        }
         await connection.execute(PARSE_ONLY, { statement: sql.trim() });
       });
     }

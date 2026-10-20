@@ -4,11 +4,17 @@ import { createRequireMfaChallenge, requireMfaAvailable } from '../../middleware
 import { createRateLimiter } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
 import { createAuthController } from './auth.controller.js';
+import { createRecoveryController } from './recovery.controller.js';
 import {
   emptyBodySchema,
   emptyQuerySchema,
   loginSchema,
   mfaCodeSchema,
+  mfaRecoveryConfirmSchema,
+  mfaRecoveryStartSchema,
+  passwordChangeSchema,
+  passwordTokenSchema,
+  recoveryRequestSchema,
 } from './auth.validation.js';
 
 /**
@@ -20,6 +26,7 @@ export function createAuthRouter({
   sessionService,
   mfaService,
   auditService,
+  recoveryService,
   authenticate,
   authConfig,
 }) {
@@ -32,6 +39,9 @@ export function createAuthRouter({
   });
   const loginRateLimit = createRateLimiter(authConfig.loginRateLimit);
   const mfaRateLimit = createRateLimiter(authConfig.loginRateLimit);
+  // Anonymous recovery endpoints share their own per-client limit (same approved 60/min policy).
+  const recoveryRateLimit = createRateLimiter(authConfig.loginRateLimit);
+  const recovery = createRecoveryController({ recoveryService, cookieConfig: authConfig.cookie });
   const requireCsrfToken = createRequireCsrfToken({ auditService });
   const requireMfaChallenge = createRequireMfaChallenge({ cookieName: authConfig.mfa.cookieName });
   const mfaGuards = [mfaRateLimit, requireMfaAvailable(Boolean(mfaService)), requireMfaChallenge];
@@ -91,6 +101,45 @@ export function createAuthRouter({
     validate({ query: emptyQuerySchema, body: mfaCodeSchema }),
     ...replacementGuards,
     controller.confirmMfaReplacement,
+  );
+  // Recovery (docs/07 §4–§5). Tokens arrive only in request bodies; responses never contain them.
+  router.post(
+    '/recovery/request',
+    recoveryRateLimit,
+    validate({ query: emptyQuerySchema, body: recoveryRequestSchema }),
+    recovery.requestRecovery,
+  );
+  router.post(
+    '/password/setup',
+    recoveryRateLimit,
+    validate({ query: emptyQuerySchema, body: passwordTokenSchema }),
+    recovery.completeSetup,
+  );
+  router.post(
+    '/password/reset',
+    recoveryRateLimit,
+    validate({ query: emptyQuerySchema, body: passwordTokenSchema }),
+    recovery.completeReset,
+  );
+  router.post(
+    '/mfa/recovery/start',
+    recoveryRateLimit,
+    validate({ query: emptyQuerySchema, body: mfaRecoveryStartSchema }),
+    recovery.startMfaRecovery,
+  );
+  router.post(
+    '/mfa/recovery/confirm',
+    recoveryRateLimit,
+    validate({ query: emptyQuerySchema, body: mfaRecoveryConfirmSchema }),
+    recovery.confirmMfaRecovery,
+  );
+  router.post(
+    '/password/change',
+    recoveryRateLimit,
+    validate({ query: emptyQuerySchema, body: passwordChangeSchema }),
+    authenticate,
+    requireCsrfToken,
+    recovery.changePassword,
   );
   router.get('/me', validate({ query: emptyQuerySchema }), authenticate, controller.getCurrentUser);
   router.get('/csrf', validate({ query: emptyQuerySchema }), authenticate, controller.getCsrfToken);

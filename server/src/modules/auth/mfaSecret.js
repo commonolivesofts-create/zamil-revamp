@@ -36,6 +36,7 @@ export function createMfaKeyring({ encryptionKey, keyId }) {
   const encryptionSubkey = derive('zr-totp-secret-encryption-v1');
   const enrollmentSubkey = derive('zr-totp-enrollment-derivation-v1');
   const replacementSubkey = derive('zr-totp-replacement-derivation-v1');
+  const recoverySubkey = derive('zr-totp-recovery-derivation-v1');
   const aad = (userId) => Buffer.from(`zr-totp-secret|${FORMAT_VERSION}|${userId}`);
 
   return {
@@ -71,6 +72,19 @@ export function createMfaKeyring({ encryptionKey, keyId }) {
     enrollmentSecret(userId, challengeSessionId) {
       return createHmac('sha256', enrollmentSubkey)
         .update(`zr-totp-enrollment|${userId}|${challengeSessionId}`)
+        .digest()
+        .subarray(0, MFA_POLICY.secretBytes);
+    },
+
+    /**
+     * Candidate secret for MFA recovery, under its own HKDF purpose. Bound to the user, the
+     * MFA_RECOVERY action token and the currently stored ciphertext, so it is useless once the
+     * token is consumed or the stored secret changes.
+     */
+    recoverySecret(userId, actionTokenId, currentEncryptedSecret) {
+      const current = createHash('sha256').update(String(currentEncryptedSecret)).digest('hex');
+      return createHmac('sha256', recoverySubkey)
+        .update(`zr-totp-recovery|${userId}|${actionTokenId}|${current}`)
         .digest()
         .subarray(0, MFA_POLICY.secretBytes);
     },

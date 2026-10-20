@@ -1,9 +1,9 @@
 # Zamil Revamp — Authentication/RBAC Implementation Status
 
-**Last reviewed:** 20 October 2026 (Phase 04 user administration implemented on `feat/user-administration`, uncommitted; Phases 01–03 merged).
+**Last reviewed:** 20 October 2026 (Phase 05 authentication recovery and Office 365 SMTP implemented and live-verified on Oracle TEST on `feat/auth-recovery`, uncommitted; not production-ready).
 **Scope:** Backend and Oracle only; `client/` intentionally deferred.
 **Status:** Phase 01 authentication foundation implemented with the seven security-review decisions and the approved administrator classification; approved TEST bootstrap **executed** (61 rows; Zaid USER_ID 1, ACTIVE, SUPER_ADMINISTRATOR); post-bootstrap `npm run db:verify-auth` passed. Ordinary-user Oracle login/session lifecycle **not yet integration-tested**.
-**Current development branch reported by owner:** `feat/user-administration` (verify with read-only Git status before acting).
+**Current development branch reported by owner:** `feat/auth-recovery` (verify with read-only Git status before acting).
 
 ## Project snapshot
 
@@ -34,7 +34,7 @@
 | 05 | User and administrator account management | **Partly covered by Phase 04** | Account status/session administration and protected hierarchy done; administrator account recovery belongs to Phase 08. |
 | 06 | Roles, modules, resources and permission catalog APIs | **API implemented in Phase 03** | Business resources/actions still to be defined per business module. |
 | 07 | User-role, role-permission and user override APIs | **API implemented in Phase 03** | Effective DENY precedence implemented. |
-| 08 | Password/MFA recovery and Zaid authorization | NOT STARTED | No pending-approval queue; must set `PASSWORD_CHANGED_AT`. |
+| 08 | Password/MFA recovery and Zaid authorization | **IMPLEMENTED in Phase 05 — uncommitted** (`feat/auth-recovery`); **delivery-dependent flows fail closed** | Public: `/auth/recovery/request` (uniform 202 / 503), `/auth/password/setup`, `/auth/password/reset`, `/auth/mfa/recovery/start` + `/confirm`; session: `/auth/password/change`; administrator: `/users/{id}/password-setup` (`USER_ACCOUNTS:CREATE`), `/users/{id}/recovery` (`ACCOUNT_RECOVERY:ISSUE`). Single-use SHA-256-hashed tokens (setup 24 h, reset 30 m, MFA 15 m), atomic consumption, one outstanding per type, 5-min issuance cooldown, never returned. Zaid: self-service reset/MFA recovery to the pinned address only; other privileged accounts: Zaid only with MFA ≤10 min + explicit confirmation; ordinary: self-service reset or administrator-assisted. Setup activates eligible PENDING accounts; reset/change/MFA recovery revoke all sessions; MFA recovery needs token + password + new-authenticator code. Owner-approved `PASSWORD_CHANGED` / `ACTION_TOKEN_ISSUED` / `MFA_RECOVERED`. **Office 365 SMTP delivery** (Nodemailer 10, STARTTLS 587, verified certificates, XOAUTH2 client credentials preferred, basic AUTH only if the tenant allows it; recipient = `XX_DIGI_EMP_MASTER.EMAIL_ADDRESS`; outside production only `shaikh.azim@olivesofts.com` after an Oracle `DB_NAME` TEST check; privileged recovery mail disabled pending approval and never redirected; `npm run smtp:verify` sends nothing). Tests: 24 + 20 SMTP (no network), mutation-checked; `npm run check` 424/424 passed (Oracle and SMTP mocked). `db:verify-auth` 139/139 read-only on TEST. **Oracle TEST live integration (owner-approved, 2026-10-20): PASSED.** `smtp:verify` PASS (Office 365 PASSWORD auth, STARTTLS, TEST DB identity); `auth:setup-test` all passed: one setup e-mail delivered **only** to the approved TEST mailbox; USER_ID 2 (employee 2502) completed first-password setup and is `ACTIVE`; token replay refused; ordinary login/logout; 0 effective permissions; 403 on user/role administration. `db:setup-check --stage=post` all passed: token consumed, audit trail complete, no open sessions, Super Administrator unchanged. Test-mailbox onboarding does **not** prove employee mailbox ownership. **Not done / production blockers:** items 2, 3 and 10–15. See `handoffs/PHASE-05-AUTH-RECOVERY.md`. |
 | 09 | Audit retrieval, reminders and security hardening | NOT STARTED | Application failure-audit persistence implemented in Phase 01; DB immutability still blocked. |
 | 10 | Integration, OpenAPI and regression verification | NOT STARTED | Scope/release review. |
 
@@ -67,24 +67,28 @@
 1. ~~Bootstrap execution~~ — **done** on TEST (61 rows). Production bootstrap is a separate, unapproved decision.
 2. **Database audit immutability (pre-production blocker):** `TR_ZRV_AUDIT_NO_MUTATION` not deployed in TEST; runtime account owns the RBAC tables and can UPDATE/DELETE audit rows; least-privilege grants not in place.
 3. **Shared/gateway login rate limiting (pre-production requirement).**
-4. Optional ordinary TEST account (§10B item 7) for end-to-end login/session/logout/lockout verification on Oracle: employee to be named; no grants; disabled afterwards. Zaid alone can only verify the `MFA_REQUIRED` path before Phase 02.
+4. Optional ordinary TEST account (§10B item 7) for end-to-end login/session/logout/lockout verification on Oracle: employee to be named; no grants; disabled afterwards. Zaid alone can only verify the `MFA_REQUIRED` path before Phase 02. **Update:** USER_ID 2 (employee 2502) is now an ACTIVE ordinary TEST account with no grants (Phase 05).
 5. Audit reason-code catalogue (Phase 01 handoff §7) not owner-approved.
-6. Expired passwords / NULL change times cannot be resolved until a password setup/change/reset phase exists.
+6. ~~Expired passwords / NULL change times~~: setup/reset/change implemented (Phase 05); renewal of an expired password is the reset flow, which needs delivery (item 10).
 7. Hosting/CSRF: Origin check needs correct `TRUST_PROXY_HOPS` or `AUTH_ALLOWED_ORIGINS`; cross-site frontend hosting would break `SameSite=Lax` cookies.
 
 8. Phase 03: RBAC read access (effective permissions, lists) is not audited; no approved read-audit code.
 9. Phase 03: ordinary-user authorization not yet verified on Oracle; depends on item 4.
-10. **Phase 05 dependency — password-setup delivery (blocker for activating new accounts, e.g. USER_ID 2 / employee 2502):** `PASSWORD_SETUP` tokens (24 h, hashed, single use) must reach the employee out of band; no email/notification channel or dependency is approved, and exposing the token to the administrator is not allowed. Owner decision needed (e.g. SMTP relay + library approval). Until then provisioned accounts stay `PENDING` (`CK_ZRV_USERS_PWD` forbids `ACTIVE` without a hash).
+10. **SMTP authentication migration (production blocker):** the TEST run used Office 365 basic SMTP AUTH (PASSWORD); migrate to OAuth2 (`SMTP_AUTH_METHOD=OAUTH2`, implemented, not live-tested): Entra ID app + `SMTP.SendAsApp`, Exchange service principal and mailbox permission, secret rotation.
 11. Phase 04: bulk provisioning of all employees (docs/07 §4) not implemented; one employee per request.
+12. **First privileged MFA enrollment (production blocker):** after setup, privileged accounts enrol through the Phase 02 password-only challenge enrollment (TEST-only provisional approval); production policy undecided.
+13. **Verified employee-mailbox ownership (production blocker):** `XX_DIGI_EMP_MASTER.EMAIL_ADDRESS` is used as authoritative; ownership is not verified (TEST onboarding was redirected and proves nothing about it).
+14. **Privileged recovery delivery (production blocker):** `SMTP_PRIVILEGED_DELIVERY_ENABLED` off; separate approval and test required (Super Administrator: pinned address only).
+15. **Reminder delivery/scheduling (production blocker):** counting script only; no sender, no scheduler, no reminder-sent column (once-per-business-day dedup).
 
 ## Immediate next action
 
-1. Developer reviews Phase 04 (`git diff --ignore-cr-at-eol --stat`, untracked files) and `handoffs/PHASE-04-USER-ADMINISTRATION.md`, then commits.
+1. Developer reviews Phase 05 (`git diff --ignore-cr-at-eol --stat`, untracked files) and `handoffs/PHASE-05-AUTH-RECOVERY.md`, then commits.
 2. ~~Read-only `db:verify-auth` and the controlled Super Administrator RBAC API run on TEST~~: **done, all passed** (2026-10-20). Rerun with `npm run db:verify-auth`, `npm run auth:rbac-test` (interactive; server running) and `npm run db:rbac-post-check`.
 3. Owner names the ordinary TEST account (item 4). Then, with authorization, test ordinary-user authorization on Oracle: 403 default deny, role assignment/removal, ALLOW/DENY overrides and immediate revocation.
 4. ~~Controlled Oracle TEST user-administration run~~: **done, passed** (employee 2502 → USER_ID 2, PENDING). Rerun: `npm run db:users-check -- --employee=2502 --stage=preflight|post`, `npm run auth:users-test -- --employee=2502 --expect-username=MUBEEN.GURMANI` (interactive; server running).
-5. Phase 05: owner decides the password-setup delivery channel (item 10); then implement setup-token issuance/completion, activate USER_ID 2 and run the ordinary-user Oracle login/session/authorization tests (items 4, 9).
-6. Schedule blockers 2 and 3 before production.
+5. ~~Configure SMTP and the TEST setup of USER_ID 2~~: **done, passed** (2026-10-20). Rerun: `npm run smtp:verify`, `npm run db:setup-check -- --employee=2502 --stage=pre|post`, `npm run auth:setup-test -- --employee=2502 --expect-username=MUBEEN.GURMANI`. Next: with authorization, ordinary-user RBAC/role tests with USER_ID 2 (items 4, 9) and live reset/change tests.
+6. Resolve the production blockers (items 2, 3, 10, 12–15) before production.
 
 ## Update rules after each major feature
 
