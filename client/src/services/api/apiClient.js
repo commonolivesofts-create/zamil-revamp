@@ -1,13 +1,37 @@
-import { apiConfig } from '@/config/apiConfig.js'
+// Relative imports keep this module loadable by the Node-native tests.
+import { apiConfig } from '../../config/apiConfig.js'
 import { emitApiUnauthorized } from './apiEvents.js'
+import { csrfStore as defaultCsrfStore } from './csrfStore.js'
 
+export const CSRF_HEADER = 'X-CSRF-Token'
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+const CSRF_MODES = new Set(['session', 'challenge', 'none'])
+const ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/
+const MAX_MESSAGE_LENGTH = 500
+const MAX_DETAILS = 50
+
+// `message` is only taken from the backend's error envelope, whose messages are
+// documented as safe to display; anything else gets a generic message.
 export class ApiError extends Error {
-  constructor(message, { code = 'API_ERROR', status = null } = {}) {
+  constructor(message, {
+    code = 'API_ERROR', status = null, details = [], requestId = null, retryAfterSeconds = null,
+  } = {}) {
     super(message)
     this.name = 'ApiError'
     this.code = code
     this.status = status
+    this.details = details
+    this.requestId = requestId
+    this.retryAfterSeconds = retryAfterSeconds
   }
+}
+
+// True when a state-changing request may or may not have been applied: the
+// response was lost (network, timeout), unreadable, or an internal error. UIs
+// must then neither claim success nor treat the change as rejected.
+export function isOutcomeUnknown(error) {
+  return ['NETWORK_ERROR', 'TIMEOUT', 'INVALID_RESPONSE'].includes(error?.code) || error?.status === 500
 }
 
 function containsControlCharacters(value) {
@@ -80,13 +104,6 @@ function buildUrl(baseUrl, path, params) {
   return absoluteBase ? url.href : `${url.pathname}${url.search}`
 }
 
-function csrfToken() {
-  // The backend must issue and validate a CSRF token if it uses cookie sessions.
-  return typeof document === 'undefined'
-    ? null
-    : document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-}
-
 function prepareBody(body, headers) {
   if (body === undefined) return undefined
   if (typeof FormData !== 'undefined' && body instanceof FormData) return body
@@ -99,31 +116,124 @@ function prepareBody(body, headers) {
   }
 }
 
-async function parseBody(response, responseType) {
-  if (responseType === 'void' || response.status === 204 || response.status === 205) return null
-  if (responseType === 'blob') return response.blob()
-  if (responseType === 'text') return response.text()
+function headerRequestId(response) {
+  const value = response.headers?.get?.('X-Request-Id')
+  return typeof value === 'string' && REQUEST_ID_PATTERN.test(value) ? value : null
+}
+
+function readRequestId(response, body) {
+  const value = body?.meta?.requestId
+  return typeof value === 'string' && REQUEST_ID_PATTERN.test(value) ? value : headerRequestId(response)
+}
+
+function invalidResponse(response, requestId = headerRequestId(response)) {
+  return new ApiError('The server returned an invalid response.', {
+    code: 'INVALID_RESPONSE', status: response.status, requestId,
+  })
+}
+
+async function readJson(response) {
   const text = await response.text()
   if (!text) return null
   try {
     return JSON.parse(text)
   } catch {
-    throw new ApiError('The server returned an invalid JSON response.', {
-      code: 'INVALID_RESPONSE', status: response.status,
-    })
+    return undefined
   }
 }
 
+const isCount = (value) => Number.isInteger(value) && value >= 0
+
+function readPagination(response, body, requestId) {
+  if (!('pagination' in body)) return null
+  const p = body.pagination
+  if (!p || typeof p !== 'object' || ![p.page, p.limit, p.total, p.totalPages].every(isCount) ||
+    typeof p.hasNextPage !== 'boolean' || typeof p.hasPreviousPage !== 'boolean') {
+    throw invalidResponse(response, requestId)
+  }
+  return Object.freeze({
+    page: p.page, limit: p.limit, total: p.total, totalPages: p.totalPages,
+    hasNextPage: p.hasNextPage, hasPreviousPage: p.hasPreviousPage,
+  })
+}
+
+// Successful responses resolve to { status, data, pagination, requestId }.
+// JSON must be the backend's { success: true, data, meta } envelope.
+async function parseSuccess(response, responseType) {
+  const result = (data, pagination = null, requestId = headerRequestId(response)) =>
+    Object.freeze({ status: response.status, data, pagination, requestId })
+  if (responseType === 'void' || response.status === 204 || response.status === 205) return result(null)
+  if (responseType === 'blob') return result(await response.blob())
+  if (responseType === 'text') return result(await response.text())
+  const body = await readJson(response)
+  if (!body || typeof body !== 'object' || body.success !== true || !('data' in body)) {
+    throw invalidResponse(response)
+  }
+  const requestId = readRequestId(response, body)
+  return result(body.data, readPagination(response, body, requestId), requestId)
+}
+
+function readDetails(details) {
+  if (!Array.isArray(details)) return []
+  return details
+    .filter((item) => item && typeof item.field === 'string' && typeof item.message === 'string')
+    .slice(0, MAX_DETAILS)
+    .map(({ field, message }) => Object.freeze({ field, message }))
+}
+
+function readRetryAfter(response) {
+  const seconds = Number.parseInt(response.headers?.get?.('Retry-After') ?? '', 10)
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : null
+}
+
+function fallbackError(status) {
+  if (status === 401) return ['UNAUTHENTICATED', 'Your session has expired. Please sign in again.']
+  if (status === 403) return ['FORBIDDEN', 'You do not have permission for this action.']
+  if (status === 429) return ['RATE_LIMITED', 'Too many attempts. Please wait and try again.']
+  return ['HTTP_ERROR', status >= 500 ? 'The service is temporarily unavailable.' : 'The request could not be completed.']
+}
+
+// Errors keep the backend's stable code, safe message, validation details and
+// request ID. Non-envelope bodies (for example a proxy error page) are ignored.
+async function parseError(response) {
+  const body = await readJson(response)
+  const error = body?.success === false && body.error && typeof body.error === 'object' ? body.error : null
+  const [fallbackCode, fallbackMessage] = fallbackError(response.status)
+  const code = typeof error?.code === 'string' && ERROR_CODE_PATTERN.test(error.code) ? error.code : fallbackCode
+  const message = typeof error?.message === 'string' && error.message.trim() &&
+    error.message.length <= MAX_MESSAGE_LENGTH && !containsControlCharacters(error.message)
+    ? error.message
+    : fallbackMessage
+  return new ApiError(message, {
+    code,
+    status: response.status,
+    details: readDetails(error?.details),
+    requestId: readRequestId(response, body),
+    retryAfterSeconds: readRetryAfter(response),
+  })
+}
+
 // This factory also supports isolated transport tests without any React provider.
-export function createApiClient({ baseUrl, timeoutMs = 15000, onUnauthorized = () => {}, fetchImpl = fetch }) {
+// `notifyUnauthorized: false` marks requests whose 401 does not describe the
+// current session (public login/MFA endpoints, session restoration); only other
+// 401 responses invalidate the signed-in session through `onUnauthorized`.
+// `csrf` selects the memory-held token for unsafe methods: the authenticated
+// session token (default), the MFA challenge token, or none (login).
+export function createApiClient({
+  baseUrl, timeoutMs = 15000, onUnauthorized = () => {}, fetchImpl = fetch, csrfStore = null,
+}) {
   async function request(path, {
     method = 'GET', params, body, headers: additionalHeaders,
     signal, responseType = 'json', timeout = timeoutMs,
+    csrf = 'session', notifyUnauthorized = true,
   } = {}) {
     const url = buildUrl(baseUrl, path, params)
     const verb = String(method).toUpperCase()
     if (!['json', 'text', 'blob', 'void'].includes(responseType)) {
       throw new ApiError('Unsupported API response type.', { code: 'INVALID_RESPONSE_TYPE' })
+    }
+    if (!CSRF_MODES.has(csrf)) {
+      throw new ApiError('Unsupported CSRF mode.', { code: 'INVALID_CSRF_MODE' })
     }
     if (!Number.isFinite(timeout) || timeout <= 0) {
       throw new ApiError('The API timeout is invalid.', { code: 'INVALID_TIMEOUT' })
@@ -134,9 +244,11 @@ export function createApiClient({ baseUrl, timeoutMs = 15000, onUnauthorized = (
 
     const requestHeaders = new Headers(additionalHeaders)
     if (!requestHeaders.has('Accept')) requestHeaders.set('Accept', 'application/json')
-    if (verb !== 'GET' && verb !== 'HEAD') {
-      const csrf = csrfToken()
-      if (csrf && !requestHeaders.has('X-CSRF-Token')) requestHeaders.set('X-CSRF-Token', csrf)
+    // The client alone sets the CSRF header, from memory and only for unsafe methods.
+    requestHeaders.delete(CSRF_HEADER)
+    if (!SAFE_METHODS.has(verb) && csrf !== 'none') {
+      const token = csrf === 'challenge' ? csrfStore?.getChallengeToken() : csrfStore?.getSessionToken()
+      if (token) requestHeaders.set(CSRF_HEADER, token)
     }
     const payload = prepareBody(body, requestHeaders)
     const controller = new AbortController()
@@ -163,20 +275,13 @@ export function createApiClient({ baseUrl, timeoutMs = 15000, onUnauthorized = (
         cache: 'no-store',
         redirect: 'error',
       })
-      if (response.status === 401) {
-        onUnauthorized()
-        throw new ApiError('Your session has expired. Please sign in again.', { code: 'UNAUTHORIZED', status: 401 })
-      }
-      if (response.status === 403) {
-        throw new ApiError('You do not have permission for this action.', { code: 'FORBIDDEN', status: 403 })
-      }
       if (!response.ok) {
-        throw new ApiError(
-          response.status >= 500 ? 'The service is temporarily unavailable.' : 'The request could not be completed.',
-          { code: 'HTTP_ERROR', status: response.status },
-        )
+        const error = await parseError(response)
+        // CSRF rejections are never replayed automatically; callers decide.
+        if (response.status === 401 && notifyUnauthorized) onUnauthorized()
+        throw error
       }
-      return await parseBody(response, responseType)
+      return await parseSuccess(response, responseType)
     } catch (error) {
       if (error instanceof ApiError) throw error
       if (controller.signal.aborted) {
@@ -202,10 +307,10 @@ export function createApiClient({ baseUrl, timeoutMs = 15000, onUnauthorized = (
   })
 }
 
-// This is intentionally not used by the existing authService yet. Its endpoint
-// contract was built in Phase 06 and should not change before backend agreement.
+// The single application API client.
 export const apiClient = createApiClient({
-  baseUrl: apiConfig.configured ? apiConfig.baseUrl || '/' : '',
+  baseUrl: apiConfig.baseUrl,
   timeoutMs: apiConfig.timeoutMs,
   onUnauthorized: emitApiUnauthorized,
+  csrfStore: defaultCsrfStore,
 })

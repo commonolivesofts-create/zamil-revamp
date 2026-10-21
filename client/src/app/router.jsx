@@ -1,5 +1,7 @@
 import { createBrowserRouter } from 'react-router'
-import { GuestOnlyRoute, ProtectedRoute, RootRedirect } from '@/routes/RouteGuards.jsx'
+import {
+  GuestOnlyRoute, MfaChallengeRoute, ProtectedRoute, RootRedirect, TemplateDemoRoute,
+} from '@/routes/RouteGuards.jsx'
 import { orvexaDemoRoutes } from '@/config/orvexaRoutes.js'
 import {
   AdminLayout,
@@ -8,6 +10,13 @@ import {
   DemoPage,
   LoginPage,
   ForgotPage,
+  MfaChallengePage,
+  MfaEnrollmentPage,
+  MfaReplacementPage,
+  PasswordSetupPage,
+  PasswordResetPage,
+  MfaRecoveryPage,
+  ChangePasswordPage,
   DeniedPage,
   NotFoundPage,
   RouterShell,
@@ -34,6 +43,28 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // Pages opened from e-mailed links: authorized by the link token, not by a
+      // session, so they are reachable with or without one.
+      {
+        element: <AuthLayout />,
+        children: [
+          { path: 'password/setup', element: <PasswordSetupPage /> },
+          { path: 'password/reset', element: <PasswordResetPage /> },
+          { path: 'mfa/recovery', element: <MfaRecoveryPage /> },
+        ],
+      },
+      {
+        element: <MfaChallengeRoute />,
+        children: [
+          {
+            element: <AuthLayout />,
+            children: [
+              { path: 'mfa/verify', element: <MfaChallengePage /> },
+              { path: 'mfa/enroll', element: <MfaEnrollmentPage /> },
+            ],
+          },
+        ],
+      },
       {
         element: <ProtectedRoute />,
         children: [
@@ -41,7 +72,12 @@ export const router = createBrowserRouter([
             element: <AdminLayout />,
             children: [
               { path: 'dashboard', element: <DashboardPage /> },
-              ...orvexaDemoRoutes.map(({ path }) => ({ path: path.slice(1), element: <DemoPage /> })),
+              { path: 'account/authenticator', element: <MfaReplacementPage /> },
+              { path: 'account/password', element: <ChangePasswordPage /> },
+              {
+                element: <TemplateDemoRoute />,
+                children: orvexaDemoRoutes.map(({ path }) => ({ path: path.slice(1), element: <DemoPage /> })),
+              },
             ],
           },
         ],

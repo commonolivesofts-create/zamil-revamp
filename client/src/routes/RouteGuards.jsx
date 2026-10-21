@@ -1,8 +1,10 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
 import PageState from '@/components/feedback/PageState.jsx'
-import { safeReturnTo } from '@/config/authRouting.js'
+import { mfaChallengePath, safeReturnTo, templateDemosAvailable } from '@/config/authRouting.js'
 import useAuth from '@/features/auth/useAuth.js'
+import { DemoUnavailablePage } from '@/routes/RouteComponents.jsx'
 
+// An MFA-pending challenge is not a session, so it never passes this guard.
 export function ProtectedRoute() {
   const location = useLocation()
   const { status, retrySession } = useAuth()
@@ -17,10 +19,31 @@ export function ProtectedRoute() {
 
 export function GuestOnlyRoute() {
   const location = useLocation()
-  const { status } = useAuth()
+  const { status, mfa } = useAuth()
   if (status === 'loading') return <PageState kind="loading" title="Checking session" />
   if (status === 'authenticated') return <Navigate to={safeReturnTo(location.state?.from)} replace />
+  if (status === 'mfa_required') return <Navigate to={mfaChallengePath(mfa)} state={{ from: location.state?.from }} replace />
   return <Outlet />
+}
+
+// MFA pages are reachable only while a challenge is pending, and only the page
+// matching the challenge (enrollment or verification).
+export function MfaChallengeRoute() {
+  const location = useLocation()
+  const { status, mfa } = useAuth()
+  if (status === 'loading') return <PageState kind="loading" title="Checking session" />
+  if (status === 'authenticated') return <Navigate to={safeReturnTo(location.state?.from)} replace />
+  if (status !== 'mfa_required') return <Navigate to="/login" state={{ from: location.state?.from }} replace />
+  const expected = mfaChallengePath(mfa)
+  if (location.pathname !== expected) return <Navigate to={expected} state={{ from: location.state?.from }} replace />
+  return <Outlet />
+}
+
+// Template demo routes stay in the source and navigation, but only the
+// development preview renders them; real sessions see a not-available notice.
+export function TemplateDemoRoute() {
+  const { status } = useAuth()
+  return templateDemosAvailable(status) ? <Outlet /> : <DemoUnavailablePage />
 }
 
 export function RootRedirect() {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { orvexaAsset } from '@/config/orvexaAssets.js'
 import { orvexaLanguages } from '@/hooks/useOrvexaLayout.js'
@@ -10,9 +11,11 @@ const originalNotifications = [
   { id: 'savings', icon: 'circle-dollar-sign', tone: 'is-good', title: 'Routing savings increased', description: 'Cache + fallback saved $428 this cycle', age: '18m ago', label: 'AI Cost & Budgets' },
 ]
 
+// Only entries with a route are implemented; the others keep the template's
+// "not available" notice.
 const originalAccountLinks = [
   ['Profile & account', 'user-round'],
-  ['Security & sessions', 'shield-check'],
+  ['Security & sessions', 'shield-check', '/account/password'],
   ['Settings', 'settings-2'],
   ['Billing & credits', 'credit-card'],
 ]
@@ -40,9 +43,10 @@ function Dropdown({ id, menu, openMenu, toggleMenu, label, className = '', butto
 
 export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSidebarMode, theme, setTheme, language, setLanguage, onOpenSettings, onOpenCommand, onUnavailable }) {
   const { user, status, signOut } = useAuth()
-  const displayName = status === 'preview' ? 'Developer preview' : (typeof user?.name === 'string' && user.name.trim()) || (typeof user?.email === 'string' && user.email.trim()) || 'Administrator'
-  const displayEmail = status === 'preview' ? 'Not authenticated' : typeof user?.email === 'string' ? user.email : ''
-  const accountRole = status === 'preview' ? 'Layout preview' : typeof user?.role === 'string' ? user.role : 'Administrator'
+  // Profile text only (backend AuthUser). Roles and permissions are never inferred client-side.
+  const displayName = status === 'preview' ? 'Developer preview' : user?.fullName?.trim() || user?.username?.trim() || user?.email?.trim() || 'Signed-in user'
+  const displayEmail = status === 'preview' ? 'Not authenticated' : user?.email || ''
+  const accountRole = status === 'preview' ? 'Layout preview' : user?.jobTitle?.trim() || user?.department?.trim() || 'Employee'
   const initials = displayName.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
   const [signOutPending, setSignOutPending] = useState(false)
   const [openMenu, setOpenMenu] = useState(null)
@@ -174,11 +178,15 @@ export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSideb
               <div className="profile-panel-head"><span className="profile-panel-avatar">{initials}</span><span><b>{displayName}</b><small>{displayEmail}</small></span></div>
               <div className="profile-workspace"><span className="status-dot" /><span><b>{typeof user?.workspace?.name === 'string' ? user.workspace.name : 'Workspace'}</b><small>{status === 'preview' ? 'Development preview only' : 'Enterprise workspace'}</small></span></div>
               <nav className="profile-menu-links" aria-label="Account">
-                {originalAccountLinks.map(([label, icon]) => (
+                {originalAccountLinks.map(([label, icon, to]) => (to ? (
+                  <Link key={label} className="topbar-profile-link" to={to} onClick={() => setOpenMenu(null)}>
+                    <span><OrvexaIcon name={icon} /></span><b>{label}</b><OrvexaIcon name="chevron-right" />
+                  </Link>
+                ) : (
                   <a key={label} className="topbar-profile-link" href="#" onClick={(event) => { event.preventDefault(); unavailable(label) }}>
                     <span><OrvexaIcon name={icon} /></span><b>{label}</b><OrvexaIcon name="chevron-right" />
                   </a>
-                ))}
+                )))}
               </nav>
               <div className="profile-panel-footer">
                 <button type="button" className="topbar-profile-link is-danger w-full" onClick={handleSignOut} disabled={status !== 'authenticated' || signOutPending} title={status === 'preview' ? 'Preview mode has no authenticated session' : undefined}>

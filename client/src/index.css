@@ -6,3 +6,20 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* Visually hidden but announced by screen readers (route announcements,
+   checklist states, dialog headings). The template's precompiled tailwind.css
+   does not include Tailwind's sr-only utility, so it is defined here with the
+   same rules. Never use display:none or visibility:hidden for these. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}

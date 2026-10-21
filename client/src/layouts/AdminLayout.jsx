@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import Sidebar from '@/components/layout/Sidebar.jsx'
 import Header from '@/components/layout/Header.jsx'
 import LayoutCustomizer from '@/components/layout/LayoutCustomizer.jsx'
@@ -11,7 +11,7 @@ import useAuth from '@/features/auth/useAuth.js'
 export default function AdminLayout() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { status } = useAuth()
+  const { status, password } = useAuth()
   const preferences = useOrvexaLayout()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -133,6 +133,11 @@ export default function AdminLayout() {
             onOpenCommand={() => { setCommandOpen(true); setSettingsOpen(false) }}
             onUnavailable={unavailable}
         />
+        {status === 'authenticated' && password?.expired && location.pathname !== '/account/password' && (
+          <div role="status" className="border-b px-4 py-2 text-center text-xs" style={{ borderColor: 'var(--line)', background: 'var(--surface-2)', color: 'var(--amber-text)' }}>
+            Your password has expired. <Link to="/account/password" style={{ color: 'var(--primary-text)', fontWeight: 700 }}>Change it now</Link> to keep signing in.
+          </div>
+        )}
         {status === 'preview' && <div role="status" className="border-b px-4 py-2 text-center text-xs" style={{ borderColor: 'var(--line)', background: 'var(--surface-2)', color: 'var(--amber-text)' }}>Development preview — not authenticated. This mode is unavailable in production builds.</div>}
         <main id="main-content" className="px-3 py-5 sm:px-5 lg:px-6" tabIndex={-1}>
           <Outlet />
