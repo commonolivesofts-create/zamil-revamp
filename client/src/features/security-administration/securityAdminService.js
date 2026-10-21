@@ -30,9 +30,18 @@ function query(values) {
   return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== null && value !== ''))
 }
 
+// GET /access-control/roles returns at most 100 roles per page and has no search.
+export const ROLE_PAGE_LIMIT = 100
+const MAX_ROLE_PAGES = 50
+
 export function createSecurityAdminService({ client }) {
   const users = (userId) => `/users/${segment(userId)}`
   const access = (path) => `/access-control${path}`
+
+  async function listRoles({ page, limit } = {}, { signal } = {}) {
+    const result = await client.get(access('/roles'), { params: query({ page, limit }), signal })
+    return readPage(result, readRole)
+  }
 
   return Object.freeze({
     // --- User accounts (USER_ACCOUNTS) -------------------------------------------------
@@ -81,9 +90,18 @@ export function createSecurityAdminService({ client }) {
     },
 
     // --- Roles (ROLES) -------------------------------------------------------------------
-    async listRoles({ page, limit } = {}, { signal } = {}) {
-      const result = await client.get(access('/roles'), { params: query({ page, limit }), signal })
-      return readPage(result, readRole)
+    listRoles,
+    // Every role for a selector, page by page. Choices are never cut off
+    // silently: `complete` is false only if the safety bound
+    // (MAX_ROLE_PAGES × 100 roles) was reached first.
+    async listAllRoles({ signal } = {}) {
+      const items = []
+      for (let page = 1; page <= MAX_ROLE_PAGES; page += 1) {
+        const result = await listRoles({ page, limit: ROLE_PAGE_LIMIT }, { signal })
+        items.push(...result.items)
+        if (!result.pagination.hasNextPage) return Object.freeze({ items: Object.freeze(items), complete: true })
+      }
+      return Object.freeze({ items: Object.freeze(items), complete: false })
     },
     async createRole({ roleCode, roleName, description }) {
       const { data } = await client.post(access('/roles'), { roleCode, roleName, description: description || null })

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { safeReturnTo } from '@/config/authRouting.js'
+import { appConfig } from '@/config/appConfig.js'
 import { authConfig } from '@/config/authConfig.js'
 import { PasswordInput } from '@/features/auth/PasswordFields.jsx'
 import useAuth from '@/features/auth/useAuth.js'
@@ -62,15 +63,16 @@ export default function LoginPage() {
 
   return (
     <main className="auth-shell zrv-auth-page">
-      <section className="auth-visual" aria-label="About Orvexa">
+      {/* Describes only implemented sign-in behaviour; no product claims or figures. */}
+      <section className="auth-visual" aria-label={`About ${appConfig.name}`}>
         <div className="auth-visual-copy">
-          <span className="brand-mark-large"><OrvexaIcon name="sparkles" className="size-6" /></span>
-          <h1>Operate production AI with evidence, not guesswork.</h1>
-          <p>Orvexa is an admin control plane for applications, models, agents, knowledge, safety, quality, reliability and spend.</p>
+          <span className="brand-mark-large"><OrvexaIcon name="building-2" className="size-6" /></span>
+          <h1>{appConfig.name}</h1>
+          <p>Secure access to the {appConfig.name} enterprise application with your company account.</p>
           <div className="auth-points">
-            <div className="auth-point"><b>37+ admin surfaces</b><span>Connected operational workflows</span></div>
-            <div className="auth-point"><b>Dark + light + RTL</b><span>Flexible workspace modes</span></div>
-            <div className="auth-point"><b>Enterprise-ready</b><span>Backend integration required</span></div>
+            <div className="auth-point"><b>Company username</b><span>Sign in with your employee username</span></div>
+            <div className="auth-point"><b>Authenticator app</b><span>Required for administrative access</span></div>
+            <div className="auth-point"><b>Self-service recovery</b><span>Reset your password or authenticator by e-mail</span></div>
           </div>
         </div>
       </section>

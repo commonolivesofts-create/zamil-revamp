@@ -4,40 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#edf4ef" />
-    <link rel="icon" type="image/svg+xml" href="%BASE_URL%orvexa/assets/images/orvexa-favicon.svg" />
-    <link rel="alternate icon" type="image/png" href="%BASE_URL%orvexa/assets/images/orvexa-favicon.png" />
+    <meta name="description" content="Zamil Revamp enterprise application" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <!-- Set existing Orvexa preferences before styles paint, avoiding a theme flash. -->
-    <script>
-      (() => {
-        try {
-          const root = document.documentElement
-          const theme = localStorage.getItem('orvexa-theme-v16')
-          root.classList.toggle('dark', theme === 'dark')
-          root.dataset.accentTheme = localStorage.getItem('zamil-orvexa-accent-v1') === 'yellow' ? 'yellow' : 'green'
-
-          const language = localStorage.getItem('orvexa-language-v14') || 'en'
-          root.lang = language
-          root.dir = language === 'ar' ? 'rtl' : 'ltr'
-
-          const density = localStorage.getItem('orvexa-density-v16')
-          root.dataset.density = density === 'compact' ? 'compact' : 'comfortable'
-          root.dataset.motion = localStorage.getItem('orvexa-motion-v1') === 'reduced' ? 'reduced' : 'standard'
-
-          const sidebarMode = localStorage.getItem('orvexa-sidebar-mode')
-          root.dataset.sidebarMode = sidebarMode === 'full' ? 'full' : 'icon'
-
-          const sidebarTone = localStorage.getItem('orvexa-sidebar-tone')
-          root.dataset.sidebarTone = ['pearl', 'warm', 'dark'].includes(sidebarTone)
-            ? sidebarTone
-            : 'pearl'
-        } catch (error) {
-          // The layout works with CSS defaults when browser storage is unavailable.
-        }
-      })()
-    </script>
+    <!-- Saved layout preferences, applied before styles paint (external for the CSP). -->
+    <script src="%BASE_URL%theme-init.js"></script>
     <!-- The original Command Center's CSS order is preserved exactly. -->
     <link rel="stylesheet" href="%BASE_URL%orvexa/assets/css/tailwind.css" />
     <link rel="stylesheet" href="%BASE_URL%orvexa/assets/css/admin-runtime.css" />
@@ -56,7 +29,7 @@
     <link rel="stylesheet" href="%BASE_URL%orvexa/assets/css/app-shell.css" />
     <!-- Additive green palette; all purchased CSS above stays unchanged. -->
     <link rel="stylesheet" href="%BASE_URL%orvexa/assets/css/theme-green.css" />
-    <!-- Original Lucide UMD data is read declaratively by OrvexaIcon; no createIcons DOM mutation. -->
+    <!-- Lucide UMD icon data, read declaratively by the icon component; no createIcons DOM mutation. -->
     <script defer src="%BASE_URL%orvexa/assets/vendor/lucide.min.js"></script>
     <title>Zamil Revamp</title>
   </head>

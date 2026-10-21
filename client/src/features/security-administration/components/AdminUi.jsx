@@ -57,9 +57,21 @@ export function Feedback({ feedback, onDismiss }) {
 
 // Loading, error (with retry) and empty states of a useResource() result.
 // Renders children only when data is ready and not empty.
-export function ResourceState({ resource, label, empty, isEmpty = (data) => Array.isArray(data) ? data.length === 0 : !data, children }) {
+// A paginated result ({ items, pagination }) is empty only when the whole
+// result is; a page past the end still renders, with its pagination.
+const defaultIsEmpty = (data) => {
+  if (Array.isArray(data)) return data.length === 0
+  if (data?.pagination) return data.pagination.total === 0
+  return !data
+}
+
+export function ResourceState({ resource, label, empty, notFound, isEmpty = defaultIsEmpty, children }) {
   if (resource.status === 'idle') return null
   if (resource.status === 'loading') return <p className="zrv-admin-state" role="status">Loading {label}…</p>
+  // A record that does not exist is not retried.
+  if (resource.status === 'error' && resource.error?.status === 404) {
+    return <p className="zrv-admin-state" role="status">{notFound || empty}</p>
+  }
   if (resource.status === 'error') {
     const failure = describeFailure(resource.error)
     return (
@@ -73,8 +85,10 @@ export function ResourceState({ resource, label, empty, isEmpty = (data) => Arra
   return children(resource.data)
 }
 
+// Controls stay available on a page past the end (for example after records
+// were removed), so the user can always get back.
 export function Pagination({ pagination, onPage, disabled = false, label = 'Pages' }) {
-  if (!pagination || pagination.totalPages <= 1) {
+  if (!pagination || (pagination.totalPages <= 1 && pagination.page <= 1)) {
     return pagination ? <p className="zrv-admin-pagination">{pagination.total} total</p> : null
   }
   return (
@@ -82,7 +96,7 @@ export function Pagination({ pagination, onPage, disabled = false, label = 'Page
       <button type="button" className="btn-secondary" disabled={disabled || !pagination.hasPreviousPage} onClick={() => onPage(pagination.page - 1)}>
         <OrvexaIcon name="chevron-left" className="size-4" /> Previous
       </button>
-      <span>Page {pagination.page} of {pagination.totalPages} · {pagination.total} total</span>
+      <span>Page {pagination.page} of {Math.max(pagination.totalPages, 1)} · {pagination.total} total</span>
       <button type="button" className="btn-secondary" disabled={disabled || !pagination.hasNextPage} onClick={() => onPage(pagination.page + 1)}>
         Next <OrvexaIcon name="chevron-right" className="size-4" />
       </button>

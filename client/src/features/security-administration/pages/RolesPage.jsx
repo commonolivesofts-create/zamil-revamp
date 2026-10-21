@@ -52,7 +52,7 @@ export default function RolesPage() {
       {!dialog && <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />}
       <div className="zrv-admin-split">
         <Panel title="All roles">
-          <ResourceState resource={roles} label="roles" empty="No roles are defined." isEmpty={(data) => data.items.length === 0}>
+          <ResourceState resource={roles} label="roles" empty="No roles are defined.">
             {({ items, pagination }) => (
               <>
                 <div className="ux-table-wrap">
@@ -60,6 +60,7 @@ export default function RolesPage() {
                     <caption className="sr-only">Roles</caption>
                     <thead><tr><th scope="col">Role</th><th scope="col">Status</th><th scope="col"><span className="sr-only">Action</span></th></tr></thead>
                     <tbody>
+                      {!items.length && <tr><td colSpan={3} className="zrv-admin-state">No roles on this page.</td></tr>}
                       {items.map((role) => (
                         <tr key={role.roleId} className={role.roleId === selectedId ? 'is-selected' : undefined}>
                           <td><b>{role.roleName || role.roleCode}</b><small className="zrv-admin-sub"><code>{role.roleCode}</code></small></td>
@@ -123,14 +124,14 @@ export default function RolesPage() {
         <ConfirmDialog
           title={`Activate role ${selected.roleCode}?`} confirmLabel="Activate" pending={action.pending} feedback={action.feedback} onClose={close}
           description="Accounts assigned to this role regain its permissions immediately."
-          onConfirm={async () => finish(await action.run(() => securityAdminService.activateRole(selected.roleId), { success: `Role ${selected.roleCode} activated.` }))}
+          onConfirm={async () => finish(await action.run(() => securityAdminService.activateRole(selected.roleId), { success: `Role ${selected.roleCode} activated.`, refreshAccess: true }))}
         />
       )}
       {dialog?.type === 'deactivate' && selected && (
         <ConfirmDialog
           danger title={`Deactivate role ${selected.roleCode}?`} confirmLabel="Deactivate" pending={action.pending} feedback={action.feedback} onClose={close}
           description="Accounts assigned to this role lose its permissions immediately. Assignments and grants are kept and apply again if the role is reactivated."
-          onConfirm={async () => finish(await action.run(() => securityAdminService.deactivateRole(selected.roleId), { success: `Role ${selected.roleCode} deactivated.` }))}
+          onConfirm={async () => finish(await action.run(() => securityAdminService.deactivateRole(selected.roleId), { success: `Role ${selected.roleCode} deactivated.`, refreshAccess: true }))}
         />
       )}
     </AdminPage>

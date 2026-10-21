@@ -14,6 +14,11 @@ export const apiProxy = Object.freeze({
   },
 })
 
+// The development origin is http://localhost:5199 (the backend's
+// AUTH_FRONTEND_BASE_URL e-mail links point here). strictPort fails instead of
+// silently moving to another port, which would break those links.
+export const DEV_PORT = 5199
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -22,6 +27,14 @@ export default defineConfig({
     },
   },
   server: {
+    port: DEV_PORT,
+    strictPort: true,
+    proxy: apiProxy,
+  },
+  // `npm run preview` serves the production build with the same same-origin API.
+  preview: {
+    port: DEV_PORT,
+    strictPort: true,
     proxy: apiProxy,
   },
 })

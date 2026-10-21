@@ -31,7 +31,6 @@ export const UserRoleAssignmentsPage = lazy(() => import('@/features/security-ad
 export const PermissionCatalogPage = lazy(() => import('@/features/security-administration/pages/PermissionCatalogPage.jsx'))
 export const PermissionOverridesPage = lazy(() => import('@/features/security-administration/pages/PermissionOverridesPage.jsx'))
 export const UserOverridesPage = lazy(() => import('@/features/security-administration/pages/UserOverridesPage.jsx'))
-export const DemoUnavailablePage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.TemplateDemoUnavailablePage })))
 export const DeniedPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessDeniedPage })))
 export const AccessPendingPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessPendingPage })))
 export const AccessUnavailablePage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessUnavailablePage })))
@@ -56,7 +55,7 @@ function RouteAnnouncement() {
   const match = findAppRoute(pathname)
   const appRoute = match?.implemented ? match : null
   const demo = orvexaDemoRoutes.find((item) => item.path === pathname)
-  const demoName = demo && (templateDemosAvailable(status) ? demo.label : 'Not available')
+  const demoName = demo && templateDemosAvailable(status) ? demo.label : null
   const pageName = labels[pathname] || appRoute?.label || demoName || 'Page not found'
   return <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">Page: {pageName}</p>
 }

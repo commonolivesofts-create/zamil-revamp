@@ -16,6 +16,13 @@ export default function UserDirectory({ rowLink, rowAction = 'Open' }) {
   const filters = readUserFilters(searchParams)
   const [searchText, setSearchText] = useState(filters.search)
   const [searchError, setSearchError] = useState(null)
+  // Back/forward navigation changes the URL's search: show that term again.
+  const [syncedSearch, setSyncedSearch] = useState(filters.search)
+  if (syncedSearch !== filters.search) {
+    setSyncedSearch(filters.search)
+    setSearchText(filters.search)
+    setSearchError(null)
+  }
   const query = userListQuery(filters)
   const users = useResource(`users:${JSON.stringify(query)}`, (signal) => securityAdminService.listUsers(query, { signal }))
 
@@ -77,7 +84,7 @@ export default function UserDirectory({ rowLink, rowAction = 'Open' }) {
         </div>
       </form>
 
-      <ResourceState resource={users} label="accounts" empty="No accounts match these filters." isEmpty={(data) => data.items.length === 0}>
+      <ResourceState resource={users} label="accounts" empty="No accounts match these filters.">
         {({ items, pagination }) => (
           <>
             <div className="ux-table-wrap">
@@ -95,6 +102,7 @@ export default function UserDirectory({ rowLink, rowAction = 'Open' }) {
                   </tr>
                 </thead>
                 <tbody>
+                  {!items.length && <tr><td colSpan={7} className="zrv-admin-state">No accounts on this page. Use Previous to go back.</td></tr>}
                   {items.map((user) => (
                     <tr key={user.userId}>
                       <td><b>{displayName(user) || 'Name not recorded'}</b><small className="zrv-admin-sub">{user.employeeNumber}</small></td>

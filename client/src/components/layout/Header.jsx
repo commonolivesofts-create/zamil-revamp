@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
-import { orvexaAsset } from '@/config/orvexaAssets.js'
-import { orvexaLanguages } from '@/hooks/useOrvexaLayout.js'
 import { appConfig } from '@/config/appConfig.js'
 import { authorizedNavigation } from '@/config/appNavigation.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
 
 // No notification service exists yet, so the header shows no notifications.
+// There is no language selector: the interface is only available in English.
 // The profile menu lists only the implemented account pages from the shared
 // navigation configuration.
 
@@ -33,7 +32,7 @@ function Dropdown({ id, menu, openMenu, toggleMenu, label, className = '', butto
   )
 }
 
-export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSidebarMode, theme, setTheme, language, setLanguage, onOpenSettings, onOpenCommand, onUnavailable }) {
+export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSidebarMode, theme, setTheme, onOpenSettings, onOpenCommand, onUnavailable }) {
   const { user, status, signOut } = useAuth()
   const access = usePermissions()
   // Profile text only (backend AuthUser). Roles and permissions are never inferred client-side.
@@ -46,7 +45,6 @@ export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSideb
   const [signOutPending, setSignOutPending] = useState(false)
   const [openMenu, setOpenMenu] = useState(null)
   const dropdownRegion = useRef(null)
-  const currentLanguage = orvexaLanguages[language]
 
   useEffect(() => {
     const outsideClick = (event) => {
@@ -106,22 +104,6 @@ export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSideb
           <span className="ml-auto hidden rounded-md border px-1.5 py-0.5 text-[12px] font-black sm:inline-flex" style={{ borderColor: 'var(--line)' }}>⌘ K</span>
         </button>
         <div className="ml-auto flex items-center gap-1.5 topbar-tools" ref={dropdownRegion}>
-          <Dropdown
-            menu="language" openMenu={openMenu} toggleMenu={setOpenMenu} label="Choose language"
-            className="hidden sm:block" buttonClassName="icon-button topbar-language-trigger"
-            icon={<span id="language-flag" className="topbar-current-flag"><img alt={`${currentLanguage.label} flag`} src={orvexaAsset(`images/flags/${currentLanguage.flag}.svg`)} /></span>}
-          >
-            <div id="language-panel" className="dropdown-panel language-panel right-0 top-[calc(100%+10px)]" aria-label="Language">
-              <div className="language-panel-head"><span>Language</span><small>Interface locale</small></div>
-              {Object.entries(orvexaLanguages).map(([key, config]) => (
-                <button key={key} type="button" className="language-option" data-language-option={key} aria-pressed={language === key} onClick={() => { setLanguage(key); setOpenMenu(null) }}>
-                  <span className="language-flag"><img alt="" src={orvexaAsset(`images/flags/${config.flag}.svg`)} /></span>
-                  <span className="language-copy"><b>{config.label}</b></span>
-                  <OrvexaIcon name="check" className="language-check" />
-                </button>
-              ))}
-            </div>
-          </Dropdown>
           <button id="layout-settings-trigger" type="button" className="icon-button" aria-controls="layout-settings-panel" aria-label="Layout settings" title="Layout settings" onClick={() => { setOpenMenu(null); onOpenSettings() }}>
             <OrvexaIcon name="settings-2" className="size-[18px]" />
           </button>

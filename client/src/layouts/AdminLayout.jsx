@@ -35,13 +35,12 @@ export default function AdminLayout() {
     }
   }, [])
 
-  // The template's "command-center" page styling belongs to its demo dashboard,
-  // which only the development preview renders.
-  const previewDashboard = status === 'preview' && location.pathname === '/dashboard'
+  // The template's "command-center" page styling belonged to its demo
+  // dashboard, which was removed; no page uses it.
   useEffect(() => {
-    document.body.dataset.activePage = previewDashboard ? 'command-center' : location.pathname.split('/').pop()
+    document.body.dataset.activePage = location.pathname.split('/').pop()
     return () => { delete document.body.dataset.activePage }
-  }, [location.pathname, previewDashboard])
+  }, [location.pathname])
 
   useEffect(() => {
     // Keep keyboard focus in the off-canvas navigation until it closes.
@@ -122,8 +121,6 @@ export default function AdminLayout() {
             setSidebarMode={preferences.setSidebarMode}
             theme={preferences.theme}
             setTheme={preferences.setTheme}
-            language={preferences.language}
-            setLanguage={preferences.setLanguage}
             onOpenSettings={() => { setSettingsOpen(true); setCommandOpen(false) }}
             onOpenCommand={() => { setCommandOpen(true); setSettingsOpen(false) }}
             onUnavailable={unavailable}
