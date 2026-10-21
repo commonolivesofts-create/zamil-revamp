@@ -4,6 +4,9 @@ React 19 + Vite 8 single-page application for Zamil Revamp: sign-in, MFA,
 password and recovery workflows, backend-authoritative RBAC navigation, the
 signed-in dashboard and Security Administration.
 
+Developer guides: [`docs/README.md`](docs/README.md) (frontend) and
+[`../docs/README.md`](../docs/README.md) (team-wide onboarding and workflow).
+
 The backend (`../server`) is authoritative for authentication, sessions and
 every permission decision. This application holds no credentials: sessions are
 HttpOnly cookies set by the backend, and CSRF tokens are kept in memory only.
