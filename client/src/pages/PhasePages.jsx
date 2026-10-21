@@ -2,11 +2,6 @@ import { Link, useLocation } from 'react-router'
 import RouteNotice from '@/pages/RouteNotice.jsx'
 import { orvexaDemoRoutes } from '@/config/orvexaRoutes.js'
 
-// Keep dashboard main content empty until the actual Orvexa dashboard is migrated.
-export function DashboardShellPage() {
-  return <h1 className="sr-only">Dashboard</h1>
-}
-
 export function DemoUnconvertedPage() {
   const location = useLocation()
   const entry = orvexaDemoRoutes.find((item) => item.path === location.pathname.replace(/\/+$/, ''))
@@ -21,12 +16,41 @@ export function DemoUnconvertedPage() {
   )
 }
 
-export function AccessDeniedPage() {
+// `reason="mfa"`: the permission is held, but the backend also requires a
+// sign-in verified with an authenticator app for this area.
+export function AccessDeniedPage({ reason }) {
   return (
     <RouteNotice
       eyebrow="403 · Access denied"
       title="You don't have access to this page"
-      description="Access checks will use your organization's permissions once backend authentication and roles are integrated."
+      description={reason === 'mfa'
+        ? 'This area requires a sign-in verified with your authenticator app. Sign out, then sign in again and complete the verification step.'
+        : 'Your account does not have the permission required for this page. Contact your administrator if you need access.'}
+    />
+  )
+}
+
+export function AccessPendingPage() {
+  return (
+    <RouteNotice
+      role="status" busy
+      eyebrow="Checking access"
+      title="Loading your permissions"
+      description="This page opens once your access has been confirmed."
+      actionLabel={null}
+    />
+  )
+}
+
+export function AccessUnavailablePage({ onRetry }) {
+  return (
+    <RouteNotice
+      role="alert"
+      eyebrow="Access check unavailable"
+      title="Your permissions could not be loaded"
+      description="This page was not opened because your access could not be confirmed. Check your connection and try again."
+      actionLabel="Retry access check"
+      onAction={onRetry}
     />
   )
 }

@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import AppErrorBoundary from './AppErrorBoundary.jsx'
 import PageState from '@/components/feedback/PageState.jsx'
 import AuthProvider from '@/features/auth/AuthProvider.jsx'
+import PermissionProvider from '@/features/access/PermissionProvider.jsx'
 
 // Additional application providers will be added here only when their phases need them.
 export default function AppProviders({ children }) {
@@ -16,7 +17,9 @@ export default function AppProviders({ children }) {
           />
         }
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <PermissionProvider>{children}</PermissionProvider>
+        </AuthProvider>
       </Suspense>
     </AppErrorBoundary>
   )
