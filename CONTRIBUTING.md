@@ -23,7 +23,9 @@ Zamil Revamp uses a single Git repository (monorepo).
 |---|---|
 | `client/` | React.js / Vite frontend |
 | `server/` | Node.js / Express backend |
-| `server/docs/` | Approved backend architecture documentation |
+| `server/docs/` | Approved backend architecture documentation and backend developer guides |
+| `client/docs/` | Frontend developer guides |
+| `docs/` | Team-wide developer guides: onboarding, feature delivery, security, handoffs |
 | `secrets/` | Local Oracle ADW wallets and sensitive credentials; never committed |
 | `.gitignore` | Git exclusion rules |
 | `CONTRIBUTING.md` | Repository-wide developer contribution guidelines |
@@ -34,7 +36,7 @@ Do not create separate frontend or backend Git repositories without architecture
 
 ## 3. Repository Access and Git Identity
 
-- The repository is private.
+- The repository is **public** on GitHub: everything committed, including history, can be read by anyone. Never commit credentials, wallets, `.env` files, employee data or production records (see §7 and [`docs/SECURITY-ESSENTIALS.md`](docs/SECURITY-ESSENTIALS.md)).
 - Developers must have authorized GitHub access before contributing.
 - Each developer should use their own authorized GitHub identity and SSH key or other approved authentication method.
 - Never share SSH private keys, access tokens, passwords, or credentials.
@@ -157,6 +159,8 @@ All contributions must follow the six approved architecture documents located in
 4. `04-AUTHENTICATION_RBAC_SECURITY.md`
 5. `05-CONFIGURATION_OPERATIONS.md`
 6. `06-ARCHITECTURE_DECISIONS_GUIDELINES.md`
+
+The developer guides in [`docs/`](docs/README.md), [`client/docs/`](client/docs/README.md) and [`server/docs/README.md`](server/docs/README.md) explain how these standards are implemented and how to deliver a feature; they do not change the approved documents.
 
 Additional requirements:
 

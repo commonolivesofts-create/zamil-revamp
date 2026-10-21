@@ -4,17 +4,17 @@
 ## Scope and approved inventory
 | Order | Finalized table | Columns | Primary responsibility | Status |
 |---:|---|---:|---|---|
-| 01 | [XX_ZRV_USERS](XX_ZRV_USERS.md) | 16 | User identities and local authentication | APPROVED AND LOCKED |
-| 02 | [XX_ZRV_ROLES](XX_ZRV_ROLES.md) | 9 | Role definitions | APPROVED AND LOCKED |
-| 03 | [XX_ZRV_APP_MODULES](XX_ZRV_APP_MODULES.md) | 10 | Functional application module catalog | APPROVED AND LOCKED |
-| 04 | [XX_ZRV_RESOURCES](XX_ZRV_RESOURCES.md) | 10 | Protected business capabilities | APPROVED AND LOCKED |
-| 05 | [XX_ZRV_PERMISSIONS](XX_ZRV_PERMISSIONS.md) | 9 | Resource-specific actions | APPROVED AND LOCKED |
-| 06 | [XX_ZRV_USER_ROLES](XX_ZRV_USER_ROLES.md) | 9 | User-to-role memberships | APPROVED AND LOCKED |
-| 07 | [XX_ZRV_ROLE_PERMISSIONS](XX_ZRV_ROLE_PERMISSIONS.md) | 8 | Role-to-permission grants | APPROVED AND LOCKED |
-| 08 | [XX_ZRV_USER_PERMISSION_OVERRIDES](XX_ZRV_USER_PERMISSION_OVERRIDES.md) | 11 | Individual ALLOW/DENY exceptions | APPROVED AND LOCKED |
-| 09 | [XX_ZRV_USER_SESSIONS](XX_ZRV_USER_SESSIONS.md) | 13 | Opaque server-managed authenticated sessions | APPROVED AND LOCKED |
-| 10 | [XX_ZRV_ACCOUNT_ACTION_TOKENS](XX_ZRV_ACCOUNT_ACTION_TOKENS.md) | 11 | One-time account recovery/action credentials | APPROVED AND LOCKED |
-| 11 | [XX_ZRV_RBAC_AUDIT_LOGS](XX_ZRV_RBAC_AUDIT_LOGS.md) | 16 | Append-only security audit trail | APPROVED AND LOCKED |
+| 01 | [XX_ZRV_USERS](01-XX_ZRV_USERS.md) | 16 | User identities and local authentication | APPROVED AND LOCKED |
+| 02 | [XX_ZRV_ROLES](02-XX_ZRV_ROLES.md) | 9 | Role definitions | APPROVED AND LOCKED |
+| 03 | [XX_ZRV_APP_MODULES](03-XX_ZRV_APP_MODULES.md) | 10 | Functional application module catalog | APPROVED AND LOCKED |
+| 04 | [XX_ZRV_RESOURCES](04-XX_ZRV_RESOURCES.md) | 10 | Protected business capabilities | APPROVED AND LOCKED |
+| 05 | [XX_ZRV_PERMISSIONS](05-XX_ZRV_PERMISSIONS.md) | 9 | Resource-specific actions | APPROVED AND LOCKED |
+| 06 | [XX_ZRV_USER_ROLES](06-XX_ZRV_USER_ROLES.md) | 9 | User-to-role memberships | APPROVED AND LOCKED |
+| 07 | [XX_ZRV_ROLE_PERMISSIONS](07-XX_ZRV_ROLE_PERMISSIONS.md) | 8 | Role-to-permission grants | APPROVED AND LOCKED |
+| 08 | [XX_ZRV_USER_PERMISSION_OVERRIDES](08-XX_ZRV_USER_PERMISSION_OVERRIDES.md) | 11 | Individual ALLOW/DENY exceptions | APPROVED AND LOCKED |
+| 09 | [XX_ZRV_USER_SESSIONS](09-XX_ZRV_USER_SESSIONS.md) | 13 | Opaque server-managed authenticated sessions | APPROVED AND LOCKED |
+| 10 | [XX_ZRV_ACCOUNT_ACTION_TOKENS](10-XX_ZRV_ACCOUNT_ACTION_TOKENS.md) | 11 | One-time account recovery/action credentials | APPROVED AND LOCKED |
+| 11 | [XX_ZRV_RBAC_AUDIT_LOGS](11-XX_ZRV_RBAC_AUDIT_LOGS.md) | 16 | Append-only security audit trail | APPROVED AND LOCKED |
 
 **Integrity total:** 11 tables; 122 distinct approved columns across table schemas. The previously discussed `XX_ZRV_DEPARTMENTS` is intentionally excluded following the explicit integration decision. It was removed from the RBAC design scope, **not physically dropped**. `XX_DIGI_EMP_MASTER` remains the authoritative existing Oracle Fusion employee master and is not part of these 11.
 
