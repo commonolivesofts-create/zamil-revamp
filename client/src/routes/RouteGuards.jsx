@@ -1,8 +1,12 @@
-import { Navigate, Outlet, useLocation } from 'react-router'
+import { Navigate, Outlet, useLocation, useMatches } from 'react-router'
 import PageState from '@/components/feedback/PageState.jsx'
+import { appRoutes, routeAccess } from '@/config/appNavigation.js'
 import { mfaChallengePath, safeReturnTo, templateDemosAvailable } from '@/config/authRouting.js'
 import useAuth from '@/features/auth/useAuth.js'
-import { DemoUnavailablePage } from '@/routes/RouteComponents.jsx'
+import usePermissions from '@/features/access/usePermissions.js'
+import {
+  AccessPendingPage, AccessUnavailablePage, DeniedPage, DemoUnavailablePage, NotFoundPage,
+} from '@/routes/RouteComponents.jsx'
 
 // An MFA-pending challenge is not a session, so it never passes this guard.
 export function ProtectedRoute() {
@@ -39,8 +43,28 @@ export function MfaChallengeRoute() {
   return <Outlet />
 }
 
-// Template demo routes stay in the source and navigation, but only the
-// development preview renders them; real sessions see a not-available notice.
+// Every application page inside the signed-in layout declares its id from
+// config/appNavigation.js in its route `handle`. Direct URLs, the sidebar and the
+// command palette therefore share one access decision. A page without a known,
+// implemented id is never rendered (fail closed). The backend still authorizes
+// every API request the page makes.
+export function AppRouteAccess() {
+  const matches = useMatches()
+  const access = usePermissions()
+  const routeId = matches.at(-1)?.handle?.routeId
+  const route = appRoutes.find((item) => item.id === routeId)
+  switch (routeAccess(route, access)) {
+    case 'allowed': return <Outlet />
+    case 'pending': return <AccessPendingPage />
+    case 'error': return <AccessUnavailablePage onRetry={access.reload} />
+    case 'mfa_required': return <DeniedPage reason="mfa" />
+    case 'denied': return <DeniedPage />
+    default: return <NotFoundPage />
+  }
+}
+
+// Template demo routes stay in the source, but only the development preview
+// lists or renders them; real sessions see a not-available notice.
 export function TemplateDemoRoute() {
   const { status } = useAuth()
   return templateDemosAvailable(status) ? <Outlet /> : <DemoUnavailablePage />

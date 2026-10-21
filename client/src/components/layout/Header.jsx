@@ -3,22 +3,14 @@ import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { orvexaAsset } from '@/config/orvexaAssets.js'
 import { orvexaLanguages } from '@/hooks/useOrvexaLayout.js'
+import { appConfig } from '@/config/appConfig.js'
+import { authorizedNavigation } from '@/config/appNavigation.js'
 import useAuth from '@/features/auth/useAuth.js'
+import usePermissions from '@/features/access/usePermissions.js'
 
-const originalNotifications = [
-  { id: 'latency', icon: 'triangle-alert', tone: 'is-danger', title: 'Provider latency threshold', description: 'Voice route crossed P95 policy', age: '2m ago', label: 'Alerts & Incidents' },
-  { id: 'approvals', icon: 'user-check', tone: 'is-warn', title: '3 approvals waiting', description: 'High-impact AI actions require review', age: '6m ago', label: 'Human Review' },
-  { id: 'savings', icon: 'circle-dollar-sign', tone: 'is-good', title: 'Routing savings increased', description: 'Cache + fallback saved $428 this cycle', age: '18m ago', label: 'AI Cost & Budgets' },
-]
-
-// Only entries with a route are implemented; the others keep the template's
-// "not available" notice.
-const originalAccountLinks = [
-  ['Profile & account', 'user-round'],
-  ['Security & sessions', 'shield-check', '/account/password'],
-  ['Settings', 'settings-2'],
-  ['Billing & credits', 'credit-card'],
-]
+// No notification service exists yet, so the header shows no notifications.
+// The profile menu lists only the implemented account pages from the shared
+// navigation configuration.
 
 function Dropdown({ id, menu, openMenu, toggleMenu, label, className = '', buttonClassName = 'icon-button', icon, children }) {
   const isOpen = openMenu === menu
@@ -43,14 +35,16 @@ function Dropdown({ id, menu, openMenu, toggleMenu, label, className = '', butto
 
 export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSidebarMode, theme, setTheme, language, setLanguage, onOpenSettings, onOpenCommand, onUnavailable }) {
   const { user, status, signOut } = useAuth()
+  const access = usePermissions()
   // Profile text only (backend AuthUser). Roles and permissions are never inferred client-side.
   const displayName = status === 'preview' ? 'Developer preview' : user?.fullName?.trim() || user?.username?.trim() || user?.email?.trim() || 'Signed-in user'
   const displayEmail = status === 'preview' ? 'Not authenticated' : user?.email || ''
   const accountRole = status === 'preview' ? 'Layout preview' : user?.jobTitle?.trim() || user?.department?.trim() || 'Employee'
   const initials = displayName.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
+  const employeeNumber = status === 'authenticated' && user?.employeeNumber ? user.employeeNumber : null
+  const accountLinks = authorizedNavigation(access).find((section) => section.id === 'account')?.items || []
   const [signOutPending, setSignOutPending] = useState(false)
   const [openMenu, setOpenMenu] = useState(null)
-  const [notificationsRead, setNotificationsRead] = useState(false)
   const dropdownRegion = useRef(null)
   const currentLanguage = orvexaLanguages[language]
 
@@ -87,11 +81,6 @@ export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSideb
     }
   }
 
-  const unavailable = (label) => {
-    setOpenMenu(null)
-    onUnavailable(label)
-  }
-
   return (
     <header className="sticky top-0 z-30 border-b px-3 backdrop-blur-2xl sm:px-5 lg:px-6" style={{ borderColor: 'var(--line)', background: 'color-mix(in srgb,var(--bg) 82%,transparent)' }}>
       <div className="flex h-[72px] items-center gap-2">
@@ -113,36 +102,10 @@ export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSideb
           style={{ borderColor: 'var(--line)', background: 'color-mix(in srgb,var(--surface-solid) 76%,transparent)', color: 'var(--muted)' }}
         >
           <OrvexaIcon name="search" className="size-4 shrink-0" />
-          <span className="truncate text-[13px]">Search Orvexa, ask AI, or run a command...</span>
+          <span className="truncate text-[13px]">Search {appConfig.name} pages...</span>
           <span className="ml-auto hidden rounded-md border px-1.5 py-0.5 text-[12px] font-black sm:inline-flex" style={{ borderColor: 'var(--line)' }}>⌘ K</span>
         </button>
         <div className="ml-auto flex items-center gap-1.5 topbar-tools" ref={dropdownRegion}>
-          <Dropdown
-            id="notification-trigger" menu="notifications" openMenu={openMenu} toggleMenu={setOpenMenu} label="Notifications"
-            buttonClassName="icon-button relative" icon={<>
-              <OrvexaIcon name="bell" className="size-[18px]" />
-              {!notificationsRead && <span id="notification-dot" className="absolute right-2 top-2 size-2 rounded-full border-2" style={{ background: 'var(--danger)', borderColor: 'var(--bg)' }} />}
-            </>}
-          >
-            <div id="notifications-panel" className="dropdown-panel notification-panel right-0 top-[calc(100%+10px)]" aria-label="Notifications">
-              <div className="notification-panel-head">
-                <div><p>Notifications</p><span><b id="notification-count">{notificationsRead ? 0 : originalNotifications.length}</b> need attention</span></div>
-                <button className="topbar-text-action" type="button" onClick={() => setNotificationsRead(true)}>Mark all read</button>
-              </div>
-              <div className="notification-list">
-                {originalNotifications.map((item) => (
-                  <a key={item.id} href="#" className="topbar-notification" onClick={(event) => { event.preventDefault(); unavailable(item.label) }}>
-                    <span className={`topbar-notification-icon ${item.tone}`}><OrvexaIcon name={item.icon} /></span>
-                    <span className="topbar-notification-copy"><b>{item.title}</b><small>{item.description}</small><time>{item.age}</time></span>
-                    {!notificationsRead && <i className="notification-unread" />}
-                  </a>
-                ))}
-              </div>
-              <a className="topbar-panel-footer" href="#" onClick={(event) => { event.preventDefault(); unavailable('Notification center') }}>
-                View notification center <OrvexaIcon name="arrow-right" />
-              </a>
-            </div>
-          </Dropdown>
           <Dropdown
             menu="language" openMenu={openMenu} toggleMenu={setOpenMenu} label="Choose language"
             className="hidden sm:block" buttonClassName="icon-button topbar-language-trigger"
@@ -176,18 +139,18 @@ export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSideb
           >
             <div id="profile-panel" className="dropdown-panel profile-panel right-0 top-[calc(100%+10px)]" aria-label="Profile menu">
               <div className="profile-panel-head"><span className="profile-panel-avatar">{initials}</span><span><b>{displayName}</b><small>{displayEmail}</small></span></div>
-              <div className="profile-workspace"><span className="status-dot" /><span><b>{typeof user?.workspace?.name === 'string' ? user.workspace.name : 'Workspace'}</b><small>{status === 'preview' ? 'Development preview only' : 'Enterprise workspace'}</small></span></div>
-              <nav className="profile-menu-links" aria-label="Account">
-                {originalAccountLinks.map(([label, icon, to]) => (to ? (
-                  <Link key={label} className="topbar-profile-link" to={to} onClick={() => setOpenMenu(null)}>
-                    <span><OrvexaIcon name={icon} /></span><b>{label}</b><OrvexaIcon name="chevron-right" />
-                  </Link>
-                ) : (
-                  <a key={label} className="topbar-profile-link" href="#" onClick={(event) => { event.preventDefault(); unavailable(label) }}>
-                    <span><OrvexaIcon name={icon} /></span><b>{label}</b><OrvexaIcon name="chevron-right" />
-                  </a>
-                )))}
-              </nav>
+              {(employeeNumber || status === 'preview') && (
+                <div className="profile-workspace"><span><b>{status === 'preview' ? 'Development preview only' : `Employee ${employeeNumber}`}</b>{user?.department && <small>{user.department}</small>}</span></div>
+              )}
+              {accountLinks.length > 0 && (
+                <nav className="profile-menu-links" aria-label="Account">
+                  {accountLinks.map((item) => (
+                    <Link key={item.id} className="topbar-profile-link" to={item.path} onClick={() => setOpenMenu(null)}>
+                      <span><OrvexaIcon name={item.icon} /></span><b>{item.label}</b><OrvexaIcon name="chevron-right" />
+                    </Link>
+                  ))}
+                </nav>
+              )}
               <div className="profile-panel-footer">
                 <button type="button" className="topbar-profile-link is-danger w-full" onClick={handleSignOut} disabled={status !== 'authenticated' || signOutPending} title={status === 'preview' ? 'Preview mode has no authenticated session' : undefined}>
                   <span><OrvexaIcon name="log-out" /></span><b>{signOutPending ? 'Signing out…' : 'Sign out'}</b><OrvexaIcon name="arrow-right" />

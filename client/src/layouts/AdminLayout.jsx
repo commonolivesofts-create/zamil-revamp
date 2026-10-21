@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, Outlet, useLocation, useNavigate } from 'react-router'
+import { Link, Outlet, useLocation } from 'react-router'
 import Sidebar from '@/components/layout/Sidebar.jsx'
 import Header from '@/components/layout/Header.jsx'
 import LayoutCustomizer from '@/components/layout/LayoutCustomizer.jsx'
@@ -7,10 +7,10 @@ import CommandPalette from '@/components/layout/CommandPalette.jsx'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import useOrvexaLayout from '@/hooks/useOrvexaLayout.js'
 import useAuth from '@/features/auth/useAuth.js'
+import '@/styles/workspace.css'
 
 export default function AdminLayout() {
   const location = useLocation()
-  const navigate = useNavigate()
   const { status, password } = useAuth()
   const preferences = useOrvexaLayout()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -35,10 +35,13 @@ export default function AdminLayout() {
     }
   }, [])
 
+  // The template's "command-center" page styling belongs to its demo dashboard,
+  // which only the development preview renders.
+  const previewDashboard = status === 'preview' && location.pathname === '/dashboard'
   useEffect(() => {
-    document.body.dataset.activePage = location.pathname === '/dashboard' ? 'command-center' : location.pathname.split('/').pop()
+    document.body.dataset.activePage = previewDashboard ? 'command-center' : location.pathname.split('/').pop()
     return () => { delete document.body.dataset.activePage }
-  }, [location.pathname])
+  }, [location.pathname, previewDashboard])
 
   useEffect(() => {
     // Keep keyboard focus in the off-canvas navigation until it closes.
@@ -65,15 +68,7 @@ export default function AdminLayout() {
   useEffect(() => {
     function onKeyDown(event) {
       const key = event.key.toLowerCase()
-      if ((event.ctrlKey || event.metaKey) && key === 'j') {
-        event.preventDefault()
-        setCommandOpen(false)
-        setSettingsOpen(false)
-        setMobileOpen(false)
-        // Preserve Orvexa's Ctrl/Cmd+J shortcut using the React demo route.
-        navigate('/demo/test-console')
-        return
-      }
+      // Ctrl/Cmd+K opens the page search; it lists only authorized pages.
       if ((event.ctrlKey || event.metaKey) && key === 'k') {
         event.preventDefault()
         setCommandOpen((current) => !current)
@@ -113,7 +108,7 @@ export default function AdminLayout() {
       document.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('resize', onResize)
     }
-  }, [commandOpen, settingsOpen, mobileOpen, navigate])
+  }, [commandOpen, settingsOpen, mobileOpen])
 
   return (
     <>

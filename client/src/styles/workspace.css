@@ -1,0 +1,65 @@
+/* Signed-in workspace: dashboard cards and sidebar access states.
+   Uses the Orvexa theme tokens only; the original Orvexa CSS is unchanged. */
+
+/* ---------------------------------------------------------------- dashboard */
+.zrv-dash { width: min(100%, 1180px); margin: 0 auto; color: var(--text); }
+.zrv-dash__hero { padding: clamp(6px, 2vw, 14px) 2px clamp(18px, 3vw, 26px); }
+.zrv-dash__eyebrow { color: var(--primary-text); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.zrv-dash__hero h1 { margin: 8px 0 0; font-size: clamp(24px, 3.4vw, 34px); line-height: 1.15; font-weight: 800; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.zrv-dash__lead { margin-top: 8px; color: var(--muted); font-size: 14px; }
+.zrv-dash__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.zrv-card--wide { grid-column: 1 / -1; }
+@media (max-width: 860px) { .zrv-dash__grid { grid-template-columns: minmax(0, 1fr); } }
+
+.zrv-card { min-width: 0; padding: clamp(18px, 2.4vw, 24px); border: 1px solid var(--line); border-radius: 22px; background: var(--surface-solid); }
+.zrv-card__head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.zrv-card__head h2 { margin: 0; font-size: 15px; font-weight: 800; line-height: 1.3; }
+.zrv-card__head p { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.zrv-card__icon { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary-text); }
+.zrv-card__icon svg { width: 17px; height: 17px; }
+.zrv-card__state { color: var(--muted); font-size: 13px; line-height: 1.65; }
+.zrv-card__state .zrv-button { margin-top: 12px; }
+.zrv-card__note { margin-top: 16px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+.zrv-dl { display: grid; gap: 0; margin: 0; }
+.zrv-dl__row { display: grid; grid-template-columns: minmax(120px, 38%) minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.zrv-dl__row:first-child { border-top: 0; padding-top: 0; }
+.zrv-dl dt { color: var(--muted); }
+.zrv-dl dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.zrv-dl dd.is-empty { color: var(--muted); font-weight: 500; }
+@media (max-width: 420px) { .zrv-dl__row { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
+.zrv-button { display: inline-flex; align-items: center; padding: 8px 14px; border: 1px solid var(--line-strong); border-radius: 11px; background: transparent; color: var(--text); font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.zrv-button:hover { background: var(--surface-2); }
+.zrv-button:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 3px; }
+
+.zrv-access-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+.zrv-access-summary b { font-weight: 800; }
+.zrv-access-modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; margin-top: 16px; }
+.zrv-access-module { padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-2); }
+.zrv-access-module h3 { margin: 0 0 8px; font-size: 13px; font-weight: 800; }
+.zrv-access-module ul { margin: 0; padding: 0; list-style: none; }
+.zrv-access-module li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.zrv-access-module li:first-child { border-top: 0; }
+.zrv-access-resource { font-weight: 700; }
+.zrv-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.zrv-chip { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .02em; }
+.zrv-chip small { font-size: inherit; font-weight: 600; }
+
+.zrv-dash__links { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.zrv-dash__links a { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; color: var(--text); font-size: 13px; font-weight: 750; text-decoration: none; }
+.zrv-dash__links a:hover { background: var(--surface-2); }
+.zrv-dash__links a:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+.zrv-dash__links svg { width: 16px; height: 16px; flex: none; color: var(--primary-text); }
+.zrv-dash__links .zrv-dash__chevron { margin-left: auto; color: var(--muted); }
+
+/* ------------------------------------------------------------------ sidebar */
+.zrv-sidebar-access { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 8px 0; color: var(--muted); font-size: 12px; }
+.zrv-sidebar-access button { padding: 3px 10px; border: 1px solid var(--line-strong); border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-weight: 750; cursor: pointer; }
+.zrv-sidebar-access button:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+.zrv-sidebar-demos { margin-top: 18px; padding-top: 12px; border-top: 1px dashed var(--line-strong); }
+.zrv-sidebar-heading { margin: 0 8px 8px; color: var(--amber-text); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+/* The collapsed icon sidebar shows text only while it is expanded on hover or focus. */
+@media (min-width: 1024px) {
+  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:focus-within) :is(.zrv-sidebar-access, .zrv-sidebar-heading) { display: none; }
+}

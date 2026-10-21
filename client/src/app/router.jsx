@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router'
 import {
-  GuestOnlyRoute, MfaChallengeRoute, ProtectedRoute, RootRedirect, TemplateDemoRoute,
+  AppRouteAccess, GuestOnlyRoute, MfaChallengeRoute, ProtectedRoute, RootRedirect, TemplateDemoRoute,
 } from '@/routes/RouteGuards.jsx'
 import { orvexaDemoRoutes } from '@/config/orvexaRoutes.js'
 import {
@@ -23,8 +23,10 @@ import {
   RouteErrorBoundary,
 } from '@/routes/RouteComponents.jsx'
 
-// Centralized route table. All demo entries are generated from the original
-// navigation data; no extra demo business pages are implemented in Phase 05.
+// Centralized route table. Application pages are declared in
+// config/appNavigation.js and guarded by AppRouteAccess. Template demo entries
+// are generated from the original navigation data and render only in the
+// development preview.
 export const router = createBrowserRouter([
   {
     element: <RouterShell />,
@@ -71,9 +73,16 @@ export const router = createBrowserRouter([
           {
             element: <AdminLayout />,
             children: [
-              { path: 'dashboard', element: <DashboardPage /> },
-              { path: 'account/authenticator', element: <MfaReplacementPage /> },
-              { path: 'account/password', element: <ChangePasswordPage /> },
+              {
+                // Each application page names its entry in config/appNavigation.js;
+                // AppRouteAccess applies that entry's permission requirements.
+                element: <AppRouteAccess />,
+                children: [
+                  { path: 'dashboard', handle: { routeId: 'dashboard' }, element: <DashboardPage /> },
+                  { path: 'account/authenticator', handle: { routeId: 'account-authenticator' }, element: <MfaReplacementPage /> },
+                  { path: 'account/password', handle: { routeId: 'account-password' }, element: <ChangePasswordPage /> },
+                ],
+              },
               {
                 element: <TemplateDemoRoute />,
                 children: orvexaDemoRoutes.map(({ path }) => ({ path: path.slice(1), element: <DemoPage /> })),
