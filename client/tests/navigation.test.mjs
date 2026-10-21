@@ -226,11 +226,13 @@ test('the signed-in dashboard contains no fabricated figures or template widgets
   const dashboard = await read('../src/features/dashboard/DashboardPage.jsx')
   assert.equal(/import (DashboardCharts|LiveRequests)|liveRequestData|mountDashboardCharts|apexcharts/.test(dashboard), false)
   assert.equal(/\d{1,3}(,\d{3})+|\d+(\.\d+)?\s?(%|ms\b)|vs yesterday|Live system|Total Requests|incident/i.test(dashboard), false)
-  assert.match(dashboard, /const TemplateDashboardPreview = lazy\(\(\) => import\('@\/features\/dashboard\/TemplateDashboardPreview\.jsx'\)\)/)
-  assert.match(dashboard, /if \(templateDemosAvailable\(status\)\) \{/)
-  assert.equal((dashboard.match(/<TemplateDashboardPreview \/>/g) || []).length, 1, 'rendered in the preview branch only')
-  const preview = await read('../src/features/dashboard/TemplateDashboardPreview.jsx')
-  assert.match(preview, /DEVELOPMENT PREVIEW ONLY/)
+  // Stage 4 (stronger than the Stage 2 preview-only isolation): the template
+  // dashboard and its chart library no longer exist at all.
+  assert.equal(/TemplateDashboardPreview|templateDemosAvailable/.test(dashboard), false)
+  assert.match(dashboard, /export default function DashboardPage\(\) \{\s*return <WorkspaceDashboard \/>/)
+  for (const removed of ['TemplateDashboardPreview.jsx', 'DashboardCharts.jsx', 'LiveRequests.jsx', 'liveRequestData.js', 'mountDashboardCharts.js']) {
+    await assert.rejects(read(`../src/features/dashboard/${removed}`), { code: 'ENOENT' }, removed)
+  }
 })
 
 test('dashboard access summary groups real permissions without inventing values', () => {

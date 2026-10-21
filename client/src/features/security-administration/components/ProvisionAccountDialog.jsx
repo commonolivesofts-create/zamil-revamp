@@ -47,7 +47,7 @@ export default function ProvisionAccountDialog({ action, onClose, onProvisioned 
         <div className="zrv-admin-toolbar__submit"><button type="submit" className="btn-secondary" disabled={action.pending}>Search</button></div>
       </form>
 
-      <ResourceState resource={candidates} label="employees" empty="No employees without an account match this search." isEmpty={(data) => data.items.length === 0}>
+      <ResourceState resource={candidates} label="employees" empty="No employees without an account match this search.">
         {({ items, pagination }) => (
           <fieldset className="zrv-admin-choices">
             <legend className="sr-only">Employees</legend>

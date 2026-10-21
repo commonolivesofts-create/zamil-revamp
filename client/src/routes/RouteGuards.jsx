@@ -5,7 +5,7 @@ import { mfaChallengePath, safeReturnTo, templateDemosAvailable } from '@/config
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
 import {
-  AccessPendingPage, AccessUnavailablePage, DeniedPage, DemoUnavailablePage, NotFoundPage,
+  AccessPendingPage, AccessUnavailablePage, DeniedPage, NotFoundPage,
 } from '@/routes/RouteComponents.jsx'
 
 // An MFA-pending challenge is not a session, so it never passes this guard.
@@ -63,11 +63,12 @@ export function AppRouteAccess() {
   }
 }
 
-// Template demo routes stay in the source, but only the development preview
-// lists or renders them; real sessions see a not-available notice.
+// Template demo routes exist only for the development preview (never enabled
+// in production builds). For every real session they do not exist: the
+// ordinary not-found page, with no template wording.
 export function TemplateDemoRoute() {
   const { status } = useAuth()
-  return templateDemosAvailable(status) ? <Outlet /> : <DemoUnavailablePage />
+  return templateDemosAvailable(status) ? <Outlet /> : <NotFoundPage />
 }
 
 export function RootRedirect() {

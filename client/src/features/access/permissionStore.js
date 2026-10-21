@@ -66,12 +66,15 @@ export function createPermissionStore({ service }) {
     if (snapshot.status !== 'idle') set(accessState('idle'))
   }
 
-  async function load(subjectId) {
+  // `keepCurrent`: refresh a loaded set in place. The same user's confirmed
+  // permissions stay visible until the new answer arrives, so the open page is
+  // not unmounted; a failed refresh still ends in the deny-all error state.
+  async function load(subjectId, { keepCurrent = false } = {}) {
     const current = invalidate()
     const controller = new AbortController()
     active = controller
     const isCurrent = () => current === revision && !controller.signal.aborted
-    set(accessState('loading', { subjectId }))
+    if (!keepCurrent) set(accessState('loading', { subjectId }))
     try {
       const result = await service.getMyPermissions({ signal: controller.signal })
       if (!isCurrent()) return
@@ -97,11 +100,12 @@ export function createPermissionStore({ service }) {
     return load(subjectId)
   }
 
-  // Manual retry after a failure, or a refresh after an administrator changed
-  // this user's access. Never starts a duplicate request.
+  // Manual retry after a failure, or a refresh after a change that may affect
+  // this user's access (a refused request, a confirmed role or catalogue
+  // change). Never starts a duplicate request.
   function reload() {
-    if (!snapshot.subjectId || snapshot.status === 'loading') return undefined
-    return load(snapshot.subjectId)
+    if (!snapshot.subjectId || active) return undefined
+    return load(snapshot.subjectId, { keepCurrent: snapshot.status === 'ready' })
   }
 
   return Object.freeze({

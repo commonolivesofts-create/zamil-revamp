@@ -391,7 +391,8 @@ test('template demos render only in the development preview', async () => {
   const router = await readFile(new URL('../src/app/router.jsx', import.meta.url), 'utf8')
   assert.match(router, /element: <TemplateDemoRoute \/>,\s*children: orvexaDemoRoutes\.map/)
   const guards = await readFile(new URL('../src/routes/RouteGuards.jsx', import.meta.url), 'utf8')
-  assert.match(guards, /templateDemosAvailable\(status\) \? <Outlet \/> : <DemoUnavailablePage \/>/)
+  // Stage 4: real sessions get the ordinary not-found page (no template notice).
+  assert.match(guards, /templateDemosAvailable\(status\) \? <Outlet \/> : <NotFoundPage \/>/)
 })
 
 test('the login heading names Zamil Revamp', async () => {

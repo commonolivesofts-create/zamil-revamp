@@ -36,21 +36,26 @@ export function useResource(key, load) {
 }
 
 // Runs one state-changing operation at a time and reports its outcome.
-// `run(operation, { success })` resolves to the submission outcome; feedback
-// is set for display. A refused action because permissions changed refreshes
-// the effective permissions, so the page and navigation follow the backend.
+// `run(operation, { success, refreshAccess })` resolves to the submission
+// outcome; feedback is set for display. The signed-in user's effective
+// permissions are refreshed after a refusal because permissions changed, and
+// after a confirmed change that may alter the user's own access
+// (`refreshAccess`: role activation, role grants, catalogue activation), so
+// navigation and buttons follow the backend. An unknown outcome also refreshes
+// them, since the change may have been applied.
 export function useAdminAction() {
   const { reload: reloadPermissions } = usePermissions()
   const [guard] = useState(createSubmissionGuard)
   const [pending, setPending] = useState(false)
   const [feedback, setFeedback] = useState(null)
 
-  const run = useCallback(async (operation, { success } = {}) => {
+  const run = useCallback(async (operation, { success, refreshAccess = false } = {}) => {
     if (guard.isPending()) return { status: 'ignored' }
     setPending(true)
     setFeedback(null)
     const outcome = await guard.run(operation)
     setPending(false)
+    if (refreshAccess && (outcome.status === 'success' || outcome.status === 'unknown')) reloadPermissions()
     if (outcome.status === 'success') {
       const message = typeof success === 'function' ? success(outcome.value) : success
       if (message) setFeedback({ kind: 'success', message, details: [] })

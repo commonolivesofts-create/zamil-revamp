@@ -53,6 +53,7 @@ export default function RolePermissionsPage() {
     if (!choice) return
     finish(await action.run(() => securityAdminService.grantRolePermission(roleId, choice.permissionId), {
       success: (result) => result.changed ? `${choice.key} granted to ${roleLabel}.` : `${roleLabel} already held ${choice.key}; nothing changed.`,
+      refreshAccess: true,
     }))
   }
 
@@ -61,7 +62,7 @@ export default function RolePermissionsPage() {
       {!dialog && <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />}
       <div className="zrv-admin-split">
         <Panel title="Roles">
-          <ResourceState resource={roles} label="roles" empty="No roles are defined." isEmpty={(data) => data.items.length === 0}>
+          <ResourceState resource={roles} label="roles" empty="No roles are defined.">
             {({ items, pagination }) => (
               <>
                 <ul className="zrv-admin-menu" aria-label="Roles">
@@ -137,6 +138,7 @@ export default function RolePermissionsPage() {
           description={`${permissionLabel(dialog.grant)} is removed from ${roleLabel}. Accounts that hold it only through this role lose it immediately.`}
           onConfirm={async () => finish(await action.run(() => securityAdminService.revokeRolePermission(roleId, dialog.grant.permissionId), {
             success: (result) => result.changed ? `${permissionLabel(dialog.grant)} revoked from ${roleLabel}.` : 'The permission was already revoked; nothing changed.',
+            refreshAccess: true,
           }))}
         />
       )}

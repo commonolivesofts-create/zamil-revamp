@@ -65,18 +65,6 @@ export function NotFoundPage() {
   )
 }
 
-// Shown to real sessions for template menu entries; the demos themselves are
-// available only in the development preview (see TemplateDemoRoute).
-export function TemplateDemoUnavailablePage() {
-  return (
-    <RouteNotice
-      eyebrow="Not available"
-      title="This page is not available yet"
-      description="This menu entry comes from the original interface template and has no Zamil Revamp functionality yet."
-    />
-  )
-}
-
 export function RouteErrorPage({ error }) {
   const message = import.meta.env.DEV && error instanceof Error ? error.message : null
   return (

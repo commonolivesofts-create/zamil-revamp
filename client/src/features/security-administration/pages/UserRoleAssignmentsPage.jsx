@@ -14,7 +14,7 @@ import { ActiveBadge, AdminPage, ConfirmDialog, Dialog, DialogActions, Feedback,
 import EffectivePermissions from '../components/EffectivePermissions.jsx'
 
 function AssignRoleDialog({ userId, subject, assignedIds, action, onClose, onDone }) {
-  const roles = useResource('roles:assignable', (signal) => securityAdminService.listRoles({ page: 1, limit: 100 }, { signal }))
+  const roles = useResource('roles:all', (signal) => securityAdminService.listAllRoles({ signal }))
   const [roleId, setRoleId] = useState('')
   const [expiry, setExpiry] = useState('')
   const [error, setError] = useState(null)
@@ -35,9 +35,9 @@ function AssignRoleDialog({ userId, subject, assignedIds, action, onClose, onDon
     <Dialog title={`Assign a role to ${subject}`} description="The account receives every permission of the role immediately. You can only assign roles whose permissions you hold yourself." onClose={onClose} busy={action.pending}>
       <form onSubmit={submit} noValidate className="zrv-admin-form">
         <ResourceState resource={roles} label="roles" empty="No roles are defined." isEmpty={(data) => data.items.length === 0}>
-          {() => options.length ? (
-            <Field id="assign-role" label="Role">
-              <select {...fieldProps('assign-role')} data-autofocus className="ux-select" value={roleId} onChange={(event) => setRoleId(event.target.value)} disabled={action.pending}>
+          {(data) => options.length ? (
+            <Field id="assign-role" label="Role" hint={data.complete ? undefined : `Only the first ${data.items.length} roles could be listed.`}>
+              <select {...fieldProps('assign-role', { hint: !data.complete })} data-autofocus className="ux-select" value={roleId} onChange={(event) => setRoleId(event.target.value)} disabled={action.pending}>
                 <option value="">Choose a role</option>
                 {options.map((item) => <option key={item.roleId} value={item.roleId}>{item.roleName || item.roleCode} ({item.roleCode})</option>)}
               </select>

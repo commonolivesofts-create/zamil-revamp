@@ -1,19 +1,17 @@
-import { lazy, Suspense } from 'react'
 import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { appConfig } from '@/config/appConfig.js'
 import { authorizedNavigation } from '@/config/appNavigation.js'
-import { templateDemosAvailable } from '@/config/authRouting.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
 import { formatDateTime, groupPermissions } from '@/features/dashboard/dashboardModel.js'
 import '@/styles/workspace.css'
 
-// ZRV-FE-005: a signed-in user sees only real information: their backend
-// profile, session state and effective permissions. No business metrics API
-// exists yet, so no metrics are shown. The template dashboard (sample figures)
-// is loaded only in the development preview.
-const TemplateDashboardPreview = lazy(() => import('@/features/dashboard/TemplateDashboardPreview.jsx'))
+// ZRV-FE-005: the dashboard shows only real information: the backend profile,
+// session state and effective permissions of the signed-in user. No business
+// metrics API exists yet, so no metrics are shown. The template's sample
+// dashboard (and its chart library) was removed in Stage 4; the development
+// preview shows this same page, without a user or permissions.
 
 const SECURITY_MODULE = 'SECURITY_ADMINISTRATION'
 
@@ -50,6 +48,10 @@ function AccessSummary({ access }) {
         <button type="button" className="zrv-button" onClick={access.reload}>Retry</button>
       </div>
     )
+  }
+  // `idle`: no authenticated session (the development preview), so nothing is loaded.
+  if (access.status === 'idle') {
+    return <p className="zrv-card__state" role="status">No authenticated session: permissions are not loaded.</p>
   }
   if (access.status !== 'ready') {
     return <p className="zrv-card__state" role="status">Loading your permissions…</p>
@@ -166,13 +168,5 @@ function WorkspaceDashboard() {
 }
 
 export default function DashboardPage() {
-  const { status } = useAuth()
-  if (templateDemosAvailable(status)) {
-    return (
-      <Suspense fallback={null}>
-        <TemplateDashboardPreview />
-      </Suspense>
-    )
-  }
   return <WorkspaceDashboard />
 }

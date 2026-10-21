@@ -77,12 +77,12 @@ export default function LayoutCustomizer({ open, onClose, sidebarMode, setSideba
           <section className="layout-settings-section">
             <div className="layout-settings-section-head">
               <h3>Accent theme</h3>
-              <p>Compare the green testing palette with Orvexa's original yellow theme.</p>
+              <p>Choose the accent colour used for highlights and actions.</p>
             </div>
             <div className="zrv-accent-options" role="group" aria-label="Accent color theme">
               {[
-                ['green', 'Green', 'Testing theme'],
-                ['yellow', 'Original yellow', 'Original Orvexa colors'],
+                ['green', 'Green', 'Default accent'],
+                ['yellow', 'Yellow', 'Alternative accent'],
               ].map(([value, label, description]) => (
                 <button
                   key={value}
@@ -100,7 +100,7 @@ export default function LayoutCustomizer({ open, onClose, sidebarMode, setSideba
             </div>
             <div className="layout-settings-note">
               <OrvexaIcon name="palette" />
-              <span>Green is the default for testing. Original yellow remains available here at any time.</span>
+              <span>Green is the default. You can switch the accent here at any time.</span>
             </div>
           </section>
           <section className="layout-settings-section">
@@ -120,7 +120,7 @@ export default function LayoutCustomizer({ open, onClose, sidebarMode, setSideba
           <section className="layout-settings-section">
             <div className="layout-settings-section-head">
               <h3>Display density</h3>
-              <p>Use the original Orvexa comfortable or compact spacing.</p>
+              <p>Use comfortable or compact spacing.</p>
             </div>
             <div className="sidebar-layout-options">
               {[
@@ -137,11 +137,11 @@ export default function LayoutCustomizer({ open, onClose, sidebarMode, setSideba
           <section className="layout-settings-section">
             <div className="layout-settings-section-head">
               <h3>Motion</h3>
-              <p>Reduce decorative animations in the dashboard.</p>
+              <p>Reduce decorative animations.</p>
             </div>
             <div className="sidebar-layout-options">
               {[
-                ['standard', 'Standard', 'Use the template animations.'],
+                ['standard', 'Standard', 'Use the standard animations.'],
                 ['reduced', 'Reduced motion', 'Keep animations and movement minimal.'],
               ].map(([value, label, description]) => (
                 <button key={value} type="button" className="sidebar-layout-option" data-motion-option={value}

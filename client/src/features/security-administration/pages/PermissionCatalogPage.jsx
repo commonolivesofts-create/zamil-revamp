@@ -129,6 +129,7 @@ export default function PermissionCatalogPage() {
             : 'Grants under this entry apply again where the rest of the chain is active.'}
           onConfirm={async () => finish(await action.run(() => securityAdminService.setCatalogActive(dialog.entity, dialog.item.id, !dialog.item.isActive), {
             success: (result) => result.changed ? `${dialog.item.label} ${result.isActive ? 'activated' : 'deactivated'}.` : 'Nothing changed; the entry already had that state.',
+            refreshAccess: true,
           }))}
         />
       )}
