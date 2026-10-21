@@ -23,7 +23,9 @@ function invalid() {
 // `MODULE_CODE.RESOURCE_CODE:ACTION_CODE`, as in the backend's authorize() keys.
 export const permissionKey = ({ moduleCode, resourceCode, actionCode }) => `${moduleCode}.${resourceCode}:${actionCode}`
 
-function readPermission(entry) {
+// One EffectivePermission entry; also used for another user's effective
+// permissions (GET /access-control/users/{userId}/effective-permissions).
+export function readPermission(entry) {
   if (!isObject(entry) || typeof entry.moduleCode !== 'string' || !MODULE_CODE.test(entry.moduleCode) ||
     typeof entry.resourceCode !== 'string' || !RESOURCE_CODE.test(entry.resourceCode) ||
     typeof entry.actionCode !== 'string' || !ACTION_CODE.test(entry.actionCode) ||

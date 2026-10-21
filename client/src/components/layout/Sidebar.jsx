@@ -9,11 +9,12 @@ import { getOrvexaRoute, getOrvexaSection } from '@/config/orvexaRoutes.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
 
-function SidebarLink({ to, icon, label, nested = false, onNavigate }) {
+// `end={false}` keeps a list page highlighted on its detail pages.
+function SidebarLink({ to, icon, label, nested = false, end = true, onNavigate }) {
   return (
     <NavLink
       to={to}
-      end
+      end={end}
       className={({ isActive }) => `sidebar-domain-link ${nested ? 'is-nested' : ''} ${isActive ? 'active' : ''}`.trim()}
       onClick={onNavigate}
     >
@@ -157,7 +158,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                 onToggle={() => toggleDomain(section.id)}
               >
                 {section.items.map((item) => (
-                  <SidebarLink key={item.id} to={item.path} icon={item.icon} label={item.label} onNavigate={onMobileClose} />
+                  <SidebarLink key={item.id} to={item.path} icon={item.icon} label={item.label} end={false} onNavigate={onMobileClose} />
                 ))}
               </CollapsibleSection>
             ))}

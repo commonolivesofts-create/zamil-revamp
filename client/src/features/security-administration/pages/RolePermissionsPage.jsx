@@ -1,0 +1,145 @@
+import { useState } from 'react'
+import { useSearchParams } from 'react-router'
+import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import usePermissions from '@/features/access/usePermissions.js'
+import { formatInstant } from '../adminFeedback.js'
+import { isRecordId, permissionLabel } from '../adminModel.js'
+import { SECURITY_ACTIONS } from '../securityActions.js'
+import { securityAdminService } from '../securityAdminService.js'
+import { useAdminAction, useResource } from '../useAdminData.js'
+import { ActiveBadge, AdminPage, ConfirmDialog, Dialog, DialogActions, Feedback, Pagination, Panel, ResourceState } from '../components/AdminUi.jsx'
+import PermissionPicker from '../components/PermissionPicker.jsx'
+
+const ROLE_PAGE_SIZE = 100
+
+// Permissions granted to a role (ROLE_PERMISSIONS). Granting picks a backend
+// permission ID from the live catalogue (PERMISSION_CATALOG:VIEW). Grants and
+// revocations are idempotent on the server; the result says whether anything
+// changed. Escalation and protected-role rules are enforced by the backend.
+export default function RolePermissionsPage() {
+  const { can } = usePermissions()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const roleParam = searchParams.get('role')
+  const roleId = isRecordId(roleParam) ? roleParam : null
+  const [page, setPage] = useState(1)
+  const [showRevoked, setShowRevoked] = useState(false)
+  const [dialog, setDialog] = useState(null)
+  const [choice, setChoice] = useState(null)
+  const roles = useResource(`roles:${page}:${ROLE_PAGE_SIZE}`, (signal) => securityAdminService.listRoles({ page, limit: ROLE_PAGE_SIZE }, { signal }))
+  const grants = useResource(roleId ? `role-grants:${roleId}` : null, (signal) => securityAdminService.listRolePermissions(roleId, { signal }))
+  const action = useAdminAction()
+  const role = roles.data?.items.find((item) => item.roleId === roleId) ?? null
+  const roleLabel = role ? role.roleCode : roleId ? `role ${roleId}` : ''
+  const canGrant = can(SECURITY_ACTIONS.ROLE_PERMISSIONS_GRANT) && can(SECURITY_ACTIONS.PERMISSION_CATALOG_VIEW)
+  const canRevoke = can(SECURITY_ACTIONS.ROLE_PERMISSIONS_REVOKE)
+
+  const select = (id) => {
+    action.setFeedback(null)
+    setSearchParams(id ? { role: id } : {})
+  }
+  const open = (next) => {
+    action.setFeedback(null)
+    setChoice(null)
+    setDialog(next)
+  }
+  const close = () => setDialog(null)
+  const finish = (outcome) => {
+    if (outcome.status === 'ignored') return
+    if (outcome.status === 'success') close()
+    grants.reload()
+  }
+
+  const grant = async () => {
+    if (!choice) return
+    finish(await action.run(() => securityAdminService.grantRolePermission(roleId, choice.permissionId), {
+      success: (result) => result.changed ? `${choice.key} granted to ${roleLabel}.` : `${roleLabel} already held ${choice.key}; nothing changed.`,
+    }))
+  }
+
+  return (
+    <AdminPage title="Role permissions" description="Choose a role to review, grant or revoke its permissions.">
+      {!dialog && <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />}
+      <div className="zrv-admin-split">
+        <Panel title="Roles">
+          <ResourceState resource={roles} label="roles" empty="No roles are defined." isEmpty={(data) => data.items.length === 0}>
+            {({ items, pagination }) => (
+              <>
+                <ul className="zrv-admin-menu" aria-label="Roles">
+                  {items.map((item) => (
+                    <li key={item.roleId}>
+                      <button type="button" aria-pressed={item.roleId === roleId} onClick={() => select(item.roleId)}>
+                        <span><b>{item.roleName || item.roleCode}</b><small className="zrv-admin-sub"><code>{item.roleCode}</code></small></span>
+                        <ActiveBadge active={item.isActive} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <Pagination pagination={pagination} onPage={setPage} disabled={roles.refreshing} label="Role pages" />
+              </>
+            )}
+          </ResourceState>
+        </Panel>
+
+        <Panel
+          title={roleId ? `Permissions of ${roleLabel}` : 'Permissions'}
+          actions={roleId && canGrant && (
+            <button type="button" className="btn-primary" onClick={() => open({ type: 'grant' })} disabled={role && !role.isActive} title={role && !role.isActive ? 'Inactive roles cannot receive permissions' : undefined}>
+              <OrvexaIcon name="plus" className="size-4" /> Grant permission
+            </button>
+          )}
+        >
+          {!roleId ? <p className="zrv-admin-state">Select a role.</p> : (
+            <>
+              {role && !role.isActive && <p className="zrv-admin-note" role="note">This role is inactive: its permissions do not apply, and no permission can be granted to it.</p>}
+              <label className="zrv-admin-check">
+                <input type="checkbox" checked={showRevoked} onChange={(event) => setShowRevoked(event.target.checked)} /> Show revoked grants
+              </label>
+              <ResourceState resource={grants} label="role permissions" empty={showRevoked ? 'This role has no grants.' : 'This role holds no permissions.'} isEmpty={(data) => !data.some((item) => showRevoked || item.isActive)}>
+                {(data) => (
+                  <div className="ux-table-wrap">
+                    <table className="ux-table zrv-admin-table" aria-busy={grants.refreshing || undefined}>
+                      <caption className="sr-only">Permissions of {roleLabel}</caption>
+                      <thead><tr><th scope="col">Permission</th><th scope="col">Grant</th><th scope="col">Updated</th><th scope="col"><span className="sr-only">Action</span></th></tr></thead>
+                      <tbody>
+                        {data.filter((item) => showRevoked || item.isActive).map((item) => (
+                          <tr key={item.permissionId}>
+                            <td><code>{permissionLabel(item)}</code></td>
+                            <td><ActiveBadge active={item.isActive} activeLabel="Granted" inactiveLabel="Revoked" /></td>
+                            <td>{formatInstant(item.updatedAt || item.createdAt)}</td>
+                            <td>{canRevoke && item.isActive && <button type="button" className="zrv-admin-link" onClick={() => open({ type: 'revoke', grant: item })}>Revoke<span className="sr-only"> {permissionLabel(item)}</span></button>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </ResourceState>
+            </>
+          )}
+        </Panel>
+      </div>
+
+      {dialog?.type === 'grant' && (
+        <Dialog title={`Grant a permission to ${roleLabel}`} description="Every account assigned to this role receives the permission immediately." onClose={close} busy={action.pending} wide>
+          <PermissionPicker
+            selectedId={choice?.permissionId}
+            onSelect={setChoice}
+            excludeIds={(grants.data || []).filter((item) => item.isActive).map((item) => item.permissionId)}
+            disabled={action.pending}
+          />
+          <Feedback feedback={action.feedback?.kind === 'success' ? null : action.feedback} />
+          <DialogActions onCancel={close} pending={action.pending} confirmLabel={choice ? `Grant ${choice.key}` : 'Grant'} pendingLabel="Granting…" confirmDisabled={!choice} onConfirm={grant} />
+        </Dialog>
+      )}
+      {dialog?.type === 'revoke' && (
+        <ConfirmDialog
+          danger title="Revoke this permission?" confirmLabel="Revoke" pending={action.pending} feedback={action.feedback} onClose={close}
+          description={`${permissionLabel(dialog.grant)} is removed from ${roleLabel}. Accounts that hold it only through this role lose it immediately.`}
+          onConfirm={async () => finish(await action.run(() => securityAdminService.revokeRolePermission(roleId, dialog.grant.permissionId), {
+            success: (result) => result.changed ? `${permissionLabel(dialog.grant)} revoked from ${roleLabel}.` : 'The permission was already revoked; nothing changed.',
+          }))}
+        />
+      )}
+    </AdminPage>
+  )
+}
