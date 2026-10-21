@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Outlet, ScrollRestoration, useLocation, useRouteError } from 'react-router'
 import PageState from '@/components/feedback/PageState.jsx'
-import { implementedRoutes } from '@/config/appNavigation.js'
+import { findAppRoute } from '@/config/appNavigation.js'
 import { orvexaDemoRoutes } from '@/config/orvexaRoutes.js'
 import { templateDemosAvailable } from '@/config/authRouting.js'
 import useAuth from '@/features/auth/useAuth.js'
@@ -21,6 +21,16 @@ export const PasswordSetupPage = lazy(() => import('@/pages/auth/PasswordSetupPa
 export const PasswordResetPage = lazy(() => import('@/pages/auth/PasswordResetPage.jsx'))
 export const MfaRecoveryPage = lazy(() => import('@/pages/auth/MfaRecoveryPage.jsx'))
 export const ChangePasswordPage = lazy(() => import('@/pages/auth/ChangePasswordPage.jsx'))
+// Security administration (Stage 3).
+export const UserAccountsPage = lazy(() => import('@/features/security-administration/pages/UserAccountsPage.jsx'))
+export const UserAccountDetailPage = lazy(() => import('@/features/security-administration/pages/UserAccountDetailPage.jsx'))
+export const RolesPage = lazy(() => import('@/features/security-administration/pages/RolesPage.jsx'))
+export const RolePermissionsPage = lazy(() => import('@/features/security-administration/pages/RolePermissionsPage.jsx'))
+export const UserRolesPage = lazy(() => import('@/features/security-administration/pages/UserRolesPage.jsx'))
+export const UserRoleAssignmentsPage = lazy(() => import('@/features/security-administration/pages/UserRoleAssignmentsPage.jsx'))
+export const PermissionCatalogPage = lazy(() => import('@/features/security-administration/pages/PermissionCatalogPage.jsx'))
+export const PermissionOverridesPage = lazy(() => import('@/features/security-administration/pages/PermissionOverridesPage.jsx'))
+export const UserOverridesPage = lazy(() => import('@/features/security-administration/pages/UserOverridesPage.jsx'))
 export const DemoUnavailablePage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.TemplateDemoUnavailablePage })))
 export const DeniedPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessDeniedPage })))
 export const AccessPendingPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessPendingPage })))
@@ -43,7 +53,8 @@ function RouteAnnouncement() {
     '/403': 'Access denied',
   }
   // Application pages are named by the shared navigation configuration.
-  const appRoute = implementedRoutes.find((item) => item.path === pathname)
+  const match = findAppRoute(pathname)
+  const appRoute = match?.implemented ? match : null
   const demo = orvexaDemoRoutes.find((item) => item.path === pathname)
   const demoName = demo && (templateDemosAvailable(status) ? demo.label : 'Not available')
   const pageName = labels[pathname] || appRoute?.label || demoName || 'Page not found'

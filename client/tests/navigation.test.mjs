@@ -54,9 +54,19 @@ test('the shared configuration uses the backend permission identities', () => {
   }
 })
 
-test('Stage 2 implements only the dashboard and account pages; no placeholder screens', () => {
-  assert.deepEqual(implementedRoutes.map((route) => route.path), ['/dashboard', '/account/password', '/account/authenticator'])
-  assert.ok(implementedRoutes.every((route) => !route.permission), 'session-only pages')
+// Updated in Stage 3: the security pages backed by real APIs are implemented;
+// Security audit (no retrieval API) is still not.
+test('only pages backed by a working backend contract are implemented; no placeholder screens', () => {
+  assert.deepEqual(implementedRoutes.map((route) => route.path), [
+    '/dashboard',
+    '/security/users', '/security/users/:userId', '/security/roles',
+    '/security/user-roles', '/security/user-roles/:userId', '/security/role-permissions',
+    '/security/permission-catalog', '/security/permission-overrides', '/security/permission-overrides/:userId',
+    '/account/password', '/account/authenticator',
+  ])
+  assert.ok(implementedRoutes.filter((route) => route.section !== 'security').every((route) => !route.permission), 'session-only pages')
+  assert.ok(implementedRoutes.filter((route) => route.section === 'security').every((route) => route.permission && route.requiresMfa), 'guarded security pages')
+  assert.deepEqual(appRoutes.filter((item) => !item.implemented).map((route) => route.id), ['security-audit'])
   for (const route of appRoutes.filter((item) => !item.implemented)) {
     assert.equal(routeAccess(route, ADMIN), 'unavailable', route.id)
   }
@@ -89,16 +99,18 @@ test('route access: default deny until permissions resolve, then exact permissio
 })
 
 test('session-only pages open for every signed-in user, whatever the permission state', () => {
-  for (const route of implementedRoutes) {
+  for (const route of implementedRoutes.filter((item) => !item.permission)) {
     for (const access of [ADMIN, EMPLOYEE, EMPTY, LOADING, FAILED, IDLE]) {
       assert.equal(canAccessRoute(route, access), true, `${route.id} ${access.status}`)
     }
   }
 })
 
+// Stage 3: picker pages also need the permission of the list they read (`alsoRequires`).
 test('each security page requires its own VIEW permission', () => {
   for (const route of securityRoutes) {
-    assert.equal(canAccessRoute(route, ready([route.permission])), true, route.id)
+    assert.equal(canAccessRoute(route, ready([route.permission, ...(route.alsoRequires || [])])), true, route.id)
+    if (route.alsoRequires) assert.equal(canAccessRoute(route, ready([route.permission])), false, `${route.id} without ${route.alsoRequires}`)
     const others = Object.values(PERMISSIONS).filter((key) => key !== route.permission)
     assert.equal(canAccessRoute(route, ready(others)), false, route.id)
   }
@@ -106,17 +118,23 @@ test('each security page requires its own VIEW permission', () => {
 
 // ------------------------------------------------------------ sidebar
 
+// Updated in Stage 3: administrators now also see the implemented security pages.
 test('sidebar: current production navigation for administrators, employees and empty sets', () => {
-  for (const access of [ADMIN, EMPLOYEE, EMPTY, LOADING, FAILED]) {
+  for (const access of [EMPLOYEE, EMPTY, LOADING, FAILED, ADMIN_WITHOUT_MFA]) {
     const sections = authorizedNavigation(access)
     assert.deepEqual(ids(sections), ['dashboard', 'account-password', 'account-authenticator'], access.status)
     assert.ok(sections.every((section) => section.items.length > 0), 'no empty sections')
   }
+  assert.deepEqual(ids(authorizedNavigation(ADMIN)), [
+    'dashboard', 'user-accounts', 'roles', 'user-roles', 'role-permissions', 'permission-catalog', 'permission-overrides',
+    'account-password', 'account-authenticator',
+  ])
 })
 
 test('sidebar: implemented security pages appear only with their permission and MFA', () => {
   const securityIds = (access) => ids(authorizedNavigation(access, stage3Routes).filter((section) => section.id === 'security'))
-  assert.deepEqual(securityIds(ADMIN), securityRoutes.map((route) => route.id))
+  // Stage 3: detail pages (`nav: false`) are guarded but never listed.
+  assert.deepEqual(securityIds(ADMIN), securityRoutes.filter((route) => route.nav !== false).map((route) => route.id))
   for (const access of [EMPLOYEE, EMPTY, LOADING, FAILED, IDLE, ADMIN_WITHOUT_MFA]) {
     assert.deepEqual(securityIds(access), [], access.status)
     assert.equal(authorizedNavigation(access, stage3Routes).some((section) => section.id === 'security'), false, 'section omitted')
