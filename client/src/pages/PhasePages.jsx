@@ -36,7 +36,19 @@ export function NotFoundPage() {
     <RouteNotice
       eyebrow="404 · Page not found"
       title="We couldn't find that page"
-      description="Check the URL or return to the dashboard. The original template's unconverted demo entries are available under /demo/."
+      description="Check the URL or return to the dashboard."
+    />
+  )
+}
+
+// Shown to real sessions for template menu entries; the demos themselves are
+// available only in the development preview (see TemplateDemoRoute).
+export function TemplateDemoUnavailablePage() {
+  return (
+    <RouteNotice
+      eyebrow="Not available"
+      title="This page is not available yet"
+      description="This menu entry comes from the original interface template and has no Zamil Revamp functionality yet."
     />
   )
 }

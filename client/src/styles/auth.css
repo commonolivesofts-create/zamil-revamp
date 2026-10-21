@@ -8,3 +8,28 @@
 .zrv-auth-page .auth-visual{color:#f5f7f9}
 .zrv-auth-page .auth-form-wrap{min-width:0}
 @media(max-width:640px){.zrv-auth-page .auth-form h2{font-size:26px}}
+/* Batch B: MFA screens. The QR code keeps a white tile so scanners read it in both themes. */
+.zrv-auth-page .zrv-mfa-qr{display:block;width:min(100%,208px);height:auto;margin:6px auto 0;border:1px solid var(--line);border-radius:14px}
+.zrv-auth-page .zrv-mfa-key{display:block;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--surface-2);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:.06em;text-align:center;word-break:break-all;user-select:all}
+.zrv-auth-page .zrv-mfa-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:20px;letter-spacing:.4em;text-align:center}
+.zrv-auth-page .zrv-mfa-meta{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.6}
+.zrv-mfa-panel{max-width:680px}
+.zrv-mfa-panel .ux-panel-body>.zrv-mfa-meta:first-child{margin-top:0}
+.zrv-mfa-panel .zrv-mfa-form{max-width:360px}
+.zrv-mfa-panel .zrv-mfa-qr{margin-left:0}
+.zrv-mfa-panel .btn-secondary{display:inline-flex;align-items:center;gap:8px}
+/* Field spacing inside account panels, matching .auth-form .field (16px); none before the first field. */
+.zrv-mfa-panel .field+.field,.zrv-mfa-panel .zrv-policy-list+.field{margin-top:16px}
+/* Batch C: password fields and live policy checklist. */
+.zrv-auth-page .zrv-password-input{position:relative}
+.zrv-auth-page .zrv-password-input .ux-input{padding-right:44px}
+.zrv-auth-page .zrv-password-toggle{position:absolute;top:50%;right:6px;display:flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:9px;color:var(--muted);transform:translateY(-50%)}
+.zrv-auth-page .zrv-password-toggle:hover,.zrv-auth-page .zrv-password-toggle:focus-visible{color:var(--text);background:var(--surface-2)}
+[dir="rtl"] .zrv-auth-page .zrv-password-toggle{right:auto;left:6px}
+[dir="rtl"] .zrv-auth-page .zrv-password-input .ux-input{padding-right:13px;padding-left:44px}
+.zrv-auth-page .zrv-policy-list{display:grid;gap:4px;margin:10px 0 0;padding:0;list-style:none;color:var(--muted);font-size:12px;text-align:left}
+.zrv-auth-page .zrv-policy-list li{display:flex;align-items:center;gap:7px}
+.zrv-auth-page .zrv-policy-list li.is-met{color:var(--mint-text)}
+.zrv-auth-page .zrv-auth-link{color:var(--primary-text);font-size:12px;font-weight:700}
+.zrv-auth-page .zrv-auth-link:hover,.zrv-auth-page .zrv-auth-link:focus-visible{text-decoration:underline}
+.zrv-mfa-panel h1{font-size:16px;line-height:1.3;font-weight:800;letter-spacing:-.02em}

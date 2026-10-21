@@ -1,95 +1,114 @@
-import { authConfig } from '@/config/authConfig.js'
+// Authentication endpoints over the single shared API client.
+// Relative imports keep this module loadable by the Node-native tests.
+import { apiClient } from '../../services/api/apiClient.js'
+import { authEndpoints } from '../../config/authConfig.js'
+import {
+  readCsrfToken, readCurrentUser, readLoginResult, readMfaEnrollment, readMfaRecoveryResult,
+  readMfaRecoverySetup, readMfaReplacementResult, readMfaSignIn, readPasswordChangeResult,
+  readPasswordPolicy, readRecoveryAccepted,
+} from './authContract.js'
 
-export class AuthServiceError extends Error {
-  constructor(message, code = 'AUTH_ERROR') {
-    super(message)
-    this.name = 'AuthServiceError'
-    this.code = code
-  }
-}
+// A 401 from these calls describes the login attempt, the MFA challenge or the
+// session being restored, so it must not trigger the global session-invalidation event.
+const ownUnauthorized = { notifyUnauthorized: false }
+// MFA challenge endpoints authenticate with the challenge cookie and its own CSRF token.
+const challengeRequest = { ...ownUnauthorized, csrf: 'challenge' }
+// Anonymous recovery endpoints: authorized by the link token in the body, never
+// by a session, so they carry no CSRF token and cannot end a signed-in session.
+const publicRequest = { ...ownUnauthorized, csrf: 'none' }
 
-async function request(path, { method = 'GET', body, signal } = {}) {
-  if (!authConfig.configured) {
-    throw new AuthServiceError('Authentication is not configured. Contact your application administrator.', 'NOT_CONFIGURED')
-  }
+export function createAuthService({ client }) {
+  return Object.freeze({
+    // POST /auth/login has no session yet: no CSRF token; the backend checks Origin.
+    async login({ username, password }, { signal } = {}) {
+      const { data } = await client.post(authEndpoints.login, { username, password }, {
+        ...ownUnauthorized, csrf: 'none', signal,
+      })
+      return readLoginResult(data)
+    },
 
-  const timeout = new AbortController()
-  const cancelFromCaller = () => timeout.abort()
-  signal?.addEventListener('abort', cancelFromCaller, { once: true })
-  const timer = window.setTimeout(() => timeout.abort(), 15000)
+    async getCurrentUser({ signal } = {}) {
+      const { data } = await client.get(authEndpoints.currentUser, { ...ownUnauthorized, signal })
+      return readCurrentUser(data)
+    },
 
-  try {
-    const headers = { Accept: 'application/json' }
-    if (body !== undefined) headers['Content-Type'] = 'application/json'
-    // CSRF must ultimately be enforced by the backend for cookie-authenticated writes.
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-    if (csrf && method !== 'GET') headers['X-CSRF-Token'] = csrf
+    async getCsrfToken({ signal } = {}) {
+      const { data } = await client.get(authEndpoints.csrf, { ...ownUnauthorized, signal })
+      return readCsrfToken(data)
+    },
 
-    const response = await fetch(`${authConfig.baseUrl}${path}`, {
-      method,
-      credentials: 'include',
-      cache: 'no-store',
-      redirect: 'error',
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: timeout.signal,
-    })
-    const payload = response.status === 204 ? null : await response.json().catch(() => null)
+    // 204 on success; requires the session CSRF token.
+    async logout({ signal } = {}) {
+      await client.post(authEndpoints.logout, undefined, { ...ownUnauthorized, csrf: 'session', signal })
+    },
 
-    if (response.status === 401) throw new AuthServiceError('Invalid credentials or expired session.', 'UNAUTHORIZED')
-    if (response.status === 403) throw new AuthServiceError('Access was denied by the server.', 'FORBIDDEN')
-    if (!response.ok) {
-      throw new AuthServiceError(
-        response.status >= 500 ? 'The authentication service is temporarily unavailable.' : 'The request could not be completed.',
-        'REQUEST_FAILED',
-      )
-    }
-    if (payload?.success === false) throw new AuthServiceError('The authentication request was rejected.', 'REQUEST_FAILED')
-    return payload
-  } catch (error) {
-    if (error instanceof AuthServiceError) throw error
-    if (signal?.aborted) throw error
-    throw new AuthServiceError(
-      timeout.signal.aborted ? 'The authentication request timed out. Please retry.' : 'Cannot connect to the authentication service.',
-      'NETWORK_ERROR',
-    )
-  } finally {
-    window.clearTimeout(timer)
-    signal?.removeEventListener('abort', cancelFromCaller)
-  }
-}
+    async verifyMfa(code, { signal } = {}) {
+      const { data } = await client.post(authEndpoints.mfaVerify, { code }, { ...challengeRequest, signal })
+      return readMfaSignIn(data)
+    },
 
-// Expected session contract: 200 { authenticated: true, user: { id, name, email } }
-// or 200 { authenticated: false }, or HTTP 401 for an anonymous session.
-export async function fetchSession(options = {}) {
-  try {
-    const result = await request(authConfig.paths.session, options)
-    if (result?.authenticated === false) return null
-    if (result?.authenticated === true && result.user && typeof result.user === 'object' &&
-      (result.user.id != null || typeof result.user.email === 'string')) return result.user
-    throw new AuthServiceError('The session response does not match the configured authentication contract.', 'INVALID_RESPONSE')
-  } catch (error) {
-    if (error?.code === 'UNAUTHORIZED') return null
-    throw error
-  }
-}
+    async startMfaEnrollment({ signal } = {}) {
+      const { data } = await client.post(authEndpoints.mfaEnrollment, {}, { ...challengeRequest, signal })
+      return readMfaEnrollment(data)
+    },
 
-export async function requestSignIn({ email, password, trustBrowser }) {
-  await request(authConfig.paths.login, {
-    method: 'POST',
-    body: { email, password, trustBrowser },
+    async confirmMfaEnrollment(code, { signal } = {}) {
+      const { data } = await client.post(authEndpoints.mfaEnrollmentConfirm, { code }, { ...challengeRequest, signal })
+      return readMfaSignIn(data)
+    },
+
+    // Signed-in session: a 401 here is a real session failure, so it notifies.
+    async startMfaReplacement({ signal } = {}) {
+      const { data } = await client.post(authEndpoints.mfaReplacement, {}, { csrf: 'session', signal })
+      return readMfaEnrollment(data)
+    },
+
+    // A wrong code is also a 401 (MFA_VERIFICATION_FAILED), so the caller decides
+    // whether a 401 ended the session.
+    async confirmMfaReplacement(code, { signal } = {}) {
+      const { data } = await client.post(authEndpoints.mfaReplacementConfirm, { code }, {
+        ...ownUnauthorized, csrf: 'session', signal,
+      })
+      return readMfaReplacementResult(data)
+    },
+
+    async getPasswordPolicy({ signal } = {}) {
+      const { data } = await client.get(authEndpoints.passwordPolicy, { ...ownUnauthorized, signal })
+      return readPasswordPolicy(data)
+    },
+
+    // Always the same 202 for every username (no enumeration).
+    async requestRecovery({ username, purpose }, { signal } = {}) {
+      const { data } = await client.post(authEndpoints.recoveryRequest, { username, purpose }, { ...publicRequest, signal })
+      return readRecoveryAccepted(data)
+    },
+
+    async completePasswordSetup({ token, newPassword }, { signal } = {}) {
+      const { data } = await client.post(authEndpoints.passwordSetup, { token, newPassword }, { ...publicRequest, signal })
+      return readPasswordChangeResult(data)
+    },
+
+    async completePasswordReset({ token, newPassword }, { signal } = {}) {
+      const { data } = await client.post(authEndpoints.passwordReset, { token, newPassword }, { ...publicRequest, signal })
+      return readPasswordChangeResult(data)
+    },
+
+    // Signed-in session: a 401 here is a real session failure, so it notifies.
+    async changePassword({ currentPassword, newPassword }, { signal } = {}) {
+      const { data } = await client.post(authEndpoints.passwordChange, { currentPassword, newPassword }, { csrf: 'session', signal })
+      return readPasswordChangeResult(data)
+    },
+
+    async startMfaRecovery({ token, password }, { signal } = {}) {
+      const { data } = await client.post(authEndpoints.mfaRecoveryStart, { token, password }, { ...publicRequest, signal })
+      return readMfaRecoverySetup(data)
+    },
+
+    async confirmMfaRecovery({ token, password, code }, { signal } = {}) {
+      const { data } = await client.post(authEndpoints.mfaRecoveryConfirm, { token, password, code }, { ...publicRequest, signal })
+      return readMfaRecoveryResult(data)
+    },
   })
-  // Do not mark the client authenticated on login HTTP 200 alone.
-  // Confirm the backend established a valid cookie-backed session.
-  const user = await fetchSession()
-  if (!user) throw new AuthServiceError('Sign-in was not completed. Check the server session configuration.', 'SESSION_MISSING')
-  return user
 }
 
-export async function requestSignOut() {
-  await request(authConfig.paths.logout, { method: 'POST' })
-}
-
-export async function requestRecovery(email) {
-  await request(authConfig.paths.recovery, { method: 'POST', body: { email } })
-}
+export const authService = createAuthService({ client: apiClient })
