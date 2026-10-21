@@ -52,7 +52,17 @@ export function readWidgetRequest(item) {
   }
   return Object.freeze({ requestId: item.requestId, status: item.status, title: item.title })
 }
+
+// `result` is the apiClient result: { data, pagination } (pagination already validated by apiClient).
+export function readWidgetRequestPage(result) {
+  if (!Array.isArray(result?.data) || !result.pagination) {
+    throw new ApiError('The server returned an unexpected response.', { code: 'INVALID_RESPONSE' })
+  }
+  return Object.freeze({ items: Object.freeze(result.data.map(readWidgetRequest)), pagination: result.pagination })
+}
 ```
+
+Write the readers for your own feature; do not import another business module's contract file.
 
 Use relative imports in `.js` modules you will test in Node (as existing feature modules do).
 
@@ -61,14 +71,13 @@ Use relative imports in `.js` modules you will test in Node (as existing feature
 ```js
 // widgetRequestService.js (ILLUSTRATIVE)
 import { apiClient } from '../../services/api/apiClient.js'
-import { readPage } from '../security-administration/securityAdminContract.js' // reuse, don't copy
-import { readWidgetRequest } from './widgetRequestContract.js'
+import { readWidgetRequestPage } from './widgetRequestContract.js'
 
 export function createWidgetRequestService({ client }) {
   return Object.freeze({
     async list({ page, limit, search } = {}, { signal } = {}) {
       const result = await client.get('/example-module/widget-requests', { params: { page, limit, search }, signal })
-      return readPage(result, readWidgetRequest)       // { items, pagination }
+      return readWidgetRequestPage(result)             // { items, pagination }
     },
     async submit(requestId) {
       const { data } = await client.post(`/example-module/widget-requests/${requestId}/submit`, {})

@@ -14,6 +14,19 @@ Read before implementing; flag conflicts rather than choosing silently.
 5. [docs/05-CONFIGURATION_OPERATIONS.md](docs/05-CONFIGURATION_OPERATIONS.md) — config, secrets, logging, health, shutdown, cutover
 6. [docs/06-ARCHITECTURE_DECISIONS_GUIDELINES.md](docs/06-ARCHITECTURE_DECISIONS_GUIDELINES.md) — locked ADRs and prohibited shortcuts
 
+Later locked owner decisions for authentication, MFA, sessions, recovery and RBAC are in
+[docs/07-AUTHENTICATION_RBAC_LOCKED_REQUIREMENTS.md](docs/07-AUTHENTICATION_RBAC_LOCKED_REQUIREMENTS.md)
+and prevail over contradictory older behavioural statements in 01–06; the locked RBAC tables are
+documented in [docs/rbac-schema/](docs/rbac-schema/README.md).
+
+Developer handbook (how the standards above are implemented and how to add work):
+[docs/README.md](docs/README.md) (backend index),
+[docs/DEVELOPER-MODULE-GUIDE.md](docs/DEVELOPER-MODULE-GUIDE.md),
+[docs/API-AND-DATABASE-CHANGE-WORKFLOW.md](docs/API-AND-DATABASE-CHANGE-WORKFLOW.md),
+[docs/BACKEND-TESTING.md](docs/BACKEND-TESTING.md), and the team-wide
+[../docs/README.md](../docs/README.md) (onboarding, feature delivery workflow and approval gates,
+security essentials, handoff template).
+
 ## Stack
 
 Node.js 24 LTS · JavaScript ES Modules · Express 5 · Joi · Pino · Helmet · OpenAPI 3.1 + Swagger UI ·
@@ -31,6 +44,8 @@ Node.js 24 LTS · JavaScript ES Modules · Express 5 · Joi · Pino · Helmet ·
 
 - Feature code lives in `src/modules/<domain>/<feature>/` as `*.routes.js`, `*.controller.js`,
   `*.service.js`, `*.repository.js`, `*.validation.js`. SQL only in repositories; business rules only in services.
+  (The foundation modules `auth`, `users`, `access-control`, `audit` and `notifications` are single-level
+  folders under `src/modules/`, as listed in docs/01 §3.)
 - Reuse the shared foundation; never duplicate it:
   - Config: `src/config/index.js` (Joi-validated). Never read `process.env` elsewhere.
   - Logging: `logger` from `src/shared/logger/`. No `console.*`; never log secrets, cookies or full bodies.
@@ -50,7 +65,32 @@ Node.js 24 LTS · JavaScript ES Modules · Express 5 · Joi · Pino · Helmet ·
 
 ## Current state
 
-Phases 01–02 provide the HTTP foundation (config, logging, request IDs, envelopes, errors, Helmet,
-Swagger UI at `/api/docs` for development/test only) and the Oracle foundation (Thin-mode wallet
-mTLS, named LOW/HIGH pools, transactions, `GET /health/live`, `GET /health/ready`). There are no
-authentication, RBAC or business modules yet, and the app is not production-ready.
+Foundation: HTTP (config, logging, request IDs, envelopes, errors, Helmet, Swagger UI at
+`/api/docs` for development/test only) and Oracle (Thin-mode wallet mTLS, named LOW/HIGH pools,
+transactions, `GET /health/live`, `GET /health/ready`).
+
+Implemented and verified on Oracle TEST (phase records in [docs/handoffs/](docs/handoffs/),
+status in [docs/08-IMPLEMENTATION_STATUS.md](docs/08-IMPLEMENTATION_STATUS.md)); 51 operations are
+documented in `docs/openapi/openapi.yaml`:
+
+- `src/modules/auth/` — `/api/v1/auth`: password login, server sessions (HttpOnly `__Host-` cookie,
+  Origin check + session-bound `X-CSRF-Token`), TOTP MFA (challenge, enrollment, verification,
+  replacement), password policy and change, and recovery (password setup/reset, MFA recovery).
+- `src/modules/access-control/` — request-time `authorize('MODULE.RESOURCE', 'ACTION')` evaluator
+  (default deny, DENY overrides win, MFA-verified session for security administration),
+  `GET /api/v1/access-control/me/permissions` (effective permissions), and RBAC administration:
+  roles, permission catalogue, role grants, user roles, overrides, effective permissions of a user.
+- `src/modules/users/` — `/api/v1/users`: account list, provisioning candidates, details,
+  provisioning, activation, disabling, session revocation, and administrator-issued
+  password-setup/recovery links, with the protected administrator hierarchy.
+- `src/modules/audit/` — append-only security audit writer (`XX_ZRV_RBAC_AUDIT_LOGS`).
+- `src/modules/notifications/` — Office 365 SMTP delivery; delivery-dependent flows fail closed when
+  it is not configured.
+
+These APIs are consumed by the frontend's authentication pages, effective-permission layer and
+Security Administration screens (`client/src/features/`); this file still does not authorize
+changes under `client/`.
+
+Not yet implemented: security audit retrieval API, reminder sending, and all business modules.
+The application is **not production-ready**; open blockers are listed in
+[docs/handoffs/PHASE-07-BACKEND-FINALIZATION.md](docs/handoffs/PHASE-07-BACKEND-FINALIZATION.md) §9.

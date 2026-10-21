@@ -40,11 +40,10 @@ data types.
 | [API and database change workflow](API-AND-DATABASE-CHANGE-WORKFLOW.md) | Add or change endpoints and propose Oracle changes safely |
 | [Backend testing](BACKEND-TESTING.md) | Run and write tests; distinguish mocked tests from Oracle TEST verification |
 
-## Known discrepancies (factual, not yet corrected)
+## Target folders not created yet
 
 | Item | Detail |
 |---|---|
-| `server/CLAUDE.md` "Current state" | Still describes only Phases 01–02 ("no authentication, RBAC or business modules yet"); authentication, MFA, RBAC and user administration are implemented. It also describes `src/modules/<domain>/<feature>/`; the implemented foundation modules are flat (`src/modules/auth`, `users`, `access-control`, `audit`, `notifications`), which matches the target listing in 01 §3. Business features follow the domain-first layout of 01 §3–4. |
-| `rbac-schema/README.md` table links | Link to `XX_ZRV_USERS.md` etc., while the files are named `01-XX_ZRV_USERS.md` etc. |
+| Module layout | The foundation modules are single-level folders (`src/modules/auth`, `users`, `access-control`, `audit`, `notifications`), as listed in 01 §3. Business features follow the domain-first layout of 01 §3–4 (`src/modules/<domain>/<feature>/`). |
 | `server/database-changes/` | Defined in 01 §3 as the home of approved versioned SQL changes; not created yet (no approved change has been delivered through it). |
 | `src/integrations/`, `src/jobs/` | Target folders in 01 §3; not created yet. |

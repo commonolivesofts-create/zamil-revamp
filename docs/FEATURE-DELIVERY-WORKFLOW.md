@@ -61,8 +61,29 @@ gate.
 |---|---|
 | **G1 — Database** | Any DDL; any new table, column, index, view, procedure or trigger; any change to an existing business object; any data fix or migration script; any change to the 11 locked RBAC tables; any write run against Oracle TEST outside an approved test plan. Follow [`server/docs/API-AND-DATABASE-CHANGE-WORKFLOW.md`](../server/docs/API-AND-DATABASE-CHANGE-WORKFLOW.md). |
 | **G2 — Security** | Changes to authentication, sessions, cookies, CSRF, MFA, password/recovery rules, the authorization evaluator, the administrator hierarchy, audit behaviour, rate limits or security headers. New permissions in the `SECURITY_ADMINISTRATION` module. |
-| **G3 — Shared architecture** | Changes to shared infrastructure (`server/src/{app.js,config,database,middleware,routes,shared}`, `client/src/{services,config,routes,app,layouts,components}`, providers), new dependencies, new cross-cutting patterns, breaking API changes, promoting feature code to a shared location. |
+| **G3 — Shared architecture** | Changes to the **behaviour or contracts** of centralized infrastructure (`server/src/{app.js,config,database,middleware,routes,shared}`, `client/src/{services,config,routes,app,layouts,components}`, providers) — for example how the API client, guards, navigation model, permission evaluation, middleware, error/response formats or database helpers work. Also: new dependencies, new cross-cutting patterns, breaking API changes, and extracting or promoting feature code into a shared location. See [what G3 does not cover](#what-does-not-need-g3). |
 | **G4 — Legacy schema / CI3 coexistence** | Anything that changes data or behaviour the running CI3 application relies on, or moves write/job ownership between CI3 and the new backend. |
+
+### What does not need G3
+
+Registering a new business feature through the **established extension points** is normal feature
+work, covered by the feature's own requirement and PR review, not by a separate architecture
+decision:
+
+- adding its routes, a business-domain navigation section and permission keys to
+  `client/src/config/appNavigation.js`, its route lines to `client/src/app/router.jsx` and lazy
+  page exports to `client/src/routes/RouteComponents.jsx`, exactly as described in
+  [`client/docs/NEW-FEATURE-GUIDE.md`](../client/docs/NEW-FEATURE-GUIDE.md);
+- mounting a new module router in `server/src/routes/api.routes.js` and documenting it in
+  `server/docs/openapi/openapi.yaml` and `server/tests/api-docs.test.js`, as described in
+  [`server/docs/DEVELOPER-MODULE-GUIDE.md`](../server/docs/DEVELOPER-MODULE-GUIDE.md);
+- reusing existing shared components and helpers without changing them.
+
+If the registration requires changing how any of those shared pieces behave, it is G3. This
+clarification applies to G3 only: G1, G2 and G4 apply in full to every feature, including
+database, security and CI3-coexistence aspects of a routine registration.
+
+### Business permissions
 
 New business **permissions** (module/resource/action rows) are catalogue data. The supported way to
 create them is the existing catalogue API (`PERMISSION_CATALOG:MANAGE`, used by the Permission

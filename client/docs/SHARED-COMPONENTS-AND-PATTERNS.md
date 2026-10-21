@@ -110,7 +110,7 @@ if (can('EXAMPLE_MODULE.WIDGETS:CREATE')) { /* show the Create button */ }
 
 | Field | Meaning |
 |---|---|
-| `id`, `path`, `label`, `icon`, `section` | Identity, URL (may contain `:param`), sidebar text, Lucide icon, sidebar section (`workspace`, `security`, `account`; add a section only with approval) |
+| `id`, `path`, `label`, `icon`, `section` | Identity, URL (may contain `:param`), sidebar text, Lucide icon, sidebar section (`workspace`, `security`, `account`; a new business-domain section is added as part of normal feature registration — agree its label and icon in the requirement) |
 | `permission` | Required effective permission; omit for session-only pages |
 | `alsoRequires` | Extra permissions the page needs to function (e.g. a picker that reads another list) |
 | `requiresMfa` | The backend requires an MFA-verified session (all `SECURITY_ADMINISTRATION` pages) |
@@ -140,9 +140,28 @@ not import them.
 
 ### Data-page building blocks (currently in `features/security-administration/`)
 
-These were built for Security Administration but are generic. **Import them from their current
-location; do not copy them.** Moving them to a shared folder is a separate, approved refactor
-(gate G3 in the [delivery workflow](../../docs/FEATURE-DELIVERY-WORKFLOW.md#approval-gates)).
+These were built for Security Administration, but the ones listed below are generic. A business
+feature **may reuse them from their current location** when their dependencies and contracts fit
+its needs:
+
+- **Fit:** check what a building block depends on before importing it. `AdminUi.jsx` (plus its
+  stylesheet `src/styles/security-admin.css`), `adminRequests.js` and `adminFeedback.js` depend
+  only on React, `OrvexaIcon` and the shared API client; `useAdminData.js` (`useResource`,
+  `useAdminAction`) also uses `usePermissions`, so `useAdminAction` refreshes the signed-in user's
+  permissions when asked. `adminForms.js` additionally imports the code pattern from
+  `securityAdminContract.js`. `adminFeedback.js` translates account-related reason codes; other
+  codes fall back to readable text.
+- **No business coupling:** do not import Security Administration's business code — its service,
+  contract, permission constants (`securityActions.js`), model (`adminModel.js` account/catalogue
+  helpers), pages or domain dialogs — into another business module, and never make Security
+  Administration depend on a business module. If you need similar business logic, write it in
+  your own feature.
+- **No duplicates:** never copy a building block into your feature to modify it.
+- **Approval before changing or extracting:** changing the behaviour or props of these building
+  blocks, or extracting them into a shared folder (e.g. `src/components/`), changes shared
+  architecture and needs approval (gate G3 in the
+  [delivery workflow](../../docs/FEATURE-DELIVERY-WORKFLOW.md#approval-gates)). If a building block
+  does not fit, raise it rather than forking it.
 
 | Export | File | Purpose |
 |---|---|---|
@@ -206,5 +225,5 @@ in `ux-table-wrap`, which scrolls horizontally; grids collapse to one column und
 | `useAuth`, `usePermissions` | Your permission-key constants |
 | `appNavigation.js`, router, guards | Your page components |
 | Layout shell, `PageState`, `RouteNotice`, `OrvexaIcon` | Business-specific widgets |
-| AdminUi building blocks, `useResource`, `useAdminAction` | Pure helpers for your data |
+| Generic AdminUi building blocks, `useResource`, `useAdminAction` (when they fit) | Pure helpers and business logic for your data |
 | Theme tokens and existing CSS classes | CSS used by your feature only |
