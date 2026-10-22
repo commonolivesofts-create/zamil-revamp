@@ -124,7 +124,7 @@ paths:
         **MFA.** When MFA is mandatory (Zaid, protected administrator roles, any
         effective security-administration permission) or voluntarily enrolled,
         a correct password does **not** create a session: the response is
-        `authenticated: false` with an MFA challenge (10-minute, single-use,
+        `authenticated: false` with an MFA challenge (5-minute, single-use,
         HttpOnly `__Host-zr_mfa` cookie plus its CSRF token). Complete it with
         `POST /api/v1/auth/mfa/verify`, or for a first-time authenticator with
         `/mfa/enrollment` and `/mfa/enrollment/confirm`. The consecutive-failure
@@ -357,7 +357,7 @@ paths:
       summary: Start replacing the enrolled authenticator
       description: >-
         For a signed-in user whose MFA was verified on the current session within
-        the last 10 minutes (sign in again otherwise). Returns a new candidate TOTP
+        the last 5 minutes (sign in again otherwise). Returns a new candidate TOTP
         secret, derived under a separate purpose from enrollment and bound to this
         session and the stored secret; nothing is stored until
         `/mfa/replacement/confirm`. Refusals are audited as `ACCESS_DENIED`.
@@ -2286,7 +2286,7 @@ paths:
         For a PENDING account without a password and an eligible employee. Requires
         `SECURITY_ADMINISTRATION.USER_ACCOUNTS:CREATE`, the X-CSRF-Token header and
         the target employee number as explicit confirmation. Privileged accounts:
-        Super Administrator only, MFA verified within 10 minutes. The token is sent
+        Super Administrator only, MFA verified within 5 minutes. The token is sent
         only to the delivery channel and never returned. 503 DELIVERY_UNAVAILABLE
         (NO_CHANNEL_CONFIGURED / RECIPIENT_UNAVAILABLE / DELIVERY_FAILED) until
         delivery is configured. Audited as ACTION_TOKEN_ISSUED.
@@ -2342,7 +2342,7 @@ paths:
         `SECURITY_ADMINISTRATION.ACCOUNT_RECOVERY:ISSUE`, the X-CSRF-Token header
         and explicit confirmation. Ordinary employees: any holder of the permission.
         Main Administrators, Administrators and other security-permission holders:
-        only the Super Administrator with MFA verified within 10 minutes (direct
+        only the Super Administrator with MFA verified within 5 minutes (direct
         authorization, no approval queue). Never for the Super Administrator account
         (self-recovery only) or the actor. Audited as ACTION_TOKEN_ISSUED.
       security:
@@ -2491,7 +2491,7 @@ components:
       name: __Host-zr_mfa
       description: >-
         Opaque MFA challenge token set by `POST /api/v1/auth/login` after a correct
-        password when MFA is required. Valid for 10 minutes, single use, accepted
+        password when MFA is required. Valid for 5 minutes, single use, accepted
         only by the `/api/v1/auth/mfa/*` endpoints and never as a session.
   parameters:
     CsrfToken:
@@ -2684,7 +2684,7 @@ components:
             expiresAt:
               type: string
               format: date-time
-              description: Challenge expiry (UTC), 10 minutes after the password was verified.
+              description: Challenge expiry (UTC), 5 minutes after the password was verified.
         csrf:
           $ref: '#/components/schemas/CsrfToken'
     MfaEnrollment:
@@ -2718,7 +2718,7 @@ components:
           type: string
           format: date-time
           description: >-
-            Confirm before this time: the challenge expiry (enrollment), or 10 minutes
+            Confirm before this time: the challenge expiry (enrollment), or 5 minutes
             after MFA was verified on the session (replacement).
     MfaReplacementResult:
       type: object
@@ -3548,7 +3548,7 @@ components:
     MfaRecentVerificationRequired:
       description: >-
         `MFA_RECENT_VERIFICATION_REQUIRED`: MFA was not verified on this session
-        within the last 10 minutes (or not at all). `CSRF_REJECTED`: the Origin or
+        within the last 5 minutes (or not at all). `CSRF_REJECTED`: the Origin or
         X-CSRF-Token check failed.
       headers:
         X-Request-Id:
@@ -3561,7 +3561,7 @@ components:
             success: false
             error:
               code: MFA_RECENT_VERIFICATION_REQUIRED
-              message: Sign in again with your authenticator, then make this change within 10 minutes.
+              message: Sign in again with your authenticator, then make this change within 5 minutes.
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     MfaConflict:

@@ -139,8 +139,9 @@ Open **http://localhost:5199**.
 ### The same-origin `/api` proxy
 
 The browser only ever talks to `http://localhost:5199`. Vite forwards every request under `/api`
-to the backend on `http://localhost:3000` (`client/vite.config.js`, `apiProxy`, with
-`changeOrigin: false`). This matters because:
+to the backend on `http://127.0.0.1:3000` (`client/vite.config.js`, `apiProxy`, with
+`changeOrigin: false`). The target is the backend's development listener address (`HTTP_HOST`
+defaults to `127.0.0.1`); `localhost` resolves to IPv6 `::1` first on Windows. This matters because:
 
 - the backend sends **no CORS headers** — a cross-origin API is not supported;
 - the session cookie is an HttpOnly, `Secure`, `__Host-` cookie scoped to the page's origin;
@@ -182,7 +183,8 @@ Details: [frontend testing](../client/docs/FRONTEND-TESTING.md),
 | Symptom | Likely cause and fix |
 |---|---|
 | `npm run dev` in `client/` fails with "Port 5199 is in use" | Another process holds the port. `strictPort` is intentional (e-mailed links target 5199); stop the other process. |
-| The app shows "Session check unavailable" | The backend is not running or not reachable through the proxy. Start `server` on port 3000. |
+| The app shows "Session check unavailable", or sign-in says "The application server could not be reached" | The proxy got no answer from the backend (Vite logs `http proxy error`): it is not running, failed at startup (check its terminal, e.g. missing `server/.env`), or is restarting after a file change. Start or wait for `server` on port 3000, then retry. |
+| Sign-in says "The service is temporarily unavailable" with a Reference | The backend answered `503 SERVICE_UNAVAILABLE`: it could not obtain an Oracle connection in time. Search the backend log for the Reference (request ID) to see the Oracle cause. |
 | Login fails with `CSRF_REJECTED` or a 403 on every change | You are not using the same origin. Open `http://localhost:5199`, not `127.0.0.1` or the backend port. |
 | `/health/ready` reports the database as unavailable | Wallet path, wallet password, aliases or credentials are wrong, or the network blocks ADW. Run `npm run db:status` for a safe diagnostic. |
 | Accounts that require MFA cannot finish sign-in | `AUTH_MFA_ENCRYPTION_KEY` is missing. For local administrator testing without an authenticator, see `AUTH_ADMIN_MFA_REQUIRED` in §4. |

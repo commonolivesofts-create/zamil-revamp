@@ -546,7 +546,8 @@ describe('authentication recovery', () => {
         true,
       );
 
-      f.store.advance(11 * MINUTE_MS);
+      // Recent verification is 5 minutes: the MFA sign-in above is now at least 5 minutes old.
+      f.store.advance(5 * MINUTE_MS);
       const stale = await issue(zaid, f.main.userId, {
         purpose: 'MFA_RECOVERY',
         confirmEmployeeNumber: '3002',

@@ -83,7 +83,7 @@ export function createAuthRouter({
     controller.verifyMfa,
   );
   // Authenticator replacement: authenticated session + CSRF; the service also requires MFA
-  // verified on this session within the last 10 minutes.
+  // verified on this session within the last 5 minutes.
   const replacementGuards = [
     mfaRateLimit,
     requireMfaAvailable(Boolean(mfaService)),

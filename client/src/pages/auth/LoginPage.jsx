@@ -32,6 +32,7 @@ export default function LoginPage() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [errorCode, setErrorCode] = useState('')
+  const [errorReference, setErrorReference] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
 
   const submit = async (event) => {
@@ -43,6 +44,7 @@ export default function LoginPage() {
     setFieldErrors(errors)
     setError('')
     setErrorCode('')
+    setErrorReference('')
     // The fields are still enabled here, so the first invalid one can take focus.
     if (errors.username) return usernameRef.current?.focus()
     if (errors.password) return passwordRef.current?.focus()
@@ -56,6 +58,8 @@ export default function LoginPage() {
       setPassword('')
       setError(failure?.message || 'Sign-in could not be completed.')
       setErrorCode(failure?.code || '')
+      // A server-side failure shows the backend request ID, which locates its log entry.
+      setErrorReference(failure?.status >= 500 && failure?.requestId ? failure.requestId : '')
     } finally {
       setPending(false)
     }
@@ -89,6 +93,7 @@ export default function LoginPage() {
             <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
               {error}
               {/* The backend refuses expired passwords; a new one is set through the reset link. */}
+              {errorReference && <> Reference: {errorReference}</>}
               {errorCode === 'PASSWORD_EXPIRED' && <> <Link to="/forgot-password" state={{ from: location.state?.from, reason: 'password_expired' }} style={{ color: 'var(--primary-text)', fontWeight: 700 }}>Reset your password</Link></>}
             </p>
           )}

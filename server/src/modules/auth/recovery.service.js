@@ -33,7 +33,7 @@ import { base32Encode, otpauthUri, verifyTotp } from './totp.js';
  *   - Self-service password reset: ordinary employees and the Super Administrator (pinned address).
  *   - Self-service MFA recovery: the Super Administrator only.
  *   - Administrator-issued tokens: ordinary employees by holders of the route permission; other
- *     privileged accounts only by the Super Administrator with MFA verified within 10 minutes and an
+ *     privileged accounts only by the Super Administrator with MFA verified within 5 minutes and an
  *     explicit target confirmation (Option A, no approval queue); never for the Super Administrator
  *     account (self-recovery only) or the actor's own account.
  * Completing a password setup activates the PENDING account (eligibility re-checked); completing a
@@ -558,7 +558,7 @@ export function createRecoveryService({
         if (!recent) {
           await refuse(
             'MFA_RECENT_VERIFICATION_REQUIRED',
-            'Verify your authenticator again (sign in within the last 10 minutes) to authorize this recovery.',
+            'Verify your authenticator again (sign in within the last 5 minutes) to authorize this recovery.',
           );
         }
       }

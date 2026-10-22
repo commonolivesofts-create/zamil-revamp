@@ -16,7 +16,7 @@ import {
   failure, forbidBrowserStorage, loginResult, mfaChallenge, recordingFetch, success,
 } from './helpers/http.mjs'
 
-const NOW = Date.parse('2026-10-21T08:00:00.000Z') // Fixture challenges expire at 08:10:00Z.
+const NOW = Date.parse('2026-10-21T08:00:00.000Z') // The default fixture challenge expires at 08:10:00Z (any backend expiresAt is honored).
 const tick = () => new Promise((resolve) => setImmediate(resolve))
 const apiError = (status, code) => new ApiError(code, { code, status })
 
@@ -241,6 +241,19 @@ test('Batch A check C: an expired challenge timer cannot end a newer challenge',
   assert.equal(ctx.csrfStore.getChallengeToken(), CHALLENGE_TOKEN)
   mock.timers.tick(300_000)
   assert.equal(ctx.auth.getSnapshot().notice, 'mfa_expired')
+})
+
+test('a five-minute challenge ends exactly at the backend expiresAt and requires a new sign-in', async () => {
+  const ctx = controller()
+  await challenged(ctx, mfaChallenge({ mfa: { required: true, enrollmentRequired: false, expiresAt: '2026-10-21T08:05:00.000Z' } }))
+  mock.timers.tick(299_999)
+  assert.equal(ctx.auth.getSnapshot().status, 'mfa_required')
+  mock.timers.tick(1)
+  assert.equal(ctx.auth.getSnapshot().status, 'guest')
+  assert.equal(ctx.auth.getSnapshot().notice, 'mfa_expired')
+  assert.equal(ctx.csrfStore.getChallengeToken(), null)
+  await assert.rejects(ctx.auth.verifyMfa('123456'), { code: 'MFA_CHALLENGE_INVALID' })
+  assert.equal(ctx.calls.filter((item) => item.name === 'verifyMfa').length, 0, 'no request after expiry')
 })
 
 test('conflicts route between enrollment and verification', async () => {

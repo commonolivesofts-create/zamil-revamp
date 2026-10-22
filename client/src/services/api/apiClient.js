@@ -190,6 +190,9 @@ function fallbackError(status) {
   if (status === 401) return ['UNAUTHENTICATED', 'Your session has expired. Please sign in again.']
   if (status === 403) return ['FORBIDDEN', 'You do not have permission for this action.']
   if (status === 429) return ['RATE_LIMITED', 'Too many attempts. Please wait and try again.']
+  // A 502/504 without the backend's envelope comes from the proxy or gateway:
+  // the backend itself was not reached (stopped, restarting or unreachable).
+  if (status === 502 || status === 504) return ['HTTP_ERROR', 'The application server could not be reached. Try again in a moment.']
   return ['HTTP_ERROR', status >= 500 ? 'The service is temporarily unavailable.' : 'The request could not be completed.']
 }
 

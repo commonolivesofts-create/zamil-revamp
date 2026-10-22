@@ -13,6 +13,7 @@
 - Password source is `XX_ZRV_USERS.PASSWORD_HASH`; login username is `XX_DIGI_EMP_MASTER.USER_NAME`; linked through `EMPLOYEE_NUMBER`.
 - Login, session, MFA, recovery, RBAC and administrator protection policies are recorded in `07-AUTHENTICATION_RBAC_LOCKED_REQUIREMENTS.md` (security-review decisions §10A; administrator catalogue and bootstrap §10B).
 - Zaid directly authorizes protected Main Administrator recovery (Option A); no approval queue. Verified employee self-service password reset also approved.
+- MFA timing (owner decision, 2026-10-22, `fix/auth-login-mfa-reliability`): login MFA challenge **5 min**; recent MFA verification for authenticator replacement and for Super Administrator recovery authorization **5 min** (previously 10 min; the phase rows below record the values in force at the time). TOTP step, replay guard, recovery-token lifetimes, lockout and session lifetimes are unchanged. See `../../docs/handoffs/FEATURE-AUTH-LOGIN-MFA-RELIABILITY.md`.
 
 ## Feature status tracker
 
