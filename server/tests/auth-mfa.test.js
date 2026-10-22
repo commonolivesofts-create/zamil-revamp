@@ -224,7 +224,7 @@ describe('MFA (Phase 02)', () => {
       assert.match(first.body.data.secret, /^[A-Z2-7]{32}$/);
       assert.equal(again.body.data.secret, first.body.data.secret, 'stable within the challenge');
       const uri = new URL(first.body.data.otpauthUri);
-      assert.equal(uri.searchParams.get('issuer'), 'Zamil Revamp');
+      assert.equal(uri.searchParams.get('issuer'), 'Zamil Digitalization');
       assert.equal(uri.searchParams.get('secret'), first.body.data.secret);
       assert.equal(first.body.data.digits, 6);
       assert.equal(first.body.data.periodSeconds, 30);
@@ -650,9 +650,11 @@ describe('MFA (Phase 02)', () => {
 
       assert.ok(!newSecret.equals(oldSecret), 'never the old secret');
       assert.equal(again.body.data.secret, start.body.data.secret, 'stable within the session');
-      assert.equal(start.body.data.issuer, 'Zamil Revamp');
+      assert.equal(start.body.data.issuer, 'Zamil Digitalization');
       assert.equal(start.body.data.accountName, 'zaid.s');
-      assert.ok(start.body.data.otpauthUri.startsWith('otpauth://totp/Zamil%20Revamp:zaid.s?'));
+      assert.ok(
+        start.body.data.otpauthUri.startsWith('otpauth://totp/Zamil%20Digitalization:zaid.s?'),
+      );
       assert.equal(start.headers['cache-control'], 'no-store');
       assert.equal(store.user(zaid.user.userId).mfaTotpSecretEncrypted, storedBefore);
 

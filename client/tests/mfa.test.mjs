@@ -395,9 +395,10 @@ test('template demos render only in the development preview', async () => {
   assert.match(guards, /templateDemosAvailable\(status\) \? <Outlet \/> : <NotFoundPage \/>/)
 })
 
-test('the login heading names Zamil Revamp', async () => {
+// V 2.1.0: the heading uses the official product name from appConfig (Zamil Digitalization).
+test('the login heading names the application', async () => {
   const login = await readFile(new URL('../src/pages/auth/LoginPage.jsx', import.meta.url), 'utf8')
-  assert.match(login, /<h2>Sign in to Zamil Revamp<\/h2>/)
+  assert.match(login, /<h2>Sign in to \{appConfig\.name\}<\/h2>/)
   assert.equal(login.includes('Sign in to Orvexa'), false)
 })
 

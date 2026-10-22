@@ -261,7 +261,9 @@ export async function main({ argv, io }) {
     if (!io.input.isTTY || typeof io.input.setRawMode !== 'function') {
       throw new Error('Run this in an interactive terminal (PowerShell, cmd or Windows Terminal).');
     }
-    say(`Zamil Revamp MFA ${replace ? 'replacement' : 'test'} against ${baseUrl} (loopback only)`);
+    say(
+      `Zamil Digitalization MFA ${replace ? 'replacement' : 'test'} against ${baseUrl} (loopback only)`,
+    );
     const exitCode = replace
       ? await runReplacementFlow(io, say, baseUrl)
       : await runEnrollmentFlow(io, say, baseUrl);

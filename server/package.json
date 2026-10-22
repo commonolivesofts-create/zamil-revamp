@@ -1,7 +1,7 @@
 {
   "name": "zamil-revamp-server",
-  "version": "0.1.0",
-  "description": "Zamil Revamp backend API (Express 5 modular monolith)",
+  "version": "2.1.0",
+  "description": "Zamil Digitalization backend API (Express 5 modular monolith)",
   "private": true,
   "type": "module",
   "main": "src/server.js",

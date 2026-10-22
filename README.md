@@ -1,6 +1,11 @@
-# Zamil Revamp
+# Zamil Digitalization
 
-Zamil Revamp modernizes an existing PHP CodeIgniter 3 (CI3) enterprise application into a
+**Release V 2.1.0.** Zamil Digitalization is the official application name. The repository,
+packages, Oracle objects (`XX_ZRV_*`), cookies and API routes keep their established technical
+identifiers (for example `commonolivesofts-create/zamil-revamp`); "revamp" described the
+modernization project, not the product.
+
+Zamil Digitalization modernizes an existing PHP CodeIgniter 3 (CI3) enterprise application into a
 **React frontend** and a **Node.js/Express backend** over the existing **Oracle Autonomous
 Database (ADW)** business schema.
 

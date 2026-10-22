@@ -488,7 +488,7 @@ export async function main({ argv, appConfig, db, io }) {
       return runPrechecks(connection);
     });
 
-    say('Zamil Revamp TEST security bootstrap');
+    say('Zamil Digitalization TEST security bootstrap');
     for (const line of describePlan()) say(`  ${line}`);
     if (precheck.problems.length > 0) {
       say('Preconditions failed; nothing will be written:');

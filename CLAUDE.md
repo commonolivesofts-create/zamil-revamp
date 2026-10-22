@@ -1,6 +1,6 @@
-# Zamil Revamp — Claude Code Project Instructions
+# Zamil Digitalization — Claude Code Project Instructions
 
-**Project:** Existing Zamil Revamp enterprise application modernization.
+**Project:** Existing Zamil Digitalization enterprise application modernization.
 **Current scope:** Node.js backend authentication, authorization, user administration, and RBAC APIs.
 **Frontend:** Explicitly deferred. Do **not** inspect or modify `client/` in this workstream.
 **Current phase:** Phase 01 implemented; Oracle TEST bootstrap completed. Git review pending. Ordinary-user Oracle integration testing remains pending. See server/docs/08-IMPLEMENTATION_STATUS.md.

@@ -189,6 +189,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             </nav>
           )}
         </div>
+        {/* Release label: low-emphasis footer text, not a navigation item. */}
+        <p className="zrv-sidebar-version" title="Application version">{appConfig.displayVersion}</p>
       </aside>
     </>
   )

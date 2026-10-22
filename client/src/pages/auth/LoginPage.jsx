@@ -79,7 +79,7 @@ export default function LoginPage() {
       <section className="auth-form-wrap" aria-label="Sign in">
         <form className="auth-form" onSubmit={submit} noValidate>
           <div className="ux-kicker"><OrvexaIcon name="shield-check" className="size-4" /> Secure sign-in</div>
-          <h2>Sign in to Zamil Revamp</h2>
+          <h2>Sign in to {appConfig.name}</h2>
           <p>Use your employee username and password.</p>
           {!authConfig.configured && (
             <p className="zrv-auth-feedback" role="status">Authentication backend is not configured. Sign-in requires server endpoints and a secure session.</p>
@@ -113,6 +113,7 @@ export default function LoginPage() {
             <OrvexaIcon name="log-in" className="size-4" /> {pending ? 'Signing in…' : 'Continue securely'}
           </button>
           <p className="auth-note">Accounts protected by multi-factor authentication are asked for an authenticator code after the password. Access is controlled by your organization's authentication service.</p>
+          <p className="zrv-app-version">{appConfig.displayVersion}</p>
         </form>
       </section>
     </main>

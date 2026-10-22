@@ -28,6 +28,9 @@ import { createUsersService } from '../modules/users/users.service.js';
  */
 export function createApiRouter(appConfig, deps = {}) {
   const db = deps.db ?? {};
+  // Mandatory administrator MFA (default true). false only under the local-development exception
+  // validated by config/index.js; every service applies the same policy.
+  const adminMfaRequired = appConfig.auth.adminMfaRequired !== false;
   const auditService = createSecurityAuditService({
     repository: deps.auditRepository,
     withTransaction: db.withTransaction,
@@ -38,6 +41,7 @@ export function createApiRouter(appConfig, deps = {}) {
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
     touchIntervalMs: appConfig.auth.sessionTouchIntervalMs,
+    adminMfaRequired,
   });
   // MFA can be completed only with the TOTP key ring; without it mandatory-MFA users stay blocked.
   const { mfa } = appConfig.auth;
@@ -53,6 +57,7 @@ export function createApiRouter(appConfig, deps = {}) {
         auditService,
         withConnection: db.withConnection,
         withTransaction: db.withTransaction,
+        adminMfaRequired,
       })
     : null;
   const authService = createAuthService({
@@ -63,6 +68,7 @@ export function createApiRouter(appConfig, deps = {}) {
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
     argon2Cost: deps.argon2Cost ?? appConfig.auth.argon2,
+    adminMfaRequired,
   });
   // Office 365 SMTP when enabled; otherwise unconfigured, so delivery-dependent flows fail closed.
   const withDatabase = db.withConnection ?? withConnection;
@@ -94,6 +100,7 @@ export function createApiRouter(appConfig, deps = {}) {
     repository: deps.authorizationRepository,
     auditService,
     withConnection: db.withConnection,
+    adminMfaRequired,
   });
   const authorize = createAuthorize({ authorizationService });
   const rbacService = createRbacService({

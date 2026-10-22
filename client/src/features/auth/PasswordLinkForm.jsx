@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import { appConfig } from '@/config/appConfig.js'
 import { isOutcomeUnknown } from '@/services/api/apiClient.js'
 import { PasswordInput, PasswordPolicyChecklist } from './PasswordFields.jsx'
 import useFocusWhenEnabled from './focusWhenEnabled.js'
@@ -17,17 +18,17 @@ const copy = {
   setup: {
     icon: 'key-round',
     title: 'Set up your password',
-    intro: 'Choose a password for your new Zamil Revamp account. This link works once and expires 24 hours after it was sent.',
+    intro: `Choose a password for your new ${appConfig.name} account. This link works once and expires 24 hours after it was sent.`,
     submit: 'Set password',
     pending: 'Setting password…',
     successTitle: 'Your password is set',
-    success: 'Your Zamil Revamp account is active. Sign in with your username and new password.',
+    success: `Your ${appConfig.name} account is active. Sign in with your username and new password.`,
     invalidHelp: 'Ask your administrator to send a new password setup link.',
   },
   reset: {
     icon: 'lock-keyhole',
     title: 'Choose a new password',
-    intro: 'Enter a new password for your Zamil Revamp account. This link works once and expires 30 minutes after it was sent.',
+    intro: `Enter a new password for your ${appConfig.name} account. This link works once and expires 30 minutes after it was sent.`,
     submit: 'Reset password',
     pending: 'Resetting password…',
     successTitle: 'Your password was reset',

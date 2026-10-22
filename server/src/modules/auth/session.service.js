@@ -61,7 +61,7 @@ const REVOKE_ON_REJECT = new Set([
 ]);
 const EXPIRY_REASONS = new Set(['ABSOLUTE_EXPIRY', 'IDLE_TIMEOUT']);
 
-function evaluateSession(row) {
+function evaluateSession(row, policy) {
   const now = row.dbNow.getTime();
 
   if (row.revokedAt) return { valid: false, reason: 'SESSION_REVOKED' };
@@ -72,8 +72,10 @@ function evaluateSession(row) {
   if (!eligibility.eligible) return { valid: false, reason: eligibility.reason };
 
   // Classification is re-evaluated on every request, so a session whose user became privileged
-  // (or enrolled MFA) after login cannot continue without MFA.
-  const mfa = evaluateMfaRequirement(row);
+  // (or enrolled MFA) after login cannot continue without MFA. The same applies when the
+  // administrator-MFA exception is switched off again: a session created under it has no
+  // MFA_VERIFIED_AT and stops being valid on its next request.
+  const mfa = evaluateMfaRequirement(row, policy);
   if (mfa.required && !row.mfaVerifiedAt) {
     return { valid: false, reason: 'MFA_REQUIRED', details: { basis: mfa.basis } };
   }
@@ -94,7 +96,10 @@ export function createSessionService({
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
   touchIntervalMs,
+  // config.auth.adminMfaRequired; false only for the validated local-development exception.
+  adminMfaRequired = true,
 }) {
+  const mfaPolicy = { adminMfaRequired };
   const sessionEvent = (eventCode, outcome, row, evaluation, context, details) => ({
     eventCode,
     outcome,
@@ -154,7 +159,9 @@ export function createSessionService({
 
       const [row] = rows;
       const evaluation =
-        rows.length > 1 ? { valid: false, reason: 'EMPLOYEE_AMBIGUOUS' } : evaluateSession(row);
+        rows.length > 1
+          ? { valid: false, reason: 'EMPLOYEE_AMBIGUOUS' }
+          : evaluateSession(row, mfaPolicy);
 
       if (!evaluation.valid) {
         if (REVOKE_ON_REJECT.has(evaluation.reason)) {

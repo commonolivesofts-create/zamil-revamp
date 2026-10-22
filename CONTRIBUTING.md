@@ -1,7 +1,7 @@
-# Zamil Revamp — Git & GitHub Contribution Guidelines
+# Zamil Digitalization — Git & GitHub Contribution Guidelines
 
 **Status:** Approved  
-**Applies to:** All Zamil Revamp developers  
+**Applies to:** All Zamil Digitalization developers\
 **Repository:** [commonolivesofts-create/zamil-revamp](https://github.com/commonolivesofts-create/zamil-revamp)  
 **Default branch:** `main`
 
@@ -9,7 +9,7 @@
 
 ## 1. Purpose
 
-This document defines the approved Git and GitHub development workflow for the Zamil Revamp enterprise application.
+This document defines the approved Git and GitHub development workflow for the Zamil Digitalization enterprise application.
 
 All developers working on frontend, backend, documentation, database integration, or maintenance tasks must follow these guidelines.
 
@@ -17,7 +17,7 @@ The primary objectives are to maintain production stability, protect sensitive i
 
 ## 2. Repository Architecture
 
-Zamil Revamp uses a single Git repository (monorepo).
+Zamil Digitalization uses a single Git repository (monorepo).
 
 | Directory | Responsibility |
 |---|---|
@@ -213,7 +213,7 @@ Squash merges may require manual local branch deletion after confirming that the
 
 ## 11. Incremental Releases and Deployment
 
-Zamil Revamp will release its 300+ business forms and reports incrementally according to approved priorities.
+Zamil Digitalization will release its 300+ business forms and reports incrementally according to approved priorities.
 
 - Keep `main` production-ready.
 - Integrate tested changes through reviewed Pull Requests.
@@ -251,6 +251,6 @@ The branching, repository, security, and deployment policies must not be changed
 
 ---
 
-**Zamil Revamp — Approved Git & GitHub Development Policy**
+**Zamil Digitalization — Approved Git & GitHub Development Policy**
 
 **Golden Rule:** Develop on a dedicated branch, verify your work, review through a Pull Request, merge approved changes into `main`, and keep secrets out of Git.

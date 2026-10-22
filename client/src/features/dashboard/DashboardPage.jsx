@@ -64,7 +64,10 @@ function AccessSummary({ access }) {
     )
   }
   const modules = groupPermissions(access.permissions)
-  const needsMfa = !access.mfaVerified && access.permissions.some((permission) => permission.moduleCode === SECURITY_MODULE)
+  const hasSecurityPermissions = access.permissions.some((permission) => permission.moduleCode === SECURITY_MODULE)
+  const needsMfa = !access.mfaVerified && access.adminMfaRequired !== false && hasSecurityPermissions
+  // Reported by the backend only under its local-development exception (AUTH_ADMIN_MFA_REQUIRED=false).
+  const mfaWaived = !access.mfaVerified && access.adminMfaRequired === false && hasSecurityPermissions
   return (
     <>
       <div className="zrv-access-summary">
@@ -76,6 +79,11 @@ function AccessSummary({ access }) {
       {needsMfa && (
         <p className="zrv-card__note">
           Security administration also requires a sign-in verified with your authenticator app. Those permissions apply after you sign in with verification.
+        </p>
+      )}
+      {mfaWaived && (
+        <p className="zrv-card__note" role="note">
+          Administrator MFA is disabled on this local development server. This session is not verified with an authenticator app.
         </p>
       )}
       <div className="zrv-access-modules">

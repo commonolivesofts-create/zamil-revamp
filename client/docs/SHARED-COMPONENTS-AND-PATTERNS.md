@@ -92,6 +92,9 @@ if (can('EXAMPLE_MODULE.WIDGETS:CREATE')) { /* show the Create button */ }
 - Loaded from `GET /api/v1/access-control/me/permissions` after sign-in/restore; cleared on
   sign-out; bound to the signed-in user id; stale responses are discarded.
 - `can(key)` is `true` only for a loaded permission of the current user (default deny).
+- `adminMfaRequired` mirrors the backend: `false` only when the server runs the local-development
+  administrator-MFA exception. `routeAccess` uses it to waive the MFA condition of
+  `requiresMfa` routes; `mfaVerified` stays `false`. There is no frontend setting for it.
 - `reload()` refreshes in place; call it after a confirmed change that can alter the user's own
   access (see `useAdminAction({ refreshAccess: true })`).
 - Permission keys are strings `MODULE.RESOURCE:ACTION`. Keep a feature's keys in one constants

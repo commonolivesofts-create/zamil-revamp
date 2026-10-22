@@ -24,6 +24,7 @@ export default function PermissionProvider({ children }) {
     return Object.freeze({
       status: access.status,
       mfaVerified: access.mfaVerified,
+      adminMfaRequired: access.adminMfaRequired,
       permissions: access.permissions,
       errorCode: access.errorCode,
       has: access.has,

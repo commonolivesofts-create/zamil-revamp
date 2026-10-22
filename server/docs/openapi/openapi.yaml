@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  title: Zamil Revamp API
-  version: 0.1.0
+  title: Zamil Digitalization API
+  version: 2.1.0
   description: >-
-    Backend API for the Zamil Revamp modernization. Exposes the operational
+    Backend API for Zamil Digitalization (modernization of the CI3 application). Exposes the operational
     foundation and the authentication foundation (password login with
     database-backed cookie sessions); business endpoints are documented here as
     they are implemented. Standards: server/docs/02-API_DEVELOPMENT_STANDARDS.md.
@@ -2980,6 +2980,14 @@ components:
           $ref: '#/components/schemas/Id'
         mfaVerified:
           type: boolean
+          description: True only when this session completed an MFA verification.
+        adminMfaRequired:
+          type: boolean
+          description: >-
+            Whether SECURITY_ADMINISTRATION permissions require an MFA-verified session on
+            this server. Always true except under the local-development exception
+            (AUTH_ADMIN_MFA_REQUIRED=false, allowed only for NODE_ENV=development on a loopback
+            listener). It never changes `mfaVerified`.
         permissions:
           type: array
           items:

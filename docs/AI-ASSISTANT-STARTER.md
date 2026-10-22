@@ -11,8 +11,8 @@ running the tests yourself and following [`CONTRIBUTING.md`](../CONTRIBUTING.md)
 ---
 
 ```text
-You are helping me implement a change in the Zamil Revamp repository
-(GitHub: commonolivesofts-create/zamil-revamp). Zamil Revamp modernizes a PHP CodeIgniter 3
+You are helping me implement a change in the Zamil Digitalization repository
+(GitHub: commonolivesofts-create/zamil-revamp). Zamil Digitalization modernizes a PHP CodeIgniter 3
 application into a React 19 + Vite 8 frontend (client/) and a Node.js 24 + Express 5 ES-module
 backend (server/) over an existing Oracle Autonomous Database schema. The repository is public.
 

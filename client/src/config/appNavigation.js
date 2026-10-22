@@ -80,7 +80,9 @@ export function routeAccess(route, access) {
   if (access?.status === 'error') return 'error'
   if (access?.status !== 'ready' || typeof access.has !== 'function') return 'denied'
   if (![route.permission, ...(route.alsoRequires || [])].every((key) => access.has(key) === true)) return 'denied'
-  if (route.requiresMfa && access.mfaVerified !== true) return 'mfa_required'
+  // The MFA condition mirrors the backend: waived only when the server reports the
+  // local-development exception (adminMfaRequired === false); the session is still unverified.
+  if (route.requiresMfa && access.mfaVerified !== true && access.adminMfaRequired !== false) return 'mfa_required'
   return 'allowed'
 }
 

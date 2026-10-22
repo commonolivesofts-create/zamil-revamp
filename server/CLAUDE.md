@@ -1,4 +1,4 @@
-# Zamil Revamp — Backend (`server/`)
+# Zamil Digitalization — Backend (`server/`)
 
 Express 5 modular monolith modernizing a PHP CodeIgniter 3 application. The existing Oracle ADW
 business schema and the React frontend (`client/`, never modified from here) are preserved.
@@ -90,6 +90,15 @@ documented in `docs/openapi/openapi.yaml`:
 These APIs are consumed by the frontend's authentication pages, effective-permission layer and
 Security Administration screens (`client/src/features/`); this file still does not authorize
 changes under `client/`.
+
+Mandatory administrator MFA is controlled by `AUTH_ADMIN_MFA_REQUIRED` (default `true`; `false`
+only for `NODE_ENV=development` on a loopback listener without a trusted proxy — enforced by
+`src/config/index.js`, applied through `evaluateMfaRequirement` and the authorization evaluator;
+never marks a session MFA-verified). See [../docs/SECURITY-ESSENTIALS.md](../docs/SECURITY-ESSENTIALS.md).
+
+Product identity: **Zamil Digitalization**, release **V 2.1.0**, defined once in
+`src/config/product.js` (version equal to `package.json`). Technical identifiers (`zamil-revamp`,
+`XX_ZRV_*`, cookie names, `/api/v1`) are unchanged.
 
 Not yet implemented: security audit retrieval API, reminder sending, and all business modules.
 The application is **not production-ready**; open blockers are listed in
