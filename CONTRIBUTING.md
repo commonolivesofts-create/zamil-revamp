@@ -1,8 +1,11 @@
 # Zamil Digitalization — Git & GitHub Contribution Guidelines
 
-**Status:** Approved  
-**Applies to:** All Zamil Digitalization developers\
-**Repository:** [commonolivesofts-create/zamil-revamp](https://github.com/commonolivesofts-create/zamil-revamp)  
+**Status:** Approved
+
+**Applies to:** All Zamil Digitalization developers
+
+**Repository:** [commonolivesofts-create/zamil-revamp](https://github.com/commonolivesofts-create/zamil-revamp)
+
 **Default branch:** `main`
 
 ---
