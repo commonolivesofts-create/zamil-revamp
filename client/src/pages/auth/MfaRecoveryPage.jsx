@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import { appConfig } from '@/config/appConfig.js'
 import { AuthenticatorSetup, MfaCodeInput } from '@/features/auth/MfaFields.jsx'
 import { PasswordInput } from '@/features/auth/PasswordFields.jsx'
 import useFocusWhenEnabled from '@/features/auth/focusWhenEnabled.js'
@@ -169,7 +170,7 @@ function MfaRecoveryFlow({ link }) {
       <section className="system-card !max-w-[520px]" aria-labelledby="mfa-recovery-title">
         <span className="mx-auto flex size-14 items-center justify-center rounded-2xl" style={{ background: 'color-mix(in srgb,var(--primary) 11%,transparent)', color: 'var(--primary-text)' }}><OrvexaIcon name="key-round" className="size-6" /></span>
         <h1 id="mfa-recovery-title">{done ? 'Authenticator recovered' : 'Recover your authenticator'}</h1>
-        {!done && <p>Confirm your password, then set up a new authenticator app for your Zamil Revamp account. This link works once and expires 15 minutes after it was sent.</p>}
+        {!done && <p>Confirm your password, then set up a new authenticator app for your {appConfig.name} account. This link works once and expires 15 minutes after it was sent.</p>}
         {body}
         {!done && <Link className="btn-secondary mt-3" to="/login" replace onClick={cancel}>Back to sign in</Link>}
       </section>

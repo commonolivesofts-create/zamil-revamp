@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import { appConfig } from '@/config/appConfig.js'
 import { authConfig } from '@/config/authConfig.js'
 import useAuth from '@/features/auth/useAuth.js'
 import { isOutcomeUnknown } from '@/services/api/apiClient.js'
@@ -15,7 +16,7 @@ const modes = {
   PASSWORD_RESET: {
     icon: 'mail-check',
     title: 'Reset your password',
-    intro: 'Enter your Zamil Revamp username. If your account can be recovered this way, a reset link is sent to your registered e-mail address. It expires after 30 minutes.',
+    intro: `Enter your ${appConfig.name} username. If your account can be recovered this way, a reset link is sent to your registered e-mail address. It expires after 30 minutes.`,
     submit: 'Send reset link',
   },
   // Self-service authenticator recovery is limited by the backend to the designated
@@ -86,7 +87,7 @@ export default function ForgotPasswordPage() {
         {passwordExpired && purpose === 'PASSWORD_RESET' && !accepted && (
           <p className="zrv-auth-feedback" role="status">Your password has expired. Request a reset link to choose a new one.</p>
         )}
-        {!authConfig.configured && <p className="zrv-auth-feedback" role="status">Account recovery requires the Zamil Revamp authentication service.</p>}
+        {!authConfig.configured && <p className="zrv-auth-feedback" role="status">Account recovery requires the {appConfig.name} authentication service.</p>}
         {error && <p ref={alertRef} tabIndex={-1} className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">{error}</p>}
         {accepted ? (
           <p className="zrv-auth-feedback zrv-auth-feedback--success" role="status">{accepted}</p>

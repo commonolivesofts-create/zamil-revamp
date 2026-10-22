@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { PRODUCT } from '../../config/product.js';
 import { logger } from '../../shared/logger/index.js';
 import { createRecipientResolver, DeliveryUnavailable } from './delivery.js';
 
@@ -23,18 +24,20 @@ import { createRecipientResolver, DeliveryUnavailable } from './delivery.js';
 const TOKEN_SCOPE = 'https://outlook.office365.com/.default';
 const TOKEN_EARLY_RENEW_MS = 60_000;
 
+// The product name identifies the application; the release version is not part of e-mails.
+const APP = PRODUCT.name;
 const PURPOSE_TEXT = Object.freeze({
   PASSWORD_SETUP: {
-    subject: 'Set up your Zamil Revamp password',
-    action: 'set up the password for your new Zamil Revamp account',
+    subject: `Set up your ${APP} password`,
+    action: `set up the password for your new ${APP} account`,
   },
   PASSWORD_RESET: {
-    subject: 'Reset your Zamil Revamp password',
-    action: 'reset your Zamil Revamp password',
+    subject: `Reset your ${APP} password`,
+    action: `reset your ${APP} password`,
   },
   MFA_RECOVERY: {
-    subject: 'Recover your Zamil Revamp authenticator',
-    action: 'replace the authenticator app used for your Zamil Revamp sign-in',
+    subject: `Recover your ${APP} authenticator`,
+    action: `replace the authenticator app used for your ${APP} sign-in`,
   },
 });
 
@@ -64,13 +67,13 @@ export function composeMessage({ purpose, link, expiresAt, test, employeeNumber 
     `${banner}Use the link below to ${text.action}. It works once and expires at ${expiry} UTC.\n\n` +
     `${link}\n\n` +
     'If you did not expect this message, do not use the link and contact your administrator.\n' +
-    'Zamil Revamp will never ask you for your password or authenticator codes by e-mail.';
+    `${APP} will never ask you for your password or authenticator codes by e-mail.`;
   const html =
     (test ? `<p><strong>${escapeHtml(banner.trim())}</strong></p>` : '') +
     `<p>Use the link below to ${escapeHtml(text.action)}. It works once and expires at ` +
     `${escapeHtml(expiry)} UTC.</p><p><a href="${escapeHtml(link)}">${escapeHtml(text.subject)}</a></p>` +
     '<p>If you did not expect this message, do not use the link and contact your administrator. ' +
-    'Zamil Revamp will never ask you for your password or authenticator codes by e-mail.</p>';
+    `${escapeHtml(APP)} will never ask you for your password or authenticator codes by e-mail.</p>`;
   return { subject: `${test ? '[TEST] ' : ''}${text.subject}`, text: body, html };
 }
 

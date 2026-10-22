@@ -1,6 +1,6 @@
-# Zamil Revamp — Developer Documentation
+# Zamil Digitalization — Developer Documentation
 
-This is the entry point for everyone who builds Zamil Revamp features, whether by hand or with an
+This is the entry point for everyone who builds Zamil Digitalization features, whether by hand or with an
 AI coding assistant. The documents describe **what already exists** and **how to extend it**
 without creating parallel infrastructure.
 
@@ -46,6 +46,8 @@ frontend new-feature guide. Everyone reads 1–4.
 | Oracle ADW Thin + wallet, LOW/HIGH pools, transactions | `server/src/database/oracle.js`, `server/src/database/wallet.js` |
 | Existing CI3 schema compatibility | Policy: [`server/docs/03` §9](../server/docs/03-ORACLE_DATABASE_ARCHITECTURE.md); locked RBAC tables: [`server/docs/rbac-schema/`](../server/docs/rbac-schema/README.md) |
 | HttpOnly session cookie, CSRF, MFA | `server/src/middleware/authenticate.js`, `csrf.js`, `mfaChallenge.js`; `server/src/modules/auth/`; frontend `client/src/features/auth/`, `client/src/services/api/csrfStore.js` |
+| Mandatory administrator MFA (`AUTH_ADMIN_MFA_REQUIRED`, local-development exception only) | `server/src/config/index.js`, `server/src/modules/auth/auth.eligibility.js` (`evaluateMfaRequirement`), `server/src/modules/access-control/authorization.service.js`; see [Security essentials](SECURITY-ESSENTIALS.md#mandatory-administrator-mfa-and-its-local-development-exception) |
+| Product identity: Zamil Digitalization, V 2.1.0 | `server/src/config/product.js`, `client/src/config/appConfig.js` (versions equal to each `package.json`) |
 | Backend-authoritative effective permissions | `server/src/middleware/authorize.js`, `server/src/modules/access-control/authorization.service.js`; frontend `client/src/features/access/` |
 | Protected routes and centralized navigation | `client/src/config/appNavigation.js`, `client/src/routes/RouteGuards.jsx`, `client/src/app/router.jsx` |
 | Shared Fetch client | `client/src/services/api/apiClient.js` |

@@ -122,7 +122,7 @@ describe('operator MFA test tool', () => {
 
     assert.ok(!output.includes(PASSWORD), 'password never echoed');
     assert.doesNotMatch(output, /\(hidden\): \S/, 'codes and password never echoed');
-    assert.match(output, /Issuer: {7}Zamil Revamp\n {2}Account name: zaid\.s\n/);
+    assert.match(output, /Issuer: {7}Zamil Digitalization\n {2}Account name: zaid\.s\n/);
     assert.match(output, /Never copy it into a chat/);
     assert.ok(!/zr_session=|zr_mfa=/.test(output), 'cookies never printed');
     const [, second] = store.state.sessions.filter((session) => session.mfaVerifiedAt);

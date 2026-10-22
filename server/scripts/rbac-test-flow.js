@@ -265,7 +265,7 @@ export async function main({ argv, io }) {
     if (!io.input.isTTY || typeof io.input.setRawMode !== 'function') {
       throw new Error('Run this in an interactive terminal (PowerShell, cmd or Windows Terminal).');
     }
-    say(`Zamil Revamp RBAC integration test against ${root} (loopback only)`);
+    say(`Zamil Digitalization RBAC integration test against ${root} (loopback only)`);
     const jar = createCookieJar();
     const auth = createClient(`${root}/auth`, jar);
     const rbac = Object.assign(createClient(root, jar), { root });

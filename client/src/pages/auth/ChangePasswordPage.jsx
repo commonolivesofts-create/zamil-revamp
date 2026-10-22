@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import { appConfig } from '@/config/appConfig.js'
 import { PasswordInput, PasswordPolicyChecklist } from '@/features/auth/PasswordFields.jsx'
 import { describeUnmetRules, validateNewPassword, violatedRules } from '@/features/auth/passwordPolicy.js'
 import useFocusWhenEnabled from '@/features/auth/focusWhenEnabled.js'
@@ -78,7 +79,7 @@ export default function ChangePasswordPage() {
       <div className="ux-panel-head">
         <div>
           <h1 id="password-change-title">Password</h1>
-          <p>Change the password you use to sign in to Zamil Revamp.</p>
+          <p>Change the password you use to sign in to {appConfig.name}.</p>
         </div>
         <span className="ux-badge"><OrvexaIcon name="lock-keyhole" className="size-3.5" /> Security</span>
       </div>

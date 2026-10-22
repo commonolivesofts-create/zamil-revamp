@@ -77,8 +77,8 @@ export const currentUser = () => ({ user: authUser, session: sessionInfo, passwo
 export const SETUP_SECRET = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'
 export const enrollmentMaterial = (overrides = {}) => ({
   secret: SETUP_SECRET,
-  otpauthUri: `otpauth://totp/Zamil%20Revamp:TEST.USER?secret=${SETUP_SECRET}&issuer=Zamil%20Revamp&algorithm=SHA1&digits=6&period=30`,
-  issuer: 'Zamil Revamp',
+  otpauthUri: `otpauth://totp/Zamil%20Digitalization:TEST.USER?secret=${SETUP_SECRET}&issuer=Zamil%20Digitalization&algorithm=SHA1&digits=6&period=30`,
+  issuer: 'Zamil Digitalization',
   accountName: 'TEST.USER',
   algorithm: 'SHA1',
   digits: 6,

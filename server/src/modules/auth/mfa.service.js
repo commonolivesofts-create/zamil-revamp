@@ -74,7 +74,7 @@ const CHALLENGE_TOLERANCE_MS = 1000;
  * Evaluates a session row as an MFA login challenge. `deny` reasons are security-state changes
  * that revoke the challenge and are audited; `invalid` reasons are simply refused.
  */
-function evaluateChallenge(row) {
+function evaluateChallenge(row, policy) {
   const now = row.dbNow.getTime();
   const invalid = (reason) => ({ valid: false, reason, revoke: false });
   const deny = (reason) => ({ valid: false, reason, revoke: true });
@@ -95,7 +95,7 @@ function evaluateChallenge(row) {
   const eligibility = evaluateEmployeeEligibility(row.employee);
   if (!eligibility.eligible) return deny(eligibility.reason);
 
-  const mfa = evaluateMfaRequirement(row);
+  const mfa = evaluateMfaRequirement(row, policy);
   if (!mfa.required) return invalid('MFA_NOT_REQUIRED');
 
   const password = evaluatePasswordExpiry(row.passwordChangedAt, row.dbNow);
@@ -119,7 +119,10 @@ export function createMfaService({
   auditService,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
+  // config.auth.adminMfaRequired; false only for the validated local-development exception.
+  adminMfaRequired = true,
 }) {
+  const mfaPolicy = { adminMfaRequired };
   const sessionDeps = { authRepository, sessionRepository, auditService };
   const recordAuthenticationFailure = createFailureRecorder({
     authRepository,
@@ -176,7 +179,7 @@ export function createMfaService({
     if (rows.length !== 1) throw challengeInvalid();
 
     const [row] = rows;
-    const evaluation = evaluateChallenge(row);
+    const evaluation = evaluateChallenge(row, mfaPolicy);
     if (!evaluation.valid) {
       if (evaluation.revoke) {
         await revokeChallenge(row);

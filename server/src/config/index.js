@@ -1,8 +1,17 @@
 import { isAbsolute, resolve } from 'node:path';
 import Joi from 'joi';
+import { PRODUCT } from './product.js';
 
 const DOCS_ALLOWED_ENVIRONMENTS = ['development', 'test'];
 const INSECURE_COOKIE_ENVIRONMENTS = ['development', 'test'];
+
+/** Loopback listener addresses: 127.0.0.0/8, ::1 and IPv4-mapped 127.x. */
+export function isLoopbackHost(host) {
+  const address = String(host ?? '')
+    .toLowerCase()
+    .replace(/^::ffff:/, '');
+  return address === '::1' || /^127(\.\d{1,3}){3}$/.test(address);
+}
 const SERVER_ROOT = resolve(import.meta.dirname, '../..');
 
 // Office 365 SMTP (owner decision, Phase 05): fixed endpoint, STARTTLS on 587, verified certificates.
@@ -150,11 +159,17 @@ const envSchema = Joi.object({
   AUTH_MFA_KEY_ID: Joi.string()
     .pattern(/^[a-z0-9]{1,16}$/)
     .default('k1'),
+  // Label shown in authenticator apps for NEW enrollments only. Codes are verified from the stored
+  // secret alone, so existing enrollments (created under an earlier label) keep working.
   AUTH_MFA_ISSUER: Joi.string()
     .trim()
     .max(64)
     .pattern(/^[^:]+$/)
-    .default('Zamil Revamp'),
+    .default(PRODUCT.name),
+  // Mandatory administrator MFA (docs/07 §4). Default true. `false` exists ONLY for a developer's
+  // own machine: it is refused unless NODE_ENV=development, the listener is loopback-only and no
+  // reverse proxy is trusted (see the cross-field rule below). Exact `true`/`false` only.
+  AUTH_ADMIN_MFA_REQUIRED: Joi.boolean().sensitive().default(true),
   AUTH_MFA_COOKIE_NAME: Joi.string()
     .pattern(/^[A-Za-z0-9_-]+$/)
     .invalid(Joi.ref('AUTH_SESSION_COOKIE_NAME'))
@@ -172,7 +187,7 @@ const envSchema = Joi.object({
     .trim()
     .max(64)
     .pattern(/^[^\r\n<>"]+$/)
-    .default('Zamil Revamp'),
+    .default(PRODUCT.name),
   SMTP_OAUTH_TENANT_ID: Joi.when('SMTP_AUTH_METHOD', {
     is: 'OAUTH2',
     then: smtpRequired(Joi.string().pattern(/^[A-Za-z0-9.-]{1,100}$/)),
@@ -228,6 +243,26 @@ const envSchema = Joi.object({
   AUTH_MFA_RECOVERY_PATH: routePath.default('/mfa/recovery'),
 })
   .custom((value, helpers) => {
+    // The administrator-MFA exception never reaches UAT, production, a shared or exposed
+    // development listener, or a deployment behind a reverse proxy. Unsafe values stop startup;
+    // they are never silently corrected.
+    if (value.AUTH_ADMIN_MFA_REQUIRED === false) {
+      if (value.NODE_ENV !== 'development') {
+        return helpers.message(
+          '"AUTH_ADMIN_MFA_REQUIRED" may be false only when NODE_ENV is development',
+        );
+      }
+      if (!isLoopbackHost(value.HTTP_HOST)) {
+        return helpers.message(
+          '"AUTH_ADMIN_MFA_REQUIRED=false" requires a loopback HTTP_HOST (127.0.0.1 or ::1)',
+        );
+      }
+      if (value.TRUST_PROXY_HOPS !== 0) {
+        return helpers.message(
+          '"AUTH_ADMIN_MFA_REQUIRED=false" is not allowed behind a reverse proxy (TRUST_PROXY_HOPS must be 0)',
+        );
+      }
+    }
     if (
       value.AUTH_FRONTEND_BASE_URL?.startsWith('http:') &&
       !INSECURE_COOKIE_ENVIRONMENTS.includes(value.NODE_ENV)
@@ -292,6 +327,8 @@ export function loadConfig(env) {
         sameSite: value.AUTH_COOKIE_SAMESITE,
       }),
       allowedOrigins: Object.freeze([...value.AUTH_ALLOWED_ORIGINS]),
+      // false only on a loopback-only development machine (validated above).
+      adminMfaRequired: value.AUTH_ADMIN_MFA_REQUIRED,
       sessionTouchIntervalMs: value.AUTH_SESSION_TOUCH_INTERVAL_S * 1000,
       loginRateLimit: Object.freeze({
         max: value.AUTH_LOGIN_RATE_LIMIT_MAX,

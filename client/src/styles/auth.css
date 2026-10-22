@@ -33,3 +33,4 @@
 .zrv-auth-page .zrv-auth-link{color:var(--primary-text);font-size:12px;font-weight:700}
 .zrv-auth-page .zrv-auth-link:hover,.zrv-auth-page .zrv-auth-link:focus-visible{text-decoration:underline}
 .zrv-mfa-panel h1{font-size:16px;line-height:1.3;font-weight:800;letter-spacing:-.02em}
+.zrv-auth-page .zrv-app-version{margin-top:14px;color:var(--muted);font-size:11px;font-weight:600;text-align:center;letter-spacing:.02em}

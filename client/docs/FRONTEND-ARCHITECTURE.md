@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-**Responsibility of this layer:** present Zamil Revamp to signed-in employees, call the backend
+**Responsibility of this layer:** present Zamil Digitalization to signed-in employees, call the backend
 `/api/v1` API, and show only what the backend allows. The frontend holds no authority: sessions,
 permissions and every business rule are decided by the backend.
 
@@ -135,6 +135,11 @@ src/features/security-administration/        (actual feature)
 - Icons: `<OrvexaIcon name="lucide-icon-name" />` (`src/components/icons/OrvexaIcon.jsx`, Lucide
   0.468 data). Icons are decorative (`aria-hidden`); give buttons text or `aria-label`.
 - The interface is English-only, left-to-right.
+- Product identity comes from `src/config/appConfig.js`: `appConfig.name` (**Zamil
+  Digitalization**) wherever the application names itself, and `appConfig.displayVersion`
+  (**V 2.1.0**) only in the login footer and the sidebar footer. Never hard-code the name or the
+  version, and never append the version to headings, menus, forms, reports or the browser title.
+  `appConfig.version` equals `package.json` `version` (checked by `tests/branding.test.mjs`).
 
 Every new module uses these; **no per-module redesign**, no new UI framework. See
 [shared components](SHARED-COMPONENTS-AND-PATTERNS.md#7-styling-and-theme).

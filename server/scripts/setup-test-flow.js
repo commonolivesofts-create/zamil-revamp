@@ -169,7 +169,7 @@ export async function runScenario({
 
   // --- Operator completes setup from the TEST inbox ---------------------------------------------------
   say(
-    'Open the TEST mailbox, open the "[TEST] Set up your Zamil Revamp password" message and copy the link.',
+    'Open the TEST mailbox, open the "[TEST] Set up your Zamil Digitalization password" message and copy the link.',
   );
   let token = null;
   for (let attempt = 0; attempt < 3 && !token; attempt += 1) {

@@ -3,6 +3,7 @@ import {
   withConnection as defaultWithConnection,
   withTransaction as defaultWithTransaction,
 } from '../../database/oracle.js';
+import { PRODUCT } from '../../config/product.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { logger } from '../../shared/logger/index.js';
 import { ACTOR_TYPES, AUDIT_EVENTS, AUDIT_OUTCOMES } from '../audit/securityAudit.service.js';
@@ -86,7 +87,7 @@ export function createRecoveryService({
   auditService,
   delivery = createUnconfiguredDelivery(),
   keyring = null,
-  issuer = 'Zamil Revamp',
+  issuer = PRODUCT.name,
   argon2Cost,
   // Optional Set that tracks background self-service work (tests await it; production ignores it).
   backgroundTasks = null,

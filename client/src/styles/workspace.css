@@ -59,7 +59,8 @@
 .zrv-sidebar-access button:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
 .zrv-sidebar-demos { margin-top: 18px; padding-top: 12px; border-top: 1px dashed var(--line-strong); }
 .zrv-sidebar-heading { margin: 0 8px 8px; color: var(--amber-text); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.zrv-sidebar-version { flex: none; margin: 0; padding: 8px 20px 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .02em; white-space: nowrap; }
 /* The collapsed icon sidebar shows text only while it is expanded on hover or focus. */
 @media (min-width: 1024px) {
-  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:focus-within) :is(.zrv-sidebar-access, .zrv-sidebar-heading) { display: none; }
+  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:focus-within) :is(.zrv-sidebar-access, .zrv-sidebar-heading, .zrv-sidebar-version) { display: none; }
 }

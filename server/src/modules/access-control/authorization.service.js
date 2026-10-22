@@ -28,15 +28,18 @@ const isSecurityModule = (moduleCode) =>
 /**
  * Pure decision (deny by default): unknown or inactive permission → deny; active DENY override →
  * deny (wins over everything); ALLOW override or role grant → allow; otherwise deny. A
- * security-administration permission additionally requires an MFA-verified session.
+ * security-administration permission additionally requires an MFA-verified session, unless the
+ * validated local-development exception (`adminMfaRequired: false`) is active. The exception only
+ * waives the MFA condition: the grant, DENY and catalogue rules still apply, and the session stays
+ * unverified.
  */
-export function decide(facts, permission, auth) {
+export function decide(facts, permission, auth, { adminMfaRequired = true } = {}) {
   if (!facts) return { allowed: false, reason: 'PERMISSION_UNKNOWN' };
   if (!facts.catalogActive) return { allowed: false, reason: 'PERMISSION_INACTIVE' };
   if (facts.denied) return { allowed: false, reason: 'EXPLICIT_DENY' };
   if (!facts.allowedByOverride && !facts.allowedByRole)
     return { allowed: false, reason: 'NO_GRANT' };
-  if (isSecurityModule(permission.moduleCode) && !auth.mfaVerified) {
+  if (isSecurityModule(permission.moduleCode) && !auth.mfaVerified && adminMfaRequired !== false) {
     return { allowed: false, reason: 'MFA_REQUIRED' };
   }
   return { allowed: true, permissionId: facts.permissionId };
@@ -46,14 +49,20 @@ export function createAuthorizationService({
   repository = defaultRepository,
   auditService,
   withConnection = defaultWithConnection,
+  // config.auth.adminMfaRequired; false only for the validated local-development exception.
+  adminMfaRequired = true,
 }) {
+  const mfaPolicy = { adminMfaRequired };
   return {
+    /** Whether security administration currently requires an MFA-verified session. */
+    adminMfaRequired: adminMfaRequired !== false,
+
     /** Request-time decision for the authenticated user (`req.auth`). Denials are audited. */
     async check(auth, permission, context) {
       const facts = await withConnection(POOLS.LOW, (connection) =>
         repository.findPermissionDecision(connection, { userId: auth.userId, ...permission }),
       );
-      const decision = decide(facts, permission, auth);
+      const decision = decide(facts, permission, auth, mfaPolicy);
       if (!decision.allowed) {
         await auditService.recordIndependently({
           eventCode: AUDIT_EVENTS.ACCESS_DENIED,

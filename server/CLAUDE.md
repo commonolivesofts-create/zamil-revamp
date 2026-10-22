@@ -1,7 +1,10 @@
-# Zamil Revamp — Backend (`server/`)
+# Zamil Digitalization — Backend (`server/`)
 
 Express 5 modular monolith modernizing a PHP CodeIgniter 3 application. The existing Oracle ADW
-business schema and the React frontend (`client/`, never modified from here) are preserved.
+business schema is preserved. This file covers backend work; frontend (`client/`) changes are made
+only when the owner's request authorizes them and follow [../client/docs/](../client/docs/README.md).
+Git, approval gates and handoffs follow [../CLAUDE.md](../CLAUDE.md), [../CONTRIBUTING.md](../CONTRIBUTING.md)
+and [../docs/FEATURE-DELIVERY-WORKFLOW.md](../docs/FEATURE-DELIVERY-WORKFLOW.md).
 
 ## Architecture reference (source of truth)
 
@@ -88,8 +91,19 @@ documented in `docs/openapi/openapi.yaml`:
   it is not configured.
 
 These APIs are consumed by the frontend's authentication pages, effective-permission layer and
-Security Administration screens (`client/src/features/`); this file still does not authorize
-changes under `client/`.
+Security Administration screens (`client/src/features/`); keep their contracts compatible.
+
+Mandatory administrator MFA is controlled by `AUTH_ADMIN_MFA_REQUIRED` (default `true`). The
+**only** approved exception is `AUTH_ADMIN_MFA_REQUIRED=false`, accepted only for
+`NODE_ENV=development` on a loopback `HTTP_HOST` with `TRUST_PROXY_HOPS=0` (enforced by
+`src/config/index.js`; startup fails otherwise), applied through `evaluateMfaRequirement` and the
+authorization evaluator, and never marking a session MFA-verified. **UAT and production must
+require MFA.** Do not add any other MFA bypass. See
+[../docs/SECURITY-ESSENTIALS.md](../docs/SECURITY-ESSENTIALS.md).
+
+Product identity: **Zamil Digitalization**, release **V 2.1.0**, defined once in
+`src/config/product.js` (version equal to `package.json`). Technical identifiers (`zamil-revamp`,
+`XX_ZRV_*`, cookie names, `/api/v1`) are unchanged.
 
 Not yet implemented: security audit retrieval API, reminder sending, and all business modules.
 The application is **not production-ready**; open blockers are listed in

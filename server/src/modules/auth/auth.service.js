@@ -100,7 +100,15 @@ function preVerificationDenial(candidate) {
 export async function issueSessionInTransaction(
   connection,
   { authRepository, sessionRepository, auditService },
-  { userId, presentedToken, mfaVerified, privileged, reasonCode = null, context },
+  {
+    userId,
+    presentedToken,
+    mfaVerified,
+    privileged,
+    reasonCode = null,
+    mfaExemption = null,
+    context,
+  },
 ) {
   if (!(await authRepository.recordLoginSuccess(connection, userId))) return null;
 
@@ -132,7 +140,12 @@ export async function issueSessionInTransaction(
     subjectUserId: userId,
     target: { type: 'USER_SESSION', id: created.sessionId },
     reasonCode,
-    details: { idleTimeoutMinutes: idleTimeoutMs / 60000, mfaVerified },
+    details: {
+      idleTimeoutMinutes: idleTimeoutMs / 60000,
+      mfaVerified,
+      // Recorded so the audit trail shows administrator sign-ins without MFA (development only).
+      ...(mfaExemption && { mfaExemption }),
+    },
     context,
   });
 
@@ -168,6 +181,8 @@ export function createAuthService({
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
   argon2Cost,
+  // config.auth.adminMfaRequired; false only for the validated local-development exception.
+  adminMfaRequired = true,
 }) {
   const recordAuthenticationFailure = createFailureRecorder({
     authRepository,
@@ -276,7 +291,7 @@ export function createAuthService({
         throw authenticationFailed();
       }
 
-      const mfa = evaluateMfaRequirement(account);
+      const mfa = evaluateMfaRequirement(account, { adminMfaRequired });
       const passwordState = evaluatePasswordExpiry(account.passwordChangedAt, candidate.dbNow);
 
       if (mfa.required) {
@@ -299,8 +314,11 @@ export function createAuthService({
           {
             userId: account.userId,
             presentedToken,
+            // Never verified here: no MFA challenge was completed (also under the exception).
             mfaVerified: false,
-            privileged: false,
+            // An exempted administrator keeps the privileged 15-minute idle timeout.
+            privileged: mfa.privileged,
+            mfaExemption: mfa.exempted ? 'LOCAL_DEVELOPMENT' : null,
             context,
           },
         ),

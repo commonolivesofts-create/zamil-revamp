@@ -26,14 +26,14 @@ const relative = (url) => url.pathname.split('/client/')[1]
 
 // ------------------------------------------------------------ branding and template removal
 
-test('the document is Zamil Revamp branded, with no template branding or inline script', async () => {
+test('the document is Zamil Digitalization branded, with no template branding or inline script', async () => {
   const html = await read('../index.html')
-  assert.match(html, /<title>Zamil Revamp<\/title>/)
+  assert.match(html, /<title>Zamil Digitalization<\/title>/)
   assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="%BASE_URL%favicon\.svg" \/>/)
   assert.equal(/orvexa/i.test(html.replace(/%BASE_URL%orvexa\/assets\/(css|vendor)\//g, '')), false, 'only the licensed stylesheet and icon-data paths remain')
   for (const [tag] of html.matchAll(/<script\b[^>]*>/g)) assert.match(tag, /\bsrc=/, `${tag} must not be inline (CSP)`)
   const favicon = await read('../public/favicon.svg')
-  assert.match(favicon, /<title>Zamil Revamp<\/title>/)
+  assert.match(favicon, /<title>Zamil Digitalization<\/title>/)
 })
 
 test('the login page describes only implemented sign-in behaviour', async () => {
@@ -41,7 +41,7 @@ test('the login page describes only implemented sign-in behaviour', async () => 
   for (const template of ['Orvexa', 'production AI', 'control plane', '37+', 'admin surfaces', 'RTL', 'Backend integration required', 'sparkles']) {
     assert.equal(login.includes(template), false, template)
   }
-  assert.match(login, /<h2>Sign in to Zamil Revamp<\/h2>/)
+  assert.match(login, /<h2>Sign in to \{appConfig\.name\}<\/h2>/)
   assert.match(login, /aria-label=\{`About \$\{appConfig\.name\}`\}/)
 })
 

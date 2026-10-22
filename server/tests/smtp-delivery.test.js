@@ -30,7 +30,7 @@ const smtpConfig = (overrides = {}) => ({
   port: 587,
   authMethod: 'OAUTH2',
   user: 'noreply@example.invalid',
-  from: { address: 'noreply@example.invalid', name: 'Zamil Revamp' },
+  from: { address: 'noreply@example.invalid', name: 'Zamil Digitalization' },
   oauth: OAUTH,
   password: null,
   testRecipientOverride: APPROVED_TEST_RECIPIENT,
@@ -217,8 +217,11 @@ describe('SMTP delivery channel', () => {
     await channel.deliver(message());
     const [mail] = transport.sent;
     assert.equal(mail.to, APPROVED_TEST_RECIPIENT);
-    assert.deepEqual(mail.from, { name: 'Zamil Revamp', address: 'noreply@example.invalid' });
-    assert.equal(mail.subject, '[TEST] Reset your Zamil Revamp password');
+    assert.deepEqual(mail.from, {
+      name: 'Zamil Digitalization',
+      address: 'noreply@example.invalid',
+    });
+    assert.equal(mail.subject, '[TEST] Reset your Zamil Digitalization password');
     assert.ok(mail.text.includes(`https://revamp.example.invalid/password/reset#token=${TOKEN}`));
     assert.match(mail.text, /redirected from the account of employee 4001/);
     assert.match(mail.text, /2026-10-20 10:30 UTC/);
@@ -272,7 +275,7 @@ describe('SMTP delivery channel', () => {
     });
     await channel.deliver(message('employee@example.invalid', 'EMPLOYEE_MASTER'));
     assert.equal(transport.sent[0].to, 'employee@example.invalid');
-    assert.equal(transport.sent[0].subject, 'Reset your Zamil Revamp password');
+    assert.equal(transport.sent[0].subject, 'Reset your Zamil Digitalization password');
     assert.equal(reads(), 0);
     await assert.rejects(channel.deliver(message()), { reason: 'RECIPIENT_NOT_PERMITTED' });
   });

@@ -41,11 +41,14 @@ export function readPermission(entry) {
   })
 }
 
-// Returns { userId, mfaVerified, permissions }. Duplicate keys are kept once.
+// Returns { userId, mfaVerified, adminMfaRequired, permissions }. Duplicate keys are kept once.
+// `adminMfaRequired` is false only when the backend runs the local-development exception
+// (AUTH_ADMIN_MFA_REQUIRED=false); if absent it is treated as true (fail safe).
 export function readMyPermissions(data) {
   if (!isObject(data) || typeof data.userId !== 'string' || !ID_PATTERN.test(data.userId) ||
     typeof data.mfaVerified !== 'boolean' || !Array.isArray(data.permissions) ||
-    data.permissions.length > MAX_PERMISSIONS) {
+    data.permissions.length > MAX_PERMISSIONS ||
+    !(data.adminMfaRequired === undefined || typeof data.adminMfaRequired === 'boolean')) {
     throw invalid()
   }
   const unique = new Map()
@@ -57,6 +60,7 @@ export function readMyPermissions(data) {
   return Object.freeze({
     userId: data.userId,
     mfaVerified: data.mfaVerified,
+    adminMfaRequired: data.adminMfaRequired !== false,
     permissions: Object.freeze([...unique.values()]),
   })
 }

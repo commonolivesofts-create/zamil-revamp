@@ -61,20 +61,22 @@ describe('TOTP primitives', () => {
 
   it('builds an otpauth URI in the Key Uri Format', () => {
     const uri = new URL(
-      otpauthUri({ issuer: 'Zamil Revamp', accountName: 'zaid.s', secret: RFC_SECRET }),
+      otpauthUri({ issuer: 'Zamil Digitalization', accountName: 'zaid.s', secret: RFC_SECRET }),
     );
 
     assert.equal(uri.protocol, 'otpauth:');
     assert.equal(uri.host, 'totp');
     // Issuer and account are encoded separately around a literal colon (Key Uri Format).
     assert.ok(
-      otpauthUri({ issuer: 'Zamil Revamp', accountName: 'a:b c', secret: RFC_SECRET }).startsWith(
-        'otpauth://totp/Zamil%20Revamp:a%3Ab%20c?',
-      ),
+      otpauthUri({
+        issuer: 'Zamil Digitalization',
+        accountName: 'a:b c',
+        secret: RFC_SECRET,
+      }).startsWith('otpauth://totp/Zamil%20Digitalization:a%3Ab%20c?'),
     );
-    assert.equal(decodeURIComponent(uri.pathname), '/Zamil Revamp:zaid.s');
+    assert.equal(decodeURIComponent(uri.pathname), '/Zamil Digitalization:zaid.s');
     assert.equal(uri.searchParams.get('secret'), base32Encode(RFC_SECRET));
-    assert.equal(uri.searchParams.get('issuer'), 'Zamil Revamp');
+    assert.equal(uri.searchParams.get('issuer'), 'Zamil Digitalization');
     assert.equal(uri.searchParams.get('algorithm'), 'SHA1');
     assert.equal(uri.searchParams.get('digits'), '6');
     assert.equal(uri.searchParams.get('period'), '30');

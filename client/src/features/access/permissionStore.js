@@ -18,13 +18,13 @@ const denyAll = () => false
 
 function accessState(status, fields = {}) {
   return Object.freeze({
-    status, subjectId: null, mfaVerified: false, permissions: NO_PERMISSIONS, errorCode: null, has: denyAll, ...fields,
+    status, subjectId: null, mfaVerified: false, adminMfaRequired: true, permissions: NO_PERMISSIONS, errorCode: null, has: denyAll, ...fields,
   })
 }
 
-function readyState(subjectId, { mfaVerified, permissions }) {
+function readyState(subjectId, { mfaVerified, adminMfaRequired = true, permissions }) {
   const keys = new Set(permissions.map(permissionKey))
-  return accessState('ready', { subjectId, mfaVerified, permissions, has: (key) => keys.has(key) })
+  return accessState('ready', { subjectId, mfaVerified, adminMfaRequired: adminMfaRequired !== false, permissions, has: (key) => keys.has(key) })
 }
 
 const IDLE = accessState('idle')

@@ -1,6 +1,6 @@
-# Zamil Revamp — Frontend
+# Zamil Digitalization — Frontend
 
-React 19 + Vite 8 single-page application for Zamil Revamp: sign-in, MFA,
+React 19 + Vite 8 single-page application for Zamil Digitalization: sign-in, MFA,
 password and recovery workflows, backend-authoritative RBAC navigation, the
 signed-in dashboard and Security Administration.
 
