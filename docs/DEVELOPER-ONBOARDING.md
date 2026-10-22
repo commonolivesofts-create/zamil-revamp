@@ -22,6 +22,41 @@ git config user.name  "<your name>"
 git config user.email "<email linked to your GitHub account>"
 ```
 
+### Line endings (Windows)
+
+The repository uses **LF** line endings for all text files. The root
+[`.gitattributes`](../.gitattributes) is the authoritative policy (`* text=auto eol=lf`; `.png` and
+`.ico` are binary). It overrides your personal `core.autocrlf` setting, so a checkout on Windows
+also gets LF, which the backend Prettier check (`endOfLine: lf`) requires.
+
+- Do not convert source files to CRLF, and do not change the Prettier configuration or skip
+  `npm run check` to work around line endings.
+- Do not run `npm run format` over the whole project to "fix" line endings; it rewrites unrelated
+  files. Format only the files you changed.
+- Check line endings with `git ls-files --eol <path>`: you should see `i/lf w/lf` for text files
+  (`i/` = repository, `w/` = your working copy).
+
+**Older checkouts** created before `.gitattributes` existed may still contain CRLF or mixed copies
+(`i/lf w/crlf`, `i/lf w/mixed`); Git does not rewrite them on its own. Refresh them **only when
+`git status --short` prints nothing**: each affected working copy is deleted and restored from the
+repository, which would discard uncommitted edits to it.
+
+```powershell
+# PowerShell, from the repository root, with a clean working tree
+if (@(git status --short).Count -ne 0) { throw 'Commit or stash your changes first.' }
+git ls-files --eol | Where-Object { $_ -match '^i/lf\s+w/(crlf|mixed)' } | ForEach-Object {
+  $path = $_.Split("`t")[1]; Remove-Item -LiteralPath $path; git checkout -- $path }
+git ls-files --eol | Select-String 'w/(crlf|mixed)'   # should print nothing
+```
+
+```bash
+# Git Bash equivalent (clean working tree only)
+git ls-files --eol | grep -E '^i/lf[[:space:]]+w/(crlf|mixed)' | cut -f2 |
+  while IFS= read -r path; do rm -- "$path" && git checkout -- "$path"; done
+```
+
+A plain `git checkout -- <file>` is not enough: Git skips files it considers unchanged.
+
 ## 2. Repository layout
 
 ```text
@@ -152,6 +187,7 @@ Details: [frontend testing](../client/docs/FRONTEND-TESTING.md),
 | `/health/ready` reports the database as unavailable | Wallet path, wallet password, aliases or credentials are wrong, or the network blocks ADW. Run `npm run db:status` for a safe diagnostic. |
 | Accounts that require MFA cannot finish sign-in | `AUTH_MFA_ENCRYPTION_KEY` is missing. For local administrator testing without an authenticator, see `AUTH_ADMIN_MFA_REQUIRED` in §4. |
 | The backend refuses to start: `"AUTH_ADMIN_MFA_REQUIRED" may be false only when …` | The local MFA exception is only for `NODE_ENV=development` on a loopback `HTTP_HOST` with `TRUST_PROXY_HOPS=0`. Fix those values or set it back to `true`. |
+| `npm run check` in `server/` fails at Prettier although you changed nothing | Your checkout has CRLF copies of LF files (`git ls-files --eol` shows `i/lf w/crlf`). Follow [Line endings (Windows)](#line-endings-windows) to refresh them. |
 | The app still shows the former product name | Your `client/.env.local` sets `VITE_APP_NAME`; change it to `Zamil Digitalization` or remove the line, then restart Vite. |
 | Password setup/reset or MFA recovery returns `DELIVERY_UNAVAILABLE` | Expected while `SMTP_ENABLED=false`. |
 | Security Administration pages show "access denied" asking for authenticator verification | Those pages require an MFA-verified session; sign in with your authenticator. |
