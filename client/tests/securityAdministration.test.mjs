@@ -179,7 +179,7 @@ test('protected recovery issuance sends the explicit employee-number confirmatio
 test('backend hierarchy refusals for recovery are surfaced, never bypassed', async () => {
   for (const [status, code, message] of [
     [403, 'PROTECTED_ACCOUNT', 'Only the Super Administrator can authorize recovery of this account.'],
-    [403, 'MFA_RECENT_VERIFICATION_REQUIRED', 'Verify your authenticator again (sign in within the last 10 minutes) to authorize this recovery.'],
+    [403, 'MFA_RECENT_VERIFICATION_REQUIRED', 'Verify your authenticator again (sign in within the last 5 minutes) to authorize this recovery.'],
     [400, 'CONFIRMATION_MISMATCH', 'The confirmation does not match the selected account'],
     [503, 'DELIVERY_UNAVAILABLE', 'Account recovery messages cannot be sent right now. Contact your administrator.'],
   ]) {

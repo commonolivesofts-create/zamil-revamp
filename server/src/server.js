@@ -31,13 +31,9 @@ try {
   process.exit(1);
 }
 
-const pools = await checkDatabaseReadiness();
-if (Object.values(pools).every(Boolean)) {
-  logger.info({ pools }, 'Oracle LOW and HIGH pools ready');
-} else {
-  logger.error({ pools }, 'Oracle unavailable at startup; readiness will report 503');
-}
-
+// Listen as soon as the pools exist. The readiness probe below only logs; awaiting it first kept
+// the port closed for several seconds after every (watch-mode) start, during which the dev proxy
+// answered 502 to session checks and sign-ins.
 const server = createApp().listen(config.port, config.http.host, (error) => {
   if (error) {
     logger.fatal({ err: error }, 'HTTP server failed to start');
@@ -45,6 +41,13 @@ const server = createApp().listen(config.port, config.http.host, (error) => {
   }
   logger.info({ host: config.http.host, port: config.port }, 'HTTP server listening');
 });
+
+const pools = await checkDatabaseReadiness();
+if (Object.values(pools).every(Boolean)) {
+  logger.info({ pools }, 'Oracle LOW and HIGH pools ready');
+} else {
+  logger.error({ pools }, 'Oracle unavailable at startup; readiness will report 503');
+}
 
 let shuttingDown = false;
 

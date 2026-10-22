@@ -67,7 +67,9 @@ test('structured errors keep code, status, safe message, details and request ID'
 
 test('non-envelope and unsafe error bodies fall back to generic messages', async () => {
   const html = setup(() => new Response('<html>Bad gateway</html>', { status: 502 }))
-  await assert.rejects(html.client.get('/x'), { code: 'HTTP_ERROR', status: 502, message: 'The service is temporarily unavailable.' })
+  await assert.rejects(html.client.get('/x'), { code: 'HTTP_ERROR', status: 502, message: 'The application server could not be reached. Try again in a moment.' })
+  const unavailable = setup(() => new Response('', { status: 503 }))
+  await assert.rejects(unavailable.client.get('/x'), { code: 'HTTP_ERROR', status: 503, message: 'The service is temporarily unavailable.' })
 
   const unsafe = setup(() => failure(400, 'lower-case', 'x'.repeat(600)))
   await assert.rejects(unsafe.client.get('/x'), { code: 'HTTP_ERROR', message: 'The request could not be completed.' })

@@ -7,9 +7,12 @@ import react from '@vitejs/plugin-react'
 // Origin check (Origin must equal the API's own origin) passes without CORS or
 // an allowlist entry. Use http://localhost, where browsers accept the backend's
 // Secure __Host- cookies.
+// The target is the backend's development listener address (HTTP_HOST defaults
+// to 127.0.0.1). `localhost` resolves to ::1 first on Windows, so the proxy
+// would depend on the IPv6-to-IPv4 connection fallback for every request.
 export const apiProxy = Object.freeze({
   '/api': {
-    target: 'http://localhost:3000',
+    target: 'http://127.0.0.1:3000',
     changeOrigin: false,
   },
 })

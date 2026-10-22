@@ -8,7 +8,7 @@ import useAuth from '@/features/auth/useAuth.js'
 import '@/styles/auth.css'
 
 // Replaces the enrolled authenticator from a signed-in session. The backend
-// decides eligibility (MFA verified on this session within 10 minutes). On
+// decides eligibility (MFA verified on this session within 5 minutes). On
 // success it revokes every session, so the user must sign in again.
 export default function MfaReplacementPage() {
   const { status, session, startMfaReplacement, confirmMfaReplacement, signOut } = useAuth()
@@ -96,7 +96,7 @@ export default function MfaReplacementPage() {
           <p className="zrv-auth-feedback" role="status">Development preview has no authenticated session; authenticator changes are unavailable.</p>
         ) : (
           <>
-            <p className="zrv-mfa-meta">For your protection this is only allowed within 10 minutes of signing in with your current authenticator. After the replacement, every session of your account ends, including this one, and you sign in again with the new authenticator.</p>
+            <p className="zrv-mfa-meta">For your protection this is only allowed within 5 minutes of signing in with your current authenticator. After the replacement, every session of your account ends, including this one, and you sign in again with the new authenticator.</p>
             {session && !session.mfaVerified && (
               <p className="zrv-auth-feedback" role="status">This session was not verified with an authenticator, so the server will ask you to sign in again first.</p>
             )}

@@ -5,7 +5,8 @@ import { apiProxy } from '../vite.config.js'
 
 test('the development proxy keeps /api same-origin for the backend Origin check', () => {
   assert.deepEqual(Object.keys(apiProxy), ['/api'])
-  assert.equal(apiProxy['/api'].target, 'http://localhost:3000')
+  // The backend's development listener (HTTP_HOST 127.0.0.1), not the dual-stack name localhost.
+  assert.equal(apiProxy['/api'].target, 'http://127.0.0.1:3000')
   assert.equal(apiProxy['/api'].changeOrigin, false)
 })
 

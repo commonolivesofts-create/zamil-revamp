@@ -45,7 +45,7 @@ const recentVerificationRequired = () =>
   new AppError(
     403,
     'MFA_RECENT_VERIFICATION_REQUIRED',
-    'Sign in again with your authenticator, then make this change within 10 minutes.',
+    'Sign in again with your authenticator, then make this change within 5 minutes.',
   );
 const replacementConflict = () =>
   new AppError(
@@ -67,7 +67,7 @@ class CompletionAborted extends Error {
   }
 }
 
-// A normal session (8 h) can never be presented as an MFA challenge (10 min).
+// A normal session (8 h) can never be presented as an MFA challenge (5 min).
 const CHALLENGE_TOLERANCE_MS = 1000;
 
 /**
@@ -335,7 +335,7 @@ export function createMfaService({
 
   return {
     /**
-     * Creates the MFA login challenge after a correct password: a session row with a 10-minute
+     * Creates the MFA login challenge after a correct password: a session row with a 5-minute
      * lifetime and MFA_VERIFIED_AT NULL, usable only by the MFA endpoints. A correct password is not
      * a failure, and authentication is not complete yet, so no audit event is written here:
      * LOGIN_SUCCESS follows only when the MFA-verified session is created, and every failed code
@@ -442,7 +442,7 @@ export function createMfaService({
 
     /**
      * Starts replacing the enrolled authenticator from an authenticated session whose MFA was
-     * verified within the last 10 minutes. Returns the new candidate secret (shown once); nothing
+     * verified within the last 5 minutes. Returns the new candidate secret (shown once); nothing
      * is stored until /mfa/replacement/confirm proves possession of the new authenticator.
      */
     async startReplacement(auth, context) {

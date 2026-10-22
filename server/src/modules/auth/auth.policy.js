@@ -84,9 +84,9 @@ export const MFA_POLICY = Object.freeze({
   periodSeconds: 30,
   allowedDriftSteps: 1,
   secretBytes: 20,
-  challengeLifetimeMs: 10 * MINUTE_MS,
+  challengeLifetimeMs: 5 * MINUTE_MS,
   // Authenticator replacement requires MFA verified on the current session within this window.
-  replacementRecentVerificationMs: 10 * MINUTE_MS,
+  replacementRecentVerificationMs: 5 * MINUTE_MS,
 });
 
 /**
@@ -103,7 +103,7 @@ export const ACTION_TOKEN_POLICY = Object.freeze({
   }),
   issueCooldownMs: 5 * MINUTE_MS,
   // Super Administrator recovery authorization of another privileged account (docs/07 §5 Option A).
-  recentVerificationMs: 10 * MINUTE_MS,
+  recentVerificationMs: 5 * MINUTE_MS,
 });
 
 // Upper bound accepted at login. Above PASSWORD_POLICY.maxLength so that a password set by an

@@ -74,6 +74,6 @@ export function TemplateDemoRoute() {
 export function RootRedirect() {
   const { status, retrySession } = useAuth()
   if (status === 'loading') return <PageState kind="loading" title="Checking session" />
-  if (status === 'error') return <PageState kind="error" title="Session check unavailable" description="Cannot verify your session." actionLabel="Retry session check" onAction={retrySession} />
+  if (status === 'error') return <PageState kind="error" title="Session check unavailable" description="The authentication server could not be reached, so your session cannot be verified. Try again in a moment." actionLabel="Retry session check" onAction={retrySession} />
   return <Navigate to={status === 'authenticated' || status === 'preview' ? '/dashboard' : '/login'} replace />
 }

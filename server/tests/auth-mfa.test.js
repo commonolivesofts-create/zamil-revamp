@@ -106,7 +106,7 @@ describe('MFA (Phase 02)', () => {
 
       const [challenge] = store.state.sessions;
       assert.equal(challenge.mfaVerifiedAt, null);
-      assert.equal(challenge.expiresAt.getTime() - challenge.createdAt.getTime(), 10 * MINUTE_MS);
+      assert.equal(challenge.expiresAt.getTime() - challenge.createdAt.getTime(), 5 * MINUTE_MS);
 
       const user = store.user(zaid.user.userId);
       assert.equal(user.failedLoginAttempts, 2, 'not reset before MFA succeeds');
@@ -490,11 +490,22 @@ describe('MFA (Phase 02)', () => {
       assert.equal(store.state.sessions.filter((session) => session.mfaVerifiedAt).length, 0);
     });
 
-    it('expires the challenge after 10 minutes', async () => {
+    it('expires the challenge after 5 minutes', async () => {
       const challenge = await challengeFor();
-      store.advance(10 * MINUTE_MS);
+      store.advance(5 * MINUTE_MS);
       const res = await mfaPost('verify', challenge, { code: codeAt(secret) }).expect(401);
       assert.equal(res.body.error.code, 'MFA_CHALLENGE_INVALID');
+      assert.equal(store.state.sessions.filter((session) => session.mfaVerifiedAt).length, 0);
+
+      // The expired challenge stays refused; only a fresh password sign-in continues.
+      await mfaPost('verify', challenge, { code: codeAt(secret, 1) }).expect(401);
+      await mfaPost('verify', await challengeFor(), { code: codeAt(secret) }).expect(200);
+    });
+
+    it('still accepts the challenge just before the 5-minute expiry', async () => {
+      const challenge = await challengeFor();
+      store.advance(5 * MINUTE_MS - 1000);
+      await mfaPost('verify', challenge, { code: codeAt(secret) }).expect(200);
     });
 
     it('re-checks the account during the challenge and revokes it when disabled', async () => {
@@ -740,9 +751,17 @@ describe('MFA (Phase 02)', () => {
         .expect(403);
     });
 
-    it('requires MFA verified on this session within the last 10 minutes', async () => {
+    it('allows the replacement just inside the 5-minute recent-verification window', async () => {
       const { newSecret } = await startReplacement();
-      store.advance(9.5 * 60 * 1000 - 30 * 1000); // keep the session active, but MFA 9.5 min ago
+      store.advance(5 * MINUTE_MS - 30 * 1000 - 1000); // MFA verified 4 min 59 s ago
+      await replacementPost('replacement/confirm', signedIn, { code: codeAt(newSecret) }).expect(
+        200,
+      );
+    });
+
+    it('requires MFA verified on this session within the last 5 minutes', async () => {
+      const { newSecret } = await startReplacement();
+      store.advance(4.5 * 60 * 1000 - 30 * 1000); // keep the session active, but MFA 4.5 min ago
       await request(app).get('/api/v1/auth/me').set('Cookie', signedIn.cookie).expect(200);
       store.advance(30 * 1000);
 
