@@ -1,0 +1,8 @@
+# Repository line-ending policy. This file is authoritative and overrides each developer's
+# core.autocrlf setting: text files are stored AND checked out with LF on every platform
+# (Windows included), which the backend Prettier configuration (endOfLine: lf) requires.
+* text=auto eol=lf
+
+# Binary assets tracked in this repository: never normalized, never diffed as text.
+*.png binary
+*.ico binary
