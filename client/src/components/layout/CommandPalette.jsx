@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { appConfig } from '@/config/appConfig.js'
 import { paletteCommands, searchCommands } from '@/config/appNavigation.js'
+import { EXTERNAL_LINK_TARGET, EXTERNAL_WINDOW_FEATURES } from '@/config/externalDestinations.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
 
@@ -51,7 +52,9 @@ export default function CommandPalette({ open, onClose }) {
 
   const pick = (item) => {
     close()
-    navigate(item.path)
+    // External destinations open in a new tab without opener or referrer.
+    if (item.external) window.open(item.href, EXTERNAL_LINK_TARGET, EXTERNAL_WINDOW_FEATURES)
+    else navigate(item.path)
   }
 
   return (

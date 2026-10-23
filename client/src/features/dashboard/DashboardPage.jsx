@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import ExternalNavigationLink from '@/components/navigation/ExternalNavigationLink.jsx'
 import { appConfig } from '@/config/appConfig.js'
 import { authorizedNavigation } from '@/config/appNavigation.js'
 import useAuth from '@/features/auth/useAuth.js'
@@ -157,11 +158,19 @@ function WorkspaceDashboard() {
             <ul className="zrv-dash__links">
               {pages.map((page) => (
                 <li key={page.id}>
-                  <Link to={page.path}>
-                    <OrvexaIcon name={page.icon} />
-                    <span>{page.label}</span>
-                    <OrvexaIcon name="chevron-right" className="zrv-dash__chevron" />
-                  </Link>
+                  {page.type === 'external' ? (
+                    <ExternalNavigationLink href={page.href}>
+                      <OrvexaIcon name={page.icon} />
+                      <span>{page.label}</span>
+                      <OrvexaIcon name="chevron-right" className="zrv-dash__chevron" />
+                    </ExternalNavigationLink>
+                  ) : (
+                    <Link to={page.path}>
+                      <OrvexaIcon name={page.icon} />
+                      <span>{page.label}</span>
+                      <OrvexaIcon name="chevron-right" className="zrv-dash__chevron" />
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

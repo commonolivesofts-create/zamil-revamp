@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import ExternalNavigationLink from '@/components/navigation/ExternalNavigationLink.jsx'
 import { appConfig } from '@/config/appConfig.js'
 import { authorizedNavigation, findAppRoute } from '@/config/appNavigation.js'
 import { templateDemosAvailable } from '@/config/authRouting.js'
@@ -43,12 +44,30 @@ function DemoItems({ items = [], onNavigate }) {
 }
 
 function StandaloneLink({ item, onNavigate }) {
-  return (
-    <NavLink to={item.path} end className="sidebar-domain-toggle sidebar-domain-standalone-link" onClick={onNavigate}>
+  const content = (
+    <>
       <span className="sidebar-domain-icon"><OrvexaIcon name={item.icon || 'circle'} /></span>
       <span className="sidebar-domain-label">{item.label}</span>
       <span className="sidebar-domain-chevron sidebar-domain-placeholder" aria-hidden="true" />
+    </>
+  )
+  if (item.type === 'external') {
+    return <ExternalNavigationLink href={item.href} className="sidebar-domain-toggle sidebar-domain-standalone-link" onClick={onNavigate}>{content}</ExternalNavigationLink>
+  }
+  return (
+    <NavLink to={item.path} end className="sidebar-domain-toggle sidebar-domain-standalone-link" onClick={onNavigate}>
+      {content}
     </NavLink>
+  )
+}
+
+// A registry external destination inside a section (new tab, never "active").
+function ExternalSidebarLink({ item, onNavigate }) {
+  return (
+    <ExternalNavigationLink href={item.href} className="sidebar-domain-link" onClick={onNavigate}>
+      <OrvexaIcon name={item.icon || 'circle'} />
+      <span className="sidebar-domain-link-label">{item.label}</span>
+    </ExternalNavigationLink>
   )
 }
 
@@ -157,7 +176,9 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                 isActive={activeDomain === section.id}
                 onToggle={() => toggleDomain(section.id)}
               >
-                {section.items.map((item) => (
+                {section.items.map((item) => item.type === 'external' ? (
+                  <ExternalSidebarLink key={item.id} item={item} onNavigate={onMobileClose} />
+                ) : (
                   <SidebarLink key={item.id} to={item.path} icon={item.icon} label={item.label} end={false} onNavigate={onMobileClose} />
                 ))}
               </CollapsibleSection>
