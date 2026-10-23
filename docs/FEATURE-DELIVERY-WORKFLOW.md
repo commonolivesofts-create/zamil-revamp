@@ -70,8 +70,10 @@ Registering a new business feature through the **established extension points** 
 work, covered by the feature's own requirement and PR review, not by a separate architecture
 decision:
 
-- adding its routes, a business-domain navigation section and permission keys to
-  `client/src/config/appNavigation.js`, its route lines to `client/src/app/router.jsx` and lazy
+- adding its module definition (resources, actions, navigation) under
+  `client/src/config/registry/modules/`, registering it in `client/src/config/registry/index.js`
+  (and a business-domain group in `registry/navigationGroups.js`), its route lines to
+  `client/src/app/router.jsx` and lazy
   page exports to `client/src/routes/RouteComponents.jsx`, exactly as described in
   [`client/docs/NEW-FEATURE-GUIDE.md`](../client/docs/NEW-FEATURE-GUIDE.md);
 - mounting a new module router in `server/src/routes/api.routes.js` and documenting it in

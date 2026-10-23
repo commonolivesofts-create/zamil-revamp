@@ -106,23 +106,46 @@ Use exactly the codes the backend `authorize()` calls use. Never infer access fr
 
 ## 5. Register navigation and routes
 
-Two places, same id. **`src/config/appNavigation.js`** — add the routes (and, for a new business
-domain, a section in `navigationSections`; agree its label/icon in the requirement):
+Two places, same id. **The module registry (`src/config/registry/`)** — define the module, its
+resources, their actions and their navigation in `src/config/registry/modules/<name>.module.js`
+and add it to `registeredModules` in `src/config/registry/index.js`. For a new business domain,
+also add a group to `registry/navigationGroups.js` (agree its label and icon in the requirement).
+`src/config/registry/module-registry.example.js` is the complete, annotated example (one and
+several resources, several modules, internal and external links, resources without navigation,
+imports into `index.js`); it is documentation only and must never be imported.
 
 ```js
-// appNavigation.js (ILLUSTRATIVE additions)
-const WIDGET_REQUESTS_VIEW = 'EXAMPLE_MODULE.WIDGET_REQUESTS:VIEW'
-// navigationSections: { id: 'example-domain', label: 'Example domain', icon: 'boxes' },
-{ id: 'widget-requests', path: '/example-domain/widget-requests', label: 'Widget requests', icon: 'package',
-  section: 'example-domain', permission: WIDGET_REQUESTS_VIEW, requiresMfa: false, implemented: true },
-{ id: 'widget-request', path: '/example-domain/widget-requests/:requestId', label: 'Widget request', icon: 'package',
-  section: 'example-domain', permission: WIDGET_REQUESTS_VIEW, requiresMfa: false, implemented: true, nav: false },
+// src/config/registry/modules/widgets.module.js (ILLUSTRATIVE)
+import { defineModule } from '../defineModule.js'
+
+export default defineModule({
+  code: 'EXAMPLE_MODULE', name: 'Example module', displayOrder: 100,
+  resources: [{
+    code: 'WIDGET_REQUESTS', name: 'Widget Requests', actions: ['VIEW', 'CREATE', 'APPROVE'],
+    navigation: [
+      { id: 'widget-requests', path: '/example-domain/widget-requests', title: 'Widget requests',
+        icon: 'package', group: 'example-domain', order: 10 },
+      { id: 'widget-request', path: '/example-domain/widget-requests/:requestId', title: 'Widget request',
+        icon: 'package', group: 'example-domain', order: 11, hidden: true },
+    ],
+  }],
+})
 ```
 
-Set `requiresMfa` explicitly on every permission-guarded route: `true` only where the backend
-requires an MFA-verified session for that permission (today: the `SECURITY_ADMINISTRATION`
-module), otherwise `false` — `tests/navigation.test.mjs` checks this strictly. Set
-`implemented: true` only when the page works against the real backend.
+The registry derives each entry's permission (`EXAMPLE_MODULE.WIDGET_REQUESTS:VIEW`; another
+action with `requiredAction`), validates codes, actions (only `registry/actions.js`), ids,
+paths, groups and `alsoRequires` references when imported, and fails the tests and build on any
+error. Set `requiresMfa: true` only where the backend requires an MFA-verified session for that
+permission (today: the `SECURITY_ADMINISTRATION` module); every other permission-guarded entry
+gets `requiresMfa: false`. Use `implemented: false` until the page works against the real
+backend. Registry files stay plain JavaScript with relative imports (no React, Vite or `@/`
+aliases), so Node.js tooling can read the same definitions.
+
+**External destinations** (`type: 'external'`, `href`: an https URL or
+`{ env: 'VITE_EXTERNAL_<NAME>' }`) are listed with the same permission checks, open in a new tab
+(`noopener noreferrer`) and are never React routes. A missing or invalid URL hides the entry.
+`VITE_` values are public: never put secrets in them. Adding a real external destination is a
+security review (gate G2).
 
 **`src/routes/RouteComponents.jsx`** — lazy page exports:
 
@@ -138,7 +161,8 @@ this format (tests check it):
 ```
 
 That is all that is needed for the sidebar, command palette, dashboard links, direct-URL
-protection and the route announcer: they all read `appNavigation.js`.
+protection and the route announcer: they all read `appNavigation.js`, which derives its data from
+the registry.
 
 ## 6. Page: loading, empty, error, permissions, changes
 
@@ -210,7 +234,7 @@ changes are always deliberate; update them, never delete them. See [frontend tes
 ## 8. Checklist before the PR
 
 - [ ] Real endpoints and permissions only; nothing invented.
-- [ ] Routes registered in `appNavigation.js` and `router.jsx` with the same id; detail pages `nav: false`.
+- [ ] Module registered in `src/config/registry/` and routes in `router.jsx` with the same id; detail pages `hidden: true`.
 - [ ] Every button gated by its own permission; backend enforcement confirmed.
 - [ ] Loading, empty, error, denied and unknown-outcome states handled.
 - [ ] Existing styles and building blocks used; works on mobile width and in dark mode.

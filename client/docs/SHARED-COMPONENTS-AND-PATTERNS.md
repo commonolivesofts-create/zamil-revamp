@@ -104,12 +104,14 @@ if (can('EXAMPLE_MODULE.WIDGETS:CREATE')) { /* show the Create button */ }
 
 | File | Role |
 |---|---|
-| `config/appNavigation.js` | The only route/navigation/permission table: `PERMISSIONS`, `navigationSections`, `appRoutes`, `routeAccess`, `canAccessRoute`, `authorizedNavigation`, `paletteCommands`, `findAppRoute` |
+| `config/registry/` | Developer-controlled module registry: `modules/*.module.js` (modules, resources, actions, navigation), `index.js` (`registeredModules`, the only registration list), `actions.js` (standard action codes), `navigationGroups.js` (sidebar sections), `defineModule.js` (validation), `module-registry.example.js` (documentation only, never imported). Plain JavaScript shared with Node.js tooling |
+| `config/appNavigation.js` | The route/navigation/permission interface derived from the registry: `PERMISSIONS`, `navigationSections`, `navigationEntries` (internal and external), `appRoutes` (internal only), `routeAccess`, `canAccessRoute`, `authorizedNavigation`, `paletteCommands`, `findAppRoute` |
+| `config/externalDestinations.js`, `components/navigation/ExternalNavigationLink.jsx` | Resolution of external destinations (`VITE_EXTERNAL_*`, https only) and their new-tab link (`noopener noreferrer`) |
 | `app/router.jsx` | Registers each implemented route with `handle: { routeId }` under `AppRouteAccess` |
 | `routes/RouteGuards.jsx` | `ProtectedRoute`, `GuestOnlyRoute`, `MfaChallengeRoute`, `AppRouteAccess`, `TemplateDemoRoute`, `RootRedirect` |
 | `routes/RouteComponents.jsx` | Lazy page components and the screen-reader route announcer (labels come from `appNavigation.js`) |
 
-`appRoutes` entry fields:
+`appRoutes` entry fields (derived from the registry: `title` → `label`, `group` → `section`, `hidden` → `nav: false`; external entries in `navigationEntries` have `type: 'external'` and `href` instead of `path`):
 
 | Field | Meaning |
 |---|---|
@@ -121,8 +123,8 @@ if (can('EXAMPLE_MODULE.WIDGETS:CREATE')) { /* show the Create button */ }
 | `nav: false` | Detail page: guarded, but not shown in the sidebar/command palette |
 
 The sidebar (`components/layout/Sidebar.jsx`), command palette (`components/layout/CommandPalette.jsx`),
-dashboard and guard all derive from this table. Never add a menu link, shortcut or route anywhere
-else.
+header account links, dashboard and guard all derive from this table. Never add a menu link,
+shortcut or route anywhere else than the registry.
 
 ## 5. Layout and shell components — `components/layout/`
 

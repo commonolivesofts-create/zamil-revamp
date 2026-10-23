@@ -58,7 +58,8 @@ RouterShell (route announcer, scroll restoration)
 ```
 
 Every application page declares its id in the route `handle`, and `AppRouteAccess`
-(`src/routes/RouteGuards.jsx`) looks that id up in `src/config/appNavigation.js`:
+(`src/routes/RouteGuards.jsx`) looks that id up in `src/config/appNavigation.js`, whose entries are
+derived from the module registry (`src/config/registry/`):
 
 ```jsx
 // src/app/router.jsx (actual entry)
@@ -66,9 +67,11 @@ Every application page declares its id in the route `handle`, and `AppRouteAcces
 ```
 
 ```js
-// src/config/appNavigation.js (actual entry)
-{ id: 'user-accounts', path: '/security/users', label: 'User accounts', icon: 'users',
-  section: 'security', permission: PERMISSIONS.USER_ACCOUNTS_VIEW, requiresMfa: true, implemented: true },
+// src/config/registry/modules/securityAdministration.module.js (actual entry, resource USER_ACCOUNTS)
+page({ id: 'user-accounts', path: '/security/users', title: 'User accounts', icon: 'users', order: 10 }),
+// derived appRoutes entry:
+// { id: 'user-accounts', path: '/security/users', label: 'User accounts', icon: 'users', section: 'security',
+//   permission: 'SECURITY_ADMINISTRATION.USER_ACCOUNTS:VIEW', requiresMfa: true, implemented: true }
 ```
 
 `routeAccess(route, access)` returns `allowed`, `pending`, `error`, `denied`, `mfa_required` or

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import ExternalNavigationLink from '@/components/navigation/ExternalNavigationLink.jsx'
 import { appConfig } from '@/config/appConfig.js'
 import { authorizedNavigation } from '@/config/appNavigation.js'
 import useAuth from '@/features/auth/useAuth.js'
@@ -126,7 +127,11 @@ export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSideb
               )}
               {accountLinks.length > 0 && (
                 <nav className="profile-menu-links" aria-label="Account">
-                  {accountLinks.map((item) => (
+                  {accountLinks.map((item) => item.type === 'external' ? (
+                    <ExternalNavigationLink key={item.id} className="topbar-profile-link" href={item.href} onClick={() => setOpenMenu(null)}>
+                      <span><OrvexaIcon name={item.icon} /></span><b>{item.label}</b><OrvexaIcon name="chevron-right" />
+                    </ExternalNavigationLink>
+                  ) : (
                     <Link key={item.id} className="topbar-profile-link" to={item.path} onClick={() => setOpenMenu(null)}>
                       <span><OrvexaIcon name={item.icon} /></span><b>{item.label}</b><OrvexaIcon name="chevron-right" />
                     </Link>
