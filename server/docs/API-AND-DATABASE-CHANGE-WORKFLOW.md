@@ -105,7 +105,8 @@ await withTransaction(POOLS.LOW, async (c) => {
 | Reading the data dictionary (`ALL_TAB_COLUMNS`, `ALL_CONSTRAINTS`, …) and `SELECT` on objects you are authorized to read, against TEST | Yes, with your issued TEST credentials |
 | `npm run db:status`, `npm run db:verify-auth` and the `db:*-check` scripts (read-only by design) | Yes, against TEST |
 | Signing in through the application against TEST | Yes for your authorized account — note it **writes** audit/session rows |
-| Running `auth:*` operator test flows, `db:bootstrap-test -- --apply`, or any script/API call that changes data | **No** — only within an approved test plan |
+| `npm run db:rbac-register -- --target=TEST` (preview: read-only) | Only when scheduled for a registration; see [RBAC registration](RBAC-REGISTRATION.md) |
+| Running `auth:*` operator test flows, `db:bootstrap-test -- --apply`, `db:rbac-register -- --apply`, or any script/API call that changes data | **No** — only within an approved test plan (apply: owner authorization for that plan fingerprint) |
 | Any DML/DDL by hand, data fixes, seeding | **No** — approval required (G1) |
 | Anything against production | **No** — outside development scope |
 

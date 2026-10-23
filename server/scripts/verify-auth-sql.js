@@ -7,6 +7,7 @@
 //     changed and no identity values are consumed.
 import { randomBytes } from 'node:crypto';
 import { BOOTSTRAP_SQL } from './bootstrap-test-rbac.js';
+import { REGISTER_SQL } from './lib/rbacRegistration.js';
 import { config } from '../src/config/index.js';
 import { closeDatabase, createPool, POOLS, withConnection } from '../src/database/oracle.js';
 import { validateWallet } from '../src/database/wallet.js';
@@ -808,6 +809,17 @@ try {
     for (const [label, sql] of Object.entries(BOOTSTRAP_SQL)) {
       if (label === 'lock') continue;
       await check(`bootstrap.${label} (parse only)`, async () => {
+        const body = sql.replace(/^\s*\/\*[^*]*\*\/\s*/, '');
+        if (!/^(SELECT|INSERT)\b/i.test(body)) throw new Error('refusing to parse this statement');
+        await connection.execute(PARSE_ONLY, { statement: sql.trim() });
+      });
+    }
+
+    // RBAC registration statements (db:rbac-register): compiled only, never executed; LOCK TABLE
+    // is excluded for the same reason.
+    for (const [label, sql] of Object.entries(REGISTER_SQL)) {
+      if (label === 'lock') continue;
+      await check(`rbac-register.${label} (parse only)`, async () => {
         const body = sql.replace(/^\s*\/\*[^*]*\*\/\s*/, '');
         if (!/^(SELECT|INSERT)\b/i.test(body)) throw new Error('refusing to parse this statement');
         await connection.execute(PARSE_ONLY, { statement: sql.trim() });
