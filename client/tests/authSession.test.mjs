@@ -104,7 +104,8 @@ test('restoration without a session becomes guest; other failures become a retry
 
   const down = setup()
   down.auth.start()
-  down.fake.last('getCurrentUser').reject(new ApiError('down', { code: 'SERVICE_UNAVAILABLE', status: 503 }))
+  // A non-transient failure is not retried automatically (see authReliability.test.mjs).
+  down.fake.last('getCurrentUser').reject(new ApiError('failed', { code: 'INTERNAL_ERROR', status: 500 }))
   await tick()
   assert.equal(down.auth.getSnapshot().status, 'error')
   const retry = down.auth.restore()

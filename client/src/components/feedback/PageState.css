@@ -52,6 +52,15 @@
   cursor: pointer;
 }
 
+.zrv-page-state__action + .zrv-page-state__action {
+  margin-left: 12px;
+}
+
+a.zrv-page-state__action {
+  display: inline-block;
+  text-decoration: none;
+}
+
 .zrv-page-state__action:focus-visible {
   outline: 3px solid #64748b;
   outline-offset: 3px;

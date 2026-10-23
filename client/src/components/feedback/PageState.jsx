@@ -6,6 +6,7 @@ export default function PageState({
   description,
   actionLabel,
   onAction,
+  children,
 }) {
   const isLoading = kind === 'loading'
   const isError = kind === 'error'
@@ -26,6 +27,7 @@ export default function PageState({
             {actionLabel}
           </button>
         )}
+        {children}
       </div>
     </div>
   )

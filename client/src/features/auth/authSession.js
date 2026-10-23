@@ -34,7 +34,36 @@ function assertCode(code) {
   }
 }
 
-export function createAuthSession({ service, csrfStore, subscribeUnauthorized, preview = false }) {
+// Bounded recovery for session restoration (GET only): the initial request plus
+// one retry per delay. Never used for sign-in or any other state-changing request.
+export const RESTORE_RETRY_DELAYS_MS = Object.freeze([1000, 2000])
+
+// The backend or proxy was not reached or not ready: no response (network),
+// or a gateway/unavailable status. Timeouts are not retried (each already took
+// the full API timeout), nor is any other status.
+export function isTransientRestoreError(error) {
+  return error?.code === 'NETWORK_ERROR' || [502, 503, 504].includes(error?.status)
+}
+
+// Resolves true after `ms`, or false as soon as `signal` aborts.
+function delay(ms, signal) {
+  return new Promise((resolve) => {
+    if (signal.aborted) return resolve(false)
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve(true)
+    }, ms)
+    function onAbort() {
+      clearTimeout(timer)
+      resolve(false)
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+export function createAuthSession({
+  service, csrfStore, subscribeUnauthorized, preview = false, restoreRetryDelaysMs = RESTORE_RETRY_DELAYS_MS,
+}) {
   let snapshot = authState(preview ? 'preview' : 'loading')
   const listeners = new Set()
   // A late response must never apply after logout, an API 401, or a newer
@@ -99,23 +128,36 @@ export function createAuthSession({ service, csrfStore, subscribeUnauthorized, p
     if (active === controller) active = null
   }
 
+  // Session restoration is read-only, so a transient connectivity failure (the
+  // backend restarting or briefly unreachable) is retried after each delay in
+  // restoreRetryDelaysMs, one request at a time. A newer operation, an API 401
+  // or stop() aborts the controller, which also ends any pending delay.
   async function restore() {
     if (preview) return
     const { controller, isCurrent } = begin()
     csrfStore.clear()
     if (snapshot.status !== 'loading') set(authState('loading'))
     try {
-      const current = await service.getCurrentUser({ signal: controller.signal })
-      if (!isCurrent()) return
-      const token = await service.getCsrfToken({ signal: controller.signal })
-      if (!isCurrent()) return
-      csrfStore.setSessionToken(token)
-      set(authState('authenticated', current))
-    } catch (error) {
-      if (!isCurrent()) return
-      csrfStore.clear()
-      // 401 means no valid session; anything else is an unverified state.
-      set(authState(error?.status === 401 ? 'guest' : 'error'))
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          const current = await service.getCurrentUser({ signal: controller.signal })
+          if (!isCurrent()) return
+          const token = await service.getCsrfToken({ signal: controller.signal })
+          if (!isCurrent()) return
+          csrfStore.setSessionToken(token)
+          set(authState('authenticated', current))
+          return
+        } catch (error) {
+          if (!isCurrent()) return
+          csrfStore.clear()
+          // 401 means no valid session; anything else is an unverified state.
+          if (error?.status === 401) return set(authState('guest'))
+          if (!isTransientRestoreError(error) || attempt >= restoreRetryDelaysMs.length) {
+            return set(authState('error'))
+          }
+          if (!(await delay(restoreRetryDelaysMs[attempt], controller.signal)) || !isCurrent()) return
+        }
+      }
     } finally {
       finish(controller)
     }
