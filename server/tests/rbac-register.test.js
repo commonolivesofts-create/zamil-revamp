@@ -2,13 +2,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
-import { EXIT, main } from '../scripts/rbac-register.js';
+import { spawnSync } from 'node:child_process';
+import { EXIT, main } from '../scripts/lib/rbacRegisterCli.js';
 import {
   APPROVED_TARGETS,
   REQUIRED_CONSTRAINTS,
   RegistrationRefused,
   assertEnvironment,
   comparePlan,
+  describeStartupError,
   parseArgs,
   permissionDescription,
   planFingerprint,
@@ -27,6 +29,8 @@ import { defineModule } from '../../client/src/config/registry/defineModule.js';
 
 const SERVICE = 'g1234_zpadwtest_low.adb.oraclecloud.com';
 const TARGET = APPROVED_TARGETS.TEST;
+// Apply tests use a TEST target with an approved DB_NAME; the committed target has none yet.
+const CONFIGURED = Object.freeze({ TEST: Object.freeze({ ...TARGET, dbName: 'ZPADWTEST' }) });
 const appConfig = { env: 'test', database: { pools: { LOW: { alias: TARGET.lowAlias } } } };
 
 // Isolated fixture modules: never part of the active registry.
@@ -92,7 +96,7 @@ function createFakeOracle(scenario = {}) {
   const respond = (label, binds) => {
     switch (label) {
       case 'identity':
-        return { rows: [[scenario.serviceName ?? SERVICE, 'ZPADWTEST']] };
+        return { rows: [[scenario.serviceName ?? SERVICE, scenario.dbName ?? 'ZPADWTEST']] };
       case 'constraints':
         return {
           rows: REQUIRED_CONSTRAINTS.filter(
@@ -134,7 +138,7 @@ function createFakeOracle(scenario = {}) {
           rows: data.permissions.map((p) => [p.id, p.resourceId, p.actionCode, p.isActive]),
         };
       case 'lock':
-        scenario.onLock?.(data);
+        scenario.onLock?.(data, scenario);
         if (scenario.lockBusy)
           throw oraError('ORA-00054', 'resource busy and acquire with NOWAIT specified');
         return {};
@@ -275,7 +279,10 @@ function fakeIo({ typed = null, tty = true } = {}) {
   };
 }
 
-async function run(argv, { scenario = {}, modules = withFixture, io = fakeIo() } = {}) {
+async function run(
+  argv,
+  { scenario = {}, modules = withFixture, io = fakeIo(), targets = CONFIGURED } = {},
+) {
   const fake = createFakeOracle(scenario);
   const code = await main({
     argv,
@@ -284,6 +291,7 @@ async function run(argv, { scenario = {}, modules = withFixture, io = fakeIo() }
     io: io.io,
     registeredModules: modules,
     newCorrelationId: () => 'rbac-register-test-correlation',
+    targets,
   });
   return { code, fake, out: io.text() };
 }
@@ -867,6 +875,10 @@ describe('RBAC catalogue registration CLI', () => {
       });
       assert.equal(code, EXIT.UNKNOWN_OUTCOME);
       assert.match(out, /UNKNOWN OUTCOME \(DPY-4011\)/);
+      assert.match(
+        out,
+        /Correlation ID: rbac-register-test-correlation. If the transaction committed/,
+      );
       assert.match(out, /Do NOT re-run --apply/);
       assert.equal(fake.log.transactions, 1, 'no retry');
     });
@@ -883,11 +895,164 @@ describe('RBAC catalogue registration CLI', () => {
     });
   });
 
+  describe('database identity (SERVICE_NAME and DB_NAME)', () => {
+    it('previews without an approved DB_NAME and reports the actual one', async () => {
+      const { code, fake, out } = await run(['--target=TEST'], { targets: APPROVED_TARGETS });
+      assert.equal(APPROVED_TARGETS.TEST.dbName, null, 'no TEST DB_NAME is assumed');
+      assert.equal(code, EXIT.OK);
+      assert.match(
+        out,
+        /DB_NAME: ZPADWTEST \(no approved DB_NAME configured for this target: apply is disabled\)/,
+      );
+      assert.equal(writes(fake.log).length, 0);
+    });
+
+    it('refuses apply before connecting while no approved DB_NAME is configured', async () => {
+      const fp = fingerprintOf((await run(['--target=TEST'], { targets: APPROVED_TARGETS })).out);
+      const { code, fake, out } = await run(['--target=TEST', '--apply', `--fingerprint=${fp}`], {
+        targets: APPROVED_TARGETS,
+        io: fakeIo({ typed: 'anything' }),
+      });
+      assert.equal(code, EXIT.REFUSED);
+      assert.match(out, /Apply is disabled: no approved DB_NAME is configured for target TEST/);
+      assert.equal(fake.log.executed.length, 0, 'no database access at all');
+    });
+
+    it('refuses a wrong DB_NAME in preview and in apply', async () => {
+      const preview = await run(['--target=TEST'], { scenario: { dbName: 'OTHERDB' } });
+      assert.equal(preview.code, EXIT.REFUSED);
+      assert.match(preview.out, /Connected DB_NAME is not the approved TEST database/);
+      assert.deepEqual(
+        preview.fake.log.executed.map((e) => e.label),
+        ['identity'],
+      );
+
+      const fp = fingerprintOf((await run(['--target=TEST'])).out);
+      const apply = await run(['--target=TEST', '--apply', `--fingerprint=${fp}`], {
+        scenario: { dbName: 'OTHERDB' },
+        io: fakeIo({ typed: 'anything' }),
+      });
+      assert.equal(apply.code, EXIT.REFUSED);
+      assert.equal(apply.fake.log.transactions, 0);
+    });
+
+    it('re-verifies DB_NAME inside the write transaction and rolls back on a mismatch', async () => {
+      const fp = fingerprintOf((await run(['--target=TEST'])).out);
+      const onLock = (_data, scenario) => {
+        scenario.dbName = 'OTHERDB';
+      };
+      const { code, fake, out } = await run(['--target=TEST', '--apply', `--fingerprint=${fp}`], {
+        scenario: { onLock },
+        io: fakeIo({ typed: `REGISTER TEST ${FIXTURE_RECORDS} ${fp.slice(0, 12)}` }),
+      });
+      assert.equal(code, EXIT.REFUSED);
+      assert.match(
+        out,
+        /Connected DB_NAME is not the approved TEST database\. The transaction was rolled back/,
+      );
+      assert.equal(fake.log.rollbacks, 1);
+      assert.equal(fake.log.executed.filter((e) => e.label.startsWith('insert-')).length, 0);
+    });
+
+    it('changes the plan fingerprint when DB_NAME changes', async () => {
+      const a = fingerprintOf((await run(['--target=TEST'], { targets: APPROVED_TARGETS })).out);
+      const b = fingerprintOf(
+        (
+          await run(['--target=TEST'], {
+            targets: APPROVED_TARGETS,
+            scenario: { dbName: 'OTHERDB' },
+          })
+        ).out,
+      );
+      assert.notEqual(a, b);
+    });
+  });
+
+  describe('safe error reporting', () => {
+    it('never prints raw configuration, wallet or driver messages', () => {
+      const cases = [
+        [
+          new Error('Invalid configuration: "ORACLE_PASSWORD" with value "s3cret" fails'),
+          /configuration is invalid/,
+        ],
+        [
+          new Error('Oracle wallet directory not found: D:\\secrets\\oracle\\Wallet_x'),
+          /wallet validation failed/,
+        ],
+        [
+          new Error('Oracle aliases not defined in tnsnames.ora: zpadwtest_low'),
+          /wallet validation failed/,
+        ],
+        [
+          new Error('Oracle wallet password does not decrypt ewallet.pem'),
+          /wallet validation failed/,
+        ],
+        [
+          Object.assign(new Error("Cannot find module 'D:\\pkg\\client\\x.js'"), {
+            code: 'ERR_MODULE_NOT_FOUND',
+          }),
+          /required file is missing/,
+        ],
+        [
+          Object.assign(new Error('ORA-12170: TNS:Connect timeout occurred host=10.1.2.3'), {
+            code: 'ORA-12170',
+          }),
+          /^Oracle connection or statement failed \(ORA-12170\)\.$/,
+        ],
+        [new TypeError('boom at D:\\path'), /^Unexpected error \(TypeError\)\.$/],
+      ];
+      for (const [error, expected] of cases) {
+        const text = describeStartupError(error);
+        assert.match(text, expected, error.message);
+        assert.doesNotMatch(
+          text,
+          /s3cret|D:\\|Wallet_x|zpadwtest_low|10\.1\.2\.3|tnsnames/,
+          error.message,
+        );
+      }
+      assert.equal(
+        describeStartupError(new RegistrationRefused('Target X is not approved.')),
+        'Target X is not approved.',
+      );
+    });
+
+    it('the CLI process reports an invalid configuration without values or a stack trace', () => {
+      // No ORACLE_* settings: configuration validation fails before any wallet or connection work.
+      const result = spawnSync(process.execPath, ['scripts/rbac-register.js', '--target=TEST'], {
+        cwd: join(import.meta.dirname, '..'),
+        env: {
+          PATH: process.env.PATH,
+          SystemRoot: process.env.SystemRoot,
+          NODE_ENV: 'test',
+          HTTP_HOST: 'SENTINEL-not-an-ip-address',
+        },
+        encoding: 'utf8',
+        timeout: 60_000,
+      });
+      const output = `${result.stdout}${result.stderr}`;
+      assert.equal(result.status, 1);
+      assert.equal(
+        result.stdout.trim(),
+        'Refused: The server configuration is invalid. Compare server/.env with server/.env.example (details are not shown).',
+      );
+      assert.doesNotMatch(output, /SENTINEL|ORACLE_|\n\s+at /);
+    });
+  });
+
   it('fingerprints depend on the target identity and the exact inserts', () => {
     const inserts = [{ kind: 'MODULE', code: 'A', name: 'A', description: null, displayOrder: 1 }];
     const base = planFingerprint({ target: 'TEST', serviceName: SERVICE }, inserts);
     assert.match(base, /^[0-9a-f]{64}$/);
     assert.notEqual(planFingerprint({ target: 'TEST', serviceName: 'other' }, inserts), base);
+    assert.notEqual(
+      planFingerprint({ target: 'TEST', serviceName: SERVICE, dbName: 'ZPADWTEST' }, inserts),
+      base,
+      'DB_NAME is part of the fingerprint',
+    );
+    assert.notEqual(
+      planFingerprint({ target: 'TEST', serviceName: SERVICE, dbName: 'ZPADWTEST' }, inserts),
+      planFingerprint({ target: 'TEST', serviceName: SERVICE, dbName: 'OTHERDB' }, inserts),
+    );
     assert.notEqual(
       planFingerprint({ target: 'TEST', serviceName: SERVICE }, [
         { ...inserts[0], displayOrder: 2 },

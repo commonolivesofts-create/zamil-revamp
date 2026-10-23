@@ -33,12 +33,17 @@
 | 10 | Picker: 44 actions, search, multi-select, existing active/inactive unavailable, no duplicates, accessible | Yes | `client/tests/catalogActions.test.mjs` |
 | 11 | Sequential single-action API; CREATED / ALREADY EXISTS (verified) / FAILED / UNKNOWN / not submitted; no retry | Yes | same |
 | 12 | 2,000-row catalogue limit: adding actions refused when the catalogue may be truncated; 409 never confirmed from possibly truncated data | Yes | same |
+| 13 | Apply fails closed without an approved `DB_NAME`; wrong `DB_NAME` refused before and inside the transaction; `DB_NAME` in the fingerprint | Yes (mocked) | `server/tests/rbac-register.test.js` |
+| 14 | Top-level CLI errors sanitized (verified with a real process and an invalid configuration, no Oracle) | Yes | same |
+| 15 | 409 for an inactive action is a distinct, non-success result | Yes | `client/tests/catalogActions.test.mjs` |
 
 ## 4. Files
 
 | New / Modified | Path | Purpose |
 |---|---|---|
-| New | `server/scripts/rbac-register.js` | Guarded CLI entry (`main` with injected dependencies) |
+| New | `server/scripts/rbac-register.js` | Process entry: dynamic imports inside a sanitizing error handler |
+| New | `server/scripts/lib/rbacRegisterCli.js` | Preview/apply flow (`main` with injected dependencies) |
+| New | `server/scripts/lib/safeErrors.js` | Dependency-free safe error text (`describeStartupError`, `oracleErrorCode`) |
 | New | `server/scripts/lib/rbacRegistration.js` | Targets, labelled SQL, definitions check, comparison, fingerprint, inserts, verification |
 | New | `server/tests/rbac-register.test.js` | 20 tests with a stateful mocked Oracle connection |
 | Modified | `server/package.json` | `db:rbac-register` script (no dependency change) |
@@ -53,9 +58,10 @@
 
 ## 5. Decisions and deviations
 
-- **Database identity:** verified by `SERVICE_NAME` against the approved TEST pattern (the same check
-  the approved bootstrap uses). `DB_NAME` is read and displayed but not pinned, because the TEST
-  `DB_NAME` value has not been confirmed.
+- **Database identity (pre-PR correction):** `SERVICE_NAME` pattern **and** an owner-approved
+  `DB_NAME`, verified in the preview and again inside the write transaction, and part of the plan
+  fingerprint. The TEST `DB_NAME` is not configured (`dbName: null`): preview reports the actual
+  value; apply is refused before connecting until the value is approved and added.
 - **Confirmation mechanism:** the reviewed fingerprint is passed as `--fingerprint` (recorded in the
   change log; not a secret) and the operator types `REGISTER <TARGET> <count> <fingerprint prefix>`.
 - **Compared fields:** only fields the registry defines (module name/description/display order,
@@ -66,7 +72,13 @@
   the limit, refuses to add actions (and never treats a 409 as verified from such data).
 - **Super Administrator rule:** unchanged; for non-Super Administrators the backend refuses actions
   on security resources and the picker reports the refusal and stops.
-- `server/scripts/rbac-register.js` reuses `promptLine` from the bootstrap script.
+- `server/scripts/lib/rbacRegisterCli.js` reuses `promptLine` from the bootstrap script.
+- **409 reconciliation (pre-PR correction):** only an action verified ACTIVE in the refreshed
+  catalogue is "already exists"; an INACTIVE one is a distinct problem result (it grants nothing until
+  activated); an unverified 409 stays an error.
+- **UNKNOWN OUTCOME** prints the correlation ID for audit-log investigation; writes are never retried.
+- **Safe errors (pre-PR correction):** top-level configuration, wallet, import and driver errors are
+  reduced to fixed text plus error codes; no raw messages, paths or values.
 
 ## 6–7. API and Oracle
 
@@ -88,7 +100,8 @@ was contacted.
 ## 12. Known limitations and risks
 
 - Untested against real Oracle: the first owner-scheduled TEST **preview** (and `db:verify-auth`
-  parse of the new SQL) is the next verification step.
+  parse of the new SQL) is the next verification step. **Apply is blocked** until the TEST `DB_NAME`
+  reported by that preview is approved and added to `APPROVED_TARGETS`.
 - SYSTEM attribution: the operator is identified only in the change log.
 - The NOWAIT lock briefly blocks concurrent catalogue writes (they fail and can be retried manually).
 - Release packages must include `client/package.json` and `client/src/config/registry/**`.

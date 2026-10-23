@@ -34,12 +34,15 @@ export class RegistrationRefused extends Error {
 /**
  * Databases this script may connect to. Only Oracle TEST is approved; UAT and production targets
  * require a separately approved change (gate G1) that adds their verified identity here.
+ * `dbName` is the owner-approved SYS_CONTEXT('USERENV', 'DB_NAME'). While it is null the preview
+ * still runs (and reports the actual DB_NAME), but apply is refused: the identity is incomplete.
  */
 export const APPROVED_TARGETS = Object.freeze({
   TEST: Object.freeze({
     name: 'TEST',
     lowAlias: 'zpadwtest_low',
     serviceNamePattern: /_zpadwtest_low\./i,
+    dbName: null,
     environments: Object.freeze(['development', 'test']),
   }),
 });
@@ -119,7 +122,7 @@ const rowsOf = async (connection, sql, binds = {}) =>
 const FINGERPRINT = /^[0-9a-f]{64}$/;
 
 /** `--target=<NAME>` (required), `--apply`, `--fingerprint=<sha256>` (apply only). */
-export function parseArgs(argv) {
+export function parseArgs(argv, targets = APPROVED_TARGETS) {
   const options = { target: null, apply: false, fingerprint: null };
   for (const argument of argv) {
     const [flag, value, extra] = argument.split('=');
@@ -147,7 +150,7 @@ export function parseArgs(argv) {
   }
   if (!options.target)
     throw new RegistrationRefused('--target=<TARGET> is required (approved: TEST).');
-  if (!Object.hasOwn(APPROVED_TARGETS, options.target)) {
+  if (!Object.hasOwn(targets, options.target)) {
     throw new RegistrationRefused(
       `Target ${options.target} is not an approved registration target.`,
     );
@@ -177,13 +180,35 @@ export function assertEnvironment(appConfig, target) {
   }
 }
 
-/** Confirms the connected service is the selected target; returns its identity for display. */
-export async function assertDatabaseIdentity(connection, target) {
+/** Apply needs the complete approved identity: SERVICE_NAME pattern and DB_NAME. */
+export function assertApplyIdentityConfigured(target) {
+  if (typeof target.dbName !== 'string' || !target.dbName) {
+    throw new RegistrationRefused(
+      `Apply is disabled: no approved DB_NAME is configured for target ${target.name}. Record the DB_NAME reported by the preview and have it approved and added to APPROVED_TARGETS.`,
+    );
+  }
+}
+
+/**
+ * Confirms the connected database is the selected target: SERVICE_NAME must match, and DB_NAME
+ * must equal the approved value when one is configured (always required for apply). Returns the
+ * identity for display and for the plan fingerprint.
+ */
+export async function assertDatabaseIdentity(connection, target, { forApply = false } = {}) {
   const [[serviceName, dbName] = []] = await rowsOf(connection, REGISTER_SQL.identity);
   if (!target.serviceNamePattern.test(serviceName ?? '')) {
     throw new RegistrationRefused(`Connected database is not the approved ${target.name} service.`);
   }
-  return { target: target.name, serviceName, dbName: dbName ?? null };
+  if (forApply) assertApplyIdentityConfigured(target);
+  if (target.dbName && dbName !== target.dbName) {
+    throw new RegistrationRefused(`Connected DB_NAME is not the approved ${target.name} database.`);
+  }
+  return {
+    target: target.name,
+    serviceName,
+    dbName: dbName ?? null,
+    dbNameApproved: Boolean(target.dbName),
+  };
 }
 
 // --------------------------------------------------------------------------- definitions
@@ -469,6 +494,7 @@ export function planFingerprint(identity, inserts) {
       JSON.stringify({
         target: identity.target,
         serviceName: identity.serviceName,
+        dbName: identity.dbName,
         inserts: canonical,
       }),
     )
@@ -511,8 +537,8 @@ export async function runPrechecks(connection) {
 }
 
 /** Identity, preconditions, catalogue and plan in one pass (used by preview and under the lock). */
-export async function buildPlan(connection, { target, definitions }) {
-  const identity = await assertDatabaseIdentity(connection, target);
+export async function buildPlan(connection, { target, definitions, forApply = false }) {
+  const identity = await assertDatabaseIdentity(connection, target, { forApply });
   const problems = await runPrechecks(connection);
   const catalog = await readCatalog(connection);
   const plan = comparePlan(definitions, catalog);
@@ -631,15 +657,6 @@ export async function verifyApplied(connection, { definitions, planned, correlat
   return problems;
 }
 
-/** Oracle error classification for operator messages (codes only, never bind values). */
-export function oracleErrorCode(error) {
-  // Connection failures arrive wrapped (AppError SERVICE_UNAVAILABLE with the driver error as cause).
-  for (let current = error, depth = 0; current && depth < 3; current = current.cause, depth += 1) {
-    const match = /ORA-\d{5}|NJS-\d{3}|DPY-\d{4}/.exec(
-      `${current.code ?? ''} ${current.message ?? ''}`,
-    );
-    if (match) return match[0];
-    if (current.errorNum) return `ORA-${String(current.errorNum).padStart(5, '0')}`;
-  }
-  return error?.code === 'SERVICE_UNAVAILABLE' ? 'SERVICE_UNAVAILABLE' : null;
-}
+// Error helpers live in a dependency-free module so the CLI entry can use them before anything
+// that loads the configuration is imported.
+export { describeStartupError, oracleErrorCode } from './safeErrors.js';

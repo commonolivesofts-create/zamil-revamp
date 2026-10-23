@@ -123,6 +123,15 @@ test('a 409 conflict counts as existing only when the refreshed catalogue confir
   assert.equal(confirmed.calls.length, 2, 'a plain conflict does not stop the sequence')
   assert.equal(summarizeActionResults(a, describeFailure, 'X').kind, 'success')
 
+  // Exists but inactive: never "already exists" as if usable; a distinct result reported as a problem.
+  const inactive = await createAll(fakeApi({ VIEW: conflict(), CREATE: conflict() }, catalogWith([permission('VIEW', false), permission('CREATE')])), ['VIEW', 'CREATE'])
+  assert.deepEqual(inactive.results.map((r) => r.status), [ACTION_RESULT.EXISTS_INACTIVE, ACTION_RESULT.ALREADY_EXISTS])
+  const inactiveSummary = summarizeActionResults(inactive, describeFailure, 'X')
+  assert.equal(inactiveSummary.kind, 'error')
+  assert.match(inactiveSummary.details[0], /VIEW: already exists but is INACTIVE: it grants nothing until an authorized administrator activates it/)
+  assert.match(inactiveSummary.details[1], /CREATE: already exists and is active/)
+  assert.doesNotMatch(inactiveSummary.message, /already existed/, 'no success wording')
+
   const absent = await createAll(fakeApi({ VIEW: conflict() }, catalogWith([])), ['VIEW'])
   assert.equal(absent.results[0].status, ACTION_RESULT.CONFLICT_UNVERIFIED)
 
@@ -167,16 +176,19 @@ test('a network failure, timeout or server error is an unknown outcome: stop, ne
     const nowPresent = fakeApi({ CREATE: error }, catalogWith([permission('VIEW'), permission('CREATE')]))
     const outcome = await createAll(nowPresent, ['VIEW', 'CREATE', 'EXPORT'])
     assert.deepEqual(outcome.results.map((r) => r.status), [ACTION_RESULT.CREATED, ACTION_RESULT.UNKNOWN, ACTION_RESULT.NOT_SUBMITTED], error.code)
-    assert.equal(outcome.results[1].presentAfterRefresh, true)
+    assert.equal(outcome.results[1].stateAfterRefresh, 'active')
     assert.equal(nowPresent.calls.filter((c) => c.actionCode === 'CREATE').length, 1, 'never retried')
     const summary = summarizeActionResults(outcome, describeFailure, 'X')
     assert.equal(summary.kind, 'unknown')
     assert.match(summary.details[1], /outcome unknown.*now in the catalogue.*Check before trying again/)
   }
   const absent = await createAll(fakeApi({ VIEW: new ApiError('x', { code: 'NETWORK_ERROR' }) }, catalogWith([])), ['VIEW'])
-  assert.equal(absent.results[0].presentAfterRefresh, false)
+  assert.equal(absent.results[0].stateAfterRefresh, 'absent')
   const unreadable = await createAll(fakeApi({ VIEW: new ApiError('x', { code: 'NETWORK_ERROR' }) }, new Error('down')), ['VIEW'])
-  assert.equal(unreadable.results[0].presentAfterRefresh, null)
+  assert.equal(unreadable.results[0].stateAfterRefresh, null)
+  const inactive = await createAll(fakeApi({ VIEW: new ApiError('x', { code: 'NETWORK_ERROR' }) }, catalogWith([permission('VIEW', false)])), ['VIEW'])
+  assert.equal(inactive.results[0].stateAfterRefresh, 'inactive')
+  assert.match(summarizeActionResults(inactive, describeFailure, 'X').details[0], /now in the catalogue but INACTIVE/)
 })
 
 // ---------------------------------------------------------------- dialog and page wiring

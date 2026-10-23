@@ -36,7 +36,7 @@ export default function ActionPicker({ existing, selected, onToggle, disabled = 
                 />
                 <span>
                   <code>{option.code}</code> {option.name} <small className="zrv-admin-sub">· {option.categoryLabel}</small>
-                  {present && <small className="zrv-admin-sub"> — {option.existing === 'active' ? 'already exists' : 'already exists (inactive)'}</small>}
+                  {present && <small className="zrv-admin-sub"> — {option.existing === 'active' ? 'already exists' : 'already exists but is inactive (grants nothing until activated)'}</small>}
                   <small id={`${id}-description`} className="zrv-admin-sub">{option.description}</small>
                 </span>
               </label>
