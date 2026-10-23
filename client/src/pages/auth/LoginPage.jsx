@@ -22,7 +22,7 @@ const notices = {
 }
 
 export default function LoginPage() {
-  const { signIn, notice } = useAuth()
+  const { signIn, notice, status, retrySession } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const usernameRef = useRef(null)
@@ -89,6 +89,12 @@ export default function LoginPage() {
             <p className="zrv-auth-feedback" role="status">Authentication backend is not configured. Sign-in requires server endpoints and a secure session.</p>
           )}
           {notice && notices[notice] && <p className="zrv-auth-feedback" role="status">{notices[notice]}</p>}
+          {status === 'error' && (
+            <p className="zrv-auth-feedback" role="status">
+              The authentication server could not be reached to check for an existing session. You can still sign in.{' '}
+              <button type="button" onClick={retrySession} style={{ color: 'var(--primary-text)', fontWeight: 700, background: 'none', border: 0, padding: 0, cursor: 'pointer' }}>Retry session check</button>
+            </p>
+          )}
           {error && (
             <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
               {error}
