@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { EXIT, main } from '../scripts/lib/rbacRegisterCli.js';
+import { runCli } from '../scripts/lib/rbacRegisterEntry.js';
+import * as registrationLib from '../scripts/lib/rbacRegistration.js';
 import {
   APPROVED_TARGETS,
   REQUIRED_CONSTRAINTS,
@@ -965,6 +967,143 @@ describe('RBAC catalogue registration CLI', () => {
         ).out,
       );
       assert.notEqual(a, b);
+    });
+  });
+
+  describe('executable start-up order (scripts/rbac-register.js → runCli)', () => {
+    const FP = 'a'.repeat(64);
+    const startupConfig = {
+      env: 'test',
+      database: {
+        walletDir: 'unused',
+        walletPassword: 'unused',
+        pools: { LOW: { alias: TARGET.lowAlias } },
+      },
+    };
+
+    function spyLoaders({ registration = registrationLib } = {}) {
+      const calls = [];
+      const load = {
+        registration: async () => {
+          calls.push('load:registration');
+          return registration;
+        },
+        config: async () => {
+          calls.push('load:config');
+          return { config: startupConfig };
+        },
+        wallet: async () => {
+          calls.push('load:wallet');
+          return { validateWallet: () => calls.push('validateWallet') };
+        },
+        database: async () => {
+          calls.push('load:database');
+          return {
+            POOLS: { LOW: 'LOW' },
+            createPool: async () => calls.push('createPool'),
+            withConnection: async () => calls.push('withConnection'),
+            withTransaction: async () => calls.push('withTransaction'),
+            closeDatabase: async () => calls.push('closeDatabase'),
+          };
+        },
+        cli: async () => {
+          calls.push('load:cli');
+          return { main: async () => (calls.push('main'), EXIT.OK) };
+        },
+        registry: async () => {
+          calls.push('load:registry');
+          return { registeredModules };
+        },
+      };
+      return { load, calls };
+    }
+
+    it('refuses --apply without an approved DB_NAME before the wallet, the Oracle module or a pool', async () => {
+      assert.equal(APPROVED_TARGETS.TEST.dbName, null);
+      const io = fakeIo();
+      const { load, calls } = spyLoaders();
+      const code = await runCli({
+        argv: ['--target=TEST', '--apply', `--fingerprint=${FP}`],
+        io: io.io,
+        load,
+      });
+      assert.equal(code, 1);
+      assert.match(
+        io.text(),
+        /^Refused: Apply is disabled: no approved DB_NAME is configured for target TEST/,
+      );
+      assert.deepEqual(
+        calls,
+        ['load:registration', 'load:config'],
+        'no wallet, database module, pool or connection',
+      );
+    });
+
+    it('runs every pre-connection guard before validating the wallet and creating the pool', async () => {
+      const preview = spyLoaders();
+      assert.equal(
+        await runCli({ argv: ['--target=TEST'], io: fakeIo().io, load: preview.load }),
+        EXIT.OK,
+      );
+      const order = preview.calls;
+      assert.deepEqual(order.slice(0, 4), [
+        'load:registration',
+        'load:config',
+        'load:wallet',
+        'validateWallet',
+      ]);
+      assert.ok(order.indexOf('createPool') > order.indexOf('validateWallet'));
+      assert.ok(order.indexOf('main') > order.indexOf('createPool'));
+      assert.equal(order.at(-1), 'closeDatabase');
+
+      // Control: with an approved DB_NAME, apply proceeds to the pool (the DB_NAME guard is what blocks).
+      const configured = spyLoaders({
+        registration: { ...registrationLib, APPROVED_TARGETS: CONFIGURED },
+      });
+      await runCli({
+        argv: ['--target=TEST', '--apply', `--fingerprint=${FP}`],
+        io: fakeIo().io,
+        load: configured.load,
+      });
+      assert.ok(configured.calls.includes('createPool'));
+
+      // Argument and environment refusals also stop before any wallet or database work.
+      for (const argv of [['--target=UAT'], ['--target=TEST', '--unknown']]) {
+        const refused = spyLoaders();
+        assert.equal(await runCli({ argv, io: fakeIo().io, load: refused.load }), 1);
+        assert.deepEqual(refused.calls, ['load:registration']);
+      }
+    });
+
+    it('the real executable refuses --apply without an approved DB_NAME before touching the wallet', () => {
+      // Valid test configuration, but a wallet directory that does not exist: even a regression
+      // could not open a connection; the message shows which guard stopped the run.
+      const result = spawnSync(
+        process.execPath,
+        ['scripts/rbac-register.js', '--target=TEST', '--apply', `--fingerprint=${FP}`],
+        {
+          cwd: join(import.meta.dirname, '..'),
+          env: {
+            PATH: process.env.PATH,
+            SystemRoot: process.env.SystemRoot,
+            NODE_ENV: 'test',
+            ORACLE_USER: 'not_used',
+            ORACLE_PASSWORD: 'not_used',
+            ORACLE_WALLET_DIR: join(import.meta.dirname, 'no-such-wallet-directory'),
+            ORACLE_WALLET_PASSWORD: 'not_used',
+            ORACLE_LOW_ALIAS: TARGET.lowAlias,
+            ORACLE_HIGH_ALIAS: 'zpadwtest_high',
+          },
+          encoding: 'utf8',
+          timeout: 60_000,
+        },
+      );
+      assert.equal(result.status, 1, `${result.stdout}${result.stderr}`);
+      assert.match(
+        result.stdout,
+        /^Refused: Apply is disabled: no approved DB_NAME is configured for target TEST/,
+      );
+      assert.doesNotMatch(result.stdout, /wallet/i);
     });
   });
 

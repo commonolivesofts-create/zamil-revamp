@@ -131,6 +131,7 @@ is needed. Never commit `.env`, wallets or credentials.
 ## Tests
 
 `server/tests/rbac-register.test.js` runs every guard and outcome with a mocked Oracle connection
-(no database). Code: `scripts/rbac-register.js` (process entry; only the dependency-free
-`lib/safeErrors.js` is imported before the error handler), `scripts/lib/rbacRegisterCli.js` (preview
-and apply flow) and `scripts/lib/rbacRegistration.js` (targets, SQL, comparison, inserts). `npm run db:verify-auth` parses (never executes) the registration SQL on TEST.
+(no database). Code: `scripts/rbac-register.js` (process entry), `scripts/lib/rbacRegisterEntry.js` (start-up order:
+arguments, target and environment, and for apply the approved `DB_NAME`, all before the wallet is
+validated or the LOW pool is created; errors reported through the dependency-free
+`lib/safeErrors.js`), `scripts/lib/rbacRegisterCli.js` (preview and apply flow, repeating the guards) and `scripts/lib/rbacRegistration.js` (targets, SQL, comparison, inserts). `npm run db:verify-auth` parses (never executes) the registration SQL on TEST.

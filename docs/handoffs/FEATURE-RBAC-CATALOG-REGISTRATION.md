@@ -36,12 +36,14 @@
 | 13 | Apply fails closed without an approved `DB_NAME`; wrong `DB_NAME` refused before and inside the transaction; `DB_NAME` in the fingerprint | Yes (mocked) | `server/tests/rbac-register.test.js` |
 | 14 | Top-level CLI errors sanitized (verified with a real process and an invalid configuration, no Oracle) | Yes | same |
 | 15 | 409 for an inactive action is a distinct, non-success result | Yes | `client/tests/catalogActions.test.mjs` |
+| 16 | `--apply` without an approved `DB_NAME` never validates the wallet, loads the Oracle module or creates a pool (spies + real process; mutation-checked) | Yes | `server/tests/rbac-register.test.js` |
 
 ## 4. Files
 
 | New / Modified | Path | Purpose |
 |---|---|---|
-| New | `server/scripts/rbac-register.js` | Process entry: dynamic imports inside a sanitizing error handler |
+| New | `server/scripts/rbac-register.js` | Process entry: supplies module loaders to `runCli()` |
+| New | `server/scripts/lib/rbacRegisterEntry.js` | Start-up order: every pre-connection guard (including the approved `DB_NAME` for apply) before wallet validation and pool creation |
 | New | `server/scripts/lib/rbacRegisterCli.js` | Preview/apply flow (`main` with injected dependencies) |
 | New | `server/scripts/lib/safeErrors.js` | Dependency-free safe error text (`describeStartupError`, `oracleErrorCode`) |
 | New | `server/scripts/lib/rbacRegistration.js` | Targets, labelled SQL, definitions check, comparison, fingerprint, inserts, verification |
