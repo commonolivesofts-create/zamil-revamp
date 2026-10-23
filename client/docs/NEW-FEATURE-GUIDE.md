@@ -103,6 +103,10 @@ export const WIDGET_REQUEST_ACTIONS = Object.freeze({
 ```
 
 Use exactly the codes the backend `authorize()` calls use. Never infer access from role names.
+The permissions must exist in the Oracle catalogue before anyone can be granted them: after the
+module is defined in the registry (§5), the missing rows are registered with
+`npm run db:rbac-register` under an owner-authorized plan
+([runbook](../../server/docs/RBAC-REGISTRATION.md)). Registration grants nothing to any role.
 
 ## 5. Register navigation and routes
 

@@ -87,10 +87,18 @@ database, security and CI3-coexistence aspects of a routine registration.
 
 ### Business permissions
 
-New business **permissions** (module/resource/action rows) are catalogue data. The supported way to
-create them is the existing catalogue API (`PERMISSION_CATALOG:MANAGE`, used by the Permission
-Catalog screen) operated by an authorized administrator; inserting catalogue rows by SQL is a
-database change under gate G1. Agree the codes in the requirement before implementation.
+New business **permissions** (module/resource/action rows) are catalogue data. Agree the codes in
+the requirement before implementation. Two supported ways create them:
+
+- **Code-owned (preferred for new modules):** define the module, resources and actions in the
+  registry (`client/src/config/registry/`) and register the missing rows with
+  `npm run db:rbac-register` ([runbook](../server/docs/RBAC-REGISTRATION.md)). The preview is
+  read-only; every apply is a database write under gate G1 and needs the owner's authorization for
+  that target and plan fingerprint.
+- **Manual:** an authorized administrator uses the Permission Catalog screen (catalogue API,
+  `PERMISSION_CATALOG:MANAGE`); actions are chosen from the standard action list.
+
+Inserting catalogue rows by hand-written SQL remains a database change under gate G1.
 
 ## 4. Branch
 

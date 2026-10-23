@@ -39,6 +39,7 @@ data types.
 | [Developer module guide](DEVELOPER-MODULE-GUIDE.md) | Understand the implemented module pattern and add a backend module |
 | [API and database change workflow](API-AND-DATABASE-CHANGE-WORKFLOW.md) | Add or change endpoints and propose Oracle changes safely |
 | [Backend testing](BACKEND-TESTING.md) | Run and write tests; distinguish mocked tests from Oracle TEST verification |
+| [RBAC catalogue registration](RBAC-REGISTRATION.md) | Register code-defined modules, resources and actions in Oracle (`db:rbac-register`; preview, approved apply) |
 
 ## Target folders not created yet
 

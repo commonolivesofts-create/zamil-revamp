@@ -3,6 +3,7 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import { fieldProps } from '../adminForms.js'
 import { filterCatalog, flattenCatalog } from '../adminModel.js'
+import { catalogMayBeIncomplete, defaultActionDescription, existingActions, isCodeOwnedResource } from '../catalogActions.js'
 import { SECURITY_ACTIONS, SECURITY_MODULE_CODE } from '../securityActions.js'
 import { securityAdminService } from '../securityAdminService.js'
 import { useAdminAction, useResource } from '../useAdminData.js'
@@ -62,9 +63,11 @@ export default function PermissionCatalogPage() {
           {(data) => {
             const modules = filterCatalog(data, { search, includeInactive })
             const total = flattenCatalog(data).length
+            const incomplete = catalogMayBeIncomplete(data)
             return (
               <>
                 <p className="zrv-admin-hint" role="status">{total} {total === 1 ? 'permission' : 'permissions'} in {data.length} {data.length === 1 ? 'module' : 'modules'}{search ? ' · filtered' : ''}</p>
+                {incomplete && <p className="zrv-admin-state" role="alert">The catalogue reached the server's display limit, so some entries may not be shown. Adding actions is unavailable until the complete catalogue can be loaded.</p>}
                 {!modules.length && <p className="zrv-admin-state">No catalog entry matches.</p>}
                 <div className="zrv-catalog">
                   {modules.map((module) => {
@@ -88,7 +91,15 @@ export default function PermissionCatalogPage() {
                                 <span><b>{resource.resourceName || resource.resourceCode}</b> <code>{resource.resourceCode}</code></span>
                                 <ActiveBadge active={resource.isActive} />
                                 <span className="zrv-admin-actions-row">
-                                  {manage && <button type="button" className="zrv-admin-link" onClick={() => open({ type: 'create', kind: 'permission', parent: { id: resource.resourceId, label: `${module.moduleCode}.${resource.resourceCode}` } })}>Add action</button>}
+                                  {manage && <button type="button" className="zrv-admin-link" onClick={() => open({ type: 'create', kind: 'permission', parent: {
+                                    id: resource.resourceId,
+                                    label: `${module.moduleCode}.${resource.resourceCode}`,
+                                    resourceName: resource.resourceName || resource.resourceCode,
+                                    existing: existingActions(resource),
+                                    codeOwned: isCodeOwnedResource(module.moduleCode, resource.resourceCode),
+                                    catalogIncomplete: incomplete,
+                                    exampleDescription: defaultActionDescription('VIEW', resource.resourceName || resource.resourceCode),
+                                  } })}>Add actions</button>}
                                   {toggle('resource', { id: resource.resourceId, isActive: resource.isActive, label: `${module.moduleCode}.${resource.resourceCode}` }, module.moduleCode)}
                                 </span>
                               </div>
