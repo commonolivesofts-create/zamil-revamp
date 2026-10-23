@@ -169,6 +169,35 @@ test('the error state offers retry and login without unlocking protected routes'
   assert.match(login, /status === 'error' &&/)
 })
 
+test('the login page cannot start a session check while a sign-in is pending', async () => {
+  // Why: a session check is a newer operation and aborts the pending sign-in (unchanged behavior).
+  let loginSignal
+  const ctx = setup((url, init) => {
+    if (url.endsWith('/auth/me')) return proxyBadGateway()
+    if (url.endsWith('/auth/login')) {
+      loginSignal = init.signal
+      // Pending until aborted, like a browser fetch.
+      return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))))
+    }
+    throw new Error(`unexpected request ${url}`)
+  })
+  await ctx.auth.restore()
+  assert.equal(ctx.auth.getSnapshot().status, 'error')
+  const signIn = ctx.auth.signIn({ username: 'test.user', password: 'secret' })
+  await tick()
+  void ctx.auth.restore()
+  await assert.rejects(signIn, { code: 'ABORTED' })
+  assert.equal(loginSignal.aborted, true)
+  ctx.auth.stop()
+
+  // So the page's retry control is disabled and ignores clicks while `pending`.
+  const login = await readFile(new URL('../src/pages/auth/LoginPage.jsx', import.meta.url), 'utf8')
+  const retry = login.slice(login.lastIndexOf('<button', login.indexOf('>Retry session check<')), login.indexOf('>Retry session check<'))
+  assert.match(retry, /onClick=\{\(\) => \{ if \(!pending\) retrySession\(\) \}\}/)
+  assert.match(retry, /disabled=\{pending\}/)
+  assert.doesNotMatch(login, /onClick=\{retrySession\}/)
+})
+
 async function signInWith(response) {
   const ctx = setup((url) => {
     if (url.endsWith('/auth/me')) return noSession()

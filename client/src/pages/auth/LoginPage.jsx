@@ -92,7 +92,8 @@ export default function LoginPage() {
           {status === 'error' && (
             <p className="zrv-auth-feedback" role="status">
               The authentication server could not be reached to check for an existing session. You can still sign in.{' '}
-              <button type="button" onClick={retrySession} style={{ color: 'var(--primary-text)', fontWeight: 700, background: 'none', border: 0, padding: 0, cursor: 'pointer' }}>Retry session check</button>
+              {/* A session check would abort a pending sign-in request, so it waits for that request. */}
+              <button type="button" onClick={() => { if (!pending) retrySession() }} disabled={pending} style={{ color: 'var(--primary-text)', fontWeight: 700, background: 'none', border: 0, padding: 0, cursor: pending ? 'not-allowed' : 'pointer', opacity: pending ? 0.6 : 1 }}>Retry session check</button>
             </p>
           )}
           {error && (
