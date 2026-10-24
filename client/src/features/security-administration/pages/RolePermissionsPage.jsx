@@ -9,6 +9,7 @@ import { securityAdminService } from '../securityAdminService.js'
 import { useAdminAction, useResource } from '../useAdminData.js'
 import { ActiveBadge, AdminPage, ConfirmDialog, Feedback, Pagination, Panel, ResourceState } from '../components/AdminUi.jsx'
 import RoleGrantDialog from '../components/RoleGrantDialog.jsx'
+import { dialogForRole } from '../roleGrants.js'
 
 const ROLE_PAGE_SIZE = 100
 
@@ -34,7 +35,7 @@ export default function RolePermissionsPage() {
   const roleLabel = role ? role.roleCode : roleId ? `role ${roleId}` : ''
   const canGrant = can(SECURITY_ACTIONS.ROLE_PERMISSIONS_GRANT) && can(SECURITY_ACTIONS.PERMISSION_CATALOG_VIEW)
   const canRevoke = can(SECURITY_ACTIONS.ROLE_PERMISSIONS_REVOKE)
-  const dialog = dialogState?.roleId === roleId ? dialogState : null
+  const dialog = dialogForRole(dialogState, roleId)
   // Granting needs the role itself: loaded from the role list and active.
   const grantBlocked = !role ? 'Select the role from the role list to grant permissions' : !role.isActive ? 'Inactive roles cannot receive permissions' : null
 

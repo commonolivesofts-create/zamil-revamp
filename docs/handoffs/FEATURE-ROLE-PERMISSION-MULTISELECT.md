@@ -30,6 +30,7 @@
 | 7 | Dialogs bound to the role they were opened for; unavailable or inactive role cannot receive grants; fresh grants required | Yes | same |
 | 8 | Sidebar: allowed/denied, `alsoRequires`, MFA, DENY/inactive (absent from effective permissions), refresh, direct URL = sidebar = palette, no navigation created by permissions | Yes | `client/tests/sidebarAccess.test.mjs` |
 | 9 | Backend escalation, protected roles, inactive role/permission, DENY precedence unchanged | Yes (existing suites) | `server/tests/rbac-authorization.test.js`, `security-hardening.test.js` |
+| 10 | Grant-list load failure shows the error with Retry (`ResourceState`, `grants.reload()`); loading, refreshing and empty-success states; granting only when both lists loaded and complete (`grantDialogState`); role changes never redirect a grant (`dialogForRole`, role ID fixed per submission) | Yes | `client/tests/roleGrants.test.mjs` |
 
 ## 4. Files
 

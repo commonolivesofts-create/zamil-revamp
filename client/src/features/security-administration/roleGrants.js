@@ -22,6 +22,26 @@ export const GRANT_RESULT = Object.freeze({
 
 export const grantListMayBeIncomplete = (grants) => (grants ?? []).length >= ROLE_GRANT_LIST_LIMIT
 
+/**
+ * What the grant dialog can do with the current catalogue and role-grant resources (useResource()
+ * results). Granting is possible only in `ready`: both lists loaded successfully, neither is being
+ * refreshed, and both passed the completeness checks. An empty grant list is valid.
+ *   loading | error (`source`: 'catalog' | 'grants') | refreshing | blocked (`problem`) | ready (`data`)
+ */
+export function grantDialogState({ catalog, grants }) {
+  for (const [source, resource] of [['catalog', catalog], ['grants', grants]]) {
+    if (resource?.status === 'error') return { kind: 'error', source }
+  }
+  if (catalog?.status !== 'ready' || grants?.status !== 'ready') return { kind: 'loading' }
+  if (catalog.refreshing || grants.refreshing) return { kind: 'refreshing' }
+  const data = { catalog: catalog.data, grants: grants.data ?? [] }
+  const problem = grantDataProblem(data)
+  return problem ? { kind: 'blocked', problem } : { kind: 'ready', data }
+}
+
+/** A dialog belongs to the role it was opened for; for any other selected role it is closed. */
+export const dialogForRole = (dialog, roleId) => (dialog?.roleId === roleId ? dialog : null)
+
 /** Why granting must be refused for this data, or null when the lists can be trusted. */
 export function grantDataProblem({ catalog, grants }) {
   if (catalogMayBeIncomplete(catalog)) {

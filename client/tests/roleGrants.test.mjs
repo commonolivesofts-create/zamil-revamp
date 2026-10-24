@@ -9,7 +9,7 @@ import { describeFailure } from '../src/features/security-administration/adminFe
 import { createSubmissionGuard } from '../src/features/security-administration/adminRequests.js'
 import { createSecurityAdminService } from '../src/features/security-administration/securityAdminService.js'
 import {
-  GRANT_RESULT, ROLE_GRANT_LIST_LIMIT, grantDataProblem, grantListMayBeIncomplete, grantOptions,
+  GRANT_RESULT, ROLE_GRANT_LIST_LIMIT, dialogForRole, grantDataProblem, grantDialogState, grantListMayBeIncomplete, grantOptions,
   grantPermissionsSequentially, summarizeGrantResults, toggleGrant, validSelection,
 } from '../src/features/security-administration/roleGrants.js'
 import { CATALOG_ROW_LIMIT } from '../src/features/security-administration/catalogActions.js'
@@ -177,11 +177,76 @@ test('each grant uses the existing PUT /roles/{roleId}/permissions/{permissionId
   assert.doesNotMatch(source, /bulk|batch/i)
 })
 
+// ---------------------------------------------------------------- dialog data states
+
+// useResource() results as the dialog receives them.
+const resource = (status, data = null, { refreshing = false, error = null } = {}) => ({ status, data, error, refreshing, reload: () => {} })
+const readyCatalog = resource('ready', catalog)
+
+test('the role grant list: loading, error, empty success and refreshing states gate granting', () => {
+  assert.deepEqual(grantDialogState({ catalog: readyCatalog, grants: resource('loading') }), { kind: 'loading' })
+  assert.deepEqual(grantDialogState({ catalog: resource('loading'), grants: resource('ready', grants) }), { kind: 'loading' })
+
+  const failed = new ApiError('The service is temporarily unavailable', { code: 'SERVICE_UNAVAILABLE', status: 503 })
+  assert.deepEqual(grantDialogState({ catalog: readyCatalog, grants: resource('error', null, { error: failed }) }), { kind: 'error', source: 'grants' })
+  assert.deepEqual(grantDialogState({ catalog: resource('error', null, { error: failed }), grants: resource('ready', grants) }), { kind: 'error', source: 'catalog' })
+
+  // A successfully loaded empty list is valid: every grantable permission is selectable.
+  const empty = grantDialogState({ catalog: readyCatalog, grants: resource('ready', []) })
+  assert.equal(empty.kind, 'ready')
+  assert.deepEqual(grantOptions(empty.data.catalog, empty.data.grants).map((o) => o.grantState), [null, null, null, null])
+
+  assert.deepEqual(grantDialogState({ catalog: readyCatalog, grants: resource('ready', grants, { refreshing: true }) }), { kind: 'refreshing' })
+  assert.deepEqual(grantDialogState({ catalog: resource('ready', catalog, { refreshing: true }), grants: resource('ready', grants) }), { kind: 'refreshing' })
+
+  const manyGrants = Array.from({ length: ROLE_GRANT_LIST_LIMIT }, (_, i) => ({ permissionId: String(5000 + i), isActive: true }))
+  const blocked = grantDialogState({ catalog: readyCatalog, grants: resource('ready', manyGrants) })
+  assert.equal(blocked.kind, 'blocked')
+  assert.match(blocked.problem, /grant-list display limit/)
+
+  const ready = grantDialogState({ catalog: readyCatalog, grants: resource('ready', grants) })
+  assert.equal(ready.kind, 'ready')
+  assert.deepEqual(ready.data, { catalog, grants })
+})
+
+test('retry after a failed grant-list load: loading, then ready, with the selection kept', () => {
+  let selected = toggleGrant([], '102', data)
+  selected = toggleGrant(selected, '111', data)
+  const states = [resource('error', null, { error: new ApiError('down', { code: 'NETWORK_ERROR' }) }), resource('loading'), resource('ready', grants)]
+    .map((grantsResource) => grantDialogState({ catalog: readyCatalog, grants: grantsResource }).kind)
+  assert.deepEqual(states, ['error', 'loading', 'ready'])
+  // Selections are held by ID in the dialog and revalidated against the reloaded data.
+  assert.deepEqual(validSelection(selected, grantDialogState({ catalog: readyCatalog, grants: resource('ready', grants) }).data), ['102', '111'])
+})
+
+test('a role change can never redirect a grant to another role', async () => {
+  // The page shows a dialog only for the role it was opened for.
+  const opened = { type: 'grant', roleId: '7' }
+  assert.equal(dialogForRole(opened, '7'), opened)
+  assert.equal(dialogForRole(opened, '8'), null)
+  assert.equal(dialogForRole(opened, null), null)
+  assert.equal(dialogForRole(null, '7'), null)
+
+  // A submission in progress keeps the role ID it started with, even if the selected role
+  // changes (for example through browser navigation) between two grants.
+  let currentRole = '7'
+  const calls = []
+  const grant = async (roleId, permissionId) => {
+    calls.push([roleId, permissionId])
+    currentRole = '8'
+    await new Promise((resolve) => setImmediate(resolve))
+    return { changed: true }
+  }
+  await grantPermissionsSequentially({ roleId: '7', permissionIds: ['102', '112'], grant })
+  assert.equal(currentRole, '8')
+  assert.deepEqual(calls, [['7', '102'], ['7', '112']])
+})
+
 // ---------------------------------------------------------------- page and dialog wiring
 
 test('the page binds dialogs to their role, refuses unavailable or inactive roles and loads fresh grants', async () => {
   const page = await read('../src/features/security-administration/pages/RolePermissionsPage.jsx')
-  assert.match(page, /const dialog = dialogState\?\.roleId === roleId \? dialogState : null/)
+  assert.match(page, /const dialog = dialogForRole\(dialogState, roleId\)/)
   assert.match(page, /setDialog\(\{ \.\.\.next, roleId \}\)/)
   assert.match(page, /const grantBlocked = !role \? .* : !role\.isActive \? 'Inactive roles cannot receive permissions' : null/)
   assert.match(page, /disabled=\{Boolean\(grantBlocked\)\}/)
@@ -190,7 +255,10 @@ test('the page binds dialogs to their role, refuses unavailable or inactive role
   assert.match(page, /revokeRolePermission\(dialog\.roleId, dialog\.grant\.permissionId\)/, 'revoke uses the role the dialog was opened for')
 
   const dialog = await read('../src/features/security-administration/components/RoleGrantDialog.jsx')
-  assert.match(dialog, /const fresh = catalog\.status === 'ready' && !catalog\.refreshing && grants\.status === 'ready' && !grants\.refreshing/)
+  assert.match(dialog, /const state = grantDialogState\(\{ catalog, grants \}\)\n\s+const usable = state\.kind === 'ready'/)
+  // The grant list's loading and error states (with Retry = grants.reload) come from ResourceState; an empty list is valid.
+  assert.match(dialog, /<ResourceState resource=\{grants\} label="role's current grants" isEmpty=\{\(\) => false\}>/)
+  assert.doesNotMatch(dialog, /Loading the role's current grants/, 'no indefinite custom loading message')
   assert.match(dialog, /const chosen = usable \? validSelection\(selected, data\) : \[\]/)
   assert.match(dialog, /busy=\{action\.pending\}/, 'cannot be closed while requests are pending')
   assert.match(dialog, /confirmDisabled=\{!usable \|\| !chosen\.length\}/)
