@@ -1,0 +1,74 @@
+# Source-only checks: no secrets, wallets, Oracle connections, emails or deployments.
+name: Code quality and security
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, pinned SHA
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7, pinned SHA
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install from backend lockfile
+        run: npm ci
+        working-directory: server
+      - name: Lint, format and test backend
+        run: npm run check
+        working-directory: server
+      - name: Audit backend dependencies
+        run: npm audit --audit-level=high
+        working-directory: server
+
+  frontend:
+    name: frontend-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, pinned SHA
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7, pinned SHA
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install from frontend lockfile
+        run: npm ci
+        working-directory: client
+      - name: Lint frontend
+        run: npm run lint
+        working-directory: client
+      - name: Test frontend
+        run: npm test
+        working-directory: client
+      - name: Build frontend
+        run: npm run build
+        working-directory: client
+      - name: Verify static release assets
+        run: node scripts/verify-production.mjs
+        working-directory: client
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=high
+        working-directory: client
