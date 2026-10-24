@@ -89,6 +89,7 @@ export default function HomeView({
   accessStatus,
   onNavigate,
   onOpenPage,
+  onOpenProfile,
 }) {
   const [quickCategory, setQuickCategory] = useState("HR");
   const [quickPanelChanged, setQuickPanelChanged] = useState(false);
@@ -108,7 +109,7 @@ export default function HomeView({
 
   return (
     <>
-      <DashboardMeta />
+      <DashboardMeta profile={profile} onOpenProfile={onOpenProfile} />
       <section
         className="hero-top zamil-hero gateway-layout"
         aria-label="Your workspace starting point"
@@ -316,7 +317,7 @@ export default function HomeView({
                 <strong>{page.label}</strong>
                 <small>
                   {page.sectionLabel}
-                  {page.type === "external"
+                  {page.type === 'external'
                     ? " · External destination"
                     : page.path
                       ? ` · ${page.path}`
