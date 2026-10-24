@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
-import { appConfig } from '@/config/appConfig.js'
-import DashboardMeta from '@/features/dashboard/components/DashboardMeta.jsx'
-import FolioBook from '@/features/dashboard/components/FolioBook.jsx'
+import { useState } from "react";
+import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
+import { appConfig } from "@/config/appConfig.js";
+import DashboardMeta from "@/features/dashboard/components/DashboardMeta.jsx";
+import FolioBook from "@/features/dashboard/components/FolioBook.jsx";
 import {
   ATTENTION_ITEMS,
   BUSINESS_SPACES,
@@ -13,16 +13,16 @@ import {
   WORKFLOW_BARS,
   displayName,
   formatDateLabel,
-} from '@/features/dashboard/dashboardExperience.js'
-import { scrollToSection } from '@/features/dashboard/useDashboardMotion.js'
+} from "@/features/dashboard/dashboardExperience.js";
+import { scrollToSection } from "@/features/dashboard/useDashboardMotion.js";
 
 function NameTyping({ name }) {
-  const steps = Math.max(4, name.length)
+  const steps = Math.max(4, name.length);
   return (
     <span
       className="name-typewrap is-typing"
       aria-hidden="true"
-      style={{ '--name-steps': steps }}
+      style={{ "--name-steps": steps }}
     >
       <span className="name-typeghost">{name}</span>
       <span
@@ -32,19 +32,19 @@ function NameTyping({ name }) {
         {name}
       </span>
     </span>
-  )
+  );
 }
 
 function QuickPanel({ category }) {
-  const definition = QUICK_DEFINITIONS[category] ?? QUICK_DEFINITIONS.HR
-  const index = QUICK_CATEGORY_IDS.indexOf(category)
+  const definition = QUICK_DEFINITIONS[category] ?? QUICK_DEFINITIONS.HR;
+  const index = QUICK_CATEGORY_IDS.indexOf(category);
   return (
     <>
       <div className="quick-panel-head">
         <div>
           <span className="eyebrow">SELECTED WORKSPACE · {category}</span>
           <h3>
-            <OrvexaIcon name={definition.icon} /> {category}{' '}
+            <OrvexaIcon name={definition.icon} /> {category}{" "}
             <span className="quick-suffix">/ direct access</span>
           </h3>
           <p>{definition.sub}</p>
@@ -57,92 +57,138 @@ function QuickPanel({ category }) {
             className="quick-form"
             type="button"
             key={form.name}
-            style={{ '--qi': formIndex }}
+            style={{ "--qi": formIndex }}
           >
             <span className="quick-form-index">0{formIndex + 1}</span>
-            <span className="icon-bubble"><OrvexaIcon name={form.icon} /></span>
+            <span className="icon-bubble">
+              <OrvexaIcon name={form.icon} />
+            </span>
             <strong>{form.name}</strong>
             <small>{form.desc}</small>
-            <span className="quick-form-arrow"><OrvexaIcon name="arrow-right" /></span>
+            <span className="quick-form-arrow">
+              <OrvexaIcon name="arrow-right" />
+            </span>
           </button>
         ))}
       </div>
       <div className="quick-panel-foot">
-        <span><OrvexaIcon name="zap" /> Click a card to open its workflow</span>
-        <span>{category === 'HR' ? '4 form previews' : 'Catalog previews'}</span>
+        <span>
+          <OrvexaIcon name="zap" /> Click a card to open its workflow
+        </span>
+        <span>
+          {category === "HR" ? "4 form previews" : "Catalog previews"}
+        </span>
       </div>
     </>
-  )
+  );
 }
 
 export default function HomeView({
   profile,
   pages = [],
   accessStatus,
-  onOpenProfile,
   onNavigate,
   onOpenPage,
 }) {
-  const [quickCategory, setQuickCategory] = useState('HR')
-  const [quickPanelChanged, setQuickPanelChanged] = useState(false)
-  const name = displayName(profile)
-  const visiblePages = pages.slice(0, 4)
-  const accessLoading = accessStatus === 'loading'
+  const [quickCategory, setQuickCategory] = useState("HR");
+  const [quickPanelChanged, setQuickPanelChanged] = useState(false);
+  const name = displayName(profile);
+  const employeeBadge = profile?.isPreview
+    ? "Workspace · Preview"
+    : profile?.employeeNumber
+      ? `Employee ${profile.employeeNumber}`
+      : "Signed-in workspace";
+  const visiblePages = pages.slice(0, 4);
+  const accessLoading = accessStatus === "loading";
 
   const openQuick = (category) => {
-    setQuickCategory(category)
-    requestAnimationFrame(() => scrollToSection('quickStart'))
-  }
+    setQuickCategory(category);
+    requestAnimationFrame(() => scrollToSection("quickStart"));
+  };
 
   return (
     <>
-      <DashboardMeta profile={profile} onOpenProfile={onOpenProfile} />
-      <section className="hero-top zamil-hero gateway-layout" aria-label="Your workspace starting point">
+      <DashboardMeta />
+      <section
+        className="hero-top zamil-hero gateway-layout"
+        aria-label="Your workspace starting point"
+      >
         <div className="greeting greeting-zamil gateway-copy">
           <div className="eyebrow entering-tag">
-            {formatDateLabel()} &nbsp; / &nbsp; {appConfig.name.toUpperCase()} WORKSPACE
+            {formatDateLabel()} &nbsp; / &nbsp; {appConfig.name.toUpperCase()}{" "}
+            WORKSPACE
           </div>
           <div className="intro-overline">
             <span className="line-mark" />
             <span>GOOD WORK STARTS WITH ONE MOVE</span>
           </div>
-          <h1 className="kinetic-heading gateway-heading" data-zrv-view-title tabIndex={-1}>
+          <h1
+            className="kinetic-heading gateway-heading"
+            data-zrv-view-title
+            tabIndex={-1}
+          >
             <span className="sr-only">{name}</span>
-            <span className="kinetic-line kinetic-v5"><NameTyping name={name} /></span>
+            <span className="kinetic-line kinetic-v5">
+              <NameTyping name={name} />
+            </span>
             <span className="kinetic-tagline">
               Your next move.
               <br />
               <em>Made effortless.</em>
             </span>
+            <span className="pill hero-employee-badge">
+              <i className="pulse" aria-hidden="true" />
+              {employeeBadge}
+            </span>
           </h1>
           <p className="greeting-description gateway-description">
-            Everything you need, right where you expect it. Choose a task below, or simply
-            search for any page. No menus to learn.
+            Everything you need, right where you expect it. Choose a task below,
+            or simply search for any page. No menus to learn.
           </p>
-          <div className="gateway-actions" role="group" aria-label="Get started">
+          <div
+            className="gateway-actions"
+            role="group"
+            aria-label="Get started"
+          >
             <button className="gateway-action gateway-main" type="button">
-              <span className="gateway-action-icon"><OrvexaIcon name="search" /></span>
+              <span className="gateway-action-icon">
+                <OrvexaIcon name="search" />
+              </span>
               <span className="gateway-action-copy">
                 <strong>Find any page</strong>
                 <small>Search all workflows</small>
               </span>
-              <span className="gateway-action-tail"><OrvexaIcon name="arrow-right" /></span>
+              <span className="gateway-action-tail">
+                <OrvexaIcon name="arrow-right" />
+              </span>
             </button>
-            <button className="gateway-action" type="button" onClick={() => openQuick('HR')}>
-              <span className="gateway-action-icon"><OrvexaIcon name="users" /></span>
+            <button
+              className="gateway-action"
+              type="button"
+              onClick={() => openQuick("HR")}
+            >
+              <span className="gateway-action-icon">
+                <OrvexaIcon name="users" />
+              </span>
               <span className="gateway-action-copy">
                 <strong>Open HR forms</strong>
                 <small>4 forms · one touch</small>
               </span>
-              <span className="gateway-action-tail"><OrvexaIcon name="arrow-right" /></span>
+              <span className="gateway-action-tail">
+                <OrvexaIcon name="arrow-right" />
+              </span>
             </button>
             <button className="gateway-action" type="button">
-              <span className="gateway-action-icon"><OrvexaIcon name="file-text" /></span>
+              <span className="gateway-action-icon">
+                <OrvexaIcon name="file-text" />
+              </span>
               <span className="gateway-action-copy">
                 <strong>Create credit note</strong>
                 <small>Finance workflow</small>
               </span>
-              <span className="gateway-action-tail"><OrvexaIcon name="arrow-right" /></span>
+              <span className="gateway-action-tail">
+                <OrvexaIcon name="arrow-right" />
+              </span>
             </button>
           </div>
           <div className="gateway-hint">
@@ -155,43 +201,55 @@ export default function HomeView({
       <div className="section-line section-quick" id="quickStart">
         <div>
           <span className="eyebrow">01 / ACCESS WITHOUT FRICTION</span>
-          <h2>Quick Links <span className="inline-accent">/ one touch away</span></h2>
-          <p>Choose a department. Its four most useful forms appear immediately.</p>
+          <h2>
+            Quick Links <span className="inline-accent">/ one touch away</span>
+          </h2>
+          <p>
+            Choose a department. Its four most useful forms appear immediately.
+          </p>
         </div>
-        <button className="btn tiny quiet" type="button" onClick={() => onNavigate('atlas')}>
+        <button
+          className="btn tiny quiet"
+          type="button"
+          onClick={() => onNavigate("atlas")}
+        >
           Discover all modules <OrvexaIcon name="arrow-right" />
         </button>
       </div>
       <section className="quick-shell" data-zrv-reveal>
         <div className="quick-categories">
           {QUICK_CATEGORY_IDS.map((category, index) => {
-            const definition = QUICK_DEFINITIONS[category]
+            const definition = QUICK_DEFINITIONS[category];
             return (
               <button
-                className={`quick-category ${quickCategory === category ? 'selected' : ''}`}
+                className={`quick-category ${quickCategory === category ? "selected" : ""}`}
                 type="button"
                 key={category}
                 onClick={() => {
                   if (quickCategory !== category) {
-                    setQuickCategory(category)
-                    setQuickPanelChanged(true)
+                    setQuickCategory(category);
+                    setQuickPanelChanged(true);
                   }
                 }}
                 aria-pressed={quickCategory === category}
               >
                 <span className="cat-id">0{index + 1}</span>
-                <span className="cat-icon"><OrvexaIcon name={definition.icon} /></span>
+                <span className="cat-icon">
+                  <OrvexaIcon name={definition.icon} />
+                </span>
                 <span className="cat-copy">
                   <strong>{category}</strong>
                   <small>{definition.forms.length} direct shortcuts</small>
                 </span>
-                <span className="cat-arrow"><OrvexaIcon name="arrow-right" /></span>
+                <span className="cat-arrow">
+                  <OrvexaIcon name="arrow-right" />
+                </span>
               </button>
-            )
+            );
           })}
         </div>
         <div
-          className={`quick-panel${quickPanelChanged ? ' panel-swap' : ''}`}
+          className={`quick-panel${quickPanelChanged ? " panel-swap" : ""}`}
           id="quickPanel"
           key={quickCategory}
           aria-live="polite"
@@ -204,16 +262,33 @@ export default function HomeView({
         <div>
           <span className="eyebrow">02 / PERSONAL WORKSPACE</span>
           <h2>Your access, in reach.</h2>
-          <p>Real pages from your signed-in permissions — no setup, no guesswork.</p>
+          <p>
+            Real pages from your signed-in permissions — no setup, no guesswork.
+          </p>
         </div>
-        <span className="privacy-chip"><OrvexaIcon name="shield-check" /> Live permissions</span>
+        <span className="privacy-chip">
+          <OrvexaIcon name="shield-check" /> Live permissions
+        </span>
       </div>
       <section className="habit-shell" data-zrv-reveal>
         <div className="habit-feature">
-          <span className="habit-kicker"><OrvexaIcon name="sparkles" /> SMART ACCESS</span>
-          <div className="habit-orb"><span><OrvexaIcon name="zap" className="icon-xl" /></span></div>
-          <h3>Your access.<br /><em>Already mapped.</em></h3>
-          <p>Every page here is one your account can open. The list follows your permissions, not local browsing habits.</p>
+          <span className="habit-kicker">
+            <OrvexaIcon name="sparkles" /> SMART ACCESS
+          </span>
+          <div className="habit-orb">
+            <span>
+              <OrvexaIcon name="zap" className="icon-xl" />
+            </span>
+          </div>
+          <h3>
+            Your access.
+            <br />
+            <em>Already mapped.</em>
+          </h3>
+          <p>
+            Every page here is one your account can open. The list follows your
+            permissions, not local browsing habits.
+          </p>
           <button className="btn tiny ghost" type="button">
             Search anything <OrvexaIcon name="arrow-right" />
           </button>
@@ -221,42 +296,50 @@ export default function HomeView({
         <div className="habit-list">
           <div className="habit-head">
             <span>AUTHORIZED PAGES</span>
-            <span>{accessLoading ? 'CHECKING ACCESS' : `${pages.length} AVAILABLE`}</span>
+            <span>
+              {accessLoading ? "CHECKING ACCESS" : `${pages.length} AVAILABLE`}
+            </span>
           </div>
           {visiblePages.map((page, index) => (
             <button
               className="habit-row"
               type="button"
               key={page.id}
-              style={{ '--hi': index }}
+              style={{ "--hi": index }}
               onClick={() => onOpenPage(page)}
             >
               <span className="habit-no">0{index + 1}</span>
-              <span className="habit-symbol"><OrvexaIcon name={page.icon || 'layout-grid'} /></span>
+              <span className="habit-symbol">
+                <OrvexaIcon name={page.icon || "layout-grid"} />
+              </span>
               <span className="habit-copy">
                 <strong>{page.label}</strong>
                 <small>
                   {page.sectionLabel}
-                  {page.type === 'external'
-                    ? ' · External destination'
-                    : page.path ? ` · ${page.path}` : ''}
+                  {page.type === "external"
+                    ? " · External destination"
+                    : page.path
+                      ? ` · ${page.path}`
+                      : ""}
                 </small>
               </span>
-              <span className="habit-open">Open <OrvexaIcon name="arrow-right" className="icon-sm" /></span>
+              <span className="habit-open">
+                Open <OrvexaIcon name="arrow-right" className="icon-sm" />
+              </span>
             </button>
           ))}
           {!visiblePages.length && (
             <div className="habit-note" role="status">
               {accessLoading
-                ? 'Checking the pages available to this account…'
-                : 'No application pages are available for this account. Sign in or ask an administrator for access.'}
+                ? "Checking the pages available to this account…"
+                : "No application pages are available for this account. Sign in or ask an administrator for access."}
             </div>
           )}
           {visiblePages.length > 0 && (
             <div className="habit-note">
               {pages.length > visiblePages.length
                 ? `Showing ${visiblePages.length} of ${pages.length} pages. The sidebar lists every page you can open.`
-                : 'Every page your account can open is listed here.'}
+                : "Every page your account can open is listed here."}
             </div>
           )}
         </div>
@@ -266,7 +349,9 @@ export default function HomeView({
         <div>
           <span className="eyebrow">03 / WHAT NEEDS YOU</span>
           <h2>Work, moving forward.</h2>
-          <p>A clear view of your next actions and your team&apos;s momentum.</p>
+          <p>
+            A clear view of your next actions and your team&apos;s momentum.
+          </p>
         </div>
         <button className="btn tiny quiet" type="button">
           See activity <OrvexaIcon name="arrow-right" />
@@ -275,11 +360,17 @@ export default function HomeView({
       <div className="feature-grid" data-zrv-reveal>
         <section className="surface feature-primary">
           <div>
-            <div className="eyebrow">YOUR NEXT ACTION &nbsp; · &nbsp; FINANCE</div>
-            <h3>Less navigating.<br />More doing.</h3>
+            <div className="eyebrow">
+              YOUR NEXT ACTION &nbsp; · &nbsp; FINANCE
+            </div>
+            <h3>
+              Less navigating.
+              <br />
+              More doing.
+            </h3>
             <p>
-              Continue the Credit Note flow with all required fields, dynamic invoice lines,
-              and local draft saving.
+              Continue the Credit Note flow with all required fields, dynamic
+              invoice lines, and local draft saving.
             </p>
           </div>
           <div className="foot">
@@ -292,7 +383,9 @@ export default function HomeView({
         <section className="surface feature-mini">
           <div className="subhead">
             <h3>Attention queue</h3>
-            <span className="icon-bubble"><OrvexaIcon name="check" /></span>
+            <span className="icon-bubble">
+              <OrvexaIcon name="check" />
+            </span>
           </div>
           {ATTENTION_ITEMS.map((item) => (
             <div className="queue-line" key={item.label}>
@@ -300,7 +393,7 @@ export default function HomeView({
                 <strong>{item.label}</strong>
                 <small>{item.team} · Demo</small>
               </div>
-              {item.count.includes('new') ? (
+              {item.count.includes("new") ? (
                 <span className="queue-pill">{item.count}</span>
               ) : (
                 <b>{item.count}</b>
@@ -316,16 +409,23 @@ export default function HomeView({
         <section className="surface feature-mini">
           <div className="subhead">
             <h3>Workflow pulse</h3>
-            <span className="icon-bubble"><OrvexaIcon name="chart-column" /></span>
+            <span className="icon-bubble">
+              <OrvexaIcon name="chart-column" />
+            </span>
           </div>
-          <div className="horizon-bars" role="img" aria-label="Illustrative workflow pulse bars">
+          <div
+            className="horizon-bars"
+            role="img"
+            aria-label="Illustrative workflow pulse bars"
+          >
             {WORKFLOW_BARS.map((height, index) => (
               <i key={index} style={{ height: `${height}%` }} />
             ))}
           </div>
           <div className="metric-bottom">
             <div>
-              <small className="secondary">Demo activity</small><br />
+              <small className="secondary">Demo activity</small>
+              <br />
               <strong>86.4%</strong>
             </div>
             <span>↑ +12.8%</span>
@@ -338,7 +438,11 @@ export default function HomeView({
           <h2>Business spaces</h2>
           <p>A single, scalable doorway to the wider organization</p>
         </div>
-        <button className="btn tiny quiet" type="button" onClick={() => onNavigate('atlas')}>
+        <button
+          className="btn tiny quiet"
+          type="button"
+          onClick={() => onNavigate("atlas")}
+        >
           Explore {MODULES.length} entries <OrvexaIcon name="arrow-right" />
         </button>
       </div>
@@ -348,9 +452,11 @@ export default function HomeView({
             className="domain-card"
             type="button"
             key={space.name}
-            onClick={() => onNavigate('atlas', { domain: space.name })}
+            onClick={() => onNavigate("atlas", { domain: space.name })}
           >
-            <span className="icon-bubble"><OrvexaIcon name={space.icon} /></span>
+            <span className="icon-bubble">
+              <OrvexaIcon name={space.icon} />
+            </span>
             <div>
               <strong>{space.name}</strong>
               <small>{space.description}</small>
@@ -360,9 +466,15 @@ export default function HomeView({
         ))}
       </div>
       <footer className="footnote">
-        <span><b>{appConfig.name.toUpperCase()} / DIGITAL WORKSPACE</b> &nbsp; · &nbsp; Interactive design concept</span>
-        <span>{FOOTER_COUNTS.modules} catalog previews · {FOOTER_COUNTS.views} interactive {FOOTER_COUNTS.views === 1 ? 'view' : 'views'}</span>
+        <span>
+          <b>{appConfig.name.toUpperCase()} / DIGITAL WORKSPACE</b> &nbsp; ·
+          &nbsp; Interactive design concept
+        </span>
+        <span>
+          {FOOTER_COUNTS.modules} catalog previews · {FOOTER_COUNTS.views}{" "}
+          interactive {FOOTER_COUNTS.views === 1 ? "view" : "views"}
+        </span>
       </footer>
     </>
-  )
+  );
 }
