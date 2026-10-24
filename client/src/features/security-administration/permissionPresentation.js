@@ -1,6 +1,6 @@
-// Presentation helpers for the signed-in dashboard. They only reshape data the
-// backend returned (the signed-in user, session and effective permissions);
-// nothing here creates figures of its own.
+// Presentation helpers for effective-permission data. They live with Security
+// Administration because the effective-access panel and its tests are their
+// only consumers; the dashboard no longer renders a permission summary.
 
 // `SECURITY_ADMINISTRATION` → `Security administration`.
 export function humanizeCode(code) {

@@ -1,4 +1,4 @@
-import { groupPermissions } from '@/features/dashboard/dashboardModel.js'
+import { groupPermissions } from '../permissionPresentation.js'
 import { securityAdminService } from '../securityAdminService.js'
 import { useResource } from '../useAdminData.js'
 import { Panel, ResourceState } from './AdminUi.jsx'

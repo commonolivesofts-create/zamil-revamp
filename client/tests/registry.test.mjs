@@ -177,7 +177,7 @@ test('external entries are permission-filtered, hidden when unresolved and never
   assert.match(destinations, /EXTERNAL_WINDOW_FEATURES = 'noopener,noreferrer'/)
   const palette = await read('../src/components/layout/CommandPalette.jsx')
   assert.match(palette, /window\.open\(item\.href, EXTERNAL_LINK_TARGET, EXTERNAL_WINDOW_FEATURES\)/)
-  for (const file of ['layout/Sidebar.jsx', 'layout/Header.jsx', '../features/dashboard/DashboardPage.jsx']) {
+  for (const file of ['layout/Sidebar.jsx', 'layout/Header.jsx']) {
     assert.match(await read(`../src/components/${file}`), /type === 'external'[\s\S]*ExternalNavigationLink/, file)
   }
 })
