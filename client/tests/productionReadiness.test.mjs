@@ -207,13 +207,16 @@ test('confirmed changes that can alter the signed-in user\'s own access refresh 
   assert.match(action, /if \(refreshAccess && \(outcome\.status === 'success' \|\| outcome\.status === 'unknown'\)\) reloadPermissions\(\)/)
   const expected = {
     'RolesPage.jsx': 2, // activate, deactivate
-    'RolePermissionsPage.jsx': 2, // grant, revoke
+    'RolePermissionsPage.jsx': 1, // revoke (grants: RoleGrantDialog below)
     'PermissionCatalogPage.jsx': 1, // activate/deactivate
   }
   for (const [file, count] of Object.entries(expected)) {
     const source = await read(`../src/features/security-administration/pages/${file}`)
     assert.equal((source.match(/refreshAccess: true/g) || []).length, count, file)
   }
+  // Phase 2C multi-grant: refresh after any confirmed or uncertain grant, or a permission refusal.
+  const grantDialog = await read('../src/features/security-administration/components/RoleGrantDialog.jsx')
+  assert.match(grantDialog, /if \(result\.accessMayHaveChanged \|\| result\.results\.some\(\(item\) => describeFailure\(item\.error\)\.permissionChanged\)\) reloadPermissions\(\)/)
 })
 
 // ------------------------------------------------------------ role selector completeness
