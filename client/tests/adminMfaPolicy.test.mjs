@@ -61,11 +61,10 @@ test('navigation lists authorized security pages under the exception, nothing mo
   assert.deepEqual(security(ready(['PRODUCTION.WORK_ORDERS:VIEW'], { adminMfaRequired: false })), [])
 })
 
-test('the dashboard explains the exception instead of asking for MFA', async () => {
+test('the dashboard no longer renders deferred account/security sections', async () => {
   const dashboard = await read('../src/features/dashboard/DashboardPage.jsx')
-  assert.match(dashboard, /const needsMfa = !access\.mfaVerified && access\.adminMfaRequired !== false && hasSecurityPermissions/)
-  assert.match(dashboard, /const mfaWaived = !access\.mfaVerified && access\.adminMfaRequired === false && hasSecurityPermissions/)
-  assert.match(dashboard, /Administrator MFA is disabled on this local development server\./)
+  assert.equal(/needsMfa|mfaWaived|DashboardLegacySections/.test(dashboard), false)
+  await assert.rejects(read('../src/features/dashboard/DashboardLegacySections.jsx'), { code: 'ENOENT' })
 })
 
 test('there is no frontend MFA bypass setting', async () => {

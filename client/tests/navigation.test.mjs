@@ -8,7 +8,7 @@ import {
   navigationSections, paletteCommands, routeAccess, searchCommands,
 } from '../src/config/appNavigation.js'
 import { orvexaDemoRoutes } from '../src/config/orvexaRoutes.js'
-import { formatDateTime, groupPermissions, humanizeCode } from '../src/features/dashboard/dashboardModel.js'
+import { formatDateTime, groupPermissions, humanizeCode } from '../src/features/security-administration/permissionPresentation.js'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -222,20 +222,69 @@ test('the header has no sample notifications or unsupported account actions', as
   assert.match(header, /onClick=\{handleSignOut\}/, 'sign-out kept')
 })
 
-test('the signed-in dashboard contains no fabricated figures or template widgets', async () => {
+test('the workspace dashboard uses real identity data and labels its demo content', async () => {
   const dashboard = await read('../src/features/dashboard/DashboardPage.jsx')
-  assert.equal(/import (DashboardCharts|LiveRequests)|liveRequestData|mountDashboardCharts|apexcharts/.test(dashboard), false)
-  assert.equal(/\d{1,3}(,\d{3})+|\d+(\.\d+)?\s?(%|ms\b)|vs yesterday|Live system|Total Requests|incident/i.test(dashboard), false)
-  // Stage 4 (stronger than the Stage 2 preview-only isolation): the template
-  // dashboard and its chart library no longer exist at all.
-  assert.equal(/TemplateDashboardPreview|templateDemosAvailable/.test(dashboard), false)
-  assert.match(dashboard, /export default function DashboardPage\(\) \{\s*return <WorkspaceDashboard \/>/)
+  const home = await read('../src/features/dashboard/components/HomeView.jsx')
+  const atlas = await read('../src/features/dashboard/components/ModuleAtlas.jsx')
+  const meta = await read('../src/features/dashboard/components/DashboardMeta.jsx')
+  const model = await read('../src/features/dashboard/dashboardExperience.js')
+
+  // The approved design includes illustrative business content, but the
+  // signed-in identity remains real and Smart Access lists only pages the
+  // account is actually authorized to open.
+  assert.match(dashboard, /resolveProfile\(user, status\)/)
+  assert.match(dashboard, /authorizedNavigation\(access\)/)
+  assert.match(dashboard, /usePermissions\(\)/)
+  assert.match(dashboard, /<HomeView[\s\S]*pages=\{pages\}[\s\S]*accessStatus=\{access\.status\}[\s\S]*onOpenPage=\{openPage\}/)
+  assert.match(meta, /Workspace · Preview/)
+  assert.match(home, /AUTHORIZED PAGES/)
+  assert.match(home, /onOpenPage\(page\)/)
+  assert.match(home, /page\.sectionLabel/)
+  assert.match(home, /page\.type === 'external'/)
+  assert.equal(home.includes('Your access, in reach'), true)
+  assert.equal(/HOME_STARTERS|rankPages|useDashboardUsage/.test(home + dashboard), false)
+  assert.equal(/onPreviewModule|onOpenFinder/.test(home), false)
+  assert.match(home, /Demo workflow/i)
+  assert.match(home, /Illustrative workflow pulse|Demo activity/)
+  assert.match(model, /isPreview/)
+  assert.equal(
+    /CREDIT_|HR_FORM_DEFS|ANALYTICS_|APPROVAL_|ACTIVITY_ITEMS|searchWorkspace|rankPages/.test(model),
+    false,
+  )
+  assert.match(dashboard, /Illustrative preview identity/)
+
+  // Only the dashboard canvas and the Module Atlas remain. Deferred workflow
+  // screens and their modals are removed until they are rebuilt.
+  assert.match(dashboard, /ModuleAtlas/)
+  assert.match(atlas, /filterModules/)
+  assert.equal(atlas.includes('Live demo'), false)
+  assert.equal(
+    /CreditNoteView|HrFormView|ApprovalsView|AnalyticsView|ActivityView|SettingsView|WorkspaceFinder|DashboardSplash|DashboardLegacySections/.test(dashboard),
+    false,
+  )
+  for (const removed of [
+    'CreditNoteView.jsx', 'HrFormView.jsx', 'ApprovalsView.jsx', 'AnalyticsView.jsx',
+    'ActivityView.jsx', 'SettingsView.jsx', 'WorkspaceFinder.jsx', 'DashboardSplash.jsx',
+    'BookExplorer.jsx', 'BusinessSpaces.jsx', 'DashboardHero.jsx', 'ProfilePanel.jsx',
+    'QuickLinks.jsx', 'SmartAccess.jsx', 'WorkMomentum.jsx',
+  ]) {
+    await assert.rejects(read(`../src/features/dashboard/components/${removed}`), { code: 'ENOENT' }, removed)
+  }
+  for (const removed of ['DashboardLegacySections.jsx', 'dashboardModel.js', 'useDashboardUsage.js']) {
+    await assert.rejects(read(`../src/features/dashboard/${removed}`), { code: 'ENOENT' }, removed)
+  }
+
+  // The legacy template dashboard and chart library stay gone.
+  assert.equal(
+    /TemplateDashboardPreview|templateDemosAvailable/.test(dashboard),
+    false,
+  )
   for (const removed of ['TemplateDashboardPreview.jsx', 'DashboardCharts.jsx', 'LiveRequests.jsx', 'liveRequestData.js', 'mountDashboardCharts.js']) {
     await assert.rejects(read(`../src/features/dashboard/${removed}`), { code: 'ENOENT' }, removed)
   }
 })
 
-test('dashboard access summary groups real permissions without inventing values', () => {
+test('effective access summary groups real permissions without inventing values', () => {
   const grouped = groupPermissions([
     { moduleCode: 'SECURITY_ADMINISTRATION', resourceCode: 'ROLES', actionCode: 'VIEW', viaRole: true, viaOverride: false },
     { moduleCode: 'PRODUCTION', resourceCode: 'WORK_ORDERS', actionCode: 'VIEW', viaRole: false, viaOverride: true },

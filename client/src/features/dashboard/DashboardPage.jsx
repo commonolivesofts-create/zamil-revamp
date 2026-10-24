@@ -1,189 +1,170 @@
-import { Link } from 'react-router'
-import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
-import ExternalNavigationLink from '@/components/navigation/ExternalNavigationLink.jsx'
-import { appConfig } from '@/config/appConfig.js'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 import { authorizedNavigation } from '@/config/appNavigation.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
-import { formatDateTime, groupPermissions } from '@/features/dashboard/dashboardModel.js'
-import '@/styles/workspace.css'
+import { Dialog } from '@/features/security-administration/components/AdminUi.jsx'
+import HomeView from '@/features/dashboard/components/HomeView.jsx'
+import ModuleAtlas from '@/features/dashboard/components/ModuleAtlas.jsx'
+import {
+  displayName,
+  initialsOf,
+  profileRows,
+  resolveProfile,
+} from '@/features/dashboard/dashboardExperience.js'
+import {
+  useRevealOnScroll,
+  useScrollProgress,
+  shouldReduceMotion,
+} from '@/features/dashboard/useDashboardMotion.js'
+import '@/styles/dashboard-workspace.css'
 
-// ZRV-FE-005: the dashboard shows only real information: the backend profile,
-// session state and effective permissions of the signed-in user. No business
-// metrics API exists yet, so no metrics are shown. The template's sample
-// dashboard (and its chart library) was removed in Stage 4; the development
-// preview shows this same page, without a user or permissions.
+// The shell owns the sidebar, header, command palette and layout customizer.
+// This page is the workspace canvas: the home overview and the Module Atlas.
+// Workflow screens (credit notes, HR forms, approvals, analytics, activity and
+// settings) are intentionally deferred; their dashboard buttons are visual
+// placeholders until those screens are rebuilt.
+const RIPPLE_TARGETS = '.gateway-action, .quick-form, .domain-card, .book-leaf-open'
 
-const SECURITY_MODULE = 'SECURITY_ADMINISTRATION'
-
-function Card({ icon, title, description, className = '', children }) {
-  const id = `zrv-card-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+function ProfileDialogBody({ profile }) {
   return (
-    <section className={`zrv-card ${className}`.trim()} aria-labelledby={id}>
-      <div className="zrv-card__head">
-        <span className="zrv-card__icon"><OrvexaIcon name={icon} /></span>
+    <div className="zrv-ws-profile-card">
+      <div className="zrv-ws-profile-identity">
+        <span className="avatar" aria-hidden="true">{initialsOf(displayName(profile))}</span>
         <span>
-          <h2 id={id}>{title}</h2>
-          {description && <p>{description}</p>}
+          <strong>{displayName(profile)}</strong>
+          <small>{[profile?.jobTitle, profile?.department].filter(Boolean).join(' · ') || 'Signed-in employee'}</small>
         </span>
       </div>
-      {children}
-    </section>
-  )
-}
-
-function Detail({ label, value }) {
-  return (
-    <div className="zrv-dl__row">
-      <dt>{label}</dt>
-      <dd className={value ? undefined : 'is-empty'}>{value || 'Not recorded'}</dd>
-    </div>
-  )
-}
-
-function AccessSummary({ access }) {
-  if (access.status === 'error') {
-    return (
-      <div className="zrv-card__state" role="alert">
-        <p>Your permissions could not be loaded. Pages that need a permission stay hidden until they are.</p>
-        <button type="button" className="zrv-button" onClick={access.reload}>Retry</button>
-      </div>
-    )
-  }
-  // `idle`: no authenticated session (the development preview), so nothing is loaded.
-  if (access.status === 'idle') {
-    return <p className="zrv-card__state" role="status">No authenticated session: permissions are not loaded.</p>
-  }
-  if (access.status !== 'ready') {
-    return <p className="zrv-card__state" role="status">Loading your permissions…</p>
-  }
-  if (!access.permissions.length) {
-    return (
-      <p className="zrv-card__state" role="status">
-        No application permissions are assigned to your account yet. Your administrator can grant access when you need it.
-      </p>
-    )
-  }
-  const modules = groupPermissions(access.permissions)
-  const hasSecurityPermissions = access.permissions.some((permission) => permission.moduleCode === SECURITY_MODULE)
-  const needsMfa = !access.mfaVerified && access.adminMfaRequired !== false && hasSecurityPermissions
-  // Reported by the backend only under its local-development exception (AUTH_ADMIN_MFA_REQUIRED=false).
-  const mfaWaived = !access.mfaVerified && access.adminMfaRequired === false && hasSecurityPermissions
-  return (
-    <>
-      <div className="zrv-access-summary">
-        <p role="status">
-          <b>{access.permissions.length}</b> effective {access.permissions.length === 1 ? 'permission' : 'permissions'} in <b>{modules.length}</b> {modules.length === 1 ? 'module' : 'modules'}
-        </p>
-        <button type="button" className="zrv-button" onClick={access.reload}>Refresh</button>
-      </div>
-      {needsMfa && (
-        <p className="zrv-card__note">
-          Security administration also requires a sign-in verified with your authenticator app. Those permissions apply after you sign in with verification.
+      {profile?.isPreview && (
+        <p className="zrv-ws-preview-note">
+          Illustrative preview identity. These values are not an authenticated account
+          record; sign in to see your own employee details.
         </p>
       )}
-      {mfaWaived && (
-        <p className="zrv-card__note" role="note">
-          Administrator MFA is disabled on this local development server. This session is not verified with an authenticator app.
-        </p>
-      )}
-      <div className="zrv-access-modules">
-        {modules.map((module) => (
-          <section key={module.moduleCode} className="zrv-access-module" aria-label={module.label}>
-            <h3>{module.label}</h3>
-            <ul>
-              {module.resources.map((resource) => (
-                <li key={resource.resourceCode}>
-                  <span className="zrv-access-resource">{resource.label}</span>
-                  <span className="zrv-chips">
-                    {resource.actions.map((action) => (
-                      <span key={action.actionCode} className="zrv-chip" title={action.viaRole ? 'Granted through a role' : 'Granted directly to your account'}>
-                        {action.actionCode}{!action.viaRole && action.viaOverride && <small> · direct</small>}
-                      </span>
-                    ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
+      <dl className="zrv-ws-profile-grid">
+        {profileRows(profile).map((field) => (
+          <div key={field.key}>
+            <dt>{field.label}</dt>
+            <dd className={field.value === 'Not recorded on this account' ? 'is-empty' : undefined}>
+              {field.value}
+            </dd>
+          </div>
         ))}
-      </div>
-    </>
-  )
-}
-
-function WorkspaceDashboard() {
-  const { user, session, password } = useAuth()
-  const access = usePermissions()
-  const name = user?.fullName?.trim() || user?.username?.trim() || ''
-  const role = [user?.jobTitle?.trim(), user?.department?.trim()].filter(Boolean).join(' · ')
-  const pages = authorizedNavigation(access).flatMap((section) => section.items).filter((item) => item.id !== 'dashboard')
-  const idleMinutes = Number.isInteger(session?.idleTimeoutSeconds) ? Math.round(session.idleTimeoutSeconds / 60) : null
-  const passwordExpiry = formatDateTime(password?.expiresAt, { dateOnly: true })
-
-  return (
-    <div className="zrv-dash">
-      <header className="zrv-dash__hero">
-        <p className="zrv-dash__eyebrow">{appConfig.name}</p>
-        <h1>{name ? `Welcome, ${name}` : 'Welcome'}</h1>
-        {role && <p className="zrv-dash__lead">{role}</p>}
-      </header>
-
-      <div className="zrv-dash__grid">
-        <Card icon="id-card" title="Your profile" description="From your employee record">
-          <dl className="zrv-dl">
-            <Detail label="Employee number" value={user?.employeeNumber} />
-            <Detail label="Username" value={user?.username} />
-            <Detail label="Email" value={user?.email} />
-            <Detail label="Job title" value={user?.jobTitle} />
-            <Detail label="Department" value={user?.department} />
-          </dl>
-        </Card>
-
-        <Card icon="shield-check" title="Sign-in and security" description="This session">
-          <dl className="zrv-dl">
-            <Detail label="Verification" value={session ? (session.mfaVerified ? 'Verified with authenticator app' : 'Password only') : null} />
-            <Detail label="Session ends" value={formatDateTime(session?.expiresAt)} />
-            <Detail label="Idle sign-out" value={idleMinutes ? `After ${idleMinutes} ${idleMinutes === 1 ? 'minute' : 'minutes'} of inactivity` : null} />
-            <Detail label="Password" value={password?.expired ? 'Expired — change it now' : passwordExpiry ? `Expires ${passwordExpiry}` : password ? 'No expiry date' : null} />
-          </dl>
-        </Card>
-
-        <Card icon="key-round" title="Your access" description="Effective permissions resolved by the server" className="zrv-card--wide">
-          <AccessSummary access={access} />
-        </Card>
-
-        <Card icon="compass" title="Available pages" description="Pages your account can open" className="zrv-card--wide">
-          {pages.length ? (
-            <ul className="zrv-dash__links">
-              {pages.map((page) => (
-                <li key={page.id}>
-                  {page.type === 'external' ? (
-                    <ExternalNavigationLink href={page.href}>
-                      <OrvexaIcon name={page.icon} />
-                      <span>{page.label}</span>
-                      <OrvexaIcon name="chevron-right" className="zrv-dash__chevron" />
-                    </ExternalNavigationLink>
-                  ) : (
-                    <Link to={page.path}>
-                      <OrvexaIcon name={page.icon} />
-                      <span>{page.label}</span>
-                      <OrvexaIcon name="chevron-right" className="zrv-dash__chevron" />
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="zrv-card__state">No additional pages are available to your account.</p>
-          )}
-          <p className="zrv-card__note">Business modules will appear here when they are released and assigned to your account.</p>
-        </Card>
-      </div>
+      </dl>
+      <p className="zrv-ws-profile-note">Read-only details from the signed-in employee record.</p>
     </div>
   )
 }
 
 export default function DashboardPage() {
-  return <WorkspaceDashboard />
+  const { user, status } = useAuth()
+  const access = usePermissions()
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const view = searchParams.get('view') === 'atlas' ? 'atlas' : 'home'
+  const atlasDomain = view === 'atlas' ? searchParams.get('domain') ?? '' : ''
+  const profile = useMemo(() => resolveProfile(user, status), [user, status])
+  const pages = useMemo(
+    () => authorizedNavigation(access).flatMap((section) =>
+      section.items.map((page) => ({ ...page, sectionLabel: section.label }))),
+    [access],
+  )
+
+  const rootRef = useRef(null)
+  const motionEnabled = useRevealOnScroll(rootRef, view)
+  const progressRef = useScrollProgress(motionEnabled, view)
+
+  const [profileOpen, setProfileOpen] = useState(false)
+  const lastViewRef = useRef(view)
+
+  const openProfile = useCallback(() => setProfileOpen(true), [])
+  const closeProfile = useCallback(() => setProfileOpen(false), [])
+
+  // Only the home canvas and the Module Atlas exist for now. Any dashboard
+  // button that used to open a deferred workflow is deliberately inert.
+  const navigateView = useCallback((nextView, options = {}) => {
+    const normalized = nextView === 'atlas' ? 'atlas' : nextView === 'home' ? 'home' : null
+    if (!normalized) return
+    const params = new URLSearchParams()
+    if (normalized === 'atlas') {
+      params.set('view', 'atlas')
+      if (options.domain) params.set('domain', options.domain)
+    }
+    setSearchParams(params, { replace: false })
+  }, [setSearchParams])
+
+  const openPage = useCallback((page) => {
+    if (!page) return
+    if (page.type === 'external') {
+      window.open(page.href, '_blank', 'noopener,noreferrer')
+      return
+    }
+    navigate(page.path)
+  }, [navigate])
+
+  // View changes are client-side, so restore the top of the page and move focus
+  // to the new title. This keeps keyboard and screen-reader users in context.
+  useEffect(() => {
+    if (lastViewRef.current === view) return undefined
+    lastViewRef.current = view
+    window.scrollTo({ top: 0, behavior: 'auto' })
+    const frame = window.requestAnimationFrame(() => {
+      rootRef.current
+        ?.querySelector('[data-zrv-view-title]')
+        ?.focus?.({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [view])
+
+  const spawnRipple = useCallback((event) => {
+    if (shouldReduceMotion()) return
+    const target = event.target.closest?.(RIPPLE_TARGETS)
+    if (!target) return
+    const bounds = target.getBoundingClientRect()
+    const ripple = document.createElement('span')
+    ripple.className = 'click-energy'
+    ripple.style.left = `${event.clientX - bounds.left}px`
+    ripple.style.top = `${event.clientY - bounds.top}px`
+    target.appendChild(ripple)
+    ripple.addEventListener('animationend', () => ripple.remove(), { once: true })
+  }, [])
+
+  const content = view === 'atlas' ? (
+    <ModuleAtlas
+      initialDomain={atlasDomain}
+      onBack={() => navigateView('home')}
+    />
+  ) : (
+    <HomeView
+      profile={profile}
+      pages={pages}
+      accessStatus={access.status}
+      onOpenProfile={openProfile}
+      onNavigate={navigateView}
+      onOpenPage={openPage}
+    />
+  )
+
+  return (
+    <div className="zrv-ws" ref={rootRef} onPointerDown={spawnRipple}>
+      <div className="scroll-indicator" ref={progressRef} aria-hidden="true" />
+      <div className={`scene${view === 'atlas' ? ' atlas-no-enter' : ''}`} key={`${view}-${view === 'atlas' ? atlasDomain : ''}`}>{content}</div>
+
+      {profileOpen && (
+        <Dialog
+          title="Employee profile"
+          description="The identity this workspace uses for you."
+          onClose={closeProfile}
+        >
+          <ProfileDialogBody profile={profile} />
+          <div className="zrv-dialog__actions">
+            <button className="btn ghost" type="button" onClick={closeProfile} data-autofocus>
+              Close
+            </button>
+          </div>
+        </Dialog>
+      )}
+    </div>
+  )
 }
