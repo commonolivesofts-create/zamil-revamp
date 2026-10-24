@@ -6,6 +6,7 @@ import { appConfig } from '@/config/appConfig.js'
 import { authorizedNavigation } from '@/config/appNavigation.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
+import { displayName as profileName, initialsOf, resolveProfile } from '@/features/dashboard/dashboardExperience.js'
 
 // No notification service exists yet, so the header shows no notifications.
 // There is no language selector: the interface is only available in English.
@@ -36,12 +37,12 @@ function Dropdown({ id, menu, openMenu, toggleMenu, label, className = '', butto
 export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSidebarMode, theme, setTheme, onOpenSettings, onOpenCommand, onUnavailable }) {
   const { user, status, signOut } = useAuth()
   const access = usePermissions()
-  // Profile text only (backend AuthUser). Roles and permissions are never inferred client-side.
-  const displayName = status === 'preview' ? 'Developer preview' : user?.fullName?.trim() || user?.username?.trim() || user?.email?.trim() || 'Signed-in user'
-  const displayEmail = status === 'preview' ? 'Not authenticated' : user?.email || ''
-  const accountRole = status === 'preview' ? 'Layout preview' : user?.jobTitle?.trim() || user?.department?.trim() || 'Employee'
-  const initials = displayName.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
-  const employeeNumber = status === 'authenticated' && user?.employeeNumber ? user.employeeNumber : null
+  const profile = resolveProfile(user, status)
+  const displayName = profileName(profile)
+  const displayEmail = profile.email || (status === 'preview' ? 'Design preview' : '')
+  const accountRole = [profile.jobTitle, profile.department].filter(Boolean).join(' · ') || 'Signed-in employee'
+  const initials = initialsOf(displayName)
+  const employeeNumber = profile.employeeNumber || null
   const accountLinks = authorizedNavigation(access).find((section) => section.id === 'account')?.items || []
   const [signOutPending, setSignOutPending] = useState(false)
   const [openMenu, setOpenMenu] = useState(null)
@@ -113,11 +114,10 @@ export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSideb
           </button>
           <Dropdown
             menu="profile" openMenu={openMenu} toggleMenu={setOpenMenu} label="Profile menu"
-            className="profile-dropdown" buttonClassName="topbar-profile-trigger"
+            className="profile-dropdown" buttonClassName="header-profile-trigger"
             icon={<>
-              <span className="topbar-avatar">{initials}</span>
-              <span className="topbar-profile-copy"><b>{displayName}</b><small>{accountRole}</small></span>
-              <OrvexaIcon name="chevron-down" className="topbar-profile-chevron" />
+              <span className="header-profile-avatar" aria-hidden="true">{initials}</span>
+              <span className="header-profile-copy"><b>{displayName}</b><small>{accountRole}</small></span>
             </>}
           >
             <div id="profile-panel" className="dropdown-panel profile-panel right-0 top-[calc(100%+10px)]" aria-label="Profile menu">
