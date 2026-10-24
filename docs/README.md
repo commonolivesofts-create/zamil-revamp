@@ -16,6 +16,7 @@ without creating parallel infrastructure.
 | 6 | [Backend documentation](../server/docs/README.md) | Approved architecture set, module guide, API/database change workflow, testing |
 | 7 | [Feature handoff template](FEATURE-HANDOFF-TEMPLATE.md) | What to record when a feature is delivered |
 | 8 | [AI assistant starter prompt](AI-ASSISTANT-STARTER.md) | A reusable prompt that makes any assistant follow these standards |
+| 9 | [Administrator guide: role permissions and sidebar access](ADMIN-GUIDE-ROLE-PERMISSIONS.md) | Granting several permissions to a role, reading the results, why a page does not appear |
 
 Frontend-only developers can skip the backend module guide; backend-only developers can skip the
 frontend new-feature guide. Everyone reads 1–4.

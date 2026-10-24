@@ -7,15 +7,18 @@ import { isRecordId, permissionLabel } from '../adminModel.js'
 import { SECURITY_ACTIONS } from '../securityActions.js'
 import { securityAdminService } from '../securityAdminService.js'
 import { useAdminAction, useResource } from '../useAdminData.js'
-import { ActiveBadge, AdminPage, ConfirmDialog, Dialog, DialogActions, Feedback, Pagination, Panel, ResourceState } from '../components/AdminUi.jsx'
-import PermissionPicker from '../components/PermissionPicker.jsx'
+import { ActiveBadge, AdminPage, ConfirmDialog, Feedback, Pagination, Panel, ResourceState } from '../components/AdminUi.jsx'
+import RoleGrantDialog from '../components/RoleGrantDialog.jsx'
 
 const ROLE_PAGE_SIZE = 100
 
-// Permissions granted to a role (ROLE_PERMISSIONS). Granting picks a backend
-// permission ID from the live catalogue (PERMISSION_CATALOG:VIEW). Grants and
-// revocations are idempotent on the server; the result says whether anything
-// changed. Escalation and protected-role rules are enforced by the backend.
+// Permissions granted to a role (ROLE_PERMISSIONS). Granting selects one or more
+// backend permission IDs from the live catalogue (PERMISSION_CATALOG:VIEW) and
+// sends them one at a time (RoleGrantDialog). Grants and revocations are
+// idempotent on the server; each result says whether anything changed.
+// Escalation and protected-role rules are enforced by the backend. Every dialog
+// is bound to the role it was opened for: if the selected role changes
+// (for example through browser navigation), that dialog is no longer shown.
 export default function RolePermissionsPage() {
   const { can } = usePermissions()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -23,8 +26,7 @@ export default function RolePermissionsPage() {
   const roleId = isRecordId(roleParam) ? roleParam : null
   const [page, setPage] = useState(1)
   const [showRevoked, setShowRevoked] = useState(false)
-  const [dialog, setDialog] = useState(null)
-  const [choice, setChoice] = useState(null)
+  const [dialogState, setDialog] = useState(null)
   const roles = useResource(`roles:${page}:${ROLE_PAGE_SIZE}`, (signal) => securityAdminService.listRoles({ page, limit: ROLE_PAGE_SIZE }, { signal }))
   const grants = useResource(roleId ? `role-grants:${roleId}` : null, (signal) => securityAdminService.listRolePermissions(roleId, { signal }))
   const action = useAdminAction()
@@ -32,6 +34,9 @@ export default function RolePermissionsPage() {
   const roleLabel = role ? role.roleCode : roleId ? `role ${roleId}` : ''
   const canGrant = can(SECURITY_ACTIONS.ROLE_PERMISSIONS_GRANT) && can(SECURITY_ACTIONS.PERMISSION_CATALOG_VIEW)
   const canRevoke = can(SECURITY_ACTIONS.ROLE_PERMISSIONS_REVOKE)
+  const dialog = dialogState?.roleId === roleId ? dialogState : null
+  // Granting needs the role itself: loaded from the role list and active.
+  const grantBlocked = !role ? 'Select the role from the role list to grant permissions' : !role.isActive ? 'Inactive roles cannot receive permissions' : null
 
   const select = (id) => {
     action.setFeedback(null)
@@ -39,8 +44,7 @@ export default function RolePermissionsPage() {
   }
   const open = (next) => {
     action.setFeedback(null)
-    setChoice(null)
-    setDialog(next)
+    setDialog({ ...next, roleId })
   }
   const close = () => setDialog(null)
   const finish = (outcome) => {
@@ -49,12 +53,15 @@ export default function RolePermissionsPage() {
     grants.reload()
   }
 
-  const grant = async () => {
-    if (!choice) return
-    finish(await action.run(() => securityAdminService.grantRolePermission(roleId, choice.permissionId), {
-      success: (result) => result.changed ? `${choice.key} granted to ${roleLabel}.` : `${roleLabel} already held ${choice.key}; nothing changed.`,
-      refreshAccess: true,
-    }))
+  // The grant dialog checks "already granted" against freshly loaded grants.
+  const openGrant = () => {
+    if (grantBlocked) return
+    grants.reload()
+    open({ type: 'grant' })
+  }
+  const grantsFinished = () => {
+    close()
+    grants.reload()
   }
 
   return (
@@ -84,8 +91,8 @@ export default function RolePermissionsPage() {
         <Panel
           title={roleId ? `Permissions of ${roleLabel}` : 'Permissions'}
           actions={roleId && canGrant && (
-            <button type="button" className="btn-primary" onClick={() => open({ type: 'grant' })} disabled={role && !role.isActive} title={role && !role.isActive ? 'Inactive roles cannot receive permissions' : undefined}>
-              <OrvexaIcon name="plus" className="size-4" /> Grant permission
+            <button type="button" className="btn-primary" onClick={openGrant} disabled={Boolean(grantBlocked)} title={grantBlocked ?? undefined}>
+              <OrvexaIcon name="plus" className="size-4" /> Grant permissions
             </button>
           )}
         >
@@ -120,23 +127,14 @@ export default function RolePermissionsPage() {
         </Panel>
       </div>
 
-      {dialog?.type === 'grant' && (
-        <Dialog title={`Grant a permission to ${roleLabel}`} description="Every account assigned to this role receives the permission immediately." onClose={close} busy={action.pending} wide>
-          <PermissionPicker
-            selectedId={choice?.permissionId}
-            onSelect={setChoice}
-            excludeIds={(grants.data || []).filter((item) => item.isActive).map((item) => item.permissionId)}
-            disabled={action.pending}
-          />
-          <Feedback feedback={action.feedback?.kind === 'success' ? null : action.feedback} />
-          <DialogActions onCancel={close} pending={action.pending} confirmLabel={choice ? `Grant ${choice.key}` : 'Grant'} pendingLabel="Granting…" confirmDisabled={!choice} onConfirm={grant} />
-        </Dialog>
+      {dialog?.type === 'grant' && role?.isActive && (
+        <RoleGrantDialog roleId={dialog.roleId} roleLabel={roleLabel} grants={grants} action={action} onClose={close} onFinished={grantsFinished} />
       )}
       {dialog?.type === 'revoke' && (
         <ConfirmDialog
           danger title="Revoke this permission?" confirmLabel="Revoke" pending={action.pending} feedback={action.feedback} onClose={close}
           description={`${permissionLabel(dialog.grant)} is removed from ${roleLabel}. Accounts that hold it only through this role lose it immediately.`}
-          onConfirm={async () => finish(await action.run(() => securityAdminService.revokeRolePermission(roleId, dialog.grant.permissionId), {
+          onConfirm={async () => finish(await action.run(() => securityAdminService.revokeRolePermission(dialog.roleId, dialog.grant.permissionId), {
             success: (result) => result.changed ? `${permissionLabel(dialog.grant)} revoked from ${roleLabel}.` : 'The permission was already revoked; nothing changed.',
             refreshAccess: true,
           }))}
