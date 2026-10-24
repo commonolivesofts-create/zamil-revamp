@@ -1,4 +1,6 @@
-# Zamil Revamp — Authentication/RBAC Implementation Status
+# Zamil Digitalization — Authentication/RBAC Implementation Status
+
+**CURRENT STATE (24 October 2026):** This is a **historical backend phase tracker**, not the current branch or release status. Phase 2A/2B/2C have since merged through PRs #18/#19/#20; current audited `main` was `bd5a8f5449b172806d43975f3ea47cd1d88e7444`. Frontend authentication and security-administration screens are implemented. The approved MFA challenge/recent-verification windows are now **5 minutes** (source: `server/src/modules/auth/auth.policy.js`). Earlier phase rows below are dated historical snapshots; do not treat their old `uncommitted` labels or older MFA values as current. See [pre-module audit](../../docs/DEVELOPER-HANDOVER-GATE.md). **Development-module readiness is separate from production security sign-off.**
 
 **Last reviewed:** 20 October 2026 (Phase 07 backend finalization on `feat/backend-finalization`, uncommitted; Phases 01–06 merged at `da20f25`). **Ready for development-team handover and TEST/integration use; NOT production-ready (seven blockers open).** Developer entry point: `handoffs/PHASE-07-BACKEND-FINALIZATION.md`.
 **Scope:** Backend and Oracle only; `client/` intentionally deferred.
