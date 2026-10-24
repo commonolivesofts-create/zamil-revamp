@@ -4,6 +4,10 @@ This is the entry point for everyone who builds Zamil Digitalization features, w
 AI coding assistant. The documents describe **what already exists** and **how to extend it**
 without creating parallel infrastructure.
 
+## Current development handover gate
+
+Before adding a new business module, read the [pre-module repository audit and readiness gates](DEVELOPER-HANDOVER-GATE.md) and [form and UX quality standard](FORM-UX-QUALITY.md). Historical phase reports retain their original dates; do not interpret an old branch label as current.
+
 ## Reading order
 
 | # | Document | Read it to learn |

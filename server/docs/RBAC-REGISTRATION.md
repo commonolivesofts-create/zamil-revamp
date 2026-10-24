@@ -38,6 +38,14 @@ npm run db:rbac-register -- --target=TEST
 npm run db:rbac-register -- --target=TEST --apply --fingerprint=<64-character fingerprint from step 1>
 ```
 
+Some npm versions interpret `--target=TEST` as an npm config option even after `--`. If you see `npm warn Unknown cli config \"--target\"` and the CLI reports a missing target, use the same executable directly from `server/`:
+
+```powershell
+node --env-file-if-exists=.env .\scripts\rbac-register.js --target=TEST
+```
+
+This alternative is still an **Oracle TEST read-only connection**; do not run it without owner approval. Neither preview nor this command grants permission to run `--apply`.
+
 Arguments: `--target=<TARGET>` (required), `--apply`, `--fingerprint=<sha256>` (required with, and
 only accepted with, `--apply`). Anything else is refused.
 
