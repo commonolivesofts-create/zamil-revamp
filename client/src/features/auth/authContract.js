@@ -1,7 +1,8 @@
 // Validators for the backend authentication contract (server/docs/openapi/openapi.yaml:
 // LoginResult, MfaChallenge, CurrentUser, CsrfToken, MfaEnrollment, MfaReplacementResult,
 // PasswordPolicy, RecoveryAccepted, PasswordChangeResult, MfaRecoveryResult).
-// Only documented fields are kept. A response that does not match is rejected
+// Only documented fields are kept, plus an optional avatarUrl display asset
+// when the backend supplies one. A response that does not match is rejected
 // rather than guessed at, so a malformed or MFA-pending login can never be
 // mistaken for an authenticated session.
 import { ApiError, CSRF_HEADER } from '../../services/api/apiClient.js'
@@ -22,6 +23,17 @@ const TOKEN_PATTERN = /^[\x21-\x7e]{1,512}$/
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 const isNullableString = (value) => value === null || typeof value === 'string'
 const isDateTime = (value) => typeof value === 'string' && !Number.isNaN(Date.parse(value))
+const SAFE_AVATAR_PATH = /^\/(?!\/)[A-Za-z0-9._~!$&'()*+,;=:@%/?-]+$/
+
+// The avatar is a display-only extra, not part of the documented user contract.
+// It must be a same-origin path because the production CSP allows images only
+// from this origin. Keep a safe value and silently ignore anything else so a
+// bad image URL can never prevent an otherwise valid sign-in.
+function readAvatarUrl(value) {
+  if (typeof value !== 'string') return null
+  const candidate = value.trim()
+  return SAFE_AVATAR_PATH.test(candidate) ? candidate : null
+}
 
 function invalid() {
   return new ApiError('The authentication response could not be verified.', { code: 'INVALID_RESPONSE' })
@@ -33,6 +45,7 @@ function readUser(user) {
     !['username', 'fullName', 'email', 'jobTitle', 'department'].every((key) => isNullableString(user[key]))) {
     throw invalid()
   }
+  const avatarUrl = readAvatarUrl(user.avatarUrl)
   return Object.freeze({
     id: user.id,
     username: user.username,
@@ -41,6 +54,7 @@ function readUser(user) {
     email: user.email,
     jobTitle: user.jobTitle,
     department: user.department,
+    ...(avatarUrl ? { avatarUrl } : {}),
   })
 }
 

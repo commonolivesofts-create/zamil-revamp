@@ -26,8 +26,23 @@ export const PROFILE_FIELDS = Object.freeze([
 
 const text = (value) => (typeof value === 'string' ? value.trim() : '')
 
+const SAFE_AVATAR_PATH = /^\/(?!\/)[A-Za-z0-9._~!$&'()*+,;=:@%/?-]+$/
+
+// Profile images are optional. Accept only a same-origin path so a malformed
+// session value can never become an unsafe img source or violate the CSP.
+function normalizeAvatarUrl(value) {
+  const candidate = text(value)
+  return SAFE_AVATAR_PATH.test(candidate) ? candidate : ''
+}
+
+export function profileAvatarUrl(profile) {
+  return normalizeAvatarUrl(profile?.avatarUrl)
+    || normalizeAvatarUrl(profile?.profileImageUrl)
+    || normalizeAvatarUrl(profile?.imageUrl)
+}
+
 export function resolveProfile(user, status) {
-  if (status === 'preview') return { ...PREVIEW_PROFILE, isPreview: true }
+  if (status === 'preview') return { ...PREVIEW_PROFILE, avatarUrl: '', isPreview: true }
   return {
     fullName: text(user?.fullName) || text(user?.username) || 'Your workspace',
     employeeNumber: text(user?.employeeNumber),
@@ -35,6 +50,7 @@ export function resolveProfile(user, status) {
     email: text(user?.email),
     jobTitle: text(user?.jobTitle),
     department: text(user?.department),
+    avatarUrl: profileAvatarUrl(user),
     isPreview: false,
   }
 }

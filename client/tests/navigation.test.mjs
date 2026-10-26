@@ -462,6 +462,7 @@ test("the workspace dashboard uses real identity data and labels its demo conten
   const meta = await read(
     "../src/features/dashboard/components/DashboardMeta.jsx",
   );
+  const avatar = await read("../src/components/profile/ProfileAvatar.jsx");
   const model = await read("../src/features/dashboard/dashboardExperience.js");
 
   // The approved design includes illustrative business content, but the
@@ -476,6 +477,19 @@ test("the workspace dashboard uses real identity data and labels its demo conten
   );
   assert.match(home, /Workspace · Preview/);
   assert.match(home, /onClick=\{onOpenProfile\}/);
+  assert.match(home, /hero-profile/);
+  assert.match(home, /ProfileAvatar/);
+  assert.match(home, /profile\?\.jobTitle/);
+  assert.match(home, /profile\?\.department/);
+  assert.match(home, /Employee \{profile\.employeeNumber\}/);
+  assert.match(home, /profile\?\.email/);
+  assert.match(
+    dashboard,
+    /<ProfileAvatar profile=\{profile\} className="zrv-ws-profile-avatar"/,
+  );
+  assert.match(avatar, /profileAvatarUrl\(profile\)/);
+  assert.match(avatar, /onError=\{\(\) => setFailedSource\(source\)\}/);
+  assert.match(avatar, /initialsOf\(displayName\(profile\)\)/);
   assert.match(home, /AUTHORIZED PAGES/);
   assert.match(home, /onOpenPage\(page\)/);
   assert.match(home, /page\.sectionLabel/);

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
+import ProfileAvatar from "@/components/profile/ProfileAvatar.jsx";
 import { appConfig } from "@/config/appConfig.js";
 import DashboardMeta from "@/features/dashboard/components/DashboardMeta.jsx";
 import FolioBook from "@/features/dashboard/components/FolioBook.jsx";
@@ -94,11 +95,11 @@ export default function HomeView({
   const [quickCategory, setQuickCategory] = useState("HR");
   const [quickPanelChanged, setQuickPanelChanged] = useState(false);
   const name = displayName(profile);
-  const employeeBadge = profile?.isPreview
-    ? "Workspace · Preview"
-    : profile?.employeeNumber
-      ? `Employee ${profile.employeeNumber}`
-      : "Signed-in workspace";
+  const roleLine = profile?.isPreview
+    ? "Illustrative preview identity"
+    : [profile?.jobTitle, profile?.department].filter(Boolean).join(" · ") ||
+      "Signed-in employee";
+  const hasLiveFacts = Boolean(profile?.employeeNumber || profile?.email);
   const visiblePages = pages.slice(0, 4);
   const accessLoading = accessStatus === "loading";
 
@@ -137,22 +138,40 @@ export default function HomeView({
               <br />
               <em>Made effortless.</em>
             </span>
+          </h1>
+          <div className="hero-profile">
+            <ProfileAvatar profile={profile} className="hero-profile-avatar" />
+            <div className="hero-profile-copy">
+              <span className="hero-profile-role">{roleLine}</span>
+              <span className="hero-profile-facts">
+                {profile?.isPreview ? (
+                  <span className="hero-profile-preview">
+                    Workspace · Preview
+                  </span>
+                ) : hasLiveFacts ? (
+                  <>
+                    {profile?.employeeNumber && (
+                      <span>Employee {profile.employeeNumber}</span>
+                    )}
+                    {profile?.email && <span>{profile.email}</span>}
+                  </>
+                ) : (
+                  <span>Signed-in workspace</span>
+                )}
+              </span>
+            </div>
             <button
               type="button"
-              className="pill hero-employee-badge"
+              className="hero-profile-open"
               onClick={onOpenProfile}
               aria-label={`Open profile for ${name}`}
               aria-haspopup="dialog"
               title="View employee profile"
             >
-              <i className="pulse" aria-hidden="true" />
-              {employeeBadge}
+              View profile <OrvexaIcon name="arrow-right" className="icon-sm" />
             </button>
-          </h1>
-          <p className="greeting-description gateway-description">
-            Everything you need, right where you expect it. Choose a task below,
-            or simply search for any page. No menus to learn.
-          </p>
+          </div>
+
           <div
             className="gateway-actions"
             role="group"

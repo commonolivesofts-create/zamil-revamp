@@ -50,3 +50,28 @@ test('current-user and CSRF contracts are validated', () => {
   assert.equal(readCsrfToken({ token: 'abc', headerName: 'X-CSRF-Token' }), 'abc')
   assert.throws(() => readCsrfToken({ token: '', headerName: 'X-CSRF-Token' }), { code: 'INVALID_RESPONSE' })
 })
+
+test('an optional avatar path is kept only when it is same-origin', () => {
+  const withAvatar = (avatarUrl) => readCurrentUser({
+    ...currentUser(),
+    user: { ...authUser, avatarUrl },
+  }).user
+
+  assert.equal(withAvatar('/avatars/2502.png').avatarUrl, '/avatars/2502.png')
+  assert.equal(withAvatar('/api/v1/users/2502/avatar?v=2').avatarUrl,
+    '/api/v1/users/2502/avatar?v=2')
+  assert.equal('avatarUrl' in readCurrentUser(currentUser()).user, false)
+  for (const avatarUrl of [
+    'javascript:alert(1)',
+    'https://cdn.example.com/avatars/2502.png',
+    'http://cdn.example.com/avatars/2502.png',
+    '//cdn.example.com/avatars/2502.png',
+    'data:image/png;base64,AAAA',
+    'C:\\avatars\\2502.png',
+    '',
+    null,
+    42,
+  ]) {
+    assert.equal('avatarUrl' in withAvatar(avatarUrl), false, String(avatarUrl))
+  }
+})

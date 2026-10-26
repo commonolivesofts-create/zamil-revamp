@@ -18,6 +18,7 @@ import {
   filterModules,
   formatDateLabel,
   initialsOf,
+  profileAvatarUrl,
   profileRows,
   resolveProfile,
 } from '../src/features/dashboard/dashboardExperience.js'
@@ -88,8 +89,39 @@ test('profile helpers preserve real values and isolate preview values', () => {
   const preview = resolveProfile(null, 'preview')
   assert.equal(preview.isPreview, true)
   assert.equal(preview.fullName, PREVIEW_PROFILE.fullName)
+  assert.equal(preview.avatarUrl, '')
   assert.equal(profileRows(preview).length, PROFILE_FIELDS.length)
   assert.equal(displayName({}), 'Your workspace')
   assert.equal(initialsOf(''), 'ZW')
   assert.equal(typeof formatDateLabel(new Date('2026-10-24T00:00:00Z')), 'string')
+})
+
+test('profile avatar paths are optional and limited to same-origin sources', () => {
+  const input = {
+    fullName: 'Amina Khan',
+    employeeNumber: '42',
+    avatarUrl: '/avatars/42.png',
+  }
+  assert.equal(resolveProfile(input, 'ready').avatarUrl, '/avatars/42.png')
+  assert.equal(
+    resolveProfile({ ...input, avatarUrl: '/api/v1/users/42/avatar?v=2' }, 'ready').avatarUrl,
+    '/api/v1/users/42/avatar?v=2',
+  )
+  assert.equal(
+    profileAvatarUrl({ profileImageUrl: '/avatars/42.png' }),
+    '/avatars/42.png',
+  )
+  for (const avatarUrl of [
+    'javascript:alert(1)',
+    'https://cdn.example.com/avatars/42.png',
+    'http://cdn.example.com/avatars/42.png',
+    '//cdn.example.com/avatars/42.png',
+    'data:image/png;base64,AAAA',
+    'C:\\avatars\\42.png',
+    '',
+    null,
+    42,
+  ]) {
+    assert.equal(profileAvatarUrl({ avatarUrl }), '', String(avatarUrl))
+  }
 })
