@@ -3,12 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { authorizedNavigation } from '@/config/appNavigation.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
+import ProfileAvatar from '@/components/profile/ProfileAvatar.jsx'
 import { Dialog } from '@/features/security-administration/components/AdminUi.jsx'
 import HomeView from '@/features/dashboard/components/HomeView.jsx'
 import ModuleAtlas from '@/features/dashboard/components/ModuleAtlas.jsx'
 import {
   displayName,
-  initialsOf,
   profileRows,
   resolveProfile,
 } from '@/features/dashboard/dashboardExperience.js'
@@ -30,7 +30,7 @@ function ProfileDialogBody({ profile }) {
   return (
     <div className="zrv-ws-profile-card">
       <div className="zrv-ws-profile-identity">
-        <span className="avatar" aria-hidden="true">{initialsOf(displayName(profile))}</span>
+        <ProfileAvatar profile={profile} className="zrv-ws-profile-avatar" />
         <span>
           <strong>{displayName(profile)}</strong>
           <small>{[profile?.jobTitle, profile?.department].filter(Boolean).join(' · ') || 'Signed-in employee'}</small>

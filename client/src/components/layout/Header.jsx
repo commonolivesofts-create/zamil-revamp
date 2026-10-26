@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import ExternalNavigationLink from '@/components/navigation/ExternalNavigationLink.jsx'
+import ProfileAvatar from '@/components/profile/ProfileAvatar.jsx'
 import { appConfig } from '@/config/appConfig.js'
 import { authorizedNavigation } from '@/config/appNavigation.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
-import { displayName as profileName, initialsOf, resolveProfile } from '@/features/dashboard/dashboardExperience.js'
+import { displayName as profileName, resolveProfile } from '@/features/dashboard/dashboardExperience.js'
 
 // No notification service exists yet, so the header shows no notifications.
 // There is no language selector: the interface is only available in English.
@@ -41,7 +42,6 @@ export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSideb
   const displayName = profileName(profile)
   const displayEmail = profile.email || (status === 'preview' ? 'Design preview' : '')
   const accountRole = [profile.jobTitle, profile.department].filter(Boolean).join(' · ') || 'Signed-in employee'
-  const initials = initialsOf(displayName)
   const employeeNumber = profile.employeeNumber || null
   const accountLinks = authorizedNavigation(access).find((section) => section.id === 'account')?.items || []
   const [signOutPending, setSignOutPending] = useState(false)
@@ -116,12 +116,12 @@ export default function Header({ mobileOpen, onMobileOpen, sidebarMode, setSideb
             menu="profile" openMenu={openMenu} toggleMenu={setOpenMenu} label="Profile menu"
             className="profile-dropdown" buttonClassName="header-profile-trigger"
             icon={<>
-              <span className="header-profile-avatar" aria-hidden="true">{initials}</span>
+              <ProfileAvatar profile={profile} className="header-profile-avatar" />
               <span className="header-profile-copy"><b>{displayName}</b><small>{accountRole}</small></span>
             </>}
           >
             <div id="profile-panel" className="dropdown-panel profile-panel right-0 top-[calc(100%+10px)]" aria-label="Profile menu">
-              <div className="profile-panel-head"><span className="profile-panel-avatar">{initials}</span><span><b>{displayName}</b><small>{displayEmail}</small></span></div>
+              <div className="profile-panel-head"><ProfileAvatar profile={profile} className="profile-panel-avatar" /><span><b>{displayName}</b><small>{displayEmail}</small></span></div>
               {(employeeNumber || status === 'preview') && (
                 <div className="profile-workspace"><span><b>{status === 'preview' ? 'Development preview only' : `Employee ${employeeNumber}`}</b>{user?.department && <small>{user.department}</small>}</span></div>
               )}

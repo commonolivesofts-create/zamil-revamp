@@ -59,12 +59,12 @@ export default function CommandPalette({ open, onClose }) {
 
   return (
     <div
-      id="command-modal" className={`fixed inset-0 z-[90] items-start justify-center bg-black/55 px-3 pt-[8vh] backdrop-blur-md ${open ? 'flex' : 'hidden'}`}
+      id="command-modal" className={`fixed inset-0 z-[90] items-start justify-center overflow-y-auto bg-black/55 p-3 backdrop-blur-md ${open ? 'flex' : 'hidden'}`}
       role="dialog" aria-modal="true" aria-labelledby="command-title" aria-hidden={!open} inert={!open}
       onMouseDown={(event) => { if (event.target === event.currentTarget) close() }}
       ref={dialogRef}
     >
-      <div className="glass-panel w-full max-w-2xl overflow-hidden rounded-3xl">
+      <div className="glass-panel my-auto w-full max-w-2xl overflow-hidden rounded-3xl">
         <h2 id="command-title" className="sr-only">Search {appConfig.name}</h2>
         <div className="flex items-center gap-3 border-b px-4 py-3.5" style={{ borderColor: 'var(--line)' }}>
           <OrvexaIcon name="search" className="size-[18px]" style={{ color: 'var(--muted)' }} />

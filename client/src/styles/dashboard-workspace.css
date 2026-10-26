@@ -3607,16 +3607,132 @@ html:not(.dark) .zrv-ws .zamil-core {
   letter-spacing: -0.063em;
   margin-top: 9px;
 }
-.zrv-ws .hero-employee-badge {
+.zrv-ws .hero-profile {
   display: flex;
-  width: max-content;
-  margin: 18px 0 0 0.1em;
-  font-family: Inter, sans-serif;
+  align-items: center;
+  gap: 13px;
+  max-width: 535px;
+  margin: 0 0 21px;
+  padding: 11px 13px 11px 11px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(var(--grn-rgb), 0.1), transparent 52%),
+    var(--panel);
+  box-shadow: 0 16px 42px rgba(var(--grn-shadow-rgb), 0.12);
+}
+.zrv-ws .zrv-profile-avatar {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.34), transparent 42%),
+    linear-gradient(145deg, var(--grn-soft), var(--grn-mid));
+  color: var(--grn-900);
+  font-family: "Inter Display", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 0 0 3px rgba(var(--grn-rgb), 0.13),
+    0 12px 28px rgba(var(--grn-shadow-rgb), 0.24);
+}
+.zrv-ws .zrv-profile-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.zrv-ws .hero-profile-avatar {
+  flex: 0 0 62px;
+  width: 62px;
+  height: 62px;
+  font-size: 19px;
+}
+.zrv-ws .hero-profile-copy {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 5px;
+  min-width: 0;
+}
+.zrv-ws .hero-profile-role {
+  overflow: hidden;
+  color: var(--text);
   font-size: 12px;
-  line-height: 1.2;
-  font-weight: 500;
-  letter-spacing: normal;
-  vertical-align: middle;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zrv-ws .hero-profile-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 13px;
+  min-width: 0;
+  color: var(--mute);
+  font-size: 10.5px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+.zrv-ws .hero-profile-facts > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.zrv-ws .hero-profile-facts > span + span {
+  position: relative;
+  padding-left: 13px;
+}
+.zrv-ws .hero-profile-facts > span + span::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--fine);
+  transform: translateY(-50%);
+}
+.zrv-ws .hero-profile-preview {
+  color: #e2a214;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+html:not(.dark) .zrv-ws .hero-profile-preview {
+  color: #8a5b00;
+}
+.zrv-ws .hero-profile-open {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 8px 12px;
+  border: 1px solid rgba(var(--grn-rgb), 0.32);
+  border-radius: 999px;
+  background: rgba(var(--grn-rgb), 0.1);
+  color: var(--text);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    transform 0.2s var(--gateway-spring);
+}
+.zrv-ws .hero-profile-open:hover {
+  background: var(--grn);
+  border-color: var(--grn);
+  color: var(--grn-900);
+  transform: translateY(-1px);
+}
+.zrv-ws .hero-profile-open:focus-visible {
+  outline: 2px solid var(--grn);
+  outline-offset: 3px;
 }
 .zrv-ws .gateway-description {
   max-width: 535px !important;
@@ -4511,6 +4627,23 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   .zrv-ws .gateway-description {
     font-size: 13px !important;
   }
+  .zrv-ws .hero-profile {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 11px;
+  }
+  .zrv-ws .hero-profile-avatar {
+    flex-basis: 52px;
+    width: 52px;
+    height: 52px;
+    font-size: 16px;
+  }
+  .zrv-ws .hero-profile-copy {
+    flex-basis: calc(100% - 62px);
+  }
+  .zrv-ws .hero-profile-open {
+    margin-left: 62px;
+  }
   .zrv-ws .gateway-action {
     padding: 10px;
     min-height: 72px;
@@ -4555,6 +4688,11 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   }
 }
 @media (max-width: 390px) {
+  .zrv-ws .hero-profile-open {
+    width: 100%;
+    justify-content: center;
+    margin-left: 0;
+  }
   .zrv-ws .gateway-action {
     gap: 5px;
   }
@@ -5859,7 +5997,7 @@ html:not(.dark) .zrv-ws .avatar-wrap:hover strong {
    it is inside the dashboard. */
 .zrv-ws .zrv-dialog-backdrop {
   z-index: 210;
-  padding: 10vh 18px 25px;
+  padding: 24px 18px;
   background: rgba(var(--grn-shadow-rgb), 0.76);
   backdrop-filter: blur(12px);
 }
@@ -5926,7 +6064,8 @@ html:not(.dark) .zrv-ws .zrv-dialog {
   gap: 12px;
 }
 
-.zrv-ws-profile-identity .avatar {
+.zrv-ws-profile-identity .zrv-ws-profile-avatar {
+  flex: 0 0 48px;
   width: 48px;
   height: 48px;
   font-size: 15px;
