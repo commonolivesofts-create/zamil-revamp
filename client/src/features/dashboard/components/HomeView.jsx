@@ -109,7 +109,7 @@ export default function HomeView({
 
   return (
     <>
-      <DashboardMeta profile={profile} onOpenProfile={onOpenProfile} />
+      <DashboardMeta />
       <section
         className="hero-top zamil-hero gateway-layout"
         aria-label="Your workspace starting point"
@@ -137,10 +137,17 @@ export default function HomeView({
               <br />
               <em>Made effortless.</em>
             </span>
-            <span className="pill hero-employee-badge">
+            <button
+              type="button"
+              className="pill hero-employee-badge"
+              onClick={onOpenProfile}
+              aria-label={`Open profile for ${name}`}
+              aria-haspopup="dialog"
+              title="View employee profile"
+            >
               <i className="pulse" aria-hidden="true" />
               {employeeBadge}
-            </span>
+            </button>
           </h1>
           <p className="greeting-description gateway-description">
             Everything you need, right where you expect it. Choose a task below,
@@ -317,7 +324,7 @@ export default function HomeView({
                 <strong>{page.label}</strong>
                 <small>
                   {page.sectionLabel}
-                  {page.type === 'external'
+                  {page.type === "external"
                     ? " · External destination"
                     : page.path
                       ? ` · ${page.path}`
