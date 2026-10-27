@@ -68,7 +68,7 @@ export function createDemoRecords() {
         requestDate: '2026-10-20', jobTitle: 'Store Keeper', departmentCode: 'WH', neededDate: '2026-11-10',
         remark: '', reason: 'ADDITION', replacementFor: '', additionReason: 'New finished-goods warehouse bay.',
         budgeted: false, budgetedSalary: null, basicSalary: null, educationCodes: ['HS'], gccExperienceCode: 'Y0_2',
-        workExperienceCode: '', skills: [], otherRequirements: '', attachments: [], updatedAt: '2026-10-20T09:10:00.000Z',
+        workExperienceCode: null, skills: [], otherRequirements: '', attachments: [], updatedAt: '2026-10-20T09:10:00.000Z',
       },
     ],
     interviews: [
