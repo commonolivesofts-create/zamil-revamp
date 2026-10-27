@@ -8,10 +8,12 @@ import { buildRegistry } from './defineModule.js'
 import { NAVIGATION_GROUPS } from './navigationGroups.js'
 import commonModule from './modules/common.module.js'
 import securityAdministrationModule from './modules/securityAdministration.module.js'
+import hrRecruitmentModule from './modules/hrRecruitment.module.js'
 
 export const registeredModules = Object.freeze([
   commonModule,
   securityAdministrationModule,
+  hrRecruitmentModule,
 ])
 
 // Validated once at import; any definition error throws here.

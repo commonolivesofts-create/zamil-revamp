@@ -1,0 +1,125 @@
+// HR recruitment services. Each service takes a `client` with the shared API
+// client's interface (get/post/put → { data, pagination }), so the screens
+// never know whether the shared apiClient or the in-memory demo adapter
+// answers. Unsafe requests are never retried automatically.
+//
+// TODO(backend): none of these endpoints exist yet. They are the proposed
+// contract documented in the feature README; the backend must implement them
+// (with OpenAPI) before VITE_HR_RECRUITMENT_DEMO can be switched off.
+// Relative imports keep this module loadable by the Node-native tests.
+import { ApiError, apiClient } from '../../services/api/apiClient.js'
+import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
+import { createDemoClient } from './demo/demoClient.js'
+import {
+  ID_PATTERN, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readPage,
+  readRequisition, readRequisitionListItem,
+} from './hrRecruitmentContract.js'
+
+export const HR_BASE = '/hr/recruitment'
+export const REPORT_PAGE_SIZE = 10
+
+// Path identifiers are Oracle NUMBER values kept as decimal strings.
+export function segment(value) {
+  if (typeof value !== 'string' || !ID_PATTERN.test(value)) {
+    throw new ApiError('The selected record is invalid.', { code: 'INVALID_ID' })
+  }
+  return value
+}
+
+function query(values) {
+  return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== null && value !== ''))
+}
+
+export function createLookupService({ client }) {
+  return Object.freeze({
+    async get({ signal } = {}) {
+      const { data } = await client.get(`${HR_BASE}/lookups`, { signal })
+      return readLookups(data)
+    },
+  })
+}
+
+// A create (no id) is a POST; a change of an existing record is a PUT.
+const write = (client, base, id, body) => (id ? client.put(`${base}/${segment(id)}`, body) : client.post(base, body))
+
+// list, getById, a save that returns the record, and a workflow action
+// (`/submit` or `/issue`) on a saved record. Pages save first and keep the
+// returned id, so a failed action never leaves an unknown new record behind.
+function createRecordService({ client, base, readRecord, readListItem, actionName }) {
+  const list = async ({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) =>
+    readPage(await client.get(base, { params: query({ page, limit }), signal }), readListItem)
+  const getById = async (id, { signal } = {}) => readRecord((await client.get(`${base}/${segment(id)}`, { signal })).data)
+  const save = async (id, body) => readRecord((await write(client, base, id, body)).data)
+  const act = async (id) => readRecord((await client.post(`${base}/${segment(id)}/${actionName}`, {})).data)
+  return { list, getById, save, act }
+}
+
+export function createRequisitionService({ client }) {
+  const base = `${HR_BASE}/requisitions`
+  const record = createRecordService({ client, base, readRecord: readRequisition, readListItem: readRequisitionListItem, actionName: 'submit' })
+  return Object.freeze({
+    list: record.list,
+    getById: record.getById,
+    // The submitted requisition with this number, or null (interview link).
+    async findSubmitted(requisitionNumber, { signal } = {}) {
+      const number = String(requisitionNumber ?? '').trim()
+      if (!number) return null
+      const result = readPage(await client.get(base, { params: { number, status: 'SUBMITTED', page: 1, limit: 1 }, signal }), readRequisitionListItem)
+      return result.items[0] ?? null
+    },
+    // Saves without completeness checks; the record stays a DRAFT.
+    saveDraft: record.save,
+    // Submits a saved draft; the server checks completeness, assigns the
+    // requisition number and locks the record.
+    submit: record.act,
+  })
+}
+
+export function createInterviewService({ client }) {
+  const record = createRecordService({
+    client, base: `${HR_BASE}/interview-assessments`, readRecord: readInterview, readListItem: readInterviewListItem, actionName: 'submit',
+  })
+  return Object.freeze({
+    list: record.list,
+    getById: record.getById,
+    // Save requires all four tabs complete (checked by the page and by the
+    // server); the record becomes COMPLETE with a server-assigned number.
+    save: record.save,
+    submit: record.act,
+  })
+}
+
+export function createOfferService({ client }) {
+  const record = createRecordService({
+    client, base: `${HR_BASE}/employment-offers`, readRecord: readOffer, readListItem: readOfferListItem, actionName: 'issue',
+  })
+  return Object.freeze({
+    list: record.list,
+    getById: record.getById,
+    saveDraft: record.save,
+    // Issue: ISSUED, or ACCEPTED when the applicant already signed; the
+    // server assigns the offer number.
+    issue: record.act,
+  })
+}
+
+// The one switch between demo data and the real API.
+export function selectClient({ demo, api = apiClient, createDemo = createDemoClient } = {}) {
+  return demo ? createDemo() : api
+}
+
+export function createHrRecruitmentServices({ client }) {
+  return Object.freeze({
+    client,
+    lookups: createLookupService({ client }),
+    requisitions: createRequisitionService({ client }),
+    interviews: createInterviewService({ client }),
+    offers: createOfferService({ client }),
+  })
+}
+
+export const hrRecruitmentServices = createHrRecruitmentServices({ client: selectClient({ demo: hrRecruitmentConfig.demo }) })
+export const hrRecruitmentDemo = hrRecruitmentConfig.demo
+// Attachments need a multipart upload endpoint (and multipart support in the
+// shared client, gate G3). Until then only the demo keeps file metadata.
+export const attachmentsSupported = hrRecruitmentConfig.demo
