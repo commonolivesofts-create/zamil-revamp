@@ -29,7 +29,7 @@ export function FlowNav({ current, status }) {
 }
 
 // Page header: breadcrumb, title, subtitle and the demo-data indicator.
-export function RecruitmentHeader({ title, subtitle }) {
+export function RecruitmentHeader({ title, subtitle, showDemo = true }) {
   return (
     <header className="zrv-hr-head">
       <nav aria-label="Breadcrumb">
@@ -44,10 +44,10 @@ export function RecruitmentHeader({ title, subtitle }) {
             <span key={index} style={{ '--i': index }} aria-hidden="true">{character === ' ' ? ' ' : character}</span>
           ))}
         </h1>
-        {hrRecruitmentDemo && <span title={COMMON_TEXT.demoNote}><Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge></span>}
+        {showDemo && hrRecruitmentDemo && <span title={COMMON_TEXT.demoNote}><Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge></span>}
       </div>
       <p className="zrv-hr-sub">{subtitle}</p>
-      {hrRecruitmentDemo && <p className="zrv-hr-sr">{COMMON_TEXT.demoNote}</p>}
+      {showDemo && hrRecruitmentDemo && <p className="zrv-hr-sr">{COMMON_TEXT.demoNote}</p>}
     </header>
   )
 }
@@ -57,7 +57,7 @@ export function RecruitmentHeader({ title, subtitle }) {
 // `focusError` changes after a failed validation: the first invalid field of
 // the (newly opened) step receives focus.
 export function RecruitmentShell({
-  current, title, subtitle, flowStatus, tools, primary, feedback, onDismissFeedback, ticket, steps, step, onStep, doneSteps,
+  current, title, subtitle, flowStatus, tools, primary, feedback, onDismissFeedback, lookupNotice, ticket, steps, step, onStep, doneSteps,
   finalLabel, onFinal, side, locked, pending, focusError, children,
 }) {
   const [direction, setDirection] = useState({ step, value: 'fwd' })
@@ -93,7 +93,7 @@ export function RecruitmentShell({
 
   return (
     <div className={`zrv-hr zrv-hr--${current}`}>
-      <RecruitmentHeader title={title} subtitle={subtitle} />
+      <RecruitmentHeader title={title} subtitle={subtitle} showDemo={current !== 'requisition'} />
       <FlowNav current={current} status={flowStatus} />
 
       <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>
@@ -105,13 +105,14 @@ export function RecruitmentShell({
           ))}
         </div>
         {primary && (
-          <button type="button" className="btn-primary zrv-hr-btn" onClick={primary.onClick} disabled={locked || pending}>
+          <button type="button" className="btn-primary zrv-hr-btn" onClick={primary.onClick} disabled={locked || pending || primary.disabled}>
             <OrvexaIcon name={primary.icon || 'check'} size={16} /> {primary.label}
           </button>
         )}
       </div>
 
       <Feedback feedback={feedback} onDismiss={onDismissFeedback} />
+      {lookupNotice}
       {ticket}
 
       <nav className="zrv-hr-track" aria-label={COMMON_TEXT.stepsLabel} style={{ '--step': step }} ref={trackRef}>

@@ -1,22 +1,147 @@
-// HR recruitment services. Each service takes a `client` with the shared API
-// client's interface (get/post/put → { data, pagination }), so the screens
-// never know whether the shared apiClient or the in-memory demo adapter
-// answers. Unsafe requests are never retried automatically.
-//
-// TODO(backend): none of these endpoints exist yet. They are the proposed
-// contract documented in the feature README; the backend must implement them
-// (with OpenAPI) before VITE_HR_RECRUITMENT_DEMO can be switched off.
+// HR recruitment services. Personnel Requisition uses the live legacy-form
+// API contract; Interview Assessment and Employment Offer remain on the
+// existing recruitment client until their backend integrations are handled.
 // Relative imports keep this module loadable by the Node-native tests.
 import { ApiError, apiClient } from '../../services/api/apiClient.js'
 import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
 import {
   ID_PATTERN, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readPage,
-  readRequisition, readRequisitionListItem,
 } from './hrRecruitmentContract.js'
 
 export const HR_BASE = '/hr/recruitment'
 export const REPORT_PAGE_SIZE = 10
+
+const REQUISITIONS_BASE = '/hr/requisitions'
+const uploadedFiles = new WeakSet()
+
+function legacyDate(value) {
+  if (value == null || value === '') return ''
+  if (typeof value !== 'string') return ''
+  const match = /^(\d{1,2})-([A-Za-z]{3})-(\d{2}|\d{4})$/.exec(value)
+  if (!match) return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : ''
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const month = months.findIndex((item) => item.toLowerCase() === match[2].toLowerCase())
+  if (month < 0) return ''
+  const year = match[3].length === 2 ? `20${match[3]}` : match[3]
+  return `${year}-${String(month + 1).padStart(2, '0')}-${match[1].padStart(2, '0')}`
+}
+
+function requisitionRecord(data) {
+  if (!data || typeof data !== 'object' || !ID_PATTERN.test(String(data.requisitionId ?? ''))) {
+    throw new ApiError('The server returned an unexpected requisition response.', { code: 'INVALID_RESPONSE' })
+  }
+  const text = (value) => value == null ? '' : String(value)
+  const yn = (value) => value === 'Y' ? true : value === 'N' ? false : null
+  return Object.freeze({
+    requisitionId: String(data.requisitionId), requisitionNumber: text(data.requisitionNumber),
+    status: text(data.requisitionStatus), requesterName: text(data.requesterName),
+    requestDate: legacyDate(data.requestDate), jobId: text(data.jobId), jobTitle: text(data.jobName),
+    departmentId: text(data.deptId), departmentName: text(data.deptName), neededDate: legacyDate(data.dateNeeded),
+    remark: text(data.remark), reason: data.reasonOfReq === 'Replacement' ? 'REPLACEMENT' : data.reasonOfReq === 'Addition' ? 'ADDITION' : '',
+    replacementFor: text(data.replacementFor), additionReason: text(data.reason),
+    budgeted: yn(data.budgeted), budgetedSalary: data.budgetedSal == null ? '' : String(data.budgetedSal),
+    highSchool: yn(data.highSchool), diploma: yn(data.diploma), higherDiploma: yn(data.higherDiploma),
+    degree: yn(data.degree), masterDegree: yn(data.masterDegree), gccExp: text(data.gccExp), workExp: text(data.workExp),
+    skills: text(data.skills), otherRequirements: text(data.other), totalPackage: data.totalPackage ?? null,
+    ticketStatus: text(data.ticketStatus), attachments: Array.isArray(data.attachments) ? data.attachments.map((file) => ({
+      attachmentId: String(file.attachmentId), fileName: text(file.fileName), sizeBytes: 0,
+    })) : [], updatedAt: data.updatedAt ?? data.lastUpdateDate ?? null,
+  })
+}
+
+function requisitionBody(body, requestDate) {
+  const result = {
+    ...(requestDate ? { requestDate } : {}),
+    jobId: body.jobId || '', jobName: body.jobName, deptId: body.deptId || '', deptName: body.deptName,
+    dateNeeded: body.dateNeeded, reasonOfReq: body.reasonOfReq,
+    replacementFor: body.replacementFor || '', reason: body.reason || '',
+    budgeted: body.budgeted || 'N', budgetedSal: body.budgetedSal === '' ? 0 : Number(body.budgetedSal),
+    highSchool: body.highSchool || 'N', diploma: body.diploma || 'N', higherDiploma: body.higherDiploma || 'N',
+    degree: body.degree || 'N', masterDegree: body.masterDegree || 'N', gccExp: body.gccExp || '0 - 2',
+    workExp: body.workExp || '0 - 2', skills: body.skills || '', other: body.other || '', remark: body.remark || '',
+    totalPackage: body.totalPackage === '' || body.totalPackage == null ? null : Number(body.totalPackage),
+    ...(body.ticketStatus !== undefined ? { ticketStatus: body.ticketStatus } : {}),
+  }
+  return result
+}
+
+function createBackendRequisitionService({ client }) {
+  const getById = async (id, { signal } = {}) => requisitionRecord((await client.get(`${REQUISITIONS_BASE}/${segment(id)}`, { signal })).data)
+  return Object.freeze({
+    async getLookups({ signal } = {}) {
+      const keys = ['jobs', 'departments', 'requester', 'replacements']
+      const results = await Promise.allSettled([
+        client.get(`${REQUISITIONS_BASE}/lookups/job-titles`, { signal }),
+        client.get(`${REQUISITIONS_BASE}/lookups/departments`, { signal }),
+        client.get(`${REQUISITIONS_BASE}/lookups/requestor`, { signal }),
+        client.get(`${REQUISITIONS_BASE}/lookups/replacement-for`, { signal }),
+      ])
+      if (signal?.aborted) throw results.find((result) => result.status === 'rejected')?.reason ?? Object.assign(new Error('Aborted'), { name: 'AbortError' })
+      const data = results.map((result) => result.status === 'fulfilled' ? result.value?.data : null)
+      const valid = [Array.isArray(data[0]), Array.isArray(data[1]), Boolean(data[2] && typeof data[2] === 'object' && !Array.isArray(data[2]) && typeof data[2].fullName === 'string'), Array.isArray(data[3])]
+      const lookupErrors = Object.freeze(keys.filter((_, index) => results[index].status === 'rejected' || !valid[index]))
+      const replacements = Array.isArray(data[3]) ? data[3].map((item) => {
+        if (typeof item === 'string') return item
+        return String(item?.fullName ?? item?.employeeName ?? item?.name ?? '')
+      }).filter(Boolean) : []
+      return Object.freeze({
+        jobs: Object.freeze((Array.isArray(data[0]) ? data[0] : []).map((item) => ({ id: String(item.jobId ?? ''), name: String(item.name ?? '') })).filter((item) => item.name)),
+        departments: Object.freeze((Array.isArray(data[1]) ? data[1] : []).map((item) => ({ id: String(item.deptId ?? ''), name: String(item.name ?? '') })).filter((item) => item.name)),
+        requester: String(data[2]?.fullName ?? ''), replacements: Object.freeze(replacements), lookupErrors,
+      })
+    },
+    getById,
+    async removeAttachment(requisitionId, attachmentId) {
+      await client.delete(`${REQUISITIONS_BASE}/${segment(requisitionId)}/attachments/${segment(attachmentId)}`)
+    },
+    async deleteDraft(requisitionId) {
+      await client.delete(`${REQUISITIONS_BASE}/${segment(requisitionId)}`)
+    },
+    async getBudget(fullName, { signal } = {}) {
+      const result = await client.get(`${REQUISITIONS_BASE}/lookups/budget`, { params: { fullName }, signal })
+      if (!result.data || result.data.fullName !== fullName || typeof result.data.totalPackage !== 'number') {
+        throw new ApiError('The server returned an unexpected budget response.', { code: 'INVALID_RESPONSE' })
+      }
+      return result.data
+    },
+    async findSubmitted(requisitionNumber, { signal } = {}) {
+      const number = String(requisitionNumber ?? '').trim()
+      if (!number) return null
+      const result = await client.get(REQUISITIONS_BASE, { params: { search: number, requisitionStatus: 'Approved', page: 1, pageSize: 100 }, signal })
+      if (!Array.isArray(result.data)) throw new ApiError('The server returned an unexpected requisition list.', { code: 'INVALID_RESPONSE' })
+      const item = result.data.find((row) => String(row.requisitionNumber ?? '').toLowerCase() === number.toLowerCase())
+      return item ? Object.freeze({ requisitionId: String(item.requisitionId), requisitionNumber: String(item.requisitionNumber), status: String(item.requisitionStatus), jobTitle: String(item.jobName ?? '') }) : null
+    },
+    async saveDraft(id, body, requestDate, attachments = []) {
+      const payload = requisitionBody(body, id ? null : requestDate)
+      const files = typeof Blob === 'undefined' ? [] : attachments.filter((item) => item?.file instanceof Blob && !uploadedFiles.has(item.file))
+      const requestBody = files.length ? (() => {
+        const form = new FormData()
+        for (const [key, value] of Object.entries(payload)) {
+          if (value !== null && value !== undefined) form.append(key, String(value))
+        }
+        for (const item of files) form.append('files', item.file, item.fileName)
+        return form
+      })() : payload
+      const response = id
+        ? await client.put(`${REQUISITIONS_BASE}/${segment(id)}`, requestBody)
+        : await client.post(REQUISITIONS_BASE, requestBody)
+      files.forEach((item) => uploadedFiles.add(item.file))
+      const savedId = id ? String(response.data.requisitionId) : String(response.data.requisitionId)
+      return getById(savedId)
+    },
+    async list({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) {
+      const result = await client.get(REQUISITIONS_BASE, { params: { page, pageSize: limit }, signal })
+      if (!Array.isArray(result.data) || !result.pagination) throw new ApiError('The server returned an unexpected requisition list.', { code: 'INVALID_RESPONSE' })
+      return Object.freeze({ items: Object.freeze(result.data.map((item) => Object.freeze({
+        requisitionId: String(item.requisitionId), requisitionNumber: String(item.requisitionNumber ?? ''),
+        status: String(item.requisitionStatus ?? ''), jobTitle: String(item.jobName ?? ''),
+        departmentName: String(item.deptName ?? ''), updatedAt: item.lastUpdateDate ?? item.creationDate ?? null,
+      }))), pagination: result.pagination })
+    },
+  })
+}
 
 // Path identifiers are Oracle NUMBER values kept as decimal strings.
 export function segment(value) {
@@ -55,24 +180,7 @@ function createRecordService({ client, base, readRecord, readListItem, actionNam
 }
 
 export function createRequisitionService({ client }) {
-  const base = `${HR_BASE}/requisitions`
-  const record = createRecordService({ client, base, readRecord: readRequisition, readListItem: readRequisitionListItem, actionName: 'submit' })
-  return Object.freeze({
-    list: record.list,
-    getById: record.getById,
-    // The submitted requisition with this number, or null (interview link).
-    async findSubmitted(requisitionNumber, { signal } = {}) {
-      const number = String(requisitionNumber ?? '').trim()
-      if (!number) return null
-      const result = readPage(await client.get(base, { params: { number, status: 'SUBMITTED', page: 1, limit: 1 }, signal }), readRequisitionListItem)
-      return result.items[0] ?? null
-    },
-    // Saves without completeness checks; the record stays a DRAFT.
-    saveDraft: record.save,
-    // Submits a saved draft; the server checks completeness, assigns the
-    // requisition number and locks the record.
-    submit: record.act,
-  })
+  return createBackendRequisitionService({ client })
 }
 
 export function createInterviewService({ client }) {
@@ -108,18 +216,20 @@ export function selectClient({ demo, api = apiClient, createDemo = createDemoCli
   return demo ? createDemo() : api
 }
 
-export function createHrRecruitmentServices({ client }) {
+export function createHrRecruitmentServices({ client, requisitionClient = client }) {
   return Object.freeze({
     client,
     lookups: createLookupService({ client }),
-    requisitions: createRequisitionService({ client }),
+    // The Personal Requisition backend is already available; unlike the two
+    // later forms it always uses the authenticated API, including in dev.
+    requisitions: createBackendRequisitionService({ client: requisitionClient }),
     interviews: createInterviewService({ client }),
     offers: createOfferService({ client }),
   })
 }
 
-export const hrRecruitmentServices = createHrRecruitmentServices({ client: selectClient({ demo: hrRecruitmentConfig.demo }) })
+export const hrRecruitmentServices = createHrRecruitmentServices({
+  client: selectClient({ demo: hrRecruitmentConfig.demo }), requisitionClient: apiClient,
+})
 export const hrRecruitmentDemo = hrRecruitmentConfig.demo
-// Attachments need a multipart upload endpoint (and multipart support in the
-// shared client, gate G3). Until then only the demo keeps file metadata.
-export const attachmentsSupported = hrRecruitmentConfig.demo
+export const attachmentsSupported = true

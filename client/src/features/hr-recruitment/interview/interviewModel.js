@@ -158,10 +158,10 @@ export function salaryDelta(expectedTotal, currentTotal) {
   return expected && current ? Math.round(((expected - current) / current) * 100) : null
 }
 
-// "Position apply for" comes from a SUBMITTED requisition with this number
+// "Position apply for" comes from an approved requisition with this number
 // (case-insensitive); anything else leaves it empty.
 export function linkedPosition(requisitionNumber, requisition) {
   const number = String(requisitionNumber ?? '').trim().toLowerCase()
-  if (!number || !requisition || requisition.status !== 'SUBMITTED') return ''
+  if (!number || !requisition || !['SUBMITTED', 'Approved'].includes(requisition.status)) return ''
   return String(requisition.requisitionNumber ?? '').toLowerCase() === number ? requisition.jobTitle : ''
 }

@@ -1,14 +1,12 @@
-// Permission identities approved for HR recruitment. They are NOT registered
-// in the Oracle catalogue yet and the module is session-only
-// (config/registry/modules/hrRecruitment.module.js), so no screen checks them
-// today: `can()` would deny every one. Gate the buttons with these keys when
-// the module becomes an RBAC module and the backend enforces them.
+// Permission identities for the connected requisition backend and the two
+// later recruitment forms. Requisition keys mirror the existing Oracle
+// catalogue; the later form keys remain pending their backend integration.
 export const HR_RECRUITMENT_ACTIONS = Object.freeze({
-  REQUISITION_VIEW: 'HR_RECRUITMENT.PERSONNEL_REQUISITIONS:VIEW',
-  REQUISITION_CREATE: 'HR_RECRUITMENT.PERSONNEL_REQUISITIONS:CREATE',
-  REQUISITION_UPDATE: 'HR_RECRUITMENT.PERSONNEL_REQUISITIONS:UPDATE',
-  REQUISITION_SUBMIT: 'HR_RECRUITMENT.PERSONNEL_REQUISITIONS:SUBMIT',
-  REQUISITION_PRINT: 'HR_RECRUITMENT.PERSONNEL_REQUISITIONS:PRINT',
+  REQUISITION_VIEW: 'REQUISITIONS.REQUISITIONS:VIEW',
+  REQUISITION_CREATE: 'REQUISITIONS.REQUISITIONS:CREATE',
+  REQUISITION_UPDATE: 'REQUISITIONS.REQUISITIONS:UPDATE',
+  REQUISITION_DELETE: 'REQUISITIONS.REQUISITIONS:DELETE',
+  REQUISITION_MANAGE_ATTACHMENTS: 'REQUISITIONS.REQUISITIONS:MANAGE_ATTACHMENTS',
   INTERVIEW_VIEW: 'HR_RECRUITMENT.INTERVIEW_ASSESSMENTS:VIEW',
   INTERVIEW_CREATE: 'HR_RECRUITMENT.INTERVIEW_ASSESSMENTS:CREATE',
   INTERVIEW_UPDATE: 'HR_RECRUITMENT.INTERVIEW_ASSESSMENTS:UPDATE',
