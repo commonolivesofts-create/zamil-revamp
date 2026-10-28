@@ -32,6 +32,8 @@ tags:
       Application accounts for employee-master employees: provisioning (PENDING,
       no password), activation after password setup, disabling and session
       revocation, under the protected administrator hierarchy.
+  - name: HR Contractor Employees
+    description: Contractor employee report, employee record CRUD, and form lookups.
   - name: HR Interview Assessments
     description: >-
       Interview Assessment Form CRUD (README_interview_assessment_form.md): insert,
@@ -2045,6 +2047,810 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/contractor-employees:
+    get:
+      operationId: listContractorEmployees
+      tags: [HR Contractor Employees]
+      summary: List contractor employees
+      description: >-
+        Filters are exact-match and ANDed. The date pair means contract period inside the
+        supplied range: START_DATE is on/after date_from and END_DATE is on/before date_to;
+        open-ended rows (END_DATE NULL) are included for date_to. Pagination uses a COUNT
+        query, allowlisted sorting and EMP_ID as the stable final tie-breaker. Requires
+        HR.CONTRACTOR_EMPLOYEES:VIEW.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: division, in: query, schema: { type: string } }
+        - { name: department, in: query, schema: { type: string } }
+        - { name: contractor_number, in: query, schema: { type: string, pattern: '^[0-9]{1,18}$' } }
+        - { name: status, in: query, schema: { type: string, enum: [Active, Inactive, ALL] } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 200, default: 50 },
+          }
+        - {
+            name: sort,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum: [employee_number, employee_name, start_date, end_date, status, con_number],
+                default: employee_number,
+              },
+          }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
+      responses:
+        '200':
+          description: Filtered page and total count.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data: { type: array, items: { $ref: '#/components/schemas/ContractorEmployee' } }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createContractorEmployee
+      tags: [HR Contractor Employees]
+      summary: Create a contractor employee
+      description: >-
+        Locks the contractor row, generates EMP_ID and EMPLOYEE_NUMBER, resolves contractor,
+        job title and boss names on the server, then inserts in one transaction. Client-supplied
+        IDs and derived labels are ignored. Requires HR.CONTRACTOR_EMPLOYEES:CREATE.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContractorEmployeeWrite' }
+      responses:
+        '201':
+          description: Created employee identifiers.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    properties:
+                      emp_id: { $ref: '#/components/schemas/Id' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/contractor-employees/lookups/{name}:
+    get:
+      operationId: getContractorEmployeeLookup
+      tags: [HR Contractor Employees]
+      summary: Get contractor employee lookup values
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            { type: string, enum: [divisions, departments, contractors, jobs, bosses, sections] }
+      responses:
+        '200':
+          description: Lookup rows with value and label fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        value: { type: string }
+                        label: { type: string }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/contractor-employees/{empId}:
+    get:
+      operationId: getContractorEmployee
+      tags: [HR Contractor Employees]
+      summary: Read one contractor employee
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: empId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+      responses:
+        '200':
+          description: Employee record and audit fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/ContractorEmployee' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: updateContractorEmployee
+      tags: [HR Contractor Employees]
+      summary: Update a contractor employee
+      description: Editable fields are updated atomically; audit and generated fields are server-owned.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: empId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContractorEmployeeWrite' }
+      responses:
+        '200':
+          description: Updated employee identifier.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    properties:
+                      emp_id: { $ref: '#/components/schemas/Id' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteContractorEmployee
+      tags: [HR Contractor Employees]
+      summary: Hard delete a contractor employee
+      description: >-
+        Permanently deletes the employee row. This does not delete attendance or punch history,
+        which is matched by EMPLOYEE_NUMBER in the separate time-clock table.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: empId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '204': { description: Employee deleted; empty response body. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/contractors/{conNumber}:
+    get:
+      operationId: getContractorDetails
+      tags: [HR Contractor Employees]
+      summary: Get contractor details for employee form auto-fill
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: conNumber,
+            in: path,
+            required: true,
+            schema: { type: string, pattern: '^[0-9]{1,18}$' },
+          }
+      responses:
+        '200':
+          description: Contractor name, status and rate.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    properties:
+                      con_name: { type: string }
+                      status: { type: string }
+                      rate: { type: number }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/orientation-trainings:
+    get:
+      operationId: listOrientationTrainings
+      tags: [HR Orientation Trainings]
+      summary: List orientation training records
+      description: >-
+        Lists the requested shared-service (Y) or production (N) variant with filters,
+        pagination, and server-side HR/non-HR scoping. Requires
+        `HR.ORIENTATION_TRAININGS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: flag, in: query, required: true, schema: { type: string, enum: [Y, N] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, schema: { type: string, enum: [Draft, Inprocess, Approved] } }
+        - { name: empNo, in: query, schema: { type: string, maxLength: 50 } }
+        - { name: empType, in: query, schema: { type: string, maxLength: 50 } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
+        - {
+            name: sortBy,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum: [HEADER_ID, ORIENTATION_DURATION_FROM, EMPLOYEE_NAME, CREATION_DATE],
+                default: HEADER_ID,
+              },
+          }
+        - { name: sortDir, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Page of records and total count.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data: { type: array, items: { $ref: '#/components/schemas/OrientationTraining' } }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createOrientationTraining
+      tags: [HR Orientation Trainings]
+      summary: Create an orientation training record
+      description: >-
+        Resolves the employee variant from current assignment data and inserts the header,
+        registry row, and all lines atomically. The body flag is never trusted. Status is
+        initialized to Draft. Requires `HR.ORIENTATION_TRAININGS:CREATE`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrientationTrainingCreate' }
+      responses:
+        '201':
+          description: Created record identifiers.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    required: [headerId, flag, reference]
+                    properties:
+                      headerId: { $ref: '#/components/schemas/Id' }
+                      flag: { type: string, enum: [Y, N] }
+                      reference: { type: string }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/orientation-trainings/lookups/flag:
+    get:
+      operationId: getOrientationTrainingFlag
+      tags: [HR Orientation Trainings]
+      summary: Resolve an employee's training table variant
+      description: Resolves Y/N from current assignment organization data. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: empNo, in: query, required: true, schema: { type: string, maxLength: 50 } }
+      responses:
+        '200':
+          description: Employee table variant.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    required: [flag, tableName]
+                    properties:
+                      flag: { type: string, enum: [Y, N] }
+                      tableName: { type: string, enum: [SHARED, PRODUCTION] }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/orientation-trainings/lookups/employees:
+    get:
+      operationId: listOrientationTrainingEmployees
+      tags: [HR Orientation Trainings]
+      summary: List employees eligible for orientation training
+      description: Returns current employees within the actor's allowed scope. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Employee dropdown data. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/orientation-trainings/lookups/managers:
+    get:
+      operationId: listOrientationTrainingManagers
+      tags: [HR Orientation Trainings]
+      summary: List department-head dropdown values
+      description: Returns the manager union defined by the NHT specification. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Manager dropdown data. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/orientation-trainings/lookups/employee-details:
+    get:
+      operationId: getOrientationTrainingEmployeeDetails
+      tags: [HR Orientation Trainings]
+      summary: Get employee details for form prefill
+      description: Returns current employee assignment and prefill details. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: empNo, in: query, required: true, schema: { type: string, maxLength: 50 } }
+      responses:
+        '200': { description: Employee prefill values. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/orientation-trainings/lookups/skills:
+    get:
+      operationId: listOrientationTrainingSkills
+      tags: [HR Orientation Trainings]
+      summary: List default training subjects for employee type
+      description: Returns the static subjects listed in the NHT specification. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: empType,
+            in: query,
+            required: true,
+            schema: { type: string, enum: [Supervisor, Manager, Employee, plant] },
+          }
+      responses:
+        '200': { description: Default training subjects. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/orientation-trainings/{headerId}:
+    get:
+      operationId: getOrientationTraining
+      tags: [HR Orientation Trainings]
+      summary: Read an orientation training record
+      description: Resolves the table pair through the flag registry and returns header with lines. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+      responses:
+        '200':
+          description: Header and ordered lines.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/OrientationTraining' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: updateOrientationTraining
+      tags: [HR Orientation Trainings]
+      summary: Update an orientation training record
+      description: Updates header and replaces all lines atomically without changing status or creation audit fields. Requires `HR.ORIENTATION_TRAININGS:UPDATE`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrientationTrainingUpdate' }
+      responses:
+        '200': { description: Header updated. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteOrientationTraining
+      tags: [HR Orientation Trainings]
+      summary: Delete a draft orientation training record
+      description: Deletes lines, header, and variant registry row atomically. Non-draft records return 409. Requires `HR.ORIENTATION_TRAININGS:DELETE`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200': { description: Record deleted. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/orientation-trainings/{headerId}/lines/{lineId}:
+    delete:
+      operationId: deleteOrientationTrainingLine
+      tags: [HR Orientation Trainings]
+      summary: Delete one orientation training line
+      description: Deletes one line from the header's registered variant. Requires `HR.ORIENTATION_TRAININGS:MANAGE_LINES`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { name: lineId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200': { description: Line deleted. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/probation-evaluations:
+    get:
+      operationId: listProbationEvaluations
+      tags: [HR Probation Evaluations]
+      summary: List probation evaluations
+      description: >-
+        Returns filtered, paginated PAF records. HR membership is checked server-side
+        against XX_DIGI_LOOKUP_VALUES (LOOKUP_TYPE 'XXZP_HR', MEANING equal to the
+        authenticated employee number); other actors are scoped to their own CREATED_BY.
+        Does not return workflow-derived columns. Requires
+        `HR.PROBATION_EVALUATIONS:VIEW` (default-deny catalogue authorization).
+      security:
+        - sessionCookie: []
+      parameters:
+        - {
+            name: page,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100000, default: 1 },
+          }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - {
+            name: requestStatus,
+            in: query,
+            schema: { type: string, enum: [DRAFT, INPROCESS, APPROVED, Rejected] },
+          }
+        - {
+            name: formType,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum:
+                  [
+                    Workers_Technicians,
+                    Trainee,
+                    Engineers_Staff,
+                    Department_Managers,
+                    Supervisors_and_Foremens,
+                  ],
+              },
+          }
+        - { name: empNumber, in: query, schema: { type: string, maxLength: 50 } }
+        - { name: department, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
+        - {
+            name: sortBy,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum: [HEADER_ID, CREATED_AT, EMP_NAME, TOTAL_RATING],
+                default: HEADER_ID,
+              },
+          }
+        - { name: sortDir, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Paginated probation evaluations.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/ProbationEvaluationListItem' }
+                      pagination: { $ref: '#/components/schemas/Pagination' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      operationId: createProbationEvaluation
+      tags: [HR Probation Evaluations]
+      summary: Create a draft probation evaluation
+      description: >-
+        Inserts one header and 1–20 lines atomically. REQUEST_STATUS is set to DRAFT;
+        no workflow or status transition is performed. Requires
+        `HR.PROBATION_EVALUATIONS:CREATE` and the X-CSRF-Token header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProbationEvaluationWriteRequest' }
+      responses:
+        '201':
+          description: Created draft.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [headerId, uuid]
+                        properties:
+                          headerId: { $ref: '#/components/schemas/Id' }
+                          uuid: { type: string, format: uuid }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '409': { $ref: '#/components/responses/ProbationEvaluationIdConflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/v1/hr/probation-evaluations/lookups/form-types:
+    get:
+      operationId: listProbationEvaluationFormTypes
+      tags: [HR Probation Evaluations]
+      summary: List probation evaluation form types
+      description: Static form type values from the PAF form. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Form type values.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          formTypes:
+                            type: array
+                            items: { type: string }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/probation-evaluations/lookups/employees:
+    get:
+      operationId: listProbationEvaluationEmployees
+      tags: [HR Probation Evaluations]
+      summary: List employees in the actor hierarchy
+      description: Uses the approved employee hierarchy lookup SQL. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Hierarchical employee list.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            hierarchyLevel: { type: integer }
+                            userId: { $ref: '#/components/schemas/Id' }
+                            fullName: { type: string }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/v1/hr/probation-evaluations/lookups/requestor:
+    get:
+      operationId: getProbationEvaluationRequestor
+      tags: [HR Probation Evaluations]
+      summary: Get the authenticated requestor details
+      description: Loads the actor's employee master name, email, and number. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Requestor details.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: [object, 'null']
+                        properties:
+                          fullName: { type: string }
+                          emailAddress: { type: [string, 'null'], format: email }
+                          employeeNumber: { type: string }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/v1/hr/probation-evaluations/lookups/employee-details:
+    get:
+      operationId: getProbationEvaluationEmployeeDetails
+      tags: [HR Probation Evaluations]
+      summary: Get employee details for form prefill
+      description: Uses the employee name and authenticated actor for the legacy PAF prefill data. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: empName,
+            in: query,
+            required: true,
+            schema: { type: string, minLength: 1, maxLength: 200 },
+          }
+      responses:
+        '200':
+          description: Employee detail groups used by the PAF form.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ProbationEvaluationEmployeeDetails' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/v1/hr/probation-evaluations/{headerId}:
+    get:
+      operationId: getProbationEvaluation
+      tags: [HR Probation Evaluations]
+      summary: Read a probation evaluation
+      description: Returns the header and ordered evaluation lines. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+      responses:
+        '200':
+          description: Header and lines.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ProbationEvaluation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    put:
+      operationId: updateProbationEvaluation
+      tags: [HR Probation Evaluations]
+      summary: Update a probation evaluation
+      description: >-
+        Updates header fields and only the supplied existing lines identified by lineId;
+        omitted lines are unchanged. Audit and request-status fields are not updated.
+        Requires `HR.PROBATION_EVALUATIONS:UPDATE` and the X-CSRF-Token header.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProbationEvaluationUpdateRequest' }
+      responses:
+        '200':
+          description: Updated evaluation.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          headerId: { $ref: '#/components/schemas/Id' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    delete:
+      operationId: deleteProbationEvaluation
+      tags: [HR Probation Evaluations]
+      summary: Delete a draft probation evaluation
+      description: >-
+        Deletes lines before the header in one transaction. Returns 409 when the record
+        is not DRAFT. Requires `HR.PROBATION_EVALUATIONS:DELETE` and the X-CSRF-Token header.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Deleted draft evaluation.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          headerId: { $ref: '#/components/schemas/Id' }
+                          deleted: { type: boolean, const: true }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/ProbationEvaluationDeleteConflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /api/v1/hr/interview-assessments:
     get:
       operationId: listInterviewAssessments
@@ -4319,6 +5125,378 @@ components:
       schema:
         type: string
   schemas:
+    ContractorEmployee:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          emp_id,
+          employee_number,
+          employee_name,
+          division,
+          iqamah,
+          department,
+          direct_boss,
+          direct_boss_id,
+          job,
+          job_title,
+          rate,
+          start_date,
+          status,
+          ajeer,
+          sfda,
+          blacklist,
+          con_number,
+          con_name,
+        ]
+      properties:
+        emp_id: { $ref: '#/components/schemas/Id' }
+        employee_number: { type: string }
+        employee_name: { type: string }
+        division: { type: string }
+        iqamah: { type: integer }
+        department: { type: string }
+        prod_dep: { type: [string, 'null'] }
+        direct_boss: { type: string }
+        direct_boss_id: { $ref: '#/components/schemas/Id' }
+        job: { $ref: '#/components/schemas/Id' }
+        job_title: { type: string }
+        place: { type: [string, 'null'] }
+        replacement: { type: [string, 'null'] }
+        rate: { type: number }
+        start_date: { type: string, format: date }
+        end_date: { type: [string, 'null'], format: date }
+        status: { type: string, enum: [Active, Inactive] }
+        ajeer: { type: boolean }
+        sfda: { type: boolean }
+        blacklist: { type: boolean }
+        remark: { type: [string, 'null'] }
+        con_number: { type: integer }
+        con_name: { type: string }
+        created_by: { $ref: '#/components/schemas/Id' }
+        creation_date: { type: string, format: date-time }
+        updated_by: { $ref: '#/components/schemas/Id' }
+        updated_date: { type: [string, 'null'], format: date-time }
+    ContractorEmployeeWrite:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          division,
+          con_number,
+          status,
+          rate,
+          employee_name,
+          iqamah,
+          department,
+          job,
+          direct_boss_id,
+          start_date,
+        ]
+      properties:
+        division: { type: string, enum: ['300000003618177', '300000003618190', IBM, Z3P] }
+        con_number: { type: [string, integer] }
+        status: { type: string, enum: [Active, Inactive] }
+        rate: { type: number, minimum: 0 }
+        employee_name: { type: string, minLength: 1, maxLength: 150 }
+        iqamah: { type: integer }
+        department: { type: string, enum: [Production, QC, Maintenance, 'W/H', Admin] }
+        prod_dep: { type: [string, integer, 'null'] }
+        job: { type: [string, integer] }
+        direct_boss_id: { type: [string, integer] }
+        place: { type: [string, 'null'] }
+        replacement: { type: [string, integer, 'null'] }
+        start_date: { type: string, format: date }
+        end_date: { type: [string, 'null'], format: date }
+        ajeer: { type: boolean, default: false }
+        sfda: { type: boolean, default: false }
+        blacklist: { type: boolean, default: false }
+        remark: { type: [string, 'null'], maxLength: 4000 }
+        emp_id: { description: Ignored; generated by the server., type: [string, integer] }
+        employee_number: { description: Ignored; generated by the server., type: [string, integer] }
+        con_name: { description: Ignored; derived by the server., type: string }
+        job_title: { description: Ignored; derived by the server., type: string }
+        direct_boss: { description: Ignored; derived by the server., type: string }
+    OrientationTrainingLine:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          lineId,
+          headerId,
+          department,
+          departmentHead,
+          orientationPeriod,
+          timeFrom,
+          timeTo,
+          fromDate,
+          toDate,
+          orientationDays,
+        ]
+      properties:
+        lineId: { $ref: '#/components/schemas/Id' }
+        headerId: { $ref: '#/components/schemas/Id' }
+        department: { type: string, maxLength: 200 }
+        departmentHead: { type: string, minLength: 1 }
+        orientationPeriod: { type: string }
+        timeFrom: { type: string, pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
+        timeTo: { type: string, pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
+        remarks: { type: string }
+        createdBy: { $ref: '#/components/schemas/Id' }
+        createdAt: { type: string, format: date-time }
+        fromDate: { type: string, format: date }
+        toDate: { type: string, format: date }
+        orientationDays: { type: integer, minimum: 0 }
+    OrientationTraining:
+      type: object
+      additionalProperties: true
+      required: [headerId, empNo, section, empname, fromOrient, toOrient, status, flag, lines]
+      properties:
+        headerId: { $ref: '#/components/schemas/Id' }
+        uuid: { type: string, format: uuid }
+        empNo: { type: string }
+        section: { type: string }
+        empname: { type: string }
+        fromOrient: { type: string, format: date }
+        toOrient: { type: string, format: date }
+        startDate: { type: string, format: date }
+        orientationBy: { type: string }
+        status: { type: string, enum: [Draft, Inprocess, Approved] }
+        createdBy: { $ref: '#/components/schemas/Id' }
+        createdAt: { type: string, format: date-time }
+        personId: { type: string }
+        division: { type: string }
+        reference: { type: string }
+        position: { type: string }
+        type: { type: string }
+        reqType: { type: string }
+        flag: { type: string, enum: [Y, N] }
+        lines: { type: array, items: { $ref: '#/components/schemas/OrientationTrainingLine' } }
+    OrientationTrainingCreate:
+      type: object
+      additionalProperties: false
+      required:
+        [empNo, fromOrient, toOrient, section, empname, personId, division, type, position, lines]
+      properties:
+        empNo: { type: string, maxLength: 50 }
+        fromOrient: { type: string, format: date }
+        toOrient: { type: string, format: date }
+        startDate: { type: string, format: date }
+        orientationBy: { type: string, maxLength: 200 }
+        flag:
+          {
+            type: string,
+            enum: [Y, N],
+            description: Accepted for compatibility; server resolves actual flag from employee assignment.,
+          }
+        section: { type: string, maxLength: 200 }
+        empname: { type: string, maxLength: 200 }
+        personId: { type: string, maxLength: 50 }
+        division: { type: string, maxLength: 200 }
+        type: { type: string, maxLength: 50 }
+        position: { type: string, maxLength: 200 }
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              [department, departmentHead, fromDate, toDate, orientationDays, timeFrom, timeTo]
+            properties:
+              lineId:
+                {
+                  $ref: '#/components/schemas/Id',
+                  description: Ignored on create; generated by the API.,
+                }
+              department: { type: string, minLength: 1, maxLength: 200 }
+              departmentHead: { type: string, minLength: 1 }
+              fromDate: { type: string, format: date }
+              toDate: { type: string, format: date }
+              orientationDays: { type: integer, minimum: 0 }
+              timeFrom: { type: string, pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
+              timeTo: { type: string, pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
+              orientationPeriod: { type: string, maxLength: 50 }
+              remarks: { type: string, maxLength: 2000 }
+    OrientationTrainingUpdate:
+      $ref: '#/components/schemas/OrientationTrainingCreate'
+    ProbationEvaluationLine:
+      type: object
+      additionalProperties: false
+      required: [param]
+      properties:
+        lineId:
+          $ref: '#/components/schemas/Id'
+        headerId:
+          $ref: '#/components/schemas/Id'
+        param:
+          type: string
+          minLength: 1
+        paramAr:
+          type: string
+        rating:
+          type: integer
+          minimum: 0
+          maximum: 5
+          default: 0
+    ProbationEvaluationCreateLine:
+      type: object
+      required: [param]
+      properties:
+        param: { type: string, minLength: 1 }
+        paramAr: { type: string }
+        rating:
+          {
+            type: integer,
+            minimum: 0,
+            maximum: 5,
+            default: 0,
+            description: Omitted ratings store the legacy default 0; a supplied rating must be 1–5.,
+          }
+    ProbationEvaluationUpdateLine:
+      allOf:
+        - $ref: '#/components/schemas/ProbationEvaluationCreateLine'
+        - type: object
+          required: [lineId]
+          properties:
+            lineId: { $ref: '#/components/schemas/Id' }
+      unevaluatedProperties: false
+    ProbationEvaluationWriteFields:
+      type: object
+      properties:
+        formDate: { type: string, format: date }
+        evaluationPeriod: { type: string, maxLength: 200 }
+        formType:
+          type: string
+          enum:
+            [
+              Workers_Technicians,
+              Trainee,
+              Engineers_Staff,
+              Department_Managers,
+              Supervisors_and_Foremens,
+            ]
+        employeeName: { type: string, minLength: 1, maxLength: 200 }
+        employeeNumber: { type: string, minLength: 1, maxLength: 50 }
+        empId: { type: string, maxLength: 50 }
+        grade: { type: integer, minimum: 0, default: 0 }
+        jobTitle: { type: string, maxLength: 200 }
+        department: { type: string, maxLength: 200 }
+        fromDate: { type: string, format: date }
+        toDate: { type: string, format: date, description: Must be on or after fromDate. }
+        comment: { type: string, maxLength: 4000 }
+        comments: { type: string, maxLength: 4000, description: Legacy APPROVED_BY_CMNT field. }
+        totalRating: { type: integer, minimum: 0, maximum: 100 }
+    ProbationEvaluationWriteRequest:
+      allOf:
+        - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
+        - type: object
+          required: [formDate, formType, employeeName, employeeNumber, fromDate, toDate, lines]
+          properties:
+            lines:
+              type: array
+              minItems: 1
+              maxItems: 20
+              items: { $ref: '#/components/schemas/ProbationEvaluationCreateLine' }
+      unevaluatedProperties: false
+    ProbationEvaluationUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
+        - type: object
+          required: [formDate, formType, employeeName, employeeNumber, fromDate, toDate, lines]
+          properties:
+            lines:
+              type: array
+              minItems: 1
+              maxItems: 20
+              items: { $ref: '#/components/schemas/ProbationEvaluationUpdateLine' }
+      unevaluatedProperties: false
+    ProbationEvaluationListItem:
+      type: object
+      required:
+        [
+          headerId,
+          formDate,
+          employeeName,
+          employeeNumber,
+          jobTitle,
+          department,
+          formType,
+          totalRating,
+          requestStatus,
+          createdAt,
+          createdBy,
+        ]
+      properties:
+        headerId: { $ref: '#/components/schemas/Id' }
+        formDate: { type: string, format: date }
+        employeeName: { type: string }
+        employeeNumber: { type: string }
+        jobTitle: { type: string }
+        department: { type: string }
+        formType: { type: string }
+        totalRating: { type: integer }
+        requestStatus: { type: string }
+        createdAt: { type: string }
+        createdBy: { $ref: '#/components/schemas/Id' }
+    ProbationEvaluation:
+      type: object
+      required: [headerId, formDate, employeeName, employeeNumber, formType, requestStatus, lines]
+      properties:
+        headerId: { $ref: '#/components/schemas/Id' }
+        uuid: { type: string, format: uuid }
+        formDate: { type: string, format: date }
+        employeeName: { type: string }
+        employeeNumber: { type: string }
+        empId: { type: string }
+        grade: { type: integer }
+        evaluationPeriod: { type: string }
+        formType: { type: string }
+        totalRating: { type: integer }
+        comment: { type: string }
+        comments: { type: string }
+        jobTitle: { type: string }
+        department: { type: string }
+        fromDate: { type: string, format: date }
+        toDate: { type: string, format: date }
+        requestStatus: { type: string }
+        createdAt: { type: string }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/ProbationEvaluationLine' }
+    ProbationEvaluationEmployeeDetails:
+      type: object
+      properties:
+        ids:
+          type: object
+          properties:
+            personId: { $ref: '#/components/schemas/Id' }
+            employeeNumber: { type: string }
+        hire:
+          type: object
+          properties:
+            startDate: { type: [string, 'null'], format: date-time }
+        job:
+          type: object
+          properties:
+            name: { type: [string, 'null'] }
+            jobId: { type: [string, 'null'] }
+        dept:
+          type: object
+          properties:
+            organizationId: { type: [string, 'null'] }
+            name: { type: [string, 'null'] }
+        sup:
+          type: [object, 'null']
+          properties:
+            fullName: { type: string }
+            personId: { $ref: '#/components/schemas/Id' }
+        pos_year_detail:
+          type: object
+          properties:
+            year: { type: [integer, 'null'] }
+        yearsInCompanay:
+          type: [integer, 'null']
     PasswordPolicy:
       type: object
       required:
@@ -6422,6 +7600,38 @@ components:
             error:
               code: CONFLICT
               message: A role with this code already exists
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    ProbationEvaluationDeleteConflict:
+      description: The evaluation cannot be deleted because its REQUEST_STATUS is not DRAFT.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: PROBATION_EVALUATION_NOT_DRAFT
+              message: Only draft probation evaluations can be deleted
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    ProbationEvaluationIdConflict:
+      description: The database generated header identifier did not match the PAF max-plus-one value.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: PROBATION_EVALUATION_ID_CONFLICT
+              message: The probation evaluation identifier changed during creation; retry the request
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     UserConflict:
