@@ -51,8 +51,12 @@ const fixtureModule = defineModule({
     },
   ],
 });
-const withFixture = [...registeredModules, fixtureModule];
+const securityRegistry = registeredModules.filter((module) => module.code === SECURITY_MODULE.code);
+const withFixture = [...securityRegistry, fixtureModule];
 const FIXTURE_RECORDS = 1 + 2 + 5;
+const ACTIVE_REGISTRY_RECORDS = registeredModules
+  .filter((module) => module.rbac && module.code !== SECURITY_MODULE.code)
+  .reduce((total, module) => total + 1 + module.resources.length + module.resources.reduce((count, resource) => count + resource.actions.length, 0), 0);
 
 function seedSecurityCatalog() {
   const state = { modules: [], resources: [], permissions: [], nextId: 1000 };
@@ -360,7 +364,7 @@ describe('RBAC catalogue registration CLI', () => {
     it('uses only the RBAC modules of the active registry: COMMON skipped, never the example', () => {
       assert.deepEqual(
         registryDefinitions(registeredModules).map((m) => m.code),
-        ['SECURITY_ADMINISTRATION'],
+        ['SECURITY_ADMINISTRATION', 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS'],
       );
       for (const file of ['scripts/rbac-register.js', 'scripts/lib/rbacRegistration.js']) {
         const source = readFileSync(join(import.meta.dirname, '..', file), 'utf8');
@@ -415,8 +419,8 @@ describe('RBAC catalogue registration CLI', () => {
   });
 
   describe('preview (read-only)', () => {
-    it('reports no changes for the current catalogue: Security Administration 1 + 8 + 23 MATCH', async () => {
-      const { code, fake, out } = await run(['--target=TEST'], { modules: registeredModules });
+    it('reports no changes for the protected Security Administration catalogue: 1 + 8 + 23 MATCH', async () => {
+      const { code, fake, out } = await run(['--target=TEST'], { modules: securityRegistry });
       assert.equal(code, EXIT.OK);
       assert.match(out, /Counts: MATCH 32, MISSING 0, CONFLICT 0, UNREGISTERED 0/);
       assert.match(out, /No changes needed/);
@@ -601,7 +605,7 @@ describe('RBAC catalogue registration CLI', () => {
         mutate(data);
         const { code, fake, out } = await run(['--target=TEST'], {
           scenario: { data },
-          modules: registeredModules,
+          modules: securityRegistry,
         });
         assert.equal(code, EXIT.NOT_READY, name);
         assert.match(
@@ -885,15 +889,15 @@ describe('RBAC catalogue registration CLI', () => {
       assert.equal(fake.log.transactions, 1, 'no retry');
     });
 
-    it('never applies for the active registry alone (Security Administration is verify-only)', async () => {
+    it('registers HR catalog entries from the active registry without changing backend code', async () => {
       const preview = await run(['--target=TEST'], { modules: registeredModules });
       const apply = await run(
         ['--target=TEST', '--apply', `--fingerprint=${fingerprintOf(preview.out)}`],
-        { modules: registeredModules, io: fakeIo({ typed: 'x' }) },
+        { modules: registeredModules, io: fakeIo({ typed: `REGISTER TEST ${ACTIVE_REGISTRY_RECORDS} ${fingerprintOf(preview.out).slice(0, 12)}` }) },
       );
       assert.equal(apply.code, EXIT.OK);
-      assert.match(apply.out, /No changes needed/);
-      assert.equal(apply.fake.log.transactions, 0);
+      assert.match(apply.out, new RegExp(`Committed ${ACTIVE_REGISTRY_RECORDS} record\\(s\\)`));
+      assert.equal(apply.fake.log.transactions, 1);
     });
   });
 

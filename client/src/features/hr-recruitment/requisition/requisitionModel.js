@@ -46,7 +46,7 @@ export function requisitionPayload(form) {
   const reason = REASONS.includes(form.reason) ? form.reason : ''
   return {
     jobId: form.jobId, jobName: form.jobTitle.trim(), deptId: form.departmentId,
-    deptName: form.departmentName, dateNeeded: form.neededDate,
+    deptName: form.departmentName.trim(), dateNeeded: form.neededDate,
     reasonOfReq: reason === 'REPLACEMENT' ? 'Replacement' : reason === 'ADDITION' ? 'Addition' : '',
     replacementFor: reason === 'REPLACEMENT' ? form.replacementFor.trim() : '',
     reason: reason === 'ADDITION' ? form.additionReason.trim() : '',

@@ -22,9 +22,9 @@ const conflict = () => new ApiError('This action already exists for the resource
 
 // ---------------------------------------------------------------- options and selection
 
-test('all 44 standard actions are offered with code, name, category and description, and are searchable', () => {
+test('all 45 standard actions are offered with code, name, category and description, and are searchable', () => {
   const all = actionOptions(new Map())
-  assert.equal(all.length, 44)
+  assert.equal(all.length, 45)
   assert.equal(all.length, Object.keys(STANDARD_ACTIONS).length)
   for (const option of all) assert.ok(option.code && option.name && option.categoryLabel && option.description, option.code)
   assert.deepEqual(actionOptions(new Map(), 'approve').map((o) => o.code), ['APPROVE'])

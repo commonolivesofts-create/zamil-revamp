@@ -115,12 +115,8 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "/account/authenticator",
     ],
   );
-  assert.ok(
-    implementedRoutes
-      .filter((route) => route.section !== "security")
-      .every((route) => !route.permission),
-    "session-only pages",
-  );
+  assert.ok(implementedRoutes.filter((route) => route.section === "workspace" || route.section === "account").every((route) => !route.permission), "common pages need only authentication");
+  assert.ok(implementedRoutes.filter((route) => route.section === "human-resources").every((route) => route.permission && !route.requiresMfa), "HR pages use backend resource permissions");
   assert.ok(
     implementedRoutes
       .filter((route) => route.section === "security")
@@ -221,7 +217,7 @@ test("each security page requires its own VIEW permission", () => {
 
 // ------------------------------------------------------------ sidebar
 
-// Updated in Stage 3: administrators now also see the implemented security pages.
+// Business pages need their backend resource permission; common pages need only a session.
 test("sidebar: current production navigation for administrators, employees and empty sets", () => {
   for (const access of [EMPLOYEE, EMPTY, LOADING, FAILED, ADMIN_WITHOUT_MFA]) {
     const sections = authorizedNavigation(access);
@@ -229,9 +225,6 @@ test("sidebar: current production navigation for administrators, employees and e
       ids(sections),
       [
         "dashboard",
-        "hr-requisition",
-        "hr-interview",
-        "hr-offer",
         "account-password",
         "account-authenticator",
       ],
@@ -242,11 +235,14 @@ test("sidebar: current production navigation for administrators, employees and e
       "no empty sections",
     );
   }
+  const hrAccess = ready([
+    "REQUISITIONS.REQUISITIONS:VIEW",
+    "INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW",
+    "EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW",
+  ]);
+  assert.deepEqual(ids(authorizedNavigation(hrAccess)).filter((id) => id.startsWith("hr-")), ["hr-requisition", "hr-interview", "hr-offer"]);
   assert.deepEqual(ids(authorizedNavigation(ADMIN)), [
     "dashboard",
-    "hr-requisition",
-    "hr-interview",
-    "hr-offer",
     "user-accounts",
     "roles",
     "user-roles",
