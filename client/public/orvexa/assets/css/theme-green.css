@@ -26,6 +26,13 @@ html.dark[data-accent-theme="green"] {
   --gc-canvas: #0b1614;
   --gc-canvas-deep: #0f1d19;
   --bg: #0b1515;
+  /* The light green surfaces above load after the purchased .dark rules with
+     equal specificity, so dark mode must set its own: the purchased dark
+     surface lightness with the green hue of --bg. */
+  --surface: rgba(20, 34, 32, .98);
+  --surface-solid: #142220;
+  --surface-2: #192a27;
+  --surface-3: #223632;
 }
 /* Dashboard's original --cc25-amber variable was primarily used as an accent.
    Preserve semantic warning orange in issue badges separately. */
