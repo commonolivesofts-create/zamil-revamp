@@ -111,27 +111,30 @@ export function TagInput({ id, value, onChange, placeholder, invalid, describedB
 }
 
 // Job-description attachments. Only file name and size are kept (in memory).
-export function FileDrop({ files, onChange }) {
+export function FileDrop({ files, onChange, onRemove, canRemoveSaved = false, disabled = false }) {
   const [over, setOver] = useState(false)
   const text = REQUISITION_TEXT.files
-  const add = (list) => onChange([...files, ...[...list].map((file) => ({ fileName: file.name, sizeBytes: file.size }))])
+  const add = (list) => onChange([...files, ...[...list].map((file) => ({ fileName: file.name, sizeBytes: file.size, file }))])
   return (
     <div>
       <label className={`zrv-hr-drop${over ? ' zrv-hr-is-over' : ''}`}
-        onDragEnter={(event) => { event.preventDefault(); setOver(true) }} onDragOver={(event) => event.preventDefault()}
-        onDragLeave={() => setOver(false)} onDrop={(event) => { event.preventDefault(); setOver(false); add(event.dataTransfer.files) }}>
+        onDragEnter={(event) => { event.preventDefault(); if (!disabled) setOver(true) }} onDragOver={(event) => event.preventDefault()}
+        onDragLeave={() => setOver(false)} onDrop={(event) => { event.preventDefault(); setOver(false); if (!disabled) add(event.dataTransfer.files) }}>
         <span className="zrv-hr-bubble"><OrvexaIcon name="upload" size={18} /></span>
         <span><b>{text.title}</b><small>{text.hint}</small></span>
-        <input type="file" multiple accept=".pdf,.doc,.docx" className="zrv-hr-sr" onChange={(event) => { add(event.target.files); event.target.value = '' }} />
+        <input type="file" multiple disabled={disabled} accept=".jpg,.jpeg,.png,.gif,.txt,.doc,.docx,.pdf,.xls,.xlsx,.csv,.html,.ppt,.pptx,.odt" className="zrv-hr-sr" onChange={(event) => { add(event.target.files); event.target.value = '' }} />
       </label>
-      <p className="zrv-admin-hint">{text.demoOnly}</p>
+      <p className="zrv-admin-hint">{text.uploadNote}</p>
       {files.length > 0 && (
         <ul className="zrv-hr-files">
           {files.map((file, index) => (
             <li key={`${file.fileName}-${index}`} className="zrv-hr-file">
               <span className="zrv-hr-bubble"><OrvexaIcon name="file-text" size={16} /></span>
-              <span className="zrv-hr-file__name">{file.fileName}</span><small>{text.size(Math.round(file.sizeBytes / 1024))}</small>
-              <button type="button" aria-label={text.remove(file.fileName)} onClick={() => onChange(files.filter((_, position) => position !== index))}><OrvexaIcon name="trash-2" size={15} /></button>
+          <span className="zrv-hr-file__name">{file.fileName}</span>{file.file && <small>{text.size(Math.round(file.sizeBytes / 1024))}</small>}
+              {(file.file || canRemoveSaved) && <button type="button" disabled={file.file ? disabled : !canRemoveSaved} aria-label={text.remove(file.fileName)} onClick={() => {
+                if (file.file) onChange(files.filter((_, position) => position !== index))
+                else onRemove?.(file)
+              }}><OrvexaIcon name="trash-2" size={15} /></button>}
             </li>
           ))}
         </ul>

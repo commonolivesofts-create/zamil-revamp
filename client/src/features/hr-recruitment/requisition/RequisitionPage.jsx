@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import useAuth from '@/features/auth/useAuth.js'
+import { useResource } from '@/features/security-administration/useAdminData.js'
+import usePermissions from '@/features/access/usePermissions.js'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import { COMMON_TEXT, REQUISITION_TEXT as T } from '../hrRecruitmentText.js'
 import { attachmentsSupported, hrRecruitmentServices } from '../hrRecruitmentService.js'
@@ -8,11 +11,12 @@ import { businessToday, enDate } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog, ReportDialog } from '../shared/components/RecruitmentDialogs.jsx'
-import { Orbit, PanelHead, Pill, RecruitmentShell, RouteCard, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
+import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
+import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { ChoiceCards, ExpTrack, FileDrop, HrField, LookupSelect, MultiTiles, Review, TagInput } from '../shared/components/RecruitmentInputs.jsx'
 import {
-  approvalRoute, blankRequisition, isRequisitionLocked, leadTime, minimumEducation, requisitionFormFromRecord, requisitionPayload, requisitionProgress,
+  blankRequisition, EDUCATION_FIELDS, EXPERIENCE_BANDS, isRequisitionLocked, leadTime, requisitionFormFromRecord, requisitionPayload, requisitionProgress,
 } from './requisitionModel.js'
 
 const BASE = '/hr/recruitment/requisition'
@@ -20,17 +24,20 @@ const service = hrRecruitmentServices.requisitions
 
 export default function RequisitionPage() {
   return (
-    <RecruitmentLoader current="requisition" title={T.title} subtitle={T.subtitle} param="requisitionId" load={service.getById}>
-      {({ lookups, record, editorKey }) => <RequisitionEditor key={editorKey} lookups={lookups} record={record} />}
+    <RecruitmentLoader current="requisition" title={T.title} subtitle={T.subtitle} param="requisitionId" load={service.getById} loadLookups={(signal) => service.getLookups({ signal })}>
+      {({ lookups, lookupStatus, reloadLookups, record, editorKey }) => <RequisitionEditor key={editorKey} lookups={lookups} lookupStatus={lookupStatus} reloadLookups={reloadLookups} record={record} />}
     </RecruitmentLoader>
   )
 }
 
-const nameOf = (options, code) => options.find((option) => option.code === code)?.name ?? ''
+const nameOf = (options, id) => options.find((option) => option.id === id)?.name ?? ''
 
-function RequisitionEditor({ lookups, record: savedRecord }) {
+function RequisitionEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord }) {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const permissions = usePermissions()
   const today = businessToday()
+  const loggedInName = user?.fullName?.trim() || lookups.requester || ''
   const editor = useRecruitmentForm({
     basePath: BASE, idKey: 'requisitionId', record: savedRecord,
     initialForm: savedRecord ? requisitionFormFromRecord(savedRecord) : blankRequisition(today),
@@ -39,67 +46,99 @@ function RequisitionEditor({ lookups, record: savedRecord }) {
   const [dialog, setDialog] = useState(null)
   const [showErrors, setShowErrors] = useState(false)
   const locked = isRequisitionLocked(record?.status)
+  const canSave = record ? permissions.can(ACTIONS.REQUISITION_UPDATE) : permissions.can(ACTIONS.REQUISITION_CREATE)
+  const canDelete = Boolean(record && record.status === 'Draft' && permissions.can(ACTIONS.REQUISITION_DELETE))
+  const canRemoveAttachment = permissions.can(ACTIONS.REQUISITION_MANAGE_ATTACHMENTS)
+  const budget = useResource(form.replacementFor ? `hr-requisition-budget:${form.replacementFor}` : null,
+    (signal) => service.getBudget(form.replacementFor, { signal }))
   const progress = requisitionProgress(form)
   const errors = showErrors ? Object.fromEntries(progress.missing.map((check) => [check.key, COMMON_TEXT.required])) : {}
   const lead = leadTime(today, form.neededDate)
-  const route = approvalRoute(lookups.approvalRoute, form.budgeted)
-  const education = minimumEducation(form.educationCodes, lookups.educationLevels)
-  const department = nameOf(lookups.departments, form.departmentCode)
-  const bands = lookups.experienceBands
+  const department = form.departmentName || nameOf(lookups.departments, form.departmentId)
+  const lookupErrors = lookups.lookupErrors ?? []
+  const lookupNotice = lookupStatus === 'loading'
+    ? <p className="zrv-admin-state" role="status">Loading form options… You can start filling the other fields.</p>
+    : lookupStatus === 'error' || lookupErrors.length
+      ? <div className="zrv-admin-state zrv-admin-state--error" role="alert">
+          <p>{lookupErrors.includes('requester') && loggedInName ? 'The employee details lookup is unavailable; the signed-in profile is shown for the requester. ' : ''}
+            Some form options could not be loaded. You can still enter job title and replacement details directly; retry to reload available choices.</p>
+          <button type="button" className="btn-secondary" onClick={reloadLookups}>Retry</button>
+        </div>
+      : null
+  const bands = EXPERIENCE_BANDS
   const statusLabel = T.status[record?.status ?? 'NEW']
-  const body = () => requisitionPayload(form, { attachments: attachmentsSupported })
+  const packageValue = form.totalPackage !== '' ? form.totalPackage : (budget.data?.totalPackage ?? '')
+  const body = () => requisitionPayload({ ...form, totalPackage: packageValue })
 
-  const save = () => editor.perform(async ({ saved }) => {
-    const result = await service.saveDraft(editor.recordId, body())
-    saved(result)
-    return result
-  }, { success: (result) => T.saved(result.requisitionNumber) })
-
-  const submit = () => editor.perform(async ({ saved }) => {
-    const draft = await service.saveDraft(editor.recordId, body())
-    saved(draft)
-    const result = await service.submit(draft.requisitionId)
-    saved(result)
-    return result
-  }, { success: (result) => T.submitted(result.requisitionNumber) }).then((outcome) => {
-    // A failure stays visible inside the dialog.
-    if (outcome.status === 'success') setDialog(null)
-  })
-
-  const reviewAndSubmit = () => {
+  const save = () => {
     if (progress.missing.length) {
       setShowErrors(true)
       editor.reject(progress.firstStep, `${COMMON_TEXT.stillNeeded} ${progress.missing.map((check) => check.label).join(', ')}`)
       return
     }
-    setDialog('submit')
+    return editor.perform(async ({ saved }) => {
+    const result = await service.saveDraft(editor.recordId, body(), form.requestDate || today, form.attachments)
+    saved(result)
+    return result
+    }, { success: (result) => T.saved(result.requisitionNumber) })
   }
+
+  const saveFromReview = () => {
+    if (progress.missing.length) {
+      setShowErrors(true)
+      editor.reject(progress.firstStep, `${COMMON_TEXT.stillNeeded} ${progress.missing.map((check) => check.label).join(', ')}`)
+      return
+    }
+    save()
+  }
+  const removeAttachment = async (file) => {
+    if (!record?.requisitionId || !file?.attachmentId || !canRemoveAttachment) return
+    const outcome = await editor.perform(async () => {
+      await service.removeAttachment(record.requisitionId, file.attachmentId)
+      return true
+    }, { success: T.files.removed(file.fileName) })
+    if (outcome.status === 'success') {
+      editor.resetToSaved(record, { ...form, attachments: form.attachments.filter((item) => item.attachmentId !== file.attachmentId) })
+    }
+  }
+  const deleteDraft = () => editor.perform(async () => {
+    await service.deleteDraft(record.requisitionId)
+    return true
+  }, { success: T.deleted }).then((outcome) => {
+    if (outcome.status === 'success') navigate(BASE, { replace: true })
+  })
   const startNew = () => navigate(BASE)
 
   const tools = [
-    { icon: 'save', label: COMMON_TEXT.save, onClick: save, disabled: locked || editor.pending },
+    { icon: 'save', label: COMMON_TEXT.save, onClick: save, disabled: locked || !canSave || editor.pending },
     { icon: 'printer', label: COMMON_TEXT.print, onClick: () => window.print() },
     { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => setDialog('report') },
+    ...(canDelete ? [{ icon: 'trash-2', label: T.deleteAction, onClick: () => setDialog('delete'), disabled: editor.pending }] : []),
     { icon: 'file-plus', label: COMMON_TEXT.requestForm, onClick: () => (editor.dirty ? setDialog('new') : startNew()) },
     { icon: 'house', label: COMMON_TEXT.home, onClick: () => navigate('/dashboard') },
   ]
-  const ticketStatus = locked ? T.ticket.closed : T.ticket.open
+  const ticketStatus = record?.ticketStatus || T.ticket.open
+  const selectedEducation = EDUCATION_FIELDS.filter(([key]) => form[key] === 'yes').map(([, label]) => label)
+  const skillList = form.skills ? form.skills.split(',').map((item) => item.trim()).filter(Boolean) : []
+  const selectedEducationCodes = EDUCATION_FIELDS.filter(([key]) => form[key] === 'yes').map(([key]) => key)
+  const educationOptions = EDUCATION_FIELDS.map(([code, name], index) => ({ code, name, level: index + 1 }))
+  const experienceOptions = bands.map((code) => ({ code, name: code }))
 
   return (
     <>
       <RecruitmentShell
         current="requisition" title={T.title} subtitle={T.subtitle}
         flowStatus={record ? [record.requisitionNumber, statusLabel].filter(Boolean).join(' · ') : null}
-        tools={tools} primary={{ label: T.primary, icon: 'send', onClick: () => (step === 3 ? reviewAndSubmit() : setStep(3)) }}
-        feedback={editor.feedback} onDismissFeedback={editor.dismiss} locked={locked} pending={editor.pending} focusError={editor.focusError}
+        tools={tools} primary={{ label: T.primary, icon: 'save', onClick: () => (step === 3 ? saveFromReview() : save()), disabled: !canSave }}
+        feedback={editor.feedback} onDismissFeedback={editor.dismiss} lookupNotice={lookupNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
         ticket={<Ticket avatar="ZP" code={T.code} items={[
           { k: T.ticket.number, v: record?.requisitionNumber || T.ticket.numberPending },
-          { k: T.ticket.requester, v: record?.requesterName || T.ticket.requesterPending, big: true },
-          { k: T.ticket.requestDate, v: enDate(record?.requestDate ?? today).replace(/ /g, '-') },
+          { k: T.ticket.requester, v: record?.requesterName || loggedInName || T.ticket.requesterPending, big: true },
+          { k: T.ticket.requestDate, v: form.requestDate ? enDate(form.requestDate).replace(/ /g, '-') : COMMON_TEXT.dash },
           { k: T.ticket.status, v: statusLabel },
           { k: T.ticket.ticketStatus, v: <Pill tone={locked ? 'warn' : 'ok'}>{ticketStatus}</Pill> },
         ]} />}
-        steps={T.steps} step={step} onStep={setStep} doneSteps={progress.doneSteps} finalLabel={T.final} onFinal={reviewAndSubmit}
+        steps={T.steps} step={step} onStep={setStep} doneSteps={progress.doneSteps} finalLabel={T.final} onFinal={saveFromReview}
         side={<>
           <Tilt aria-label={T.card.label}>
             <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">{T.card.eyebrow}</span><span className="zrv-hr-mono">{T.card.brand}</span></div>
@@ -113,26 +152,37 @@ function RequisitionEditor({ lookups, record: savedRecord }) {
             </div>
             <div className="zrv-hr-dark__grid">
               <div><small>{T.card.neededBy}</small><b>{form.neededDate ? enDate(form.neededDate) : COMMON_TEXT.dash}</b></div>
-              <div><small>{T.card.education}</small><b>{education ? `${education.name}${education.more ? ` +${education.more}` : ''}` : COMMON_TEXT.dash}</b></div>
-              {[[T.labels.gccExperience, form.gccExperienceCode], [T.labels.workExperience, form.workExperienceCode]].map(([label, code]) => {
-                const index = bands.findIndex((band) => band.code === code)
-                return <div key={label}><small>{label}</small><div className="zrv-hr-meter">{bands.map((band, position) => <i key={band.code} className={index >= 0 && position <= index ? 'zrv-hr-is-on' : ''} />)}</div></div>
-              })}
+              <div><small>{T.card.education}</small><b>{selectedEducation.join(', ') || COMMON_TEXT.dash}</b></div>
+              {[[T.labels.gccExperience, form.gccExp], [T.labels.workExperience, form.workExp]].map(([label, code]) => <div key={label}><small>{label}</small><b>{code || COMMON_TEXT.dash}</b></div>)}
             </div>
-            <div className="zrv-hr-dark__chips">{form.skills.slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}{form.skills.length > 6 && <span>+{form.skills.length - 6}</span>}</div>
+            <div className="zrv-hr-dark__chips">{skillList.slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}{skillList.length > 6 && <span>+{skillList.length - 6}</span>}</div>
           </Tilt>
           <Orbit done={progress.done} total={progress.total} hint={progress.missing.length ? COMMON_TEXT.next(progress.missing.slice(0, 2).map((check) => check.label)) : T.orbitReady} />
-          <RouteCard title={T.route.title} note={T.route.note} steps={route} />
         </>}
       >
         {step === 0 && <>
           <PanelHead n={1} {...T.heads[0]} />
           <div className="zrv-hr-grid">
-            <HrField id="rq-title" label={T.labels.jobTitle} required error={errors.jobTitle}>
-              <input {...fieldProps('rq-title', { error: errors.jobTitle })} className="ux-input zrv-hr-input" value={form.jobTitle} onChange={set('jobTitle')} placeholder={T.placeholders.jobTitle} autoComplete="off" aria-required="true" maxLength={200} />
+            <HrField id="rq-requester" label={T.labels.requester}>
+              <input id="rq-requester" className="ux-input zrv-hr-input" value={record?.requesterName || loggedInName} readOnly aria-readonly="true" />
             </HrField>
-            <HrField id="rq-dept" label={T.labels.department} required error={errors.departmentCode}>
-              <LookupSelect id="rq-dept" value={form.departmentCode} onChange={set('departmentCode')} options={lookups.departments} placeholder={T.placeholders.department} required error={errors.departmentCode} />
+            <HrField id="rq-request-date" label={T.labels.requestDate}>
+              <input id="rq-request-date" className="ux-input zrv-hr-input" value={form.requestDate ? enDate(form.requestDate) : ''} readOnly aria-readonly="true" />
+            </HrField>
+            <HrField id="rq-title" label={T.labels.jobTitle} required error={errors.jobTitle}>
+              <input {...fieldProps('rq-title', { error: errors.jobTitle })} className="ux-input zrv-hr-input" value={form.jobTitle}
+                onChange={(event) => {
+                  const jobTitle = event.target.value
+                  const job = lookups.jobs.find((item) => item.name.toLowerCase() === jobTitle.trim().toLowerCase())
+                  editor.patch({ jobTitle, jobId: job?.id ?? '' })
+                }} list="rq-job-title-options" placeholder={T.placeholders.jobTitle} autoComplete="off" aria-required="true" maxLength={200} />
+              <datalist id="rq-job-title-options">{lookups.jobs.map((item) => <option key={item.id} value={item.name} />)}</datalist>
+            </HrField>
+            <HrField id="rq-dept" label={T.labels.department} required error={errors.departmentId}>
+              <LookupSelect id="rq-dept" value={form.departmentId} onChange={(event) => {
+                const dept = lookups.departments.find((item) => item.id === event.target.value)
+                editor.patch({ departmentId: dept?.id ?? '', departmentName: dept?.name ?? '' })
+              }} options={lookups.departments.map((item) => ({ code: item.id, name: item.name }))} placeholder={T.placeholders.department} required error={errors.departmentId} />
             </HrField>
             <HrField id="rq-need" label={T.labels.neededDate} required error={errors.neededDate} hint={lead && <Pill tone={lead.tone || 'ok'}>{lead.text}</Pill>}>
               <input {...fieldProps('rq-need', { error: errors.neededDate, hint: lead?.text })} type="date" className="ux-input zrv-hr-input" value={form.neededDate} onChange={set('neededDate')} aria-required="true" />
@@ -145,14 +195,18 @@ function RequisitionEditor({ lookups, record: savedRecord }) {
 
         {step === 1 && <>
           <PanelHead n={2} {...T.heads[1]} />
-          <ChoiceCards label={T.labels.reason} value={form.reason} onChange={set('reason')} error={errors.reason} options={[
+          <ChoiceCards label={T.labels.reason} value={form.reason} onChange={(reason) => editor.patch({ reason,
+            replacementFor: reason === 'REPLACEMENT' ? form.replacementFor : '',
+            totalPackage: reason === form.reason ? form.totalPackage : '',
+          })} error={errors.reason} options={[
             { value: 'REPLACEMENT', icon: 'users', ...T.reasons.REPLACEMENT },
             { value: 'ADDITION', icon: 'plus', ...T.reasons.ADDITION },
           ]} />
           {form.reason === 'REPLACEMENT' && (
             <div className="zrv-hr-reveal zrv-hr-mt">
               <HrField id="rq-rep" label={T.labels.replacementFor} required error={errors.replacementFor}>
-                <input {...fieldProps('rq-rep', { error: errors.replacementFor })} className="ux-input zrv-hr-input" value={form.replacementFor} onChange={set('replacementFor')} placeholder={T.placeholders.replacementFor} aria-required="true" maxLength={200} />
+              <input {...fieldProps('rq-rep', { error: errors.replacementFor })} className="ux-input zrv-hr-input" value={form.replacementFor} onChange={(event) => editor.patch({ replacementFor: event.target.value, totalPackage: '' })} list="rq-replacement-options" placeholder={T.placeholders.replacementFor} aria-required="true" maxLength={200} />
+              <datalist id="rq-replacement-options">{lookups.replacements.map((name) => <option key={name} value={name} />)}</datalist>
               </HrField>
             </div>
           )}
@@ -178,7 +232,7 @@ function RequisitionEditor({ lookups, record: savedRecord }) {
             )}
             <HrField id="rq-basic" label={T.labels.basicSalary}>
               <div className="zrv-hr-lock">
-                <input id="rq-basic" className="ux-input zrv-hr-input" readOnly value={record?.basicSalary ?? ''} placeholder={T.placeholders.basicSalary} />
+                <input id="rq-basic" className="ux-input zrv-hr-input" readOnly value={packageValue} placeholder={T.placeholders.basicSalary} />
                 <OrvexaIcon name="lock" size={17} />
               </div>
             </HrField>
@@ -187,16 +241,17 @@ function RequisitionEditor({ lookups, record: savedRecord }) {
 
         {step === 2 && <>
           <PanelHead n={3} {...T.heads[2]} />
-          <MultiTiles label={T.labels.education} options={lookups.educationLevels} value={form.educationCodes} onChange={set('educationCodes')} error={errors.educationCodes} />
+          <MultiTiles label={T.labels.education} options={educationOptions} value={selectedEducationCodes}
+            onChange={(codes) => editor.patch(Object.fromEntries(EDUCATION_FIELDS.map(([key]) => [key, codes.includes(key) ? 'yes' : 'no'])))} error={errors.educationCodes} />
           <div className="zrv-hr-sep" />
           <div className="zrv-hr-grid">
-            <ExpTrack label={T.labels.gccExperience} options={bands} value={form.gccExperienceCode} onChange={set('gccExperienceCode')} error={errors.gccExperienceCode} />
-            <ExpTrack label={T.labels.workExperience} options={bands} value={form.workExperienceCode} onChange={set('workExperienceCode')} error={errors.workExperienceCode} />
+            <ExpTrack label={T.labels.gccExperience} options={experienceOptions} value={form.gccExp} onChange={set('gccExp')} error={errors.gccExp} />
+            <ExpTrack label={T.labels.workExperience} options={experienceOptions} value={form.workExp} onChange={set('workExp')} error={errors.workExp} />
           </div>
           <div className="zrv-hr-sep" />
           <div className="zrv-hr-grid">
             <HrField id="rq-skills" label={T.labels.skills} required wide hint={T.hints.skills} error={errors.skills}>
-              <TagInput id="rq-skills" value={form.skills} onChange={set('skills')} placeholder={T.placeholders.skills}
+              <TagInput id="rq-skills" value={skillList} onChange={(skills) => set('skills')(skills.join(', '))} placeholder={T.placeholders.skills}
                 invalid={Boolean(errors.skills)} describedBy={errors.skills ? 'rq-skills-error' : 'rq-skills-hint'} />
             </HrField>
             <HrField id="rq-other" label={T.labels.otherRequirements} wide>
@@ -207,36 +262,35 @@ function RequisitionEditor({ lookups, record: savedRecord }) {
 
         {step === 3 && <>
           <PanelHead n={4} {...T.heads[3]} />
-          {attachmentsSupported && <><FileDrop files={form.attachments} onChange={set('attachments')} /><div className="zrv-hr-sep" /></>}
+          {canSave && <HrField id="rq-ticket-status" label={T.labels.ticketStatus} hint={T.hints.ticketStatus}>
+            <LookupSelect id="rq-ticket-status" value={form.ticketStatus} onChange={(event) => editor.patch({ ticketStatus: event.target.value, ticketStatusChanged: true })}
+              options={['Open', 'Accepted', 'Close'].map((code) => ({ code, name: code }))} />
+          </HrField>}
+          {attachmentsSupported && (canSave || canRemoveAttachment || form.attachments.length > 0) && <><FileDrop files={form.attachments} onChange={set('attachments')} onRemove={removeAttachment} canRemoveSaved={canRemoveAttachment && Boolean(record)} disabled={!canSave || editor.pending} /><div className="zrv-hr-sep" /></>}
           <Review rows={[
             [T.review.jobTitle, form.jobTitle, !form.jobTitle.trim()],
-            [T.review.department, department, !form.departmentCode],
+            [T.review.department, department, !form.departmentName.trim()],
             [T.review.neededBy, enDate(form.neededDate), !form.neededDate],
-            [T.review.reason, form.reason === 'REPLACEMENT' ? T.review.replacement(form.replacementFor) : T.review.addition(form.additionReason), !form.reason],
-            [T.review.budget, form.budgeted === 'yes' ? T.review.budgeted(form.budgetedSalary) : T.review.notBudgeted, !form.budgeted],
-            [T.review.education, lookups.educationLevels.filter((level) => form.educationCodes.includes(level.code)).map((level) => level.name).join(', '), !form.educationCodes.length],
-            [T.review.experience, `${nameOf(bands, form.gccExperienceCode) || COMMON_TEXT.dash} / ${nameOf(bands, form.workExperienceCode) || COMMON_TEXT.dash}`, !form.gccExperienceCode || !form.workExperienceCode],
-            [T.review.skills, form.skills.join(', '), !form.skills.length],
+            [T.review.reason, !form.reason ? COMMON_TEXT.notAnswered : form.reason === 'REPLACEMENT' ? T.review.replacement(form.replacementFor) : T.review.addition(form.additionReason), !form.reason],
+            [T.review.budget, !form.budgeted ? COMMON_TEXT.notAnswered : form.budgeted === 'yes' ? T.review.budgeted(form.budgetedSalary) : T.review.notBudgeted, !form.budgeted],
+            [T.labels.basicSalary, packageValue || COMMON_TEXT.dash, false],
+            [T.review.education, selectedEducation.join(', ') || COMMON_TEXT.dash, false],
+            [T.review.experience, `${form.gccExp || COMMON_TEXT.dash} / ${form.workExp || COMMON_TEXT.dash}`, false],
+            [T.review.skills, form.skills || COMMON_TEXT.dash, false],
+            [T.labels.otherRequirements, form.otherRequirements || COMMON_TEXT.dash, false],
+            [T.labels.remark, form.remark || COMMON_TEXT.dash, false],
             ...(attachmentsSupported ? [[T.review.attachments, T.review.files(form.attachments.length), false]] : []),
           ]} />
         </>}
       </RecruitmentShell>
 
-      {dialog === 'submit' && (
-        <ConfirmDialog title={T.submitTitle} confirmLabel={T.submitConfirm} pending={editor.pending} feedback={editor.feedback}
-          onConfirm={submit} onClose={() => setDialog(null)}>
-          <p className="zrv-admin-confirm">
-            <b>{form.jobTitle}</b> · {department}<br />
-            {form.reason === 'REPLACEMENT' ? T.submitBody.replacement(form.replacementFor) : T.submitBody.addition} · {form.budgeted === 'yes' ? T.card.budgeted : T.card.notBudgeted}<br />
-            {T.submitBody.neededBy(enDate(form.neededDate))}
-          </p>
-        </ConfirmDialog>
-      )}
       {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
+      {dialog === 'delete' && <ConfirmDialog title={T.deleteTitle} description={T.deleteBody} confirmLabel={T.deleteAction} pending={editor.pending}
+        feedback={editor.feedback} onConfirm={deleteDraft} onClose={() => setDialog(null)} />}
       {dialog === 'report' && (
         <ReportDialog title={T.reportTitle} resourceKey="hr-requisition-report" load={service.list} onClose={() => setDialog(null)}
           numberOf={(item) => item.requisitionNumber} statusOf={(item) => T.status[item.status]} pathOf={(item) => `${BASE}/${item.requisitionId}`}
-          columns={[[T.reportColumns.title, (item) => item.jobTitle], [T.reportColumns.department, (item) => nameOf(lookups.departments, item.departmentCode)]]} />
+          columns={[[T.reportColumns.title, (item) => item.jobTitle], [T.reportColumns.department, (item) => item.departmentName]]} />
       )}
     </>
   )

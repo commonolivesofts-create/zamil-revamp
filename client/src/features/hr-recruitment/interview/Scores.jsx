@@ -1,7 +1,7 @@
 import { INTERVIEW_TEXT as T } from '../hrRecruitmentText.js'
 import { bandOf } from './interviewModel.js'
 
-// One row per criterion: a 1–5 radio group (arrow keys move between ratings)
+// One row per criterion: a 1–5 or N/A radio group (arrow keys move between ratings)
 // and a remark. Missing ratings are marked invalid after a failed save.
 export function RatingRows({ group, keys, values, onRate, onRemark, missing }) {
   return (
@@ -22,6 +22,10 @@ export function RatingRows({ group, keys, values, onRate, onRemark, missing }) {
                   <span aria-hidden="true">{n}</span>
                 </label>
               ))}
+              <label>
+                <input type="radio" name={`ia-${group}-${key}`} value="N/A" checked={value.rating === 'N/A'} onChange={() => onRate(key, 'N/A')} aria-label={T.rating.notApplicable} />
+                <span aria-hidden="true">N/A</span>
+              </label>
             </div>
             <input className="zrv-hr-row__rem" value={value.remark} onChange={(event) => onRemark(key, event.target.value)}
               placeholder={bad ? T.rating.choose : T.rating.remark} aria-label={T.rating.remarkFor(label)} maxLength={500} />

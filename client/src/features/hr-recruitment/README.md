@@ -1,109 +1,83 @@
-# HR recruitment (forms 1060, 1061, 1062)
+# HR recruitment forms (1060, 1061, 1062)
 
-Three forms that run as one flow, under **Human resources** in the sidebar:
+The three forms are under **Human resources**:
 
-| Form | Route | Record route |
-|---|---|---|
-| Personnel Requisition (1060) | `/hr/recruitment/requisition` | `/hr/recruitment/requisition/:requisitionId` |
-| Interview Assessment (1061) | `/hr/recruitment/interview` | `/hr/recruitment/interview/:assessmentId` |
-| Employment Offer (1062) | `/hr/recruitment/offer` | `/hr/recruitment/offer/:offerId` |
+| Form | Route | Record route | Data source |
+|---|---|---|---|
+| Personnel Requisition (1060) | `/hr/recruitment/requisition` | `/hr/recruitment/requisition/:requisitionId` | Live `/api/v1/hr/requisitions` API |
+| Interview Assessment (1061) | `/hr/recruitment/interview` | `/hr/recruitment/interview/:assessmentId` | Live `/api/v1/hr/interview-assessments` API |
+| Employment Offer (1062) | `/hr/recruitment/offer` | `/hr/recruitment/offer/:offerId` | Live `/api/v1/hr/employment-offers` API |
 
-> **Demo data.** The owner approved demo data for this feature only (an explicit,
-> feature-scoped override of ZRV-FE-005) until the backend exists. No backend module,
-> Oracle object or permission row exists for these forms yet.
+## Personnel Requisition API
 
-## What is demo, and the switch
+This form always uses the shared authenticated `apiClient`, including in development. It does not
+read seeded/sample requisitions. A new form starts blank; its request date is supplied as the
+current business date when the user first saves because the backend requires `requestDate` on
+insert. The backend supplies requester details, record number and status.
 
-| Piece | Where | Demo or real |
-|---|---|---|
-| Screens, business rules, validation | `requisition/`, `interview/`, `offer/`, `shared/` | Real; unchanged when the backend arrives |
-| Services and response contracts | `hrRecruitmentService.js`, `hrRecruitmentContract.js` | Real; the API calls below |
-| In-memory adapter and sample data | `demo/demoClient.js`, `demo/demoData.js` | **Demo only** |
-| Data-source flag | `hrRecruitmentConfig.js` | Remove with the demo folder |
+The frontend maps its form values to the existing backend contract:
 
-`VITE_HR_RECRUITMENT_DEMO` selects the data source:
+| Frontend value | Backend field/value |
+|---|---|
+| Job title and department selections | `jobId`/`jobName`, `deptId`/`deptName` |
+| Needed date | `dateNeeded` (`YYYY-MM-DD`) |
+| Replacement / addition choice | `reasonOfReq`: `Replacement` / `Addition` |
+| Replacement person / addition explanation | `replacementFor` / `reason` |
+| Budget and education answers | `Y` / `N` values (`budgeted`, `highSchool`, `diploma`, `higherDiploma`, `degree`, `masterDegree`) |
+| Experience | `gccExp`, `workExp`: `0 - 2`, `2 - 5`, `5 - 10`, `> 10` |
+| Skills, other requirements, remarks, package | `skills`, `other`, `remark`, `totalPackage` |
 
-- `true`: the in-memory demo adapter (any build).
-- `false`: the shared `apiClient` (`/api/v1`).
-- unset: demo in development builds (`npm run dev`), API in production builds.
+Lookups come from `GET /hr/requisitions/lookups/{job-titles,departments,requestor,replacement-for}`;
+the replacement salary uses `GET /hr/requisitions/lookups/budget?fullName=...`. Records use `GET`
+list/detail, `POST` create and `PUT` update. Save responses contain an ID, so the frontend loads
+the saved record with `GET /:requisitionId`. Lists use `pageSize` and the backend's actual
+requisition filters. Uploads use multipart `files` parts on create/update; saved attachments can be
+removed through the existing attachment route. The shared client handles `FormData` without
+setting a JSON content type. Drafts can be deleted through the backend delete route. Ticket-status
+changes are optional and HR-only; the frontend sends them only when explicitly changed, and the
+backend's existing role check remains authoritative.
 
-The default lives in `hrRecruitmentConfig.js` and not in a `.env.development` file,
-because the repository ignores every `.env.*` file except `.env.example`, and
-`tests/productionReadiness.test.mjs` pins the variables `.env.example` may list. To
-override locally, put `VITE_HR_RECRUITMENT_DEMO=false` in your own `client/.env.local`.
+The existing backend only creates and updates requisitions. It has no submit or approval action;
+statuses are `Draft`, `Inprocess`, `Approved` and `Rejected`. The frontend therefore saves drafts
+and honors the backend's read-only states (`Inprocess` and `Approved`) instead of calling a
+nonexistent submit route. The backend's ticket status is HR-only and remains server-controlled by
+its existing authorization and validation rules.
 
-While demo mode is on, every page shows a **Demo data** badge. The demo adapter:
+## Interview Assessment API
 
-- has the same interface as `apiClient`, so the services and contract readers run
-  unchanged on its responses;
-- keeps records **in memory only** (never browser storage). Reloading the page resets
-  them to the sample records;
-- behaves like the proposed backend. It assigns numbers (`PRQ-2026-0001`,
-  `IA-2026-0001`, `OFR-2026-0001`), statuses, requester and admin manager, and waits
-  350 ms per request;
-- has real error paths: unknown record → **404**, change to a submitted or issued
-  record → **409**, incomplete submission → **422** with details.
+This form uses the shared authenticated API client in every environment. It loads nationalities,
+approved requisitions and interviewers from the backend lookup routes, and maps the existing form
+to the backend's `requisitionNo`, `positionName`, `attribute3`, candidate fields, rating sections
+and evaluation object. The two allowed `attribute3` business-unit codes are provided as a select
+because the backend exposes no friendly labels. Rating rows support 1–5 and `N/A`.
 
-Attachments are demo-only. The drop zone keeps file name and size in memory; nothing
-is uploaded. With the real API the drop zone is hidden until an upload endpoint exists.
+Records use `GET /hr/interview-assessments` and `GET /:headerId`, `POST /` to create, `PUT /:headerId`
+to update and `DELETE /:headerId` to delete. The form preserves backend-owned evaluation fields
+when loading and saving existing records. The backend has no submit or approval action, so the
+last form action saves the assessment; the backend controls its status.
 
-## Proposed API contract (TODO for the backend)
+## Employment Offer API
 
-None of these endpoints exist. Paths are relative to `/api/v1`. Responses use the
-standard envelope, and lists use the standard `pagination`. The readers in
-`hrRecruitmentContract.js` define the exact fields and reject anything else.
+This form uses the shared authenticated API client in every environment. It loads approved and
+passed interview candidates, titles, business-unit IDs and benefit allowances from the backend.
+Candidate selection fills the interview number, requisition number and position. The form maps its
+bilingual package rows to the backend's single `line` object and uses the number-to-Arabic and
+Hijri-date helpers for basic salary and starting date. Business-unit values remain raw IDs because
+the backend deliberately does not provide labels.
 
-| Method and path | Purpose | Response |
-|---|---|---|
-| `GET /hr/recruitment/lookups` | Departments, divisions, interview types, certificates, marital statuses, education levels (with level 1–5), experience bands, approval route (`steps`, `unbudgetedStep`), interview payroll default, offer settings (currency, report format, probation default in English and Arabic, HR manager and general manager signatories) | `readLookups` |
-| `GET /hr/recruitment/requisitions?page&limit&number&status` | Report list; `number` + `status=SUBMITTED` finds the requisition an interview links to | page of `readRequisitionListItem` |
-| `GET /hr/recruitment/requisitions/{id}` | One requisition | `readRequisition` |
-| `POST /hr/recruitment/requisitions` | Create a draft (server sets status `DRAFT`, requester, request date) | 201, `readRequisition` |
-| `PUT /hr/recruitment/requisitions/{id}` | Save a draft (409 once submitted) | `readRequisition` |
-| `POST /hr/recruitment/requisitions/{id}/submit` | Validate (422), assign the requisition number, set `SUBMITTED` (read-only) | `readRequisition` |
-| `GET /hr/recruitment/interview-assessments?page&limit` | Report list | page of `readInterviewListItem` |
-| `GET /hr/recruitment/interview-assessments/{id}` | One assessment | `readInterview` |
-| `POST` / `PUT /hr/recruitment/interview-assessments[/{id}]` | Save: all four tabs required (422), assigns the number, `COMPLETE`, fills `positionTitle` from the submitted requisition and `adminManagerName` from the workflow | `readInterview` |
-| `POST /hr/recruitment/interview-assessments/{id}/submit` | Set `SUBMITTED` (read-only) | `readInterview` |
-| `GET /hr/recruitment/employment-offers?page&limit` | Report list | page of `readOfferListItem` |
-| `GET /hr/recruitment/employment-offers/{id}` | One offer | `readOffer` |
-| `POST` / `PUT /hr/recruitment/employment-offers[/{id}]` | Save a draft (409 once issued) | `readOffer` |
-| `POST /hr/recruitment/employment-offers/{id}/issue` | Validate position, candidate name, basic salary, starting date (422); assign the offer number; `ISSUED`, or `ACCEPTED` when the applicant signed (read-only) | `readOffer` |
+Records use `GET /hr/employment-offers` and `GET /:headerId`, `POST /` to create, `PUT /:headerId`
+to update and `DELETE /:headerId` to delete. The backend only supports CRUD: status is always
+`Incomplete`, and there is no issue, signature or acceptance action. The form therefore saves the
+offer record and does not present a workflow action that the API cannot perform.
 
-Further backend TODOs:
+## Permissions and follow-up
 
-- **Tables.** Oracle tables for the three forms. The CI3 tables of forms 1060–1062 must be
-  inspected first (gates G1 and G4).
-- **Approval route.** The real route (line manager, HR manager, Finance when not budgeted,
-  general manager) comes from the lookups endpoint. The frontend inserts the unbudgeted
-  step before the final approval.
-- **Attachments.** `POST /hr/recruitment/requisitions/{id}/attachments` needs a
-  multipart upload, and the shared API client sends JSON only. Adding multipart support
-  is a shared-architecture change (gate G3).
-- **Signatures.** Signatures are recorded as timestamps per role (`hrManager`,
-  `generalManager`, `applicant`). Who may sign which role must be enforced by the backend.
+The requisition routes use the existing `REQUISITIONS.REQUISITIONS:VIEW` permission. Save and
+inline attachment upload controls check `CREATE` or `UPDATE` for the current record. The backend
+continues to authorize every request, and its standalone attachment endpoints use
+`MANAGE_ATTACHMENTS`. Interview Assessment uses the backend's `INTERVIEW_ASSESSMENTS` resource;
+Employment Offer uses `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS`. Both check view, create, update and
+delete permissions.
 
-## Permissions (approved, not registered)
-
-`hrRecruitmentActions.js` holds the approved codes:
-`HR_RECRUITMENT.PERSONNEL_REQUISITIONS | INTERVIEW_ASSESSMENTS | EMPLOYMENT_OFFERS`
-with `VIEW`, `CREATE`, `UPDATE`, `SUBMIT`/`ISSUE`, `PRINT`.
-
-They are not in the Oracle catalogue. The module is therefore registered **session-only**
-(`rbac: false` in `config/registry/modules/hrRecruitment.module.js`). Every signed-in user
-can open these pages, in every build, and no button is permission-gated. When the
-backend exists:
-
-1. Turn the module into an RBAC module with the three resources and their actions.
-2. Register the rows with `npm run db:rbac-register` under an owner-authorized plan (gate G1).
-3. Gate each button with `usePermissions().can(HR_RECRUITMENT_ACTIONS.…)`.
-4. Update the pinned route expectations in the navigation, registry and sidebar tests.
-
-## Removing the demo
-
-1. Delete `demo/`.
-2. Delete `hrRecruitmentConfig.js`.
-3. In `hrRecruitmentService.js`, use `apiClient` directly and remove `selectClient`,
-   `hrRecruitmentDemo` and `attachmentsSupported` (or set them from real capabilities).
-4. Remove the demo badge from `shared/components/RecruitmentShell.jsx`, and the demo
-   tests from `tests/hrRecruitment.test.mjs`.
+All three recruitment forms are connected to their existing backend APIs; only the unused demo
+adapter remains as development scaffolding.

@@ -50,10 +50,15 @@ function signedInStore() {
   return { store, calls, access, sidebar, answer }
 }
 
-// Session-only pages: the dashboard, the HR recruitment forms (session-only
-// until their permissions are registered) and the account pages.
+// Session-only pages: the dashboard and account pages. Recruitment routes are
+// protected by the effective permissions of their backend resources.
 const HR = ['hr-requisition', 'hr-interview', 'hr-offer']
-const COMMON = ['dashboard', ...HR, 'account-password', 'account-authenticator']
+const COMMON = ['dashboard', 'account-password', 'account-authenticator']
+const HR_PERMISSIONS = [
+  'REQUISITIONS.REQUISITIONS:VIEW',
+  'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW',
+  'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW',
+]
 
 test('a registered page appears once its permission is effective; a missing permission hides it', async () => {
   const s = signedInStore()
@@ -62,11 +67,17 @@ test('a registered page appears once its permission is effective; a missing perm
   await s.answer([])
   assert.deepEqual(s.sidebar(), COMMON, 'no business permission: common links only')
 
+  s.store.reload()
+  await s.answer(HR_PERMISSIONS)
+  assert.deepEqual(s.sidebar(), ['dashboard', ...HR, 'account-password', 'account-authenticator'])
+  assert.equal(routeAccess(findAppRoute('/hr/recruitment/requisition'), s.access()), 'allowed')
+  assert.equal(routeAccess(findAppRoute('/hr/recruitment/offer'), s.access()), 'allowed')
+
   // A role grant takes effect for this session after a refresh (the grant page refreshes the
   // administrator's own permissions; other users after a page reload or new sign-in).
   s.store.reload()
   await s.answer([`${SA}.ROLES:VIEW`])
-  assert.deepEqual(s.sidebar(), ['dashboard', ...HR, 'roles', 'account-password', 'account-authenticator'])
+  assert.deepEqual(s.sidebar(), ['dashboard', 'roles', 'account-password', 'account-authenticator'])
   assert.equal(routeAccess(findAppRoute('/security/roles'), s.access()), 'allowed', 'direct URL: same decision')
   assert.equal(routeAccess(findAppRoute('/security/users'), s.access()), 'denied', 'direct URL without the permission')
   assert.deepEqual(paletteCommands(s.access(), 'authenticated').map((c) => c.id), s.sidebar(), 'command palette lists the same pages')
@@ -120,7 +131,7 @@ test('permissions never create navigation: only registered, implemented pages ar
   assert.deepEqual(s.sidebar(), before)
   assert.ok(!s.sidebar().includes('security-audit'))
   assert.equal(routeAccess(appRoutes.find((r) => r.id === 'security-audit'), s.access()), 'unavailable')
-  assert.deepEqual(before, ['dashboard', ...HR, 'user-accounts', 'roles', 'user-roles', 'role-permissions', 'permission-catalog', 'permission-overrides', 'account-password', 'account-authenticator'])
+  assert.deepEqual(before, ['dashboard', 'user-accounts', 'roles', 'user-roles', 'role-permissions', 'permission-catalog', 'permission-overrides', 'account-password', 'account-authenticator'])
 })
 
 test('loading and error states never list protected pages; a failed refresh denies until retried', async () => {

@@ -6,7 +6,7 @@ import { ApiError } from '../../services/api/apiClient.js'
 import { isIsoDate } from './shared/hrFormat.js'
 import { REQUISITION_STATUSES, REASONS } from './requisition/requisitionModel.js'
 import { COMP_KEYS, HR_FIELDS, INTERVIEW_STATUSES, OUTCOMES, SPEC_KEYS } from './interview/interviewModel.js'
-import { BENEFIT_KEYS, OFFER_STATUSES, SALUTATIONS, SIGNATURE_ROLES } from './offer/offerModel.js'
+import { BENEFIT_KEYS, OFFER_STATUSES } from './offer/offerModel.js'
 
 export const ID_PATTERN = /^[1-9][0-9]{0,18}$/
 export const LOOKUP_CODE = /^[A-Za-z0-9_-]{1,40}$/
@@ -126,7 +126,7 @@ const ratings = (group, keys) => {
   check(isObject(group))
   return Object.freeze(Object.fromEntries(keys.map((key) => {
     const item = group[key]
-    check(isObject(item) && (item.rating === null || (Number.isInteger(item.rating) && item.rating >= 1 && item.rating <= 5)))
+    check(isObject(item) && (item.rating === null || item.rating === 'N/A' || (Number.isInteger(item.rating) && item.rating >= 1 && item.rating <= 5)))
     return [key, Object.freeze({ rating: item.rating, remark: text(item.remark, 500) })]
   })))
 }
@@ -177,26 +177,29 @@ export function readInterviewListItem(data) {
 }
 
 export function readOffer(data) {
-  check(isObject(data) && isObject(data.benefits) && isObject(data.signatures))
+  check(isObject(data) && isObject(data.benefits))
   return Object.freeze({
     offerId: id(data.offerId),
     offerNumber: nullableText(data.offerNumber, 40),
     status: oneOf(data.status, OFFER_STATUSES),
     position: text(data.position, 200),
     offerDate: date(data.offerDate),
-    reportFormat: text(data.reportFormat, 60),
-    salutation: oneOf(data.salutation, SALUTATIONS),
+    division: text(data.division, 40),
+    salutation: text(data.salutation, 50),
+    salutationAr: text(data.salutationAr, 50),
     candidateNameEn: text(data.candidateNameEn, 200),
     candidateNameAr: text(data.candidateNameAr, 200),
+    intNo: text(data.intNo, 100),
+    reqNo: text(data.reqNo, 100),
+    applicant: text(data.applicant, 200),
     benefits: Object.freeze(Object.fromEntries(BENEFIT_KEYS.map((key) => {
       const row = data.benefits[key]
       check(isObject(row) && typeof row.autoArabic === 'boolean')
-      return [key, Object.freeze({ en: text(row.en, 300), ar: text(row.ar, 300), autoArabic: row.autoArabic })]
+      return [key, Object.freeze({ en: text(row.en, 500), ar: text(row.ar, 1000), autoArabic: row.autoArabic })]
     }))),
     comments: text(data.comments),
-    signatures: Object.freeze(Object.fromEntries(SIGNATURE_ROLES.map((role) => [role, nullableInstant(data.signatures[role])]))),
     currency: currency(data.currency),
-    updatedAt: instant(data.updatedAt),
+    updatedAt: nullableInstant(data.updatedAt),
   })
 }
 
