@@ -39,6 +39,9 @@ coverage/
 .vite/
 .turbo/
 
+# Runtime-stored requisition attachment uploads (README_personal_requisition_form.md §6)
+/server/attachments/
+
 # ==========================================
 # Logs
 # ==========================================

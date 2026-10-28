@@ -20,6 +20,9 @@ import { createEmploymentOfferRouter } from '../modules/hr/employment-offers/emp
 import { createEmploymentOfferService } from '../modules/hr/employment-offers/employmentOffer.service.js';
 import { createInterviewAssessmentRouter } from '../modules/hr/interview-assessments/interviewAssessment.routes.js';
 import { createInterviewAssessmentService } from '../modules/hr/interview-assessments/interviewAssessment.service.js';
+import { createRequisitionRouter } from '../modules/hr/requisitions/requisition.routes.js';
+import { createRequisitionService } from '../modules/hr/requisitions/requisition.service.js';
+import { createDiskStorage } from '../modules/hr/requisitions/requisition.storage.js';
 import { createUsersRouter } from '../modules/users/users.routes.js';
 import { createUsersService } from '../modules/users/users.service.js';
 
@@ -136,6 +139,14 @@ export function createApiRouter(appConfig, deps = {}) {
     withTransaction: db.withTransaction,
   });
 
+  const requisitionService = createRequisitionService({
+    repository: deps.requisitionRepository,
+    // Physical attachment files land on local disk (README §6); tests inject a memory double.
+    storage: deps.requisitionStorage ?? createDiskStorage(),
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
   const router = Router();
   router.use(createOriginCheck({ allowedOrigins: appConfig.auth.allowedOrigins }));
   router.use(
@@ -174,6 +185,16 @@ export function createApiRouter(appConfig, deps = {}) {
     '/hr/employment-offers',
     createEmploymentOfferRouter({
       employmentOfferService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/requisitions',
+    createRequisitionRouter({
+      requisitionService,
       authorize,
       authenticate,
       auditService,
