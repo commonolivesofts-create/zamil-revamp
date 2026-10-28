@@ -56,7 +56,14 @@ const withFixture = [...securityRegistry, fixtureModule];
 const FIXTURE_RECORDS = 1 + 2 + 5;
 const ACTIVE_REGISTRY_RECORDS = registeredModules
   .filter((module) => module.rbac && module.code !== SECURITY_MODULE.code)
-  .reduce((total, module) => total + 1 + module.resources.length + module.resources.reduce((count, resource) => count + resource.actions.length, 0), 0);
+  .reduce(
+    (total, module) =>
+      total +
+      1 +
+      module.resources.length +
+      module.resources.reduce((count, resource) => count + resource.actions.length, 0),
+    0,
+  );
 
 function seedSecurityCatalog() {
   const state = { modules: [], resources: [], permissions: [], nextId: 1000 };
@@ -893,7 +900,12 @@ describe('RBAC catalogue registration CLI', () => {
       const preview = await run(['--target=TEST'], { modules: registeredModules });
       const apply = await run(
         ['--target=TEST', '--apply', `--fingerprint=${fingerprintOf(preview.out)}`],
-        { modules: registeredModules, io: fakeIo({ typed: `REGISTER TEST ${ACTIVE_REGISTRY_RECORDS} ${fingerprintOf(preview.out).slice(0, 12)}` }) },
+        {
+          modules: registeredModules,
+          io: fakeIo({
+            typed: `REGISTER TEST ${ACTIVE_REGISTRY_RECORDS} ${fingerprintOf(preview.out).slice(0, 12)}`,
+          }),
+        },
       );
       assert.equal(apply.code, EXIT.OK);
       assert.match(apply.out, new RegExp(`Committed ${ACTIVE_REGISTRY_RECORDS} record\\(s\\)`));
