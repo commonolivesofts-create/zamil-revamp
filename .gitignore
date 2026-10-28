@@ -3,6 +3,7 @@
 
 # Local environment files containing credentials
 .env
+.freebuff
 
 # ==========================================
 # Project-wide environment protection
