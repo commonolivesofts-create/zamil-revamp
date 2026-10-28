@@ -31,6 +31,10 @@ export const UserRoleAssignmentsPage = lazy(() => import('@/features/security-ad
 export const PermissionCatalogPage = lazy(() => import('@/features/security-administration/pages/PermissionCatalogPage.jsx'))
 export const PermissionOverridesPage = lazy(() => import('@/features/security-administration/pages/PermissionOverridesPage.jsx'))
 export const UserOverridesPage = lazy(() => import('@/features/security-administration/pages/UserOverridesPage.jsx'))
+// HR recruitment (forms 1060, 1061, 1062).
+export const RequisitionPage = lazy(() => import('@/features/hr-recruitment/requisition/RequisitionPage.jsx'))
+export const InterviewPage = lazy(() => import('@/features/hr-recruitment/interview/InterviewPage.jsx'))
+export const OfferPage = lazy(() => import('@/features/hr-recruitment/offer/OfferPage.jsx'))
 export const DeniedPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessDeniedPage })))
 export const AccessPendingPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessPendingPage })))
 export const AccessUnavailablePage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessUnavailablePage })))

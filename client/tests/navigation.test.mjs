@@ -95,6 +95,13 @@ test("only pages backed by a working backend contract are implemented; no placeh
     implementedRoutes.map((route) => route.path),
     [
       "/dashboard",
+      // HR recruitment (session-only, owner-approved demo data until its backend exists).
+      "/hr/recruitment/requisition",
+      "/hr/recruitment/requisition/:requisitionId",
+      "/hr/recruitment/interview",
+      "/hr/recruitment/interview/:assessmentId",
+      "/hr/recruitment/offer",
+      "/hr/recruitment/offer/:offerId",
       "/security/users",
       "/security/users/:userId",
       "/security/roles",
@@ -220,7 +227,14 @@ test("sidebar: current production navigation for administrators, employees and e
     const sections = authorizedNavigation(access);
     assert.deepEqual(
       ids(sections),
-      ["dashboard", "account-password", "account-authenticator"],
+      [
+        "dashboard",
+        "hr-requisition",
+        "hr-interview",
+        "hr-offer",
+        "account-password",
+        "account-authenticator",
+      ],
       access.status,
     );
     assert.ok(
@@ -230,6 +244,9 @@ test("sidebar: current production navigation for administrators, employees and e
   }
   assert.deepEqual(ids(authorizedNavigation(ADMIN)), [
     "dashboard",
+    "hr-requisition",
+    "hr-interview",
+    "hr-offer",
     "user-accounts",
     "roles",
     "user-roles",

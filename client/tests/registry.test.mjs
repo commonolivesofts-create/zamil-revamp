@@ -39,14 +39,29 @@ const PRE_REGISTRY_ROUTES = [
   { id: 'account-authenticator', path: '/account/authenticator', label: 'Authenticator app', icon: 'smartphone', section: 'account', implemented: true },
 ]
 
+// HR recruitment (session-only module HR_RECRUITMENT, owner-approved): three
+// forms and their hidden record pages in the "Human resources" group.
+const HR = 'human-resources'
+const HR_RECRUITMENT_ROUTES = [
+  { id: 'hr-requisition', path: '/hr/recruitment/requisition', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, implemented: true },
+  { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, implemented: true, nav: false },
+  { id: 'hr-interview', path: '/hr/recruitment/interview', label: 'Interview assessment', icon: 'messages-square', section: HR, implemented: true },
+  { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', label: 'Interview assessment', icon: 'messages-square', section: HR, implemented: true, nav: false },
+  { id: 'hr-offer', path: '/hr/recruitment/offer', label: 'Employment offer', icon: 'file-signature', section: HR, implemented: true },
+  { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', label: 'Employment offer', icon: 'file-signature', section: HR, implemented: true, nav: false },
+]
+// Group order: workspace, human resources, security, account.
+const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]
+
 test('the derived routes, sections and permission names equal the pre-registry configuration exactly', () => {
-  assert.deepEqual(plain(appRoutes), PRE_REGISTRY_ROUTES)
-  assert.deepEqual(plain(navigationEntries), PRE_REGISTRY_ROUTES, 'no external or extra entries are active')
+  assert.deepEqual(plain(appRoutes), EXPECTED_ROUTES)
+  assert.deepEqual(plain(navigationEntries), EXPECTED_ROUTES, 'no external or extra entries are active')
   for (const [index, route] of appRoutes.entries()) {
-    assert.deepEqual(Object.keys(route), Object.keys(PRE_REGISTRY_ROUTES[index]), `${route.id}: same fields, same order`)
+    assert.deepEqual(Object.keys(route), Object.keys(EXPECTED_ROUTES[index]), `${route.id}: same fields, same order`)
   }
   assert.deepEqual(plain(navigationSections), [
     { id: 'workspace', label: 'Workspace', icon: 'layout-dashboard', standalone: true },
+    { id: HR, label: 'Human resources', icon: 'users-round' },
     { id: 'security', label: 'Security administration', icon: 'shield-check' },
     { id: 'account', label: 'My account', icon: 'user-round' },
   ])
@@ -60,7 +75,8 @@ test('the derived routes, sections and permission names equal the pre-registry c
     SECURITY_AUDIT_VIEW: `${SA}.SECURITY_AUDIT:VIEW`,
   })
   assert.ok(Object.isFrozen(appRoutes) && appRoutes.every(Object.isFrozen))
-  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA], 'no new active modules')
+  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'HR_RECRUITMENT'], 'only the approved modules are active')
+  assert.equal(registeredModules.find((module) => module.code === 'HR_RECRUITMENT').rbac, false, 'HR recruitment registers no Oracle permissions')
 })
 
 test('every implemented internal route has exactly one React Router entry with the same path, and back', async () => {
@@ -97,7 +113,7 @@ test('Security Administration equals the complete backend catalogue: 8 resources
 
 test('common links need authentication only; Security Administration keeps permission, alsoRequires and MFA', () => {
   const common = appRoutes.filter((route) => !route.permission).map((route) => route.id)
-  assert.deepEqual(common, ['dashboard', 'account-password', 'account-authenticator'])
+  assert.deepEqual(common, ['dashboard', ...HR_RECRUITMENT_ROUTES.map((route) => route.id), 'account-password', 'account-authenticator'])
   for (const access of [{ status: 'loading' }, { status: 'error' }, { status: 'ready', has: () => false }]) {
     for (const id of common) assert.equal(routeAccess(appRoutes.find((r) => r.id === id), access), 'allowed')
   }

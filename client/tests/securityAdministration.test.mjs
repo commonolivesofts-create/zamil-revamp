@@ -465,8 +465,10 @@ test('implemented security pages are routed and listed only with their permissio
 })
 
 test('detail pages are guarded like their list but never listed or searchable', () => {
-  const details = appRoutes.filter((route) => route.nav === false)
+  // Security detail pages; the session-only HR recruitment record pages are covered in hrRecruitment.test.mjs.
+  const details = appRoutes.filter((route) => route.nav === false && route.section === 'security')
   assert.deepEqual(details.map((route) => route.path), ['/security/users/:userId', '/security/user-roles/:userId', '/security/permission-overrides/:userId'])
+  assert.deepEqual(appRoutes.filter((route) => route.nav === false && route.section !== 'security').map((route) => route.section), ['human-resources', 'human-resources', 'human-resources'])
   for (const route of details) {
     assert.equal(route.implemented, true)
     assert.equal(routeAccess(route, ready([route.permission], false)), 'mfa_required')
