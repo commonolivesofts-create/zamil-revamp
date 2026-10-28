@@ -331,8 +331,10 @@ const FILTERS = Object.freeze({
  * no rows on an empty hierarchy — avoiding the legacy empty `IN ()` bug. USER_ID is compared
  * directly (both sides are the employee-master identifier).
  */
+// The explicit column alias list is mandatory for a recursive (self-referencing) subquery in
+// Oracle: without it the database rejects the statement with ORA-32039.
 const SCOPE_CTE = `
-WITH emp AS (
+WITH emp (FULL_NAME, USER_ID, SUPERVISOR_NAME) AS (
   SELECT FULL_NAME, USER_ID, SUPERVISOR_NAME
     FROM XX_DIGI_EMP_MASTER
    WHERE USER_ID = :scopeUserId

@@ -57,7 +57,7 @@ tags:
       read, update, delete and filtered listing of the single-table record plus its
       attachment rows, and the job-title, requestor, department, replacement-for,
       budget and filter-option lookups. Requires
-      HR.REQUISITIONS:VIEW / CREATE / UPDATE / DELETE / MANAGE_ATTACHMENTS (default
+      REQUISITIONS.REQUISITIONS:VIEW / CREATE / UPDATE / DELETE / MANAGE_ATTACHMENTS (default
       deny without the catalogue grant). REQUISITION_STATUS is plain data: written
       'Draft' on insert and never transitioned — no workflow table (XXPHP_WORKFLOW,
       XX_REQ_WF_REC) is read or written. ticketStatus (ATTRIBUTE1) may only be set
@@ -3041,7 +3041,7 @@ paths:
         those of recursively supervised employees (the XX_DIGI_EMP_MASTER
         SUPERVISOR_NAME chain), whatever they pass in the query. `ticketStatus`
         matches ATTRIBUTE1 with NULL treated as 'Open' (NVL). Requires
-        `HR.REQUISITIONS:VIEW` (re-evaluated in Oracle on every request).
+        `REQUISITIONS.REQUISITIONS:VIEW` (re-evaluated in Oracle on every request).
       security:
         - sessionCookie: []
       parameters:
@@ -3169,7 +3169,7 @@ paths:
         max 10 files, 10 MB each, §9 extension allowlist): the attachment rows and
         the physical files are written in the same transaction and compensated on
         failure. ticketStatus (ATTRIBUTE1) is HR-only — a non-HR caller sending a
-        non-empty value gets 400. Requires `HR.REQUISITIONS:CREATE` and the
+        non-empty value gets 400. Requires `REQUISITIONS.REQUISITIONS:CREATE` and the
         `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -3225,7 +3225,7 @@ paths:
       summary: Job-title lookup
       description: >-
         Distinct XX_DIGI_EMP_MASTER job id / title pairs for the form datalist
-        (README §8.1), ordered by id descending. Requires `HR.REQUISITIONS:VIEW`.
+        (README §8.1), ordered by id descending. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
         No query parameters are accepted.
       security:
         - sessionCookie: []
@@ -3265,7 +3265,7 @@ paths:
         The session user's employee-master record (README §8.2): FULL_NAME,
         EMAIL_ADDRESS and EMPLOYEE_NUMBER, the same values the insert uses to
         server-set REQUESTER_NAME / REQUESTED_BY. 404 when the account has no
-        employee row. Requires `HR.REQUISITIONS:VIEW`. No query parameters are
+        employee row. Requires `REQUISITIONS.REQUISITIONS:VIEW`. No query parameters are
         accepted.
       security:
         - sessionCookie: []
@@ -3303,7 +3303,7 @@ paths:
       summary: Department lookup
       description: >-
         Distinct XX_DIGI_DEPT_MASTER organization id / name pairs for the form
-        datalist (README §8.3), ordered by id. Requires `HR.REQUISITIONS:VIEW`.
+        datalist (README §8.3), ordered by id. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
         No query parameters are accepted.
       security:
         - sessionCookie: []
@@ -3344,7 +3344,7 @@ paths:
         SUPERVISOR_NAME in the employee master equal to the requestor's own
         FULL_NAME) — the REPLACEMENT_FOR candidates for a 'Replacement' request.
         404 when the session account has no employee record. Requires
-        `HR.REQUISITIONS:VIEW`. No query parameters are accepted.
+        `REQUISITIONS.REQUISITIONS:VIEW`. No query parameters are accepted.
       security:
         - sessionCookie: []
       responses:
@@ -3384,7 +3384,7 @@ paths:
       description: >-
         BASIC_SALARY of the employee-master row whose FULL_NAME equals the given
         name (README §8.5) — the read-only "Basic Salary" field of the budget
-        section. 404 when no employee matches. Requires `HR.REQUISITIONS:VIEW`.
+        section. 404 when no employee matches. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
       security:
         - sessionCookie: []
       parameters:
@@ -3432,7 +3432,7 @@ paths:
         ids, requester names, job names, department names and reason codes, each
         bounded to 500 entries and scoped exactly like the listing (README §7.4) —
         non-HR callers only see values of their own rows and those of their
-        supervised employees. Requires `HR.REQUISITIONS:VIEW`. No query parameters
+        supervised employees. Requires `REQUISITIONS.REQUISITIONS:VIEW`. No query parameters
         are accepted.
       security:
         - sessionCookie: []
@@ -3471,7 +3471,7 @@ paths:
         FORM_NAME 'Requisition'); business dates come back in the stored legacy
         'DD-Mon-YY' form, ATTACHED_ON as 'DD-Mon-YYYY'. Out-of-scope rows are
         indistinguishable from missing ones: a non-HR caller who may not read a
-        record (README §7.4) receives 404. Requires `HR.REQUISITIONS:VIEW`.
+        record (README §7.4) receives 404. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
       security:
         - sessionCookie: []
       parameters:
@@ -3518,7 +3518,7 @@ paths:
         group, when '' it clears it, and while the status is Accepted/Close the
         previously stored date survives a re-save (corrected §5.1 behaviour).
         Multipart requests may append attachment file parts (`files`) in the same
-        transaction. Out-of-scope rows 404. Requires `HR.REQUISITIONS:UPDATE` and
+        transaction. Out-of-scope rows 404. Requires `REQUISITIONS.REQUISITIONS:UPDATE` and
         the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -3586,7 +3586,7 @@ paths:
         409 CANNOT_DELETE_STATUS when REQUISITION_STATUS is not 'Draft', and 409
         REQUISITION_IN_USE when an interview assessment references the requisition
         number in ATTRIBUTE4. Out-of-scope rows 404. Requires
-        `HR.REQUISITIONS:DELETE` and the `X-CSRF-Token` header.
+        `REQUISITIONS.REQUISITIONS:DELETE` and the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
       parameters:
@@ -3638,7 +3638,7 @@ paths:
         on failure. Multipart only, at least one file part named `files`, max 10
         files, 10 MB each, README §9 extension allowlist. Returns the full current
         attachment list. Out-of-scope or missing requisitions 404. Requires
-        `HR.REQUISITIONS:MANAGE_ATTACHMENTS` and the `X-CSRF-Token` header.
+        `REQUISITIONS.REQUISITIONS:MANAGE_ATTACHMENTS` and the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
       parameters:
@@ -3702,7 +3702,7 @@ paths:
       description: >-
         Deletes the attachment row scoped to its requisition and removes the physical
         file (a missing file is a no-op — the row is authoritative). Unknown or
-        foreign attachment ids 404. Requires `HR.REQUISITIONS:MANAGE_ATTACHMENTS`
+        foreign attachment ids 404. Requires `REQUISITIONS.REQUISITIONS:MANAGE_ATTACHMENTS`
         and the `X-CSRF-Token` header.
       security:
         - sessionCookie: []

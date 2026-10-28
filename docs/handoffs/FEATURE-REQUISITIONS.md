@@ -141,6 +141,26 @@ validated by SwaggerParser).
 
 1. Permission catalogue registration — owner registers `HR.REQUISITIONS` (5 actions) and grants it
    to the roles that need it (admin panel: Security Administration → Role permissions).
+
+## 14. Addendum 2026-10-28 — permission key aligned to the registered catalogue
+
+Every requisition call returned 403 `FORBIDDEN` even for a granted account: the route key
+`HR.REQUISITIONS` (`moduleCode='HR'`) did not match the rows the owner registered in the permission
+catalogue, which use `REQUISITIONS.REQUISITIONS` (`moduleCode='REQUISITIONS'`), exactly as
+`EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS` and `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS` do. The
+authorization lookup matches module + resource + action, so no grant could ever hit.
+
+Owner decision (2026-10-28, "change code to REQUISITIONS.REQUISITIONS"): the code is the source of
+truth to change; the catalogue stays as registered. Also owner-decided: `MANAGE_ATTACHMENTS` will be
+registered and granted for the attachment sub-routes.
+
+- `requisition.routes.js` / `requisition.service.js` now use `REQUISITIONS.REQUISITIONS` (the §5
+  permission-key decision and the §12/§13 owner-registration step above stand superseded to that
+  extent; actions are unchanged: VIEW, CREATE, UPDATE, DELETE, MANAGE_ATTACHMENTS).
+- `server/docs/openapi/openapi.yaml`: all `HR.REQUISITIONS:*` requirement text updated.
+- `server/tests/requisitions.test.js`: fixture registers module `REQUISITIONS`, mirroring the
+  catalogue.
+- No DDL, no catalogue row changes, no behaviour change beyond the permission key.
 2. Read-only SQL verification script against TEST (list filters, ID seeding arithmetic, the
    ATTRIBUTE14/15 non-wiping MERGE).
 3. Client UI for the form (separate, explicitly client-side change).
