@@ -33,6 +33,15 @@ export const DEMO_LOOKUPS = Object.freeze({
     unbudgetedStep: { code: 'FINANCE', label: 'Finance', note: 'Approves an unbudgeted position' },
   },
   interview: { payrollDefault: 'IPP BU' },
+  orientation: {
+    departmentHeads: {
+      hr: [option('HEAD_HR_A', 'Sample HR Head A'), option('HEAD_HR_B', 'Sample HR Head B')],
+      safety: [option('HEAD_SAF_A', 'Sample Safety Head A'), option('HEAD_SAF_B', 'Sample Safety Head B')],
+      it: [option('HEAD_IT_A', 'Sample IT Head A'), option('HEAD_IT_B', 'Sample IT Head B')],
+      tour: [option('HEAD_PROD_A', 'Sample Production Head A'), option('HEAD_PROD_B', 'Sample Production Head B')],
+      meet: [option('HEAD_HR_A', 'Sample HR Head A'), option('HEAD_HR_B', 'Sample HR Head B')],
+    },
+  },
   offer: {
     currency: 'SAR',
     reportFormat: 'FPP BU',
@@ -46,7 +55,29 @@ export const DEMO_LOOKUPS = Object.freeze({
 
 // Values the demo "server" assigns (a real backend takes them from the session
 // and the workflow).
-export const DEMO_ASSIGNED = Object.freeze({ requesterName: 'Demo Requester', adminManagerName: 'Demo Admin Manager' })
+// Used only until the page passes the signed-in user's name (identifyDemoUser).
+export const DEMO_ASSIGNED = Object.freeze({
+  requesterName: 'Demo Requester', adminManagerName: 'Demo Admin Manager', scheduledByName: 'Demo Scheduler', preparedByName: 'Demo Evaluator',
+})
+
+// Fictional employees for the pickers: new joiners (orientation) and employees
+// on probation (evaluation). `evaluationFormCode` suggests the PAF form type.
+const employee = (n, employmentType, startDate, section, division, position, grade, departmentName, evaluationFormCode) => ({
+  employeeId: String(n), employeeNumber: String(30400 + n), name: `Sample Employee ${String(n).padStart(3, '0')}`,
+  employmentType, startDate, section, division, position, grade, departmentName, evaluationFormCode,
+})
+export const DEMO_EMPLOYEES = Object.freeze([
+  employee(1, 'Employee', '2026-11-01', 'Sales Section', 'IPP BU', 'Sales Coordinator', 'G5', 'Sales', 'ENGINEERS'),
+  employee(2, 'Employee', '2026-11-08', 'Quality Section', 'IPP BU', 'Quality Inspector', 'G5', 'Quality', 'WORKERS'),
+  employee(3, 'Trainee', '2026-11-15', 'Engineering', 'Corporate', 'Graduate Trainee', 'T1', 'Engineering', 'TRAINEE'),
+  employee(4, 'Contractor', '2026-11-02', 'Maintenance', 'Operations', 'Electrician', 'G4', 'Maintenance', 'WORKERS'),
+  employee(5, 'Employee', '2026-08-02', 'Maintenance', 'Operations', 'Maintenance Technician', 'G5', 'Maintenance', 'WORKERS'),
+  employee(6, 'Employee', '2026-08-16', 'Warehouse', 'Operations', 'Store Keeper', 'G4', 'Warehouse', 'WORKERS'),
+  employee(7, 'Employee', '2026-09-01', 'Quality Section', 'IPP BU', 'Quality Engineer', 'G8', 'Quality', 'ENGINEERS'),
+  employee(8, 'Employee', '2026-09-15', 'Production', 'IPP BU', 'Production Supervisor', 'G9', 'Production', 'SUPERVISORS'),
+  employee(9, 'Trainee', '2026-10-01', 'Engineering', 'Corporate', 'Graduate Trainee', 'T1', 'Engineering', 'TRAINEE'),
+  employee(10, 'Employee', '2026-07-12', 'Finance', 'Corporate', 'Finance Manager', 'G11', 'Finance', 'MANAGERS'),
+].map((item) => Object.freeze(item)))
 
 const ratings = (keys, values) => Object.fromEntries(keys.map((key, index) => [key, { rating: values[index], remark: '' }]))
 const benefit = (en, ar) => ({ en, ar, autoArabic: true })
@@ -99,5 +130,6 @@ export function createDemoRecords() {
         updatedAt: '2026-10-21T08:00:00.000Z',
       },
     ],
+    orientations: [],
   }
 }

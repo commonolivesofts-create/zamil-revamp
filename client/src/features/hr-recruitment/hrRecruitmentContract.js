@@ -7,6 +7,7 @@ import { isIsoDate } from './shared/hrFormat.js'
 import { REQUISITION_STATUSES, REASONS } from './requisition/requisitionModel.js'
 import { COMP_KEYS, HR_FIELDS, INTERVIEW_STATUSES, OUTCOMES, SPEC_KEYS } from './interview/interviewModel.js'
 import { BENEFIT_KEYS, OFFER_STATUSES, SALUTATIONS, SIGNATURE_ROLES } from './offer/offerModel.js'
+import { ORIENTATION_STATUSES, SESSION_KEYS, TIME } from './orientation/orientationModel.js'
 
 export const ID_PATTERN = /^[1-9][0-9]{0,18}$/
 export const LOOKUP_CODE = /^[A-Za-z0-9_-]{1,40}$/
@@ -43,7 +44,8 @@ const routeStep = (step) => {
 }
 
 export function readLookups(data) {
-  check(isObject(data) && isObject(data.approvalRoute) && isObject(data.offer) && isObject(data.interview))
+  check(isObject(data) && isObject(data.approvalRoute) && isObject(data.offer) && isObject(data.interview) && isObject(data.orientation))
+  check(isObject(data.orientation.departmentHeads))
   check(Array.isArray(data.educationLevels) && Array.isArray(data.approvalRoute.steps) && Array.isArray(data.offer.signatories))
   const { offer } = data
   check(isObject(offer.probation))
@@ -68,6 +70,9 @@ export function readLookups(data) {
       unbudgetedStep: data.approvalRoute.unbudgetedStep === null ? null : routeStep(data.approvalRoute.unbudgetedStep),
     }),
     interview: Object.freeze({ payrollDefault: text(data.interview.payrollDefault, 60) }),
+    orientation: Object.freeze({
+      departmentHeads: Object.freeze(Object.fromEntries(SESSION_KEYS.map((key) => [key, options(data.orientation.departmentHeads[key])]))),
+    }),
     offer: Object.freeze({
       currency: currency(offer.currency),
       reportFormat: text(offer.reportFormat, 60),
@@ -208,6 +213,61 @@ export function readOfferListItem(data) {
     status: oneOf(data.status, OFFER_STATUSES),
     position: text(data.position, 200),
     candidateNameEn: text(data.candidateNameEn, 200),
+    updatedAt: instant(data.updatedAt),
+  })
+}
+
+// An employee from the employee search (pickers): identity and job details.
+export function readEmployee(data) {
+  check(isObject(data))
+  return Object.freeze({
+    employeeId: id(data.employeeId),
+    employeeNumber: text(data.employeeNumber, 30),
+    name: text(data.name, 200),
+    employmentType: text(data.employmentType, 60),
+    startDate: date(data.startDate),
+    section: text(data.section, 120),
+    division: text(data.division, 120),
+    position: text(data.position, 200),
+    grade: text(data.grade, 20),
+    departmentName: text(data.departmentName, 120),
+    evaluationFormCode: code(data.evaluationFormCode),
+  })
+}
+
+const time = (value) => { check(value === null || (typeof value === 'string' && TIME.test(value))); return value }
+
+export function readOrientation(data) {
+  check(isObject(data) && isObject(data.sessions))
+  return Object.freeze({
+    scheduleId: id(data.scheduleId),
+    scheduleNumber: nullableText(data.scheduleNumber, 40),
+    status: oneOf(data.status, ORIENTATION_STATUSES),
+    employee: readEmployee(data.employee),
+    scheduledByName: nullableText(data.scheduledByName, 200),
+    fromDate: date(data.fromDate),
+    toDate: date(data.toDate),
+    sessions: Object.freeze(Object.fromEntries(SESSION_KEYS.map((key) => {
+      const session = data.sessions[key]
+      check(isObject(session))
+      return [key, Object.freeze({
+        headCode: code(session.headCode), fromDate: date(session.fromDate), toDate: date(session.toDate),
+        timeFrom: time(session.timeFrom), timeTo: time(session.timeTo), remark: text(session.remark, 500),
+      })]
+    }))),
+    updatedAt: instant(data.updatedAt),
+  })
+}
+
+export function readOrientationListItem(data) {
+  check(isObject(data))
+  return Object.freeze({
+    scheduleId: id(data.scheduleId),
+    scheduleNumber: nullableText(data.scheduleNumber, 40),
+    status: oneOf(data.status, ORIENTATION_STATUSES),
+    employeeName: text(data.employeeName, 200),
+    fromDate: date(data.fromDate),
+    toDate: date(data.toDate),
     updatedAt: instant(data.updatedAt),
   })
 }

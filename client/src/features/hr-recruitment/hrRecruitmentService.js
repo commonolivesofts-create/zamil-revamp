@@ -11,8 +11,8 @@ import { ApiError, apiClient } from '../../services/api/apiClient.js'
 import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
 import {
-  ID_PATTERN, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readPage,
-  readRequisition, readRequisitionListItem,
+  ID_PATTERN, readEmployee, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readOrientation,
+  readOrientationListItem, readPage, readRequisition, readRequisitionListItem,
 } from './hrRecruitmentContract.js'
 
 export const HR_BASE = '/hr/recruitment'
@@ -103,6 +103,28 @@ export function createOfferService({ client }) {
   })
 }
 
+// Employee search for the pickers: a page of matching employees.
+export function createEmployeeService({ client }) {
+  return Object.freeze({
+    async search(search, { limit = 10, signal } = {}) {
+      return readPage(await client.get(`${HR_BASE}/employees`, { params: query({ search: String(search ?? '').trim(), page: 1, limit }), signal }), readEmployee)
+    },
+  })
+}
+
+export function createOrientationService({ client }) {
+  const record = createRecordService({
+    client, base: `${HR_BASE}/orientation-schedules`, readRecord: readOrientation, readListItem: readOrientationListItem, actionName: 'submit',
+  })
+  return Object.freeze({
+    list: record.list,
+    getById: record.getById,
+    // Saving schedules the orientation: the server checks it, assigns the
+    // Ref # and Scheduled by, and locks it (a saved schedule is read-only).
+    save: (body) => record.save(null, body),
+  })
+}
+
 // The one switch between demo data and the real API.
 export function selectClient({ demo, api = apiClient, createDemo = createDemoClient } = {}) {
   return demo ? createDemo() : api
@@ -115,7 +137,17 @@ export function createHrRecruitmentServices({ client }) {
     requisitions: createRequisitionService({ client }),
     interviews: createInterviewService({ client }),
     offers: createOfferService({ client }),
+    employees: createEmployeeService({ client }),
+    orientations: createOrientationService({ client }),
   })
+}
+
+// The demo adapter cannot see the session, so the signed-in user's name is
+// passed to it for the server-assigned "requester", "scheduled by" and
+// "prepared by" values. The real API takes them from the session; this is a
+// no-op for any client without `identify`.
+export function identifyDemoUser(name, client = hrRecruitmentServices.client) {
+  client.identify?.(typeof name === 'string' && name.trim() ? name.trim() : null)
 }
 
 export const hrRecruitmentServices = createHrRecruitmentServices({ client: selectClient({ demo: hrRecruitmentConfig.demo }) })

@@ -7,12 +7,12 @@ import { hrRecruitmentDemo } from '../../hrRecruitmentService.js'
 import { RECRUITMENT_FLOW as FLOW } from '../recruitmentFlow.js'
 import '@/styles/hr-recruitment.css'
 
-// Navigation between the three recruitment forms; the current one shows the
-// number and status of the record being edited.
+// Navigation between the recruitment forms (as many columns as forms); the
+// current one shows the number and status of the record being edited.
 export function FlowNav({ current, status }) {
   const index = FLOW.findIndex((item) => item.id === current)
   return (
-    <nav className="zrv-hr-flow" aria-label={FLOW_TEXT.label} style={{ '--f': index }}>
+    <nav className="zrv-hr-flow" aria-label={FLOW_TEXT.label} style={{ '--f': index, '--n': FLOW.length }}>
       <span className="zrv-hr-flow__line" aria-hidden="true"><i /></span>
       {FLOW.map((item, position) => {
         const on = item.id === current
@@ -29,12 +29,12 @@ export function FlowNav({ current, status }) {
 }
 
 // Page header: breadcrumb, title, subtitle and the demo-data indicator.
-export function RecruitmentHeader({ title, subtitle }) {
+export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.breadcrumb }) {
   return (
     <header className="zrv-hr-head">
       <nav aria-label="Breadcrumb">
         <ol className="zrv-hr-crumb">
-          {COMMON_TEXT.breadcrumb.map((item) => <li key={item}>{item}</li>)}
+          {breadcrumb.map((item) => <li key={item}>{item}</li>)}
           <li aria-current="page">{title}</li>
         </ol>
       </nav>

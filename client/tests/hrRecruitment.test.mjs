@@ -521,7 +521,9 @@ test('the full flow on demo data: requisition → interview → offer', async ()
 // VITE_FEATURE_HR_RECRUITMENT controls visibility; each state is resolved
 // through the same function the application uses for this build.
 const SWITCH = 'VITE_FEATURE_HR_RECRUITMENT'
-const HR_IDS = ['hr-requisition', 'hr-requisition-record', 'hr-interview', 'hr-interview-record', 'hr-offer', 'hr-offer-record']
+const HR_IDS = ['hr-requisition', 'hr-requisition-record', 'hr-interview', 'hr-interview-record', 'hr-offer', 'hr-offer-record', 'hr-orientation', 'hr-orientation-record']
+// The listed (sidebar and command palette) HR pages.
+const HR_NAV_IDS = HR_IDS.filter((id) => !id.endsWith('-record'))
 const hrRoutesFor = (env) => resolveNavigationEntries(registry.entries, env).filter((route) => route.section === 'human-resources')
 const employee = { status: 'ready', mfaVerified: false, has: () => false }
 
@@ -552,10 +554,10 @@ test('a switched-off HR page is absent from the sidebar, command palette, guard 
   const on = resolveNavigationEntries(registry.entries, { [SWITCH]: 'true' })
   const sidebar = (routes) => authorizedNavigation(employee, routes).flatMap((section) => section.items.map((item) => item.id))
   const palette = (routes) => paletteCommands(employee, 'authenticated', routes).map((command) => command.id)
-  assert.deepEqual(sidebar(on).filter((id) => id.startsWith('hr-')), ['hr-requisition', 'hr-interview', 'hr-offer'])
+  assert.deepEqual(sidebar(on).filter((id) => id.startsWith('hr-')), HR_NAV_IDS)
   assert.deepEqual(sidebar(off).filter((id) => id.startsWith('hr-')), [])
   assert.ok(!authorizedNavigation(employee, off).some((section) => section.id === 'human-resources'), 'no empty "Human resources" group')
-  assert.deepEqual(palette(on).filter((id) => id.startsWith('hr-')), ['hr-requisition', 'hr-interview', 'hr-offer'])
+  assert.deepEqual(palette(on).filter((id) => id.startsWith('hr-')), HR_NAV_IDS)
   assert.deepEqual(palette(off).filter((id) => id.startsWith('hr-')), [])
   for (const id of HR_IDS) {
     assert.equal(routeAccess(off.find((route) => route.id === id), employee), 'unavailable', `${id}: the guard renders Not found`)
@@ -581,6 +583,8 @@ test('HR recruitment routes (switch on): session-only, record pages hidden, reac
     ['hr-interview-record', '/hr/recruitment/interview/:assessmentId', false],
     ['hr-offer', '/hr/recruitment/offer', true],
     ['hr-offer-record', '/hr/recruitment/offer/:offerId', false],
+    ['hr-orientation', '/hr/recruitment/orientation', true],
+    ['hr-orientation-record', '/hr/recruitment/orientation/:scheduleId', false],
   ])
   for (const route of hr) {
     assert.equal(route.permission, undefined)
@@ -590,7 +594,7 @@ test('HR recruitment routes (switch on): session-only, record pages hidden, reac
   assert.equal(findAppRoute('/hr/recruitment/interview/12')?.id, 'hr-interview-record')
   assert.equal(findAppRoute('/hr/recruitment/offer')?.id, 'hr-offer')
   const palette = paletteCommands(employee, 'authenticated', on).map((command) => command.id)
-  assert.ok(['hr-requisition', 'hr-interview', 'hr-offer'].every((id) => palette.includes(id)))
+  assert.ok(HR_NAV_IDS.every((id) => palette.includes(id)))
   assert.ok(!palette.some((id) => id.endsWith('-record')), 'record pages are not searchable')
   assert.ok(Object.values(HR_RECRUITMENT_ACTIONS).every((key) => /^HR_RECRUITMENT\.(PERSONNEL_REQUISITIONS|INTERVIEW_ASSESSMENTS|EMPLOYMENT_OFFERS):(VIEW|CREATE|UPDATE|SUBMIT|ISSUE|PRINT)$/.test(key)))
 })

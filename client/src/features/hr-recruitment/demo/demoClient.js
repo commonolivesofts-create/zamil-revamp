@@ -12,10 +12,11 @@ import { businessToday } from '../shared/hrFormat.js'
 import { INTERVIEW_TEXT } from '../hrRecruitmentText.js'
 import { COMP_KEYS, HR_FIELDS, SPEC_KEYS } from '../interview/interviewModel.js'
 import { BENEFIT_KEYS, issuedStatus } from '../offer/offerModel.js'
-import { DEMO_ASSIGNED, DEMO_LOOKUPS, createDemoRecords } from './demoData.js'
+import { scheduleIssues, scheduleToDate } from '../orientation/orientationModel.js'
+import { DEMO_ASSIGNED, DEMO_EMPLOYEES, DEMO_LOOKUPS, createDemoRecords } from './demoData.js'
 
 const BASE = '/hr/recruitment'
-const ROUTE = /^\/hr\/recruitment\/(requisitions|interview-assessments|employment-offers)(?:\/([1-9][0-9]*)(?:\/(submit|issue))?)?$/
+const ROUTE = /^\/hr\/recruitment\/(requisitions|interview-assessments|employment-offers|orientation-schedules)(?:\/([1-9][0-9]*)(?:\/(submit|issue))?)?$/
 const MAX_LIMIT = 100
 
 const clone = (value) => structuredClone(value)
@@ -36,6 +37,15 @@ const COLLECTIONS = Object.freeze({
     listFields: ['offerId', 'offerNumber', 'status', 'position', 'candidateNameEn', 'updatedAt'],
     locked: (record) => record.status === 'ISSUED' || record.status === 'ACCEPTED',
   }),
+  'orientation-schedules': Object.freeze({
+    store: 'orientations', id: 'scheduleId', number: 'scheduleNumber', prefix: 'ORT', action: null,
+    listItem: (record) => ({
+      scheduleId: record.scheduleId, scheduleNumber: record.scheduleNumber, status: record.status, employeeName: record.employee.name,
+      fromDate: record.fromDate, toDate: record.toDate, updatedAt: record.updatedAt,
+    }),
+    // A saved schedule is read-only.
+    locked: () => true,
+  }),
 })
 
 // Writable fields per collection, as the backend's Joi schema would allow.
@@ -48,6 +58,8 @@ const INTERVIEW_FIELDS = [
   'strengths', 'weakness', 'outcome', 'departmentRepresentative', 'payroll', 'hrComment', 'interviewers',
 ]
 const OFFER_FIELDS = ['position', 'offerDate', 'reportFormat', 'salutation', 'candidateNameEn', 'candidateNameAr', 'benefits', 'comments', 'signatures']
+const ORIENTATION_FIELDS = ['employeeId', 'fromDate', 'sessions']
+const FIELDS = Object.freeze({ requisitions: REQUISITION_FIELDS, interviews: INTERVIEW_FIELDS, offers: OFFER_FIELDS, orientations: ORIENTATION_FIELDS })
 
 const pick = (body, fields) => Object.fromEntries(fields.filter((field) => body && field in body).map((field) => [field, clone(body[field])]))
 const blank = (value) => value === null || value === undefined || (typeof value === 'string' && !value.trim()) || (Array.isArray(value) && !value.length)
@@ -87,9 +99,27 @@ function offerProblems(record) {
   return problems
 }
 
-export function createDemoClient({ latencyMs = 350, now = () => new Date(), records = createDemoRecords(), lookups = DEMO_LOOKUPS } = {}) {
+// Orientation submissions: the employee must exist, From must be set, at least
+// one session must be dated (so To exists) and no blocking problem may remain.
+function orientationProblems(record, employee) {
+  const problems = []
+  if (!employee) problems.push({ field: 'employeeId', message: 'employeeId is required' })
+  if (!record.fromDate) problems.push({ field: 'fromDate', message: 'fromDate is required' })
+  const sessions = Object.fromEntries(Object.entries(record.sessions ?? {}).map(([key, session]) => [key, {
+    fromDate: session?.fromDate ?? '', toDate: session?.toDate ?? '', timeFrom: session?.timeFrom ?? '', timeTo: session?.timeTo ?? '',
+  }]))
+  if (Object.keys(sessions).length !== 5 || !scheduleToDate(sessions)) problems.push({ field: 'sessions', message: 'at least one dated session is required' })
+  else {
+    for (const issue of scheduleIssues(sessions).filter((item) => item.level === 'bad')) problems.push({ field: `sessions.${issue.key}`, message: issue.text })
+  }
+  return problems
+}
+
+export function createDemoClient({ latencyMs = 350, now = () => new Date(), records = createDemoRecords(), lookups = DEMO_LOOKUPS, employees = DEMO_EMPLOYEES } = {}) {
   const store = clone(records)
   let requests = 0
+  // The signed-in user's name (identifyDemoUser); a real backend uses the session.
+  let actor = null
 
   const fail = (status, code, message, details = []) => {
     throw new ApiError(message, { code, status, details, requestId: `demo-${requests}` })
@@ -121,7 +151,7 @@ export function createDemoClient({ latencyMs = 350, now = () => new Date(), reco
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     const total = items.length
     const totalPages = Math.ceil(total / limit)
-    return respond(items.slice((page - 1) * limit, page * limit).map((record) => pick(record, collection.listFields)), {
+    return respond(items.slice((page - 1) * limit, page * limit).map((record) => (collection.listItem ? collection.listItem(record) : pick(record, collection.listFields))), {
       pagination: { page, limit, total, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 },
     })
   }
@@ -143,18 +173,29 @@ export function createDemoClient({ latencyMs = 350, now = () => new Date(), reco
     if (collection.store === 'offers') {
       record.benefits = Object.fromEntries(BENEFIT_KEYS.map((key) => [key, record.benefits?.[key] ?? { en: '', ar: '', autoArabic: true }]))
     }
+    if (collection.store === 'orientations') {
+      const person = employees.find((item) => item.employeeId === record.employeeId)
+      const problems = orientationProblems(record, person)
+      if (problems.length) fail(422, 'VALIDATION_ERROR', 'The orientation schedule cannot be saved.', problems)
+      record.employee = clone(person)
+      delete record.employeeId
+      record.toDate = scheduleToDate(record.sessions)
+      record.scheduledByName = actor ?? DEMO_ASSIGNED.scheduledByName
+      record.status = 'SCHEDULED'
+      record.scheduleNumber ??= nextNumber(collection)
+    }
     record.updatedAt = timestamp()
     return record
   }
 
   function create(collection, body) {
-    const fields = { requisitions: REQUISITION_FIELDS, interviews: INTERVIEW_FIELDS, offers: OFFER_FIELDS }[collection.store]
     const base = {
-      requisitions: () => ({ requisitionNumber: null, status: 'DRAFT', requesterName: DEMO_ASSIGNED.requesterName, requestDate: today(), basicSalary: null, attachments: [] }),
+      requisitions: () => ({ requisitionNumber: null, status: 'DRAFT', requesterName: actor ?? DEMO_ASSIGNED.requesterName, requestDate: today(), basicSalary: null, attachments: [] }),
       interviews: () => ({ assessmentNumber: null, status: 'INCOMPLETE', positionTitle: null, adminManagerName: null }),
       offers: () => ({ offerNumber: null, status: 'DRAFT', currency: lookups.offer.currency }),
+      orientations: () => ({ scheduleNumber: null }),
     }[collection.store]()
-    const record = prepare(collection, { [collection.id]: nextId(collection), ...base, ...pick(body, fields) })
+    const record = prepare(collection, { [collection.id]: nextId(collection), ...base, ...pick(body, FIELDS[collection.store]) })
     store[collection.store].push(record)
     return respond(record, { status: 201 })
   }
@@ -162,8 +203,7 @@ export function createDemoClient({ latencyMs = 350, now = () => new Date(), reco
   function update(collection, id, body) {
     const current = find(collection, id)
     if (collection.locked(current)) fail(409, 'CONFLICT', 'This record is read-only because it was already submitted or issued.')
-    const fields = { requisitions: REQUISITION_FIELDS, interviews: INTERVIEW_FIELDS, offers: OFFER_FIELDS }[collection.store]
-    const record = prepare(collection, { ...clone(current), ...pick(body, fields) })
+    const record = prepare(collection, { ...clone(current), ...pick(body, FIELDS[collection.store]) })
     store[collection.store][store[collection.store].indexOf(current)] = record
     return respond(record)
   }
@@ -190,10 +230,21 @@ export function createDemoClient({ latencyMs = 350, now = () => new Date(), reco
     return respond(record)
   }
 
+  // Employees whose name or number contains the search text.
+  function searchEmployees(params = {}) {
+    const search = String(params.search ?? '').trim().toLowerCase()
+    const limit = Math.min(MAX_LIMIT, Math.max(1, Number.parseInt(params.limit, 10) || 10))
+    const items = employees.filter((item) => !search || `${item.name} ${item.employeeNumber}`.toLowerCase().includes(search))
+    return respond(items.slice(0, limit), {
+      pagination: { page: 1, limit, total: items.length, totalPages: Math.ceil(items.length / limit), hasNextPage: items.length > limit, hasPreviousPage: false },
+    })
+  }
+
   async function request(method, path, { params, body, signal } = {}) {
     requests += 1
     await wait(latencyMs, signal)
     if (method === 'GET' && path === `${BASE}/lookups`) return respond(lookups)
+    if (method === 'GET' && path === `${BASE}/employees`) return searchEmployees(params)
     const match = ROUTE.exec(path)
     if (!match) fail(404, 'NOT_FOUND', 'The requested resource does not exist.')
     const [, name, id, action] = match
@@ -202,12 +253,13 @@ export function createDemoClient({ latencyMs = 350, now = () => new Date(), reco
     if (method === 'GET' && id && !action) return respond(find(collection, id))
     if (method === 'POST' && !id) return create(collection, body)
     if (method === 'PUT' && id && !action) return update(collection, id, body)
-    if (method === 'POST' && id && action === collection.action) return act(collection, id)
+    if (method === 'POST' && id && action && action === collection.action) return act(collection, id)
     return fail(405, 'METHOD_NOT_ALLOWED', 'The request method is not supported for this resource.')
   }
 
   return Object.freeze({
     demo: true,
+    identify: (name) => { actor = name },
     get: (path, options) => request('GET', path, options),
     post: (path, body, options) => request('POST', path, { ...options, body }),
     put: (path, body, options) => request('PUT', path, { ...options, body }),

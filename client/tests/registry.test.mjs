@@ -51,6 +51,8 @@ const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', label: 'Interview assessment', icon: 'messages-square', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
   { id: 'hr-offer', path: '/hr/recruitment/offer', label: 'Employment offer', icon: 'file-signature', section: HR, implemented: false, enabledBy: HR_SWITCH },
   { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', label: 'Employment offer', icon: 'file-signature', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
+  { id: 'hr-orientation', path: '/hr/recruitment/orientation', label: 'Orientation schedule', icon: 'calendar-clock', section: HR, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', label: 'Orientation schedule', icon: 'calendar-clock', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
 ]
 // Group order: workspace, human resources, security, account.
 const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]

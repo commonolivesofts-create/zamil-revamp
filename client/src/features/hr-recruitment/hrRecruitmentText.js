@@ -48,6 +48,94 @@ export const FLOW_TEXT = Object.freeze({
   requisition: Object.freeze({ name: 'Personnel Requisition', hint: 'Request the position' }),
   interview: Object.freeze({ name: 'Interview Assessment', hint: 'Assess the candidate' }),
   offer: Object.freeze({ name: 'Employment Offer', hint: 'Make the offer' }),
+  orientation: Object.freeze({ name: 'Orientation', hint: 'Plan the first days' }),
+})
+
+// Searchable employee picker (orientation and probation evaluation).
+export const PICKER_TEXT = Object.freeze({
+  placeholder: 'Type a name or employee number…',
+  searching: 'Searching…',
+  noMatch: 'No match',
+  failed: 'Employees could not be loaded.',
+  results: (count) => `${count} employee${count === 1 ? '' : 's'} found`,
+  option: (employee) => `${employee.position} · ${employee.section}`,
+})
+
+export const ORIENTATION_TEXT = Object.freeze({
+  title: 'Orientation Schedule',
+  subtitle: 'Plan a new joiner’s first days in four short steps. Draft the schedule in one click, then adjust it.',
+  code: 'ORT · 1101',
+  steps: Object.freeze([
+    Object.freeze(['Employee', 'Who and when']),
+    Object.freeze(['Sessions', 'Five orientation sessions']),
+    Object.freeze(['Timeline', 'Check the week']),
+    Object.freeze(['Review', 'Confirm and save']),
+  ]),
+  primary: 'Save schedule',
+  final: 'Save schedule',
+  status: Object.freeze({ SCHEDULED: 'Scheduled', READY: 'Ready to save', DRAFT: 'Draft' }),
+  ticket: Object.freeze({
+    number: 'Ref #', numberPending: 'Generated automatically', name: 'Name', notSelected: 'Not selected', type: 'Type',
+    startDate: 'Start date', scheduledBy: 'Scheduled by', pending: 'Assigned on save', status: 'Status',
+  }),
+  labels: Object.freeze({
+    name: 'Name', type: 'Type', startDate: 'Start date', section: 'Section', division: 'Division', position: 'Position', status: 'Status',
+    from: 'From', to: 'To', scheduledBy: 'Scheduled by', head: 'Department head', sessionFrom: 'From date', sessionTo: 'To date',
+    timeFrom: 'Time from', timeTo: 'Time to', remark: 'Remark',
+  }),
+  placeholders: Object.freeze({ fromEmployee: 'Fills from employee', head: 'Select manager', remark: 'Optional' }),
+  hints: Object.freeze({ to: 'Set by the last session' }),
+  window: 'Orientation window',
+  heads: Object.freeze([
+    Object.freeze({ eyebrow: 'Step 01 · Employee', title: 'Who is joining?', desc: 'Pick the new joiner. Their details fill in and the orientation starts on their first working day.' }),
+    Object.freeze({ eyebrow: 'Step 02 · Sessions', title: 'Plan the five sessions.', desc: 'Choose the department head, dates and times for each. Days and hours calculate themselves.' }),
+    Object.freeze({ eyebrow: 'Step 03 · Timeline', title: 'Check the week.', desc: 'Weekends are shaded and the joining day is marked. Clashes show below.' }),
+    Object.freeze({ eyebrow: 'Step 04 · Review', title: 'Confirm and save.', desc: 'Check the schedule, then save. A saved schedule is locked.' }),
+  ]),
+  sessions: Object.freeze({
+    hr: Object.freeze({ name: 'Training with HR Dept', short: 'HR' }),
+    safety: Object.freeze({ name: 'Training with Safety Dept', short: 'Safety' }),
+    it: Object.freeze({ name: 'Training with IT Dept', short: 'IT' }),
+    tour: Object.freeze({ name: 'Tour around factory', short: 'Factory tour' }),
+    meet: Object.freeze({ name: 'Meeting with HR to make sure all tasks are clear', short: 'Wrap-up with HR' }),
+  }),
+  days: (count) => `${count || '—'} ${count === 1 ? 'day' : 'days'}`,
+  cta: Object.freeze({ title: 'Want a head start?', desc: 'Draft all five sessions over four working days, then adjust anything.', action: 'Plan it for me' }),
+  planned: (date) => `Draft schedule added: five sessions from ${date}, skipping Friday and Saturday.`,
+  pickFirst: 'Pick the employee first.',
+  timeline: Object.freeze({ empty: 'Pick the employee in step 1 to see their week.', label: 'Orientation timeline', joining: 'Joining day', weekend: 'Weekend' }),
+  noIssues: 'No clashes or weekend sessions.',
+  nothingYet: 'Nothing scheduled yet.',
+  recap: Object.freeze({
+    sessions: 'Sessions planned', incomplete: (count) => (count ? `${count} incomplete` : 'all complete'),
+    time: 'Orientation time', across: 'across all sessions', days: 'Calendar days', noDates: 'no dates yet',
+  }),
+  review: Object.freeze({ noDates: 'No dates', noTimes: 'no times', noHead: 'No department head' }),
+  card: Object.freeze({
+    eyebrow: 'Orientation card', draft: 'ORT · DRAFT', label: 'Orientation card', newJoiner: 'New joiner', subtitle: 'Position · section',
+    draftBadge: 'Draft', joins: (date) => `Joins ${date}`, orientation: 'Orientation', time: 'Time', sessions: 'Sessions', issues: 'Issues', none: 'None',
+  }),
+  orbit: Object.freeze({ ready: 'Every session is planned. Ready to save.', left: (count) => `${count} session${count === 1 ? '' : 's'} still to plan.` }),
+  issues: Object.freeze({
+    endBeforeStart: (name) => `${name}: the end date is before the start date.`,
+    timeOrder: (name) => `${name}: the end time must be after the start time.`,
+    beforeJoining: (name) => `${name} starts before the employee joins.`,
+    beforeWindow: (name) => `${name} starts before the orientation window.`,
+    weekend: (name, day) => `${name} falls on a weekend (${day}).`,
+    clash: (a, b) => `${a} and ${b} overlap in time.`,
+  }),
+  errors: Object.freeze({
+    employee: 'Name is required',
+    from: 'From date is required',
+    to: 'Schedule at least one session so the To date can be set',
+    cannotSave: 'Can’t save yet:',
+  }),
+  saveTitle: 'Save orientation schedule?',
+  saveBody: 'A saved schedule is locked and cannot be changed.',
+  saved: (number) => `${number} scheduled.`,
+  locked: 'This schedule is saved and locked. Use Request form to start another.',
+  reportTitle: 'Orientation report',
+  reportColumns: Object.freeze({ employee: 'Employee', from: 'From', to: 'To' }),
 })
 
 export const REQUISITION_TEXT = Object.freeze({

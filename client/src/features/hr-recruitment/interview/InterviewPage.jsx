@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
@@ -6,6 +6,7 @@ import { COMMON_TEXT, INTERVIEW_TEXT as T } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { businessToday, daysBetween, formatAmount, initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
+import { useSettled } from '../shared/useSettled.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog, ReportDialog } from '../shared/components/RecruitmentDialogs.jsx'
 import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
@@ -27,16 +28,6 @@ export default function InterviewPage() {
       {({ lookups, record, editorKey }) => <InterviewEditor key={editorKey} lookups={lookups} record={record} />}
     </RecruitmentLoader>
   )
-}
-
-// The value after it has stopped changing for `delay` ms.
-function useSettled(value, delay) {
-  const [settled, setSettled] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-  return settled
 }
 
 const nameOf = (options, code) => options.find((option) => option.code === code)?.name ?? ''
