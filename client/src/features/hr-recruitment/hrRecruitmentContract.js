@@ -126,7 +126,7 @@ const ratings = (group, keys) => {
   check(isObject(group))
   return Object.freeze(Object.fromEntries(keys.map((key) => {
     const item = group[key]
-    check(isObject(item) && (item.rating === null || (Number.isInteger(item.rating) && item.rating >= 1 && item.rating <= 5)))
+    check(isObject(item) && (item.rating === null || item.rating === 'N/A' || (Number.isInteger(item.rating) && item.rating >= 1 && item.rating <= 5)))
     return [key, Object.freeze({ rating: item.rating, remark: text(item.remark, 500) })]
   })))
 }

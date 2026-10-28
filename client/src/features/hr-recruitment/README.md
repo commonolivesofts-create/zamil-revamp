@@ -5,7 +5,7 @@ The three forms are under **Human resources**:
 | Form | Route | Record route | Data source |
 |---|---|---|---|
 | Personnel Requisition (1060) | `/hr/recruitment/requisition` | `/hr/recruitment/requisition/:requisitionId` | Live `/api/v1/hr/requisitions` API |
-| Interview Assessment (1061) | `/hr/recruitment/interview` | `/hr/recruitment/interview/:assessmentId` | Existing in-memory demo adapter |
+| Interview Assessment (1061) | `/hr/recruitment/interview` | `/hr/recruitment/interview/:assessmentId` | Live `/api/v1/hr/interview-assessments` API |
 | Employment Offer (1062) | `/hr/recruitment/offer` | `/hr/recruitment/offer/:offerId` | Existing in-memory demo adapter |
 
 ## Personnel Requisition API
@@ -43,20 +43,32 @@ and honors the backend's read-only states (`Inprocess` and `Approved`) instead o
 nonexistent submit route. The backend's ticket status is HR-only and remains server-controlled by
 its existing authorization and validation rules.
 
-## Other recruitment forms
+## Interview Assessment API
 
-Interview Assessment and Employment Offer still use `demo/demoClient.js` and `demo/demoData.js`
-while their backend APIs are developed. `VITE_HR_RECRUITMENT_DEMO` continues to select that client
-for those forms only. Their demo badge remains visible; the live Personnel Requisition page does
-not show a demo label.
+This form uses the shared authenticated API client in every environment. It loads nationalities,
+approved requisitions and interviewers from the backend lookup routes, and maps the existing form
+to the backend's `requisitionNo`, `positionName`, `attribute3`, candidate fields, rating sections
+and evaluation object. The two allowed `attribute3` business-unit codes are provided as a select
+because the backend exposes no friendly labels. Rating rows support 1–5 and `N/A`.
+
+Records use `GET /hr/interview-assessments` and `GET /:headerId`, `POST /` to create, `PUT /:headerId`
+to update and `DELETE /:headerId` to delete. The form preserves backend-owned evaluation fields
+when loading and saving existing records. The backend has no submit or approval action, so the
+last form action saves the assessment; the backend controls its status.
+
+## Employment Offer
+
+Employment Offer still uses `demo/demoClient.js` and `demo/demoData.js` while its backend integration
+is pending. `VITE_HR_RECRUITMENT_DEMO` selects that client for the offer only.
 
 ## Permissions and follow-up
 
 The requisition routes use the existing `REQUISITIONS.REQUISITIONS:VIEW` permission. Save and
 inline attachment upload controls check `CREATE` or `UPDATE` for the current record. The backend
 continues to authorize every request, and its standalone attachment endpoints use
-`MANAGE_ATTACHMENTS`. Interview Assessment and Employment Offer remain session-only until their
-integrations are implemented.
+`MANAGE_ATTACHMENTS`. Interview Assessment uses the backend's `INTERVIEW_ASSESSMENTS` resource
+permissions for view, create, update and delete. Employment Offer remains session-only until its
+integration is implemented.
 
-Follow-up work for forms 1061 and 1062 includes implementing their backend API contracts, removing
-their demo adapter/data, and verifying both forms against those APIs.
+Follow-up work for form 1062 includes implementing its backend API contract and removing its demo
+adapter/data.

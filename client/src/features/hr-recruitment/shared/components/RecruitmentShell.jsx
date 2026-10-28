@@ -93,7 +93,7 @@ export function RecruitmentShell({
 
   return (
     <div className={`zrv-hr zrv-hr--${current}`}>
-      <RecruitmentHeader title={title} subtitle={subtitle} showDemo={current !== 'requisition'} />
+      <RecruitmentHeader title={title} subtitle={subtitle} showDemo={current === 'offer'} />
       <FlowNav current={current} status={flowStatus} />
 
       <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>

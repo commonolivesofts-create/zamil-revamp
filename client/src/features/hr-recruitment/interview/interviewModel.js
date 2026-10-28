@@ -4,7 +4,7 @@
 // number, status and admin manager.
 import { INTERVIEW_TEXT } from '../hrRecruitmentText.js'
 
-export const INTERVIEW_STATUSES = Object.freeze(['INCOMPLETE', 'COMPLETE', 'SUBMITTED'])
+export const INTERVIEW_STATUSES = Object.freeze(['INCOMPLETE', 'INPROCESS', 'APPROVED', 'REJECTED', 'COMPLETE', 'SUBMITTED'])
 export const OUTCOMES = Object.freeze(['PASSED', 'HOLD', 'FAILED'])
 export const SPEC_KEYS = Object.freeze(['conf', 'att', 'gk', 'exp', 'eng', 'comm', 'safe', 'health'])
 export const COMP_KEYS = Object.freeze(['jrk', 'lead', 'press', 'nat', 'shift', 'ot'])
@@ -21,6 +21,7 @@ export const BANDS = Object.freeze({
 export const HR_FIELDS = Object.freeze([
   ['requisitionNumber', 'text', { required: true }],
   ['preScreeningDate', 'date', { required: true }],
+  ['interviewTime', 'time', {}],
   ['divisionCode', 'select', { required: true, lookup: 'divisions' }],
   ['expectedJoiningDate', 'date', {}],
   ['interviewTypeCode', 'select', { required: true, lookup: 'interviewTypes' }],
@@ -30,6 +31,7 @@ export const HR_FIELDS = Object.freeze([
   ['maritalStatusCode', 'select', { lookup: 'maritalStatuses' }],
   ['location', 'text', {}],
   ['certificateCode', 'select', { lookup: 'certificates' }],
+  ['certificateCheckedCode', 'select', { lookup: 'certificateChecks' }],
   ['major', 'text', {}],
   ['currentEmployer', 'text', {}],
   ['lastPosition', 'text', {}],
@@ -46,12 +48,13 @@ export const isInterviewLocked = (status) => status === 'SUBMITTED'
 
 const blankRatings = (keys) => Object.fromEntries(keys.map((key) => [key, { rating: null, remark: '' }]))
 
-export function blankInterview(today, { payrollDefault = '', maritalDefault = '' } = {}) {
+export function blankInterview(today) {
   const form = Object.fromEntries(HR_FIELDS.map(([key]) => [key, '']))
   return {
-    ...form, preScreeningDate: today, maritalStatusCode: maritalDefault,
+    ...form, preScreeningDate: today,
     spec: blankRatings(SPEC_KEYS), comp: blankRatings(COMP_KEYS), specRemarks: '', compRemarks: '', strengths: '', weakness: '',
-    outcome: '', departmentRepresentative: '', payroll: payrollDefault, hrComment: '', interviewers: ['', '', ''],
+    outcome: '', adminManagerName: '', managingDirector: '', hrRepresentative: '', departmentRepresentative: '',
+    payroll: '', hrComment: '', interviewers: ['', '', ''],
   }
 }
 
@@ -65,6 +68,7 @@ export function interviewFormFromRecord(record) {
     spec: ratings(record.personalSpecification, SPEC_KEYS), comp: ratings(record.competency, COMP_KEYS),
     specRemarks: record.personalSpecificationRemarks, compRemarks: record.competencyRemarks,
     strengths: record.strengths, weakness: record.weakness, outcome: record.outcome ?? '',
+    adminManagerName: record.adminManagerName ?? '', managingDirector: record.managingDirector ?? '', hrRepresentative: record.hrRepresentative ?? '',
     departmentRepresentative: record.departmentRepresentative, payroll: record.payroll, hrComment: record.hrComment,
     interviewers: [...record.interviewers],
   }
@@ -84,12 +88,13 @@ export function interviewPayload(form) {
     personalSpecification: ratings(form.spec, SPEC_KEYS), personalSpecificationRemarks: form.specRemarks.trim(),
     competency: ratings(form.comp, COMP_KEYS), competencyRemarks: form.compRemarks.trim(),
     strengths: form.strengths.trim(), weakness: form.weakness.trim(), outcome: form.outcome || null,
+    adminManagerName: form.adminManagerName, managingDirector: form.managingDirector, hrRepresentative: form.hrRepresentative,
     departmentRepresentative: form.departmentRepresentative.trim(), payroll: form.payroll.trim(), hrComment: form.hrComment.trim(),
     interviewers: form.interviewers.map((name) => name.trim()),
   }
 }
 
-export const sumRatings = (group) => Object.values(group).reduce((total, item) => total + (item?.rating || 0), 0)
+export const sumRatings = (group) => Object.values(group).reduce((total, item) => total + (Number.isInteger(item?.rating) ? item.rating : 0), 0)
 export const ratedCount = (group, keys) => keys.filter((key) => group[key]?.rating).length
 
 // [band index, band code]; [-1, null] while nothing is rated.
@@ -113,7 +118,7 @@ export function interviewDoneSteps(form) {
 // The displayed status: a submitted assessment stays Submitted; otherwise it
 // is Complete only when all four tabs are.
 export function interviewStatus(form, savedStatus) {
-  if (savedStatus === 'SUBMITTED') return 'SUBMITTED'
+  if (savedStatus) return savedStatus
   return interviewDoneSteps(form).every(Boolean) ? 'COMPLETE' : 'INCOMPLETE'
 }
 

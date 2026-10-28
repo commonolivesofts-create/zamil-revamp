@@ -10,11 +10,13 @@ import commonModule from './modules/common.module.js'
 import securityAdministrationModule from './modules/securityAdministration.module.js'
 import hrRecruitmentModule from './modules/hrRecruitment.module.js'
 import requisitionsModule from './modules/requisitions.module.js'
+import interviewAssessmentsModule from './modules/interviewAssessments.module.js'
 
 export const registeredModules = Object.freeze([
   commonModule,
   securityAdministrationModule,
   requisitionsModule,
+  interviewAssessmentsModule,
   hrRecruitmentModule,
 ])
 

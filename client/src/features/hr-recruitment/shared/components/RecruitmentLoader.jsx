@@ -18,7 +18,7 @@ export function RecruitmentLoader({ current, title, subtitle, param, load, loadL
   const record = useResource(id ? `hr-recruitment-${current}:${id}` : null, (signal) => load(id, { signal }))
   const frame = (content) => (
     <div className={`zrv-hr zrv-hr--${current}`}>
-      <RecruitmentHeader title={title} subtitle={subtitle} showDemo={current !== 'requisition'} />
+      <RecruitmentHeader title={title} subtitle={subtitle} showDemo={current === 'offer'} />
       <FlowNav current={current} />
       <div className="zrv-admin-panel">{content}</div>
     </div>
