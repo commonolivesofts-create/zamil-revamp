@@ -293,6 +293,31 @@ export function readOrientationListItem(data) {
   })
 }
 
+// A row of the Periodwise Employees report.
+export function readReportRow(data) {
+  check(isObject(data))
+  return Object.freeze({
+    employeeNumber: text(data.employeeNumber, 30),
+    name: text(data.name, 200),
+    birthDate: date(data.birthDate),
+    nationality: text(data.nationality, 60),
+    job: text(data.job, 200),
+    departmentCode: code(data.departmentCode) ?? invalid(),
+    position: text(data.position, 200),
+    nationalId: nullableText(data.nationalId, 30),
+    startDate: date(data.startDate) ?? invalid(),
+    endDate: date(data.endDate),
+    leavingReason: text(data.leavingReason, 200),
+  })
+}
+
+export function readReport(data) {
+  check(isObject(data) && Array.isArray(data.rows))
+  const rows = data.rows.map(readReportRow)
+  check(new Set(rows.map((row) => row.employeeNumber)).size === rows.length)
+  return Object.freeze({ rows: Object.freeze(rows) })
+}
+
 const wholePoints = (value) => { check(Number.isInteger(value) && value >= 0 && value <= 100); return value }
 const codeMap = (value, read) => {
   check(isObject(value))

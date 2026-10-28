@@ -1,6 +1,7 @@
 // HR recruitment: Personnel Requisition (form 1060), Interview Assessment
 // (form 1061), Employment Offer (form 1062), Orientation Schedule (form 1101)
-// and Probation Evaluation (form 1064), one guided flow.
+// and Probation Evaluation (form 1064), one guided flow; plus the Periodwise
+// Employees report.
 //
 // Session-only for now (rbac: false): the owner approved the permission codes
 // in features/hr-recruitment/hrRecruitmentActions.js, but they are not yet
@@ -32,5 +33,7 @@ export default defineModule({
     { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', title: 'Orientation schedule', icon: 'calendar-clock', group: 'human-resources', order: 41, hidden: true, enabledBy: HR_SWITCH },
     { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', order: 50, enabledBy: HR_SWITCH },
     { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', order: 51, hidden: true, enabledBy: HR_SWITCH },
+    // Report, outside the recruitment flow.
+    { id: 'hr-periodwise-employees', path: '/hr/reports/periodwise-employees', title: 'Periodwise employees', icon: 'chart-column', group: 'human-resources', order: 90, enabledBy: HR_SWITCH },
   ],
 })

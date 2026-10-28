@@ -12,10 +12,11 @@ import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
 import {
   ID_PATTERN, readEmployee, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readOrientation,
-  readOrientationListItem, readPage, readProbation, readProbationListItem, readRequisition, readRequisitionListItem,
+  readOrientationListItem, readPage, readProbation, readProbationListItem, readReport, readRequisition, readRequisitionListItem,
 } from './hrRecruitmentContract.js'
 
 export const HR_BASE = '/hr/recruitment'
+export const HR_REPORTS_BASE = '/hr/reports'
 export const REPORT_PAGE_SIZE = 10
 
 // Path identifiers are Oracle NUMBER values kept as decimal strings.
@@ -140,6 +141,18 @@ export function createProbationService({ client }) {
   })
 }
 
+// Periodwise Employees: every employee attached to the department (or all
+// departments) at any point in [from, to]. Age, service, KPIs and charts are
+// derived on the page (report/periodwiseModel.js).
+export function createReportService({ client }) {
+  return Object.freeze({
+    async periodwiseEmployees({ department, from, to }, { signal } = {}) {
+      const { data } = await client.get(`${HR_REPORTS_BASE}/periodwise-employees`, { params: query({ department, from, to }), signal })
+      return readReport(data)
+    },
+  })
+}
+
 // The one switch between demo data and the real API.
 export function selectClient({ demo, api = apiClient, createDemo = createDemoClient } = {}) {
   return demo ? createDemo() : api
@@ -155,6 +168,7 @@ export function createHrRecruitmentServices({ client }) {
     employees: createEmployeeService({ client }),
     orientations: createOrientationService({ client }),
     probations: createProbationService({ client }),
+    reports: createReportService({ client }),
   })
 }
 

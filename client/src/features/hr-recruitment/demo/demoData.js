@@ -118,6 +118,56 @@ export const DEMO_EMPLOYEES = Object.freeze([
   employee(10, 'Employee', '2026-07-12', 'Finance', 'Corporate', 'Finance Manager', 'G11', 'Finance', 'MANAGERS'),
 ].map((item) => Object.freeze(item)))
 
+// Periodwise Employees: a seeded (repeatable) set of fictional employees over
+// the demo departments, with leavers, missing national IDs, 60+ employees and
+// one implausible birth date so every flag and KPI has data.
+const REPORT_JOBS = Object.freeze({
+  HR: ['HR Officer', 'Recruitment Specialist'], FIN: ['Accountant', 'Cashier', 'Finance Manager'],
+  PROD: ['Packer', 'Packer', 'Machine Operator', 'Injection Operator', 'Line Supervisor'], QUAL: ['Quality Inspector', 'QHSE Section Head', 'Safety Officer'],
+  WH: ['Store Keeper', 'Forklift Driver'], MAINT: ['Maintenance Technician', 'Electrician', 'Maintenance Engineer'],
+  SALES: ['Sales Coordinator', 'Sales Executive'], PROC: ['Buyer', 'Procurement Officer'], IT: ['IT Support', 'Systems Analyst'], ADMIN: ['Administrator', 'Driver'],
+})
+const NATIONALITIES = Object.freeze([['Saudi', 52], ['Indian', 16], ['Pakistani', 8], ['Egyptian', 6], ['Filipino', 5], ['Yemeni', 4], ['Syrian', 3], ['Sudanese', 3], ['Tunisian', 2], ['Jordanian', 1]])
+const LEAVING_REASONS = Object.freeze(['Resigned', 'End of contract', 'Terminated', 'Retired', 'Did not join after probation'])
+
+export function createDemoReportRows() {
+  let seed = 20261028
+  const random = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296 }
+  const pick = (list) => list[Math.floor(random() * list.length)]
+  const pad = (value) => String(value).padStart(2, '0')
+  const day = (year, month, date) => `${year}-${pad(month)}-${pad(date)}`
+  const nationality = () => { let left = random() * 100; for (const [name, weight] of NATIONALITIES) { left -= weight; if (left < 0) return name } return 'Saudi' }
+  const nationalId = (name) => `${name === 'Saudi' ? 1 : 2}${String(Math.floor(random() * 1e9)).padStart(9, '0')}`
+  const row = (number, fields) => ({ employeeNumber: String(number), name: `Sample Employee ${number}`, position: fields.job, leavingReason: '', endDate: null, ...fields })
+  const rows = [
+    row(1001, { birthDate: '1962-04-30', nationality: 'Indian', job: 'Printing Operator', departmentCode: 'PROD', nationalId: null, startDate: '1996-06-27' }),
+    row(1002, { birthDate: '1964-02-06', nationality: 'Indian', job: 'Packer', departmentCode: 'PROD', nationalId: null, startDate: '1994-12-22' }),
+    row(1003, { birthDate: '1960-06-01', nationality: 'Yemeni', job: 'Cashier', departmentCode: 'FIN', nationalId: '2000000003', startDate: '1986-12-29' }),
+    row(1004, { birthDate: '2015-03-10', nationality: 'Saudi', job: 'Store Keeper', departmentCode: 'WH', nationalId: '1000000004', startDate: '2024-05-12' }),
+  ]
+  const departments = Object.keys(REPORT_JOBS)
+  for (let index = 0; index < 156; index += 1) {
+    const departmentCode = pick(departments)
+    const nation = nationality()
+    const startYear = random() < 0.55 ? 2019 + Math.floor(random() * 8) : 2000 + Math.floor(random() * 19)
+    const startDate = day(startYear, 1 + Math.floor(random() * 12), 1 + Math.floor(random() * 28))
+    let endDate = null
+    if (random() < 0.22) {
+      endDate = day(Math.min(2026, startYear + Math.floor(random() * 6)), 1 + Math.floor(random() * 9), 1 + Math.floor(random() * 28))
+      if (endDate <= startDate) endDate = day(startYear + 1, 6, 15)
+      if (endDate > '2026-10-26') endDate = '2026-10-01'
+      // A leaver always leaves after joining; a late joiner has not left yet.
+      if (endDate <= startDate) endDate = null
+    }
+    const job = pick(REPORT_JOBS[departmentCode])
+    rows.push(row(1100 + index, {
+      birthDate: day(1962 + Math.floor(random() * 44), 1 + Math.floor(random() * 12), 1 + Math.floor(random() * 28)), nationality: nation, job, departmentCode,
+      nationalId: random() < 0.12 ? null : nationalId(nation), startDate, endDate, leavingReason: endDate ? pick(LEAVING_REASONS) : '',
+    }))
+  }
+  return rows
+}
+
 const ratings = (keys, values) => Object.fromEntries(keys.map((key, index) => [key, { rating: values[index], remark: '' }]))
 const benefit = (en, ar) => ({ en, ar, autoArabic: true })
 

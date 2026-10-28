@@ -1,6 +1,6 @@
 // HR onboarding screens of the HR_RECRUITMENT feature: Orientation Schedule
-// (form 1101) and Probation Evaluation (form 1064). Business rules, response
-// contracts, services over the shared API
+// (form 1101), Probation Evaluation (form 1064) and the Periodwise Employees
+// report. Business rules, response contracts, services over the shared API
 // client (mocked transport), the owner-approved in-memory demo adapter and
 // static checks of the JSX. No backend, Oracle or browser storage is used.
 import test from 'node:test'
@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { createApiClient } from '../src/services/api/apiClient.js'
 import { createCsrfStore } from '../src/services/api/csrfStore.js'
-import { readEmployee, readLookups, readOrientation, readProbation } from '../src/features/hr-recruitment/hrRecruitmentContract.js'
+import { readEmployee, readLookups, readOrientation, readProbation, readReport } from '../src/features/hr-recruitment/hrRecruitmentContract.js'
 import { createHrRecruitmentServices, identifyDemoUser } from '../src/features/hr-recruitment/hrRecruitmentService.js'
 import { createDemoClient } from '../src/features/hr-recruitment/demo/demoClient.js'
 import { DEMO_EMPLOYEES, DEMO_LOOKUPS } from '../src/features/hr-recruitment/demo/demoData.js'
@@ -22,6 +22,11 @@ import {
   PASS_MARK, QUICK_PICKS, addMonths, blankProbation, clampPoints, contradictsResult, evaluationTotals, isProbationLocked, probationElapsed, probationEnd,
   probationFormFromRecord, probationPayload, quickPoints, ratingFor, resultFor, suggestedRecommendation, validateProbation, withEmployee, withFormType,
 } from '../src/features/hr-recruitment/probation/probationModel.js'
+import {
+  ALL_DEPARTMENTS, PAGE_SIZE, ageBandCounts, ageOn, csvCell, csvFileName, filterRows, groupCount, inPeriod, quickRanges, runReport, sortRows, summarise,
+  toCsv, validateParams, withBom, yearlyFlow, yearsBetween,
+} from '../src/features/hr-recruitment/report/periodwiseModel.js'
+import { createDemoReportRows } from '../src/features/hr-recruitment/demo/demoData.js'
 import { SESSION_TOKEN, forbidBrowserStorage, recordingFetch, success } from './helpers/http.mjs'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
@@ -377,4 +382,147 @@ test('probation page: banner title, radio groups, reused gauge, step 5 of the fl
   const text = await read(`${FEATURE}hrRecruitmentText.js`)
   assert.match(text, /officialEn: 'Performance Appraisal Form \(PAF\) for Probation Period'/)
   assert.match(text, /officialAr: 'تقييم الأداء الوظيفي لفترة التجربة'/)
+})
+
+// ------------------------------------------------------------ periodwise employees report
+
+const PERIOD = Object.freeze({ department: ALL_DEPARTMENTS, from: '2026-01-01', to: '2026-06-30' })
+const TODAY = '2026-10-28'
+const person = (number, overrides = {}) => ({
+  employeeNumber: String(number), name: `Sample Employee ${number}`, birthDate: '1990-05-10', nationality: 'Saudi', job: 'Packer', departmentCode: 'PROD',
+  departmentName: 'Production', position: 'Packer', nationalId: `10000000${number}`, startDate: '2020-01-01', endDate: null, leavingReason: '', ...overrides,
+})
+
+test('report: an employee is included when start ≤ To and (no end or end ≥ From)', () => {
+  assert.equal(inPeriod(person(1), PERIOD), true)
+  assert.equal(inPeriod(person(2, { startDate: '2026-06-30' }), PERIOD), true, 'starts on To')
+  assert.equal(inPeriod(person(3, { startDate: '2026-07-01' }), PERIOD), false, 'starts after To')
+  assert.equal(inPeriod(person(4, { endDate: '2026-01-01' }), PERIOD), true, 'ends on From')
+  assert.equal(inPeriod(person(5, { endDate: '2025-12-31' }), PERIOD), false, 'left before From')
+  const rows = runReport([person(1), person(2, { departmentCode: 'FIN' })], { ...PERIOD, department: 'FIN' }, TODAY)
+  assert.deepEqual(rows.map((row) => row.employeeNumber), ['2'], 'one department')
+})
+
+test('report: age is today\'s age; years are service up to the earlier of end and To (2 decimals)', () => {
+  assert.equal(ageOn('1990-10-28', TODAY), 36, 'birthday today')
+  assert.equal(ageOn('1990-10-29', TODAY), 35, 'birthday tomorrow')
+  assert.equal(ageOn(null, TODAY), null)
+  assert.equal(yearsBetween('2020-01-01', '2026-01-01'), 6, '365.25-day years')
+  assert.equal(yearsBetween('2020-01-01', '2026-06-30'), 6.49)
+  assert.equal(yearsBetween('2026-07-01', '2026-06-30'), 0)
+  const [stillThere, left] = runReport([person(1), person(2, { endDate: '2026-03-31' })], PERIOD, TODAY)
+  assert.equal(stillThere.years, 6.49, 'service up to To')
+  assert.equal(left.years, 6.25, 'service up to the end date')
+  assert.deepEqual([stillThere.active, left.active], [true, false], 'active = no end, or ends after To')
+  assert.equal(runReport([person(3, { endDate: '2026-07-15' })], PERIOD, TODAY)[0].active, true, 'leaves after the period: active within it')
+})
+
+test('report: 60+ rows are highlighted; missing national ID or age under 16 needs checking', () => {
+  const [senior, young, noId, fine] = runReport([
+    person(1, { birthDate: '1966-10-28' }), person(2, { birthDate: '2011-01-01' }), person(3, { nationalId: null }), person(4),
+  ], PERIOD, TODAY)
+  assert.deepEqual([senior.senior, senior.age], [true, 60])
+  assert.deepEqual(young.flags, ['BIRTH_DATE'])
+  assert.deepEqual(noId.flags, ['NATIONAL_ID'])
+  assert.deepEqual([fine.flags, fine.senior], [[], false])
+})
+
+test('report: KPIs (turnover = leavers ÷ average of period and active headcount)', () => {
+  const rows = runReport([
+    person(1, { nationality: 'Saudi', birthDate: '1966-01-01' }), person(2, { nationality: 'Indian' }), person(3, { nationality: 'Saudi', startDate: '2026-02-01' }),
+    person(4, { endDate: '2026-04-30' }), person(5, { nationalId: null, nationality: 'Egyptian' }),
+  ], PERIOD, TODAY)
+  const summary = summarise(rows, PERIOD)
+  assert.deepEqual([summary.total, summary.active, summary.joiners, summary.leavers], [5, 4, 1, 1])
+  assert.equal(summary.turnover, 22.2, '1 ÷ ((5 + 4) ÷ 2) = 22.2 %')
+  assert.equal(summary.saudization, 50, '2 of 4 active are Saudi')
+  assert.deepEqual([summary.senior, summary.flagged], [1, 1])
+  assert.equal(summary.averageAge, 42, 'active employees: (60 + 36 + 36 + 36) ÷ 4')
+  assert.equal(summary.averageService, 5, 'active employees only: (6.49 + 6.49 + 0.41 + 6.49) ÷ 4, one decimal')
+  assert.deepEqual(summarise([], PERIOD), { total: 0, active: 0, joiners: 0, leavers: 0, turnover: 0, saudization: 0, averageAge: 0, senior: 0, averageService: 0, flagged: 0 })
+})
+
+test('report: chart groupings: departments, nationality, age bands, joiners and leavers by year', () => {
+  const rows = runReport([
+    person(1, { departmentCode: 'FIN' }), person(2), person(3), person(4, { birthDate: '1999-01-01', startDate: '2022-03-01' }),
+    person(5, { birthDate: '1960-01-01', startDate: '2021-01-01', endDate: '2026-02-01' }),
+  ], PERIOD, TODAY)
+  assert.deepEqual(groupCount(rows, 'departmentCode'), [['PROD', 4], ['FIN', 1]])
+  assert.deepEqual(ageBandCounts(rows.filter((row) => row.active)), [['UNDER_30', 1], ['30_39', 3], ['40_49', 0], ['50_59', 0], ['60_PLUS', 0]])
+  assert.deepEqual(yearlyFlow(rows, 2026), [['2021', 1, 0], ['2022', 1, 0], ['2023', 0, 0], ['2024', 0, 0], ['2025', 0, 0], ['2026', 0, 1]])
+})
+
+test('report: table search, status, chart filters, needs checking and sorting', () => {
+  const rows = runReport([
+    person(1, { nationality: 'Indian', job: 'Electrician' }), person(2, { endDate: '2026-02-01' }), person(3, { nationalId: null, departmentCode: 'FIN', departmentName: 'Finance' }),
+    person(10, { birthDate: '1966-01-01' }),
+  ], PERIOD, TODAY)
+  const numbers = (list) => list.map((row) => row.employeeNumber)
+  assert.deepEqual(numbers(filterRows(rows, { search: 'electric' })), ['1'])
+  assert.deepEqual(numbers(filterRows(rows, { search: 'finance' })), ['3'], 'department name')
+  assert.deepEqual(numbers(filterRows(rows, { status: 'left' })), ['2'])
+  assert.deepEqual(numbers(filterRows(rows, { status: 'active' })), ['1', '3', '10'])
+  assert.deepEqual(numbers(filterRows(rows, { nationality: 'Indian' })), ['1'])
+  assert.deepEqual(numbers(filterRows(rows, { band: '60_PLUS' })), ['10'])
+  assert.deepEqual(numbers(filterRows(rows, { flagged: true })), ['3'])
+  assert.deepEqual(numbers(sortRows(rows, { key: 'employeeNumber', direction: 1 })), ['1', '2', '3', '10'], 'numbers sort numerically')
+  assert.deepEqual(numbers(sortRows(rows, { key: 'age', direction: -1 })), ['10', '1', '2', '3'], 'descending, stable for ties')
+  assert.deepEqual(numbers(sortRows(rows, { key: 'nationalId', direction: 1 })), ['3', '1', '2', '10'], 'empty first ascending')
+})
+
+test('report: parameters, quick ranges and CSV with a UTF-8 BOM', () => {
+  assert.deepEqual(validateParams({ from: '', to: '' }), { from: 'Choose a start date', to: 'Choose an end date' })
+  assert.deepEqual(validateParams({ from: '2026-05-01', to: '2026-04-30' }), { to: 'End date is before start date' })
+  assert.deepEqual(validateParams({ from: '2026-05-01', to: '2026-05-01' }), {})
+  assert.deepEqual(quickRanges(TODAY), { THIS_YEAR: ['2026-01-01', TODAY], LAST_12_MONTHS: ['2025-10-28', TODAY], SINCE_2000: ['2000-01-01', TODAY] })
+  assert.deepEqual(['plain', 'a,b', 'say "hi"', 'line\nbreak', null, 42].map(csvCell), ['plain', '"a,b"', '"say ""hi"""', '"line\nbreak"', '', '42'])
+  assert.deepEqual(['=SUM(A1)', '+1', '-2', '@x'].map(csvCell), ["'=SUM(A1)", "'+1", "'-2", "'@x"], 'spreadsheet formulas are neutralised')
+  const csv = toCsv([person(1), person(2, { name: 'Sample, Employee' })], [{ label: '#', value: (row, index) => index + 1 }, { label: 'Name', value: (row) => row.name }])
+  assert.equal(csv, '#,Name\r\n1,Sample Employee 1\r\n2,"Sample, Employee"')
+  assert.equal(withBom('a').charCodeAt(0), 0xfeff)
+  assert.equal(withBom('a').length, 2)
+  assert.equal(csvFileName({ department: 'ALL', from: '2026-01-01', to: '2026-06-30' }), 'periodwise_employees_ALL_2026-01-01_2026-06-30.csv')
+  assert.equal(PAGE_SIZE, 25)
+})
+
+test('report: contract, service request and the demo adapter', async () => {
+  const rows = createDemoReportRows()
+  assert.ok(rows.length >= 150)
+  assert.ok(rows.every((row) => /^Sample Employee \d+$/.test(row.name)), 'fictional names only')
+  assert.ok(rows.every((row) => !row.endDate || row.endDate > row.startDate), 'every leaver leaves after joining')
+  assert.ok(rows.every((row) => Boolean(row.endDate) === Boolean(row.leavingReason)), 'leavers, and only leavers, have a reason')
+  assert.ok(rows.some((row) => !row.nationalId) && rows.some((row) => ageOn(row.birthDate, TODAY) < 16) && rows.some((row) => ageOn(row.birthDate, TODAY) >= 60), 'every flag has data')
+  assert.equal(readReport({ rows: rows.slice(0, 3) }).rows.length, 3)
+  assert.throws(() => readReport({ rows: [rows[0], rows[0]] }), (error) => error.code === 'INVALID_RESPONSE', 'duplicate employee numbers')
+  assert.throws(() => readReport({ rows: [{ ...rows[0], startDate: '2026/01/01' }] }), (error) => error.code === 'INVALID_RESPONSE')
+  const { fetchImpl, calls } = recordingFetch(() => success({ rows: rows.slice(0, 2) }))
+  const services = createHrRecruitmentServices({ client: createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore: createCsrfStore() }) })
+  await services.reports.periodwiseEmployees({ department: 'PROD', from: '2026-01-01', to: '2026-06-30' })
+  assert.equal(`${calls[0].init.method} ${calls[0].url}`, 'GET /api/v1/hr/reports/periodwise-employees?department=PROD&from=2026-01-01&to=2026-06-30')
+  const demo = demoServices().services
+  const all = await demo.reports.periodwiseEmployees(PERIOD)
+  assert.ok(all.rows.every((row) => inPeriod(row, PERIOD)), 'the server applies the period rule')
+  const production = await demo.reports.periodwiseEmployees({ ...PERIOD, department: 'PROD' })
+  assert.ok(production.rows.length > 0 && production.rows.every((row) => row.departmentCode === 'PROD'))
+  await assert.rejects(demo.reports.periodwiseEmployees({ ...PERIOD, from: '2026-07-01' }), (error) => error.status === 422 && error.details[0].field === 'to')
+  await assert.rejects(demo.reports.periodwiseEmployees({ ...PERIOD, department: 'NOPE' }), (error) => error.status === 422)
+})
+
+test('report page: outside the flow, sortable headers, column chooser, side panel and export', async () => {
+  assert.equal(RECRUITMENT_FLOW.some((item) => item.path.includes('/reports/')), false, 'the report is not part of the flow')
+  const page = await read(`${FEATURE}report/PeriodwiseEmployeesPage.jsx`)
+  assert.equal(/<FlowNav|<RecruitmentShell/.test(page), false)
+  assert.match(page, /<RecruitmentHeader title=\{T\.title\} subtitle=\{T\.subtitle\} breadcrumb=\{T\.breadcrumb\} \/>/)
+  assert.match(page, /aria-sort=\{sort\.key === column\.key \? \(sort\.direction > 0 \? 'ascending' : 'descending'\) : column\.sort \? 'none' : undefined\}/)
+  assert.match(page, /\{ key: 'position', label: C\.position, sort: true, hidden: true \}/, 'Position hidden by default')
+  assert.match(page, /event\.key === 'Escape' && columnMenu/, 'Escape closes the column chooser')
+  assert.match(page, /<Dialog title=\{open\.name\} onClose=\{\(\) => setOpen\(null\)\}>/, 'the side panel is the shared dialog (focus trap, Escape)')
+  assert.match(page, /new Blob\(\[withBom\(csv\)\], \{ type: 'text\/csv;charset=utf-8' \}\)/)
+  assert.match(page, /filtered\.slice\(current \* PAGE_SIZE, current \* PAGE_SIZE \+ PAGE_SIZE\)/)
+  assert.match(page, /const view = printing \? filtered :/, 'printing lists every filtered row')
+  for (const key of ['employeeNumber', 'name', 'birthDate', 'age', 'nationality', 'job', 'departmentName', 'position', 'nationalId', 'startDate', 'years', 'endDate', 'leavingReason']) {
+    assert.match(page, new RegExp(`key: '${key}'`), key)
+  }
+  const css = await read('../src/styles/hr-recruitment.css')
+  assert.match(css, /\.zrv-hr-rp-table th \{ position: sticky;/, 'sticky header')
 })

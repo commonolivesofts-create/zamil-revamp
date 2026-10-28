@@ -52,6 +52,56 @@ export const FLOW_TEXT = Object.freeze({
   probation: Object.freeze({ name: 'Probation Evaluation', hint: 'Review the probation' }),
 })
 
+export const REPORT_TEXT = Object.freeze({
+  title: 'Periodwise Employees',
+  subtitle: 'Everyone attached to a department during a period: who joined, who left, and how the team is made up.',
+  breadcrumb: Object.freeze(['Human resources', 'Reports']),
+  tools: Object.freeze({ label: 'Report actions', home: 'Home', change: 'Change parameters', export: 'Export CSV', print: 'Print' }),
+  summary: Object.freeze({ department: 'Department', period: 'Period', all: 'All departments' }),
+  setup: Object.freeze({
+    title: 'Select parameters', desc: 'Pick a department and a period, then run the report.', department: 'Department', from: 'From', to: 'To',
+    quick: 'Quick periods', run: 'Run report', cancel: 'Cancel',
+  }),
+  ranges: Object.freeze({ THIS_YEAR: 'This year', LAST_12_MONTHS: 'Last 12 months', SINCE_2000: 'Since 2000' }),
+  loading: 'report',
+  kpis: Object.freeze({
+    label: 'Summary', total: 'Employees in period', active: (count) => `${count} still active`, joiners: 'Joiners', joinersNote: 'started in period',
+    leavers: 'Leavers', turnover: (value) => `${value}% turnover`, saudization: 'Saudization', saudizationNote: 'of active employees',
+    averageAge: 'Average age', senior: (count, age) => `${count} aged ${age}+`, service: 'Average service', serviceValue: (years) => `${years} yrs`, serviceNote: 'active employees',
+  }),
+  charts: Object.freeze({
+    department: 'Headcount by department', nationality: 'Nationality mix', bands: 'Age bands', flow: 'Joiners and leavers',
+    filter: 'click to filter', active: 'active', byYear: 'by year', other: 'Other', saudi: 'Saudi', joined: 'Joined', left: 'Left',
+    flowLabel: (year, joined, left) => `${year}: ${joined} joined, ${left} left`,
+  }),
+  bands: Object.freeze({ UNDER_30: 'Under 30', '30_39': '30–39', '40_49': '40–49', '50_59': '50–59', '60_PLUS': '60+' }),
+  table: Object.freeze({
+    title: 'Employees', count: (shown, total) => `${shown} of ${total}`, search: 'Search employees', searchPlaceholder: 'Search name, emp no, national ID, job',
+    status: 'Status', statuses: Object.freeze([Object.freeze(['all', 'All']), Object.freeze(['active', 'Active']), Object.freeze(['left', 'Left'])]),
+    flagged: 'Needs checking', flaggedHint: 'Rows with a missing national ID or an unlikely birth date', compact: 'Compact rows', columns: 'Columns',
+    chips: Object.freeze({ department: 'Department', nationality: 'Nationality', band: 'Age', data: 'Data', needsChecking: 'needs checking', remove: (label) => `Remove filter: ${label}`, clear: 'Clear all' }),
+    legend: Object.freeze({ senior: (age) => `Aged ${age} or over`, flagged: 'Data needs checking', left: 'Left in or before the period' }),
+    caption: 'Employees attached to the department during the period',
+    empty: 'No employees match these filters.', noData: 'No employees were attached to this department during the period.',
+    showing: (from, to, total) => `Showing ${from}–${to} of ${total}`, previous: 'Previous', next: 'Next', page: (page, pages) => `${page} / ${pages}`,
+    flagTitle: (flags) => flags.join(', '),
+  }),
+  columns: Object.freeze({
+    index: '#', employeeNumber: 'Emp no', name: 'Name', birthDate: 'Birth date', age: 'Age', nationality: 'Nationality', job: 'Job',
+    department: 'Department', position: 'Position', nationalId: 'National ID', startDate: 'Start', years: 'Years', endDate: 'End', leavingReason: 'Leaving reason',
+  }),
+  flags: Object.freeze({ BIRTH_DATE: 'Birth date looks wrong', NATIONAL_ID: 'National ID missing' }),
+  panel: Object.freeze({
+    eyebrow: 'Employee', active: 'Active', left: (reason) => `Left · ${reason || 'reason not recorded'}`, senior: (age) => `Aged ${age}+`,
+    birth: 'Birth date', birthValue: (date, age) => `${date} · ${age} years`, nationalId: 'National ID', missing: 'Missing', start: 'Start', end: 'End',
+    service: 'Service', serviceValue: (years) => `${years.toFixed(2)} years`, position: 'Position', check: (flags) => `Check the record: ${flags.join('; ')}.`,
+    joined: 'Joined', today: 'Today', leftOn: 'Left', close: 'Close employee details',
+  }),
+  exported: (count) => `Export started: ${count} rows (CSV for Excel).`,
+  exportFailed: 'Export is not available in this browser.',
+  errors: Object.freeze({ from: 'Choose a start date', to: 'Choose an end date', toBeforeFrom: 'End date is before start date' }),
+})
+
 export const PROBATION_TEXT = Object.freeze({
   title: 'Probation Evaluation',
   subtitle: 'Evaluate a new employee’s probation period. Pick the employee and form type, score each criterion, then recommend.',

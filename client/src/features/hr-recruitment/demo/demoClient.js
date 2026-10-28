@@ -14,7 +14,9 @@ import { COMP_KEYS, HR_FIELDS, SPEC_KEYS } from '../interview/interviewModel.js'
 import { BENEFIT_KEYS, issuedStatus } from '../offer/offerModel.js'
 import { scheduleIssues, scheduleToDate } from '../orientation/orientationModel.js'
 import { validateProbation } from '../probation/probationModel.js'
-import { DEMO_ASSIGNED, DEMO_EMPLOYEES, DEMO_LOOKUPS, createDemoRecords } from './demoData.js'
+import { ALL_DEPARTMENTS, inPeriod } from '../report/periodwiseModel.js'
+import { isIsoDate } from '../shared/hrFormat.js'
+import { DEMO_ASSIGNED, DEMO_EMPLOYEES, DEMO_LOOKUPS, createDemoRecords, createDemoReportRows } from './demoData.js'
 
 const BASE = '/hr/recruitment'
 const ROUTE = /^\/hr\/recruitment\/(requisitions|interview-assessments|employment-offers|orientation-schedules|probation-evaluations)(?:\/([1-9][0-9]*)(?:\/(submit|issue))?)?$/
@@ -142,7 +144,9 @@ function probationProblems(record, employee, lookups, { submit }) {
   return Object.entries(errors).map(([field, message]) => ({ field, message }))
 }
 
-export function createDemoClient({ latencyMs = 350, now = () => new Date(), records = createDemoRecords(), lookups = DEMO_LOOKUPS, employees = DEMO_EMPLOYEES } = {}) {
+export function createDemoClient({
+  latencyMs = 350, now = () => new Date(), records = createDemoRecords(), lookups = DEMO_LOOKUPS, employees = DEMO_EMPLOYEES, reportRows = createDemoReportRows(),
+} = {}) {
   const store = clone(records)
   let requests = 0
   // The signed-in user's name (identifyDemoUser); a real backend uses the session.
@@ -287,11 +291,25 @@ export function createDemoClient({ latencyMs = 350, now = () => new Date(), reco
     })
   }
 
+  // Employees attached to the department at any point in [from, to].
+  function periodwiseEmployees(params = {}) {
+    const department = params.department || ALL_DEPARTMENTS
+    const problems = []
+    if (!isIsoDate(params.from)) problems.push({ field: 'from', message: 'from is required' })
+    if (!isIsoDate(params.to)) problems.push({ field: 'to', message: 'to is required' })
+    if (isIsoDate(params.from) && isIsoDate(params.to) && params.to < params.from) problems.push({ field: 'to', message: 'to must not be before from' })
+    if (department !== ALL_DEPARTMENTS && !lookups.departments.some((item) => item.code === department)) problems.push({ field: 'department', message: 'unknown department' })
+    if (problems.length) fail(422, 'VALIDATION_ERROR', 'The report parameters are not valid.', problems)
+    const rows = reportRows.filter((row) => (department === ALL_DEPARTMENTS || row.departmentCode === department) && inPeriod(row, params))
+    return respond({ rows })
+  }
+
   async function request(method, path, { params, body, signal } = {}) {
     requests += 1
     await wait(latencyMs, signal)
     if (method === 'GET' && path === `${BASE}/lookups`) return respond(lookups)
     if (method === 'GET' && path === `${BASE}/employees`) return searchEmployees(params)
+    if (method === 'GET' && path === '/hr/reports/periodwise-employees') return periodwiseEmployees(params)
     const match = ROUTE.exec(path)
     if (!match) fail(404, 'NOT_FOUND', 'The requested resource does not exist.')
     const [, name, id, action] = match
