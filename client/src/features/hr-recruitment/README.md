@@ -12,7 +12,28 @@ Three forms that run as one flow, under **Human resources** in the sidebar:
 > feature-scoped override of ZRV-FE-005) until the backend exists. No backend module,
 > Oracle object or permission row exists for these forms yet.
 
-## What is demo, and the switch
+## Two switches: visibility and data source
+
+| Variable | Decides | `'true'` | `'false'` | unset |
+|---|---|---|---|---|
+| `VITE_FEATURE_HR_RECRUITMENT` | Whether the HR pages exist in this build | shown | hidden | shown in development builds, hidden in production builds |
+| `VITE_HR_RECRUITMENT_DEMO` | Where shown pages get their data | demo adapter | `apiClient` | demo in development builds, API in production builds |
+
+The visibility switch is the registry's generic `enabledBy` mechanism. Every entry in
+`config/registry/modules/hrRecruitment.module.js` carries `enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' }`.
+While it is off, the pages are absent from the sidebar, the command palette, the guard (Not
+found) and the router table.
+
+The four deliberate combinations:
+
+| `VITE_FEATURE_HR_RECRUITMENT` | `VITE_HR_RECRUITMENT_DEMO` | Result | Use |
+|---|---|---|---|
+| `true` | `true` | Pages visible, demo data | Demo or UAT build without a backend |
+| `true` | `false` | Pages visible, real API | **Production once the backend exists** |
+| `false` | `true` or `false` | Pages hidden (the data source is irrelevant) | Production before the backend exists |
+| unset | unset | Development: visible with demo data. Production: hidden | Defaults |
+
+## What is demo, and the data-source switch
 
 | Piece | Where | Demo or real |
 |---|---|---|
@@ -91,13 +112,15 @@ with `VIEW`, `CREATE`, `UPDATE`, `SUBMIT`/`ISSUE`, `PRINT`.
 
 They are not in the Oracle catalogue. The module is therefore registered **session-only**
 (`rbac: false` in `config/registry/modules/hrRecruitment.module.js`). Every signed-in user
-can open these pages, in every build, and no button is permission-gated. When the
-backend exists:
+can open these pages wherever `VITE_FEATURE_HR_RECRUITMENT` shows them, and no button is
+permission-gated. When the backend exists:
 
 1. Turn the module into an RBAC module with the three resources and their actions.
 2. Register the rows with `npm run db:rbac-register` under an owner-authorized plan (gate G1).
 3. Gate each button with `usePermissions().can(HR_RECRUITMENT_ACTIONS.…)`.
 4. Update the pinned route expectations in the navigation, registry and sidebar tests.
+5. Remove `enabledBy` when the pages should always be present, or keep it and set
+   `VITE_FEATURE_HR_RECRUITMENT=true` in the production build.
 
 ## Removing the demo
 

@@ -120,6 +120,7 @@ if (can('EXAMPLE_MODULE.WIDGETS:CREATE')) { /* show the Create button */ }
 | `alsoRequires` | Extra permissions the page needs to function (e.g. a picker that reads another list) |
 | `requiresMfa` | The backend requires an MFA-verified session (all `SECURITY_ADMINISTRATION` pages) |
 | `implemented` | `false` = approved destination with no screen yet: never routed, listed or searchable |
+| `enabledBy` | Internal entries only: `{ env: 'VITE_FEATURE_<NAME>' }`. A public build-time switch resolved by `isFeatureEnabled()` in `appNavigation.js`: `'true'` shows the page, `'false'` hides it, unset shows it in development builds only. While off, the entry is `implemented: false` and `router.jsx` (`implementedOnly`) leaves its route out. Never put a secret in it. |
 | `nav: false` | Detail page: guarded, but not shown in the sidebar/command palette |
 
 The sidebar (`components/layout/Sidebar.jsx`), command palette (`components/layout/CommandPalette.jsx`),

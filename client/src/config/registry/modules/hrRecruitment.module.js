@@ -8,18 +8,24 @@
 // into an RBAC module with the resources PERSONNEL_REQUISITIONS,
 // INTERVIEW_ASSESSMENTS and EMPLOYMENT_OFFERS (see the feature README).
 // Record pages (`/:id`) are guarded but hidden from the sidebar.
+//
+// Every entry is switched by VITE_FEATURE_HR_RECRUITMENT: 'true' shows the
+// pages, 'false' hides them, unset shows them in development builds only.
+// The data source (demo or API) is a separate switch, VITE_HR_RECRUITMENT_DEMO.
 import { defineModule } from '../defineModule.js'
+
+const HR_SWITCH = { env: 'VITE_FEATURE_HR_RECRUITMENT' }
 
 export default defineModule({
   code: 'HR_RECRUITMENT',
   name: 'HR recruitment',
   rbac: false,
   navigation: [
-    { id: 'hr-requisition', path: '/hr/recruitment/requisition', title: 'Personnel requisition', icon: 'clipboard-list', group: 'human-resources', order: 10 },
-    { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', title: 'Personnel requisition', icon: 'clipboard-list', group: 'human-resources', order: 11, hidden: true },
-    { id: 'hr-interview', path: '/hr/recruitment/interview', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', order: 20 },
-    { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', order: 21, hidden: true },
-    { id: 'hr-offer', path: '/hr/recruitment/offer', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', order: 30 },
-    { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', order: 31, hidden: true },
+    { id: 'hr-requisition', path: '/hr/recruitment/requisition', title: 'Personnel requisition', icon: 'clipboard-list', group: 'human-resources', order: 10, enabledBy: HR_SWITCH },
+    { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', title: 'Personnel requisition', icon: 'clipboard-list', group: 'human-resources', order: 11, hidden: true, enabledBy: HR_SWITCH },
+    { id: 'hr-interview', path: '/hr/recruitment/interview', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', order: 20, enabledBy: HR_SWITCH },
+    { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', order: 21, hidden: true, enabledBy: HR_SWITCH },
+    { id: 'hr-offer', path: '/hr/recruitment/offer', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', order: 30, enabledBy: HR_SWITCH },
+    { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', order: 31, hidden: true, enabledBy: HR_SWITCH },
   ],
 })

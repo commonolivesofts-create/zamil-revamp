@@ -11,9 +11,12 @@
 //                 never registered in Oracle)
 //   resource      { code, name, description?, actions: [standard codes], navigation?: [entry] }
 //   entry         { id, title, icon, group, order, type?, path | href, requiredAction?,
-//                   alsoRequires?, requiresMfa?, hidden?, implemented? }
+//                   alsoRequires?, requiresMfa?, hidden?, implemented?, enabledBy? }
 // `type` is optional: missing or 'internal' is a React route (`path`); only
 // 'external' is an external destination (`href`); anything else is rejected.
+// `enabledBy` (internal entries only): { env: 'VITE_FEATURE_<NAME>' }, a public
+// build-time switch resolved by config/appNavigation.js; while it is off the
+// entry is treated as not implemented (never routed, listed or searchable).
 import { isStandardAction } from './actions.js'
 
 const CODE = /^[A-Z][A-Z0-9_]*$/
@@ -23,6 +26,8 @@ const ROUTE_PATH = new RegExp(`^/(?:${SEGMENT}(?:/${SEGMENT})*)?$`)
 // Only these public build-time variables can supply an external URL, so an
 // entry can never read another configuration value.
 const EXTERNAL_ENV_NAME = /^VITE_EXTERNAL_[A-Z0-9_]+$/
+// Only these public build-time variables can switch an entry on or off.
+const FEATURE_ENV_NAME = /^VITE_FEATURE_[A-Z0-9_]+$/
 const PERMISSION_REF = /^(?:([A-Z][A-Z0-9_]*)\.)?([A-Z][A-Z0-9_]*):([A-Z][A-Z0-9_]*)$/
 // Locked XX_ZRV_* column lengths.
 const MAX = Object.freeze({ module: 60, resource: 80, action: 40, name: 120, description: 500, url: 2048 })
@@ -111,8 +116,16 @@ function normalizeHref(where, href) {
 
 const ENTRY_KEYS = [
   'id', 'title', 'icon', 'group', 'order', 'type', 'path', 'href', 'requiredAction', 'alsoRequires',
-  'requiresMfa', 'hidden', 'implemented',
+  'requiresMfa', 'hidden', 'implemented', 'enabledBy',
 ]
+
+function normalizeEnabledBy(where, enabledBy) {
+  assertObject(where, enabledBy, ['env'])
+  if (typeof enabledBy.env !== 'string' || !FEATURE_ENV_NAME.test(enabledBy.env)) {
+    fail(where, 'enabledBy.env must name a VITE_FEATURE_* variable')
+  }
+  return { env: enabledBy.env }
+}
 
 function normalizeEntry(where, entry, resource) {
   assertObject(where, entry, ENTRY_KEYS)
@@ -137,8 +150,10 @@ function normalizeEntry(where, entry, resource) {
       fail(at, 'path must be an absolute application route such as /area/page or /area/page/:id')
     }
     normalized.path = entry.path
+    if (entry.enabledBy !== undefined) normalized.enabledBy = normalizeEnabledBy(`${at} enabledBy`, entry.enabledBy)
   } else {
     if (entry.path !== undefined) fail(at, 'an external entry has an href, not a path')
+    if (entry.enabledBy !== undefined) fail(at, 'enabledBy applies to internal entries only')
     if (entry.hidden === true) fail(at, 'an external entry cannot be hidden; omit it instead')
     normalized.href = normalizeHref(`${at} href`, entry.href)
   }
@@ -279,6 +294,7 @@ export function buildRegistry(modules, groups) {
       // Explicit on every permission-guarded entry; on session-only entries only when true.
       ...((permission || entry.requiresMfa) && { requiresMfa: entry.requiresMfa }),
       implemented: entry.implemented,
+      ...(entry.enabledBy && { enabledBy: entry.enabledBy }),
       ...(entry.hidden && { nav: false }),
     }
     entries.push({ route, sort: [groupIndex.get(entry.group), entry.order] })

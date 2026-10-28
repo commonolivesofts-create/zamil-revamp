@@ -50,10 +50,9 @@ function signedInStore() {
   return { store, calls, access, sidebar, answer }
 }
 
-// Session-only pages: the dashboard, the HR recruitment forms (session-only
-// until their permissions are registered) and the account pages.
-const HR = ['hr-requisition', 'hr-interview', 'hr-offer']
-const COMMON = ['dashboard', ...HR, 'account-password', 'account-authenticator']
+// Session-only pages. The HR recruitment pages are switched off in this build
+// (VITE_FEATURE_HR_RECRUITMENT unset outside development); see hrRecruitment.test.mjs.
+const COMMON = ['dashboard', 'account-password', 'account-authenticator']
 
 test('a registered page appears once its permission is effective; a missing permission hides it', async () => {
   const s = signedInStore()
@@ -66,7 +65,7 @@ test('a registered page appears once its permission is effective; a missing perm
   // administrator's own permissions; other users after a page reload or new sign-in).
   s.store.reload()
   await s.answer([`${SA}.ROLES:VIEW`])
-  assert.deepEqual(s.sidebar(), ['dashboard', ...HR, 'roles', 'account-password', 'account-authenticator'])
+  assert.deepEqual(s.sidebar(), ['dashboard', 'roles', 'account-password', 'account-authenticator'])
   assert.equal(routeAccess(findAppRoute('/security/roles'), s.access()), 'allowed', 'direct URL: same decision')
   assert.equal(routeAccess(findAppRoute('/security/users'), s.access()), 'denied', 'direct URL without the permission')
   assert.deepEqual(paletteCommands(s.access(), 'authenticated').map((c) => c.id), s.sidebar(), 'command palette lists the same pages')
@@ -120,7 +119,7 @@ test('permissions never create navigation: only registered, implemented pages ar
   assert.deepEqual(s.sidebar(), before)
   assert.ok(!s.sidebar().includes('security-audit'))
   assert.equal(routeAccess(appRoutes.find((r) => r.id === 'security-audit'), s.access()), 'unavailable')
-  assert.deepEqual(before, ['dashboard', ...HR, 'user-accounts', 'roles', 'user-roles', 'role-permissions', 'permission-catalog', 'permission-overrides', 'account-password', 'account-authenticator'])
+  assert.deepEqual(before, ['dashboard', 'user-accounts', 'roles', 'user-roles', 'role-permissions', 'permission-catalog', 'permission-overrides', 'account-password', 'account-authenticator'])
 })
 
 test('loading and error states never list protected pages; a failed refresh denies until retried', async () => {

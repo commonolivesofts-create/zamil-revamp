@@ -94,14 +94,9 @@ test("only pages backed by a working backend contract are implemented; no placeh
   assert.deepEqual(
     implementedRoutes.map((route) => route.path),
     [
+      // HR recruitment pages are switched off here (VITE_FEATURE_HR_RECRUITMENT
+      // unset in a non-development build); both states: hrRecruitment.test.mjs.
       "/dashboard",
-      // HR recruitment (session-only, owner-approved demo data until its backend exists).
-      "/hr/recruitment/requisition",
-      "/hr/recruitment/requisition/:requisitionId",
-      "/hr/recruitment/interview",
-      "/hr/recruitment/interview/:assessmentId",
-      "/hr/recruitment/offer",
-      "/hr/recruitment/offer/:offerId",
       "/security/users",
       "/security/users/:userId",
       "/security/roles",
@@ -129,7 +124,21 @@ test("only pages backed by a working backend contract are implemented; no placeh
   );
   assert.deepEqual(
     appRoutes.filter((item) => !item.implemented).map((route) => route.id),
-    ["security-audit"],
+    [
+      "hr-requisition",
+      "hr-requisition-record",
+      "hr-interview",
+      "hr-interview-record",
+      "hr-offer",
+      "hr-offer-record",
+      "security-audit",
+    ],
+  );
+  assert.ok(
+    appRoutes
+      .filter((item) => !item.implemented && item.id !== "security-audit")
+      .every((route) => route.enabledBy?.env === "VITE_FEATURE_HR_RECRUITMENT"),
+    "the HR pages are unavailable only because their switch is off",
   );
   for (const route of appRoutes.filter((item) => !item.implemented)) {
     assert.equal(routeAccess(route, ADMIN), "unavailable", route.id);
@@ -222,19 +231,13 @@ test("each security page requires its own VIEW permission", () => {
 // ------------------------------------------------------------ sidebar
 
 // Updated in Stage 3: administrators now also see the implemented security pages.
+// The switched-off HR recruitment pages are absent (production build, switch unset).
 test("sidebar: current production navigation for administrators, employees and empty sets", () => {
   for (const access of [EMPLOYEE, EMPTY, LOADING, FAILED, ADMIN_WITHOUT_MFA]) {
     const sections = authorizedNavigation(access);
     assert.deepEqual(
       ids(sections),
-      [
-        "dashboard",
-        "hr-requisition",
-        "hr-interview",
-        "hr-offer",
-        "account-password",
-        "account-authenticator",
-      ],
+      ["dashboard", "account-password", "account-authenticator"],
       access.status,
     );
     assert.ok(
@@ -244,9 +247,6 @@ test("sidebar: current production navigation for administrators, employees and e
   }
   assert.deepEqual(ids(authorizedNavigation(ADMIN)), [
     "dashboard",
-    "hr-requisition",
-    "hr-interview",
-    "hr-offer",
     "user-accounts",
     "roles",
     "user-roles",
@@ -417,7 +417,12 @@ test("Ctrl+J no longer opens the demo console", async () => {
 
 test("application routes are guarded by the shared configuration; demos stay preview-only", async () => {
   const router = await read("../src/app/router.jsx");
-  assert.match(router, /element: <AppRouteAccess \/>,\s*children: \[/);
+  assert.match(router, /element: <AppRouteAccess \/>,\s*children: implementedOnly\(\[/);
+  assert.match(
+    router,
+    /const implementedOnly = \(routes\) => routes\.filter\(\(route\) => implementedRouteIds\.has\(route\.handle\.routeId\)\)/,
+    "only implemented (and switched-on) pages are routed",
+  );
   for (const route of implementedRoutes) {
     assert.ok(
       router.includes(
@@ -426,7 +431,9 @@ test("application routes are guarded by the shared configuration; demos stay pre
       route.id,
     );
   }
-  for (const route of appRoutes.filter((item) => !item.implemented)) {
+  // Pages switched off by `enabledBy` keep their router line but are filtered out
+  // above (see hrRecruitment.test.mjs); every other unimplemented page has none.
+  for (const route of appRoutes.filter((item) => !item.implemented && !item.enabledBy)) {
     assert.equal(
       router.includes(`'${route.path.slice(1)}'`),
       false,

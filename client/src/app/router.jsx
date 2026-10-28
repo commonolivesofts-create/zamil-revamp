@@ -3,6 +3,7 @@ import {
   AppRouteAccess, GuestOnlyRoute, MfaChallengeRoute, ProtectedRoute, RootRedirect, TemplateDemoRoute,
 } from '@/routes/RouteGuards.jsx'
 import { orvexaDemoRoutes } from '@/config/orvexaRoutes.js'
+import { implementedRoutes } from '@/config/appNavigation.js'
 import {
   AdminLayout,
   AuthLayout,
@@ -39,6 +40,11 @@ import {
 // config/appNavigation.js and guarded by AppRouteAccess. Template demo entries
 // are generated from the original navigation data and render only in the
 // development preview.
+// Only implemented pages are routed: a page whose registry entry is switched
+// off (`enabledBy`) is left out of this build's route table.
+const implementedRouteIds = new Set(implementedRoutes.map((route) => route.id))
+const implementedOnly = (routes) => routes.filter((route) => implementedRouteIds.has(route.handle.routeId))
+
 export const router = createBrowserRouter([
   {
     element: <RouterShell />,
@@ -89,7 +95,7 @@ export const router = createBrowserRouter([
                 // Each application page names its entry in config/appNavigation.js;
                 // AppRouteAccess applies that entry's permission requirements.
                 element: <AppRouteAccess />,
-                children: [
+                children: implementedOnly([
                   { path: 'dashboard', handle: { routeId: 'dashboard' }, element: <DashboardPage /> },
                   { path: 'account/authenticator', handle: { routeId: 'account-authenticator' }, element: <MfaReplacementPage /> },
                   { path: 'account/password', handle: { routeId: 'account-password' }, element: <ChangePasswordPage /> },
@@ -108,7 +114,7 @@ export const router = createBrowserRouter([
                   { path: 'hr/recruitment/interview/:assessmentId', handle: { routeId: 'hr-interview-record' }, element: <InterviewPage /> },
                   { path: 'hr/recruitment/offer', handle: { routeId: 'hr-offer' }, element: <OfferPage /> },
                   { path: 'hr/recruitment/offer/:offerId', handle: { routeId: 'hr-offer-record' }, element: <OfferPage /> },
-                ],
+                ]),
               },
               {
                 element: <TemplateDemoRoute />,

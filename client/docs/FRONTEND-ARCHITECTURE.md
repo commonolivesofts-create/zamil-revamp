@@ -79,6 +79,17 @@ page({ id: 'user-accounts', path: '/security/users', title: 'User accounts', ico
 The **sidebar, command palette, dashboard "Available pages" and the guard all use the same
 function**, so they can never disagree. Details: [shared components](SHARED-COMPONENTS-AND-PATTERNS.md#4-navigation-and-route-protection).
 
+An entry can carry a build-time switch, `enabledBy: { env: 'VITE_FEATURE_<NAME>' }`. It is
+resolved in `appNavigation.js` (`isFeatureEnabled`, `resolveNavigationEntries`):
+
+- `'true'` shows the page;
+- `'false'` hides it;
+- unset shows it in development builds only.
+
+A switched-off entry is `implemented: false`, so the sidebar, the command palette and the guard
+never offer it. `router.jsx` registers only implemented routes (`implementedOnly`), so its route is
+also absent from the route table.
+
 ## 4. Layouts
 
 | Layout | File | Used by |

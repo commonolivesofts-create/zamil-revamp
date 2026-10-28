@@ -154,3 +154,22 @@ Taken locally, not committed (the repository is public). Ask the developer for t
 | Review outcome | Pending |
 | Handoff accepted by | Pending |
 | Date | — |
+
+## 15. Update, 28 October 2026: build-time visibility switch (gate G3, owner-approved)
+
+Branch `feat/hr-onboarding-forms`, first commit. This resolves the §12 limitation that the pages
+were visible to every signed-in user in every build.
+
+- **Generic mechanism (shared code, G3 approved).**
+  - `config/registry/defineModule.js`: internal entries accept `enabledBy: { env: 'VITE_FEATURE_<NAME>' }`. It is validated like external `href` variables, rejected on external entries, and carried into the derived route.
+  - `config/appNavigation.js`: `isFeatureEnabled` and `resolveNavigationEntries` resolve the switch: `'true'` shows, `'false'` hides, unset shows only in development builds. A switched-off entry is `implemented: false`.
+  - `app/router.jsx`: registers only implemented routes (`implementedOnly`).
+  - No HR-specific code is in any shared file. Documented in `client/docs/FRONTEND-ARCHITECTURE.md`, `SHARED-COMPONENTS-AND-PATTERNS.md` and `NEW-FEATURE-GUIDE.md`.
+- **HR use.** Every `HR_RECRUITMENT` entry has `enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' }`. `VITE_HR_RECRUITMENT_DEMO` remains a separate data-source switch. The four combinations are in the feature README. Production before the backend exists: hidden (unset). Production with the backend: `VITE_FEATURE_HR_RECRUITMENT=true` and `VITE_HR_RECRUITMENT_DEMO=false`.
+- **Tests.**
+  - The route-list tests run as a production build with the switch unset, so the pinned sidebar and route lists no longer include HR. The registry test pins the HR entries as `implemented: false` with `enabledBy`.
+  - `hrRecruitment.test.mjs` covers `true`, `false`, unset in development and unset in production. It confirms that a switched-off page is absent from the sidebar, the command palette (no empty "Human resources" group), the guard (`unavailable`) and the router.
+  - `registry.test.mjs` rejects a wrong variable prefix, a non-object value, unknown keys and `enabledBy` on external entries.
+- **Evidence.**
+  - `npm run lint` clean; `npm test` 305/305; `npm run build` and `verify-production.mjs` PASS.
+  - Headless Edge against the dev server (preview mode): with the switch unset, `/hr/recruitment/requisition` renders and the sidebar has "Human resources". With `VITE_FEATURE_HR_RECRUITMENT=false`, the same URL shows "Page not found" and the group is absent.
