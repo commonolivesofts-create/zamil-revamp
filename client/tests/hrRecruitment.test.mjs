@@ -17,6 +17,8 @@ const rated = (keys) => Object.fromEntries(keys.map((key) => [key, { rating: 4, 
 test('the active registry grants HR routes only through the backend form resources', () => {
   assert.deepEqual(registeredModules.map((module) => module.code), [
     'COMMON', 'SECURITY_ADMINISTRATION', 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS',
+    // Session-only onboarding screens behind VITE_FEATURE_HR_RECRUITMENT (hrOnboarding.test.mjs).
+    'HR_ONBOARDING',
   ])
   for (const key of Object.values(ACTIONS)) assert.ok(registry.permissions.some((permission) => permission.key === key), key)
   assert.equal(hrRecruitmentServices.client, apiClient)
@@ -102,10 +104,15 @@ test('all recruitment services use the supplied API client and validate path IDs
   assert.equal(segment('1'), '1')
 })
 
-test('the HR feature contains no demo text in the shared header and keeps live API wiring', async () => {
+test('the three forms show no demo text and keep live API wiring', async () => {
   const shell = await readFile(new URL('../src/features/hr-recruitment/shared/components/RecruitmentShell.jsx', import.meta.url), 'utf8')
+  const pages = await Promise.all(['requisition/RequisitionPage.jsx', 'interview/InterviewPage.jsx', 'offer/OfferPage.jsx']
+    .map((page) => readFile(new URL(`../src/features/hr-recruitment/${page}`, import.meta.url), 'utf8')))
   const service = await readFile(new URL('../src/features/hr-recruitment/hrRecruitmentService.js', import.meta.url), 'utf8')
-  assert.doesNotMatch(shell, /demoBadge|hrRecruitmentDemo/)
+  // The header badge is opt-in (onboarding screens on demo data only).
+  assert.doesNotMatch(shell, /hrRecruitmentDemo/)
+  assert.match(shell, /export function RecruitmentHeader\(\{ title, subtitle, breadcrumb = COMMON_TEXT\.breadcrumb, demo = false \}\)/)
+  for (const page of pages) assert.doesNotMatch(page, /hrRecruitmentDemo|demo=/)
   assert.match(service, /client: apiClient, requisitionClient: apiClient, interviewClient: apiClient, offerClient: apiClient/)
   assert.match(service, /const REQUISITIONS_BASE = '\/hr\/requisitions'/)
   assert.match(service, /const INTERVIEWS_BASE = '\/hr\/interview-assessments'/)

@@ -4,6 +4,10 @@
 // is available (see the feature README).
 
 const option = (code, name) => ({ code, name })
+// [English, Arabic, allocated points] → criterion with a code derived from the English name.
+const criteria = (list) => list.map(([name, nameAr, points]) => ({
+  code: name.toUpperCase().replace(/&/g, 'AND').replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40), name, nameAr, points,
+}))
 
 export const DEMO_LOOKUPS = Object.freeze({
   departments: [
@@ -33,6 +37,50 @@ export const DEMO_LOOKUPS = Object.freeze({
     unbudgetedStep: { code: 'FINANCE', label: 'Finance', note: 'Approves an unbudgeted position' },
   },
   interview: { payrollDefault: 'IPP BU' },
+  orientation: {
+    departmentHeads: {
+      hr: [option('HEAD_HR_A', 'Sample HR Head A'), option('HEAD_HR_B', 'Sample HR Head B')],
+      safety: [option('HEAD_SAF_A', 'Sample Safety Head A'), option('HEAD_SAF_B', 'Sample Safety Head B')],
+      it: [option('HEAD_IT_A', 'Sample IT Head A'), option('HEAD_IT_B', 'Sample IT Head B')],
+      tour: [option('HEAD_PROD_A', 'Sample Production Head A'), option('HEAD_PROD_B', 'Sample Production Head B')],
+      meet: [option('HEAD_HR_A', 'Sample HR Head A'), option('HEAD_HR_B', 'Sample HR Head B')],
+    },
+  },
+  // PLACEHOLDER criteria and points (from the incoming prototype), not approved
+  // HR content: the real form types and criteria must come from the backend.
+  probation: {
+    formTypes: [
+      { code: 'WORKERS', name: 'Workers & Technicians', nameAr: 'العمال والفنيون', criteria: criteria([
+        ['Job knowledge & skills', 'المعرفة والمهارات الوظيفية', 20], ['Quality of work', 'جودة العمل', 15], ['Productivity', 'الإنتاجية', 15],
+        ['Safety compliance', 'الالتزام بالسلامة', 15], ['Attendance & punctuality', 'الحضور والانضباط', 10], ['Teamwork', 'العمل الجماعي', 10],
+        ['Following instructions', 'اتباع التعليمات', 10], ['Housekeeping (5S)', 'النظافة والترتيب', 5],
+      ]) },
+      { code: 'TRAINEE', name: 'Trainee', nameAr: 'متدرب', criteria: criteria([
+        ['Learning ability', 'القدرة على التعلم', 20], ['Job knowledge gained', 'المعرفة المكتسبة', 15], ['Initiative', 'المبادرة', 15],
+        ['Attendance & punctuality', 'الحضور والانضباط', 15], ['Attitude', 'السلوك', 15], ['Communication', 'التواصل', 10], ['Teamwork', 'العمل الجماعي', 10],
+      ]) },
+      { code: 'ENGINEERS', name: 'Engineers & Staff', nameAr: 'المهندسون والموظفون', criteria: criteria([
+        ['Technical knowledge', 'المعرفة الفنية', 20], ['Quality & accuracy', 'الجودة والدقة', 15], ['Planning & organisation', 'التخطيط والتنظيم', 15],
+        ['Problem solving', 'حل المشكلات', 15], ['Communication', 'التواصل', 10], ['Initiative', 'المبادرة', 10], ['Teamwork', 'العمل الجماعي', 10],
+        ['Attendance & punctuality', 'الحضور والانضباط', 5],
+      ]) },
+      { code: 'MANAGERS', name: 'Department Managers', nameAr: 'مدراء الأقسام', criteria: criteria([
+        ['Leadership', 'القيادة', 20], ['Planning & goal achievement', 'التخطيط وتحقيق الأهداف', 20], ['Decision making', 'اتخاذ القرار', 15],
+        ['People development', 'تطوير الموظفين', 15], ['Communication', 'التواصل', 10], ['Budget & cost control', 'الميزانية وضبط التكاليف', 10],
+        ['Safety & compliance', 'السلامة والامتثال', 10],
+      ]) },
+      { code: 'SUPERVISORS', name: 'Supervisors & Foremen', nameAr: 'المشرفون ورؤساء العمال', criteria: criteria([
+        ['Supervision & leadership', 'الإشراف والقيادة', 20], ['Production target achievement', 'تحقيق أهداف الإنتاج', 20], ['Safety enforcement', 'تطبيق السلامة', 15],
+        ['Shift planning', 'تخطيط الورديات', 15], ['Quality control', 'مراقبة الجودة', 10], ['Training the team', 'تدريب الفريق', 10],
+        ['Attendance & punctuality', 'الحضور والانضباط', 10],
+      ]) },
+    ],
+    // ASSUMED rating scale (the original form shows a Rating box without a scale); configurable server-side.
+    ratingScale: [
+      { min: 0, label: 'Unsatisfactory', labelAr: 'غير مرضٍ' }, { min: 51, label: 'Needs improvement', labelAr: 'يحتاج إلى تحسين' },
+      { min: 71, label: 'Good', labelAr: 'جيد' }, { min: 81, label: 'Very good', labelAr: 'جيد جداً' }, { min: 91, label: 'Outstanding', labelAr: 'ممتاز' },
+    ],
+  },
   offer: {
     currency: 'SAR',
     reportFormat: 'FPP BU',
@@ -46,7 +94,79 @@ export const DEMO_LOOKUPS = Object.freeze({
 
 // Values the demo "server" assigns (a real backend takes them from the session
 // and the workflow).
-export const DEMO_ASSIGNED = Object.freeze({ requesterName: 'Demo Requester', adminManagerName: 'Demo Admin Manager' })
+// Used only until the page passes the signed-in user's name (identifyDemoUser).
+export const DEMO_ASSIGNED = Object.freeze({
+  requesterName: 'Demo Requester', adminManagerName: 'Demo Admin Manager', scheduledByName: 'Demo Scheduler', preparedByName: 'Demo Evaluator',
+})
+
+// Fictional employees for the pickers: new joiners (orientation) and employees
+// on probation (evaluation). `evaluationFormCode` suggests the PAF form type.
+const employee = (n, employmentType, startDate, section, division, position, grade, departmentName, evaluationFormCode) => ({
+  employeeId: String(n), employeeNumber: String(30400 + n), name: `Sample Employee ${String(n).padStart(3, '0')}`,
+  employmentType, startDate, section, division, position, grade, departmentName, evaluationFormCode,
+})
+export const DEMO_EMPLOYEES = Object.freeze([
+  employee(1, 'Employee', '2026-11-01', 'Sales Section', 'IPP BU', 'Sales Coordinator', 'G5', 'Sales', 'ENGINEERS'),
+  employee(2, 'Employee', '2026-11-08', 'Quality Section', 'IPP BU', 'Quality Inspector', 'G5', 'Quality', 'WORKERS'),
+  employee(3, 'Trainee', '2026-11-15', 'Engineering', 'Corporate', 'Graduate Trainee', 'T1', 'Engineering', 'TRAINEE'),
+  employee(4, 'Contractor', '2026-11-02', 'Maintenance', 'Operations', 'Electrician', 'G4', 'Maintenance', 'WORKERS'),
+  employee(5, 'Employee', '2026-08-02', 'Maintenance', 'Operations', 'Maintenance Technician', 'G5', 'Maintenance', 'WORKERS'),
+  employee(6, 'Employee', '2026-08-16', 'Warehouse', 'Operations', 'Store Keeper', 'G4', 'Warehouse', 'WORKERS'),
+  employee(7, 'Employee', '2026-09-01', 'Quality Section', 'IPP BU', 'Quality Engineer', 'G8', 'Quality', 'ENGINEERS'),
+  employee(8, 'Employee', '2026-09-15', 'Production', 'IPP BU', 'Production Supervisor', 'G9', 'Production', 'SUPERVISORS'),
+  employee(9, 'Trainee', '2026-10-01', 'Engineering', 'Corporate', 'Graduate Trainee', 'T1', 'Engineering', 'TRAINEE'),
+  employee(10, 'Employee', '2026-07-12', 'Finance', 'Corporate', 'Finance Manager', 'G11', 'Finance', 'MANAGERS'),
+].map((item) => Object.freeze(item)))
+
+// Periodwise Employees: a seeded (repeatable) set of fictional employees over
+// the demo departments, with leavers, missing national IDs, 60+ employees and
+// one implausible birth date so every flag and KPI has data.
+const REPORT_JOBS = Object.freeze({
+  HR: ['HR Officer', 'Recruitment Specialist'], FIN: ['Accountant', 'Cashier', 'Finance Manager'],
+  PROD: ['Packer', 'Packer', 'Machine Operator', 'Injection Operator', 'Line Supervisor'], QUAL: ['Quality Inspector', 'QHSE Section Head', 'Safety Officer'],
+  WH: ['Store Keeper', 'Forklift Driver'], MAINT: ['Maintenance Technician', 'Electrician', 'Maintenance Engineer'],
+  SALES: ['Sales Coordinator', 'Sales Executive'], PROC: ['Buyer', 'Procurement Officer'], IT: ['IT Support', 'Systems Analyst'], ADMIN: ['Administrator', 'Driver'],
+})
+const NATIONALITIES = Object.freeze([['Saudi', 52], ['Indian', 16], ['Pakistani', 8], ['Egyptian', 6], ['Filipino', 5], ['Yemeni', 4], ['Syrian', 3], ['Sudanese', 3], ['Tunisian', 2], ['Jordanian', 1]])
+const LEAVING_REASONS = Object.freeze(['Resigned', 'End of contract', 'Terminated', 'Retired', 'Did not join after probation'])
+
+export function createDemoReportRows() {
+  let seed = 20261028
+  const random = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296 }
+  const pick = (list) => list[Math.floor(random() * list.length)]
+  const pad = (value) => String(value).padStart(2, '0')
+  const day = (year, month, date) => `${year}-${pad(month)}-${pad(date)}`
+  const nationality = () => { let left = random() * 100; for (const [name, weight] of NATIONALITIES) { left -= weight; if (left < 0) return name } return 'Saudi' }
+  const nationalId = (name) => `${name === 'Saudi' ? 1 : 2}${String(Math.floor(random() * 1e9)).padStart(9, '0')}`
+  const row = (number, fields) => ({ employeeNumber: String(number), name: `Sample Employee ${number}`, position: fields.job, leavingReason: '', endDate: null, ...fields })
+  const rows = [
+    row(1001, { birthDate: '1962-04-30', nationality: 'Indian', job: 'Printing Operator', departmentCode: 'PROD', nationalId: null, startDate: '1996-06-27' }),
+    row(1002, { birthDate: '1964-02-06', nationality: 'Indian', job: 'Packer', departmentCode: 'PROD', nationalId: null, startDate: '1994-12-22' }),
+    row(1003, { birthDate: '1960-06-01', nationality: 'Yemeni', job: 'Cashier', departmentCode: 'FIN', nationalId: '2000000003', startDate: '1986-12-29' }),
+    row(1004, { birthDate: '2015-03-10', nationality: 'Saudi', job: 'Store Keeper', departmentCode: 'WH', nationalId: '1000000004', startDate: '2024-05-12' }),
+  ]
+  const departments = Object.keys(REPORT_JOBS)
+  for (let index = 0; index < 156; index += 1) {
+    const departmentCode = pick(departments)
+    const nation = nationality()
+    const startYear = random() < 0.55 ? 2019 + Math.floor(random() * 8) : 2000 + Math.floor(random() * 19)
+    const startDate = day(startYear, 1 + Math.floor(random() * 12), 1 + Math.floor(random() * 28))
+    let endDate = null
+    if (random() < 0.22) {
+      endDate = day(Math.min(2026, startYear + Math.floor(random() * 6)), 1 + Math.floor(random() * 9), 1 + Math.floor(random() * 28))
+      if (endDate <= startDate) endDate = day(startYear + 1, 6, 15)
+      if (endDate > '2026-10-26') endDate = '2026-10-01'
+      // A leaver always leaves after joining; a late joiner has not left yet.
+      if (endDate <= startDate) endDate = null
+    }
+    const job = pick(REPORT_JOBS[departmentCode])
+    rows.push(row(1100 + index, {
+      birthDate: day(1962 + Math.floor(random() * 44), 1 + Math.floor(random() * 12), 1 + Math.floor(random() * 28)), nationality: nation, job, departmentCode,
+      nationalId: random() < 0.12 ? null : nationalId(nation), startDate, endDate, leavingReason: endDate ? pick(LEAVING_REASONS) : '',
+    }))
+  }
+  return rows
+}
 
 const ratings = (keys, values) => Object.fromEntries(keys.map((key, index) => [key, { rating: values[index], remark: '' }]))
 const benefit = (en, ar) => ({ en, ar, autoArabic: true })
@@ -99,5 +219,7 @@ export function createDemoRecords() {
         updatedAt: '2026-10-21T08:00:00.000Z',
       },
     ],
+    orientations: [],
+    evaluations: [],
   }
 }

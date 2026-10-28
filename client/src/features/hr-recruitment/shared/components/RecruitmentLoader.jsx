@@ -1,8 +1,10 @@
+import { useEffect } from 'react'
 import { useLocation, useParams } from 'react-router'
+import useAuth from '@/features/auth/useAuth.js'
 import { ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT } from '../../hrRecruitmentText.js'
-import { hrRecruitmentServices } from '../../hrRecruitmentService.js'
+import { hrRecruitmentServices, identifyDemoUser } from '../../hrRecruitmentService.js'
 import { FlowNav, RecruitmentHeader } from './RecruitmentShell.jsx'
 import '@/styles/hr-recruitment.css'
 
@@ -10,15 +12,18 @@ import '@/styles/hr-recruitment.css'
 // are helpful suggestions, so an unavailable lookup must not hide its form.
 // A new form (no id) gets a fresh editor per visit, so "Request form" always
 // opens a blank form.
-export function RecruitmentLoader({ current, title, subtitle, param, load, loadLookups = (signal) => hrRecruitmentServices.lookups.get({ signal }), children }) {
+export function RecruitmentLoader({ current, title, subtitle, param, load, loadLookups = (signal) => hrRecruitmentServices.lookups.get({ signal }), demo = false, children }) {
   const params = useParams()
   const location = useLocation()
   const id = params[param] ?? null
+  const { user } = useAuth()
+  // Demo only: the adapter records the signed-in name as requester, scheduler or evaluator.
+  useEffect(() => identifyDemoUser(user?.fullName), [user?.fullName])
   const lookups = useResource(`hr-recruitment-lookups:${current}`, loadLookups)
   const record = useResource(id ? `hr-recruitment-${current}:${id}` : null, (signal) => load(id, { signal }))
   const frame = (content) => (
     <div className={`zrv-hr zrv-hr--${current}`}>
-      <RecruitmentHeader title={title} subtitle={subtitle} />
+      <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} />
       <FlowNav current={current} />
       <div className="zrv-admin-panel">{content}</div>
     </div>

@@ -145,6 +145,16 @@ gets `requiresMfa: false`. Use `implemented: false` until the page works against
 backend. Registry files stay plain JavaScript with relative imports (no React, Vite or `@/`
 aliases), so Node.js tooling can read the same definitions.
 
+**Build-time switch** (`enabledBy: { env: 'VITE_FEATURE_<NAME>' }`, internal entries only). An
+approved owner decision can show a page only in some builds, for example a feature that runs on
+demo data until its backend exists. `'true'` shows the page, `'false'` hides it, and unset shows it
+in development builds only. A switched-off entry is not implemented: the sidebar, the command
+palette and the guard never offer it, and `router.jsx` leaves its route line out (`implementedOnly`).
+Registry files never read the variable themselves; `appNavigation.js` resolves it. The route-list
+tests run as a production build with every switch unset, so cover the "on" state with
+`resolveNavigationEntries(registry.entries, env)`. The first user is `HR_RECRUITMENT`
+(`VITE_FEATURE_HR_RECRUITMENT`).
+
 **External destinations** (`type: 'external'`, `href`: an https URL or
 `{ env: 'VITE_EXTERNAL_<NAME>' }`) are listed with the same permission checks, open in a new tab
 (`noopener noreferrer`) and are never React routes. A missing or invalid URL hides the entry.

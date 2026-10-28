@@ -51,7 +51,9 @@ function signedInStore() {
 }
 
 // Session-only pages: the dashboard and account pages. Recruitment routes are
-// protected by the effective permissions of their backend resources.
+// protected by the effective permissions of their backend resources. The HR
+// onboarding pages are switched off in this build (VITE_FEATURE_HR_RECRUITMENT
+// unset outside development); see hrOnboarding.test.mjs.
 const HR = ['hr-requisition', 'hr-interview', 'hr-offer']
 const COMMON = ['dashboard', 'account-password', 'account-authenticator']
 const HR_PERMISSIONS = [

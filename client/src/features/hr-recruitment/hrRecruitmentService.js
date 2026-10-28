@@ -2,14 +2,17 @@
 // backend contracts without changing server-owned schemas or workflows.
 // Relative imports keep this module loadable by the Node-native tests.
 import { ApiError, apiClient } from '../../services/api/apiClient.js'
+import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
 import {
-  ID_PATTERN, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem,
+  ID_PATTERN, readEmployee, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readOrientation,
+  readOrientationListItem, readPage, readProbation, readProbationListItem, readReport,
 } from './hrRecruitmentContract.js'
 import { COMP_KEYS, SPEC_KEYS } from './interview/interviewModel.js'
 import { BENEFIT_KEYS } from './offer/offerModel.js'
 
 export const HR_BASE = '/hr/recruitment'
+export const HR_REPORTS_BASE = '/hr/reports'
 export const REPORT_PAGE_SIZE = 10
 
 const REQUISITIONS_BASE = '/hr/requisitions'
@@ -357,6 +360,28 @@ export function segment(value) {
   return value
 }
 
+// Only defined values are sent; empty strings mean "no filter".
+function query(values) {
+  return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== null && value !== ''))
+}
+
+// A create (no id) is a POST; a change of an existing record is a PUT.
+const write = (client, base, id, body) => (id ? client.put(`${base}/${segment(id)}`, body) : client.post(base, body))
+
+// list, getById, a save that returns the record, and a workflow action
+// (`/submit`) on a saved record, for the onboarding screens. Pages save first
+// and keep the returned id, so a failed action never leaves an unknown record.
+function createRecordService({ client, base, readRecord, readListItem, actionName }) {
+  const list = async ({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) =>
+    readPage(await client.get(base, { params: query({ page, limit }), signal }), readListItem)
+  const getById = async (id, { signal } = {}) => readRecord((await client.get(`${base}/${segment(id)}`, { signal })).data)
+  const save = async (id, body) => readRecord((await write(client, base, id, body)).data)
+  const act = async (id) => readRecord((await client.post(`${base}/${segment(id)}/${actionName}`, {})).data)
+  return { list, getById, save, act }
+}
+
+// Lookups of the onboarding screens (orientation heads, probation form types,
+// rating scale), served by the demo adapter until the endpoint exists.
 export function createLookupService({ client }) {
   return Object.freeze({
     async get({ signal } = {}) {
@@ -484,23 +509,95 @@ export function createOfferService({ client }) {
   })
 }
 
+// Employee search for the pickers: a page of matching employees.
+export function createEmployeeService({ client }) {
+  return Object.freeze({
+    async search(search, { limit = 10, signal } = {}) {
+      return readPage(await client.get(`${HR_BASE}/employees`, { params: query({ search: String(search ?? '').trim(), page: 1, limit }), signal }), readEmployee)
+    },
+  })
+}
+
+export function createOrientationService({ client }) {
+  const record = createRecordService({
+    client, base: `${HR_BASE}/orientation-schedules`, readRecord: readOrientation, readListItem: readOrientationListItem, actionName: 'submit',
+  })
+  return Object.freeze({
+    list: record.list,
+    getById: record.getById,
+    // Saving schedules the orientation: the server checks it, assigns the
+    // Ref # and Scheduled by, and locks it (a saved schedule is read-only).
+    save: (body) => record.save(null, body),
+  })
+}
+
+export function createProbationService({ client }) {
+  const record = createRecordService({
+    client, base: `${HR_BASE}/probation-evaluations`, readRecord: readProbation, readListItem: readProbationListItem, actionName: 'submit',
+  })
+  return Object.freeze({
+    list: record.list,
+    getById: record.getById,
+    // Save needs the setup and every criterion scored; the server assigns the
+    // evaluation number and "prepared by". The record stays a DRAFT.
+    save: record.save,
+    // Submitting needs the recommendation and the evaluator signature, and locks the evaluation.
+    submit: record.act,
+  })
+}
+
+// Periodwise Employees: every employee attached to the department (or all
+// departments) at any point in [from, to]. Age, service, KPIs and charts are
+// derived on the page (report/periodwiseModel.js).
+export function createReportService({ client }) {
+  return Object.freeze({
+    async periodwiseEmployees({ department, from, to }, { signal } = {}) {
+      const { data } = await client.get(`${HR_REPORTS_BASE}/periodwise-employees`, { params: query({ department, from, to }), signal })
+      return readReport(data)
+    },
+  })
+}
+
 // The one switch between demo data and the real API.
 export function selectClient({ demo, api = apiClient, createDemo = createDemoClient } = {}) {
   return demo ? createDemo() : api
 }
 
-export function createHrRecruitmentServices({ client, requisitionClient = client, interviewClient = client, offerClient = client }) {
+// `onboardingClient` serves the screens that have no backend yet (orientation,
+// probation evaluation, the periodwise report, their lookups and the employee
+// search); VITE_HR_RECRUITMENT_DEMO selects it. The requisition, interview and
+// offer forms always use their own (authenticated API) clients.
+export function createHrRecruitmentServices({
+  client, requisitionClient = client, interviewClient = client, offerClient = client, onboardingClient = client,
+}) {
   return Object.freeze({
     client,
-    lookups: createLookupService({ client }),
+    onboardingClient,
     // All recruitment forms use the authenticated API, including in dev.
     requisitions: createBackendRequisitionService({ client: requisitionClient }),
     interviews: createInterviewService({ client: interviewClient }),
     offers: createOfferService({ client: offerClient }),
+    // Demo-backed until their endpoints exist.
+    lookups: createLookupService({ client: onboardingClient }),
+    employees: createEmployeeService({ client: onboardingClient }),
+    orientations: createOrientationService({ client: onboardingClient }),
+    probations: createProbationService({ client: onboardingClient }),
+    reports: createReportService({ client: onboardingClient }),
   })
+}
+
+// The demo adapter cannot see the session, so the signed-in user's name is
+// passed to it for the server-assigned "scheduled by" and "prepared by"
+// values. The real API takes them from the session; this is a no-op for any
+// client without `identify`.
+export function identifyDemoUser(name, client = hrRecruitmentServices.onboardingClient) {
+  client.identify?.(typeof name === 'string' && name.trim() ? name.trim() : null)
 }
 
 export const hrRecruitmentServices = createHrRecruitmentServices({
   client: apiClient, requisitionClient: apiClient, interviewClient: apiClient, offerClient: apiClient,
+  onboardingClient: selectClient({ demo: hrRecruitmentConfig.demo }),
 })
+// The onboarding screens show a "Demo data" badge while they use the demo adapter.
+export const hrRecruitmentDemo = hrRecruitmentConfig.demo
 export const attachmentsSupported = true

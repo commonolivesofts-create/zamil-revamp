@@ -11,7 +11,7 @@ import { EXAMPLE_GROUPS, EXAMPLE_MODULES } from '../src/config/registry/module-r
 import { resolveExternalHref } from '../src/config/externalDestinations.js'
 import {
   PERMISSIONS, appRoutes, authorizedNavigation, findAppRoute, implementedRoutes, navigationEntries,
-  navigationSections, paletteCommands, routeAccess,
+  navigationSections, paletteCommands, resolveNavigationEntries, routeAccess,
 } from '../src/config/appNavigation.js'
 import { SECURITY_ACTIONS } from '../src/features/security-administration/securityActions.js'
 import { SECURITY_MODULE, SECURITY_RESOURCES } from '../../server/src/modules/access-control/securityCatalog.js'
@@ -40,10 +40,14 @@ const PRE_REGISTRY_ROUTES = [
 ]
 
 // HR routes use the backend-owned resource permissions registered per form.
+// The HR onboarding pages (session-only module HR_ONBOARDING, owner-approved)
+// are switched by VITE_FEATURE_HR_RECRUITMENT; off here (unset outside a
+// development build).
 const HR = 'human-resources'
 const REQ = 'REQUISITIONS.REQUISITIONS'
 const INTERVIEW = 'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS'
 const OFFER = 'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS'
+const HR_SWITCH = { env: 'VITE_FEATURE_HR_RECRUITMENT' }
 const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-requisition', path: '/hr/recruitment/requisition', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true },
   { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true, nav: false },
@@ -51,6 +55,11 @@ const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', label: 'Interview assessment', icon: 'messages-square', section: HR, permission: `${INTERVIEW}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-offer', path: '/hr/recruitment/offer', label: 'Employment offer', icon: 'file-signature', section: HR, permission: `${OFFER}:VIEW`, requiresMfa: false, implemented: true },
   { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', label: 'Employment offer', icon: 'file-signature', section: HR, permission: `${OFFER}:VIEW`, requiresMfa: false, implemented: true, nav: false },
+  { id: 'hr-orientation', path: '/hr/recruitment/orientation', label: 'Orientation schedule', icon: 'calendar-clock', section: HR, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', label: 'Orientation schedule', icon: 'calendar-clock', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
+  { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
+  { id: 'hr-periodwise-employees', path: '/hr/reports/periodwise-employees', label: 'Periodwise employees', icon: 'chart-column', section: HR, implemented: false, enabledBy: HR_SWITCH },
 ]
 // Group order: workspace, human resources, security, account.
 const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]
@@ -77,7 +86,7 @@ test('the derived routes, sections and permission names match the active modules
     SECURITY_AUDIT_VIEW: `${SA}.SECURITY_AUDIT:VIEW`,
   })
   assert.ok(Object.isFrozen(appRoutes) && appRoutes.every(Object.isFrozen))
-  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS'])
+  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS', 'HR_ONBOARDING'])
   assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === SA).map((p) => p.key), SECURITY_RESOURCES.flatMap((r) => r.actions.map((a) => `${SA}.${r.code}:${a}`)))
   assert.deepEqual(registeredModules.find((module) => module.code === 'COMMON').resources, [])
 })
@@ -86,10 +95,16 @@ test('every implemented internal route has exactly one React Router entry with t
   const router = await read('../src/app/router.jsx')
   const routerRoutes = [...router.matchAll(/path: '([^']+)', handle: \{ routeId: '([^']+)' \}/g)]
     .map(([, path, id]) => ({ id, path: `/${path}` }))
+  // The source lists every page that is implemented with all feature switches
+  // on; the router keeps only this build's implemented pages (implementedOnly).
+  const allSwitchesOn = Object.fromEntries(registry.entries.filter((e) => e.enabledBy).map((e) => [e.enabledBy.env, 'true']))
+  const switchable = resolveNavigationEntries(registry.entries, allSwitchesOn).filter((r) => r.type !== 'external' && r.implemented)
   assert.deepEqual(
     routerRoutes.map((r) => `${r.id} ${r.path}`).sort(),
-    implementedRoutes.map((r) => `${r.id} ${r.path}`).sort(),
+    switchable.map((r) => `${r.id} ${r.path}`).sort(),
   )
+  assert.ok(implementedRoutes.every((r) => routerRoutes.some((line) => line.id === r.id)))
+  assert.match(router, /children: implementedOnly\(\[/)
   assert.ok(!routerRoutes.some((r) => r.id === 'security-audit'), 'unimplemented pages are never routed')
 })
 
@@ -124,14 +139,15 @@ test('Security Administration equals the complete backend catalogue: 8 resources
 })
 
 test('common links need authentication only; Security Administration keeps permission, alsoRequires and MFA', () => {
-  const common = appRoutes.filter((route) => !route.permission).map((route) => route.id)
+  const common = appRoutes.filter((route) => !route.permission && route.implemented).map((route) => route.id)
   assert.deepEqual(common, ['dashboard', 'account-password', 'account-authenticator'])
   for (const access of [{ status: 'loading' }, { status: 'error' }, { status: 'ready', has: () => false }]) {
     for (const id of common) assert.equal(routeAccess(appRoutes.find((r) => r.id === id), access), 'allowed')
+    for (const { id } of HR_RECRUITMENT_ROUTES.filter((route) => route.enabledBy)) assert.equal(routeAccess(appRoutes.find((r) => r.id === id), access), 'unavailable', `${id} is switched off`)
   }
   const security = appRoutes.filter((route) => route.section === 'security')
   assert.ok(HR_RECRUITMENT_ROUTES.every((expected) => appRoutes.find((route) => route.id === expected.id)?.permission === expected.permission))
-  for (const route of appRoutes.filter((item) => item.section === HR)) {
+  for (const route of appRoutes.filter((item) => item.section === HR && item.permission)) {
     assert.equal(routeAccess(route, { status: 'loading' }), 'pending')
     assert.equal(routeAccess(route, { status: 'ready', has: () => false }), 'denied')
   }
@@ -232,6 +248,10 @@ test('definitions are validated: duplicates, unknown actions, references, groups
     [() => moduleWith([entry({ path: undefined, type: 'external', href: { env: 'VITE_API_BASE_URL' } })]), /VITE_EXTERNAL_/],
     [() => moduleWith([entry({ path: undefined, type: 'external', href: 'https://x.example.com', hidden: true })]), /cannot be hidden/],
     [() => moduleWith([entry({ path: 'relative' })]), /absolute application route/],
+    [() => moduleWith([entry({ enabledBy: { env: 'VITE_API_BASE_URL' } })]), /VITE_FEATURE_/],
+    [() => moduleWith([entry({ enabledBy: 'VITE_FEATURE_X' })]), /enabledBy: must be an object/],
+    [() => moduleWith([entry({ enabledBy: { env: 'VITE_FEATURE_X', default: true } })]), /unknown property "default"/],
+    [() => moduleWith([entry({ path: undefined, type: 'external', href: 'https://x.example.com', enabledBy: { env: 'VITE_FEATURE_X' } })]), /internal entries only/],
     [() => defineModule({ code: 'C', name: 'C', rbac: false, navigation: [entry({ requiredAction: 'VIEW' })] }), /require no permission/],
     [() => buildRegistry([moduleWith([entry(), entry({ path: '/y', order: 2 })])], GROUPS), /duplicate navigation id/],
     [() => buildRegistry([moduleWith([entry(), entry({ id: 'y', order: 2 })])], GROUPS), /duplicate route path/],
