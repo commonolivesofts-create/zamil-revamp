@@ -43,6 +43,12 @@ coverage/
 /server/attachments/
 
 # ==========================================
+# Reference specifications (owner-provided form guidelines)
+# ==========================================
+# Spec READMEs live in docs/specs/ as local reference material only.
+/docs/specs/
+
+# ==========================================
 # Logs
 # ==========================================
 *.log
