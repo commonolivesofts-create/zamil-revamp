@@ -133,6 +133,8 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "hr-offer-record",
       "hr-orientation",
       "hr-orientation-record",
+      "hr-probation",
+      "hr-probation-record",
       "security-audit",
     ],
   );

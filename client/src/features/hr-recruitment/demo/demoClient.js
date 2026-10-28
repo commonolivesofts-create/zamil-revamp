@@ -13,10 +13,11 @@ import { INTERVIEW_TEXT } from '../hrRecruitmentText.js'
 import { COMP_KEYS, HR_FIELDS, SPEC_KEYS } from '../interview/interviewModel.js'
 import { BENEFIT_KEYS, issuedStatus } from '../offer/offerModel.js'
 import { scheduleIssues, scheduleToDate } from '../orientation/orientationModel.js'
+import { validateProbation } from '../probation/probationModel.js'
 import { DEMO_ASSIGNED, DEMO_EMPLOYEES, DEMO_LOOKUPS, createDemoRecords } from './demoData.js'
 
 const BASE = '/hr/recruitment'
-const ROUTE = /^\/hr\/recruitment\/(requisitions|interview-assessments|employment-offers|orientation-schedules)(?:\/([1-9][0-9]*)(?:\/(submit|issue))?)?$/
+const ROUTE = /^\/hr\/recruitment\/(requisitions|interview-assessments|employment-offers|orientation-schedules|probation-evaluations)(?:\/([1-9][0-9]*)(?:\/(submit|issue))?)?$/
 const MAX_LIMIT = 100
 
 const clone = (value) => structuredClone(value)
@@ -46,6 +47,14 @@ const COLLECTIONS = Object.freeze({
     // A saved schedule is read-only.
     locked: () => true,
   }),
+  'probation-evaluations': Object.freeze({
+    store: 'evaluations', id: 'evaluationId', number: 'evaluationNumber', prefix: 'PAF', action: 'submit',
+    listItem: (record) => ({
+      evaluationId: record.evaluationId, evaluationNumber: record.evaluationNumber, status: record.status, employeeName: record.employee.name,
+      formTypeCode: record.formTypeCode, totalPoints: Object.values(record.scores).reduce((sum, value) => sum + value, 0), updatedAt: record.updatedAt,
+    }),
+    locked: (record) => record.status === 'SUBMITTED',
+  }),
 })
 
 // Writable fields per collection, as the backend's Joi schema would allow.
@@ -59,7 +68,13 @@ const INTERVIEW_FIELDS = [
 ]
 const OFFER_FIELDS = ['position', 'offerDate', 'reportFormat', 'salutation', 'candidateNameEn', 'candidateNameAr', 'benefits', 'comments', 'signatures']
 const ORIENTATION_FIELDS = ['employeeId', 'fromDate', 'sessions']
-const FIELDS = Object.freeze({ requisitions: REQUISITION_FIELDS, interviews: INTERVIEW_FIELDS, offers: OFFER_FIELDS, orientations: ORIENTATION_FIELDS })
+const PROBATION_FIELDS = [
+  'formTypeCode', 'employeeId', 'fromDate', 'toDate', 'scores', 'notes', 'strengths', 'improvements', 'training', 'recommendation',
+  'extendByMonths', 'justification', 'comments', 'suggestion', 'signatures',
+]
+const FIELDS = Object.freeze({
+  requisitions: REQUISITION_FIELDS, interviews: INTERVIEW_FIELDS, offers: OFFER_FIELDS, orientations: ORIENTATION_FIELDS, evaluations: PROBATION_FIELDS,
+})
 
 const pick = (body, fields) => Object.fromEntries(fields.filter((field) => body && field in body).map((field) => [field, clone(body[field])]))
 const blank = (value) => value === null || value === undefined || (typeof value === 'string' && !value.trim()) || (Array.isArray(value) && !value.length)
@@ -113,6 +128,18 @@ function orientationProblems(record, employee) {
     for (const issue of scheduleIssues(sessions).filter((item) => item.level === 'bad')) problems.push({ field: `sessions.${issue.key}`, message: issue.text })
   }
   return problems
+}
+
+// Probation checks as the backend would run them, on the stored record.
+function probationProblems(record, employee, lookups, { submit }) {
+  const formType = lookups.probation.formTypes.find((item) => item.code === record.formTypeCode)
+  const form = {
+    formTypeCode: formType ? record.formTypeCode : '', employeeId: employee ? employee.employeeId : '', fromDate: record.fromDate ?? '', toDate: record.toDate ?? '',
+    scores: record.scores ?? {}, recommendation: record.recommendation ?? '', extendBy: record.extendByMonths ? String(record.extendByMonths) : '',
+    justification: record.justification ?? '', signatures: record.signatures ?? {},
+  }
+  const { errors } = validateProbation(form, { employee, criteria: formType?.criteria ?? [] }, { submit })
+  return Object.entries(errors).map(([field, message]) => ({ field, message }))
 }
 
 export function createDemoClient({ latencyMs = 350, now = () => new Date(), records = createDemoRecords(), lookups = DEMO_LOOKUPS, employees = DEMO_EMPLOYEES } = {}) {
@@ -184,6 +211,19 @@ export function createDemoClient({ latencyMs = 350, now = () => new Date(), reco
       record.status = 'SCHEDULED'
       record.scheduleNumber ??= nextNumber(collection)
     }
+    if (collection.store === 'evaluations') {
+      const person = employees.find((item) => item.employeeId === (record.employeeId ?? record.employee?.employeeId))
+      const problems = probationProblems(record, person, lookups, { submit: false })
+      if (problems.length) fail(422, 'VALIDATION_ERROR', 'The evaluation cannot be saved.', problems)
+      record.employee = clone(person)
+      delete record.employeeId
+      record.scores ??= {}
+      record.notes ??= {}
+      record.signatures = { evaluator: record.signatures?.evaluator ?? null, employee: record.signatures?.employee ?? null }
+      record.preparedByName = actor ?? record.preparedByName ?? DEMO_ASSIGNED.preparedByName
+      record.status = 'DRAFT'
+      record.evaluationNumber ??= nextNumber(collection)
+    }
     record.updatedAt = timestamp()
     return record
   }
@@ -194,6 +234,9 @@ export function createDemoClient({ latencyMs = 350, now = () => new Date(), reco
       interviews: () => ({ assessmentNumber: null, status: 'INCOMPLETE', positionTitle: null, adminManagerName: null }),
       offers: () => ({ offerNumber: null, status: 'DRAFT', currency: lookups.offer.currency }),
       orientations: () => ({ scheduleNumber: null }),
+      evaluations: () => ({
+        evaluationNumber: null, strengths: '', improvements: '', training: '', recommendation: null, extendByMonths: null, justification: '', comments: '', suggestion: '',
+      }),
     }[collection.store]()
     const record = prepare(collection, { [collection.id]: nextId(collection), ...base, ...pick(body, FIELDS[collection.store]) })
     store[collection.store].push(record)
@@ -218,6 +261,10 @@ export function createDemoClient({ latencyMs = 350, now = () => new Date(), reco
       record.status = 'SUBMITTED'
     } else if (collection.store === 'interviews') {
       if (!interviewComplete(record)) fail(422, 'VALIDATION_ERROR', INTERVIEW_TEXT.errors.incomplete)
+      record.status = 'SUBMITTED'
+    } else if (collection.store === 'evaluations') {
+      const problems = probationProblems({ ...record, employeeId: record.employee.employeeId }, record.employee, lookups, { submit: true })
+      if (problems.length) fail(422, 'VALIDATION_ERROR', 'The evaluation cannot be submitted.', problems)
       record.status = 'SUBMITTED'
     } else {
       const problems = offerProblems(record)

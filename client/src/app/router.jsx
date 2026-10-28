@@ -31,6 +31,7 @@ import {
   InterviewPage,
   OfferPage,
   OrientationPage,
+  ProbationPage,
   DeniedPage,
   NotFoundPage,
   RouterShell,
@@ -117,6 +118,8 @@ export const router = createBrowserRouter([
                   { path: 'hr/recruitment/offer/:offerId', handle: { routeId: 'hr-offer-record' }, element: <OfferPage /> },
                   { path: 'hr/recruitment/orientation', handle: { routeId: 'hr-orientation' }, element: <OrientationPage /> },
                   { path: 'hr/recruitment/orientation/:scheduleId', handle: { routeId: 'hr-orientation-record' }, element: <OrientationPage /> },
+                  { path: 'hr/recruitment/probation-evaluation', handle: { routeId: 'hr-probation' }, element: <ProbationPage /> },
+                  { path: 'hr/recruitment/probation-evaluation/:evaluationId', handle: { routeId: 'hr-probation-record' }, element: <ProbationPage /> },
                 ]),
               },
               {

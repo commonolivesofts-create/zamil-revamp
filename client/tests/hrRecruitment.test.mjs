@@ -521,7 +521,7 @@ test('the full flow on demo data: requisition → interview → offer', async ()
 // VITE_FEATURE_HR_RECRUITMENT controls visibility; each state is resolved
 // through the same function the application uses for this build.
 const SWITCH = 'VITE_FEATURE_HR_RECRUITMENT'
-const HR_IDS = ['hr-requisition', 'hr-requisition-record', 'hr-interview', 'hr-interview-record', 'hr-offer', 'hr-offer-record', 'hr-orientation', 'hr-orientation-record']
+const HR_IDS = ['hr-requisition', 'hr-requisition-record', 'hr-interview', 'hr-interview-record', 'hr-offer', 'hr-offer-record', 'hr-orientation', 'hr-orientation-record', 'hr-probation', 'hr-probation-record']
 // The listed (sidebar and command palette) HR pages.
 const HR_NAV_IDS = HR_IDS.filter((id) => !id.endsWith('-record'))
 const hrRoutesFor = (env) => resolveNavigationEntries(registry.entries, env).filter((route) => route.section === 'human-resources')
@@ -585,6 +585,8 @@ test('HR recruitment routes (switch on): session-only, record pages hidden, reac
     ['hr-offer-record', '/hr/recruitment/offer/:offerId', false],
     ['hr-orientation', '/hr/recruitment/orientation', true],
     ['hr-orientation-record', '/hr/recruitment/orientation/:scheduleId', false],
+    ['hr-probation', '/hr/recruitment/probation-evaluation', true],
+    ['hr-probation-record', '/hr/recruitment/probation-evaluation/:evaluationId', false],
   ])
   for (const route of hr) {
     assert.equal(route.permission, undefined)

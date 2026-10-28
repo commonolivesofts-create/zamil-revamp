@@ -12,7 +12,7 @@ import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
 import {
   ID_PATTERN, readEmployee, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readOrientation,
-  readOrientationListItem, readPage, readRequisition, readRequisitionListItem,
+  readOrientationListItem, readPage, readProbation, readProbationListItem, readRequisition, readRequisitionListItem,
 } from './hrRecruitmentContract.js'
 
 export const HR_BASE = '/hr/recruitment'
@@ -125,6 +125,21 @@ export function createOrientationService({ client }) {
   })
 }
 
+export function createProbationService({ client }) {
+  const record = createRecordService({
+    client, base: `${HR_BASE}/probation-evaluations`, readRecord: readProbation, readListItem: readProbationListItem, actionName: 'submit',
+  })
+  return Object.freeze({
+    list: record.list,
+    getById: record.getById,
+    // Save needs the setup and every criterion scored; the server assigns the
+    // evaluation number and "prepared by". The record stays a DRAFT.
+    save: record.save,
+    // Submitting needs the recommendation and the evaluator signature, and locks the evaluation.
+    submit: record.act,
+  })
+}
+
 // The one switch between demo data and the real API.
 export function selectClient({ demo, api = apiClient, createDemo = createDemoClient } = {}) {
   return demo ? createDemo() : api
@@ -139,6 +154,7 @@ export function createHrRecruitmentServices({ client }) {
     offers: createOfferService({ client }),
     employees: createEmployeeService({ client }),
     orientations: createOrientationService({ client }),
+    probations: createProbationService({ client }),
   })
 }
 

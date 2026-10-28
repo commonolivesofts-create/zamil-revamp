@@ -1,6 +1,6 @@
 // HR recruitment: Personnel Requisition (form 1060), Interview Assessment
-// (form 1061), Employment Offer (form 1062) and Orientation Schedule
-// (form 1101), one guided flow.
+// (form 1061), Employment Offer (form 1062), Orientation Schedule (form 1101)
+// and Probation Evaluation (form 1064), one guided flow.
 //
 // Session-only for now (rbac: false): the owner approved the permission codes
 // in features/hr-recruitment/hrRecruitmentActions.js, but they are not yet
@@ -30,5 +30,7 @@ export default defineModule({
     { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', order: 31, hidden: true, enabledBy: HR_SWITCH },
     { id: 'hr-orientation', path: '/hr/recruitment/orientation', title: 'Orientation schedule', icon: 'calendar-clock', group: 'human-resources', order: 40, enabledBy: HR_SWITCH },
     { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', title: 'Orientation schedule', icon: 'calendar-clock', group: 'human-resources', order: 41, hidden: true, enabledBy: HR_SWITCH },
+    { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', order: 50, enabledBy: HR_SWITCH },
+    { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', order: 51, hidden: true, enabledBy: HR_SWITCH },
   ],
 })

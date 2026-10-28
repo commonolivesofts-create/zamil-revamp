@@ -32,10 +32,11 @@ export function RatingRows({ group, keys, values, onRate, onRemark, missing }) {
   )
 }
 
-// Half-circle score gauge with the band ticks and legend.
-export function Gauge({ total, max, bands, rated, count }) {
+// Half-circle score gauge with the band ticks and legend. `labels` maps band
+// codes (and notRated, soFar) to text; the interview bands by default.
+export function Gauge({ total, max, bands, rated, count, labels = T.bands }) {
   const [index, code] = bandOf(total, bands, rated > 0)
-  const label = code ? T.bands[code] : T.bands.notRated
+  const label = code ? labels[code] : labels.notRated
   return (
     <div className="zrv-hr-gauge-box">
       <div className="zrv-hr-gauge">
@@ -57,10 +58,10 @@ export function Gauge({ total, max, bands, rated, count }) {
         </svg>
         <div className="zrv-hr-gauge__c"><b aria-live="polite">{total}</b><small>{T.gauge.of(max)}</small></div>
       </div>
-      <span className={`zrv-hr-band zrv-hr-is-b${index}`}>{label}{rated > 0 && rated < count ? T.bands.soFar : ''}</span>
+      <span className={`zrv-hr-band zrv-hr-is-b${index}`}>{label}{rated > 0 && rated < count ? labels.soFar : ''}</span>
       <div className="zrv-hr-bands">
         {bands.map(([minimum, band], position) => (
-          <span key={band} className={position === index ? 'zrv-hr-is-on' : undefined}><i />{T.bands[band]}<small>{position === 0 ? `0–${bands[1][0] - 1}` : `${minimum}+`}</small></span>
+          <span key={band} className={position === index ? 'zrv-hr-is-on' : undefined}><i />{labels[band]}<small>{position === 0 ? `0–${bands[1][0] - 1}` : `${minimum}+`}</small></span>
         ))}
       </div>
     </div>

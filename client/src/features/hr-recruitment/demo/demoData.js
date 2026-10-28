@@ -4,6 +4,10 @@
 // is available (see the feature README).
 
 const option = (code, name) => ({ code, name })
+// [English, Arabic, allocated points] → criterion with a code derived from the English name.
+const criteria = (list) => list.map(([name, nameAr, points]) => ({
+  code: name.toUpperCase().replace(/&/g, 'AND').replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40), name, nameAr, points,
+}))
 
 export const DEMO_LOOKUPS = Object.freeze({
   departments: [
@@ -41,6 +45,41 @@ export const DEMO_LOOKUPS = Object.freeze({
       tour: [option('HEAD_PROD_A', 'Sample Production Head A'), option('HEAD_PROD_B', 'Sample Production Head B')],
       meet: [option('HEAD_HR_A', 'Sample HR Head A'), option('HEAD_HR_B', 'Sample HR Head B')],
     },
+  },
+  // PLACEHOLDER criteria and points (from the incoming prototype), not approved
+  // HR content: the real form types and criteria must come from the backend.
+  probation: {
+    formTypes: [
+      { code: 'WORKERS', name: 'Workers & Technicians', nameAr: 'العمال والفنيون', criteria: criteria([
+        ['Job knowledge & skills', 'المعرفة والمهارات الوظيفية', 20], ['Quality of work', 'جودة العمل', 15], ['Productivity', 'الإنتاجية', 15],
+        ['Safety compliance', 'الالتزام بالسلامة', 15], ['Attendance & punctuality', 'الحضور والانضباط', 10], ['Teamwork', 'العمل الجماعي', 10],
+        ['Following instructions', 'اتباع التعليمات', 10], ['Housekeeping (5S)', 'النظافة والترتيب', 5],
+      ]) },
+      { code: 'TRAINEE', name: 'Trainee', nameAr: 'متدرب', criteria: criteria([
+        ['Learning ability', 'القدرة على التعلم', 20], ['Job knowledge gained', 'المعرفة المكتسبة', 15], ['Initiative', 'المبادرة', 15],
+        ['Attendance & punctuality', 'الحضور والانضباط', 15], ['Attitude', 'السلوك', 15], ['Communication', 'التواصل', 10], ['Teamwork', 'العمل الجماعي', 10],
+      ]) },
+      { code: 'ENGINEERS', name: 'Engineers & Staff', nameAr: 'المهندسون والموظفون', criteria: criteria([
+        ['Technical knowledge', 'المعرفة الفنية', 20], ['Quality & accuracy', 'الجودة والدقة', 15], ['Planning & organisation', 'التخطيط والتنظيم', 15],
+        ['Problem solving', 'حل المشكلات', 15], ['Communication', 'التواصل', 10], ['Initiative', 'المبادرة', 10], ['Teamwork', 'العمل الجماعي', 10],
+        ['Attendance & punctuality', 'الحضور والانضباط', 5],
+      ]) },
+      { code: 'MANAGERS', name: 'Department Managers', nameAr: 'مدراء الأقسام', criteria: criteria([
+        ['Leadership', 'القيادة', 20], ['Planning & goal achievement', 'التخطيط وتحقيق الأهداف', 20], ['Decision making', 'اتخاذ القرار', 15],
+        ['People development', 'تطوير الموظفين', 15], ['Communication', 'التواصل', 10], ['Budget & cost control', 'الميزانية وضبط التكاليف', 10],
+        ['Safety & compliance', 'السلامة والامتثال', 10],
+      ]) },
+      { code: 'SUPERVISORS', name: 'Supervisors & Foremen', nameAr: 'المشرفون ورؤساء العمال', criteria: criteria([
+        ['Supervision & leadership', 'الإشراف والقيادة', 20], ['Production target achievement', 'تحقيق أهداف الإنتاج', 20], ['Safety enforcement', 'تطبيق السلامة', 15],
+        ['Shift planning', 'تخطيط الورديات', 15], ['Quality control', 'مراقبة الجودة', 10], ['Training the team', 'تدريب الفريق', 10],
+        ['Attendance & punctuality', 'الحضور والانضباط', 10],
+      ]) },
+    ],
+    // ASSUMED rating scale (the original form shows a Rating box without a scale); configurable server-side.
+    ratingScale: [
+      { min: 0, label: 'Unsatisfactory', labelAr: 'غير مرضٍ' }, { min: 51, label: 'Needs improvement', labelAr: 'يحتاج إلى تحسين' },
+      { min: 71, label: 'Good', labelAr: 'جيد' }, { min: 81, label: 'Very good', labelAr: 'جيد جداً' }, { min: 91, label: 'Outstanding', labelAr: 'ممتاز' },
+    ],
   },
   offer: {
     currency: 'SAR',
@@ -131,5 +170,6 @@ export function createDemoRecords() {
       },
     ],
     orientations: [],
+    evaluations: [],
   }
 }

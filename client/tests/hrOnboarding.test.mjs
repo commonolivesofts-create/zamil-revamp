@@ -1,5 +1,6 @@
 // HR onboarding screens of the HR_RECRUITMENT feature: Orientation Schedule
-// (form 1101). Business rules, response contracts, services over the shared API
+// (form 1101) and Probation Evaluation (form 1064). Business rules, response
+// contracts, services over the shared API
 // client (mocked transport), the owner-approved in-memory demo adapter and
 // static checks of the JSX. No backend, Oracle or browser storage is used.
 import test from 'node:test'
@@ -7,7 +8,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { createApiClient } from '../src/services/api/apiClient.js'
 import { createCsrfStore } from '../src/services/api/csrfStore.js'
-import { readEmployee, readLookups, readOrientation } from '../src/features/hr-recruitment/hrRecruitmentContract.js'
+import { readEmployee, readLookups, readOrientation, readProbation } from '../src/features/hr-recruitment/hrRecruitmentContract.js'
 import { createHrRecruitmentServices, identifyDemoUser } from '../src/features/hr-recruitment/hrRecruitmentService.js'
 import { createDemoClient } from '../src/features/hr-recruitment/demo/demoClient.js'
 import { DEMO_EMPLOYEES, DEMO_LOOKUPS } from '../src/features/hr-recruitment/demo/demoData.js'
@@ -17,6 +18,10 @@ import {
   orientationFormFromRecord, orientationPayload, plannedCount, scheduleIssues, scheduleToDate, sessionDays, sessionHours, totalHours,
   validateOrientation,
 } from '../src/features/hr-recruitment/orientation/orientationModel.js'
+import {
+  PASS_MARK, QUICK_PICKS, addMonths, blankProbation, clampPoints, contradictsResult, evaluationTotals, isProbationLocked, probationElapsed, probationEnd,
+  probationFormFromRecord, probationPayload, quickPoints, ratingFor, resultFor, suggestedRecommendation, validateProbation, withEmployee, withFormType,
+} from '../src/features/hr-recruitment/probation/probationModel.js'
 import { SESSION_TOKEN, forbidBrowserStorage, recordingFetch, success } from './helpers/http.mjs'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
@@ -222,6 +227,154 @@ test('fictional demo data: every demo person follows the "Sample …" pattern; n
   ]
   for (const name of people) assert.match(name, /^Sample [A-Za-z ]+[A-Z0-9]+$/, name)
   // "SURNAME, Firstname" was the incoming app's style for real-looking people.
-  const sources = await Promise.all([`${FEATURE}demo/demoData.js`, `${FEATURE}hrRecruitmentText.js`, `${FEATURE}orientation/orientationModel.js`].map(read))
+  const sources = await Promise.all([`${FEATURE}demo/demoData.js`, `${FEATURE}hrRecruitmentText.js`, `${FEATURE}orientation/orientationModel.js`, `${FEATURE}probation/probationModel.js`].map(read))
   for (const source of sources) assert.equal(/['"][A-Z][A-Za-z]+(?: [A-Z][A-Za-z]+)*, [A-Z][a-z]+['"]/.test(source), false, 'no "SURNAME, Firstname" literals')
+})
+
+// ------------------------------------------------------------ probation evaluation (form 1064)
+
+const FORM_TYPES = readLookups(DEMO_LOOKUPS).probation.formTypes
+const SCALE = readLookups(DEMO_LOOKUPS).probation.ratingScale
+const WORKERS = FORM_TYPES.find((type) => type.code === 'WORKERS').criteria
+const scoreAll = (criteria, fraction) => Object.fromEntries(criteria.map((criterion) => [criterion.code, quickPoints(criterion.points, fraction)]))
+// Scores totalling `total` on the Workers form (allocations 20/15/15/15/10/10/10/5).
+function scoresFor(total) {
+  let left = total
+  return Object.fromEntries(WORKERS.map((criterion) => {
+    const points = Math.min(criterion.points, left)
+    left -= points
+    return [criterion.code, points]
+  }))
+}
+const PROBATION_EMPLOYEE = Object.freeze({ ...DEMO_EMPLOYEES[4] }) // joined 2026-08-02, Workers form
+const SIGNED = Object.freeze({ evaluator: '2026-10-28T08:00:00.000Z', employee: null })
+
+test('probation: points are whole numbers clamped to 0..allocated; quick picks are shares of the allocation', () => {
+  assert.deepEqual([clampPoints('7', 15), clampPoints('7.6', 15), clampPoints('-3', 15), clampPoints('99', 15), clampPoints('', 15), clampPoints('x', 15)], [7, 8, 0, 15, '', ''])
+  assert.deepEqual(QUICK_PICKS.map((fraction) => quickPoints(15, fraction)), [0, 4, 8, 11, 15])
+  assert.deepEqual(QUICK_PICKS.map((fraction) => quickPoints(5, fraction)), [0, 1, 3, 4, 5])
+})
+
+test('probation: totals, pass mark 71 and result', () => {
+  for (const type of FORM_TYPES) assert.equal(type.criteria.reduce((sum, criterion) => sum + criterion.points, 0), 100, `${type.code} allocations total 100`)
+  const partial = evaluationTotals(WORKERS, { [WORKERS[0].code]: 20 })
+  assert.deepEqual([partial.total, partial.scored, partial.complete, partial.acceptable], [20, 1, false, false])
+  assert.equal(evaluationTotals(WORKERS, scoresFor(71)).acceptable, true)
+  assert.equal(evaluationTotals(WORKERS, scoresFor(70)).acceptable, false)
+  assert.equal(evaluationTotals(WORKERS, scoreAll(WORKERS, 1)).percent, 100)
+  assert.deepEqual([resultFor(100), resultFor(71), resultFor(70), resultFor(0)], ['ACCEPTABLE', 'ACCEPTABLE', 'NOT_ACCEPTABLE', 'NOT_ACCEPTABLE'])
+  assert.equal(PASS_MARK, 71)
+})
+
+test('probation: rating scale 91 Outstanding, 81 Very good, 71 Good, 51 Needs improvement, below Unsatisfactory', () => {
+  const rate = (percent) => ratingFor(percent, SCALE).label
+  assert.deepEqual([0, 50, 51, 70, 71, 80, 81, 90, 91, 100].map(rate), [
+    'Unsatisfactory', 'Unsatisfactory', 'Needs improvement', 'Needs improvement', 'Good', 'Good', 'Very good', 'Very good', 'Outstanding', 'Outstanding',
+  ])
+  assert.equal(ratingFor(60, [{ min: 0, label: 'Low' }, { min: 60, label: 'High' }]).label, 'High', 'the scale is configurable')
+})
+
+test('probation: suggested recommendation and the justification rule', () => {
+  const suggest = (total) => suggestedRecommendation(evaluationTotals(WORKERS, scoresFor(total)))
+  assert.deepEqual([suggest(100), suggest(71), suggest(70), suggest(51), suggest(50), suggest(0)], ['CONFIRM', 'CONFIRM', 'EXTEND', 'EXTEND', 'END', 'END'])
+  assert.equal(suggestedRecommendation(evaluationTotals(WORKERS, {})), '', 'nothing suggested until every criterion is scored')
+  const pass = evaluationTotals(WORKERS, scoresFor(80))
+  const fail = evaluationTotals(WORKERS, scoresFor(60))
+  assert.deepEqual(['CONFIRM', 'EXTEND', 'END'].map((value) => contradictsResult(value, pass)), [false, false, true], 'End on Acceptable needs a justification')
+  assert.deepEqual(['CONFIRM', 'EXTEND', 'END'].map((value) => contradictsResult(value, fail)), [true, false, false], 'Confirm on Not acceptable needs a justification')
+  assert.equal(contradictsResult('END', evaluationTotals(WORKERS, {})), false, 'no result yet')
+})
+
+test('probation: the period is the probation (joining + 3 months); extensions move the end', () => {
+  assert.equal(probationEnd('2026-08-02'), '2026-11-02')
+  assert.deepEqual([1, 2, 3].map((months) => probationEnd('2026-08-02', 'EXTEND', String(months))), ['2026-12-02', '2027-01-02', '2027-02-02'])
+  assert.equal(probationEnd('2026-08-02', 'CONFIRM', '3'), '2026-11-02', 'an extension counts only when extending')
+  assert.equal(addMonths('2026-11-30', 3), '2027-03-02', 'month arithmetic rolls over like the original form')
+  assert.equal(probationElapsed('2026-08-02', '2026-11-02', '2026-09-17'), 0.5)
+  assert.equal(probationElapsed('2026-08-02', '2026-11-02', '2026-12-01'), 1)
+  const picked = withEmployee(blankProbation(), PROBATION_EMPLOYEE)
+  assert.deepEqual([picked.employeeId, picked.formTypeCode, picked.fromDate, picked.toDate], ['5', 'WORKERS', '2026-08-02', '2026-11-02'])
+  const kept = withEmployee({ ...blankProbation(), formTypeCode: 'TRAINEE', fromDate: '2026-09-01' }, PROBATION_EMPLOYEE)
+  assert.deepEqual([kept.formTypeCode, kept.fromDate, kept.toDate], ['TRAINEE', '2026-09-01', '2026-11-02'], 'choices already made are kept')
+  const scored = { ...picked, scores: scoreAll(WORKERS, 1), notes: { X: 'y' } }
+  assert.equal(withFormType(scored, 'WORKERS'), scored)
+  assert.deepEqual([withFormType(scored, 'TRAINEE').scores, withFormType(scored, 'TRAINEE').notes], [{}, {}], 'another form type clears the points')
+})
+
+test('probation: validation for save and submit opens the first step with a problem', () => {
+  const blank = validateProbation(blankProbation(), { employee: null, criteria: [] })
+  assert.deepEqual(Object.keys(blank.errors), ['formTypeCode', 'employeeId', 'fromDate', 'toDate'])
+  assert.equal(blank.firstStep, 0)
+  const base = { ...withEmployee(blankProbation(), PROBATION_EMPLOYEE), scores: scoreAll(WORKERS, 0.75) }
+  const context = { employee: PROBATION_EMPLOYEE, criteria: WORKERS }
+  assert.equal(validateProbation(base, context).valid, true, 'save: setup and every criterion scored')
+  assert.equal(validateProbation({ ...base, toDate: '2026-08-01' }, context).errors.toDate, 'End date is before start date')
+  assert.equal(validateProbation({ ...base, fromDate: '2026-08-01' }, context).errors.fromDate, 'Starts before the joining date')
+  const unscored = validateProbation({ ...base, scores: { ...base.scores, [WORKERS[2].code]: '' } }, context)
+  assert.deepEqual([Object.keys(unscored.errors), unscored.firstStep], [[`criterion:${WORKERS[2].code}`], 1])
+  const submit = validateProbation(base, context, { submit: true })
+  assert.deepEqual(Object.keys(submit.errors), ['recommendation', 'evaluatorSignature'])
+  assert.equal(submit.firstStep, 2)
+  assert.deepEqual(Object.keys(validateProbation({ ...base, recommendation: 'EXTEND', signatures: SIGNED }, context, { submit: true }).errors), ['extendBy'])
+  const contradiction = { ...base, recommendation: 'END', signatures: SIGNED }
+  assert.equal(validateProbation(contradiction, context, { submit: true }).errors.justification, 'Explain why the recommendation differs from the result')
+  assert.equal(validateProbation({ ...contradiction, justification: 'Safety breach' }, context, { submit: true }).valid, true)
+  assert.equal(validateProbation({ ...base, recommendation: 'CONFIRM' }, context, { submit: true }).firstStep, 3, 'only the signature missing: sign-off step')
+  assert.deepEqual([isProbationLocked('SUBMITTED'), isProbationLocked('DRAFT')], [true, false])
+})
+
+test('probation: request body and contracts (criteria must total 100)', () => {
+  const form = { ...withEmployee(blankProbation(), PROBATION_EMPLOYEE), scores: { A: '7', B: '' }, notes: { A: ' good ', B: '  ' }, recommendation: 'EXTEND', extendBy: '2' }
+  const body = probationPayload(form)
+  assert.deepEqual([body.scores, body.notes, body.extendByMonths, body.recommendation], [{ A: 7 }, { A: 'good' }, 2, 'EXTEND'])
+  assert.equal(probationPayload({ ...form, recommendation: 'CONFIRM' }).extendByMonths, null)
+  for (const field of ['evaluationNumber', 'status', 'preparedByName']) assert.equal(field in body, false, `${field} is server-assigned`)
+  const broken = structuredClone(DEMO_LOOKUPS)
+  broken.probation.formTypes[0].criteria[0].points = 25
+  assert.throws(() => readLookups(broken), (error) => error.code === 'INVALID_RESPONSE', 'allocations must total 100')
+  const record = {
+    evaluationId: '3', evaluationNumber: 'PAF-2026-0003', status: 'DRAFT', employee: PROBATION_EMPLOYEE, preparedByName: 'Sample Evaluator', formTypeCode: 'WORKERS',
+    fromDate: '2026-08-02', toDate: '2026-11-02', scores: { QUALITY_OF_WORK: 12 }, notes: {}, strengths: '', improvements: '', training: '', recommendation: 'EXTEND',
+    extendByMonths: 2, justification: '', comments: '', suggestion: '', signatures: { evaluator: null, employee: null }, updatedAt: '2026-10-28T08:00:00.000Z',
+  }
+  assert.equal(probationFormFromRecord(readProbation(record)).extendBy, '2')
+  assert.throws(() => readProbation({ ...record, extendByMonths: 4 }), (error) => error.code === 'INVALID_RESPONSE')
+  assert.throws(() => readProbation({ ...record, scores: { QUALITY_OF_WORK: 7.5 } }), (error) => error.code === 'INVALID_RESPONSE')
+})
+
+test('demo adapter: probation draft, server checks on save and submit, then locked', async () => {
+  const { client, services } = demoServices()
+  identifyDemoUser('Signed In Evaluator', client)
+  const form = { ...withEmployee(blankProbation(), PROBATION_EMPLOYEE), scores: scoresFor(60) }
+  await assert.rejects(services.probations.save(null, probationPayload({ ...form, scores: {} })), (error) => error.status === 422 && error.details.some((d) => d.field.startsWith('criterion:')))
+  const draft = await services.probations.save(null, probationPayload(form))
+  assert.deepEqual([draft.evaluationNumber, draft.status, draft.preparedByName, draft.employee.name], ['PAF-2026-0001', 'DRAFT', 'Signed In Evaluator', 'Sample Employee 005'])
+  await assert.rejects(services.probations.submit(draft.evaluationId), (error) => error.status === 422 && error.details.map((d) => d.field).join() === 'recommendation,evaluatorSignature')
+  const signed = { ...form, recommendation: 'CONFIRM', signatures: SIGNED }
+  await services.probations.save(draft.evaluationId, probationPayload(signed))
+  await assert.rejects(services.probations.submit(draft.evaluationId), (error) => error.status === 422 && error.details[0].field === 'justification', 'Confirm on Not acceptable needs a justification')
+  await services.probations.save(draft.evaluationId, probationPayload({ ...signed, justification: 'Clear improvement in the last month' }))
+  assert.equal((await services.probations.submit(draft.evaluationId)).status, 'SUBMITTED')
+  await assert.rejects(services.probations.save(draft.evaluationId, probationPayload(signed)), (error) => error.status === 409)
+  const list = await services.probations.list()
+  assert.deepEqual([list.items[0].totalPoints, list.items[0].employeeName], [60, 'Sample Employee 005'])
+})
+
+test('probation page: banner title, radio groups, reused gauge, step 5 of the flow', async () => {
+  assert.deepEqual(RECRUITMENT_FLOW.map((item) => item.id), ['requisition', 'interview', 'offer', 'orientation', 'probation'])
+  const page = await read(`${FEATURE}probation/ProbationPage.jsx`)
+  assert.match(page, /<span>\{T\.officialEn\}<\/span>\s*<span lang="ar" dir="rtl">\{T\.officialAr\}<\/span>/)
+  assert.equal((page.match(/T\.officialEn/g) || []).length, 1, 'the official title appears only on the step-1 banner')
+  assert.match(page, /<RadioCards name="pa-type"/)
+  assert.match(page, /<RadioCards name="pa-rec"/)
+  assert.match(page, /<Gauge total=\{totals\.total\} max=\{100\} bands=\{GAUGE_BANDS\}/)
+  assert.match(page, /<EmployeePicker id="pa-emp"/)
+  assert.match(page, /aria-label=\{T\.labels\.points\(criterion\.name, criterion\.points\)\}/)
+  assert.match(page, /\{contradicts && \(/, 'the justification appears only when it contradicts the result')
+  const inputs = await read(`${FEATURE}shared/components/RecruitmentInputs.jsx`)
+  assert.match(inputs, /role="radiogroup" aria-labelledby=\{`\$\{id\}-label`\} aria-required="true"/)
+  assert.match(inputs, /<input type="radio" name=\{name\}/)
+  const text = await read(`${FEATURE}hrRecruitmentText.js`)
+  assert.match(text, /officialEn: 'Performance Appraisal Form \(PAF\) for Probation Period'/)
+  assert.match(text, /officialAr: 'تقييم الأداء الوظيفي لفترة التجربة'/)
 })

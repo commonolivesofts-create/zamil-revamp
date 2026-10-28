@@ -4,4 +4,5 @@ export const RECRUITMENT_FLOW = Object.freeze([
   Object.freeze({ id: 'interview', path: '/hr/recruitment/interview' }),
   Object.freeze({ id: 'offer', path: '/hr/recruitment/offer' }),
   Object.freeze({ id: 'orientation', path: '/hr/recruitment/orientation' }),
+  Object.freeze({ id: 'probation', path: '/hr/recruitment/probation-evaluation' }),
 ])
