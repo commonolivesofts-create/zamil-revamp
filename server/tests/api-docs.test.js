@@ -124,6 +124,101 @@ describe('API documentation', () => {
     }
   });
 
+  it('documents every interview-assessment route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/hr/interview-assessments';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/nationalities'],
+      ['get', '/lookups/requisitions'],
+      ['get', '/lookups/employees'],
+      ['get', '/{headerId}'],
+      ['put', '/{headerId}'],
+      ['delete', '/{headerId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((x) => x.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${path} security`);
+      const csrf = (operation.parameters ?? []).some(
+        (p) => p.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+  });
+
+  it('documents every employment-offer route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/hr/employment-offers';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/candidates'],
+      ['get', '/lookups/titles'],
+      ['get', '/lookups/allowances'],
+      ['get', '/lookups/business-units'],
+      ['get', '/lookups/number-to-arabic'],
+      ['get', '/lookups/hijri-date'],
+      ['get', '/{headerId}'],
+      ['put', '/{headerId}'],
+      ['delete', '/{headerId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((x) => x.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${path} security`);
+      const csrf = (operation.parameters ?? []).some(
+        (p) => p.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+  });
+
+  it('documents every requisition route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/hr/requisitions';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/job-titles'],
+      ['get', '/lookups/requestor'],
+      ['get', '/lookups/departments'],
+      ['get', '/lookups/replacement-for'],
+      ['get', '/lookups/budget'],
+      ['get', '/lookups/filter-options'],
+      ['get', '/{requisitionId}'],
+      ['put', '/{requisitionId}'],
+      ['delete', '/{requisitionId}'],
+      ['post', '/{requisitionId}/attachments'],
+      ['delete', '/{requisitionId}/attachments/{attachmentId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((x) => x.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${path} security`);
+      const csrf = (operation.parameters ?? []).some(
+        (p) => p.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+  });
+
   it('serves the specification at /api/openapi.json', async () => {
     const res = await request(app).get('/api/openapi.json').expect(200);
 

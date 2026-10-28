@@ -16,6 +16,13 @@ import { createUnconfiguredDelivery } from '../modules/notifications/delivery.js
 import { createSmtpDelivery } from '../modules/notifications/smtpDelivery.js';
 import { createMfaKeyring } from '../modules/auth/mfaSecret.js';
 import { createSessionService } from '../modules/auth/session.service.js';
+import { createEmploymentOfferRouter } from '../modules/hr/employment-offers/employmentOffer.routes.js';
+import { createEmploymentOfferService } from '../modules/hr/employment-offers/employmentOffer.service.js';
+import { createInterviewAssessmentRouter } from '../modules/hr/interview-assessments/interviewAssessment.routes.js';
+import { createInterviewAssessmentService } from '../modules/hr/interview-assessments/interviewAssessment.service.js';
+import { createRequisitionRouter } from '../modules/hr/requisitions/requisition.routes.js';
+import { createRequisitionService } from '../modules/hr/requisitions/requisition.service.js';
+import { createDiskStorage } from '../modules/hr/requisitions/requisition.storage.js';
 import { createUsersRouter } from '../modules/users/users.routes.js';
 import { createUsersService } from '../modules/users/users.service.js';
 
@@ -120,6 +127,26 @@ export function createApiRouter(appConfig, deps = {}) {
     withTransaction: db.withTransaction,
   });
 
+  const interviewAssessmentService = createInterviewAssessmentService({
+    repository: deps.interviewAssessmentRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
+  const employmentOfferService = createEmploymentOfferService({
+    repository: deps.employmentOfferRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
+  const requisitionService = createRequisitionService({
+    repository: deps.requisitionRepository,
+    // Physical attachment files land on local disk (README §6); tests inject a memory double.
+    storage: deps.requisitionStorage ?? createDiskStorage(),
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
   const router = Router();
   router.use(createOriginCheck({ allowedOrigins: appConfig.auth.allowedOrigins }));
   router.use(
@@ -142,6 +169,36 @@ export function createApiRouter(appConfig, deps = {}) {
   router.use(
     '/users',
     createUsersRouter({ usersService, recoveryService, authorize, authenticate, auditService }),
+  );
+
+  router.use(
+    '/hr/interview-assessments',
+    createInterviewAssessmentRouter({
+      interviewAssessmentService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/employment-offers',
+    createEmploymentOfferRouter({
+      employmentOfferService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/requisitions',
+    createRequisitionRouter({
+      requisitionService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
   );
 
   return router;
