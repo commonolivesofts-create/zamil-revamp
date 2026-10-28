@@ -3,6 +3,7 @@
 
 # Local environment files containing credentials
 .env
+.freebuff
 
 # ==========================================
 # Project-wide environment protection
@@ -38,6 +39,15 @@ build/
 coverage/
 .vite/
 .turbo/
+
+# Runtime-stored requisition attachment uploads (README_personal_requisition_form.md §6)
+/server/attachments/
+
+# ==========================================
+# Reference specifications (owner-provided form guidelines)
+# ==========================================
+# Spec READMEs live in docs/specs/ as local reference material only.
+/docs/specs/
 
 # ==========================================
 # Logs

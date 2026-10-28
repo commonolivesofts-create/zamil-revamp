@@ -8,7 +8,7 @@
 | Business purpose | Plan a new joiner's first days, evaluate the probation period, and report who was attached to a department during a period |
 | Business owner | Project owner (HR forms) |
 | Developer(s) | Nauman Mirza, with Claude Code |
-| Status | **Partially implemented.** The frontend is complete and runs on owner-approved **demo data**. No backend, Oracle object or permission row exists yet. Extends `HR_RECRUITMENT` (see `FEATURE-HR-RECRUITMENT.md`). |
+| Status | **Partially implemented.** The frontend is complete and runs on owner-approved **demo data**. No backend, Oracle object or permission row exists yet. Registered as the session-only module `HR_ONBOARDING`; the three recruitment forms are separate RBAC modules on the live API since #28/#29. |
 | Replaces CI3 feature | HR forms 1101 and 1064 and the periodwise employees report (CI3 sources **not inspected**) |
 | Source reference | Incoming prototype `nauman (3).zip` (28 Oct 2026), unpacked outside the repository and not committed. Used for UI and business rules only. |
 
@@ -18,14 +18,14 @@
 |---|---|
 | Branch | `feat/hr-onboarding-forms` (from `main` at `d0e8f42`) |
 | Commit(s) | `4e5d8b4` visibility switch (G3); `e3fce38` Orientation Schedule; `df3bb1f` Probation Evaluation; `34d5c2a` Periodwise Employees report; then this documentation commit (feature README, this handoff, test cleanup) |
-| Pull Request | Not opened (owner reviews before push or PR) |
+| Pull Request | Opened by the owner from `feat/hr-onboarding-forms`; `main` (#28, #29) merged into the branch to resolve conflicts |
 | Merged into `main` | Not yet |
 
 ## 3. Requirement and acceptance criteria
 
 | # | Acceptance criterion | Verified? | Evidence |
 |---|---|---|---|
-| 1 | HR pages appear only when `VITE_FEATURE_HR_RECRUITMENT` allows it: `true`, `false`, unset in development (shown), unset in production (hidden). Hidden pages are absent from the sidebar, command palette, guard and router. | Yes | `hrRecruitment.test.mjs` (switch tests); live dev server with `false` showed "Page not found" |
+| 1 | HR onboarding pages appear only when `VITE_FEATURE_HR_RECRUITMENT` allows it: `true`, `false`, unset in development (shown), unset in production (hidden). Hidden pages are absent from the sidebar, command palette, guard and router. | Yes | `hrOnboarding.test.mjs` (switch tests); live dev server with `false` showed "Page not found" |
 | 2 | Orientation: days = (To − From) + 1; time = hours per day × days; To = latest session end (read-only) | Yes | `hrOnboarding.test.mjs`; browser: 15 h, To set |
 | 3 | Orientation blocking errors (end before start, end time not after start, clash) and warnings (Friday/Saturday, before joining, before From) | Yes | unit tests; browser: time-order problem shown |
 | 4 | "Plan it for me": the day/time pattern, skipping Friday and Saturday, with suggested heads | Yes | unit test (Thursday start moves IT to Sunday); browser |
@@ -47,16 +47,16 @@
 | Modified (G3, approved) | `client/src/config/registry/defineModule.js` | `enabledBy: { env: 'VITE_FEATURE_*' }` on internal entries |
 | Modified (G3, approved) | `client/src/config/appNavigation.js` | `isFeatureEnabled`, `resolveNavigationEntries` |
 | Modified (G3, approved) | `client/src/app/router.jsx` | Routes only implemented entries (`implementedOnly`); new route lines |
-| Modified | `client/src/config/registry/modules/hrRecruitment.module.js` | `enabledBy` on every HR entry; five new entries |
+| New | `client/src/config/registry/modules/hrOnboarding.module.js` | Session-only module `HR_ONBOARDING`: the five onboarding entries, each with `enabledBy` (the three recruitment forms are not switched) |
 | Modified | `client/src/routes/RouteComponents.jsx` | Three lazy pages |
 | New | `client/src/features/hr-recruitment/orientation/`, `probation/`, `report/` | Pages, rules modules, charts |
 | New | `client/src/features/hr-recruitment/shared/components/EmployeePicker.jsx`, `shared/useSettled.js` | Searchable employee picker; debounce hook (moved from the interview page) |
 | Modified | `client/src/features/hr-recruitment/{hrRecruitmentContract,hrRecruitmentService,hrRecruitmentText}.js`, `demo/*` | Readers, services, strings, demo adapter and data |
-| Modified | `client/src/features/hr-recruitment/shared/components/{RecruitmentShell,RecruitmentInputs,RecruitmentLoader}.jsx`, `shared/recruitmentFlow.js`, `interview/Scores.jsx` | 5-step flow (`--n`), breadcrumb prop, radio cards, signed-in name, gauge labels |
+| Modified | `client/src/features/hr-recruitment/shared/components/{RecruitmentShell,RecruitmentInputs,RecruitmentLoader}.jsx`, `shared/recruitmentFlow.js`, `interview/Scores.jsx` | 5-step flow (`--n`), breadcrumb prop, opt-in `demo` badge prop, radio cards, signed-in name, gauge labels; `onboardingClient` (demo or API) beside the live `apiClient` of the three forms |
 | Modified | `client/src/styles/hr-recruitment.css` | Scoped styles for the new screens; print rules; `--n` flow columns; 2-column grid |
 | Modified | `client/docs/FRONTEND-ARCHITECTURE.md`, `SHARED-COMPONENTS-AND-PATTERNS.md`, `NEW-FEATURE-GUIDE.md` | The `enabledBy` switch |
 | Modified | `client/src/features/hr-recruitment/README.md`, `docs/handoffs/FEATURE-HR-RECRUITMENT.md` (§15) | Switches, four combinations, endpoints, placeholders |
-| New / Modified | `client/tests/hrOnboarding.test.mjs`; `hrRecruitment.test.mjs`, `navigation.test.mjs`, `registry.test.mjs`, `sidebarAccess.test.mjs`, `securityAdministration.test.mjs` | New tests; pinned route lists. The route tests now run as a production build with the switch unset, so HR pages are pinned as switched off and the "on" state is tested explicitly. |
+| New / Modified | `client/tests/hrOnboarding.test.mjs`; `hrRecruitment.test.mjs`, `navigation.test.mjs`, `registry.test.mjs`, `sidebarAccess.test.mjs`, `securityAdministration.test.mjs` | New tests; pinned route lists. The route tests now run as a production build with the switch unset, so the onboarding pages are pinned as switched off and the "on" state is tested explicitly. |
 
 Two existing HR style fixes ride along in `hr-recruitment.css`:
 

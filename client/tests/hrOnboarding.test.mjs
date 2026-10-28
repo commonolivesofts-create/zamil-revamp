@@ -1,4 +1,4 @@
-// HR onboarding screens of the HR_RECRUITMENT feature: Orientation Schedule
+// HR onboarding screens of the hr-recruitment feature: Orientation Schedule
 // (form 1101), Probation Evaluation (form 1064) and the Periodwise Employees
 // report. Business rules, response contracts, services over the shared API
 // client (mocked transport), the owner-approved in-memory demo adapter and
@@ -7,6 +7,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { createApiClient } from '../src/services/api/apiClient.js'
+import { authorizedNavigation, canAccessRoute, findAppRoute, implementedRoutes, isFeatureEnabled, paletteCommands, resolveNavigationEntries, routeAccess } from '../src/config/appNavigation.js'
+import { registeredModules, registry } from '../src/config/registry/index.js'
+import { resolveDemoMode } from '../src/features/hr-recruitment/hrRecruitmentConfig.js'
 import { createCsrfStore } from '../src/services/api/csrfStore.js'
 import { readEmployee, readLookups, readOrientation, readProbation, readReport } from '../src/features/hr-recruitment/hrRecruitmentContract.js'
 import { createHrRecruitmentServices, identifyDemoUser } from '../src/features/hr-recruitment/hrRecruitmentService.js'
@@ -512,7 +515,7 @@ test('report page: outside the flow, sortable headers, column chooser, side pane
   assert.equal(RECRUITMENT_FLOW.some((item) => item.path.includes('/reports/')), false, 'the report is not part of the flow')
   const page = await read(`${FEATURE}report/PeriodwiseEmployeesPage.jsx`)
   assert.equal(/<FlowNav|<RecruitmentShell/.test(page), false)
-  assert.match(page, /<RecruitmentHeader title=\{T\.title\} subtitle=\{T\.subtitle\} breadcrumb=\{T\.breadcrumb\} \/>/)
+  assert.match(page, /<RecruitmentHeader title=\{T\.title\} subtitle=\{T\.subtitle\} breadcrumb=\{T\.breadcrumb\} demo=\{hrRecruitmentDemo\} \/>/)
   assert.match(page, /aria-sort=\{sort\.key === column\.key \? \(sort\.direction > 0 \? 'ascending' : 'descending'\) : column\.sort \? 'none' : undefined\}/)
   assert.match(page, /\{ key: 'position', label: C\.position, sort: true, hidden: true \}/, 'Position hidden by default')
   assert.match(page, /event\.key === 'Escape' && columnMenu/, 'Escape closes the column chooser')
@@ -525,4 +528,81 @@ test('report page: outside the flow, sortable headers, column chooser, side pane
   }
   const css = await read('../src/styles/hr-recruitment.css')
   assert.match(css, /\.zrv-hr-rp-table th \{ position: sticky;/, 'sticky header')
+})
+
+// ------------------------------------------------------------ navigation
+
+// VITE_FEATURE_HR_RECRUITMENT controls the visibility of the onboarding pages
+// (module HR_ONBOARDING); each state is resolved through the same function the
+// application uses for this build. The three permission-backed recruitment
+// forms are not switched.
+const SWITCH = 'VITE_FEATURE_HR_RECRUITMENT'
+const ONBOARDING_IDS = ['hr-orientation', 'hr-orientation-record', 'hr-probation', 'hr-probation-record', 'hr-periodwise-employees']
+// The listed (sidebar and command palette) onboarding pages.
+const ONBOARDING_NAV_IDS = ONBOARDING_IDS.filter((id) => !id.endsWith('-record'))
+const onboardingFor = (env) => resolveNavigationEntries(registry.entries, env).filter((route) => ONBOARDING_IDS.includes(route.id))
+const employee = { status: 'ready', mfaVerified: false, has: () => false }
+
+test('HR visibility switch: true, false, unset in development and unset in production', () => {
+  const states = [
+    [{ [SWITCH]: 'true', DEV: false }, true, 'true (production build)'],
+    [{ [SWITCH]: 'true', DEV: true }, true, 'true (development build)'],
+    [{ [SWITCH]: 'false', DEV: true }, false, 'false wins over a development build'],
+    [{ [SWITCH]: 'false', DEV: false }, false, 'false (production build)'],
+    [{ DEV: true }, true, 'unset in a development build'],
+    [{ DEV: false }, false, 'unset in a production build'],
+    [{}, false, 'unset, no build information (plain Node)'],
+    [{ [SWITCH]: 'yes', DEV: false }, false, 'only the exact value "true" turns it on'],
+  ]
+  for (const [env, visible, label] of states) {
+    assert.equal(isFeatureEnabled({ env: SWITCH }, env), visible, label)
+    assert.deepEqual(onboardingFor(env).map((route) => route.implemented), ONBOARDING_IDS.map(() => visible), label)
+  }
+  assert.equal(isFeatureEnabled(undefined, {}), true, 'entries without a switch are unaffected')
+  const switched = registry.entries.filter((entry) => entry.enabledBy).map((entry) => entry.id)
+  assert.deepEqual(switched, ONBOARDING_IDS, 'only the onboarding pages are switched')
+  assert.ok(registry.entries.filter((entry) => entry.enabledBy).every((entry) => entry.enabledBy.env === SWITCH))
+  // The data source is a separate switch.
+  assert.equal(resolveDemoMode({ [SWITCH]: 'true', DEV: false }), false, 'visible pages can use the real API')
+})
+
+test('a switched-off onboarding page is absent from the sidebar, command palette, guard and router', async () => {
+  const off = resolveNavigationEntries(registry.entries, { [SWITCH]: 'false', DEV: true })
+  const on = resolveNavigationEntries(registry.entries, { [SWITCH]: 'true' })
+  const listed = (ids) => ids.filter((id) => ONBOARDING_IDS.includes(id))
+  const sidebar = (routes) => authorizedNavigation(employee, routes).flatMap((section) => section.items.map((item) => item.id))
+  const palette = (routes) => paletteCommands(employee, 'authenticated', routes).map((command) => command.id)
+  assert.deepEqual(listed(sidebar(on)), ONBOARDING_NAV_IDS)
+  assert.deepEqual(listed(sidebar(off)), [])
+  assert.deepEqual(listed(palette(on)), ONBOARDING_NAV_IDS)
+  assert.deepEqual(listed(palette(off)), [])
+  assert.ok(!palette(on).some((id) => id.endsWith('-record')), 'record pages are not searchable')
+  for (const id of ONBOARDING_IDS) {
+    assert.equal(routeAccess(off.find((route) => route.id === id), employee), 'unavailable', `${id}: the guard renders Not found`)
+    assert.equal(routeAccess(on.find((route) => route.id === id), employee), 'allowed', `${id}: allowed when on`)
+  }
+  // This (plain Node) build has the switch unset outside development: the router leaves the lines out.
+  assert.deepEqual(implementedRoutes.filter((route) => ONBOARDING_IDS.includes(route.id)), [])
+  const router = await read('../src/app/router.jsx')
+  assert.match(router, /const implementedRouteIds = new Set\(implementedRoutes\.map\(\(route\) => route\.id\)\)/)
+  assert.match(router, /children: implementedOnly\(\[/)
+  for (const id of ONBOARDING_IDS) assert.ok(router.includes(`handle: { routeId: '${id}' }`), `${id} has a router line, filtered by implementedOnly`)
+})
+
+test('HR onboarding routes (switch on): session-only, record pages hidden, reachable by every signed-in user', () => {
+  const module = registeredModules.find((item) => item.code === 'HR_ONBOARDING')
+  assert.equal(module.rbac, false)
+  const on = onboardingFor({ [SWITCH]: 'true' })
+  assert.deepEqual(on.map((route) => [route.id, route.path, route.nav !== false]), [
+    ['hr-orientation', '/hr/recruitment/orientation', true],
+    ['hr-orientation-record', '/hr/recruitment/orientation/:scheduleId', false],
+    ['hr-probation', '/hr/recruitment/probation-evaluation', true],
+    ['hr-probation-record', '/hr/recruitment/probation-evaluation/:evaluationId', false],
+    ['hr-periodwise-employees', '/hr/reports/periodwise-employees', true],
+  ])
+  for (const route of on) {
+    assert.equal(route.permission, undefined)
+    assert.equal(canAccessRoute(route, employee), true, route.id)
+  }
+  assert.equal(findAppRoute('/hr/recruitment/orientation/12')?.id, 'hr-orientation-record')
 })

@@ -4,7 +4,7 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { COMMON_TEXT, PROBATION_TEXT as T } from '../hrRecruitmentText.js'
-import { hrRecruitmentServices } from '../hrRecruitmentService.js'
+import { hrRecruitmentDemo, hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { businessToday, daysBetween, enDate, initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
@@ -31,7 +31,7 @@ const INK = Object.freeze([
 
 export default function ProbationPage() {
   return (
-    <RecruitmentLoader current="probation" title={T.title} subtitle={T.subtitle} param="evaluationId" load={service.getById}>
+    <RecruitmentLoader current="probation" demo={hrRecruitmentDemo} title={T.title} subtitle={T.subtitle} param="evaluationId" load={service.getById}>
       {({ lookups, record, editorKey }) => <ProbationEditor key={editorKey} lookups={lookups} record={record} />}
     </RecruitmentLoader>
   )
@@ -130,7 +130,7 @@ function ProbationEditor({ lookups, record: savedRecord }) {
   return (
     <>
       <RecruitmentShell
-        current="probation" title={T.title} subtitle={T.subtitle}
+        current="probation" title={T.title} subtitle={T.subtitle} demo={hrRecruitmentDemo}
         flowStatus={record ? `${record.evaluationNumber} · ${T.status[record.status]}` : null}
         tools={tools} primary={{ label: T.primary, icon: 'save', onClick: save }}
         feedback={editor.feedback} onDismissFeedback={editor.dismiss} locked={locked} pending={editor.pending} focusError={editor.focusError}

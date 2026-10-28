@@ -32,6 +32,37 @@ tags:
       Application accounts for employee-master employees: provisioning (PENDING,
       no password), activation after password setup, disabling and session
       revocation, under the protected administrator hierarchy.
+  - name: HR Interview Assessments
+    description: >-
+      Interview Assessment Form CRUD (README_interview_assessment_form.md): insert,
+      read, update, delete and filtered listing of the four-table record, plus the
+      nationality, approved-requisition and interviewer-employee lookups. Requires
+      INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW / CREATE / UPDATE / DELETE
+      (default deny without the catalogue grant). STATUS is plain data: written
+      'Incomplete' on insert, never updated, and refused for deletion when Approved
+      and Passed.
+  - name: Employment Offers
+    description: >-
+      Employment Offer Form CRUD (README_employment_offer_form.md): insert, read,
+      update, delete and filtered listing of the two-table record (header + one
+      line), plus the approved-candidate, title, allowance, business-unit,
+      number-to-Arabic and Hijri-date lookups. Requires
+      EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW / CREATE / UPDATE / DELETE (default
+      deny without the catalogue grant). STATUS is write-once 'Incomplete' on insert
+      and only a list filter afterwards; PROBATIONARY_PERIOD(_AR) and the line
+      salary-arabic duplicate are insert-only and never updated.
+  - name: HR Requisitions
+    description: >-
+      Personal Requisition Form CRUD (README_personal_requisition_form.md): insert,
+      read, update, delete and filtered listing of the single-table record plus its
+      attachment rows, and the job-title, requestor, department, replacement-for,
+      budget and filter-option lookups. Requires
+      REQUISITIONS.REQUISITIONS:VIEW / CREATE / UPDATE / DELETE / MANAGE_ATTACHMENTS (default
+      deny without the catalogue grant). REQUISITION_STATUS is plain data: written
+      'Draft' on insert and never transitioned — no workflow table (XXPHP_WORKFLOW,
+      XX_REQ_WF_REC) is read or written. ticketStatus (ATTRIBUTE1) may only be set
+      by HR users (server-side XXZP_HR probe); Inprocess/Approved merely gate
+      non-HR updates, and only Draft requests can be deleted.
   - name: Authentication Recovery
     description: >-
       Password setup, reset and change and MFA recovery with single-use hashed
@@ -2014,6 +2045,1706 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/interview-assessments:
+    get:
+      operationId: listInterviewAssessments
+      tags: [HR Interview Assessments]
+      summary: List interview assessments
+      description: >-
+        Interview Assessment Form records (XXZP_INTERVW_ASSESMNT_HEADER_T joined to
+        XXZP_INTERVIEW_EVAL_T), paginated, with filters and an allowlisted sort.
+        Row scoping is decided server-side (README §7.4): HR users (XX_DIGI_LOOKUP_VALUES
+        LOOKUP_TYPE 'XXZP_HR') see every record and may narrow by createdBy; other users
+        only see rows they created, whatever they pass in the query. Requires
+        `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW` (re-evaluated in Oracle on every request).
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+          description: Case-insensitive contains-match on candidate name, INT_NO or position.
+        - name: status
+          in: query
+          schema:
+            enum: [Incomplete, Inprocess, Approved, Rejected]
+        - name: evaluationStatus
+          in: query
+          schema:
+            enum: [Passed, Hold, Failed]
+        - name: requisitionNo
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+        - name: positionName
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+        - name: division
+          in: query
+          schema:
+            enum: [Food, Non-Food]
+        - name: interviewType
+          in: query
+          schema:
+            enum: [Personal, Online]
+        - name: dateFrom
+          in: query
+          description: Interview-date lower bound, inclusive (calendar date).
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          description: Interview-date upper bound, inclusive (calendar date).
+          schema:
+            type: string
+            format: date
+        - name: createdBy
+          in: query
+          description: >-
+            NUMBER(19,0) creator as a decimal string. HR callers only; ignored for
+            non-HR callers (the server-side scope wins).
+          schema:
+            type: string
+            pattern: '^[1-9][0-9]{0,18}$'
+        - name: sortBy
+          in: query
+          schema:
+            enum: [HEADER_ID, INTERVIEW_DATE, CANDIDATE_NAME, CREATION_DATE]
+            default: HEADER_ID
+        - name: sortDir
+          in: query
+          schema:
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Success. `statusLabel` maps Inprocess to InProcess; anything else
+            outside Approved/Rejected is 'Draft'. `evaluationStatus` is null unless the
+            header STATUS is Approved.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInterviewAssessments'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      operationId: createInterviewAssessment
+      tags: [HR Interview Assessments]
+      summary: Insert an interview assessment
+      description: >-
+        Inserts the header and the three section rows (XXZP_PERSONAL_SPEC_T,
+        XXZP_JOB_COMPETENCY_T, XXZP_INTERVIEW_EVAL_T) in ONE transaction. The
+        requisitionNo must be an approved requisition (XXZPI_PER_REQUISITIONS_ALL,
+        REQUISITION_STATUS 'Approved'); the totals rate9 / cRating7 are recomputed
+        server-side from the numeric ratings; empty text stores '-', empty numbers
+        store 0; business dates travel as 'YYYY-MM-DD' and are stored as 'DD-Mon-YY'.
+        INT_NO is ATTRIBUTE3 + '-' + the zero-padded headerId. STATUS is written
+        'Incomplete' only. Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:CREATE` (re-evaluated
+        in Oracle on every request) and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewAssessmentWrite'
+      responses:
+        '201':
+          description: Created.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InterviewAssessmentCreated'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/interview-assessments/lookups/nationalities:
+    get:
+      operationId: listInterviewAssessmentNationalities
+      tags: [HR Interview Assessments]
+      summary: Nationality lookup
+      description: >-
+        Distinct XXZP_NATIONALITY values for the form. Requires
+        `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW`. No query parameters are accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/interview-assessments/lookups/requisitions:
+    get:
+      operationId: listApprovedRequisitions
+      tags: [HR Interview Assessments]
+      summary: Approved-requisition lookup
+      description: >-
+        Requisitions with REQUISITION_STATUS 'Approved'
+        (XXZPI_PER_REQUISITIONS_ALL), the only values accepted by requisitionNo on
+        write. Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW`. No query parameters are
+        accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ApprovedRequisition'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/interview-assessments/lookups/employees:
+    get:
+      operationId: listInterviewerEmployees
+      tags: [HR Interview Assessments]
+      summary: Interviewer-employee lookup
+      description: >-
+        Employee names offered for the interviewer fields. Requires
+        `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW`. No query parameters are accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/interview-assessments/{headerId}:
+    get:
+      operationId: getInterviewAssessment
+      tags: [HR Interview Assessments]
+      summary: Read one interview assessment
+      description: >-
+        The header row with the position's approval authority (XX_DIGI_JOB_MASTER)
+        and its three section rows; a missing section is returned as null. Business
+        dates come back in the stored legacy 'DD-Mon-YY' form. Requires
+        `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW` (record-level access is permission-based).
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/HeaderId'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InterviewAssessmentDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    put:
+      operationId: updateInterviewAssessment
+      tags: [HR Interview Assessments]
+      summary: Update an interview assessment
+      description: >-
+        Replaces all four sections of an existing record (the edit form submits the
+        whole payload) in ONE transaction. Missing section rows are created (MERGE);
+        the totals are recomputed; the mirror columns INTERVIEWED_BY / INTERVIEWEDBY2 /
+        INTERVIEWEDBY3 / ATTRIBUTE3 on the header follow the payload. STATUS is never
+        changed. The same requisition, normalization and date rules as insert apply.
+        Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:UPDATE` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/HeaderId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewAssessmentWrite'
+      responses:
+        '200':
+          description: Success; the headerId that was updated.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [headerId]
+                        properties:
+                          headerId:
+                            $ref: '#/components/schemas/Id'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      operationId: deleteInterviewAssessment
+      tags: [HR Interview Assessments]
+      summary: Delete an interview assessment
+      description: >-
+        Deletes the header and its three section rows in ONE transaction. Refused
+        with 409 CANNOT_DELETE_APPROVED when STATUS is 'Approved' and the evaluation
+        is 'Passed' — the Employment Offer form consumes those records (uniform
+        guard, no bypass). Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:DELETE` and the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/HeaderId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Deleted; `deleted` is always true.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [headerId, deleted]
+                        properties:
+                          headerId:
+                            $ref: '#/components/schemas/Id'
+                          deleted:
+                            const: true
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InterviewAssessmentDeleteConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/employment-offers:
+    get:
+      operationId: listEmploymentOffers
+      tags: [Employment Offers]
+      summary: List employment offers
+      description: >-
+        Employment Offer Form records (XXZP_EMPLOYMENT_OFFER_HEADER_T), paginated,
+        with filters and an allowlisted sort. Row scoping is decided server-side
+        (README §7.4): HR users (XX_DIGI_LOOKUP_VALUES LOOKUP_TYPE 'XXZP_HR') see
+        every record and may narrow by createdBy; other users only see rows they
+        created, whatever they pass in the query. STATUS is write-once 'Incomplete'
+        on insert and only a filter here. Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`
+        (re-evaluated in Oracle on every request).
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+          description: >-
+            Case-insensitive contains-match on employee name (English/Arabic),
+            position, interview number or requisition number.
+        - name: intNo
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+          description: Exact match on ATTRIBUTE10 (interview INT_NO).
+        - name: requisitionNo
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+          description: Exact match on ATTRIBUTE11 (requisition number).
+        - name: division
+          in: query
+          schema:
+            enum: ['300000002689294', '300000002689307']
+          description: >-
+            Business-unit id. The legacy labels are contradictory (README §8.9), so
+            the API only ever exchanges raw ids.
+        - name: status
+          in: query
+          schema:
+            type: string
+            maxLength: 30
+          description: >-
+            STATUS filter; the only value today is 'Incomplete' (the column is
+            write-once and never updated).
+        - name: dateFrom
+          in: query
+          description: Offer-date lower bound, inclusive (calendar date).
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          description: Offer-date upper bound, inclusive (calendar date).
+          schema:
+            type: string
+            format: date
+        - name: createdBy
+          in: query
+          description: >-
+            NUMBER creator as a decimal string. HR callers only; ignored for
+            non-HR callers (the server-side scope wins).
+          schema:
+            type: string
+            pattern: '^[1-9][0-9]{0,18}$'
+        - name: sortBy
+          in: query
+          schema:
+            enum: [HEADER_ID, OFFER_DATE, EMPLOYEE_NAME, CREATION_DATE]
+            default: HEADER_ID
+        - name: sortDir
+          in: query
+          schema:
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Success; rows in the sort order with a stable HEADER_ID tie-breaker.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEmploymentOffers'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      operationId: createEmploymentOffer
+      tags: [Employment Offers]
+      summary: Insert an employment offer
+      description: >-
+        Inserts the header (XXZP_EMPLOYMENT_OFFER_HEADER_T) and its single line
+        (XXZP_EMPLOYMENT_OFFER_LINES_T) in ONE transaction: a v4 UUID is generated
+        in Node, the header is inserted WITHOUT primary-key columns, the
+        trigger-generated HEADER_ID is read back by UUID, then the line is inserted;
+        any failure rolls the whole transaction back (README §3.1, §3.3). STATUS is
+        written 'Incomplete' only and never updated. An empty applicant stores '-',
+        an empty reqNo stores 0, absent probationary-period text takes the hardcoded
+        defaults from the SQL (NVL), and a comma salary ("8,500") is stripped to a
+        number server-side; business dates travel as 'YYYY-MM-DD' and are stored as
+        'DD-Mon-YYYY'. Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:CREATE` (re-evaluated in Oracle
+        on every request) and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmploymentOfferWrite'
+      responses:
+        '201':
+          description: Created; the trigger-generated headerId and the insert UUID.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EmploymentOfferCreated'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/employment-offers/lookups/candidates:
+    get:
+      operationId: listOfferCandidates
+      tags: [Employment Offers]
+      summary: Approved+passed candidate lookup
+      description: >-
+        Candidates of interviews with STATUS 'Approved' and evaluation 'Passed'
+        (README §8.1; the Interview README §8.5 contract), ordered by requisition
+        number descending — the form's datalist for employeeName / position / intNo /
+        reqNo. `excludeOffered=true` additionally excludes candidates already used by
+        an existing offer (the legacy commented-out dedupe clause); default false
+        preserves legacy behaviour. Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: excludeOffered
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Exclude candidates whose INT_NO already appears on an offer header.
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/OfferCandidate'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/employment-offers/lookups/titles:
+    get:
+      operationId: listOfferTitles
+      tags: [Employment Offers]
+      summary: Mr/Mrs title lookup
+      description: >-
+        XXZP_TITLE lookup entries (MEANING / DESCRIPTION) for the to / toArabic
+        fields. Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`. No query parameters are
+        accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LookupEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/employment-offers/lookups/allowances:
+    get:
+      operationId: listOfferAllowances
+      tags: [Employment Offers]
+      summary: Benefit allowance lookup
+      description: >-
+        Benefit option list for one line field (README §8.3–§8.8): housing,
+        transportation, contract-period and annual-vacation read
+        XXZP_HOUSING_ALLOWANCE / XXZP_TRANSPORTATION / XXZP_CONTRACT_PERIOD /
+        XXZP_ANNUAL_VACATION ordered by LOOKUP_CODE; medical and ticket keep the
+        documented UNION statements verbatim (including the legacy MEANING suffixes).
+        Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            enum: [housing, transportation, contract-period, annual-vacation, medical, ticket]
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LookupEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/employment-offers/lookups/business-units:
+    get:
+      operationId: listOfferBusinessUnits
+      tags: [Employment Offers]
+      summary: Business-unit id lookup
+      description: >-
+        The two business-unit ids hardcoded in the legacy views (README §8.9). The
+        labels are swapped between the insert and edit views, so the API returns raw
+        ids only and never labels them until the owner confirms. Requires
+        `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`. No query parameters are accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BusinessUnits'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/employment-offers/lookups/number-to-arabic:
+    get:
+      operationId: convertOfferNumberToArabic
+      tags: [Employment Offers]
+      summary: Salary number in Arabic words
+      description: >-
+        CON_NUM_TO_ARABIC(:number) for the BASIC_SALARY_AR field (README §8.10,
+        formerly a legacy AJAX helper). Read-only; requires
+        `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: number
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/NumberToArabicResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/employment-offers/lookups/hijri-date:
+    get:
+      operationId: convertOfferDateToHijri
+      tags: [Employment Offers]
+      summary: Gregorian date to Hijri date
+      description: >-
+        Converts a calendar date to 'YYYY/MM/DD' in the NLS Arabic Hijrah calendar
+        for APPROXIMATE_STARTING_DATE_AR (README §8.11, formerly a legacy AJAX
+        helper). Read-only; requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/HijriDateResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/employment-offers/{headerId}:
+    get:
+      operationId: getEmploymentOffer
+      tags: [Employment Offers]
+      summary: Read one employment offer
+      description: >-
+        Header (README §4.1) plus its single line (§4.2); business dates come back
+        as ISO 'YYYY-MM-DD' and the audit timestamps as date-times. A header saved
+        without a line returns `line: null` instead of failing; a missing header is
+        404. Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/HeaderId'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EmploymentOfferDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    put:
+      operationId: updateEmploymentOffer
+      tags: [Employment Offers]
+      summary: Update an employment offer
+      description: >-
+        Updates the header (README §5.1) and MERGEs the line (§5.2, creating it when
+        the header was saved without one) in ONE transaction; both row counts are
+        checked and a missing header is 404. STATUS, CREATED_BY / CREATION_DATE,
+        PROBATIONARY_PERIOD(_AR) and the line salary-arabic duplicate (ATTRIBUTE2)
+        are never touched — they are insert-only legacy columns. Requires
+        `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:UPDATE` (re-evaluated in Oracle on every request) and
+        the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/HeaderId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmploymentOfferWrite'
+      responses:
+        '200':
+          description: Success; the headerId that was updated.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [headerId]
+                        properties:
+                          headerId:
+                            $ref: '#/components/schemas/Id'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      operationId: deleteEmploymentOffer
+      tags: [Employment Offers]
+      summary: Delete an employment offer
+      description: >-
+        Deletes the line first (FK) and then the header in ONE transaction
+        (README §6 — the legacy module has no delete at all). No conflict guard is
+        needed while STATUS stays write-once. Requires
+        `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:DELETE` (re-evaluated in Oracle on every request) and
+        the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/HeaderId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Deleted; `deleted` is always true.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [headerId, deleted]
+                        properties:
+                          headerId:
+                            $ref: '#/components/schemas/Id'
+                          deleted:
+                            const: true
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions:
+    get:
+      operationId: listRequisitions
+      tags: [HR Requisitions]
+      summary: List requisitions
+      description: >-
+        Personal Requisition Form records (XXZPI_PER_REQUISITIONS_ALL), paginated,
+        with filters and an allowlisted sort. Row scoping is decided server-side
+        (README §7.4): HR users (XX_DIGI_LOOKUP_VALUES LOOKUP_TYPE 'XXZP_HR') see
+        every record and may narrow by createdBy; other users see their own rows plus
+        those of recursively supervised employees (the XX_DIGI_EMP_MASTER
+        SUPERVISOR_NAME chain), whatever they pass in the query. `ticketStatus`
+        matches ATTRIBUTE1 with NULL treated as 'Open' (NVL). Requires
+        `REQUISITIONS.REQUISITIONS:VIEW` (re-evaluated in Oracle on every request).
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: requisitionStatus
+          in: query
+          schema:
+            enum: [Draft, Inprocess, Approved, Rejected]
+        - name: ticketStatus
+          in: query
+          schema:
+            enum: [Open, Accepted, Close]
+        - name: requisitionId
+          in: query
+          description: Exact REQUISITION_ID match.
+          schema:
+            $ref: '#/components/schemas/Id'
+        - name: requesterName
+          in: query
+          description: Case-insensitive contains-match on REQUESTER_NAME.
+          schema:
+            type: string
+            maxLength: 100
+        - name: jobName
+          in: query
+          description: Case-insensitive contains-match on JOB_NAME.
+          schema:
+            type: string
+            maxLength: 100
+        - name: deptName
+          in: query
+          description: Case-insensitive contains-match on DEPT_NAME.
+          schema:
+            type: string
+            maxLength: 100
+        - name: reasonOfReq
+          in: query
+          schema:
+            enum: [Replacement, Addition]
+        - name: dateFrom
+          in: query
+          description: Request-date lower bound, inclusive (calendar date).
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          description: Request-date upper bound, same-day inclusive (calendar date).
+          schema:
+            type: string
+            format: date
+        - name: search
+          in: query
+          description: >-
+            Case-insensitive contains-match across requester name, job name,
+            department name and requisition number.
+          schema:
+            type: string
+            maxLength: 100
+        - name: createdBy
+          in: query
+          description: >-
+            NUMBER(19,0) creator as a decimal string. HR callers only; ignored for
+            non-HR callers (the server-side scope wins).
+          schema:
+            type: string
+            pattern: '^[1-9][0-9]{0,18}$'
+        - name: sortBy
+          in: query
+          schema:
+            enum: [requisitionId, requestDate, dateNeeded, requesterName, creationDate]
+            default: requisitionId
+        - name: sortDir
+          in: query
+          schema:
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: >-
+            Success. `ticketStatus` is NVL(ATTRIBUTE1, 'Open'); `acceptedDate` /
+            `closedDate` are the raw ATTRIBUTE14 / ATTRIBUTE15 legacy dates (or null).
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRequisitions'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      operationId: createRequisition
+      tags: [HR Requisitions]
+      summary: Insert a requisition
+      description: >-
+        Inserts the header in ONE transaction with REQUISITION_ID =
+        NVL(MAX(REQUISITION_ID + 20), 100000) and REQUISITION_NUMBER =
+        REQUISITION_ID (README §3.1). REQUISITION_STATUS is written 'Draft' only and
+        no workflow row is created (README §11). REQUESTED_BY / REQUESTER_NAME are
+        server-set from the employee master of the session user and rejected when
+        taken from the body. Business dates travel as 'YYYY-MM-DD' and are stored as
+        'DD-Mon-YY'. Multipart requests may carry attachment file parts (`files`,
+        max 10 files, 10 MB each, §9 extension allowlist): the attachment rows and
+        the physical files are written in the same transaction and compensated on
+        failure. ticketStatus (ATTRIBUTE1) is HR-only — a non-HR caller sending a
+        non-empty value gets 400. Requires `REQUISITIONS.REQUISITIONS:CREATE` and the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequisitionWrite'
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/RequisitionWrite'
+                - type: object
+                  properties:
+                    files:
+                      type: array
+                      maxItems: 10
+                      items:
+                        type: string
+                        format: binary
+      responses:
+        '201':
+          description: Created; `requisitionNumber` equals the string `requisitionId`.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RequisitionCreated'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/lookups/job-titles:
+    get:
+      operationId: listRequisitionJobTitles
+      tags: [HR Requisitions]
+      summary: Job-title lookup
+      description: >-
+        Distinct XX_DIGI_EMP_MASTER job id / title pairs for the form datalist
+        (README §8.1), ordered by id descending. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
+        No query parameters are accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RequisitionJobTitle'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/lookups/requestor:
+    get:
+      operationId: getRequisitionRequestor
+      tags: [HR Requisitions]
+      summary: Requestor lookup
+      description: >-
+        The session user's employee-master record (README §8.2): FULL_NAME,
+        EMAIL_ADDRESS and EMPLOYEE_NUMBER, the same values the insert uses to
+        server-set REQUESTER_NAME / REQUESTED_BY. 404 when the account has no
+        employee row. Requires `REQUISITIONS.REQUISITIONS:VIEW`. No query parameters are
+        accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RequisitionRequestor'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/lookups/departments:
+    get:
+      operationId: listRequisitionDepartments
+      tags: [HR Requisitions]
+      summary: Department lookup
+      description: >-
+        Distinct XX_DIGI_DEPT_MASTER organization id / name pairs for the form
+        datalist (README §8.3), ordered by id. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
+        No query parameters are accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RequisitionDepartment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/lookups/replacement-for:
+    get:
+      operationId: listRequisitionReplacementCandidates
+      tags: [HR Requisitions]
+      summary: Replacement-for lookup
+      description: >-
+        FULL_NAMEs of the employees supervised by the requestor (README §8.4:
+        SUPERVISOR_NAME in the employee master equal to the requestor's own
+        FULL_NAME) — the REPLACEMENT_FOR candidates for a 'Replacement' request.
+        404 when the session account has no employee record. Requires
+        `REQUISITIONS.REQUISITIONS:VIEW`. No query parameters are accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success; possibly an empty array.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/lookups/budget:
+    get:
+      operationId: getRequisitionBudget
+      tags: [HR Requisitions]
+      summary: Budget lookup
+      description: >-
+        BASIC_SALARY of the employee-master row whose FULL_NAME equals the given
+        name (README §8.5) — the read-only "Basic Salary" field of the budget
+        section. 404 when no employee matches. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: fullName
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RequisitionBudget'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/lookups/filter-options:
+    get:
+      operationId: getRequisitionFilterOptions
+      tags: [HR Requisitions]
+      summary: Filter-option lookup
+      description: >-
+        Distinct dropdown values for the listing filters (README §8.6): requisition
+        ids, requester names, job names, department names and reason codes, each
+        bounded to 500 entries and scoped exactly like the listing (README §7.4) —
+        non-HR callers only see values of their own rows and those of their
+        supervised employees. Requires `REQUISITIONS.REQUISITIONS:VIEW`. No query parameters
+        are accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RequisitionFilterOptions'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/{requisitionId}:
+    get:
+      operationId: getRequisition
+      tags: [HR Requisitions]
+      summary: Read one requisition
+      description: >-
+        The header row with its attachment rows (xxzp_all_attachments,
+        FORM_NAME 'Requisition'); business dates come back in the stored legacy
+        'DD-Mon-YY' form, ATTACHED_ON as 'DD-Mon-YYYY'. Out-of-scope rows are
+        indistinguishable from missing ones: a non-HR caller who may not read a
+        record (README §7.4) receives 404. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequisitionId'
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RequisitionDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    put:
+      operationId: updateRequisition
+      tags: [HR Requisitions]
+      summary: Update a requisition
+      description: >-
+        Full replace of the business fields of an existing requisition in ONE
+        transaction (the edit form submits the whole payload). Frozen and never
+        updated (README §5.1): REQUISITION_STATUS, REQUISITION_NUMBER, REQUEST_DATE,
+        REQUESTER_NAME, REQUESTED_BY — requestDate is therefore rejected on this
+        operation as an unknown field. Non-HR callers get 409 CANNOT_UPDATE_STATUS
+        while the status is Inprocess or Approved (HR users may always save).
+        ticketStatus is HR-only; when absent it preserves the stored ATTRIBUTE1/14/15
+        group, when '' it clears it, and while the status is Accepted/Close the
+        previously stored date survives a re-save (corrected §5.1 behaviour).
+        Multipart requests may append attachment file parts (`files`) in the same
+        transaction. Out-of-scope rows 404. Requires `REQUISITIONS.REQUISITIONS:UPDATE` and
+        the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequisitionId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequisitionUpdate'
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/RequisitionUpdate'
+                - type: object
+                  properties:
+                    files:
+                      type: array
+                      maxItems: 10
+                      items:
+                        type: string
+                        format: binary
+      responses:
+        '200':
+          description: Success; the requisitionId that was updated.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [requisitionId]
+                        properties:
+                          requisitionId:
+                            $ref: '#/components/schemas/Id'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/RequisitionUpdateConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      operationId: deleteRequisition
+      tags: [HR Requisitions]
+      summary: Delete a requisition
+      description: >-
+        Deletes the header and its attachment rows in ONE transaction, then removes
+        the physical attachment files. Two uniform guards (no bypass, HR included):
+        409 CANNOT_DELETE_STATUS when REQUISITION_STATUS is not 'Draft', and 409
+        REQUISITION_IN_USE when an interview assessment references the requisition
+        number in ATTRIBUTE4. Out-of-scope rows 404. Requires
+        `REQUISITIONS.REQUISITIONS:DELETE` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequisitionId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Deleted; `deleted` is always true.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [requisitionId, deleted]
+                        properties:
+                          requisitionId:
+                            $ref: '#/components/schemas/Id'
+                          deleted:
+                            const: true
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/RequisitionDeleteConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/{requisitionId}/attachments:
+    post:
+      operationId: uploadRequisitionAttachments
+      tags: [HR Requisitions]
+      summary: Upload requisition attachments
+      description: >-
+        Appends attachment rows (FORM_HEADER_ID = requisitionId, FORM_NAME
+        'Requisition') and writes the physical files in ONE transaction, compensated
+        on failure. Multipart only, at least one file part named `files`, max 10
+        files, 10 MB each, README §9 extension allowlist. Returns the full current
+        attachment list. Out-of-scope or missing requisitions 404. Requires
+        `REQUISITIONS.REQUISITIONS:MANAGE_ATTACHMENTS` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequisitionId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '201':
+          description: Uploaded; the current attachment list of the requisition.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [requisitionId, attachments]
+                        properties:
+                          requisitionId:
+                            $ref: '#/components/schemas/Id'
+                          attachments:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/RequisitionAttachment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/{requisitionId}/attachments/{attachmentId}:
+    delete:
+      operationId: deleteRequisitionAttachment
+      tags: [HR Requisitions]
+      summary: Delete a requisition attachment
+      description: >-
+        Deletes the attachment row scoped to its requisition and removes the physical
+        file (a missing file is a no-op — the row is authoritative). Unknown or
+        foreign attachment ids 404. Requires `REQUISITIONS.REQUISITIONS:MANAGE_ATTACHMENTS`
+        and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequisitionId'
+        - $ref: '#/components/parameters/AttachmentId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Deleted; `deleted` is always true.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [requisitionId, attachmentId, deleted]
+                        properties:
+                          requisitionId:
+                            $ref: '#/components/schemas/Id'
+                          attachmentId:
+                            $ref: '#/components/schemas/Id'
+                          deleted:
+                            const: true
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/v1/auth/recovery/request:
     post:
       operationId: requestRecovery
@@ -2553,6 +4284,30 @@ components:
       in: path
       required: true
       description: NUMBER(19,0) identifier as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    HeaderId:
+      name: headerId
+      in: path
+      required: true
+      description: NUMBER(19,0) header identifier of the interview assessment, as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    RequisitionId:
+      name: requisitionId
+      in: path
+      required: true
+      description: NUMBER(19,0) REQUISITION_ID of the personal requisition, as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    AttachmentId:
+      name: attachmentId
+      in: path
+      required: true
+      description: NUMBER(19,0) HEADER_ID of the xxzp_all_attachments row, as a decimal string.
       schema:
         type: string
         pattern: '^[1-9][0-9]{0,18}$'
@@ -3425,6 +5180,268 @@ components:
         requestId:
           type: string
           description: Correlation ID, identical to the X-Request-Id response header.
+    InterviewAssessmentRating:
+      type: string
+      description: >-
+        Section rating '1'–'5' or 'N/A' (README §1.2). An absent rating is stored
+        and returned as '-'.
+      enum: ['1', '2', '3', '4', '5', 'N/A', '']
+    InterviewAssessmentPersonalSpec:
+      type: object
+      additionalProperties: false
+      properties:
+        rate1: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        remark1: { type: string, maxLength: 500 }
+        rate2: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        remark2: { type: string, maxLength: 500 }
+        rate3: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        remark3: { type: string, maxLength: 500 }
+        rate4: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        remark4: { type: string, maxLength: 500 }
+        rate5: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        remark5: { type: string, maxLength: 500 }
+        rate6: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        remark6: { type: string, maxLength: 500 }
+        rate7: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        remark7: { type: string, maxLength: 500 }
+        rate8: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        remark8: { type: string, maxLength: 500 }
+        rate9:
+          type: integer
+          minimum: 0
+          description: Accepted on write but always recomputed server-side as the sum of rate1..rate8.
+        remarks: { type: string, maxLength: 500 }
+    InterviewAssessmentJobCompetency:
+      type: object
+      additionalProperties: false
+      properties:
+        cRating1: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        cRemark1: { type: string, maxLength: 500 }
+        cRating2: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        cRemark2: { type: string, maxLength: 500 }
+        cRating3: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        cRemark3: { type: string, maxLength: 500 }
+        cRating4: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        cRemark4: { type: string, maxLength: 500 }
+        cRating5: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        cRemark5: { type: string, maxLength: 500 }
+        cRating6: { $ref: '#/components/schemas/InterviewAssessmentRating' }
+        cRemark6: { type: string, maxLength: 500 }
+        cRating7:
+          type: integer
+          minimum: 0
+          description: >-
+            Accepted on write but always recomputed server-side as the sum of
+            cRating1..cRating6.
+        cRemarks: { type: string, maxLength: 500 }
+        sumStrength: { type: string, maxLength: 4000 }
+        sumWeekness:
+          type: string
+          maxLength: 4000
+          description: Legacy column spelling (WEAKNESSES_SUMMARY) kept until a DB migration.
+    InterviewAssessmentEvaluation:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          enum: [Passed, Hold, Failed]
+          description: Stored in XXZP_INTERVIEW_EVAL_T.STATUS (EVAL_STATUS).
+        interviewedBy: { type: string, maxLength: 200 }
+        adminManager: { type: string, maxLength: 200 }
+        hrRep: { type: string, maxLength: 200 }
+        deptRep: { type: string, maxLength: 200 }
+        comment: { type: string, maxLength: 500 }
+        managningDirector:
+          type: string
+          maxLength: 200
+          description: Legacy column spelling (MANAGNING_DIRECTOR) kept until a DB migration.
+    InterviewAssessmentWrite:
+      type: object
+      additionalProperties: false
+      required: [candidateName, requisitionNo, positionName, attribute3, evaluation]
+      properties:
+        candidateName: { type: string, maxLength: 200 }
+        requisitionNo:
+          type: string
+          maxLength: 100
+          description: Must be an approved requisition (see the requisitions lookup).
+        positionName: { type: string, maxLength: 200 }
+        attribute3:
+          enum: ['300000003618177', '300000003618190']
+          description: APP_BU_INFO payroll business unit (README §1.1); also prefixes INT_NO.
+        nationality: { type: string, maxLength: 100 }
+        materialStatus:
+          enum: [Single, Married, '']
+          description: Legacy column spelling of MARITAL_STATUS (README §10.8).
+        age: { type: integer, minimum: 0 }
+        interviewDate:
+          type: string
+          format: date
+          description: Calendar date 'YYYY-MM-DD'; stored as 'DD-Mon-YY'.
+        interviewTime: { type: string, maxLength: 20 }
+        interviewType: { enum: [Personal, Online, ''] }
+        secondaryEducation:
+          enum: [Secondary Education, Diploma, Degree, 'Masters Degree', '']
+        secondaryEducationChk: { enum: [Yes, No, ''] }
+        lastPositionHeld: { type: string, maxLength: 200 }
+        companyName: { type: string, maxLength: 200 }
+        relevantYearsExperience: { type: integer, minimum: 0 }
+        location: { type: string, maxLength: 100 }
+        currentEmployer: { type: string, maxLength: 200 }
+        joining:
+          type: string
+          format: date
+          description: Intended-joining calendar date 'YYYY-MM-DD'; stored as 'DD-Mon-YY'.
+        major: { type: string, maxLength: 100 }
+        division: { enum: [Food, Non-Food, ''] }
+        curSalBasic: { type: number, minimum: 0 }
+        expSalBasic: { type: number, minimum: 0 }
+        curSalTotal: { type: number, minimum: 0 }
+        expSalTotal: { type: number, minimum: 0 }
+        interviewedBy: { type: string, maxLength: 200 }
+        interviewedBy2: { type: string, maxLength: 200 }
+        interviewedBy3: { type: string, maxLength: 200 }
+        status:
+          enum: [Incomplete]
+          description: >-
+            Plain data column: only ever written 'Incomplete' on insert and never
+            updated. The field is accepted for compatibility and no other value passes.
+        personalSpec: { $ref: '#/components/schemas/InterviewAssessmentPersonalSpec' }
+        jobCompetency: { $ref: '#/components/schemas/InterviewAssessmentJobCompetency' }
+        evaluation: { $ref: '#/components/schemas/InterviewAssessmentEvaluation' }
+    InterviewAssessmentCreated:
+      type: object
+      required: [headerId, intNo, uuid]
+      properties:
+        headerId:
+          $ref: '#/components/schemas/Id'
+        intNo:
+          type: string
+          description: ATTRIBUTE3 + '-' + the zero-padded headerId.
+        uuid:
+          type: string
+          format: uuid
+    InterviewAssessmentDetail:
+      type: object
+      required: [headerId, candidateName, positionName, requisitionNo, attribute3, status, intNo]
+      properties:
+        headerId: { $ref: '#/components/schemas/Id' }
+        candidateName: { type: string }
+        positionName: { type: string }
+        requisitionNo: { type: string }
+        attribute3: { type: string }
+        nationality: { type: string }
+        materialStatus: { type: string }
+        age: { type: integer }
+        interviewDate:
+          type: string
+          description: Stored legacy 'DD-Mon-YY' form, as returned by the read.
+        interviewTime: { type: string }
+        interviewType: { type: string }
+        secondaryEducation: { type: string }
+        secondaryEducationChk: { type: string }
+        lastPositionHeld: { type: string }
+        companyName: { type: string }
+        relevantYearsExperience: { type: integer }
+        location: { type: string }
+        currentEmployer: { type: string }
+        joining: { type: string, description: Stored legacy 'DD-Mon-YY' form. }
+        major: { type: string }
+        division: { type: string }
+        curSalBasic: { type: [number, 'null'] }
+        expSalBasic: { type: [number, 'null'] }
+        curSalTotal: { type: [number, 'null'] }
+        expSalTotal: { type: [number, 'null'] }
+        interviewedBy: { type: string }
+        interviewedBy2: { type: string }
+        interviewedBy3: { type: string }
+        status: { enum: [Incomplete] }
+        intNo: { type: string }
+        approvalAuthority:
+          type: [string, 'null']
+          description: XX_DIGI_JOB_MASTER.APPROVAL_AUTHORITY of the position; null when absent.
+        personalSpecTotal: { type: integer }
+        personalSpecResult: { type: string }
+        jobCompetencyTotal: { type: integer }
+        jobCompetencyResult: { type: string }
+        personalSpec:
+          oneOf:
+            - $ref: '#/components/schemas/InterviewAssessmentPersonalSpec'
+            - type: 'null'
+          description: >-
+            Null when the XXZP_PERSONAL_SPEC_T row is missing. rate9/remarks carry
+            the header totals on read.
+        jobCompetency:
+          oneOf:
+            - $ref: '#/components/schemas/InterviewAssessmentJobCompetency'
+            - type: 'null'
+          description: Null when the XXZP_JOB_COMPETENCY_T row is missing; cRating7/cRemarks carry the totals.
+        evaluation:
+          oneOf:
+            - $ref: '#/components/schemas/InterviewAssessmentEvaluation'
+            - type: 'null'
+          description: Null when the XXZP_INTERVIEW_EVAL_T row is missing.
+        createdAt: { type: [string, 'null'] }
+        updatedAt: { type: [string, 'null'] }
+    InterviewAssessmentListItem:
+      type: object
+      required:
+        [
+          headerId,
+          intNo,
+          candidateName,
+          positionName,
+          interviewDate,
+          headerStatus,
+          statusLabel,
+          evaluationStatus,
+          creationDate,
+          createdBy,
+        ]
+      properties:
+        headerId: { $ref: '#/components/schemas/Id' }
+        intNo: { type: string }
+        candidateName: { type: string }
+        positionName: { type: string }
+        nationality: { type: string }
+        interviewDate:
+          type: string
+          description: Stored legacy 'DD-Mon-YY' form, as returned by the listing.
+        requisitionNo: { type: string }
+        division: { type: string }
+        interviewType: { type: string }
+        createdBy: { $ref: '#/components/schemas/Id' }
+        creationDate: { type: string, format: date }
+        headerStatus: { enum: [Incomplete, Inprocess, Approved, Rejected] }
+        statusLabel:
+          enum: [Draft, InProcess, Approved, Rejected]
+          description: >-
+            Legacy display mapping (README §7.3): Inprocess becomes InProcess;
+            everything else outside Approved/Rejected is Draft.
+        evaluationStatus:
+          type: [string, 'null']
+          description: Only populated when headerStatus is Approved; null otherwise (README §7.3).
+    PaginatedInterviewAssessments:
+      type: object
+      required: [success, data, pagination, meta]
+      properties:
+        success:
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewAssessmentListItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+    ApprovedRequisition:
+      type: object
+      required: [requisitionNumber, jobName]
+      properties:
+        requisitionNumber: { type: string }
+        jobName: { type: string }
     SuccessResponse:
       type: object
       required: [success, data, meta]
@@ -3488,6 +5505,668 @@ components:
             HIGH:
               type: string
               const: UP
+    EmploymentOfferLine:
+      type: object
+      additionalProperties: false
+      required: [approximateStartingDate]
+      description: >-
+        Single line object (README §3.2) — one line per header, never an array.
+        Absent optional values bind NULL and the SQL applies its NVL defaults.
+      properties:
+        basicSalary:
+          description: >-
+            BASIC_SALARY ≥ 0. A comma string ("8,500") is accepted and stripped to
+            a number server-side; stored as 0 when absent.
+          oneOf:
+            - type: number
+              minimum: 0
+            - type: string
+              pattern: '^(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$'
+        basicSalaryAr: { type: string, maxLength: 1000 }
+        housingAllowance: { type: string, maxLength: 500 }
+        housingAllowanceAr: { type: string, maxLength: 500 }
+        transportation: { type: string, maxLength: 500 }
+        transportationAr: { type: string, maxLength: 500 }
+        annualVacation: { type: string, maxLength: 500 }
+        annualVacationAr: { type: string, maxLength: 500 }
+        ticket: { type: string, maxLength: 500 }
+        ticketAr: { type: string, maxLength: 500 }
+        medical: { type: string, maxLength: 500 }
+        medicalAr: { type: string, maxLength: 500 }
+        contractPeriod: { type: string, maxLength: 500 }
+        contractPeriodAr: { type: string, maxLength: 500 }
+        approximateStartingDate:
+          type: string
+          format: date
+          description: Required; stored as 'DD-Mon-YYYY'.
+        approximateStartingDateAr:
+          type: string
+          maxLength: 100
+          description: Hijri 'YYYY/MM/DD' from the hijri-date lookup.
+        probationaryPeriod:
+          type: string
+          maxLength: 500
+          description: >-
+            Absent → the hardcoded English default of README §1.2 (NVL in the
+            insert SQL). Insert-only: never updated.
+        probationaryPeriodAr:
+          type: string
+          maxLength: 500
+          description: >-
+            Absent → the hardcoded Arabic default of README §1.2 (NVL in the insert
+            SQL). Insert-only: never updated.
+        comment:
+          type: string
+          maxLength: 4000
+          description: Stored in the line ATTRIBUTE1; the column name is never exposed.
+    EmploymentOfferWrite:
+      type: object
+      additionalProperties: false
+      required: [offerDate, employeeName, position, division, intNo, line]
+      properties:
+        offerDate:
+          type: string
+          format: date
+          description: Calendar date 'YYYY-MM-DD'; stored as 'DD-Mon-YYYY'.
+        employeeName: { type: string, maxLength: 200 }
+        employeeNameAr: { type: string, maxLength: 200 }
+        position: { type: string, maxLength: 200 }
+        division:
+          enum: ['300000002689294', '300000002689307']
+          description: >-
+            Business unit in ATTRIBUTE1. The legacy labels are contradictory
+            (README §8.9), so only raw ids are exchanged.
+        to:
+          type: string
+          maxLength: 50
+          description: Mr/Mrs title in English (XXZP_TITLE MEANING).
+        toArabic:
+          type: string
+          maxLength: 50
+          description: Mr/Mrs title in Arabic (XXZP_TITLE DESCRIPTION).
+        applicant:
+          type: string
+          maxLength: 200
+          description: Signature name; an empty value stores the legacy '-' default.
+        intNo:
+          type: string
+          maxLength: 100
+          description: >-
+            Interview INT_NO (see the candidates lookup). Existence is not enforced —
+            README §9 asks the owner before adding an FK-like check.
+        reqNo:
+          description: Requisition number in ATTRIBUTE11; empty or absent stores 0.
+          oneOf:
+            - type: string
+              maxLength: 100
+            - type: number
+        line:
+          $ref: '#/components/schemas/EmploymentOfferLine'
+    EmploymentOfferCreated:
+      type: object
+      required: [headerId, uuid]
+      properties:
+        headerId:
+          $ref: '#/components/schemas/Id'
+        uuid:
+          type: string
+          format: uuid
+    OfferLineDetail:
+      type: object
+      required: [offerLineId, headerId]
+      properties:
+        offerLineId: { $ref: '#/components/schemas/Id' }
+        headerId: { $ref: '#/components/schemas/Id' }
+        basicSalary: { type: [number, 'null'] }
+        basicSalaryAr: { type: [string, 'null'] }
+        housingAllowance: { type: [string, 'null'] }
+        housingAllowanceAr: { type: [string, 'null'] }
+        transportation: { type: [string, 'null'] }
+        transportationAr: { type: [string, 'null'] }
+        annualVacation: { type: [string, 'null'] }
+        annualVacationAr: { type: [string, 'null'] }
+        ticket: { type: [string, 'null'] }
+        ticketAr: { type: [string, 'null'] }
+        medical: { type: [string, 'null'] }
+        medicalAr: { type: [string, 'null'] }
+        contractPeriod: { type: [string, 'null'] }
+        contractPeriodAr: { type: [string, 'null'] }
+        approximateStartingDate:
+          type: [string, 'null']
+          format: date
+        approximateStartingDateAr: { type: [string, 'null'] }
+        probationaryPeriod: { type: [string, 'null'] }
+        probationaryPeriodAr: { type: [string, 'null'] }
+        comment:
+          type: [string, 'null']
+          description: The line ATTRIBUTE1 (comment) under its payload name.
+    EmploymentOfferDetail:
+      type: object
+      required: [headerId, offerDate, employeeName, position, division, intNo, status, line]
+      properties:
+        headerId: { $ref: '#/components/schemas/Id' }
+        uuid: { type: string, format: uuid }
+        offerDate: { type: string, format: date }
+        employeeName: { type: string }
+        employeeNameAr: { type: [string, 'null'] }
+        position: { type: string }
+        status:
+          enum: [Incomplete]
+          description: >-
+            Write-once column: written 'Incomplete' on insert, never updated, only
+            filtered on in the listing.
+        division:
+          type: [string, 'null']
+          description: Business-unit id from ATTRIBUTE1 (raw id only, README §8.9).
+        applicant: { type: [string, 'null'] }
+        to: { type: [string, 'null'] }
+        toArabic: { type: [string, 'null'] }
+        intNo: { type: [string, 'null'] }
+        reqNo:
+          type: [string, 'number', 'null']
+          description: ATTRIBUTE11 under its payload name (the listing calls it requisitionNo).
+        createdBy: { $ref: '#/components/schemas/Id' }
+        updatedBy: { type: [string, 'null'] }
+        createdAt:
+          type: [string, 'null']
+          format: date-time
+        updatedAt:
+          type: [string, 'null']
+          format: date-time
+        line:
+          oneOf:
+            - $ref: '#/components/schemas/OfferLineDetail'
+            - type: 'null'
+          description: Null when the header exists without a line row (README §4).
+    OfferListItem:
+      type: object
+      required: [headerId, offerDate, employeeName, position, status, createdBy, creationDate]
+      properties:
+        headerId: { $ref: '#/components/schemas/Id' }
+        offerDate: { type: string, format: date }
+        employeeName: { type: string }
+        employeeNameAr: { type: [string, 'null'] }
+        position: { type: string }
+        division: { type: [string, 'null'] }
+        applicant: { type: [string, 'null'] }
+        intNo: { type: [string, 'null'] }
+        requisitionNo:
+          type: [string, 'number', 'null']
+          description: ATTRIBUTE11; called reqNo in the write payload and detail read.
+        status: { enum: [Incomplete] }
+        createdBy: { $ref: '#/components/schemas/Id' }
+        creationDate: { type: string, format: date }
+        lastUpdateDate: { type: [string, 'null'], format: date }
+    PaginatedEmploymentOffers:
+      type: object
+      required: [success, data, pagination, meta]
+      properties:
+        success:
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfferListItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+    OfferCandidate:
+      type: object
+      required: [headerId, intNo, candidateName, positionName]
+      properties:
+        headerId: { $ref: '#/components/schemas/Id' }
+        intNo: { type: string }
+        candidateName: { type: string }
+        positionName: { type: string }
+        requisitionNo:
+          type: [string, 'null']
+          description: Interview header ATTRIBUTE4 (requisition number).
+    LookupEntry:
+      type: object
+      required: [meaning]
+      properties:
+        meaning: { type: string }
+        description: { type: [string, 'null'] }
+    BusinessUnits:
+      type: object
+      required: [businessUnits]
+      properties:
+        businessUnits:
+          type: array
+          items:
+            enum: ['300000002689294', '300000002689307']
+          description: >-
+            Raw ids only — the legacy insert/edit labels are contradictory
+            (README §8.9), so no label is returned until the owner confirms.
+    NumberToArabicResult:
+      type: object
+      required: [output]
+      properties:
+        output:
+          type: [string, 'null']
+          description: CON_NUM_TO_ARABIC(:number) words for BASIC_SALARY_AR.
+    HijriDateResult:
+      type: object
+      required: [hijri]
+      properties:
+        hijri:
+          type: string
+          description: "'YYYY/MM/DD' in the NLS Arabic Hijrah calendar."
+    RequisitionWrite:
+      type: object
+      additionalProperties: false
+      description: >-
+        Insert payload (README §3.2). `replacementFor` is required when reasonOfReq
+        is 'Replacement' and `reason` when it is 'Addition'. Empty text and id
+        fields store NULL (the legacy literal 'null' quirk of §9 is deliberately not
+        reproduced). `ticketStatus` may only be set by HR users.
+      required: [requestDate, jobName, deptName, dateNeeded, reasonOfReq]
+      properties:
+        requestDate:
+          type: string
+          format: date
+          description: Stored as 'DD-Mon-YY'. Frozen after insert.
+        jobId:
+          type: [string, 'null']
+          description: Job-titles lookup id; empty stores NULL.
+        jobName:
+          type: string
+          maxLength: 200
+        deptId:
+          type: [string, 'null']
+          description: Departments lookup id; empty stores NULL.
+        deptName:
+          type: string
+          maxLength: 200
+        dateNeeded:
+          type: string
+          format: date
+        reasonOfReq:
+          enum: [Replacement, Addition]
+        replacementFor:
+          type: [string, 'null']
+          maxLength: 200
+        reason:
+          type: [string, 'null']
+          maxLength: 4000
+        budgeted:
+          enum: [Y, N]
+          default: N
+        budgetedSal:
+          type: number
+          minimum: 0
+          default: 0
+        highSchool:
+          enum: [Y, N]
+          default: N
+        diploma:
+          enum: [Y, N]
+          default: N
+        higherDiploma:
+          enum: [Y, N]
+          default: N
+        degree:
+          enum: [Y, N]
+          default: N
+        masterDegree:
+          enum: [Y, N]
+          default: N
+        gccExp:
+          enum: ['0 - 2', '2 - 5', '5 - 10', '> 10']
+          default: '0 - 2'
+        workExp:
+          enum: ['0 - 2', '2 - 5', '5 - 10', '> 10']
+          default: '0 - 2'
+        skills:
+          type: [string, 'null']
+          maxLength: 4000
+        other:
+          type: [string, 'null']
+          maxLength: 4000
+        remark:
+          type: [string, 'null']
+          maxLength: 4000
+        totalPackage:
+          type: [number, 'null']
+          minimum: 0
+        ticketStatus:
+          type: string
+          description: >-
+            HR-only (server-side XXZP_HR probe). '' | Open | Accepted | Close;
+            absent on update means "preserve".
+          enum: ['', Open, Accepted, Close]
+    RequisitionUpdate:
+      type: object
+      additionalProperties: false
+      description: >-
+        Full-replace update payload (README §5.1) — RequisitionWrite without
+        requestDate, which is frozen after insert and rejected here as an unknown
+        field. Everything else behaves like insert, including the HR-only
+        ticketStatus.
+      required: [jobName, deptName, dateNeeded, reasonOfReq]
+      properties:
+        jobId:
+          type: [string, 'null']
+          description: Job-titles lookup id; empty stores NULL.
+        jobName:
+          type: string
+          maxLength: 200
+        deptId:
+          type: [string, 'null']
+          description: Departments lookup id; empty stores NULL.
+        deptName:
+          type: string
+          maxLength: 200
+        dateNeeded:
+          type: string
+          format: date
+        reasonOfReq:
+          enum: [Replacement, Addition]
+        replacementFor:
+          type: [string, 'null']
+          maxLength: 200
+        reason:
+          type: [string, 'null']
+          maxLength: 4000
+        budgeted:
+          enum: [Y, N]
+          default: N
+        budgetedSal:
+          type: number
+          minimum: 0
+          default: 0
+        highSchool:
+          enum: [Y, N]
+          default: N
+        diploma:
+          enum: [Y, N]
+          default: N
+        higherDiploma:
+          enum: [Y, N]
+          default: N
+        degree:
+          enum: [Y, N]
+          default: N
+        masterDegree:
+          enum: [Y, N]
+          default: N
+        gccExp:
+          enum: ['0 - 2', '2 - 5', '5 - 10', '> 10']
+          default: '0 - 2'
+        workExp:
+          enum: ['0 - 2', '2 - 5', '5 - 10', '> 10']
+          default: '0 - 2'
+        skills:
+          type: [string, 'null']
+          maxLength: 4000
+        other:
+          type: [string, 'null']
+          maxLength: 4000
+        remark:
+          type: [string, 'null']
+          maxLength: 4000
+        totalPackage:
+          type: [number, 'null']
+          minimum: 0
+        ticketStatus:
+          type: string
+          description: >-
+            HR-only (server-side XXZP_HR probe). '' clears the ticket group,
+            an absent value preserves ATTRIBUTE1/14/15.
+          enum: ['', Open, Accepted, Close]
+    RequisitionCreated:
+      type: object
+      required: [requisitionId, requisitionNumber]
+      properties:
+        requisitionId:
+          $ref: '#/components/schemas/Id'
+        requisitionNumber:
+          type: string
+          description: Equals REQUISITION_ID (README §3.1).
+    RequisitionAttachment:
+      type: object
+      required: [attachmentId, fileName, attachedOn]
+      properties:
+        attachmentId:
+          $ref: '#/components/schemas/Id'
+        fileName:
+          type: string
+          description: The client's original file name (stored FILE_NAME).
+        attachedOn:
+          type: string
+          description: ATTACHED_ON in the storage form 'DD-Mon-YYYY'.
+    RequisitionDetail:
+      type: object
+      required:
+        - requisitionId
+        - requisitionNumber
+        - requisitionStatus
+        - requesterName
+        - requestDate
+        - jobName
+        - deptName
+        - dateNeeded
+        - reasonOfReq
+        - ticketStatus
+        - attachments
+      properties:
+        requisitionId:
+          $ref: '#/components/schemas/Id'
+        requisitionNumber:
+          type: string
+        requisitionStatus:
+          description: Written 'Draft' on insert; never transitioned by this API.
+          enum: [Draft, Inprocess, Approved, Rejected]
+        requestedBy:
+          type: [string, 'null']
+          description: Server-set employee number of the requestor.
+        requesterName:
+          type: string
+        requestDate:
+          type: string
+          description: Legacy 'DD-Mon-YY' form.
+        jobId:
+          type: [string, 'null']
+        jobName:
+          type: string
+        deptId:
+          type: [string, 'null']
+        deptName:
+          type: string
+        dateNeeded:
+          type: string
+          description: Legacy 'DD-Mon-YY' form.
+        reasonOfReq:
+          enum: [Replacement, Addition]
+        replacementFor:
+          type: [string, 'null']
+        reason:
+          type: [string, 'null']
+        budgeted:
+          enum: [Y, N]
+        budgetedSal:
+          type: number
+        highSchool:
+          enum: [Y, N]
+        diploma:
+          enum: [Y, N]
+        higherDiploma:
+          enum: [Y, N]
+        degree:
+          enum: [Y, N]
+        masterDegree:
+          enum: [Y, N]
+        gccExp:
+          enum: ['0 - 2', '2 - 5', '5 - 10', '> 10']
+        workExp:
+          enum: ['0 - 2', '2 - 5', '5 - 10', '> 10']
+        skills:
+          type: [string, 'null']
+        other:
+          type: [string, 'null']
+        remark:
+          type: [string, 'null']
+        totalPackage:
+          type: [number, 'null']
+        ticketStatus:
+          type: string
+          enum: ['', Open, Accepted, Close]
+        acceptedDate:
+          type: [string, 'null']
+          description: ATTRIBUTE14 in legacy 'DD-Mon-YY' form.
+        closedDate:
+          type: [string, 'null']
+          description: ATTRIBUTE15 in legacy 'DD-Mon-YY' form.
+        createdBy:
+          type: [string, 'null']
+          description: NUMBER(19,0) creator as a decimal string.
+        createdAt:
+          type: string
+          description: CREATION_DATE in the legacy 'DD-Mon-YY' form.
+        updatedBy:
+          type: [string, 'null']
+        updatedAt:
+          type: [string, 'null']
+          format: date-time
+          description: Raw LAST_UPDATE_DATE instant; null until the first update.
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequisitionAttachment'
+    RequisitionListItem:
+      type: object
+      required:
+        - requisitionId
+        - requisitionNumber
+        - requisitionStatus
+        - requesterName
+        - requestDate
+        - dateNeeded
+        - jobName
+        - deptName
+        - reasonOfReq
+        - ticketStatus
+      properties:
+        requisitionId:
+          $ref: '#/components/schemas/Id'
+        requisitionNumber:
+          type: string
+        requisitionStatus:
+          enum: [Draft, Inprocess, Approved, Rejected]
+        requesterName:
+          type: string
+        requestedBy:
+          type: [string, 'null']
+        requestDate:
+          type: string
+        dateNeeded:
+          type: string
+        jobName:
+          type: string
+        deptName:
+          type: string
+        reasonOfReq:
+          enum: [Replacement, Addition]
+        replacementFor:
+          type: [string, 'null']
+        budgeted:
+          enum: [Y, N]
+        totalPackage:
+          type: [number, 'null']
+        ticketStatus:
+          type: string
+          description: NVL(ATTRIBUTE1, 'Open').
+          enum: [Open, Accepted, Close]
+        acceptedDate:
+          type: [string, 'null']
+        closedDate:
+          type: [string, 'null']
+        createdBy:
+          type: [string, 'null']
+        creationDate:
+          type: string
+        lastUpdateDate:
+          type: [string, 'null']
+          format: date-time
+    PaginatedRequisitions:
+      type: object
+      required: [success, data, pagination, meta]
+      properties:
+        success:
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequisitionListItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+    RequisitionJobTitle:
+      type: object
+      required: [jobId, name]
+      properties:
+        jobId:
+          type: string
+        name:
+          type: string
+    RequisitionDepartment:
+      type: object
+      required: [deptId, name]
+      properties:
+        deptId:
+          type: string
+        name:
+          type: string
+    RequisitionRequestor:
+      type: object
+      required: [fullName, emailAddress, employeeNumber]
+      properties:
+        fullName:
+          type: string
+        emailAddress:
+          type: [string, 'null']
+        employeeNumber:
+          type: string
+    RequisitionBudget:
+      type: object
+      required: [fullName, totalPackage]
+      properties:
+        fullName:
+          type: string
+        totalPackage:
+          description: BASIC_SALARY of the matching employee-master row.
+          type: number
+    RequisitionFilterOptions:
+      type: object
+      required: [requisitionIds, requesterNames, jobNames, deptNames, reasons]
+      properties:
+        requisitionIds:
+          type: array
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/Id'
+        requesterNames:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+        jobNames:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+        deptNames:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+        reasons:
+          type: array
+          maxItems: 500
+          items:
+            enum: [Replacement, Addition]
   responses:
     MfaSignedIn:
       description: >-
@@ -3767,6 +6446,79 @@ components:
                   message: PASSWORD_NOT_SET
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    InterviewAssessmentDeleteConflict:
+      description: >-
+        `CANNOT_DELETE_APPROVED`: the record's STATUS is 'Approved' and its
+        evaluation is 'Passed', so the Employment Offer form consumes it and it
+        cannot be deleted. Nothing was removed.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: CANNOT_DELETE_APPROVED
+              message: Cannot delete an approved interview assessment
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    RequisitionUpdateConflict:
+      description: >-
+        `CANNOT_UPDATE_STATUS`: a non-HR caller tried to update a requisition whose
+        REQUISITION_STATUS is 'Inprocess' or 'Approved' (README §5.0); HR users may
+        always save. Nothing was changed.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: CANNOT_UPDATE_STATUS
+              message: Request is InProcess/Approved — cannot update data
+            meta:
+              requestId: 7c4e9a1b-2d3f-4a5b-8c6d-9e0f1a2b3c4d
+    RequisitionDeleteConflict:
+      description: >-
+        One of the two uniform delete guards fired (README §5.1 — no bypass, HR
+        included): `CANNOT_DELETE_STATUS` when REQUISITION_STATUS is not 'Draft',
+        or `REQUISITION_IN_USE` when an interview assessment references the
+        requisition number in ATTRIBUTE4. Nothing was removed — the header, its
+        attachment rows and the physical files are untouched.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notDraft:
+              summary: The requisition is not a Draft
+              value:
+                success: false
+                error:
+                  code: CANNOT_DELETE_STATUS
+                  message: Only Draft requisitions can be deleted
+                meta:
+                  requestId: 5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d
+            referencedByInterview:
+              summary: An interview assessment references the requisition number
+              value:
+                success: false
+                error:
+                  code: REQUISITION_IN_USE
+                  message: >-
+                    This requisition is referenced by an interview assessment and
+                    cannot be deleted
+                meta:
+                  requestId: 9d8c7b6a-5f4e-4b3a-a2c1-d0e9f8a7b6c5
     RecoveryError:
       description: >-
         `VALIDATION_ERROR`, `TOKEN_INVALID` (unknown, expired, used, revoked or

@@ -94,9 +94,15 @@ test("only pages backed by a working backend contract are implemented; no placeh
   assert.deepEqual(
     implementedRoutes.map((route) => route.path),
     [
-      // HR recruitment pages are switched off here (VITE_FEATURE_HR_RECRUITMENT
-      // unset in a non-development build); both states: hrRecruitment.test.mjs.
+      // HR onboarding pages are switched off here (VITE_FEATURE_HR_RECRUITMENT
+      // unset in a non-development build); every state: hrOnboarding.test.mjs.
       "/dashboard",
+      "/hr/recruitment/requisition",
+      "/hr/recruitment/requisition/:requisitionId",
+      "/hr/recruitment/interview",
+      "/hr/recruitment/interview/:assessmentId",
+      "/hr/recruitment/offer",
+      "/hr/recruitment/offer/:offerId",
       "/security/users",
       "/security/users/:userId",
       "/security/roles",
@@ -110,12 +116,8 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "/account/authenticator",
     ],
   );
-  assert.ok(
-    implementedRoutes
-      .filter((route) => route.section !== "security")
-      .every((route) => !route.permission),
-    "session-only pages",
-  );
+  assert.ok(implementedRoutes.filter((route) => route.section === "workspace" || route.section === "account").every((route) => !route.permission), "common pages need only authentication");
+  assert.ok(implementedRoutes.filter((route) => route.section === "human-resources").every((route) => route.permission && !route.requiresMfa), "HR pages use backend resource permissions");
   assert.ok(
     implementedRoutes
       .filter((route) => route.section === "security")
@@ -125,12 +127,6 @@ test("only pages backed by a working backend contract are implemented; no placeh
   assert.deepEqual(
     appRoutes.filter((item) => !item.implemented).map((route) => route.id),
     [
-      "hr-requisition",
-      "hr-requisition-record",
-      "hr-interview",
-      "hr-interview-record",
-      "hr-offer",
-      "hr-offer-record",
       "hr-orientation",
       "hr-orientation-record",
       "hr-probation",
@@ -143,7 +139,7 @@ test("only pages backed by a working backend contract are implemented; no placeh
     appRoutes
       .filter((item) => !item.implemented && item.id !== "security-audit")
       .every((route) => route.enabledBy?.env === "VITE_FEATURE_HR_RECRUITMENT"),
-    "the HR pages are unavailable only because their switch is off",
+    "the HR onboarding pages are unavailable only because their switch is off",
   );
   for (const route of appRoutes.filter((item) => !item.implemented)) {
     assert.equal(routeAccess(route, ADMIN), "unavailable", route.id);
@@ -235,14 +231,18 @@ test("each security page requires its own VIEW permission", () => {
 
 // ------------------------------------------------------------ sidebar
 
-// Updated in Stage 3: administrators now also see the implemented security pages.
-// The switched-off HR recruitment pages are absent (production build, switch unset).
+// Business pages need their backend resource permission; common pages need only a session.
+// The switched-off HR onboarding pages are absent (production build, switch unset).
 test("sidebar: current production navigation for administrators, employees and empty sets", () => {
   for (const access of [EMPLOYEE, EMPTY, LOADING, FAILED, ADMIN_WITHOUT_MFA]) {
     const sections = authorizedNavigation(access);
     assert.deepEqual(
       ids(sections),
-      ["dashboard", "account-password", "account-authenticator"],
+      [
+        "dashboard",
+        "account-password",
+        "account-authenticator",
+      ],
       access.status,
     );
     assert.ok(
@@ -250,6 +250,12 @@ test("sidebar: current production navigation for administrators, employees and e
       "no empty sections",
     );
   }
+  const hrAccess = ready([
+    "REQUISITIONS.REQUISITIONS:VIEW",
+    "INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW",
+    "EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW",
+  ]);
+  assert.deepEqual(ids(authorizedNavigation(hrAccess)).filter((id) => id.startsWith("hr-")), ["hr-requisition", "hr-interview", "hr-offer"]);
   assert.deepEqual(ids(authorizedNavigation(ADMIN)), [
     "dashboard",
     "user-accounts",
@@ -437,7 +443,7 @@ test("application routes are guarded by the shared configuration; demos stay pre
     );
   }
   // Pages switched off by `enabledBy` keep their router line but are filtered out
-  // above (see hrRecruitment.test.mjs); every other unimplemented page has none.
+  // above (see hrOnboarding.test.mjs); every other unimplemented page has none.
   for (const route of appRoutes.filter((item) => !item.implemented && !item.enabledBy)) {
     assert.equal(
       router.includes(`'${route.path.slice(1)}'`),

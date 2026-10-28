@@ -4,7 +4,7 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { COMMON_TEXT, ORIENTATION_TEXT as T } from '../hrRecruitmentText.js'
-import { hrRecruitmentServices } from '../hrRecruitmentService.js'
+import { hrRecruitmentDemo, hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { enDate, initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
@@ -26,7 +26,7 @@ const weekday = (iso) => new Intl.DateTimeFormat('en-GB', { weekday: 'short', ti
 
 export default function OrientationPage() {
   return (
-    <RecruitmentLoader current="orientation" title={T.title} subtitle={T.subtitle} param="scheduleId" load={service.getById}>
+    <RecruitmentLoader current="orientation" demo={hrRecruitmentDemo} title={T.title} subtitle={T.subtitle} param="scheduleId" load={service.getById}>
       {({ lookups, record, editorKey }) => <OrientationEditor key={editorKey} lookups={lookups} record={record} />}
     </RecruitmentLoader>
   )
@@ -118,7 +118,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
   return (
     <>
       <RecruitmentShell
-        current="orientation" title={T.title} subtitle={T.subtitle}
+        current="orientation" title={T.title} subtitle={T.subtitle} demo={hrRecruitmentDemo}
         flowStatus={record ? `${record.scheduleNumber} · ${T.status[record.status]}` : null}
         tools={tools} primary={{ label: T.primary, icon: 'save', onClick: requestSave }}
         feedback={editor.feedback} onDismissFeedback={editor.dismiss} locked={locked} pending={editor.pending} focusError={editor.focusError}

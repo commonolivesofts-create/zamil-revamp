@@ -4,9 +4,9 @@
 import { OFFER_TEXT } from '../hrRecruitmentText.js'
 import { arDate, enDate, toAmount } from '../shared/hrFormat.js'
 
-export const OFFER_STATUSES = Object.freeze(['DRAFT', 'ISSUED', 'ACCEPTED'])
-export const SALUTATIONS = Object.freeze(['MR', 'MS'])
-export const SIGNATURE_ROLES = Object.freeze(['hrManager', 'generalManager', 'applicant'])
+export const OFFER_STATUSES = Object.freeze(['INCOMPLETE'])
+// Kept for the unused demo adapter; the live backend has no issue action.
+export const issuedStatus = (signatures) => (signatures?.applicant ? 'ACCEPTED' : 'ISSUED')
 // [key, value type]; money rows make up the monthly package.
 export const BENEFITS = Object.freeze([
   ['basic', 'money'], ['housing', 'money'], ['transport', 'money'],
@@ -18,10 +18,7 @@ export const PACKAGE_KEYS = Object.freeze(['basic', 'housing', 'transport'])
 export const STEP_BENEFITS = Object.freeze({ 1: PACKAGE_KEYS, 2: Object.freeze(['vacation', 'ticket', 'medical', 'contract', 'start', 'probation']) })
 
 export const benefitType = (key) => BENEFITS.find(([name]) => name === key)?.[1] ?? 'text'
-// An issued or accepted offer is final.
-export const isOfferLocked = (status) => status === 'ISSUED' || status === 'ACCEPTED'
-// Issuing records acceptance when the applicant has already signed.
-export const issuedStatus = (signatures) => (signatures?.applicant ? 'ACCEPTED' : 'ISSUED')
+export const isOfferLocked = () => false
 
 // Quick picks for a row: the fixed pairs plus the configured probation default.
 export function benefitPicks(key, { probation } = {}) {
@@ -76,65 +73,68 @@ export function packageArcs(parts, circumference, gap = 3) {
   })
 }
 
-export function blankOffer(today, { reportFormat = '', probation = null } = {}) {
+export function blankOffer(today) {
   const benefits = Object.fromEntries(BENEFIT_KEYS.map((key) => [key, { en: '', ar: '', linked: true }]))
-  if (probation) benefits.probation = { en: probation.en, ar: probation.ar, linked: true }
   return {
-    position: '', offerDate: today, reportFormat, salutation: 'MR', candidateNameEn: '', candidateNameAr: '',
-    benefits, comments: '', signatures: { hrManager: null, generalManager: null, applicant: null },
+    position: '', offerDate: today, division: '', salutation: '', salutationAr: '', candidateNameEn: '', candidateNameAr: '',
+    intNo: '', reqNo: '', applicant: '', benefits, comments: '',
   }
 }
 
 export function offerFormFromRecord(record) {
   return {
-    position: record.position, offerDate: record.offerDate ?? '', reportFormat: record.reportFormat, salutation: record.salutation,
+    position: record.position, offerDate: record.offerDate ?? '', division: record.division,
+    salutation: record.salutation, salutationAr: record.salutationAr,
     candidateNameEn: record.candidateNameEn, candidateNameAr: record.candidateNameAr,
+    intNo: record.intNo, reqNo: record.reqNo, applicant: record.applicant,
     benefits: Object.fromEntries(BENEFIT_KEYS.map((key) => {
       const row = record.benefits[key]
       return [key, { en: row.en, ar: row.ar, linked: row.autoArabic }]
     })),
-    comments: record.comments, signatures: { ...record.signatures },
+    comments: record.comments,
   }
 }
 
 export function offerPayload(form) {
   return {
-    position: form.position.trim(), offerDate: form.offerDate || null, reportFormat: form.reportFormat.trim(),
-    salutation: SALUTATIONS.includes(form.salutation) ? form.salutation : 'MR',
+    position: form.position.trim(), offerDate: form.offerDate || null, division: form.division,
+    salutation: form.salutation.trim(), salutationAr: form.salutationAr.trim(),
     candidateNameEn: form.candidateNameEn.trim(), candidateNameAr: form.candidateNameAr.trim(),
+    intNo: form.intNo.trim(), reqNo: form.reqNo.trim(), applicant: form.applicant.trim(),
     benefits: Object.fromEntries(BENEFIT_KEYS.map((key) => {
       const row = form.benefits[key]
-      return [key, { en: String(row.en).trim(), ar: row.ar.trim(), autoArabic: row.linked }]
+      return [key, { en: String(row.en ?? '').trim(), ar: String(row.ar ?? '').trim(), autoArabic: row.linked }]
     })),
     comments: form.comments.trim(),
-    signatures: Object.fromEntries(SIGNATURE_ROLES.map((role) => [role, form.signatures[role] ?? null])),
   }
 }
 
-// Required to issue: position, candidate name (English), basic salary and the
-// approximate starting date. Returns the errors and the step to open first.
+// Validate the fields the API requires to save an offer.
 export function validateOffer(form) {
   const text = OFFER_TEXT.errors
   const errors = {}
   if (!form.position.trim()) errors.position = text.position
   if (!form.candidateNameEn.trim()) errors.candidateNameEn = text.nameEn
-  if (!String(form.benefits.basic.en).trim()) errors.basic = text.basic
+  if (!form.offerDate) errors.offerDate = text.date
+  if (!form.division) errors.division = text.division
+  if (!form.intNo.trim()) errors.intNo = text.intNo
   if (!form.benefits.start.en) errors.start = text.start
-  const firstStep = errors.position || errors.candidateNameEn ? 0 : errors.basic ? 1 : errors.start ? 2 : -1
+  const firstStep = errors.position || errors.candidateNameEn || errors.offerDate || errors.division ? 0 : errors.start ? 2 : errors.intNo ? 3 : -1
   return { errors, firstStep, valid: firstStep === -1 }
 }
 
 export function offerDoneSteps(form) {
   const filled = (key) => Boolean(String(form.benefits[key].en).trim())
   return [
-    Boolean(form.position.trim() && form.candidateNameEn.trim()),
+    Boolean(form.position.trim() && form.candidateNameEn.trim() && form.offerDate && form.division && form.intNo.trim()),
     STEP_BENEFITS[1].every(filled),
     STEP_BENEFITS[2].every(filled),
-    Boolean(form.signatures.hrManager && form.signatures.generalManager),
+    Boolean(form.intNo.trim()),
   ]
 }
 
 export function offerProgress(form) {
   const rows = BENEFIT_KEYS.filter((key) => String(form.benefits[key].en).trim()).length
-  return { done: rows + (form.position.trim() ? 1 : 0) + (form.candidateNameEn.trim() ? 1 : 0), total: BENEFIT_KEYS.length + 2 }
+  const header = [form.position, form.candidateNameEn, form.offerDate, form.division, form.intNo].filter((value) => String(value ?? '').trim()).length
+  return { done: rows + header, total: BENEFIT_KEYS.length + 5 }
 }

@@ -39,18 +39,22 @@ const PRE_REGISTRY_ROUTES = [
   { id: 'account-authenticator', path: '/account/authenticator', label: 'Authenticator app', icon: 'smartphone', section: 'account', implemented: true },
 ]
 
-// HR recruitment (session-only module HR_RECRUITMENT, owner-approved): three
-// forms and their hidden record pages in the "Human resources" group, switched
-// by VITE_FEATURE_HR_RECRUITMENT; off here (unset outside a development build).
+// HR routes use the backend-owned resource permissions registered per form.
+// The HR onboarding pages (session-only module HR_ONBOARDING, owner-approved)
+// are switched by VITE_FEATURE_HR_RECRUITMENT; off here (unset outside a
+// development build).
 const HR = 'human-resources'
+const REQ = 'REQUISITIONS.REQUISITIONS'
+const INTERVIEW = 'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS'
+const OFFER = 'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS'
 const HR_SWITCH = { env: 'VITE_FEATURE_HR_RECRUITMENT' }
 const HR_RECRUITMENT_ROUTES = [
-  { id: 'hr-requisition', path: '/hr/recruitment/requisition', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, implemented: false, enabledBy: HR_SWITCH },
-  { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
-  { id: 'hr-interview', path: '/hr/recruitment/interview', label: 'Interview assessment', icon: 'messages-square', section: HR, implemented: false, enabledBy: HR_SWITCH },
-  { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', label: 'Interview assessment', icon: 'messages-square', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
-  { id: 'hr-offer', path: '/hr/recruitment/offer', label: 'Employment offer', icon: 'file-signature', section: HR, implemented: false, enabledBy: HR_SWITCH },
-  { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', label: 'Employment offer', icon: 'file-signature', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
+  { id: 'hr-requisition', path: '/hr/recruitment/requisition', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true },
+  { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true, nav: false },
+  { id: 'hr-interview', path: '/hr/recruitment/interview', label: 'Interview assessment', icon: 'messages-square', section: HR, permission: `${INTERVIEW}:VIEW`, requiresMfa: false, implemented: true },
+  { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', label: 'Interview assessment', icon: 'messages-square', section: HR, permission: `${INTERVIEW}:VIEW`, requiresMfa: false, implemented: true, nav: false },
+  { id: 'hr-offer', path: '/hr/recruitment/offer', label: 'Employment offer', icon: 'file-signature', section: HR, permission: `${OFFER}:VIEW`, requiresMfa: false, implemented: true },
+  { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', label: 'Employment offer', icon: 'file-signature', section: HR, permission: `${OFFER}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-orientation', path: '/hr/recruitment/orientation', label: 'Orientation schedule', icon: 'calendar-clock', section: HR, implemented: false, enabledBy: HR_SWITCH },
   { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', label: 'Orientation schedule', icon: 'calendar-clock', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
   { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, implemented: false, enabledBy: HR_SWITCH },
@@ -60,7 +64,7 @@ const HR_RECRUITMENT_ROUTES = [
 // Group order: workspace, human resources, security, account.
 const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]
 
-test('the derived routes, sections and permission names equal the pre-registry configuration exactly', () => {
+test('the derived routes, sections and permission names match the active modules', () => {
   assert.deepEqual(plain(appRoutes), EXPECTED_ROUTES)
   assert.deepEqual(plain(navigationEntries), EXPECTED_ROUTES, 'no external or extra entries are active')
   for (const [index, route] of appRoutes.entries()) {
@@ -82,8 +86,9 @@ test('the derived routes, sections and permission names equal the pre-registry c
     SECURITY_AUDIT_VIEW: `${SA}.SECURITY_AUDIT:VIEW`,
   })
   assert.ok(Object.isFrozen(appRoutes) && appRoutes.every(Object.isFrozen))
-  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'HR_RECRUITMENT'], 'only the approved modules are active')
-  assert.equal(registeredModules.find((module) => module.code === 'HR_RECRUITMENT').rbac, false, 'HR recruitment registers no Oracle permissions')
+  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS', 'HR_ONBOARDING'])
+  assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === SA).map((p) => p.key), SECURITY_RESOURCES.flatMap((r) => r.actions.map((a) => `${SA}.${r.code}:${a}`)))
+  assert.deepEqual(registeredModules.find((module) => module.code === 'COMMON').resources, [])
 })
 
 test('every implemented internal route has exactly one React Router entry with the same path, and back', async () => {
@@ -117,10 +122,19 @@ test('Security Administration equals the complete backend catalogue: 8 resources
   assert.equal(module.resources.length, 8)
   assert.equal(registered.length, 23)
   assert.deepEqual(registered, backend)
-  assert.deepEqual(registry.permissions.map((p) => p.key), backend, 'the common module adds no permissions')
+  assert.deepEqual(registered, backend)
+  assert.deepEqual(registeredModules.find((item) => item.code === 'COMMON').resources, [], 'the common module adds no permissions')
+  assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === 'REQUISITIONS').map((p) => p.key), [
+    `${REQ}:VIEW`, `${REQ}:CREATE`, `${REQ}:UPDATE`, `${REQ}:DELETE`, `${REQ}:MANAGE_ATTACHMENTS`,
+  ])
+  for (const code of ['INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS']) {
+    assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === code).map((p) => p.key), [
+      `${code}.${code}:VIEW`, `${code}.${code}:CREATE`, `${code}.${code}:UPDATE`, `${code}.${code}:DELETE`,
+    ])
+  }
   for (const key of Object.values(SECURITY_ACTIONS)) assert.ok(registered.includes(key), `${key} is registered`)
   for (const key of new Set(navigationEntries.flatMap((e) => [e.permission, ...(e.alsoRequires || [])]).filter(Boolean))) {
-    assert.ok(registered.includes(key), `navigation uses only registered permissions: ${key}`)
+    assert.ok(registry.permissions.some((permission) => permission.key === key), `navigation uses only registered permissions: ${key}`)
   }
 })
 
@@ -129,9 +143,14 @@ test('common links need authentication only; Security Administration keeps permi
   assert.deepEqual(common, ['dashboard', 'account-password', 'account-authenticator'])
   for (const access of [{ status: 'loading' }, { status: 'error' }, { status: 'ready', has: () => false }]) {
     for (const id of common) assert.equal(routeAccess(appRoutes.find((r) => r.id === id), access), 'allowed')
-    for (const { id } of HR_RECRUITMENT_ROUTES) assert.equal(routeAccess(appRoutes.find((r) => r.id === id), access), 'unavailable', `${id} is switched off`)
+    for (const { id } of HR_RECRUITMENT_ROUTES.filter((route) => route.enabledBy)) assert.equal(routeAccess(appRoutes.find((r) => r.id === id), access), 'unavailable', `${id} is switched off`)
   }
   const security = appRoutes.filter((route) => route.section === 'security')
+  assert.ok(HR_RECRUITMENT_ROUTES.every((expected) => appRoutes.find((route) => route.id === expected.id)?.permission === expected.permission))
+  for (const route of appRoutes.filter((item) => item.section === HR && item.permission)) {
+    assert.equal(routeAccess(route, { status: 'loading' }), 'pending')
+    assert.equal(routeAccess(route, { status: 'ready', has: () => false }), 'denied')
+  }
   assert.ok(security.every((route) => route.requiresMfa === true && route.permission.startsWith(`${SA}.`)))
   const all = { status: 'ready', has: () => true, mfaVerified: false, adminMfaRequired: true }
   assert.ok(security.filter((r) => r.implemented).every((route) => routeAccess(route, all) === 'mfa_required'))

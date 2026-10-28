@@ -6,7 +6,7 @@ import { Dialog, Feedback, ResourceState } from '@/features/security-administrat
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT, REPORT_TEXT as T } from '../hrRecruitmentText.js'
-import { hrRecruitmentServices } from '../hrRecruitmentService.js'
+import { hrRecruitmentDemo, hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { businessToday, enDate, initials } from '../shared/hrFormat.js'
 import { RecruitmentHeader } from '../shared/components/RecruitmentShell.jsx'
 import { HrField } from '../shared/components/RecruitmentInputs.jsx'
@@ -42,7 +42,7 @@ export default function PeriodwiseEmployeesPage() {
   const lookups = useResource('hr-recruitment-lookups', (signal) => hrRecruitmentServices.lookups.get({ signal }))
   return (
     <div className="zrv-hr zrv-hr--report">
-      <RecruitmentHeader title={T.title} subtitle={T.subtitle} breadcrumb={T.breadcrumb} />
+      <RecruitmentHeader title={T.title} subtitle={T.subtitle} breadcrumb={T.breadcrumb} demo={hrRecruitmentDemo} />
       {lookups.status === 'ready'
         ? <Report departments={lookups.data.departments} />
         : <div className="zrv-admin-panel"><ResourceState resource={lookups} label={COMMON_TEXT.loadingLookups} empty={COMMON_TEXT.loadingLookups}>{() => null}</ResourceState></div>}

@@ -56,6 +56,12 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
     action.setFeedback(null)
   }
 
+  const resetToSaved = (saved, nextForm) => {
+    setRecord(saved)
+    setForm(nextForm)
+    setBaseline(JSON.stringify(nextForm))
+  }
+
   // Runs a change. `operation({ saved })` reports each record the server
   // returns, so a new record keeps its id even if a later call fails.
   async function perform(operation, { success } = {}) {
@@ -76,7 +82,7 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
   }
 
   return {
-    record, form, setForm, set, patch, step, setStep, dirty, pending: action.pending,
+    record, form, setForm, set, patch, resetToSaved, step, setStep, dirty, pending: action.pending,
     feedback: action.feedback ?? notice, dismiss, reject, showProblem, perform, focusError,
     recordId: record?.[idKey] ?? null,
   }

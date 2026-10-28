@@ -3,7 +3,6 @@ import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { Badge, Feedback } from '@/features/security-administration/components/AdminUi.jsx'
 import { COMMON_TEXT, FLOW_TEXT } from '../../hrRecruitmentText.js'
-import { hrRecruitmentDemo } from '../../hrRecruitmentService.js'
 import { RECRUITMENT_FLOW as FLOW } from '../recruitmentFlow.js'
 import '@/styles/hr-recruitment.css'
 
@@ -28,8 +27,9 @@ export function FlowNav({ current, status }) {
   )
 }
 
-// Page header: breadcrumb, title, subtitle and the demo-data indicator.
-export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.breadcrumb }) {
+// Page header: breadcrumb, title, subtitle and, for screens that opt in while
+// they run on demo data (`demo`), the demo-data indicator.
+export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.breadcrumb, demo = false }) {
   return (
     <header className="zrv-hr-head">
       <nav aria-label="Breadcrumb">
@@ -44,10 +44,10 @@ export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.br
             <span key={index} style={{ '--i': index }} aria-hidden="true">{character === ' ' ? ' ' : character}</span>
           ))}
         </h1>
-        {hrRecruitmentDemo && <span title={COMMON_TEXT.demoNote}><Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge></span>}
+        {demo && <span title={COMMON_TEXT.demoNote}><Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge></span>}
       </div>
       <p className="zrv-hr-sub">{subtitle}</p>
-      {hrRecruitmentDemo && <p className="zrv-hr-sr">{COMMON_TEXT.demoNote}</p>}
+      {demo && <p className="zrv-hr-sr">{COMMON_TEXT.demoNote}</p>}
     </header>
   )
 }
@@ -57,8 +57,8 @@ export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.br
 // `focusError` changes after a failed validation: the first invalid field of
 // the (newly opened) step receives focus.
 export function RecruitmentShell({
-  current, title, subtitle, flowStatus, tools, primary, feedback, onDismissFeedback, ticket, steps, step, onStep, doneSteps,
-  finalLabel, onFinal, side, locked, pending, focusError, children,
+  current, title, subtitle, flowStatus, tools, primary, feedback, onDismissFeedback, lookupNotice, ticket, steps, step, onStep, doneSteps,
+  finalLabel, onFinal, side, locked, pending, focusError, demo, children,
 }) {
   const [direction, setDirection] = useState({ step, value: 'fwd' })
   const stageRef = useRef(null)
@@ -93,7 +93,7 @@ export function RecruitmentShell({
 
   return (
     <div className={`zrv-hr zrv-hr--${current}`}>
-      <RecruitmentHeader title={title} subtitle={subtitle} />
+      <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} />
       <FlowNav current={current} status={flowStatus} />
 
       <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>
@@ -105,13 +105,14 @@ export function RecruitmentShell({
           ))}
         </div>
         {primary && (
-          <button type="button" className="btn-primary zrv-hr-btn" onClick={primary.onClick} disabled={locked || pending}>
+          <button type="button" className="btn-primary zrv-hr-btn" onClick={primary.onClick} disabled={locked || pending || primary.disabled}>
             <OrvexaIcon name={primary.icon || 'check'} size={16} /> {primary.label}
           </button>
         )}
       </div>
 
       <Feedback feedback={feedback} onDismiss={onDismissFeedback} />
+      {lookupNotice}
       {ticket}
 
       <nav className="zrv-hr-track" aria-label={COMMON_TEXT.stepsLabel} style={{ '--step': step }} ref={trackRef}>

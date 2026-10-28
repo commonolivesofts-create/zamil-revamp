@@ -50,9 +50,17 @@ function signedInStore() {
   return { store, calls, access, sidebar, answer }
 }
 
-// Session-only pages. The HR recruitment pages are switched off in this build
-// (VITE_FEATURE_HR_RECRUITMENT unset outside development); see hrRecruitment.test.mjs.
+// Session-only pages: the dashboard and account pages. Recruitment routes are
+// protected by the effective permissions of their backend resources. The HR
+// onboarding pages are switched off in this build (VITE_FEATURE_HR_RECRUITMENT
+// unset outside development); see hrOnboarding.test.mjs.
+const HR = ['hr-requisition', 'hr-interview', 'hr-offer']
 const COMMON = ['dashboard', 'account-password', 'account-authenticator']
+const HR_PERMISSIONS = [
+  'REQUISITIONS.REQUISITIONS:VIEW',
+  'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW',
+  'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW',
+]
 
 test('a registered page appears once its permission is effective; a missing permission hides it', async () => {
   const s = signedInStore()
@@ -60,6 +68,12 @@ test('a registered page appears once its permission is effective; a missing perm
   assert.deepEqual(s.sidebar(), COMMON, 'common links while permissions load')
   await s.answer([])
   assert.deepEqual(s.sidebar(), COMMON, 'no business permission: common links only')
+
+  s.store.reload()
+  await s.answer(HR_PERMISSIONS)
+  assert.deepEqual(s.sidebar(), ['dashboard', ...HR, 'account-password', 'account-authenticator'])
+  assert.equal(routeAccess(findAppRoute('/hr/recruitment/requisition'), s.access()), 'allowed')
+  assert.equal(routeAccess(findAppRoute('/hr/recruitment/offer'), s.access()), 'allowed')
 
   // A role grant takes effect for this session after a refresh (the grant page refreshes the
   // administrator's own permissions; other users after a page reload or new sign-in).

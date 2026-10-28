@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
-import { useResource } from '@/features/security-administration/useAdminData.js'
+import usePermissions from '@/features/access/usePermissions.js'
+import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { COMMON_TEXT, INTERVIEW_TEXT as T } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { businessToday, daysBetween, formatAmount, initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
-import { useSettled } from '../shared/useSettled.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog, ReportDialog } from '../shared/components/RecruitmentDialogs.jsx'
 import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
@@ -24,41 +24,52 @@ const NO_MISSING = Object.freeze({ spec: [], comp: [], outcome: false })
 
 export default function InterviewPage() {
   return (
-    <RecruitmentLoader current="interview" title={T.title} subtitle={T.subtitle} param="assessmentId" load={service.getById}>
-      {({ lookups, record, editorKey }) => <InterviewEditor key={editorKey} lookups={lookups} record={record} />}
+    <RecruitmentLoader current="interview" title={T.title} subtitle={T.subtitle} param="assessmentId" load={service.getById} loadLookups={(signal) => service.getLookups({ signal })}>
+      {({ lookups, lookupStatus, reloadLookups, record, editorKey }) => <InterviewEditor key={editorKey} lookups={lookups} lookupStatus={lookupStatus} reloadLookups={reloadLookups} record={record} />}
     </RecruitmentLoader>
   )
 }
 
 const nameOf = (options, code) => options.find((option) => option.code === code)?.name ?? ''
 
-function InterviewEditor({ lookups, record: savedRecord }) {
+function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord }) {
   const navigate = useNavigate()
+  const permissions = usePermissions()
   const today = businessToday()
   const editor = useRecruitmentForm({
     basePath: BASE, idKey: 'assessmentId', record: savedRecord,
     initialForm: savedRecord
       ? interviewFormFromRecord(savedRecord)
-      : blankInterview(today, { payrollDefault: lookups.interview.payrollDefault, maritalDefault: lookups.maritalStatuses[0]?.code ?? '' }),
+      : blankInterview(today),
   })
   const { form, record, step, setStep, patch } = editor
   const [errors, setErrors] = useState({})
   const [missing, setMissing] = useState(NO_MISSING)
   const [dialog, setDialog] = useState(null)
-  const locked = isInterviewLocked(record?.status)
+  const canSave = record ? permissions.can(ACTIONS.INTERVIEW_UPDATE) : permissions.can(ACTIONS.INTERVIEW_CREATE)
+  const canDelete = Boolean(record && permissions.can(ACTIONS.INTERVIEW_DELETE))
+  const locked = isInterviewLocked(record?.status) || !canSave
 
-  // "Position apply for" follows a submitted requisition with this number.
-  const number = useSettled(form.requisitionNumber.trim(), 400)
-  const link = useResource(number ? `hr-requisition-link:${number.toLowerCase()}` : null,
-    (signal) => hrRecruitmentServices.requisitions.findSubmitted(number, { signal }))
-  const linkedTitle = linkedPosition(form.requisitionNumber, link.data)
+  // The backend lookup is restricted to approved requisitions.
+  const linkedRequisition = lookups.requisitions.find((item) => item.requisitionNumber.toLowerCase() === form.requisitionNumber.trim().toLowerCase())
+  const linkedTitle = linkedPosition(form.requisitionNumber, linkedRequisition && {
+    requisitionNumber: linkedRequisition.requisitionNumber, status: 'Approved', jobTitle: linkedRequisition.jobName,
+  })
   const savedTitle = record && record.requisitionNumber.toLowerCase() === form.requisitionNumber.trim().toLowerCase() ? record.positionTitle : ''
-  const position = linkedTitle || (link.status === 'ready' ? '' : savedTitle || '')
+  const position = linkedTitle || (!lookups.lookupErrors?.includes('requisitions') ? '' : savedTitle || '')
   const linkChip = !form.requisitionNumber.trim() ? null
-    : number !== form.requisitionNumber.trim() || link.status === 'loading' ? <Pill tone="ok">{T.link.checking}</Pill>
-      : link.status === 'error' ? <Pill tone="warn">{T.link.failed}</Pill>
-        : linkedTitle ? <Pill tone="ok">{T.link.linked(link.data.requisitionNumber)}</Pill>
+    : lookups.lookupErrors?.includes('requisitions') ? <Pill tone="warn">{T.link.failed}</Pill>
+      : linkedTitle ? <Pill tone="ok">{T.link.linked(linkedRequisition.requisitionNumber)}</Pill>
           : <Pill tone="warn">{T.link.missing}</Pill>
+
+  const lookupNotice = lookupStatus === 'loading'
+    ? <p className="zrv-admin-state" role="status">Loading interview form options…</p>
+    : lookupStatus === 'error' || lookups.lookupErrors?.length
+      ? <div className="zrv-admin-state zrv-admin-state--error" role="alert">
+          <p>Some interview form options could not be loaded. You can still enter the candidate details; retry to reload the available lists.</p>
+          <button type="button" className="btn-secondary" onClick={reloadLookups}>Retry</button>
+        </div>
+      : null
 
   const set = (key) => (eventOrValue) => {
     editor.set(key)(eventOrValue)
@@ -97,20 +108,14 @@ function InterviewEditor({ lookups, record: savedRecord }) {
     return result
   }
   const save = () => {
-    if (locked) return editor.showProblem(T.alreadySubmitted)
+    if (!canSave) return editor.showProblem(T.readOnly)
     if (validate()) editor.perform(saveRecord, { success: (result) => T.saved(result.assessmentNumber) })
   }
-  const requestSubmit = () => {
-    if (locked) return editor.showProblem(T.alreadySubmitted)
-    if (validate()) setDialog('submit')
-  }
-  const submit = () => editor.perform(async (context) => {
-    const draft = await saveRecord(context)
-    const result = await service.submit(draft.assessmentId)
-    context.saved(result)
-    return result
-  }, { success: (result) => T.submitted(result.assessmentNumber) }).then((outcome) => {
-    if (outcome.status === 'success') setDialog(null)
+  const deleteRecord = () => editor.perform(async () => {
+    await service.remove(record.assessmentId)
+    return true
+  }, { success: T.deleted }).then((outcome) => {
+    if (outcome.status === 'success') navigate(BASE, { replace: true })
   })
   const startNew = () => navigate(BASE)
 
@@ -124,14 +129,17 @@ function InterviewEditor({ lookups, record: savedRecord }) {
         {type === 'select'
           ? <LookupSelect id={id} value={form[key]} onChange={set(key)} options={lookups[rules.lookup]} required={rules.required} error={error} />
           : <input {...fieldProps(id, { error })} className="ux-input zrv-hr-input" type={type} value={form[key]} onChange={set(key)}
+            list={key === 'requisitionNumber' ? 'ia-approved-requisitions' : key === 'nationality' ? 'ia-nationalities' : undefined}
             aria-required={rules.required || undefined} inputMode={type === 'number' ? 'decimal' : undefined} min={rules.min} max={rules.max} maxLength={type === 'text' ? 200 : undefined} />}
+        {key === 'requisitionNumber' && <datalist id="ia-approved-requisitions">{lookups.requisitions.map((item) => <option key={item.requisitionNumber} value={item.requisitionNumber}>{item.jobName}</option>)}</datalist>}
+        {key === 'nationality' && <datalist id="ia-nationalities">{lookups.nationalities.map((name) => <option key={name} value={name} />)}</datalist>}
       </HrField>
     )
   }
 
   const tools = [
-    { icon: 'send', label: COMMON_TEXT.submit, onClick: requestSubmit, disabled: locked || editor.pending },
     { icon: 'save', label: COMMON_TEXT.save, onClick: save, disabled: locked || editor.pending },
+    ...(canDelete ? [{ icon: 'trash-2', label: T.deleteAction, onClick: () => setDialog('delete'), disabled: editor.pending }] : []),
     { icon: 'printer', label: COMMON_TEXT.print, onClick: () => window.print() },
     { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => setDialog('report') },
     { icon: 'file-plus', label: COMMON_TEXT.requestForm, onClick: () => (editor.dirty ? setDialog('new') : startNew()) },
@@ -144,8 +152,8 @@ function InterviewEditor({ lookups, record: savedRecord }) {
       <RecruitmentShell
         current="interview" title={T.title} subtitle={T.subtitle}
         flowStatus={record ? `${record.assessmentNumber} · ${T.status[record.status]}` : null}
-        tools={tools} primary={{ label: T.primary, icon: 'save', onClick: save }}
-        feedback={editor.feedback} onDismissFeedback={editor.dismiss} locked={locked} pending={editor.pending} focusError={editor.focusError}
+        tools={tools} primary={{ label: T.primary, icon: 'save', onClick: save, disabled: !canSave }}
+        feedback={editor.feedback} onDismissFeedback={editor.dismiss} lookupNotice={lookupNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
         ticket={<Ticket avatar={initials(form.candidateName)} code={T.code} items={[
           { k: T.ticket.number, v: record?.assessmentNumber || T.ticket.numberPending },
           { k: T.ticket.candidate, v: form.candidateName || T.ticket.newCandidate, big: true },
@@ -153,7 +161,7 @@ function InterviewEditor({ lookups, record: savedRecord }) {
           { k: T.ticket.requisition, v: form.requisitionNumber || COMMON_TEXT.dash },
           { k: T.ticket.status, v: <Pill tone={status === 'INCOMPLETE' ? 'warn' : 'ok'}>{T.status[status]}</Pill> },
         ]} />}
-        steps={T.steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.final} onFinal={requestSubmit}
+        steps={T.steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.final} onFinal={save}
         side={<>
           <Tilt aria-label={T.card.label}>
             <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">{T.card.eyebrow}</span><span className="zrv-hr-mono">{record?.assessmentNumber || T.card.draft}</span></div>
@@ -197,11 +205,11 @@ function InterviewEditor({ lookups, record: savedRecord }) {
             <HrField id="ia-status" label={T.labels.status}>
               <input id="ia-status" className="ux-input zrv-hr-input" readOnly value={T.status[status]} />
             </HrField>
-            {['preScreeningDate', 'divisionCode', 'expectedJoiningDate', 'interviewTypeCode'].map(input)}
+            {['preScreeningDate', 'interviewTime', 'divisionCode', 'expectedJoiningDate', 'interviewTypeCode'].map(input)}
           </div>
           <h3 className="zrv-hr-subh">{T.subheads.candidate}</h3>
           <div className="zrv-hr-grid zrv-hr-is-4">
-            {['candidateName', 'candidateAge', 'nationality', 'maritalStatusCode', 'location', 'certificateCode', 'major', 'currentEmployer', 'lastPosition', 'relevantExperienceYears'].map(input)}
+            {['candidateName', 'candidateAge', 'nationality', 'maritalStatusCode', 'location', 'certificateCode', 'certificateCheckedCode', 'major', 'currentEmployer', 'lastPosition', 'relevantExperienceYears'].map(input)}
           </div>
           <h3 className="zrv-hr-subh">{T.subheads.salary}</h3>
           <div className="zrv-hr-grid zrv-hr-is-4">{['expectedBasic', 'expectedTotal', 'currentBasic', 'currentTotal'].map(input)}</div>
@@ -253,37 +261,33 @@ function InterviewEditor({ lookups, record: savedRecord }) {
           <div className="zrv-hr-sep" />
           <div className="zrv-hr-grid zrv-hr-is-3">
             <HrField id="ia-adm" label={T.labels.adminManager}>
-              <input id="ia-adm" className="ux-input zrv-hr-input" readOnly value={record?.adminManagerName ?? ''} placeholder={T.placeholders.adminManager} />
+              <input id="ia-adm" className="ux-input zrv-hr-input" readOnly value={form.adminManagerName} placeholder={T.placeholders.adminManager} />
             </HrField>
             <HrField id="ia-rep" label={T.labels.deptRep}>
               <input id="ia-rep" className="ux-input zrv-hr-input" value={form.departmentRepresentative} onChange={set('departmentRepresentative')} maxLength={200} />
             </HrField>
             <HrField id="ia-pay" label={T.labels.payroll}>
-              <input id="ia-pay" className="ux-input zrv-hr-input" value={form.payroll} onChange={set('payroll')} maxLength={60} />
+              <select id="ia-pay" className="ux-input zrv-hr-input" value={form.payroll} onChange={set('payroll')}>
+                <option value="">Choose a business unit</option>
+                {lookups.payrollBusinessUnits.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+              </select>
             </HrField>
             <HrField id="ia-hrc" label={T.labels.hrComment} wide>
               <input id="ia-hrc" className="ux-input zrv-hr-input" value={form.hrComment} onChange={set('hrComment')} maxLength={1000} />
             </HrField>
             {form.interviewers.map((name, index) => (
               <HrField key={index} id={`ia-int${index + 1}`} label={T.labels.interviewer(index)}>
-                <input id={`ia-int${index + 1}`} className="ux-input zrv-hr-input" value={name} maxLength={200}
+                <input id={`ia-int${index + 1}`} className="ux-input zrv-hr-input" value={name} maxLength={200} list="ia-employee-options"
                   onChange={(event) => { const value = event.target.value; patch((current) => ({ interviewers: current.interviewers.map((item, position) => (position === index ? value : item)) })) }} />
               </HrField>
             ))}
+            <datalist id="ia-employee-options">{lookups.employees.map((name) => <option key={name} value={name} />)}</datalist>
           </div>
         </>}
       </RecruitmentShell>
 
-      {dialog === 'submit' && (
-        <ConfirmDialog title={T.submitTitle} confirmLabel={T.submitConfirm} pending={editor.pending} feedback={editor.feedback}
-          onConfirm={submit} onClose={() => setDialog(null)}>
-          <p className="zrv-admin-confirm">
-            {form.candidateName} · {position || COMMON_TEXT.dash}<br />
-            {T.submitBody.result}: <b>{T.outcomes[form.outcome]}</b><br /><br />
-            {T.submitBody.locks}
-          </p>
-        </ConfirmDialog>
-      )}
+      {dialog === 'delete' && <ConfirmDialog title={T.deleteTitle} description={T.deleteBody} confirmLabel={T.deleteAction} pending={editor.pending}
+        feedback={editor.feedback} onConfirm={deleteRecord} onClose={() => setDialog(null)} />}
       {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
       {dialog === 'report' && (
         <ReportDialog title={T.reportTitle} resourceKey="hr-interview-report" load={service.list} onClose={() => setDialog(null)}
