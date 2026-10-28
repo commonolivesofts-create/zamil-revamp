@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
-import { Badge, Feedback } from '@/features/security-administration/components/AdminUi.jsx'
+import { Feedback } from '@/features/security-administration/components/AdminUi.jsx'
 import { COMMON_TEXT, FLOW_TEXT } from '../../hrRecruitmentText.js'
-import { hrRecruitmentDemo } from '../../hrRecruitmentService.js'
 import { RECRUITMENT_FLOW as FLOW } from '../recruitmentFlow.js'
 import '@/styles/hr-recruitment.css'
 
@@ -29,7 +28,7 @@ export function FlowNav({ current, status }) {
 }
 
 // Page header: breadcrumb, title, subtitle and the demo-data indicator.
-export function RecruitmentHeader({ title, subtitle, showDemo = true }) {
+export function RecruitmentHeader({ title, subtitle }) {
   return (
     <header className="zrv-hr-head">
       <nav aria-label="Breadcrumb">
@@ -44,10 +43,8 @@ export function RecruitmentHeader({ title, subtitle, showDemo = true }) {
             <span key={index} style={{ '--i': index }} aria-hidden="true">{character === ' ' ? ' ' : character}</span>
           ))}
         </h1>
-        {showDemo && hrRecruitmentDemo && <span title={COMMON_TEXT.demoNote}><Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge></span>}
       </div>
       <p className="zrv-hr-sub">{subtitle}</p>
-      {showDemo && hrRecruitmentDemo && <p className="zrv-hr-sr">{COMMON_TEXT.demoNote}</p>}
     </header>
   )
 }
@@ -93,7 +90,7 @@ export function RecruitmentShell({
 
   return (
     <div className={`zrv-hr zrv-hr--${current}`}>
-      <RecruitmentHeader title={title} subtitle={subtitle} showDemo={current === 'offer'} />
+      <RecruitmentHeader title={title} subtitle={subtitle} />
       <FlowNav current={current} status={flowStatus} />
 
       <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>

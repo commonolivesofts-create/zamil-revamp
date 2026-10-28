@@ -1,19 +1,23 @@
-// HR recruitment services. Personnel Requisition and Interview Assessment use
-// their existing backend contracts; Employment Offer remains on its demo client.
+// HR recruitment services use the existing requisition, interview and offer
+// backend contracts without changing server-owned schemas or workflows.
 // Relative imports keep this module loadable by the Node-native tests.
 import { ApiError, apiClient } from '../../services/api/apiClient.js'
-import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
 import {
-  ID_PATTERN, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readPage,
+  ID_PATTERN, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem,
 } from './hrRecruitmentContract.js'
 import { COMP_KEYS, SPEC_KEYS } from './interview/interviewModel.js'
+import { BENEFIT_KEYS } from './offer/offerModel.js'
 
 export const HR_BASE = '/hr/recruitment'
 export const REPORT_PAGE_SIZE = 10
 
 const REQUISITIONS_BASE = '/hr/requisitions'
 const INTERVIEWS_BASE = '/hr/interview-assessments'
+const OFFERS_BASE = '/hr/employment-offers'
+const OFFER_ALLOWANCE_TYPES = Object.freeze({
+  housing: 'housing', transport: 'transportation', vacation: 'annual-vacation', ticket: 'ticket', medical: 'medical', contract: 'contract-period',
+})
 const INTERVIEW_PAYROLL_BUS = Object.freeze(['300000003618177', '300000003618190'])
 const SECONDARY_EDUCATION = Object.freeze({
   SECONDARY_EDUCATION: 'Secondary Education', DIPLOMA: 'Diploma', DEGREE: 'Degree', MASTERS_DEGREE: 'Masters Degree',
@@ -198,6 +202,76 @@ function interviewListItem(data) {
   })
 }
 
+const OFFER_LINE_FIELDS = Object.freeze({
+  basic: ['basicSalary', 'basicSalaryAr'], housing: ['housingAllowance', 'housingAllowanceAr'],
+  transport: ['transportation', 'transportationAr'], vacation: ['annualVacation', 'annualVacationAr'],
+  ticket: ['ticket', 'ticketAr'], medical: ['medical', 'medicalAr'], contract: ['contractPeriod', 'contractPeriodAr'],
+  start: ['approximateStartingDate', 'approximateStartingDateAr'], probation: ['probationaryPeriod', 'probationaryPeriodAr'],
+})
+const backendOfferStatus = () => 'INCOMPLETE'
+const offerText = (value) => value == null || value === '-' ? '' : String(value)
+
+function offerRecord(data) {
+  if (!data || typeof data !== 'object' || !ID_PATTERN.test(String(data.headerId ?? ''))) {
+    throw new ApiError('The server returned an unexpected employment offer response.', { code: 'INVALID_RESPONSE' })
+  }
+  const line = data.line ?? {}
+  const benefits = Object.fromEntries(BENEFIT_KEYS.map((key) => {
+    const [englishKey, arabicKey] = OFFER_LINE_FIELDS[key]
+    return [key, {
+      en: line[englishKey] == null ? '' : String(line[englishKey]), ar: offerText(line[arabicKey]), autoArabic: key === 'basic' || key === 'start',
+    }]
+  }))
+  const reqNo = data.reqNo == null || Number(data.reqNo) === 0 ? '' : String(data.reqNo)
+  const updatedAt = data.updatedAt ?? data.createdAt
+  return readOffer({
+    offerId: String(data.headerId), offerNumber: null, status: backendOfferStatus(data.status),
+    position: offerText(data.position), offerDate: data.offerDate ?? null, division: offerText(data.division),
+    salutation: offerText(data.to), salutationAr: offerText(data.toArabic),
+    candidateNameEn: offerText(data.employeeName), candidateNameAr: offerText(data.employeeNameAr),
+    intNo: offerText(data.intNo), reqNo, applicant: offerText(data.applicant), benefits, comments: offerText(line.comment),
+    currency: 'SAR', updatedAt: updatedAt == null ? null : updatedAt instanceof Date ? updatedAt.toISOString() : String(updatedAt),
+  })
+}
+
+function offerListItem(data) {
+  if (!data || typeof data !== 'object' || !ID_PATTERN.test(String(data.headerId ?? ''))) {
+    throw new ApiError('The server returned an unexpected employment offer list.', { code: 'INVALID_RESPONSE' })
+  }
+  return readOfferListItem({
+    offerId: String(data.headerId), offerNumber: null, status: backendOfferStatus(data.status),
+    position: offerText(data.position), candidateNameEn: offerText(data.employeeName),
+    updatedAt: data.lastUpdateDate || data.creationDate,
+  })
+}
+
+function backendOfferPayload(body) {
+  const basicText = String(body.benefits.basic.en ?? '').trim().replaceAll(',', '')
+  const basicSalary = basicText === '' ? undefined : Number(basicText)
+  if (basicText !== '' && (!Number.isFinite(basicSalary) || basicSalary < 0)) {
+    throw new ApiError('Enter a valid basic salary.', { code: 'VALIDATION_ERROR', details: [{ field: 'basic', message: 'Enter a valid basic salary.' }] })
+  }
+  const line = Object.fromEntries(BENEFIT_KEYS.flatMap((key) => {
+    const [englishKey, arabicKey] = OFFER_LINE_FIELDS[key]
+    const row = body.benefits[key]
+    if (key === 'basic') return [[englishKey, basicSalary], [arabicKey, String(row.ar ?? '').trim()]]
+    return [[englishKey, String(row.en ?? '').trim()], [arabicKey, String(row.ar ?? '').trim()]]
+  }))
+  line.approximateStartingDate = String(body.benefits.start.en ?? '').trim()
+  line.comment = String(body.comments ?? '').trim()
+  if (basicSalary === undefined) delete line.basicSalary
+  const result = {
+    offerDate: String(body.offerDate ?? '').trim(), employeeName: String(body.candidateNameEn ?? '').trim(),
+    employeeNameAr: String(body.candidateNameAr ?? '').trim(), position: String(body.position ?? '').trim(),
+    division: String(body.division ?? '').trim(), to: String(body.salutation ?? '').trim(),
+    toArabic: String(body.salutationAr ?? '').trim(), applicant: String(body.applicant ?? '').trim(),
+    intNo: String(body.intNo ?? '').trim(), line,
+  }
+  const reqNo = String(body.reqNo ?? '').trim()
+  if (reqNo) result.reqNo = reqNo
+  return result
+}
+
 function createBackendRequisitionService({ client }) {
   const getById = async (id, { signal } = {}) => requisitionRecord((await client.get(`${REQUISITIONS_BASE}/${segment(id)}`, { signal })).data)
   return Object.freeze({
@@ -283,10 +357,6 @@ export function segment(value) {
   return value
 }
 
-function query(values) {
-  return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== null && value !== ''))
-}
-
 export function createLookupService({ client }) {
   return Object.freeze({
     async get({ signal } = {}) {
@@ -294,21 +364,6 @@ export function createLookupService({ client }) {
       return readLookups(data)
     },
   })
-}
-
-// A create (no id) is a POST; a change of an existing record is a PUT.
-const write = (client, base, id, body) => (id ? client.put(`${base}/${segment(id)}`, body) : client.post(base, body))
-
-// list, getById, a save that returns the record, and a workflow action
-// (`/submit` or `/issue`) on a saved record. Pages save first and keep the
-// returned id, so a failed action never leaves an unknown new record behind.
-function createRecordService({ client, base, readRecord, readListItem, actionName }) {
-  const list = async ({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) =>
-    readPage(await client.get(base, { params: query({ page, limit }), signal }), readListItem)
-  const getById = async (id, { signal } = {}) => readRecord((await client.get(`${base}/${segment(id)}`, { signal })).data)
-  const save = async (id, body) => readRecord((await write(client, base, id, body)).data)
-  const act = async (id) => readRecord((await client.post(`${base}/${segment(id)}/${actionName}`, {})).data)
-  return { list, getById, save, act }
 }
 
 export function createRequisitionService({ client }) {
@@ -366,16 +421,66 @@ export function createInterviewService({ client }) {
 }
 
 export function createOfferService({ client }) {
-  const record = createRecordService({
-    client, base: `${HR_BASE}/employment-offers`, readRecord: readOffer, readListItem: readOfferListItem, actionName: 'issue',
-  })
+  const getById = async (id, { signal } = {}) => offerRecord((await client.get(`${OFFERS_BASE}/${segment(id)}`, { signal })).data)
   return Object.freeze({
-    list: record.list,
-    getById: record.getById,
-    saveDraft: record.save,
-    // Issue: ISSUED, or ACCEPTED when the applicant already signed; the
-    // server assigns the offer number.
-    issue: record.act,
+    async getLookups({ signal } = {}) {
+      const allowanceEntries = Object.entries(OFFER_ALLOWANCE_TYPES)
+      const keys = ['candidates', 'titles', 'businessUnits', ...allowanceEntries.map(([key]) => `allowance:${key}`)]
+      const requests = [
+        client.get(`${OFFERS_BASE}/lookups/candidates`, { signal }),
+        client.get(`${OFFERS_BASE}/lookups/titles`, { signal }),
+        client.get(`${OFFERS_BASE}/lookups/business-units`, { signal }),
+        ...allowanceEntries.map(([, type]) => client.get(`${OFFERS_BASE}/lookups/allowances`, { params: { type }, signal })),
+      ]
+      const results = await Promise.allSettled(requests)
+      if (signal?.aborted) throw results.find((result) => result.status === 'rejected')?.reason ?? Object.assign(new Error('Aborted'), { name: 'AbortError' })
+      const data = results.map((result) => result.status === 'fulfilled' ? result.value?.data : null)
+      const valid = data.map((value, index) => index === 2 ? Array.isArray(value?.businessUnits) : Array.isArray(value))
+      const lookupErrors = Object.freeze(keys.filter((_, index) => results[index].status === 'rejected' || !valid[index]))
+      const allowances = Object.fromEntries(allowanceEntries.map(([key], index) => {
+        const value = data[index + 3]
+        return [key, Object.freeze((Array.isArray(value) ? value : []).map((item) => Object.freeze({
+          meaning: String(item?.meaning ?? ''), description: offerText(item?.description),
+        })).filter((item) => item.meaning))]
+      }))
+      return Object.freeze({
+        candidates: Object.freeze((Array.isArray(data[0]) ? data[0] : []).map((item) => Object.freeze({
+          headerId: String(item?.headerId ?? ''), intNo: String(item?.intNo ?? ''), candidateName: offerText(item?.candidateName),
+          positionName: offerText(item?.positionName), requisitionNo: item?.requisitionNo == null ? '' : String(item.requisitionNo),
+        })).filter((item) => item.intNo && item.candidateName)),
+        titles: Object.freeze((Array.isArray(data[1]) ? data[1] : []).map((item) => Object.freeze({
+          meaning: offerText(item?.meaning), description: offerText(item?.description),
+        })).filter((item) => item.meaning)),
+        businessUnits: Object.freeze(Array.isArray(data[2]?.businessUnits) ? data[2].businessUnits.map(String) : []),
+        allowances: Object.freeze(allowances), lookupErrors,
+      })
+    },
+    async numberToArabic(number, { signal } = {}) {
+      const { data } = await client.get(`${OFFERS_BASE}/lookups/number-to-arabic`, { params: { number }, signal })
+      return offerText(data?.output)
+    },
+    async hijriDate(date, { signal } = {}) {
+      const { data } = await client.get(`${OFFERS_BASE}/lookups/hijri-date`, { params: { date }, signal })
+      return offerText(data?.hijri)
+    },
+    async list({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) {
+      const result = await client.get(OFFERS_BASE, { params: { page, pageSize: limit }, signal })
+      if (!Array.isArray(result.data) || !result.pagination) throw new ApiError('The server returned an unexpected employment offer list.', { code: 'INVALID_RESPONSE' })
+      return Object.freeze({ items: Object.freeze(result.data.map(offerListItem)), pagination: Object.freeze({ ...result.pagination, limit: result.pagination.limit ?? limit }) })
+    },
+    getById,
+    async save(id, body) {
+      const payload = backendOfferPayload(body)
+      const result = id
+        ? await client.put(`${OFFERS_BASE}/${segment(id)}`, payload)
+        : await client.post(OFFERS_BASE, payload)
+      const savedId = String(id ?? result.data?.headerId ?? '')
+      if (!ID_PATTERN.test(savedId)) throw new ApiError('The server did not return an employment offer ID.', { code: 'INVALID_RESPONSE' })
+      return getById(savedId)
+    },
+    async remove(id) {
+      await client.delete(`${OFFERS_BASE}/${segment(id)}`)
+    },
   })
 }
 
@@ -384,20 +489,18 @@ export function selectClient({ demo, api = apiClient, createDemo = createDemoCli
   return demo ? createDemo() : api
 }
 
-export function createHrRecruitmentServices({ client, requisitionClient = client, interviewClient = client }) {
+export function createHrRecruitmentServices({ client, requisitionClient = client, interviewClient = client, offerClient = client }) {
   return Object.freeze({
     client,
     lookups: createLookupService({ client }),
-    // The Personal Requisition backend is already available; unlike the two
-    // later forms it always uses the authenticated API, including in dev.
+    // All recruitment forms use the authenticated API, including in dev.
     requisitions: createBackendRequisitionService({ client: requisitionClient }),
     interviews: createInterviewService({ client: interviewClient }),
-    offers: createOfferService({ client }),
+    offers: createOfferService({ client: offerClient }),
   })
 }
 
 export const hrRecruitmentServices = createHrRecruitmentServices({
-  client: selectClient({ demo: hrRecruitmentConfig.demo }), requisitionClient: apiClient, interviewClient: apiClient,
+  client: apiClient, requisitionClient: apiClient, interviewClient: apiClient, offerClient: apiClient,
 })
-export const hrRecruitmentDemo = hrRecruitmentConfig.demo
 export const attachmentsSupported = true

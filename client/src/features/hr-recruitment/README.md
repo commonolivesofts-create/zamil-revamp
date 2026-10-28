@@ -6,7 +6,7 @@ The three forms are under **Human resources**:
 |---|---|---|---|
 | Personnel Requisition (1060) | `/hr/recruitment/requisition` | `/hr/recruitment/requisition/:requisitionId` | Live `/api/v1/hr/requisitions` API |
 | Interview Assessment (1061) | `/hr/recruitment/interview` | `/hr/recruitment/interview/:assessmentId` | Live `/api/v1/hr/interview-assessments` API |
-| Employment Offer (1062) | `/hr/recruitment/offer` | `/hr/recruitment/offer/:offerId` | Existing in-memory demo adapter |
+| Employment Offer (1062) | `/hr/recruitment/offer` | `/hr/recruitment/offer/:offerId` | Live `/api/v1/hr/employment-offers` API |
 
 ## Personnel Requisition API
 
@@ -56,19 +56,28 @@ to update and `DELETE /:headerId` to delete. The form preserves backend-owned ev
 when loading and saving existing records. The backend has no submit or approval action, so the
 last form action saves the assessment; the backend controls its status.
 
-## Employment Offer
+## Employment Offer API
 
-Employment Offer still uses `demo/demoClient.js` and `demo/demoData.js` while its backend integration
-is pending. `VITE_HR_RECRUITMENT_DEMO` selects that client for the offer only.
+This form uses the shared authenticated API client in every environment. It loads approved and
+passed interview candidates, titles, business-unit IDs and benefit allowances from the backend.
+Candidate selection fills the interview number, requisition number and position. The form maps its
+bilingual package rows to the backend's single `line` object and uses the number-to-Arabic and
+Hijri-date helpers for basic salary and starting date. Business-unit values remain raw IDs because
+the backend deliberately does not provide labels.
+
+Records use `GET /hr/employment-offers` and `GET /:headerId`, `POST /` to create, `PUT /:headerId`
+to update and `DELETE /:headerId` to delete. The backend only supports CRUD: status is always
+`Incomplete`, and there is no issue, signature or acceptance action. The form therefore saves the
+offer record and does not present a workflow action that the API cannot perform.
 
 ## Permissions and follow-up
 
 The requisition routes use the existing `REQUISITIONS.REQUISITIONS:VIEW` permission. Save and
 inline attachment upload controls check `CREATE` or `UPDATE` for the current record. The backend
 continues to authorize every request, and its standalone attachment endpoints use
-`MANAGE_ATTACHMENTS`. Interview Assessment uses the backend's `INTERVIEW_ASSESSMENTS` resource
-permissions for view, create, update and delete. Employment Offer remains session-only until its
-integration is implemented.
+`MANAGE_ATTACHMENTS`. Interview Assessment uses the backend's `INTERVIEW_ASSESSMENTS` resource;
+Employment Offer uses `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS`. Both check view, create, update and
+delete permissions.
 
-Follow-up work for form 1062 includes implementing its backend API contract and removing its demo
-adapter/data.
+All three recruitment forms are connected to their existing backend APIs; only the unused demo
+adapter remains as development scaffolding.
