@@ -20,6 +20,12 @@ import { createEmploymentOfferRouter } from '../modules/hr/employment-offers/emp
 import { createEmploymentOfferService } from '../modules/hr/employment-offers/employmentOffer.service.js';
 import { createInterviewAssessmentRouter } from '../modules/hr/interview-assessments/interviewAssessment.routes.js';
 import { createInterviewAssessmentService } from '../modules/hr/interview-assessments/interviewAssessment.service.js';
+import { createProbationEvaluationRouter } from '../modules/hr/probation-evaluations/probationEvaluation.routes.js';
+import { createProbationEvaluationService } from '../modules/hr/probation-evaluations/probationEvaluation.service.js';
+import { createOrientationTrainingRouter } from '../modules/hr/orientation-trainings/orientationTraining.routes.js';
+import { createOrientationTrainingService } from '../modules/hr/orientation-trainings/orientationTraining.service.js';
+import { createContractorEmployeeRouter } from '../modules/hr/contractor-employees/contractorEmployee.routes.js';
+import { createContractorEmployeeService } from '../modules/hr/contractor-employees/contractorEmployee.service.js';
 import { createRequisitionRouter } from '../modules/hr/requisitions/requisition.routes.js';
 import { createRequisitionService } from '../modules/hr/requisitions/requisition.service.js';
 import { createDiskStorage } from '../modules/hr/requisitions/requisition.storage.js';
@@ -133,6 +139,24 @@ export function createApiRouter(appConfig, deps = {}) {
     withTransaction: db.withTransaction,
   });
 
+  const probationEvaluationService = createProbationEvaluationService({
+    repository: deps.probationEvaluationRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
+  const orientationTrainingService = createOrientationTrainingService({
+    repository: deps.orientationTrainingRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
+  const contractorEmployeeService = createContractorEmployeeService({
+    repository: deps.contractorEmployeeRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
   const employmentOfferService = createEmploymentOfferService({
     repository: deps.employmentOfferRepository,
     withConnection: db.withConnection,
@@ -175,6 +199,36 @@ export function createApiRouter(appConfig, deps = {}) {
     '/hr/interview-assessments',
     createInterviewAssessmentRouter({
       interviewAssessmentService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/probation-evaluations',
+    createProbationEvaluationRouter({
+      probationEvaluationService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/orientation-trainings',
+    createOrientationTrainingRouter({
+      orientationTrainingService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr',
+    createContractorEmployeeRouter({
+      contractorEmployeeService,
       authorize,
       authenticate,
       auditService,

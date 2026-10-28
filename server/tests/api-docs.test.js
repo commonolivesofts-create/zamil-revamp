@@ -153,6 +153,99 @@ describe('API documentation', () => {
     }
   });
 
+  it('documents every probation-evaluation route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/hr/probation-evaluations';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/form-types'],
+      ['get', '/lookups/employees'],
+      ['get', '/lookups/requestor'],
+      ['get', '/lookups/employee-details'],
+      ['get', '/{headerId}'],
+      ['put', '/{headerId}'],
+      ['delete', '/{headerId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((x) => x.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${path} security`);
+      const csrf = (operation.parameters ?? []).some(
+        (p) => p.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+  });
+
+  it('documents every orientation-training route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/hr/orientation-trainings';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/flag'],
+      ['get', '/lookups/employees'],
+      ['get', '/lookups/managers'],
+      ['get', '/lookups/employee-details'],
+      ['get', '/lookups/skills'],
+      ['get', '/{headerId}'],
+      ['put', '/{headerId}'],
+      ['delete', '/{headerId}'],
+      ['delete', '/{headerId}/lines/{lineId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((x) => x.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${path} security`);
+      const csrf = (operation.parameters ?? []).some(
+        (parameter) => parameter.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+  });
+
+  it('documents every contractor-employee route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/hr/contractor-employees';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/{name}'],
+      ['get', '/{empId}'],
+      ['put', '/{empId}'],
+      ['delete', '/{empId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((entry) => entry.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${path} security`);
+      const csrf = (operation.parameters ?? []).some(
+        (parameter) => parameter.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+    assert.ok(
+      paths['/api/v1/hr/contractors/{conNumber}']?.get,
+      'contractor detail lookup is documented',
+    );
+  });
+
   it('documents every employment-offer route with session security and CSRF on changes', () => {
     const { paths } = loadOpenApiSpec();
     const base = '/api/v1/hr/employment-offers';
