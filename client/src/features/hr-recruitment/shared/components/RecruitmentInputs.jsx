@@ -40,6 +40,32 @@ export function ChoiceCards({ label, options, value, onChange, compact = false, 
   )
 }
 
+// Single choice as a radio group of cards (native radios: Tab enters the group,
+// arrow keys move the choice). `options`: { value, title, desc?, meta?, icon?, tone?, lang? }.
+export function RadioCards({ name, label, options, value, onChange, error, variant = 'choice' }) {
+  const id = useId()
+  return (
+    <div className={error ? 'zrv-hr-is-bad' : undefined}>
+      <span className="zrv-hr-label" id={`${id}-label`}>{label}</span>
+      <div className={`zrv-hr-radios zrv-hr-radios--${variant}`} role="radiogroup" aria-labelledby={`${id}-label`} aria-required="true"
+        aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined}>
+        {options.map((option) => (
+          <label key={option.value} className={`zrv-hr-radio${option.tone ? ` zrv-hr-is-${option.tone}` : ''}${value === option.value ? ' zrv-hr-is-on' : ''}`}>
+            <input type="radio" name={name} value={option.value} checked={value === option.value} onChange={() => onChange(option.value)} />
+            {option.icon && <span className="zrv-hr-bubble"><OrvexaIcon name={option.icon} size={18} /></span>}
+            <span className="zrv-hr-radio__t">
+              <b>{option.title}</b>
+              {option.desc && <small lang={option.lang} dir={option.lang === 'ar' ? 'rtl' : undefined}>{option.desc}</small>}
+              {option.meta && <em>{option.meta}</em>}
+            </span>
+          </label>
+        ))}
+      </div>
+      {error && <small id={`${id}-error`} className="zrv-auth-field-error">{error}</small>}
+    </div>
+  )
+}
+
 // Multiple choice tiles with a level meter.
 export function MultiTiles({ label, options, value, onChange, error }) {
   const id = useId()

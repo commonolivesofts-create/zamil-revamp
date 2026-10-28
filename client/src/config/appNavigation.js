@@ -20,17 +20,40 @@ import { resolveExternalHref } from './externalDestinations.js'
 // (every SECURITY_ADMINISTRATION permission). `nav: false`: a detail page
 // reached from another page (path parameters); guarded like any page but never
 // listed in the sidebar or command palette. `implemented: false`: an approved
-// destination that is not available; never routed, listed or searchable, so no
-// placeholder screen appears. Security audit stays unimplemented: the backend
+// destination that is not available (or switched off by `enabledBy`); never
+// routed, listed or searchable, so no placeholder screen appears.
+// Security audit stays unimplemented: the backend
 // has no audit retrieval API.
 // Internal entries (`path`) are React routes. External entries
 // (`type: 'external'`) carry a resolved https `href`, are never routed or
 // matched as a route, and are hidden when their destination does not resolve.
-export const navigationEntries = Object.freeze(registry.entries.map((entry) => {
-  if (entry.type !== 'external') return entry
-  const href = resolveExternalHref(entry.href)
-  return Object.freeze({ ...entry, href, implemented: entry.implemented && href !== null })
-}))
+// Internal entries with `enabledBy: { env: 'VITE_FEATURE_<NAME>' }` are switched
+// by that public build-time variable: 'true' shows them, 'false' hides them,
+// and when it is unset they show only in development builds. A switched-off
+// entry is not implemented: never routed, listed or searchable.
+// `import.meta.env` is absent under plain Node, which the native tests use.
+const buildEnv = import.meta.env ?? {}
+
+export function isFeatureEnabled(enabledBy, env = buildEnv) {
+  if (!enabledBy) return true
+  const value = env?.[enabledBy.env]
+  if (value === 'true') return true
+  if (value === 'false') return false
+  return env?.DEV === true
+}
+
+// The registry entries as this build sees them (`env` is replaceable for tests only).
+export function resolveNavigationEntries(entries, env = buildEnv) {
+  return Object.freeze(entries.map((entry) => {
+    if (entry.type !== 'external') {
+      return entry.enabledBy && !isFeatureEnabled(entry.enabledBy, env) ? Object.freeze({ ...entry, implemented: false }) : entry
+    }
+    const href = resolveExternalHref(entry.href, env)
+    return Object.freeze({ ...entry, href, implemented: entry.implemented && href !== null })
+  }))
+}
+
+export const navigationEntries = resolveNavigationEntries(registry.entries)
 
 export const navigationSections = NAVIGATION_GROUPS
 

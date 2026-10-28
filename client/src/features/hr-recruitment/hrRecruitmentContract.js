@@ -7,6 +7,8 @@ import { isIsoDate } from './shared/hrFormat.js'
 import { REQUISITION_STATUSES, REASONS } from './requisition/requisitionModel.js'
 import { COMP_KEYS, HR_FIELDS, INTERVIEW_STATUSES, OUTCOMES, SPEC_KEYS } from './interview/interviewModel.js'
 import { BENEFIT_KEYS, OFFER_STATUSES } from './offer/offerModel.js'
+import { ORIENTATION_STATUSES, SESSION_KEYS, TIME } from './orientation/orientationModel.js'
+import { EXTENSIONS, PROBATION_STATUSES, RECOMMENDATIONS, SIGNATURE_KEYS as PROBATION_SIGNATURES } from './probation/probationModel.js'
 
 export const ID_PATTERN = /^[1-9][0-9]{0,18}$/
 export const LOOKUP_CODE = /^[A-Za-z0-9_-]{1,40}$/
@@ -42,8 +44,22 @@ const routeStep = (step) => {
   return Object.freeze({ code: code(step.code) ?? invalid(), label: text(step.label, 120), note: text(step.note, 200) })
 }
 
+// An evaluation form type: its criteria and allocated points, totalling 100.
+function readFormType(item) {
+  check(isObject(item) && Array.isArray(item.criteria) && item.criteria.length > 0)
+  const criteria = item.criteria.map((criterion) => {
+    check(isObject(criterion) && Number.isInteger(criterion.points) && criterion.points > 0)
+    return Object.freeze({ code: code(criterion.code) ?? invalid(), name: text(criterion.name, 120), nameAr: text(criterion.nameAr, 120), points: criterion.points })
+  })
+  check(criteria.reduce((sum, criterion) => sum + criterion.points, 0) === 100)
+  check(new Set(criteria.map((criterion) => criterion.code)).size === criteria.length)
+  return Object.freeze({ code: code(item.code) ?? invalid(), name: text(item.name, 120), nameAr: text(item.nameAr, 120), criteria: Object.freeze(criteria) })
+}
+
 export function readLookups(data) {
-  check(isObject(data) && isObject(data.approvalRoute) && isObject(data.offer) && isObject(data.interview))
+  check(isObject(data) && isObject(data.approvalRoute) && isObject(data.offer) && isObject(data.interview) && isObject(data.orientation))
+  check(isObject(data.orientation.departmentHeads) && isObject(data.probation))
+  check(Array.isArray(data.probation.formTypes) && data.probation.formTypes.length > 0 && Array.isArray(data.probation.ratingScale) && data.probation.ratingScale.length > 0)
   check(Array.isArray(data.educationLevels) && Array.isArray(data.approvalRoute.steps) && Array.isArray(data.offer.signatories))
   const { offer } = data
   check(isObject(offer.probation))
@@ -68,6 +84,16 @@ export function readLookups(data) {
       unbudgetedStep: data.approvalRoute.unbudgetedStep === null ? null : routeStep(data.approvalRoute.unbudgetedStep),
     }),
     interview: Object.freeze({ payrollDefault: text(data.interview.payrollDefault, 60) }),
+    orientation: Object.freeze({
+      departmentHeads: Object.freeze(Object.fromEntries(SESSION_KEYS.map((key) => [key, options(data.orientation.departmentHeads[key])]))),
+    }),
+    probation: Object.freeze({
+      formTypes: Object.freeze(data.probation.formTypes.map(readFormType)),
+      ratingScale: Object.freeze(data.probation.ratingScale.map((band) => {
+        check(isObject(band) && Number.isInteger(band.min) && band.min >= 0 && band.min <= 100)
+        return Object.freeze({ min: band.min, label: text(band.label, 60), labelAr: text(band.labelAr, 60) })
+      })),
+    }),
     offer: Object.freeze({
       currency: currency(offer.currency),
       reportFormat: text(offer.reportFormat, 60),
@@ -211,6 +237,130 @@ export function readOfferListItem(data) {
     status: oneOf(data.status, OFFER_STATUSES),
     position: text(data.position, 200),
     candidateNameEn: text(data.candidateNameEn, 200),
+    updatedAt: instant(data.updatedAt),
+  })
+}
+
+// An employee from the employee search (pickers): identity and job details.
+export function readEmployee(data) {
+  check(isObject(data))
+  return Object.freeze({
+    employeeId: id(data.employeeId),
+    employeeNumber: text(data.employeeNumber, 30),
+    name: text(data.name, 200),
+    employmentType: text(data.employmentType, 60),
+    startDate: date(data.startDate),
+    section: text(data.section, 120),
+    division: text(data.division, 120),
+    position: text(data.position, 200),
+    grade: text(data.grade, 20),
+    departmentName: text(data.departmentName, 120),
+    evaluationFormCode: code(data.evaluationFormCode),
+  })
+}
+
+const time = (value) => { check(value === null || (typeof value === 'string' && TIME.test(value))); return value }
+
+export function readOrientation(data) {
+  check(isObject(data) && isObject(data.sessions))
+  return Object.freeze({
+    scheduleId: id(data.scheduleId),
+    scheduleNumber: nullableText(data.scheduleNumber, 40),
+    status: oneOf(data.status, ORIENTATION_STATUSES),
+    employee: readEmployee(data.employee),
+    scheduledByName: nullableText(data.scheduledByName, 200),
+    fromDate: date(data.fromDate),
+    toDate: date(data.toDate),
+    sessions: Object.freeze(Object.fromEntries(SESSION_KEYS.map((key) => {
+      const session = data.sessions[key]
+      check(isObject(session))
+      return [key, Object.freeze({
+        headCode: code(session.headCode), fromDate: date(session.fromDate), toDate: date(session.toDate),
+        timeFrom: time(session.timeFrom), timeTo: time(session.timeTo), remark: text(session.remark, 500),
+      })]
+    }))),
+    updatedAt: instant(data.updatedAt),
+  })
+}
+
+export function readOrientationListItem(data) {
+  check(isObject(data))
+  return Object.freeze({
+    scheduleId: id(data.scheduleId),
+    scheduleNumber: nullableText(data.scheduleNumber, 40),
+    status: oneOf(data.status, ORIENTATION_STATUSES),
+    employeeName: text(data.employeeName, 200),
+    fromDate: date(data.fromDate),
+    toDate: date(data.toDate),
+    updatedAt: instant(data.updatedAt),
+  })
+}
+
+// A row of the Periodwise Employees report.
+export function readReportRow(data) {
+  check(isObject(data))
+  return Object.freeze({
+    employeeNumber: text(data.employeeNumber, 30),
+    name: text(data.name, 200),
+    birthDate: date(data.birthDate),
+    nationality: text(data.nationality, 60),
+    job: text(data.job, 200),
+    departmentCode: code(data.departmentCode) ?? invalid(),
+    position: text(data.position, 200),
+    nationalId: nullableText(data.nationalId, 30),
+    startDate: date(data.startDate) ?? invalid(),
+    endDate: date(data.endDate),
+    leavingReason: text(data.leavingReason, 200),
+  })
+}
+
+export function readReport(data) {
+  check(isObject(data) && Array.isArray(data.rows))
+  const rows = data.rows.map(readReportRow)
+  check(new Set(rows.map((row) => row.employeeNumber)).size === rows.length)
+  return Object.freeze({ rows: Object.freeze(rows) })
+}
+
+const wholePoints = (value) => { check(Number.isInteger(value) && value >= 0 && value <= 100); return value }
+const codeMap = (value, read) => {
+  check(isObject(value))
+  return Object.freeze(Object.fromEntries(Object.entries(value).map(([key, item]) => {
+    check(LOOKUP_CODE.test(key))
+    return [key, read(item)]
+  })))
+}
+
+export function readProbation(data) {
+  check(isObject(data) && isObject(data.signatures))
+  return Object.freeze({
+    evaluationId: id(data.evaluationId),
+    evaluationNumber: nullableText(data.evaluationNumber, 40),
+    status: oneOf(data.status, PROBATION_STATUSES),
+    employee: readEmployee(data.employee),
+    preparedByName: nullableText(data.preparedByName, 200),
+    formTypeCode: code(data.formTypeCode),
+    fromDate: date(data.fromDate),
+    toDate: date(data.toDate),
+    scores: codeMap(data.scores, wholePoints),
+    notes: codeMap(data.notes, (value) => text(value, 500)),
+    strengths: text(data.strengths), improvements: text(data.improvements), training: text(data.training, 1000),
+    recommendation: oneOf(data.recommendation, RECOMMENDATIONS, { nullable: true }),
+    extendByMonths: oneOf(data.extendByMonths, EXTENSIONS, { nullable: true }),
+    justification: text(data.justification), comments: text(data.comments), suggestion: text(data.suggestion),
+    signatures: Object.freeze(Object.fromEntries(PROBATION_SIGNATURES.map((key) => [key, nullableInstant(data.signatures[key])]))),
+    updatedAt: instant(data.updatedAt),
+  })
+}
+
+export function readProbationListItem(data) {
+  check(isObject(data))
+  return Object.freeze({
+    evaluationId: id(data.evaluationId),
+    evaluationNumber: nullableText(data.evaluationNumber, 40),
+    status: oneOf(data.status, PROBATION_STATUSES),
+    employeeName: text(data.employeeName, 200),
+    formTypeCode: code(data.formTypeCode),
+    totalPoints: wholePoints(data.totalPoints),
     updatedAt: instant(data.updatedAt),
   })
 }
