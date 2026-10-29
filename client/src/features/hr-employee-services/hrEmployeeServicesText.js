@@ -27,7 +27,7 @@ export const ES_COMMON_TEXT = Object.freeze({
   searchingEmployees: 'Search by employee number or name',
   reviewProblems: (count) => (count === 1 ? 'One item needs attention.' : `${count} items need attention.`),
   counter: (length, max) => `${length} / ${max}`,
-  status: Object.freeze({ NEW: 'New', DRAFT: 'Draft', SUBMITTED: 'Submitted', APPROVED: 'Approved' }),
+  status: Object.freeze({ NEW: 'New', DRAFT: 'Draft', INPROCESS: 'In process', SUBMITTED: 'Submitted', APPROVED: 'Approved', REJECTED: 'Rejected' }),
   approval: Object.freeze({ DRAFT: 'After submit', PENDING: 'Pending', WAITING: 'Waiting', APPROVED: 'Approved' }),
   list: Object.freeze({
     all: 'All',
@@ -37,7 +37,7 @@ export const ES_COMMON_TEXT = Object.freeze({
     empty: 'No records match.',
     open: (number) => `Open ${number}`,
   }),
-  uploadNote: 'Documents stay with this request in the demo. The upload endpoint is not available yet.',
+  uploadNote: 'The personal status API does not support document uploads yet.',
 })
 
 const CHANGE_TYPE_TEXT = Object.freeze({
@@ -62,7 +62,7 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
     Object.freeze(['Review', 'Check and submit']),
   ]),
   tools: Object.freeze({ newRequest: 'Request form', requests: 'Change requests' }),
-  submit: 'Submit request',
+  submit: 'Save as draft',
   ticket: Object.freeze({ ref: 'Ref #', date: 'Date', hijri: 'التاريخ', employee: 'Employee', status: 'Status' }),
   card: Object.freeze({
     label: 'Change summary',
@@ -75,11 +75,11 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
     totalNow: 'Total SR now',
     totalRevised: 'Total SR revised',
   }),
-  routeTitle: 'After you submit',
+  routeTitle: 'Approval route (submission unavailable)',
   route: Object.freeze([
-    Object.freeze({ code: 'REQUESTER', label: 'Requester', note: 'Submits the change' }),
-    Object.freeze({ code: 'NOTED_BY', label: 'Noted by HR & Admin. Manager', note: 'Checks the record and pay' }),
-    Object.freeze({ code: 'APPROVED_BY', label: 'Approved by President', note: 'Final approval', added: true }),
+    Object.freeze({ code: 'REQUESTER', label: 'Requester', note: 'The backend currently saves a draft only' }),
+    Object.freeze({ code: 'NOTED_BY', label: 'Noted by HR & Admin. Manager', note: 'Approval endpoint not available' }),
+    Object.freeze({ code: 'APPROVED_BY', label: 'Approved by President', note: 'Approval endpoint not available', added: true }),
   ]),
   approvers: Object.freeze({ NOTED_BY: Object.freeze(['HR & Admin. Manager', 'Noted by']), APPROVED_BY: Object.freeze(['President', 'Approved by']) }),
   orbit: Object.freeze({
@@ -92,6 +92,7 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
     title: 'Whose record is changing?',
     desc: 'Pick the employee and the date the change takes effect. Their current information fills in.',
     employee: 'Emp # · الرقم',
+    employeePlaceholder: 'Search by employee number',
     effective: 'Effective date · تاريخ السريان',
     currentInfo: 'Current information · معلومات حالية عن الموظف',
     info: Object.freeze({
@@ -119,6 +120,7 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
     eyebrow: 'Step 02 · Revised record',
     title: 'What is changing?',
     desc: 'Revised values start as the current ones. Change only what’s different; each change shows its difference.',
+    gradeLevelUnavailable: 'Grade and level are shown on the form, but the current API does not return or save these fields.',
     head: Object.freeze(['Item', 'Current', '', 'Revised', 'Difference', '']),
     currentPrefix: 'Current:',
     total: 'Total SR · الإجمالي',
@@ -155,17 +157,18 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
     employee: Object.freeze({ required: 'Choose the employee' }),
     effectiveDate: Object.freeze({ required: 'Effective date is required', invalid: 'Enter a valid date', beforeStart: 'Effective date is before the employee’s start date' }),
     positionCode: Object.freeze({ required: 'Position is required' }),
+    familyStatusCode: Object.freeze({ required: 'Family status is required' }),
     amount: Object.freeze({ required: (label) => `${label} is required`, amount: 'Enter an amount of 0 or more, with up to 2 decimals' }),
     revised: Object.freeze({ noChange: 'Nothing has changed from the current record' }),
     remarks: Object.freeze({ tooLong: 'Keep remarks to 2000 characters or fewer' }),
     views: Object.freeze({ tooLong: 'Keep views to 2000 characters or fewer' }),
   }),
   saved: (number) => `Draft ${number} saved.`,
-  submitted: (number) => `Request ${number} submitted.`,
+  savedForReview: (number) => `Draft ${number} saved. The current API does not support submission yet.`,
   confirm: Object.freeze({
-    title: 'Submit change request?',
-    action: 'Submit',
-    body: (name, effective, types, from, to) => `${name} · effective ${effective}. ${types}. Total SR ${from} → ${to}. It goes to the HR & Admin. Manager and then the President.`,
+    title: 'Save personnel record change?',
+    action: 'Save draft',
+    body: (name, effective, types, from, to) => `${name} · effective ${effective}. ${types || 'No changes yet'}. Total SR ${from} → ${to}. The current API saves drafts; submission and approval are not available yet.`,
   }),
   list: Object.freeze({
     title: 'Change requests',
@@ -175,7 +178,7 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
     heading: 'Requests',
     search: 'Search requests',
     searchPlaceholder: 'Search ref, employee or change type',
-    columns: Object.freeze({ number: 'Ref #', employee: 'Employee', effective: 'Effective', changes: 'Changes', delta: 'Total change (SR)', status: 'Status', created: 'Created' }),
+    columns: Object.freeze({ number: 'Ref #', employee: 'Employee', effective: 'Effective', changes: 'Position', delta: 'Total change (SR)', status: 'Status', created: 'Created' }),
   }),
 })
 
@@ -189,6 +192,7 @@ export const TRANSFER_TEXT = Object.freeze({
   ]),
   tools: Object.freeze({ newTransfer: 'Form', report: 'Report' }),
   submit: 'Submit transfer',
+  saveDraft: 'Save transfer draft',
   document: Object.freeze({ label: 'Controlled document', control: 'Control no.', version: 'Version', issued: 'Issue date', pages: 'Pages', company: 'Company' }),
   ticket: Object.freeze({ ref: 'Ref #', onSave: 'On save', requestedBy: 'Requested by', employeeNumber: 'Employee no.', date: 'Date', status: 'Status' }),
   card: Object.freeze({
@@ -208,7 +212,7 @@ export const TRANSFER_TEXT = Object.freeze({
     today: 'Today',
     inDays: (days) => `In ${days} day${days === 1 ? '' : 's'}`,
   }),
-  orbit: Object.freeze({ start: 'Start with the employee.', fill: 'Fill in the move and the details.', ready: 'Ready to submit.' }),
+  orbit: Object.freeze({ start: 'Start with the employee.', fill: 'Fill in the move and the details.', ready: 'Ready to save.' }),
   moveStep: Object.freeze({
     eyebrow: 'Step 01 · Move',
     title: 'Who is moving, and where?',
@@ -248,7 +252,8 @@ export const TRANSFER_TEXT = Object.freeze({
   approvalsStep: Object.freeze({
     eyebrow: 'Step 03 · Approvals',
     title: 'Who signs it off.',
-    desc: 'After you submit, each approver signs in order. HR, IT and Admin complete their part last.',
+    desc: 'Review the transfer request and save it as a draft. Approval states are shown here when recorded by the server.',
+    draft: 'Draft',
     office: 'For IT & Human Resources use only',
     officeWaiting: 'Completed by HR / IT after approval',
     officeDone: (date) => `Done · ${date}`,
@@ -276,6 +281,7 @@ export const TRANSFER_TEXT = Object.freeze({
     to: Object.freeze({ noMove: 'The new job, department and section are the same as now' }),
     effectiveDate: Object.freeze({ required: 'Effective date is required', invalid: 'Enter a valid date', beforeJoining: 'Effective date is before the date of joining' }),
     directorId: Object.freeze({ required: 'Choose the director' }),
+    bloodType: Object.freeze({ required: 'Choose the employee blood type' }),
     salaryChange: Object.freeze({ required: 'Answer change in salary' }),
     budgetedSalary: Object.freeze({ required: 'Answer budgeted salary' }),
   }),
@@ -284,12 +290,14 @@ export const TRANSFER_TEXT = Object.freeze({
   confirm: Object.freeze({
     title: 'Submit transfer request?',
     action: 'Submit',
+    saveTitle: 'Save transfer draft?',
+    draftBody: (name, from, to, section, effective) => `${name}: ${from} to ${to} / ${section}. Effective ${effective}. This saves the request as a draft.`,
     body: (name, from, to, section, effective) => `${name}: ${from} → ${to} · ${section}. Effective ${effective}. It goes to the five department approvers, then HR, IT and Admin.`,
   }),
   report: Object.freeze({
     title: 'Transfer requests',
     noun: 'transfer requests',
-    subtitle: 'All transfer requests and where they are in approval.',
+    subtitle: 'Transfer requests you can access and where they are in approval.',
     newTransfer: 'New transfer',
     heading: 'Requests',
     search: 'Search transfers',
@@ -310,8 +318,8 @@ export const APPRAISAL_TEXT = Object.freeze({
     Object.freeze(['Meeting', 'Remarks and sign-off']),
   ]),
   tools: Object.freeze({ report: 'Report', newAppraisal: 'New' }),
-  save: 'Save appraisal',
-  submit: 'Submit appraisal',
+  save: 'Create appraisal',
+  submit: 'Create in-process appraisal',
   ticket: Object.freeze({ number: 'Appraisal no.', onSave: 'On save', employee: 'Employee', period: 'Period of review', appraiser: 'Appraiser', status: 'Status' }),
   card: Object.freeze({
     label: 'Appraisal card',
@@ -348,6 +356,7 @@ export const APPRAISAL_TEXT = Object.freeze({
     }),
     scale: 'Performance rating scale',
     loadingTeam: 'the team',
+    loadingEmployee: 'employee details',
   }),
   criteriaStep: Object.freeze({
     eyebrow: 'Step 02 · Criteria',
@@ -412,13 +421,13 @@ export const APPRAISAL_TEXT = Object.freeze({
     appraiser: Object.freeze({ required: 'The appraiser must sign' }),
     criteriaCount: (count) => `${count} criteria need attention.`,
   }),
-  saved: (number) => `Appraisal ${number} saved.`,
-  submitted: (number) => `Appraisal ${number} submitted.`,
+  saved: (number) => `Appraisal ${number} is in process.`,
+  submitted: (number) => `Appraisal ${number} is in process.`,
   confirm: Object.freeze({
-    title: 'Submit performance appraisal?',
-    action: 'Submit',
-    body: (name, period, rating, grade, title, goals, acknowledged) =>
-      `${name} · ${period}. Rating ${rating} · Grade ${grade} · ${title}. ${goals} development goals${acknowledged ? '' : ' · employee acknowledgement pending'}.`,
+    title: 'Create performance appraisal?',
+    action: 'Create appraisal',
+    body: (name, period, rating, grade, title, goals) =>
+      `${name} · ${period}. Rating ${rating} · Grade ${grade} · ${title}. ${goals} development goals. This creates the appraisal in process.`,
   }),
   report: Object.freeze({
     title: 'Performance appraisals',

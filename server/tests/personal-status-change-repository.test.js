@@ -59,6 +59,23 @@ describe('personal status change repository', () => {
     assert.equal(connection.calls[1].binds.headerId, '9007199254740993');
   });
 
+  it('uses a narrow employee snapshot query for autofill and does not require a master total column', async () => {
+    const connection = mockConnection([
+      { rows: [{ EMP_NO: '2172', NEW_POSITION: 'Operator' }] },
+      { rows: [{}] },
+    ]);
+    const repository = createPersonalStatusRepository();
+
+    await repository.latest(connection, '2172');
+    await repository.master(connection, '2172');
+
+    assert.equal(connection.calls[0].binds.empNo, '2172');
+    assert.match(connection.calls[0].sql, /TO_CHAR\(R\.EMP_NO\) = :empNo/);
+    assert.match(connection.calls[0].sql, /R\.NEW_POSITION/);
+    assert.doesNotMatch(connection.calls[0].sql, /HR_ADMIN_SIGN|PRESIDENT_SIGN|R\.STATUS/);
+    assert.doesNotMatch(connection.calls[1].sql, /TOTAL_SALARY/);
+  });
+
   it('binds all insert/update values, converts ISO dates, and leaves server-owned columns alone', async () => {
     const connection = mockConnection();
     const repository = createPersonalStatusRepository();

@@ -1,7 +1,8 @@
 # HR employee services: Personnel Record Change (1110), Transfer Request (ZPI.TCN.FM.01), Performance Appraisal
 
 Three screens under **Human resources** in the sidebar. They are not part of the recruitment flow
-(no step bar), and they run on owner-approved **demo data** until their backend exists.
+(no step bar). Personal Status Change, Transfer Request and Performance Appraisal connect to their
+existing backend APIs.
 
 | Screen | Route | Record route | List view |
 |---|---|---|---|
@@ -11,10 +12,9 @@ Three screens under **Human resources** in the sidebar. They are not part of the
 
 The list paths are matched before the record paths (a record id is digits only).
 
-> **Demo data.** The owner approved demo data for these screens only (a feature-scoped override of
-> ZRV-FE-005) until the backend exists. No backend module, Oracle object or permission row exists
-> for them yet. Every person in the demo data is fictional ("Sample Employee 001", "Sample
-> Director A", "Sample Requester"); the requester and the appraiser are the signed-in user.
+> These screens use live backend data. Transfer Request can save, update and list drafts; its
+> backend does not expose a submit endpoint. Performance Appraisal creates a complete appraisal
+> directly in process because its backend does not expose draft or submit endpoints.
 
 ## Switches
 
@@ -26,24 +26,23 @@ shown pages get their data. Each follows the same rule.
 | `VITE_FEATURE_HR_RECRUITMENT` | Whether the onboarding pages (orientation, probation, employee report) exist | shown | hidden | shown in development builds, hidden in production builds |
 | `VITE_FEATURE_HR_EMPLOYEE_SERVICES` | Whether these three screens and their list views exist | shown | hidden | shown in development builds, hidden in production builds |
 | `VITE_HR_RECRUITMENT_DEMO` | Data source of the recruitment screens that still use the demo adapter | demo adapter | `apiClient` | demo in development builds, API in production builds |
-| `VITE_HR_EMPLOYEE_SERVICES_DEMO` | Data source of these three screens | demo adapter | `apiClient` | demo in development builds, API in production builds |
+| `VITE_HR_EMPLOYEE_SERVICES_DEMO` | Legacy demo mode for remaining employee service screens | demo adapter | `apiClient` | demo in development builds, API in production builds |
 
 - **Visibility** uses the registry's `enabledBy` mechanism. Every entry of the session-only module
   `HR_EMPLOYEE_SERVICES` (`config/registry/modules/hrEmployeeServices.module.js`) carries
   `enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' }`. While it is off, the pages are absent
   from the sidebar, the command palette, the guard (Not found) and the router table.
-- **Data source**: `VITE_HR_EMPLOYEE_SERVICES_DEMO` is resolved in `hrEmployeeServicesConfig.js`. It
-  is separate from `VITE_HR_RECRUITMENT_DEMO` because recruitment is moving to real APIs (#32, #33):
-  turning its demo flag off must not point these screens at endpoints that do not exist.
+- **Data source**: Personal Status Change, Transfer Request and Performance Appraisal use their
+  real APIs. The switch remains for the legacy shared demo adapter.
 - `.env.example` lists `VITE_HR_EMPLOYEE_SERVICES_DEMO=` (empty: the default rule), pinned by
   `tests/productionReadiness.test.mjs`. Override locally in your own `client/.env.local`.
 
 | `VITE_FEATURE_HR_EMPLOYEE_SERVICES` | `VITE_HR_EMPLOYEE_SERVICES_DEMO` | Result | Use |
 |---|---|---|---|
-| `true` | `true` | Pages visible, demo data | Demo or UAT build without a backend |
-| `true` | `false` | Pages visible, real API | **Production once the backend exists** |
+| `true` | `true` | Pages visible; all three use APIs | Development or UAT |
+| `true` | `false` | Pages visible; all three use APIs | Production when all three backends are ready |
 | `false` | `true` or `false` | Pages hidden (the data source is irrelevant) | Production before the backend exists |
-| unset | unset | Development: visible with demo data. Production: hidden | Defaults |
+| unset | unset | Development: visible with live API data. Production: hidden | Defaults |
 
 ## Structure
 
@@ -82,11 +81,11 @@ The options added for these screens:
   period, unknown review period) → **422** with details.
 - Supporting documents keep file name and size only; nothing is uploaded.
 
-## Proposed API contract (TODO for the backend)
+## API contracts
 
-None of these endpoints exist. Paths are relative to `/api/v1`. Responses use the standard envelope;
-lists use the standard `pagination`. The readers in `hrEmployeeServicesContract.js` define the exact
-fields and reject anything else. Writes carry the session CSRF token.
+Paths are relative to `/api/v1`. Responses use the standard envelope; writes carry the session CSRF
+token. Personal Status Change and Transfer Request use their existing backend-specific contracts.
+Performance Appraisal uses its existing backend-specific contract below.
 
 | Method and path | Purpose | Reader |
 |---|---|---|
@@ -97,19 +96,26 @@ fields and reject anything else. Writes carry the session CSRF token.
 | `POST` / `PUT /hr/employee-services/record-change-requests[/{id}]` | Save a draft: employee required; amounts 0 or more with 2 decimals; effective date not before the start date; remarks and views ≤ 2000 (422). Assigns the Ref #, requester, request date; snapshots the current record. 409 once submitted | `readRecordChange` |
 | `POST /hr/employee-services/record-change-requests/{id}/submit` | Also needs the effective date, position, all six pay items and at least one change (422); `SUBMITTED`, approvals Pending / Waiting | `readRecordChange` |
 | `POST /hr/employee-services/record-change-requests/{id}/attachments` | Supporting documents (multipart). **Stub**: not called; the demo keeps file names only | — |
-| `GET /hr/employee-services/transfers?page&limit` | Transfer report | page of `readTransferListItem` |
-| `GET /hr/employee-services/transfers/{id}` | One transfer, with the five approvals and the three IT & HR approvals (state and date) | `readTransfer` |
-| `POST` / `PUT /hr/employee-services/transfers[/{id}]` | Save a draft: employee required; a section must belong to its department; effective date not before the date of joining (422). Assigns the Ref #, requester and date. 409 once submitted | `readTransfer` |
-| `POST /hr/employee-services/transfers/{id}/submit` | Also needs job title, department, section (at least one different from now), effective date, director, salary change and budgeted salary (422); `SUBMITTED` | `readTransfer` |
-| `GET /hr/performance/lookups` | The 20 criteria, the rating scale with grade letters, the grade distribution (percent per grade, total 100) and the review periods | `readPerformanceLookups` |
-| `GET /hr/performance/team?periodCode` | The signed-in appraiser and the team, with the grades already given in that period | `readAppraisalTeam` |
-| `GET /hr/performance/appraisals?page&limit` | Appraisals report | page of `readAppraisalListItem` |
-| `GET /hr/performance/appraisals/{id}` | One appraisal with the server-computed rating and grade | `readAppraisal` |
-| `POST` / `PUT /hr/performance/appraisals[/{id}]` | Save a draft: employee of the appraiser's team, one appraisal per employee and period (422). Assigns the number and appraiser. 409 once submitted | `readAppraisal` |
-| `POST /hr/performance/appraisals/{id}/submit` | Also needs all 20 ratings, explanations for 1 and 5, 3 to 5 goals, the appraiser's remark when a grade is over its share, and the appraiser's signature (422); `SUBMITTED` | `readAppraisal` |
+| `GET /hr/transfer-requests/?page&pageSize&sort&order` | Transfer report, paged under `meta` and `rows` | Transfer API adapter |
+| `GET /hr/transfer-requests/lookups/{jobs,sections,departments,directors,blood-types,requestor}` | Transfer form options and signed-in requestor | Transfer API adapter |
+| `GET /hr/transfer-requests/lookups/employees` and `GET /lookups/employees/{name}` | Employee names and current transfer snapshot | Transfer API adapter |
+| `GET /hr/transfer-requests/{headerId}` | One transfer request with current, destination, signatures and status | Transfer API adapter |
+| `POST` / `PUT /hr/transfer-requests[/{headerId}]` | Create or update a draft. Server requires plant, employee, job title, department, section, effective date, blood type, director and both salary flags. Draft and rejected requests are editable; Inprocess and Approved requests are locked. | Transfer API adapter |
+| `DELETE /hr/transfer-requests/{headerId}` | Delete an editable draft or rejected request | Transfer API adapter |
+| `GET /hr/performance-appraisals/lookups/employees?year` and `GET /lookups/employees/{name}?year` | Eligible direct reports and each employee snapshot | Performance appraisal adapter |
+| `GET /hr/performance-appraisals/lookups/requestor` | Signed-in appraiser identity | Performance appraisal adapter |
+| `GET /hr/performance-appraisals/lookups/grade-stats` | Grade quotas and allocations | Performance appraisal adapter |
+| `GET /hr/performance-appraisals/?year&page&pageSize&sort&order` | Appraisals report for a year; standard paginated response | Performance appraisal adapter |
+| `GET /hr/performance-appraisals/{headerId}` | One appraisal, including the server-computed rating and grade | Performance appraisal adapter |
+| `POST /hr/performance-appraisals/` | Creates the appraisal directly in `Inprocess`; requires an eligible employee snapshot, all 20 ratings, at least one development goal and one training need. Only one non-rejected appraisal per employee/year is allowed | Performance appraisal adapter |
+| `PUT /hr/performance-appraisals/{headerId}` | Backend supports updating rejected/non-Inprocess records; `Inprocess` records return 409 | Performance appraisal adapter |
+| `PUT /hr/performance-appraisals/{headerId}/employee-remarks` | Appraised employee can update their remarks | Performance appraisal adapter |
+| `DELETE /hr/performance-appraisals/{headerId}` | Deletes an appraisal | Performance appraisal adapter |
 
-Server-assigned values: Ref #, request, transfer and appraisal numbers; status; approval states;
-requester or appraiser with employee number; employee snapshot; rating and grade.
+The appraisal backend has no draft or submit endpoint and does not persist signature strokes. Creating the complete form with `POST` moves it straight to `Inprocess`; the frontend locks that record after creation. Criteria labels and grade bands follow the server's calculation rules, while employee eligibility, employee snapshots, grade percentages, grade allocations, rating, and grade come from the server.
+
+Server-assigned values: status, approval states, requester or appraiser and employee snapshot.
+The transfer endpoint returns `headerId`, which the report displays as its reference number.
 
 ## Business rules (where they live)
 
@@ -117,10 +123,10 @@ requester or appraiser with employee number; employee snapshot; rating and grade
   other + communication + car; per-row difference (amount and percent, none from 0) with reset;
   change types detected automatically; a lower total shows a reminder, not a block; remarks and
   views ≤ 2000 with a live counter; route HR & Admin. Manager → President.
-- **Transfer Request** (`transferModel.js`): sections depend on the department; at least one of
-  job title, department, section must differ; effective date not before D.O.J.; blood type
-  prefilled when known; "Yes" to salary change reminds to raise a Personnel Record Change; chain
-  of five approvers; IT & HR approvals read-only.
+- **Transfer Request** (`transferModel.js`): at least one of job title, department, section must
+  differ; effective date not before D.O.J.; "Yes" to salary change reminds to raise a Personnel
+  Record Change. The backend supplies a global section list without department associations and has
+  no submit endpoint; drafts are saved only after all server-required fields are complete.
 - **Performance Appraisal** (`appraisalModel.js`): rating = average of the 20 criteria to two
   decimals; scale 4.25+ A, 3.5–4.24 B, 2.5–3.49 C, 1.6–2.49 D, below E; allowed per grade =
   ceil(% × team size), at least 1; allocated = grades already given plus this one; over a share
@@ -130,19 +136,17 @@ requester or appraiser with employee number; employee snapshot; rating and grade
 > **Placeholders and assumptions.**
 > - The **A–E grade letters per rating band are assumed**: the form shows the bands and the
 >   letters separately. The scale and the letters come from the lookup, so they stay configurable.
-> - The demo criteria, distribution, periods, departments, sections, job titles, directors,
->   companies, document metadata and pay figures are taken from the incoming prototype; they are
->   **not approved HR content** and must come from the backend.
-> - Signatures are recorded as dates. Who may sign which role must be enforced by the backend.
+> - Transfer lookup values are read from the backend. Some appraisal criteria labels and grade-band
+>   display text mirror constants used by its existing backend; grade calculations and allocations
+>   are server-owned.
+> - The appraisal backend does not accept signature data, so signature strokes are presentation only.
 
-## Permissions (open item)
+## Permissions
 
-No permission codes have been agreed for these screens. The module is session-only (`rbac: false`):
-every signed-in user can open them wherever `VITE_FEATURE_HR_EMPLOYEE_SERVICES` shows them, and no
-button is permission-gated. When the backend exists: turn `HR_EMPLOYEE_SERVICES` into an RBAC module,
-register its rows under an owner-authorized plan (gate G1), gate the buttons with
-`usePermissions().can(…)`, update the pinned route tests, and remove `enabledBy` or set the switch to
-`true` in the production build.
+Personal Status Change routes use `HR.PERSONNEL_RECORD_CHANGES:VIEW`; create, update and delete
+controls use the corresponding backend actions. Transfer routes use `HR.TRANSFER_REQUESTS:VIEW`,
+and create/update controls use the corresponding actions. Performance Appraisal routes use
+`HR.PERFORMANCE_APPRAISALS` permissions.
 
 ## Removing the demo
 

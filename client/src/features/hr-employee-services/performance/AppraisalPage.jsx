@@ -8,10 +8,11 @@ import { businessToday, enDate, initials } from '@/features/hr-recruitment/share
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog, ReportDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
+import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { HrField } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { APPRAISAL_TEXT as T, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
-import { employeeServicesDemo, hrEmployeeServices } from '../hrEmployeeServicesService.js'
+import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { NO_IDENTIFY, useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
 import '@/styles/hr-employee-services.css'
@@ -29,7 +30,7 @@ const INK = ['M6 30 C 18 6, 26 40, 36 20 S 52 8, 58 26 S 76 36, 84 14 S 104 30, 
 export default function AppraisalPage() {
   useEmployeeServicesUser()
   return (
-    <RecruitmentLoader current="appraisal" flow={false} identify={NO_IDENTIFY} breadcrumb={C.performanceBreadcrumb} demo={employeeServicesDemo}
+    <RecruitmentLoader current="appraisal" flow={false} identify={NO_IDENTIFY} breadcrumb={C.performanceBreadcrumb} demo={false}
       title={T.title} subtitle={T.subtitle} param="appraisalId" load={service.getById} loadLookups={loadLookups}>
       {({ lookups, record, editorKey }) => <AppraisalEditor key={editorKey} lookups={lookups} record={record} />}
     </RecruitmentLoader>
@@ -80,10 +81,14 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   )
   const members = team.members
   const appraiser = saved?.appraiser ?? team.appraiser
-  const employee = members.find((member) => member.employeeId === form.employeeId) ?? saved?.employee ?? null
+  const selectedEmployee = members.find((member) => member.employeeId === form.employeeId) ?? null
+  const employeeLookup = useResource(selectedEmployee && !saved
+    ? `hr-appraisal-employee:${form.periodCode}:${selectedEmployee.employeeId}` : null,
+  (signal) => hrEmployeeServices.performance.employee(selectedEmployee.name, form.periodCode, { signal }))
+  const employee = saved?.employee ?? (employeeLookup.status === 'ready' ? employeeLookup.data : selectedEmployee)
   const period = periods.find((item) => item.code === form.periodCode) ?? periods[0]
   const today = businessToday()
-  const result = appraisalResult(form, criteria, members, scale, distribution)
+  const result = appraisalResult(form, criteria, members, scale, distribution, lookups.gradeStats)
   const band = result.band ? scale.find((item) => item.grade === result.band.grade) : null
   const rated = ratedCount(form.ratings, criteria)
   const unexplained = missingExplanations(form.ratings, criteria)
@@ -100,12 +105,20 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   }
   const clear = (...keys) => setErrors((value) => Object.fromEntries(Object.entries(value).filter(([key]) => !keys.includes(key))))
   const setValue = (key) => (eventOrValue) => { set(key)(eventOrValue); clear(key) }
+  const searchEmployees = async (search) => {
+    const term = String(search).trim().toLocaleLowerCase()
+    const matches = term ? members.filter((member) => `${member.name} ${member.employeeNumber}`.toLocaleLowerCase().includes(term)) : members
+    const items = matches.map((member) => ({ ...member, position: member.jobTitle, section: member.departmentName }))
+    return { items, pagination: { page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false } }
+  }
+  const pickEmployee = (person) => { setValue('employeeId')(person.employeeId); clear('employeeId') }
   const rate = (code, change) => { patch((state) => ({ ratings: { ...state.ratings, [code]: { rating: null, explanation: '', ...state.ratings[code], ...change } } })); clear(code) }
   const choosePeriod = (event) => { patch({ periodCode: event.target.value, employeeId: '' }); clear('employeeId') }
   const sign = (role) => { patch((state) => ({ signatures: { ...state.signatures, [role]: state.signatures[role] ? null : today } })); clear(role) }
 
   const check = (submit) => {
-    const problems = validateAppraisal(form, { criteria, team: members, scale, distribution }, { submit })
+    const validationTeam = employee?.personId ? members : members.filter((member) => member.employeeId !== form.employeeId)
+    const problems = validateAppraisal(form, { criteria, team: validationTeam, scale, distribution }, { submit, appraiserSignature: false })
     setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
     if (!problems.length) return true
     if (problems.some((problem) => problem.field === 'goals' || problem.field === 'training')) setTab(problems.find((problem) => problem.field === 'goals') ? 'goals' : 'training')
@@ -115,9 +128,9 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
     return false
   }
   const save = () => {
-    if (locked || !check(false)) return
+    if (locked || !check(true)) return
     editor.perform(async ({ saved: keep }) => {
-      const value = await service.save(editor.recordId, appraisalPayload(form, criteria))
+      const value = await service.save(editor.recordId, appraisalPayload(form, criteria), employee)
       keep(value)
       return value
     }, { success: (value) => T.saved(value.appraisalNumber) })
@@ -128,9 +141,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   const submit = () => {
     setDialog(null)
     editor.perform(async ({ saved: keep }) => {
-      const draft = await service.save(editor.recordId, appraisalPayload(form, criteria))
-      keep(draft)
-      const value = await service.submit(draft.appraisalId)
+      const value = await service.save(editor.recordId, appraisalPayload(form, criteria), employee)
       keep(value)
       return value
     }, { success: (value) => T.submitted(value.appraisalNumber) })
@@ -153,7 +164,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
     { icon: 'printer', label: C.print, onClick: () => window.print() },
   ]
   const doneSteps = [Boolean(employee), result.complete && !unexplained.length, goals.length >= GOALS_MIN, Boolean(form.signatures.appraiser)]
-  const years = (from) => (employee ? yearsUntil(from, period.to, today)?.toFixed(1) ?? '' : '')
+  const years = (from, serverValue) => (employee ? (serverValue ?? yearsUntil(from, period.to, today))?.toFixed(1) ?? '' : '')
 
   const listEditor = (key, label, max, min, placeholder) => {
     const items = form[key]
@@ -180,7 +191,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   }
 
   return <>
-    <RecruitmentShell current="appraisal" flow={false} compact breadcrumb={C.performanceBreadcrumb} demo={employeeServicesDemo} title={T.title} subtitle={T.subtitle}
+    <RecruitmentShell current="appraisal" flow={false} compact breadcrumb={C.performanceBreadcrumb} demo={false} title={T.title} subtitle={T.subtitle}
       tools={tools} primary={{ label: T.save, icon: 'save', onClick: save }}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss} lookupNotice={teamNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
       ticket={<Ticket avatar={initials(employee?.name)} code={T.formCode} items={[
@@ -225,17 +236,13 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
               {periods.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
             </select>
           </HrField>
-          <HrField id="ap-employee" label={T.employeeStep.employee} required error={errors.employeeId}>
-            <select {...fieldProps('ap-employee', { error: errors.employeeId })} className="ux-select zrv-hr-input" aria-required="true" disabled={Boolean(saved)}
-              value={form.employeeId} onChange={setValue('employeeId')}>
-              <option value="">{T.employeeStep.selectEmployee}</option>
-              {members.map((member) => <option key={member.employeeId} value={member.employeeId}>{T.employeeStep.option(member.name, member.employeeNumber)}</option>)}
-            </select>
-          </HrField>
+          <EmployeePicker id="ap-employee" label={T.employeeStep.employee} required tight value={employee} onPick={pickEmployee}
+            error={errors.employeeId} disabled={Boolean(saved)} searchService={searchEmployees} cacheKey={`hr-appraisal-employees:${form.periodCode}`} />
+          {selectedEmployee && employeeLookup.status !== 'ready' && <ResourceState resource={employeeLookup} label={T.employeeStep.loadingEmployee} empty={C.list.empty}>{() => null}</ResourceState>}
         </div>
         <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt">
           {[['employeeNumber', employee?.employeeNumber], ['jobTitle', employee?.jobTitle], ['grade', employee?.grade], ['company', employee?.companyName],
-            ['department', employee?.departmentName], ['yearsCompany', years(employee?.joinedDate)], ['yearsPosition', years(employee?.positionDate)],
+            ['department', employee?.departmentName], ['yearsCompany', years(employee?.joinedDate, employee?.yearsInCompany)], ['yearsPosition', years(employee?.positionDate, employee?.yearsInPosition)],
             ['appraiser', appraiser.name]].map(([key, value]) => (
             <HrField key={key} id={`ap-info-${key}`} label={T.employeeStep.info[key]}>
               <input id={`ap-info-${key}`} className="ux-input zrv-hr-input" readOnly value={value ?? ''} placeholder={C.fillsFromEmployee} />
@@ -348,7 +355,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
     </RecruitmentShell>
     {dialog === 'submit' && (
       <ConfirmDialog title={T.confirm.title} confirmLabel={T.confirm.action} pending={editor.pending} onClose={() => setDialog(null)} onConfirm={submit}
-        description={T.confirm.body(employee.name, period.label, average, result.band.grade, band.title, goals.length, Boolean(form.signatures.employee))} />
+        description={T.confirm.body(employee.name, period.label, average, result.band.grade, band.title, goals.length)} />
     )}
     {dialog === 'report' && (
       <ReportDialog title={T.report.title} resourceKey="hr-appraisal-report" load={(params, options) => service.list(options)} onClose={() => setDialog(null)}

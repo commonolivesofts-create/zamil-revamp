@@ -7,6 +7,26 @@ export default defineModule({
   description: 'Human resources workflows.',
   displayOrder: 23,
   resources: [{
+    code: 'TRANSFER_REQUESTS',
+    name: 'Transfer Requests',
+    description: 'View and manage employee transfer requests.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [
+      { id: 'hr-transfer', path: '/hr/employee-services/transfer', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', order: 110, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', title: 'Transfer report', icon: 'chart-column', group: 'human-resources', order: 111, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', order: 112, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+    ],
+  }, {
+    code: 'PERSONNEL_RECORD_CHANGES',
+    name: 'Personal Status Change',
+    description: 'Create, update, view and delete personal status change requests.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [
+      { id: 'hr-record-change', path: '/hr/employee-services/record-change', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', order: 100, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', title: 'Personal status report', icon: 'layers', group: 'human-resources', order: 101, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', order: 102, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+    ],
+  }, {
     code: 'CONTRACTOR_EMPLOYEES',
     name: 'Employee Report',
     description: 'Read contractor employee records and report filters.',

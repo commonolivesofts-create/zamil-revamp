@@ -77,7 +77,9 @@ test('RecruitmentLoader options: flow, identify and breadcrumb keep the recruitm
 
 test('EmployeePicker options: tight variant and a separate cache-key prefix', async () => {
   const picker = await read(`${SHARED}EmployeePicker.jsx`)
-  assert.match(picker, /searchService, tight = false, cacheKey = 'hr-employees' \}/)
+  assert.match(picker, /searchService, placeholder = PICKER_TEXT\.placeholder, tight = false, disabled = false, cacheKey = 'hr-employees' \}/)
+  assert.match(picker, /pendingSearch = open && search !== query\.trim\(\)/, 'debounced input shows a pending search immediately')
+  assert.match(picker, /pendingSearch \|\| results\.status === 'loading'.*PICKER_TEXT\.searching/, 'loading is visible in the result list')
   assert.match(picker, /useResource\(open \? `\$\{cacheKey\}:\$\{search\.toLowerCase\(\)\}` : null,/)
   assert.match(picker, /zrv-hr-combo\$\{tight \? ' zrv-hr-combo--tight' : ''\}/)
   assert.match(picker, /\{!tight && <span className="zrv-hr-combo__av" aria-hidden="true">/)

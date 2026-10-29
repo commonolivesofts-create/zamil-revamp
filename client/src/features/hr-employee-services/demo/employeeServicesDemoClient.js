@@ -1,5 +1,5 @@
-// DEMO ADAPTER ONLY (owner-approved for the HR employee services until their
-// backend exists). An in-memory stand-in for the proposed API with the shared
+// DEMO ADAPTER ONLY for Transfer Request and Performance Appraisal while their
+// backends are pending. An in-memory stand-in for the proposed API with the shared
 // API client's interface: get/post/put resolve to { status, data, pagination,
 // requestId } and failures reject with ApiError, exactly like apiClient. It
 // behaves like the proposed backend: it assigns numbers, statuses, the
@@ -140,7 +140,7 @@ export function createEmployeeServicesDemoClient({
     if (current && body.employeeId && body.employeeId !== current.employee.employeeId) fail(422, 'VALIDATION_ERROR', 'The employee of a saved request cannot change.')
     const to = { jobTitleCode: body.to?.jobTitleCode ?? '', departmentCode: body.to?.departmentCode ?? '', sectionCode: body.to?.sectionCode ?? '' }
     const form = {
-      to, effectiveDate: body.effectiveDate ?? '', directorId: body.directorId ?? '', salaryChange: body.salaryChange ?? '', budgetedSalary: body.budgetedSalary ?? '',
+      to, effectiveDate: body.effectiveDate ?? '', bloodType: body.bloodType ?? '', directorId: body.directorId ?? '', salaryChange: body.salaryChange ?? '', budgetedSalary: body.budgetedSalary ?? '',
     }
     const problems = validateTransfer(form, employee, lookups.departments, { submit })
     if (body.directorId && !lookups.directors.some((item) => item.directorId === body.directorId)) problems.push({ field: 'directorId', code: 'unknown' })

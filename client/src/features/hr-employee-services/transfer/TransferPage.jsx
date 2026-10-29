@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import usePermissions from '@/features/access/usePermissions.js'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { businessToday, daysBetween, enDate, initials } from '@/features/hr-recruitment/shared/hrFormat.js'
@@ -11,7 +12,7 @@ import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '@/featur
 import { HrField, RadioCards, Review } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { ES_COMMON_TEXT as C, TRANSFER_TEXT as T } from '../hrEmployeeServicesText.js'
-import { employeeServicesDemo, hrEmployeeServices } from '../hrEmployeeServicesService.js'
+import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { NO_IDENTIFY, useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
 import '@/styles/hr-employee-services.css'
@@ -22,13 +23,13 @@ import {
 
 const BASE = ES_PATHS.transfer
 const service = hrEmployeeServices.transfers
-const loadLookups = (signal) => hrEmployeeServices.lookups.get({ signal })
+const loadLookups = (signal) => service.getLookups({ signal })
 const messageOf = ({ field, code }) => T.errors[field][code]
 
 export default function TransferPage() {
   const user = useEmployeeServicesUser()
   return (
-    <RecruitmentLoader current="transfer" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={employeeServicesDemo}
+    <RecruitmentLoader current="transfer" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb}
       title={T.title} subtitle={T.subtitle} param="transferId" load={service.getById} loadLookups={loadLookups}>
       {({ lookups, record, editorKey }) => <TransferEditor key={editorKey} lookups={lookups} record={record} user={user} />}
     </RecruitmentLoader>
@@ -37,6 +38,7 @@ export default function TransferPage() {
 
 function TransferEditor({ lookups, record, user }) {
   const navigate = useNavigate()
+  const permissions = usePermissions()
   const editor = useRecruitmentForm({
     basePath: BASE, idKey: 'transferId', record,
     initialForm: record ? {
@@ -51,7 +53,8 @@ function TransferEditor({ lookups, record, user }) {
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
   const employee = form.employee
-  const locked = isTransferLocked(saved?.status)
+  const canWrite = permissions.can(saved ? 'HR.TRANSFER_REQUESTS:UPDATE' : 'HR.TRANSFER_REQUESTS:CREATE')
+  const locked = isTransferLocked(saved?.status) || !canWrite
   const moves = transferMoves(employee, form.to)
   const status = saved?.status ?? 'DRAFT'
   const today = businessToday()
@@ -69,7 +72,7 @@ function TransferEditor({ lookups, record, user }) {
 
   // The pickers list each employee with job title and section; directors with their area.
   const searchEmployees = async (search, options) => {
-    const page = await hrEmployeeServices.employees.search(search, options)
+    const page = await service.searchEmployees(search, options)
     return { ...page, items: page.items.map((item) => ({ ...item, position: jobName(item.jobTitleCode), section: item.sectionName })) }
   }
   const searchDirectors = async (search) => {
@@ -93,7 +96,7 @@ function TransferEditor({ lookups, record, user }) {
   const save = () => {
     if (locked || !check(false)) return
     editor.perform(async ({ saved: keep }) => {
-      const result = await service.save(editor.recordId, transferPayload(form, employee))
+      const result = await service.save(editor.recordId, transferPayload(form, employee), employee)
       keep(result)
       return result
     }, { success: (result) => T.saved(result.transferNumber) })
@@ -106,12 +109,10 @@ function TransferEditor({ lookups, record, user }) {
   const submit = () => {
     setDialog(null)
     editor.perform(async ({ saved: keep }) => {
-      const draft = await service.save(editor.recordId, transferPayload(form, employee))
-      keep(draft)
-      const result = await service.submit(draft.transferId)
+      const result = await service.save(editor.recordId, transferPayload(form, employee), employee)
       keep(result)
       return result
-    }, { success: (result) => T.submitted(result.transferNumber) })
+    }, { success: (result) => T.saved(result.transferNumber) })
   }
   const leave = (path) => (editor.dirty && !locked ? setDialog({ path }) : navigate(path))
 
@@ -138,8 +139,8 @@ function TransferEditor({ lookups, record, user }) {
   )
 
   return <>
-    <RecruitmentShell current="transfer" flow={false} compact breadcrumb={C.breadcrumb} demo={employeeServicesDemo} title={T.title} subtitle={T.subtitle}
-      tools={tools} primary={{ label: T.submit, icon: 'send', onClick: requestSubmit }}
+    <RecruitmentShell current="transfer" flow={false} compact breadcrumb={C.breadcrumb} title={T.title} subtitle={T.subtitle}
+      tools={tools} primary={{ label: T.saveDraft, icon: 'save', onClick: requestSubmit }}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss} locked={locked} pending={editor.pending} focusError={editor.focusError}
       ticket={<Ticket avatar={initials(requester.name)} code={doc.controlNumber} items={[
         { k: T.ticket.ref, v: saved?.transferNumber || T.ticket.onSave },
@@ -152,13 +153,13 @@ function TransferEditor({ lookups, record, user }) {
         <dl className="zrv-hr-es-docstrip" aria-label={T.document.label}>
           <div className="zrv-hr-es-docstrip__title"><dt className="zrv-hr-sr">{T.document.label}</dt><dd>{doc.title}</dd></div>
           <div><dt>{T.document.control}</dt><dd className="zrv-hr-mono">{doc.controlNumber}</dd></div>
-          <div><dt>{T.document.version}</dt><dd>{doc.version}</dd></div>
-          <div><dt>{T.document.issued}</dt><dd>{enDate(doc.issueDate)}</dd></div>
-          <div><dt>{T.document.pages}</dt><dd>{doc.pages}</dd></div>
+          {doc.version && <div><dt>{T.document.version}</dt><dd>{doc.version}</dd></div>}
+          {doc.issueDate && <div><dt>{T.document.issued}</dt><dd>{enDate(doc.issueDate)}</dd></div>}
+          {doc.pages && <div><dt>{T.document.pages}</dt><dd>{doc.pages}</dd></div>}
           <div><dt>{T.document.company}</dt><dd>{nameIn(lookups.companies, form.companyCode) || '—'}</dd></div>
         </dl>
       )}
-      steps={T.steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.submit} onFinal={requestSubmit}
+      steps={T.steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.saveDraft} onFinal={requestSubmit}
       side={<>
         <Tilt aria-label={T.card.label}>
           <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">{T.card.label}</span><span className="zrv-hr-mono">{saved?.transferNumber || T.card.draft}</span></div>
@@ -233,8 +234,8 @@ function TransferEditor({ lookups, record, user }) {
           <HrField id="tr-director-id" label={T.detailsStep.directorId}>
             <input id="tr-director-id" className="ux-input zrv-hr-input" readOnly value={director?.directorId ?? ''} placeholder={T.detailsStep.directorIdPlaceholder} />
           </HrField>
-          <HrField id="tr-blood" label={T.detailsStep.bloodType} hint={employee?.bloodType ? T.detailsStep.bloodFromRecord : undefined}>
-            <select {...fieldProps('tr-blood', { hint: employee?.bloodType ? 'record' : undefined })} className="ux-select zrv-hr-input" value={form.bloodType} onChange={setValue('bloodType')}>
+          <HrField id="tr-blood" label={T.detailsStep.bloodType} required error={errors.bloodType} hint={employee?.bloodType ? T.detailsStep.bloodFromRecord : undefined}>
+            <select {...fieldProps('tr-blood', { error: errors.bloodType, hint: employee?.bloodType ? 'record' : undefined })} className="ux-select zrv-hr-input" aria-required="true" value={form.bloodType} onChange={setValue('bloodType')}>
               <option value="">{T.detailsStep.bloodUnknown}</option>
               {lookups.bloodTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
             </select>
@@ -255,7 +256,7 @@ function TransferEditor({ lookups, record, user }) {
           {approvals.map((item, index) => (
             <li key={item.role} className={`zrv-hr-is-${item.state.toLowerCase()}`} style={{ '--i': index }}>
               <span className="zrv-hr-es-chain__n">{item.state === 'APPROVED' ? <OrvexaIcon name="check" size={14} /> : index + 1}</span>
-              <b>{T.route[item.role]}</b><em>{C.approval[item.state]}</em>
+              <b>{T.route[item.role]}</b><em>{item.state === 'DRAFT' ? T.approvalsStep.draft : C.approval[item.state]}</em>
             </li>
           ))}
         </ol>
@@ -278,8 +279,8 @@ function TransferEditor({ lookups, record, user }) {
       </>}
     </RecruitmentShell>
     {dialog === 'submit' && (
-      <ConfirmDialog title={T.confirm.title} confirmLabel={T.confirm.action} pending={editor.pending} onClose={() => setDialog(null)} onConfirm={submit}
-        description={T.confirm.body(employee.name, employee.departmentName, targetOf.departmentCode, targetOf.sectionCode, enDate(form.effectiveDate))} />
+      <ConfirmDialog title={T.confirm.saveTitle} confirmLabel={T.saveDraft} pending={editor.pending} onClose={() => setDialog(null)} onConfirm={submit}
+        description={T.confirm.draftBody(employee.name, employee.departmentName, targetOf.departmentCode, targetOf.sectionCode, enDate(form.effectiveDate))} />
     )}
     {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
   </>
