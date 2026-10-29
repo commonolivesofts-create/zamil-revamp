@@ -32,7 +32,7 @@ import {
   OfferPage,
   OrientationPage,
   ProbationPage,
-  PeriodwiseEmployeesPage,
+  EmployeeReportPage,
   DeniedPage,
   NotFoundPage,
   RouterShell,
@@ -121,7 +121,7 @@ export const router = createBrowserRouter([
                   { path: 'hr/recruitment/orientation/:scheduleId', handle: { routeId: 'hr-orientation-record' }, element: <OrientationPage /> },
                   { path: 'hr/recruitment/probation-evaluation', handle: { routeId: 'hr-probation' }, element: <ProbationPage /> },
                   { path: 'hr/recruitment/probation-evaluation/:evaluationId', handle: { routeId: 'hr-probation-record' }, element: <ProbationPage /> },
-                  { path: 'hr/reports/periodwise-employees', handle: { routeId: 'hr-periodwise-employees' }, element: <PeriodwiseEmployeesPage /> },
+                  { path: 'hr/reports/periodwise-employees', handle: { routeId: 'hr-employee-report' }, element: <EmployeeReportPage /> },
                 ]),
               },
               {

@@ -5,8 +5,7 @@ import { ApiError, apiClient } from '../../services/api/apiClient.js'
 import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
 import {
-  ID_PATTERN, readEmployee, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readOrientation,
-  readOrientationListItem, readPage, readProbation, readProbationListItem, readReport,
+  ID_PATTERN, readEmployee, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readPage, readReport,
 } from './hrRecruitmentContract.js'
 import { COMP_KEYS, SPEC_KEYS } from './interview/interviewModel.js'
 import { BENEFIT_KEYS } from './offer/offerModel.js'
@@ -18,6 +17,9 @@ export const REPORT_PAGE_SIZE = 10
 const REQUISITIONS_BASE = '/hr/requisitions'
 const INTERVIEWS_BASE = '/hr/interview-assessments'
 const OFFERS_BASE = '/hr/employment-offers'
+const PROBATION_BASE = '/hr/probation-evaluations'
+const ORIENTATION_BASE = '/hr/orientation-trainings'
+const CONTRACTOR_EMPLOYEES_BASE = '/hr/contractor-employees'
 const OFFER_ALLOWANCE_TYPES = Object.freeze({
   housing: 'housing', transport: 'transportation', vacation: 'annual-vacation', ticket: 'ticket', medical: 'medical', contract: 'contract-period',
 })
@@ -365,23 +367,7 @@ function query(values) {
   return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== null && value !== ''))
 }
 
-// A create (no id) is a POST; a change of an existing record is a PUT.
-const write = (client, base, id, body) => (id ? client.put(`${base}/${segment(id)}`, body) : client.post(base, body))
-
-// list, getById, a save that returns the record, and a workflow action
-// (`/submit`) on a saved record, for the onboarding screens. Pages save first
-// and keep the returned id, so a failed action never leaves an unknown record.
-function createRecordService({ client, base, readRecord, readListItem, actionName }) {
-  const list = async ({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) =>
-    readPage(await client.get(base, { params: query({ page, limit }), signal }), readListItem)
-  const getById = async (id, { signal } = {}) => readRecord((await client.get(`${base}/${segment(id)}`, { signal })).data)
-  const save = async (id, body) => readRecord((await write(client, base, id, body)).data)
-  const act = async (id) => readRecord((await client.post(`${base}/${segment(id)}/${actionName}`, {})).data)
-  return { list, getById, save, act }
-}
-
-// Lookups of the onboarding screens (orientation heads, probation form types,
-// rating scale), served by the demo adapter until the endpoint exists.
+// Lookup suggestions for the recruitment flow and the session-only HR report.
 export function createLookupService({ client }) {
   return Object.freeze({
     async get({ signal } = {}) {
@@ -519,30 +505,203 @@ export function createEmployeeService({ client }) {
 }
 
 export function createOrientationService({ client }) {
-  const record = createRecordService({
-    client, base: `${HR_BASE}/orientation-schedules`, readRecord: readOrientation, readListItem: readOrientationListItem, actionName: 'submit',
+  const dateOnly = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : ''
+  const textValue = (value) => value == null || value === '-' ? '' : String(value)
+  const readRecord = (data) => {
+    if (!data || !ID_PATTERN.test(String(data.headerId ?? '')) || !Array.isArray(data.lines) || !['Y', 'N'].includes(data.flag)) {
+      throw new ApiError('The server returned an unexpected orientation training.', { code: 'INVALID_RESPONSE' })
+    }
+    return Object.freeze({
+      scheduleId: String(data.headerId), scheduleNumber: textValue(data.reference) || String(data.headerId), status: String(data.status ?? ''), flag: data.flag,
+      employee: Object.freeze({ employeeId: textValue(data.personId), employeeNumber: textValue(data.empNo), name: textValue(data.empname),
+        employmentType: textValue(data.type), startDate: dateOnly(data.startDate), section: textValue(data.section), division: textValue(data.division),
+        position: textValue(data.position), grade: '', departmentName: textValue(data.section) }),
+      fromDate: dateOnly(data.fromOrient), toDate: dateOnly(data.toOrient), scheduledByName: textValue(data.orientationBy),
+      lines: Object.freeze(data.lines.map((line) => Object.freeze({
+        lineId: String(line.lineId), department: textValue(line.department), departmentHead: textValue(line.departmentHead),
+        fromDate: dateOnly(line.fromDate), toDate: dateOnly(line.toDate), orientationDays: Number(line.orientationDays ?? 0),
+        timeFrom: textValue(line.timeFrom), timeTo: textValue(line.timeTo), orientationPeriod: textValue(line.orientationPeriod), remarks: textValue(line.remarks),
+      }))),
+      updatedAt: data.createdAt ?? null,
+    })
+  }
+  const readListItem = (data, flag) => Object.freeze({
+    scheduleId: String(data.headerId), scheduleNumber: textValue(data.reference) || String(data.headerId), status: String(data.status ?? ''), flag,
+    employeeName: textValue(data.empname), fromDate: dateOnly(data.fromOrient), toDate: dateOnly(data.toOrient), updatedAt: data.createdAt ?? null,
   })
+  const getById = async (id, { signal } = {}) => readRecord((await client.get(`${ORIENTATION_BASE}/${segment(id)}`, { signal })).data)
   return Object.freeze({
-    list: record.list,
-    getById: record.getById,
-    // Saving schedules the orientation: the server checks it, assigns the
-    // Ref # and Scheduled by, and locks it (a saved schedule is read-only).
-    save: (body) => record.save(null, body),
+    async getLookups({ signal } = {}) {
+      const [employees, managers] = await Promise.all([
+        client.get(`${ORIENTATION_BASE}/lookups/employees`, { signal }),
+        client.get(`${ORIENTATION_BASE}/lookups/managers`, { signal }),
+      ])
+      if (!Array.isArray(employees.data) || !Array.isArray(managers.data)) throw new ApiError('The server returned unexpected orientation options.', { code: 'INVALID_RESPONSE' })
+      return Object.freeze({
+        employees: Object.freeze(employees.data.map((item) => Object.freeze({
+          employeeId: String(item.personId), employeeNumber: String(item.empNo), name: String(item.fullName), employmentType: String(item.empType ?? ''),
+          startDate: dateOnly(item.startDate), section: textValue(item.section), division: textValue(item.division), position: textValue(item.position), grade: '',
+          departmentName: textValue(item.section),
+        }))),
+        managers: Object.freeze(managers.data.map((item) => Object.freeze({ code: String(item.fullName), name: String(item.fullName), employeeNumber: String(item.empNo) }))),
+      })
+    },
+    async employeeSetup(empNo, { signal } = {}) {
+      const [detailsResult, flagResult] = await Promise.all([
+        client.get(`${ORIENTATION_BASE}/lookups/employee-details`, { params: { empNo }, signal }),
+        client.get(`${ORIENTATION_BASE}/lookups/flag`, { params: { empNo }, signal }),
+      ])
+      const details = detailsResult.data
+      const type = String(details?.empType ?? '')
+      const { data: skillResult } = await client.get(`${ORIENTATION_BASE}/lookups/skills`, { params: { empType: type }, signal })
+      if (!Array.isArray(skillResult?.skills) || !['Y', 'N'].includes(flagResult.data?.flag)) throw new ApiError('The server returned unexpected employee orientation details.', { code: 'INVALID_RESPONSE' })
+      return Object.freeze({
+        employee: Object.freeze({ employeeId: String(details.personId), employeeNumber: String(details.empNo), name: String(details.empname),
+          employmentType: type, startDate: dateOnly(details.startDate), section: textValue(details.section), division: textValue(details.division),
+          position: textValue(details.position), grade: '', departmentName: textValue(details.section), directManager: textValue(details.directManager) }),
+        flag: flagResult.data.flag, departments: Object.freeze(skillResult.skills.map(String)),
+      })
+    },
+    async list({ page = 1, limit = REPORT_PAGE_SIZE, flag = 'Y' } = {}, { signal } = {}) {
+      if (!['Y', 'N'].includes(flag)) throw new ApiError('Choose a valid orientation table.', { code: 'INVALID_PARAMS' })
+      const result = await client.get(ORIENTATION_BASE, { params: { flag, page, pageSize: limit }, signal })
+      if (!Array.isArray(result.data) || !result.pagination) throw new ApiError('The server returned an unexpected orientation training list.', { code: 'INVALID_RESPONSE' })
+      return Object.freeze({ items: Object.freeze(result.data.map((item) => readListItem(item, flag))), pagination: result.pagination })
+    },
+    getById,
+    async save(id, body) {
+      const payload = {
+        empNo: body.employee.employeeNumber, fromOrient: body.fromOrient, toOrient: body.toOrient, startDate: body.employee.startDate,
+        orientationBy: body.orientationBy || '', flag: body.flag, section: body.employee.section, empname: body.employee.name,
+        personId: body.employee.employeeId, division: body.employee.division, type: body.employee.employmentType, position: body.employee.position,
+        lines: body.lines.map((line) => ({ ...(line.lineId ? { lineId: line.lineId } : {}), department: line.department, departmentHead: line.departmentHead,
+          fromDate: line.fromDate, toDate: line.toDate, orientationDays: line.orientationDays, timeFrom: line.timeFrom, timeTo: line.timeTo,
+          orientationPeriod: line.orientationPeriod || '', remarks: line.remarks || '' })),
+      }
+      const result = id ? await client.put(`${ORIENTATION_BASE}/${segment(id)}`, payload) : await client.post(ORIENTATION_BASE, payload)
+      const savedId = String(id ?? result.data?.headerId ?? '')
+      if (!ID_PATTERN.test(savedId)) throw new ApiError('The server did not return an orientation training ID.', { code: 'INVALID_RESPONSE' })
+      return getById(savedId)
+    },
+    async remove(id) { await client.delete(`${ORIENTATION_BASE}/${segment(id)}`) },
+    async removeLine(id, lineId) { await client.delete(`${ORIENTATION_BASE}/${segment(id)}/lines/${segment(lineId)}`) },
+  })
+}
+
+export function createEmployeeReportService({ client }) {
+  const readEmployee = (item) => {
+    if (!item || !ID_PATTERN.test(String(item.emp_id ?? '')) || !String(item.employee_number ?? '') ||
+      !String(item.employee_name ?? '') || !String(item.con_number ?? '') || !['Active', 'Inactive'].includes(item.status)) {
+      throw new ApiError('The server returned an unexpected employee report row.', { code: 'INVALID_RESPONSE' })
+    }
+    return Object.freeze({
+      empId: String(item.emp_id), employeeNumber: String(item.employee_number), name: String(item.employee_name), division: String(item.division ?? ''),
+      iqamah: Number(item.iqamah), department: String(item.department ?? ''), productionSection: String(item.prod_dep ?? ''), directBoss: String(item.direct_boss ?? ''),
+      directBossId: item.direct_boss_id == null ? '' : String(item.direct_boss_id), jobId: item.job == null ? '' : String(item.job), jobTitle: String(item.job_title ?? ''),
+      place: String(item.place ?? ''), replacement: item.replacement == null ? '' : String(item.replacement), rate: Number(item.rate ?? 0),
+      startDate: String(item.start_date ?? ''), endDate: String(item.end_date ?? ''), status: item.status,
+      ajeer: Boolean(item.ajeer), sfda: Boolean(item.sfda), blacklist: Boolean(item.blacklist), remark: String(item.remark ?? ''),
+      contractorNumber: String(item.con_number), contractorName: String(item.con_name ?? ''), createdAt: item.creation_date ?? null, updatedAt: item.updated_date ?? null,
+    })
+  }
+  return Object.freeze({
+    async getLookups({ signal } = {}) {
+      const names = ['divisions', 'departments', 'contractors']
+      const results = await Promise.all(names.map((name) => client.get(`${CONTRACTOR_EMPLOYEES_BASE}/lookups/${name}`, { signal })))
+      const valid = results.map((result) => Array.isArray(result.data))
+      if (valid.some((ok) => !ok)) throw new ApiError('The server returned unexpected employee report filters.', { code: 'INVALID_RESPONSE' })
+      const [divisions, departments, contractors] = results.map((result) => result.data.map((item) => Object.freeze({ value: String(item.value), label: String(item.label) })))
+      return Object.freeze({ divisions: Object.freeze(divisions), departments: Object.freeze(departments), contractors: Object.freeze(contractors) })
+    },
+    async list(params = {}, { signal } = {}) {
+      const result = await client.get(CONTRACTOR_EMPLOYEES_BASE, { params: query({
+        division: params.division, department: params.department, contractor_number: params.contractorNumber, status: params.status,
+        date_from: params.dateFrom, date_to: params.dateTo, page: params.page ?? 1, limit: params.limit ?? 50,
+        sort: params.sort ?? 'employee_number', order: params.order ?? 'asc',
+      }), signal })
+      if (!Array.isArray(result.data) || !result.pagination) throw new ApiError('The server returned an unexpected employee report.', { code: 'INVALID_RESPONSE' })
+      return Object.freeze({ items: Object.freeze(result.data.map(readEmployee)), pagination: result.pagination })
+    },
   })
 }
 
 export function createProbationService({ client }) {
-  const record = createRecordService({
-    client, base: `${HR_BASE}/probation-evaluations`, readRecord: readProbation, readListItem: readProbationListItem, actionName: 'submit',
+  const fromLegacyDate = (value) => {
+    if (typeof value !== 'string') return ''
+    const match = /^(\d{1,2})-([A-Za-z]{3})-(\d{2}|\d{4})$/.exec(value)
+    if (!match) return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : ''
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const month = months.findIndex((name) => name.toLowerCase() === match[2].toLowerCase())
+    return month < 0 ? '' : `${match[3].length === 2 ? `20${match[3]}` : match[3]}-${String(month + 1).padStart(2, '0')}-${match[1].padStart(2, '0')}`
+  }
+  const textValue = (value) => value == null || value === '-' ? '' : String(value)
+  const readRecord = (data) => {
+    if (!data || !ID_PATTERN.test(String(data.headerId ?? '')) || !Array.isArray(data.lines)) throw new ApiError('The server returned an unexpected probation evaluation.', { code: 'INVALID_RESPONSE' })
+    return Object.freeze({
+      evaluationId: String(data.headerId), evaluationNumber: String(data.headerId), status: String(data.requestStatus ?? 'DRAFT'),
+      formDate: fromLegacyDate(data.formDate), evaluationPeriod: textValue(data.evaluationPeriod), formType: textValue(data.formType),
+      employee: Object.freeze({ employeeId: textValue(data.empId), employeeNumber: textValue(data.employeeNumber), name: textValue(data.employeeName),
+        position: textValue(data.jobTitle), grade: textValue(data.grade), departmentName: textValue(data.department), startDate: '' }),
+      fromDate: fromLegacyDate(data.fromDate), toDate: fromLegacyDate(data.toDate), comment: textValue(data.comment), comments: textValue(data.comments),
+      totalRating: Number(data.totalRating ?? 0), lines: Object.freeze(data.lines.map((line) => Object.freeze({
+        lineId: String(line.lineId), param: textValue(line.param), paramAr: textValue(line.paramAr), rating: Number(line.rating ?? 0),
+      }))),
+    })
+  }
+  const listItem = (data) => Object.freeze({
+    evaluationId: String(data.headerId), evaluationNumber: String(data.headerId), status: String(data.requestStatus ?? 'DRAFT'),
+    employeeName: String(data.employeeName ?? ''), formType: String(data.formType ?? ''), totalRating: Number(data.totalRating ?? 0),
+    updatedAt: data.createdAt ?? null,
   })
+  const getById = async (id, { signal } = {}) => readRecord((await client.get(`${PROBATION_BASE}/${segment(id)}`, { signal })).data)
   return Object.freeze({
-    list: record.list,
-    getById: record.getById,
-    // Save needs the setup and every criterion scored; the server assigns the
-    // evaluation number and "prepared by". The record stays a DRAFT.
-    save: record.save,
-    // Submitting needs the recommendation and the evaluator signature, and locks the evaluation.
-    submit: record.act,
+    async getLookups({ signal } = {}) {
+      const [types, employees, requestor] = await Promise.all([
+        client.get(`${PROBATION_BASE}/lookups/form-types`, { signal }),
+        client.get(`${PROBATION_BASE}/lookups/employees`, { signal }),
+        client.get(`${PROBATION_BASE}/lookups/requestor`, { signal }),
+      ])
+      if (!Array.isArray(types.data?.formTypes) || !Array.isArray(employees.data)) throw new ApiError('The server returned unexpected probation form options.', { code: 'INVALID_RESPONSE' })
+      return Object.freeze({
+        probation: Object.freeze({ formTypes: Object.freeze(types.data.formTypes.map((name) => Object.freeze({ code: String(name), name: String(name), criteria: Object.freeze([]) }))), ratingScale: Object.freeze([]) }),
+        employees: Object.freeze(employees.data.map((item) => Object.freeze({ employeeId: String(item.userId), employeeNumber: '', name: String(item.fullName), position: '', grade: '', departmentName: '', startDate: '' }))),
+        requestor: requestor.data ?? null,
+      })
+    },
+    async employeeDetails(name, { signal } = {}) {
+      const { data } = await client.get(`${PROBATION_BASE}/lookups/employee-details`, { params: { empName: name }, signal })
+      return Object.freeze({ employeeId: String(data?.ids?.personId ?? ''), employeeNumber: String(data?.ids?.employeeNumber ?? ''), name,
+        startDate: fromLegacyDate(data?.hire?.startDate), position: String(data?.job?.name ?? ''), grade: '', departmentName: String(data?.dept?.name ?? '') })
+    },
+    async searchEmployees(search = '', { signal } = {}) {
+      const { data } = await client.get(`${PROBATION_BASE}/lookups/employees`, { signal })
+      if (!Array.isArray(data)) throw new ApiError('The server returned unexpected employees.', { code: 'INVALID_RESPONSE' })
+      const value = String(search).trim().toLocaleLowerCase()
+      const items = data.map((item) => Object.freeze({ employeeId: String(item.userId), employeeNumber: '', name: String(item.fullName), position: '', grade: '', departmentName: '', startDate: '' }))
+        .filter((item) => item.name.toLocaleLowerCase().includes(value))
+      return Object.freeze({ items: Object.freeze(items), pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }) })
+    },
+    async list({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) {
+      const result = await client.get(PROBATION_BASE, { params: { page, pageSize: limit }, signal })
+      if (!Array.isArray(result.data) || !result.pagination) throw new ApiError('The server returned an unexpected probation evaluation list.', { code: 'INVALID_RESPONSE' })
+      return Object.freeze({ items: Object.freeze(result.data.map(listItem)), pagination: result.pagination })
+    },
+    getById,
+    async save(id, body) {
+      const payload = {
+        formDate: body.formDate, evaluationPeriod: body.evaluationPeriod, formType: body.formType,
+        employeeName: body.employee.name, employeeNumber: body.employee.employeeNumber, empId: body.employee.employeeId,
+        grade: Number(body.employee.grade) || 0, jobTitle: body.employee.position, department: body.employee.departmentName,
+        fromDate: body.fromDate, toDate: body.toDate, comment: body.comment, comments: body.comments,
+        totalRating: body.lines.reduce((total, line) => total + (Number(line.rating) || 0), 0),
+        lines: body.lines.map((line) => ({ ...(id ? { lineId: line.lineId } : {}), param: line.param, paramAr: line.paramAr || '', rating: Number(line.rating) || 0 })),
+      }
+      const result = id ? await client.put(`${PROBATION_BASE}/${segment(id)}`, payload) : await client.post(PROBATION_BASE, payload)
+      const savedId = String(id ?? result.data?.headerId ?? '')
+      if (!ID_PATTERN.test(savedId)) throw new ApiError('The server did not return a probation evaluation ID.', { code: 'INVALID_RESPONSE' })
+      return getById(savedId)
+    },
+    async remove(id) { await client.delete(`${PROBATION_BASE}/${segment(id)}`) },
   })
 }
 
@@ -563,12 +722,11 @@ export function selectClient({ demo, api = apiClient, createDemo = createDemoCli
   return demo ? createDemo() : api
 }
 
-// `onboardingClient` serves the screens that have no backend yet (orientation,
-// probation evaluation, the periodwise report, their lookups and the employee
-// search); VITE_HR_RECRUITMENT_DEMO selects it. The requisition, interview and
-// offer forms always use their own (authenticated API) clients.
+// `onboardingClient` serves the session-only report, legacy suggestions and
+// employee search. Orientation, probation and the three recruitment forms use
+// authenticated API clients.
 export function createHrRecruitmentServices({
-  client, requisitionClient = client, interviewClient = client, offerClient = client, onboardingClient = client,
+  client, requisitionClient = client, interviewClient = client, offerClient = client, onboardingClient = client, probationClient = client, orientationClient = client,
 }) {
   return Object.freeze({
     client,
@@ -577,11 +735,12 @@ export function createHrRecruitmentServices({
     requisitions: createBackendRequisitionService({ client: requisitionClient }),
     interviews: createInterviewService({ client: interviewClient }),
     offers: createOfferService({ client: offerClient }),
-    // Demo-backed until their endpoints exist.
+    // Suggestions/report lookup and employee search remain on the onboarding adapter.
     lookups: createLookupService({ client: onboardingClient }),
     employees: createEmployeeService({ client: onboardingClient }),
-    orientations: createOrientationService({ client: onboardingClient }),
-    probations: createProbationService({ client: onboardingClient }),
+    orientations: createOrientationService({ client: orientationClient }),
+    employeeReport: createEmployeeReportService({ client }),
+    probations: createProbationService({ client: probationClient }),
     reports: createReportService({ client: onboardingClient }),
   })
 }
@@ -596,7 +755,7 @@ export function identifyDemoUser(name, client = hrRecruitmentServices.onboarding
 
 export const hrRecruitmentServices = createHrRecruitmentServices({
   client: apiClient, requisitionClient: apiClient, interviewClient: apiClient, offerClient: apiClient,
-  onboardingClient: selectClient({ demo: hrRecruitmentConfig.demo }),
+  onboardingClient: selectClient({ demo: hrRecruitmentConfig.demo }), probationClient: apiClient, orientationClient: apiClient,
 })
 // The onboarding screens show a "Demo data" badge while they use the demo adapter.
 export const hrRecruitmentDemo = hrRecruitmentConfig.demo

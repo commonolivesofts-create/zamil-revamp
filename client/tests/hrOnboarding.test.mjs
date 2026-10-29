@@ -7,12 +7,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { createApiClient } from '../src/services/api/apiClient.js'
-import { authorizedNavigation, canAccessRoute, findAppRoute, implementedRoutes, isFeatureEnabled, paletteCommands, resolveNavigationEntries, routeAccess } from '../src/config/appNavigation.js'
+import { findAppRoute, implementedRoutes, isFeatureEnabled, resolveNavigationEntries } from '../src/config/appNavigation.js'
 import { registeredModules, registry } from '../src/config/registry/index.js'
 import { resolveDemoMode } from '../src/features/hr-recruitment/hrRecruitmentConfig.js'
 import { createCsrfStore } from '../src/services/api/csrfStore.js'
 import { readEmployee, readLookups, readOrientation, readProbation, readReport } from '../src/features/hr-recruitment/hrRecruitmentContract.js'
-import { createHrRecruitmentServices, identifyDemoUser } from '../src/features/hr-recruitment/hrRecruitmentService.js'
+import { createHrRecruitmentServices } from '../src/features/hr-recruitment/hrRecruitmentService.js'
 import { createDemoClient } from '../src/features/hr-recruitment/demo/demoClient.js'
 import { DEMO_EMPLOYEES, DEMO_LOOKUPS } from '../src/features/hr-recruitment/demo/demoData.js'
 import { RECRUITMENT_FLOW } from '../src/features/hr-recruitment/shared/recruitmentFlow.js'
@@ -30,7 +30,7 @@ import {
   toCsv, validateParams, withBom, yearlyFlow, yearsBetween,
 } from '../src/features/hr-recruitment/report/periodwiseModel.js'
 import { createDemoReportRows } from '../src/features/hr-recruitment/demo/demoData.js'
-import { SESSION_TOKEN, forbidBrowserStorage, recordingFetch, success } from './helpers/http.mjs'
+import { SESSION_TOKEN, recordingFetch, success } from './helpers/http.mjs'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 const FEATURE = '../src/features/hr-recruitment/'
@@ -158,55 +158,70 @@ test('contracts: lookups carry the orientation heads; employee and schedule shap
   rejects(() => readLookups({ ...DEMO_LOOKUPS, orientation: { departmentHeads: { hr: [] } } }))
 })
 
-test('services: employee search and orientation schedules use their paths, with CSRF on the save', async () => {
-  const { fetchImpl, calls } = recordingFetch((url) => (url.includes('/employees')
-    ? success([DEMO_EMPLOYEES[0]], 200, { pagination: { page: 1, limit: 10, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false } })
-    : success(orientationRecord(), 201)))
+test('orientation service uses the employee setup, skills, list and draft save endpoints', async () => {
+  const apiRecord = {
+    headerId: '7', reference: 'ORT-7', status: 'Draft', flag: 'Y', empNo: '30401', personId: '1', empname: 'Sample Employee 001',
+    type: 'Employee', startDate: '2026-11-01', section: 'Operations', division: 'Food', position: 'Operator', fromOrient: '2026-11-01',
+    toOrient: '2026-11-01', orientationBy: 'Test User', createdAt: '2026-10-28T08:00:00.000Z',
+    lines: [{ lineId: '9', department: 'Training with HR Dept', departmentHead: 'Sample Manager', fromDate: '2026-11-01', toDate: '2026-11-01', orientationDays: 1, timeFrom: '08:00', timeTo: '12:00', remarks: '' }],
+  }
+  const { fetchImpl, calls } = recordingFetch((url, init) => {
+    if (url.endsWith('/lookups/employees')) return success([{ personId: '1', empNo: '30401', fullName: 'Sample Employee 001', startDate: '2026-11-01', jobId: '10', name: 'Operator', section: 'Operations', division: 'Food', organizationId: '1', position: 'Operator', empType: 'Employee' }])
+    if (url.endsWith('/lookups/managers')) return success([{ empNo: '30400', fullName: 'Sample Manager' }])
+    if (url.includes('/lookups/employee-details')) return success({ personId: '1', empNo: '30401', empname: 'Sample Employee 001', empType: 'Employee', startDate: '2026-11-01', section: 'Operations', division: 'Food', position: 'Operator' })
+    if (url.includes('/lookups/flag')) return success({ flag: 'Y', tableName: 'HR_ORIENTATION_TRAININGS' })
+    if (url.includes('/lookups/skills')) return success({ skills: ['Training with HR Dept'] })
+    if (url.includes('/hr/orientation-trainings?') && init.method === 'GET') return success([apiRecord], 200, { pagination: { page: 1, limit: 10, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false } })
+    if (init.method === 'POST') return success({ headerId: '7', flag: 'Y', reference: 'ORT-7' }, 201)
+    if (url.endsWith('/7')) return success(apiRecord)
+    throw new Error(`Unexpected request: ${init.method} ${url}`)
+  })
   const csrfStore = createCsrfStore()
   csrfStore.setSessionToken(SESSION_TOKEN)
   const services = createHrRecruitmentServices({ client: createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore }) })
-  assert.equal((await services.employees.search(' sample ')).items.length, 1)
-  await services.orientations.save({ employeeId: '1' })
+  const lookups = await services.orientations.getLookups()
+  assert.equal(lookups.employees[0].employeeNumber, '30401')
+  assert.equal(lookups.managers[0].name, 'Sample Manager')
+  const setup = await services.orientations.employeeSetup('30401')
+  assert.deepEqual(setup.departments, ['Training with HR Dept'])
+  const form = { employee: setup.employee, flag: setup.flag, fromOrient: '2026-11-01', toOrient: '2026-11-01', lines: [{ department: setup.departments[0], departmentHead: 'Sample Manager', fromDate: '2026-11-01', toDate: '2026-11-01', orientationDays: 1, timeFrom: '08:00', timeTo: '12:00' }] }
+  await services.orientations.save(null, form)
+  const listed = await services.orientations.list({ flag: 'Y' })
+  assert.equal(listed.items[0].scheduleNumber, 'ORT-7')
   await services.orientations.getById('7')
-  assert.deepEqual(calls.map((call) => `${call.init.method} ${call.url}`), [
-    'GET /api/v1/hr/recruitment/employees?search=sample&page=1&limit=10',
-    'POST /api/v1/hr/recruitment/orientation-schedules',
-    'GET /api/v1/hr/recruitment/orientation-schedules/7',
-  ])
-  assert.equal(calls[1].init.headers.get('X-CSRF-Token'), SESSION_TOKEN)
-  assert.equal(calls[0].init.headers.get('X-CSRF-Token'), null)
-  assert.equal(typeof services.orientations.submit, 'undefined', 'saving schedules and locks; there is no separate submit')
+  assert.ok(calls.some((call) => call.url === '/api/v1/hr/orientation-trainings?flag=Y&page=1&pageSize=10'))
+  const saveCall = calls.find((call) => call.init.method === 'POST')
+  assert.equal(saveCall.url, '/api/v1/hr/orientation-trainings')
+  assert.equal(saveCall.init.headers.get('X-CSRF-Token'), SESSION_TOKEN)
+  assert.equal(JSON.parse(saveCall.init.body).lines[0].department, 'Training with HR Dept')
 })
 
-test('demo adapter: saving schedules and locks, assigns the Ref #, To and the signed-in name', async () => {
-  const restore = forbidBrowserStorage()
-  try {
-    const { client, services } = demoServices()
-    const employees = await services.employees.search('employee 00')
-    assert.ok(employees.items.every((item) => /^Sample Employee \d{3}$/.test(item.name)), 'fictional names only')
-    assert.equal((await services.employees.search('30402')).items[0].name, 'Sample Employee 002', 'search by employee number')
-    const form = { ...blankOrientation(), employeeId: '1', fromDate: '2026-11-01' }
-    form.sessions = draftPlan('2026-11-01', form.sessions, HEADS)
-    identifyDemoUser('Signed In User', client)
-    const saved = await services.orientations.save(orientationPayload(form))
-    assert.deepEqual([saved.scheduleNumber, saved.status, saved.toDate, saved.scheduledByName, saved.employee.name],
-      ['ORT-2026-0001', 'SCHEDULED', '2026-11-04', 'Signed In User', 'Sample Employee 001'])
-    await assert.rejects(client.put(`/hr/recruitment/orientation-schedules/${saved.scheduleId}`, orientationPayload(form)), (error) => error.status === 409, 'a saved schedule is read-only')
-    await assert.rejects(services.orientations.save(orientationPayload(blankOrientation())), (error) => error.status === 422 && error.details.map((d) => d.field).join() === 'employeeId,fromDate,sessions')
-    const clash = { ...form, sessions: { ...form.sessions, it: { ...form.sessions.hr } } }
-    await assert.rejects(services.orientations.save(orientationPayload(clash)), (error) => error.status === 422 && error.details.some((d) => d.field === 'sessions.it'))
-    identifyDemoUser('   ', client)
-    const second = await services.orientations.save(orientationPayload({ ...form, employeeId: '2' }))
-    assert.deepEqual([second.scheduleNumber, second.scheduledByName], ['ORT-2026-0002', 'Demo Scheduler'], 'no name: the demo default')
-    assert.equal((await services.orientations.list()).pagination.total, 2)
-  } finally {
-    restore()
+test('employee report service uses the contractor employee lookup and paginated list contracts', async () => {
+  const row = {
+    emp_id: '31', employee_number: '4001', employee_name: 'Sample Contractor Employee', division: '300000003618177', iqamah: 123456789,
+    department: 'Production', prod_dep: '2', direct_boss: 'Sample Manager', direct_boss_id: '71', job: '81', job_title: 'Operator', place: 'Plant',
+    replacement: null, rate: 30, start_date: '2026-01-01', end_date: null, status: 'Active', ajeer: false, sfda: true, blacklist: false,
+    remark: null, con_number: 500, con_name: 'Sample Contractor', creation_date: '2026-01-01T00:00:00Z', updated_date: null,
   }
+  const { fetchImpl, calls } = recordingFetch((url) => {
+    if (url.endsWith('/lookups/divisions')) return success([{ value: '300000003618177', label: 'IPP BU' }])
+    if (url.endsWith('/lookups/departments')) return success([{ value: 'ALL', label: 'ALL' }, { value: 'Production', label: 'Production' }])
+    if (url.endsWith('/lookups/contractors')) return success([{ value: '500', label: 'Sample Contractor' }])
+    if (url.includes('/hr/contractor-employees?')) return success([row], 200, { pagination: { page: 2, limit: 50, total: 51, totalPages: 2, hasNextPage: false, hasPreviousPage: true } })
+    throw new Error(`Unexpected request: ${url}`)
+  })
+  const services = createHrRecruitmentServices({ client: createApiClient({ baseUrl: '/api/v1', fetchImpl }) })
+  const lookups = await services.employeeReport.getLookups()
+  assert.equal(lookups.contractors[0].value, '500')
+  const report = await services.employeeReport.list({ division: 'ALL', department: 'Production', contractorNumber: '500', status: 'Active', dateFrom: '2026-01-01', dateTo: '2026-12-31', page: 2 })
+  assert.deepEqual([report.items[0].empId, report.items[0].contractorName, report.items[0].sfda], ['31', 'Sample Contractor', true])
+  assert.deepEqual(report.pagination, { page: 2, limit: 50, total: 51, totalPages: 2, hasNextPage: false, hasPreviousPage: true })
+  assert.equal(calls.at(-1).url, '/api/v1/hr/contractor-employees?division=ALL&department=Production&contractor_number=500&status=Active&date_from=2026-01-01&date_to=2026-12-31&page=2&limit=50&sort=employee_number&order=asc')
 })
 
 // ------------------------------------------------------------ static checks
 
-test('orientation page: flow step 4, searchable picker with listbox semantics, locked after save', async () => {
+test('orientation page: flow step 4 keeps the styled editor and uses backend employee skill rows', async () => {
   assert.deepEqual(RECRUITMENT_FLOW.map((item) => item.id).slice(0, 4), ['requisition', 'interview', 'offer', 'orientation'])
   const shell = await read(`${FEATURE}shared/components/RecruitmentShell.jsx`)
   assert.match(shell, /style=\{\{ '--f': index, '--n': FLOW\.length \}\}/, 'the flow has as many columns as forms')
@@ -219,10 +234,11 @@ test('orientation page: flow step 4, searchable picker with listbox semantics, l
   assert.match(picker, /role="status" aria-live="polite"/)
   const page = await read(`${FEATURE}orientation/OrientationPage.jsx`)
   assert.match(page, /<EmployeePicker id="ori-name" label=\{T\.labels\.name\} required/)
-  assert.match(page, /<input \{\.\.\.fieldProps\('ori-to', \{ error: errors\.toDate, hint: T\.hints\.to \}\)\} className="ux-input zrv-hr-input" readOnly value=\{toDate \? enDate\(toDate\) : ''\}/, 'To is read-only')
-  assert.match(page, /const locked = isOrientationLocked\(record\?\.status\)/)
-  assert.match(page, /editor\.reject\(result\.firstStep/)
-  assert.match(page, /role="group" aria-labelledby=\{titleId\}/, 'each session is a labelled group')
+  assert.match(page, /loadLookups=\{service\.getLookups\}/)
+  assert.match(page, /service\.employeeSetup\(picked\.employeeNumber\)/)
+  assert.match(page, /const lines = form\.lines/)
+  assert.match(page, /service\.save\(editor\.recordId, payload\)/)
+  assert.match(page, /readOnly value=\{toDate \? enDate\(toDate\) : ''\}/, 'To is derived from line dates')
   const loader = await read(`${FEATURE}shared/components/RecruitmentLoader.jsx`)
   assert.match(loader, /useEffect\(\(\) => identifyDemoUser\(user\?\.fullName\), \[user\?\.fullName\]\)/)
 })
@@ -350,35 +366,55 @@ test('probation: request body and contracts (criteria must total 100)', () => {
   assert.throws(() => readProbation({ ...record, scores: { QUALITY_OF_WORK: 7.5 } }), (error) => error.code === 'INVALID_RESPONSE')
 })
 
-test('demo adapter: probation draft, server checks on save and submit, then locked', async () => {
-  const { client, services } = demoServices()
-  identifyDemoUser('Signed In Evaluator', client)
-  const form = { ...withEmployee(blankProbation(), PROBATION_EMPLOYEE), scores: scoresFor(60) }
-  await assert.rejects(services.probations.save(null, probationPayload({ ...form, scores: {} })), (error) => error.status === 422 && error.details.some((d) => d.field.startsWith('criterion:')))
-  const draft = await services.probations.save(null, probationPayload(form))
-  assert.deepEqual([draft.evaluationNumber, draft.status, draft.preparedByName, draft.employee.name], ['PAF-2026-0001', 'DRAFT', 'Signed In Evaluator', 'Sample Employee 005'])
-  await assert.rejects(services.probations.submit(draft.evaluationId), (error) => error.status === 422 && error.details.map((d) => d.field).join() === 'recommendation,evaluatorSignature')
-  const signed = { ...form, recommendation: 'CONFIRM', signatures: SIGNED }
-  await services.probations.save(draft.evaluationId, probationPayload(signed))
-  await assert.rejects(services.probations.submit(draft.evaluationId), (error) => error.status === 422 && error.details[0].field === 'justification', 'Confirm on Not acceptable needs a justification')
-  await services.probations.save(draft.evaluationId, probationPayload({ ...signed, justification: 'Clear improvement in the last month' }))
-  assert.equal((await services.probations.submit(draft.evaluationId)).status, 'SUBMITTED')
-  await assert.rejects(services.probations.save(draft.evaluationId, probationPayload(signed)), (error) => error.status === 409)
-  const list = await services.probations.list()
-  assert.deepEqual([list.items[0].totalPoints, list.items[0].employeeName], [60, 'Sample Employee 005'])
+test('probation service uses the backend draft and lookup contracts', async () => {
+  const backendRecord = {
+    headerId: '8', formDate: '28-Oct-2026', evaluationPeriod: 'Oct 2026', formType: 'Trainee', employeeName: 'Sample Employee 001',
+    employeeNumber: '30401', empId: '71', grade: 2, jobTitle: 'Engineer', department: 'IT', fromDate: '01-Oct-2026', toDate: '28-Oct-2026',
+    comment: '', comments: '', totalRating: 4, requestStatus: 'DRAFT', lines: [{ lineId: '81', param: 'Quality', paramAr: '', rating: 4 }],
+  }
+  const { fetchImpl, calls } = recordingFetch((url, init) => {
+    if (url.endsWith('/lookups/form-types')) return success({ formTypes: ['Trainee'] })
+    if (url.endsWith('/lookups/employees')) return success([{ hierarchyLevel: 2, userId: '71', fullName: 'Sample Employee 001' }])
+    if (url.endsWith('/lookups/requestor')) return success({ fullName: 'Sample Requestor', employeeNumber: '2502' })
+    if (url.includes('/lookups/employee-details')) return success({ ids: { personId: '71', employeeNumber: '30401' }, hire: { startDate: '01-Oct-2026' }, job: { name: 'Engineer' }, dept: { name: 'IT' } })
+    if (init.method === 'POST') return success({ headerId: '8' }, 201)
+    return success(backendRecord)
+  })
+  const csrfStore = createCsrfStore()
+  csrfStore.setSessionToken(SESSION_TOKEN)
+  const services = createHrRecruitmentServices({ client: createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore }) })
+  assert.deepEqual((await services.probations.getLookups()).probation.formTypes.map((item) => item.code), ['Trainee'])
+  assert.deepEqual((await services.probations.searchEmployees('sample')).items.map((item) => item.name), ['Sample Employee 001'])
+  assert.equal((await services.probations.employeeDetails('Sample Employee 001')).employeeNumber, '30401')
+  const saved = await services.probations.save(null, {
+    formDate: '2026-10-28', evaluationPeriod: 'Oct 2026', formType: 'Trainee', employee: { name: 'Sample Employee 001', employeeNumber: '30401', employeeId: '71', grade: 2, position: 'Engineer', departmentName: 'IT' },
+    fromDate: '2026-10-01', toDate: '2026-10-28', comment: '', comments: '', lines: [{ param: 'Quality', paramAr: '', rating: 4 }],
+  })
+  assert.deepEqual([saved.evaluationId, saved.formType, saved.lines[0].rating], ['8', 'Trainee', 4])
+  assert.deepEqual(calls.map((call) => `${call.init.method} ${call.url}`), [
+    'GET /api/v1/hr/probation-evaluations/lookups/form-types',
+    'GET /api/v1/hr/probation-evaluations/lookups/employees',
+    'GET /api/v1/hr/probation-evaluations/lookups/requestor',
+    'GET /api/v1/hr/probation-evaluations/lookups/employees',
+    'GET /api/v1/hr/probation-evaluations/lookups/employee-details?empName=Sample+Employee+001',
+    'POST /api/v1/hr/probation-evaluations',
+    'GET /api/v1/hr/probation-evaluations/8',
+  ])
+  assert.equal(calls[5].init.headers.get('X-CSRF-Token'), SESSION_TOKEN)
+  assert.deepEqual(JSON.parse(calls[5].init.body).lines, [{ param: 'Quality', paramAr: '', rating: 4 }])
 })
 
-test('probation page: banner title, radio groups, reused gauge, step 5 of the flow', async () => {
+test('probation page connects to backend supported fields', async () => {
   assert.deepEqual(RECRUITMENT_FLOW.map((item) => item.id), ['requisition', 'interview', 'offer', 'orientation', 'probation'])
   const page = await read(`${FEATURE}probation/ProbationPage.jsx`)
-  assert.match(page, /<span>\{T\.officialEn\}<\/span>\s*<span lang="ar" dir="rtl">\{T\.officialAr\}<\/span>/)
-  assert.equal((page.match(/T\.officialEn/g) || []).length, 1, 'the official title appears only on the step-1 banner')
-  assert.match(page, /<RadioCards name="pa-type"/)
-  assert.match(page, /<RadioCards name="pa-rec"/)
-  assert.match(page, /<Gauge total=\{totals\.total\} max=\{100\} bands=\{GAUGE_BANDS\}/)
+  assert.match(page, /loadLookups=\{\(signal\) => service\.getLookups\(\{ signal \}\)\}/)
+  assert.match(page, /searchService=\{searchEmployees\}/)
+  assert.match(page, /lookups\.employees\.filter/)
   assert.match(page, /<EmployeePicker id="pa-emp"/)
-  assert.match(page, /aria-label=\{T\.labels\.points\(criterion\.name, criterion\.points\)\}/)
-  assert.match(page, /\{contradicts && \(/, 'the justification appears only when it contradicts the result')
+  assert.match(page, /Rating \(1–5\)/)
+  assert.match(page, /Add criterion/)
+  assert.match(page, /Save draft/)
+  assert.doesNotMatch(page, /service\.submit|recommendation|signature/)
   const inputs = await read(`${FEATURE}shared/components/RecruitmentInputs.jsx`)
   assert.match(inputs, /role="radiogroup" aria-labelledby=\{`\$\{id\}-label`\} aria-required="true"/)
   assert.match(inputs, /<input type="radio" name=\{name\}/)
@@ -532,16 +568,10 @@ test('report page: outside the flow, sortable headers, column chooser, side pane
 
 // ------------------------------------------------------------ navigation
 
-// VITE_FEATURE_HR_RECRUITMENT controls the visibility of the onboarding pages
-// (module HR_ONBOARDING); each state is resolved through the same function the
-// application uses for this build. The three permission-backed recruitment
-// forms are not switched.
+// VITE_FEATURE_HR_RECRUITMENT controls the visibility of HR workflow pages;
+// each state is resolved through the same function used by the application.
 const SWITCH = 'VITE_FEATURE_HR_RECRUITMENT'
-const ONBOARDING_IDS = ['hr-orientation', 'hr-orientation-record', 'hr-probation', 'hr-probation-record', 'hr-periodwise-employees']
-// The listed (sidebar and command palette) onboarding pages.
-const ONBOARDING_NAV_IDS = ONBOARDING_IDS.filter((id) => !id.endsWith('-record'))
-const onboardingFor = (env) => resolveNavigationEntries(registry.entries, env).filter((route) => ONBOARDING_IDS.includes(route.id))
-const employee = { status: 'ready', mfaVerified: false, has: () => false }
+const HR_SWITCHED_IDS = ['hr-orientation', 'hr-orientation-record', 'hr-probation', 'hr-probation-record', 'hr-employee-report']
 
 test('HR visibility switch: true, false, unset in development and unset in production', () => {
   const states = [
@@ -556,53 +586,26 @@ test('HR visibility switch: true, false, unset in development and unset in produ
   ]
   for (const [env, visible, label] of states) {
     assert.equal(isFeatureEnabled({ env: SWITCH }, env), visible, label)
-    assert.deepEqual(onboardingFor(env).map((route) => route.implemented), ONBOARDING_IDS.map(() => visible), label)
+    assert.deepEqual(resolveNavigationEntries(registry.entries, env).filter((route) => HR_SWITCHED_IDS.includes(route.id)).map((route) => route.implemented), HR_SWITCHED_IDS.map(() => visible), label)
   }
   assert.equal(isFeatureEnabled(undefined, {}), true, 'entries without a switch are unaffected')
   const switched = registry.entries.filter((entry) => entry.enabledBy).map((entry) => entry.id)
-  assert.deepEqual(switched, ONBOARDING_IDS, 'only the onboarding pages are switched')
+  assert.deepEqual(switched, HR_SWITCHED_IDS, 'HR workflow pages use the shared feature switch')
   assert.ok(registry.entries.filter((entry) => entry.enabledBy).every((entry) => entry.enabledBy.env === SWITCH))
   // The data source is a separate switch.
   assert.equal(resolveDemoMode({ [SWITCH]: 'true', DEV: false }), false, 'visible pages can use the real API')
 })
 
-test('a switched-off onboarding page is absent from the sidebar, command palette, guard and router', async () => {
-  const off = resolveNavigationEntries(registry.entries, { [SWITCH]: 'false', DEV: true })
-  const on = resolveNavigationEntries(registry.entries, { [SWITCH]: 'true' })
-  const listed = (ids) => ids.filter((id) => ONBOARDING_IDS.includes(id))
-  const sidebar = (routes) => authorizedNavigation(employee, routes).flatMap((section) => section.items.map((item) => item.id))
-  const palette = (routes) => paletteCommands(employee, 'authenticated', routes).map((command) => command.id)
-  assert.deepEqual(listed(sidebar(on)), ONBOARDING_NAV_IDS)
-  assert.deepEqual(listed(sidebar(off)), [])
-  assert.deepEqual(listed(palette(on)), ONBOARDING_NAV_IDS)
-  assert.deepEqual(listed(palette(off)), [])
-  assert.ok(!palette(on).some((id) => id.endsWith('-record')), 'record pages are not searchable')
-  for (const id of ONBOARDING_IDS) {
-    assert.equal(routeAccess(off.find((route) => route.id === id), employee), 'unavailable', `${id}: the guard renders Not found`)
-    assert.equal(routeAccess(on.find((route) => route.id === id), employee), 'allowed', `${id}: allowed when on`)
-  }
-  // This (plain Node) build has the switch unset outside development: the router leaves the lines out.
-  assert.deepEqual(implementedRoutes.filter((route) => ONBOARDING_IDS.includes(route.id)), [])
-  const router = await read('../src/app/router.jsx')
-  assert.match(router, /const implementedRouteIds = new Set\(implementedRoutes\.map\(\(route\) => route\.id\)\)/)
-  assert.match(router, /children: implementedOnly\(\[/)
-  for (const id of ONBOARDING_IDS) assert.ok(router.includes(`handle: { routeId: '${id}' }`), `${id} has a router line, filtered by implementedOnly`)
-})
-
-test('HR onboarding routes (switch on): session-only, record pages hidden, reachable by every signed-in user', () => {
-  const module = registeredModules.find((item) => item.code === 'HR_ONBOARDING')
-  assert.equal(module.rbac, false)
-  const on = onboardingFor({ [SWITCH]: 'true' })
-  assert.deepEqual(on.map((route) => [route.id, route.path, route.nav !== false]), [
-    ['hr-orientation', '/hr/recruitment/orientation', true],
-    ['hr-orientation-record', '/hr/recruitment/orientation/:scheduleId', false],
-    ['hr-probation', '/hr/recruitment/probation-evaluation', true],
-    ['hr-probation-record', '/hr/recruitment/probation-evaluation/:evaluationId', false],
-    ['hr-periodwise-employees', '/hr/reports/periodwise-employees', true],
-  ])
-  for (const route of on) {
-    assert.equal(route.permission, undefined)
-    assert.equal(canAccessRoute(route, employee), true, route.id)
-  }
+test('orientation, probation and employee report use backend HR permissions', () => {
+  const orientation = resolveNavigationEntries(registry.entries, { [SWITCH]: 'true' }).find((route) => route.id === 'hr-orientation')
+  assert.equal(orientation.permission, 'HR.ORIENTATION_TRAININGS:VIEW')
+  assert.equal(orientation.implemented, true)
   assert.equal(findAppRoute('/hr/recruitment/orientation/12')?.id, 'hr-orientation-record')
+  const employeeReport = resolveNavigationEntries(registry.entries, { [SWITCH]: 'true' }).find((route) => route.id === 'hr-employee-report')
+  assert.equal(employeeReport.permission, 'HR.CONTRACTOR_EMPLOYEES:VIEW')
+  assert.equal(employeeReport.implemented, true)
+  assert.equal(findAppRoute('/hr/reports/periodwise-employees')?.id, 'hr-employee-report')
+  const probation = resolveNavigationEntries(registry.entries, { [SWITCH]: 'true' }).find((route) => route.id === 'hr-probation')
+  assert.equal(probation.permission, 'HR.PROBATION_EVALUATIONS:VIEW')
+  assert.equal(probation.implemented, true)
 })

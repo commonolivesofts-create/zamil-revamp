@@ -8,7 +8,7 @@ import { useSettled } from '../useSettled.js'
 // Searchable employee picker (ARIA combobox with a listbox). Arrow keys move
 // through the options, Enter picks, Escape closes; results come from the
 // employee search service as the user types.
-export function EmployeePicker({ id, label, required = false, value, onPick, error, describedBy }) {
+export function EmployeePicker({ id, label, required = false, value, onPick, error, describedBy, searchService }) {
   const listId = useId()
   const statusId = useId()
   const [query, setQuery] = useState('')
@@ -16,7 +16,7 @@ export function EmployeePicker({ id, label, required = false, value, onPick, err
   const [active, setActive] = useState(0)
   const search = useSettled(query.trim(), 250)
   const results = useResource(open ? `hr-employees:${search.toLowerCase()}` : null,
-    (signal) => hrRecruitmentServices.employees.search(search, { signal }))
+    (signal) => searchService ? searchService(search, { signal }) : hrRecruitmentServices.employees.search(search, { signal }))
   const matches = results.status === 'ready' ? results.data.items : []
   const status = !open ? '' : results.status === 'loading' ? PICKER_TEXT.searching
     : results.status === 'error' ? PICKER_TEXT.failed : PICKER_TEXT.results(matches.length)

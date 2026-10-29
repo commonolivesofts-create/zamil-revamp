@@ -39,14 +39,14 @@ const PRE_REGISTRY_ROUTES = [
   { id: 'account-authenticator', path: '/account/authenticator', label: 'Authenticator app', icon: 'smartphone', section: 'account', implemented: true },
 ]
 
-// HR routes use the backend-owned resource permissions registered per form.
-// The HR onboarding pages (session-only module HR_ONBOARDING, owner-approved)
-// are switched by VITE_FEATURE_HR_RECRUITMENT; off here (unset outside a
-// development build).
+// HR forms use backend-owned resource permissions; the periodwise report
+// remains session-only. All are switched by VITE_FEATURE_HR_RECRUITMENT.
 const HR = 'human-resources'
 const REQ = 'REQUISITIONS.REQUISITIONS'
 const INTERVIEW = 'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS'
 const OFFER = 'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS'
+const PROBATION = 'HR.PROBATION_EVALUATIONS'
+const CONTRACTOR_EMPLOYEES = 'HR.CONTRACTOR_EMPLOYEES'
 const HR_SWITCH = { env: 'VITE_FEATURE_HR_RECRUITMENT' }
 const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-requisition', path: '/hr/recruitment/requisition', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true },
@@ -55,11 +55,11 @@ const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', label: 'Interview assessment', icon: 'messages-square', section: HR, permission: `${INTERVIEW}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-offer', path: '/hr/recruitment/offer', label: 'Employment offer', icon: 'file-signature', section: HR, permission: `${OFFER}:VIEW`, requiresMfa: false, implemented: true },
   { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', label: 'Employment offer', icon: 'file-signature', section: HR, permission: `${OFFER}:VIEW`, requiresMfa: false, implemented: true, nav: false },
-  { id: 'hr-orientation', path: '/hr/recruitment/orientation', label: 'Orientation schedule', icon: 'calendar-clock', section: HR, implemented: false, enabledBy: HR_SWITCH },
-  { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', label: 'Orientation schedule', icon: 'calendar-clock', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
-  { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, implemented: false, enabledBy: HR_SWITCH },
-  { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, implemented: false, enabledBy: HR_SWITCH, nav: false },
-  { id: 'hr-periodwise-employees', path: '/hr/reports/periodwise-employees', label: 'Periodwise employees', icon: 'chart-column', section: HR, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-orientation', path: '/hr/recruitment/orientation', label: 'Orientation training', icon: 'calendar-clock', section: HR, permission: 'HR.ORIENTATION_TRAININGS:VIEW', requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', label: 'Orientation training', icon: 'calendar-clock', section: HR, permission: 'HR.ORIENTATION_TRAININGS:VIEW', requiresMfa: false, implemented: false, enabledBy: HR_SWITCH, nav: false },
+  { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, permission: `${PROBATION}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, permission: `${PROBATION}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH, nav: false },
+  { id: 'hr-employee-report', path: '/hr/reports/periodwise-employees', label: 'Employee report', icon: 'users', section: HR, permission: `${CONTRACTOR_EMPLOYEES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
 ]
 // Group order: workspace, human resources, security, account.
 const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]
@@ -86,7 +86,7 @@ test('the derived routes, sections and permission names match the active modules
     SECURITY_AUDIT_VIEW: `${SA}.SECURITY_AUDIT:VIEW`,
   })
   assert.ok(Object.isFrozen(appRoutes) && appRoutes.every(Object.isFrozen))
-  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS', 'HR_ONBOARDING'])
+  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS', 'HR'])
   assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === SA).map((p) => p.key), SECURITY_RESOURCES.flatMap((r) => r.actions.map((a) => `${SA}.${r.code}:${a}`)))
   assert.deepEqual(registeredModules.find((module) => module.code === 'COMMON').resources, [])
 })
@@ -147,7 +147,7 @@ test('common links need authentication only; Security Administration keeps permi
   }
   const security = appRoutes.filter((route) => route.section === 'security')
   assert.ok(HR_RECRUITMENT_ROUTES.every((expected) => appRoutes.find((route) => route.id === expected.id)?.permission === expected.permission))
-  for (const route of appRoutes.filter((item) => item.section === HR && item.permission)) {
+  for (const route of appRoutes.filter((item) => item.section === HR && item.permission && !item.enabledBy)) {
     assert.equal(routeAccess(route, { status: 'loading' }), 'pending')
     assert.equal(routeAccess(route, { status: 'ready', has: () => false }), 'denied')
   }
