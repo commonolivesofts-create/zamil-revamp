@@ -53,13 +53,13 @@ export const FLOW_TEXT = Object.freeze({
 })
 
 export const REPORT_TEXT = Object.freeze({
-  title: 'Periodwise Employees',
-  subtitle: 'Everyone attached to a department during a period: who joined, who left, and how the team is made up.',
+  title: 'Employee Report',
+  subtitle: 'Review contractor employee records by department and contract dates.',
   breadcrumb: Object.freeze(['Human resources', 'Reports']),
   tools: Object.freeze({ label: 'Report actions', home: 'Home', change: 'Change parameters', export: 'Export CSV', print: 'Print' }),
   summary: Object.freeze({ department: 'Department', period: 'Period', all: 'All departments' }),
   setup: Object.freeze({
-    title: 'Select parameters', desc: 'Pick a department and a period, then run the report.', department: 'Department', from: 'From', to: 'To',
+    title: 'Select report', desc: 'Choose a department and date range to view employee records.', department: 'Department', from: 'Start date', to: 'End date',
     quick: 'Quick periods', run: 'Run report', cancel: 'Cancel',
   }),
   ranges: Object.freeze({ THIS_YEAR: 'This year', LAST_12_MONTHS: 'Last 12 months', SINCE_2000: 'Since 2000' }),
@@ -204,18 +204,18 @@ export const PICKER_TEXT = Object.freeze({
 })
 
 export const ORIENTATION_TEXT = Object.freeze({
-  title: 'Orientation Schedule',
-  subtitle: 'Plan a new joiner’s first days in four short steps. Draft the schedule in one click, then adjust it.',
+  title: 'Orientation Training',
+  subtitle: 'Plan and maintain the new employee’s department orientation with the organization’s training records.',
   code: 'ORT · 1101',
   steps: Object.freeze([
     Object.freeze(['Employee', 'Who and when']),
-    Object.freeze(['Sessions', 'Five orientation sessions']),
-    Object.freeze(['Timeline', 'Check the week']),
-    Object.freeze(['Review', 'Confirm and save']),
+    Object.freeze(['Departments', 'Set department orientation details']),
+    Object.freeze(['Timeline', 'Review the schedule']),
+    Object.freeze(['Review', 'Confirm and save a draft']),
   ]),
-  primary: 'Save schedule',
-  final: 'Save schedule',
-  status: Object.freeze({ SCHEDULED: 'Scheduled', READY: 'Ready to save', DRAFT: 'Draft' }),
+  primary: 'Save training',
+  final: 'Save training',
+  status: Object.freeze({ Draft: 'Draft', Inprocess: 'In progress', Approved: 'Approved' }),
   ticket: Object.freeze({
     number: 'Ref #', numberPending: 'Generated automatically', name: 'Name', notSelected: 'Not selected', type: 'Type',
     startDate: 'Start date', scheduledBy: 'Scheduled by', pending: 'Assigned on save', status: 'Status',
@@ -230,9 +230,9 @@ export const ORIENTATION_TEXT = Object.freeze({
   window: 'Orientation window',
   heads: Object.freeze([
     Object.freeze({ eyebrow: 'Step 01 · Employee', title: 'Who is joining?', desc: 'Pick the new joiner. Their details fill in and the orientation starts on their first working day.' }),
-    Object.freeze({ eyebrow: 'Step 02 · Sessions', title: 'Plan the five sessions.', desc: 'Choose the department head, dates and times for each. Days and hours calculate themselves.' }),
-    Object.freeze({ eyebrow: 'Step 03 · Timeline', title: 'Check the week.', desc: 'Weekends are shaded and the joining day is marked. Clashes show below.' }),
-    Object.freeze({ eyebrow: 'Step 04 · Review', title: 'Confirm and save.', desc: 'Check the schedule, then save. A saved schedule is locked.' }),
+    Object.freeze({ eyebrow: 'Step 02 · Departments', title: 'Plan each department orientation.', desc: 'Choose the department head, dates and times for every department provided by the employee’s training type.' }),
+    Object.freeze({ eyebrow: 'Step 03 · Timeline', title: 'Review the schedule.', desc: 'Check the department dates against the employee’s orientation window.' }),
+    Object.freeze({ eyebrow: 'Step 04 · Review', title: 'Confirm and save a draft.', desc: 'Review the training details, then save. Drafts can be edited later.' }),
   ]),
   sessions: Object.freeze({
     hr: Object.freeze({ name: 'Training with HR Dept', short: 'HR' }),
@@ -266,16 +266,10 @@ export const ORIENTATION_TEXT = Object.freeze({
     weekend: (name, day) => `${name} falls on a weekend (${day}).`,
     clash: (a, b) => `${a} and ${b} overlap in time.`,
   }),
-  errors: Object.freeze({
-    employee: 'Name is required',
-    from: 'From date is required',
-    to: 'Schedule at least one session so the To date can be set',
-    cannotSave: 'Can’t save yet:',
-  }),
-  saveTitle: 'Save orientation schedule?',
-  saveBody: 'A saved schedule is locked and cannot be changed.',
-  saved: (number) => `${number} scheduled.`,
-  locked: 'This schedule is saved and locked. Use Request form to start another.',
+  errors: Object.freeze({ employee: 'Select an employee', from: 'From date is required', to: 'Schedule at least one session so the To date can be set', cannotSave: 'Can’t save yet:' }),
+  saveTitle: 'Save orientation training?',
+  saveBody: 'This orientation training will be saved as a draft.',
+  saved: (number) => `${number} saved.`,
   reportTitle: 'Orientation report',
   reportColumns: Object.freeze({ employee: 'Employee', from: 'From', to: 'To' }),
 })
