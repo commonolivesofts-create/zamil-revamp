@@ -5,4 +5,5 @@ export const ES_PATHS = Object.freeze({
   recordChangeRequests: '/hr/employee-services/record-change/requests',
   transfer: '/hr/employee-services/transfer',
   transferReport: '/hr/employee-services/transfer/report',
+  appraisal: '/hr/performance/appraisal',
 })

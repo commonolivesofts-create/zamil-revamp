@@ -88,6 +88,13 @@ export function createDemoServiceRecords() {
     }
   }
   return {
+    // One submitted appraisal of the previous period (every criterion rated 4: 4.00, grade B).
+    appraisals: [{
+      appraisalId: '1', appraisalNumber: 'EPA-2026-0007', status: 'SUBMITTED', periodCode: '2025', appraiser: { ...DEMO_REQUESTER },
+      employeeId: '102', ratings: Object.fromEntries(Array.from({ length: 20 }, (_, index) => [`C${String(index + 1).padStart(2, '0')}`, { rating: 4, explanation: '' }])),
+      goals: ['Lead the key account reviews', 'Complete the negotiation course', 'Mentor a new coordinator'], training: ['Negotiation skills'],
+      employeeRemarks: '', appraiserRemarks: '', signatures: { employee: '2026-01-20', appraiser: '2026-01-18' }, updatedAt: '2026-01-20T08:00:00.000Z',
+    }],
     transfers: [
       transfer('1', 'TRF-2026-0311', '2554', { jobTitleCode: 'MACHINE_OPERATOR', departmentCode: 'INJECTION', sectionCode: 'INJECTION_HALL_A' }, '2026-11-08', 'D-1004', 'NO', 'YES', 'SUBMITTED', '2026-10-21'),
       transfer('2', 'TRF-2026-0314', '2557', { jobTitleCode: 'MOULDING_TECHNICIAN', departmentCode: 'MAINTENANCE', sectionCode: 'UTILITIES' }, '2026-11-15', 'D-1022', 'YES', 'YES', 'APPROVED', '2026-10-14'),
@@ -101,3 +108,42 @@ export function createDemoServiceRecords() {
     ],
   }
 }
+
+// Performance appraisal lookups: the 20 criteria and the rating scale of the
+// form. The A–E letters per band are an assumed mapping (see the README).
+const CRITERIA = [
+  'Quality / Accuracy of Work', 'Quantity of Work', 'Dependability', 'Attendance / Punctuality',
+  'Professional Communication Skills with co-workers/Supervisors', 'Customer-focused Communication Skills',
+  'Ability to work as a member of a team; teamwork', 'Demonstrates Positive Attitude', 'Ability to work independently',
+  'Open to feedback', 'Willingness to take on additional responsibilities', 'Complies with company policies and procedures',
+  'Exhibits effective problem solving skills', 'Eagerness to learn new-job related skills', 'Ask questions and seek guidance as needed',
+  'Makes progress towards professional development goals', 'Demonstrates Zamil Group Core Values', 'Initiative', 'Developing Others',
+  'Health Safety & Environment (HSE)',
+]
+
+export const DEMO_PERFORMANCE_LOOKUPS = Object.freeze({
+  criteria: CRITERIA.map((label, index) => ({ code: `C${String(index + 1).padStart(2, '0')}`, label })),
+  scale: [
+    { min: 4.25, grade: 'A', title: 'Consistently exceeds', range: '4.25 & above', description: 'Performance consistently exceeds all the stated objectives in terms of the performance indicators/criteria established.' },
+    { min: 3.5, grade: 'B', title: 'Meets and exceeds', range: '3.5 – 4.24', description: 'Performance consistently meets and frequently exceeds objectives in terms of the performance indicators/criteria established.' },
+    { min: 2.5, grade: 'C', title: 'Successfully meets', range: '2.5 – 3.49', description: 'Performance meets and occasionally exceeds objectives in terms of the performance indicators/criteria established.' },
+    { min: 1.6, grade: 'D', title: 'Meets some', range: '1.6 – 2.49', description: 'Meet some but not all of the objectives in terms of the performance indicators/criteria established.' },
+    { min: 0, grade: 'E', title: 'Below expectations', range: '1 – 1.5', description: 'Performance frequently does not meet objectives in terms of the performance indicators/criteria established.' },
+  ],
+  distribution: { A: 15, B: 30, C: 40, D: 10, E: 5 },
+  periods: [
+    { code: '2026', label: 'From 01 Jan 2026 to 31 Dec 2026', from: '2026-01-01', to: '2026-12-31' },
+    { code: '2025', label: 'From 01 Jan 2025 to 31 Dec 2025', from: '2025-01-01', to: '2025-12-31' },
+  ],
+})
+
+// The appraiser's team: every demo employee, with the date in the current
+// position and the grades already given in a period (before any appraisal
+// saved in this tab).
+const POSITION_SINCE = { 101: '2022-01-01', 102: '2021-08-10', 103: '2020-05-01', 104: '2018-07-08', 105: '2009-02-15', 106: '2020-08-06', 107: '2023-07-02', 108: '2024-04-09' }
+export const DEMO_SAVED_GRADES = Object.freeze({ 2026: Object.freeze({ 101: 'B', 103: 'C', 104: 'C', 105: 'A', 107: 'C' }), 2025: Object.freeze({}) })
+export const DEMO_TEAM = Object.freeze(DEMO_SERVICE_EMPLOYEES.map((person) => Object.freeze({
+  employeeId: person.employeeId, employeeNumber: person.employeeNumber, name: person.name,
+  jobTitle: POSITIONS.find((item) => item.code === person.jobTitleCode)?.name ?? person.jobTitleCode, grade: person.current.gradeCode,
+  companyName: 'Zamil Plastic', departmentName: person.departmentName, joinedDate: person.startDate, positionDate: POSITION_SINCE[person.employeeId],
+})))

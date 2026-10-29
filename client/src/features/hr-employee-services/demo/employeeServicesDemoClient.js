@@ -14,9 +14,14 @@ import {
 } from '../recordChange/recordChangeModel.js'
 import { routeStates } from '../shared/approvals.js'
 import { TRANSFER_ROUTE, isTransferLocked, officeStates, sectionsOf, validateTransfer } from '../transfer/transferModel.js'
-import { DEMO_EMPLOYEE_SERVICES_LOOKUPS, DEMO_REQUESTER, DEMO_SERVICE_EMPLOYEES, createDemoServiceRecords } from './employeeServicesDemoData.js'
+import { appraisalResult, isAppraisalLocked, validateAppraisal } from '../performance/appraisalModel.js'
+import {
+  DEMO_EMPLOYEE_SERVICES_LOOKUPS, DEMO_PERFORMANCE_LOOKUPS, DEMO_REQUESTER, DEMO_SAVED_GRADES, DEMO_SERVICE_EMPLOYEES, DEMO_TEAM, createDemoServiceRecords,
+} from './employeeServicesDemoData.js'
 
 export const EMPLOYEE_SERVICES_BASE = '/hr/employee-services'
+export const PERFORMANCE_BASE = '/hr/performance'
+const PERFORMANCE_ROUTE = /^\/hr\/performance\/(appraisals)(?:\/([1-9][0-9]*)(?:\/(submit))?)?$/
 const ROUTE = /^\/hr\/employee-services\/(record-change-requests|transfers)(?:\/([1-9][0-9]*)(?:\/(submit))?)?$/
 const MAX_LIMIT = 100
 
@@ -73,10 +78,18 @@ const COLLECTIONS = Object.freeze({
       requestDate: record.requestDate, updatedAt: record.updatedAt,
     }),
   }),
+  appraisals: Object.freeze({
+    store: 'appraisals', id: 'appraisalId', number: 'appraisalNumber', prefix: 'EPA', prepare: 'appraisal',
+    locked: (record) => isAppraisalLocked(record.status),
+    // Set by the client factory (it needs the lookups and team).
+    present: null,
+    listItem: null,
+  }),
 })
 
 export function createEmployeeServicesDemoClient({
   latencyMs = 350, now = () => new Date(), records = createDemoServiceRecords(), lookups = DEMO_EMPLOYEE_SERVICES_LOOKUPS, employees = DEMO_SERVICE_EMPLOYEES,
+  performance = DEMO_PERFORMANCE_LOOKUPS,
 } = {}) {
   const store = clone(records)
   let requests = 0
@@ -141,22 +154,63 @@ export function createEmployeeServicesDemoClient({
       salaryChange: orNull(form.salaryChange), budgetedSalary: orNull(form.budgetedSalary),
     }
   }
+  // Appraisal: the appraiser, employee snapshot, rating and grade are server values.
+  const teamFor = (periodCode, exceptId = null) => DEMO_TEAM.map((member) => ({
+    ...member,
+    savedGrade: store.appraisals.find((item) => item.periodCode === periodCode && item.employeeId === member.employeeId && item.appraisalId !== exceptId && gradeOf(item))
+      ? gradeOf(store.appraisals.find((item) => item.periodCode === periodCode && item.employeeId === member.employeeId && item.appraisalId !== exceptId))
+      : (DEMO_SAVED_GRADES[periodCode]?.[member.employeeId] ?? null),
+  }))
+  const context = (periodCode, exceptId) => ({ criteria: performance.criteria, team: teamFor(periodCode, exceptId), scale: performance.scale, distribution: performance.distribution })
+  function gradeOf(record) {
+    const result = appraisalResult(record, performance.criteria, [], performance.scale, performance.distribution)
+    return result.complete ? result.band.grade : null
+  }
+  function presentAppraisal(record) {
+    const result = appraisalResult(record, performance.criteria, [], performance.scale, performance.distribution)
+    const { employeeId, ...rest } = record
+    return { ...rest, employee: teamFor(record.periodCode, record.appraisalId).find((member) => member.employeeId === employeeId), rating: result.complete ? result.average : null, grade: result.complete ? result.band.grade : null }
+  }
+  function prepareAppraisal(body, current, { submit }) {
+    if (current && body.employeeId && body.employeeId !== current.employeeId) fail(422, 'VALIDATION_ERROR', 'The employee of a saved appraisal cannot change.')
+    const periodCode = current?.periodCode ?? body.periodCode
+    if (!performance.periods.some((item) => item.code === periodCode)) fail(422, 'VALIDATION_ERROR', 'The review period is not valid.', [{ field: 'periodCode', message: 'unknown' }])
+    const form = {
+      periodCode, employeeId: current?.employeeId ?? body.employeeId ?? '', ratings: body.ratings ?? {}, goals: body.goals ?? [], training: body.training ?? [],
+      employeeRemarks: String(body.employeeRemarks ?? ''), appraiserRemarks: String(body.appraiserRemarks ?? ''),
+      signatures: { employee: body.signatures?.employee ?? null, appraiser: body.signatures?.appraiser ?? null },
+    }
+    const problems = validateAppraisal(form, context(periodCode, current?.appraisalId ?? null), { submit })
+    if (!current && store.appraisals.some((item) => item.periodCode === periodCode && item.employeeId === form.employeeId)) problems.push({ field: 'employeeId', code: 'duplicate' })
+    if (problems.length) fail(422, 'VALIDATION_ERROR', submit ? 'The appraisal cannot be submitted.' : 'The appraisal cannot be saved.', details(problems))
+    return { ...form, appraiser: current?.appraiser ?? requester() }
+  }
   const prepare = (collection, body, current, options) =>
-    (collection.prepare === 'transfer' ? prepareTransfer : prepareRecordChange)(body, current, options)
+    ({ transfer: prepareTransfer, appraisal: prepareAppraisal, recordChange: prepareRecordChange })[collection.prepare](body, current, options)
+  const present = (collection, record) => (collection.prepare === 'appraisal' ? presentAppraisal(record) : collection.present(record))
+  const listItem = (collection, record) => {
+    if (collection.prepare !== 'appraisal') return collection.listItem(record, lookups)
+    const shown = presentAppraisal(record)
+    return {
+      appraisalId: shown.appraisalId, appraisalNumber: shown.appraisalNumber, status: shown.status, employeeName: shown.employee.name,
+      periodCode: shown.periodCode, rating: shown.rating, grade: shown.grade, updatedAt: shown.updatedAt,
+    }
+  }
 
   function list(collection, params = {}) {
     const items = [...store[collection.store]].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     const { items: slice, pagination } = pageOf(items, params)
-    return respond(slice.map((record) => collection.listItem(record, lookups)), { pagination })
+    return respond(slice.map((record) => listItem(collection, record)), { pagination })
   }
 
   function create(collection, body = {}) {
     const record = {
-      [collection.id]: nextId(collection), [collection.number]: nextNumber(collection), status: 'DRAFT', requestDate: today(),
-      requestedBy: requester(), ...prepare(collection, body, null, { submit: false }), updatedAt: timestamp(),
+      [collection.id]: nextId(collection), [collection.number]: nextNumber(collection), status: 'DRAFT',
+      ...(collection.prepare === 'appraisal' ? {} : { requestDate: today(), requestedBy: requester() }),
+      ...prepare(collection, body, null, { submit: false }), updatedAt: timestamp(),
     }
     store[collection.store].push(record)
-    return respond(collection.present(record), { status: 201 })
+    return respond(present(collection, record), { status: 201 })
   }
 
   function update(collection, id, body = {}) {
@@ -164,16 +218,16 @@ export function createEmployeeServicesDemoClient({
     if (collection.locked(current)) fail(409, 'CONFLICT', 'This request is read-only because it was already submitted.')
     const record = { ...clone(current), ...prepare(collection, body, current, { submit: false }), updatedAt: timestamp() }
     store[collection.store][store[collection.store].indexOf(current)] = record
-    return respond(collection.present(record))
+    return respond(present(collection, record))
   }
 
   function submit(collection, id) {
     const current = find(collection, id)
     if (collection.locked(current)) fail(409, 'CONFLICT', 'This request is read-only because it was already submitted.')
-    prepare(collection, { ...current, employeeId: current.employee.employeeId, directorId: current.directorId }, current, { submit: true })
+    prepare(collection, { ...current, employeeId: current.employee?.employeeId ?? current.employeeId }, current, { submit: true })
     const record = { ...clone(current), status: 'SUBMITTED', updatedAt: timestamp() }
     store[collection.store][store[collection.store].indexOf(current)] = record
-    return respond(collection.present(record))
+    return respond(present(collection, record))
   }
 
   // Employees whose name or number contains the search text.
@@ -189,12 +243,17 @@ export function createEmployeeServicesDemoClient({
     await wait(latencyMs, signal)
     if (method === 'GET' && path === `${EMPLOYEE_SERVICES_BASE}/lookups`) return respond(lookups)
     if (method === 'GET' && path === `${EMPLOYEE_SERVICES_BASE}/employees`) return searchEmployees(params)
-    const match = ROUTE.exec(path)
+    if (method === 'GET' && path === `${PERFORMANCE_BASE}/lookups`) return respond(performance)
+    if (method === 'GET' && path === `${PERFORMANCE_BASE}/team`) {
+      if (!performance.periods.some((item) => item.code === params?.periodCode)) fail(422, 'VALIDATION_ERROR', 'The review period is not valid.', [{ field: 'periodCode', message: 'unknown' }])
+      return respond({ appraiser: requester(), members: teamFor(params.periodCode) })
+    }
+    const match = ROUTE.exec(path) ?? PERFORMANCE_ROUTE.exec(path)
     if (!match) fail(404, 'NOT_FOUND', 'The requested resource does not exist.')
     const [, name, id, action] = match
     const collection = COLLECTIONS[name]
     if (method === 'GET' && !id) return list(collection, params)
-    if (method === 'GET' && id && !action) return respond(collection.present(find(collection, id)))
+    if (method === 'GET' && id && !action) return respond(present(collection, find(collection, id)))
     if (method === 'POST' && !id) return create(collection, body)
     if (method === 'PUT' && id && !action) return update(collection, id, body)
     if (method === 'POST' && id && action === 'submit') return submit(collection, id)

@@ -7,6 +7,7 @@ import { isIsoDate } from '../hr-recruitment/shared/hrFormat.js'
 import { CHANGE_TYPES, PAY_KEYS, RECORD_CHANGE_ROUTE, RECORD_CHANGE_STATUSES } from './recordChange/recordChangeModel.js'
 import { APPROVAL_STATES } from './shared/approvals.js'
 import { OFFICE_APPROVALS, TRANSFER_ROUTE, TRANSFER_STATUSES, YES_NO } from './transfer/transferModel.js'
+import { APPRAISAL_STATUSES, CRITERIA_COUNT, EXPLANATION_MAX, GRADES, RATINGS } from './performance/appraisalModel.js'
 
 export const ID_PATTERN = /^[1-9][0-9]{0,18}$/
 export const LOOKUP_CODE = /^[A-Za-z0-9_+-]{1,40}$/
@@ -217,4 +218,109 @@ export function readRecordChangeListItem(item) {
 export function readPage(result, reader) {
   if (!Array.isArray(result?.data) || !result.pagination) invalid()
   return Object.freeze({ items: Object.freeze(result.data.map(reader)), pagination: result.pagination })
+}
+
+// ------------------------------------------------------------ performance appraisal
+
+const band = (item) => {
+  check(isObject(item) && typeof item.min === 'number' && Number.isFinite(item.min) && item.min >= 0 && item.min <= 5)
+  return Object.freeze({
+    min: item.min, grade: oneOf(item.grade, GRADES), title: text(item.title, 100), range: text(item.range, 40), description: text(item.description, 400),
+  })
+}
+const period = (item) => {
+  check(isObject(item))
+  const value = Object.freeze({ code: code(item.code), label: text(item.label, 200), from: date(item.from), to: date(item.to) })
+  check(value.from <= value.to)
+  return value
+}
+
+// GET /hr/performance/lookups: the 20 criteria, the rating scale with its
+// grade letters, the grade distribution (percent per grade, 100 in total)
+// and the review periods.
+export function readPerformanceLookups(data) {
+  check(isObject(data) && isObject(data.distribution))
+  const criteria = list(data.criteria, (item) => {
+    check(isObject(item))
+    return Object.freeze({ code: code(item.code), label: text(item.label, 200) })
+  })
+  check(criteria.length === CRITERIA_COUNT && new Set(criteria.map((item) => item.code)).size === CRITERIA_COUNT)
+  const scale = list(data.scale, band)
+  check(GRADES.every((grade) => scale.some((item) => item.grade === grade)) && scale.some((item) => item.min === 0))
+  const distribution = Object.freeze(Object.fromEntries(GRADES.map((grade) => {
+    const value = data.distribution[grade]
+    check(typeof value === 'number' && value >= 0 && value <= 100)
+    return [grade, value]
+  })))
+  check(GRADES.reduce((sum, grade) => sum + distribution[grade], 0) === 100)
+  const periods = list(data.periods, period)
+  check(periods.length > 0)
+  return Object.freeze({ criteria, scale, distribution, periods })
+}
+
+const teamMember = (item) => {
+  check(isObject(item))
+  return Object.freeze({
+    employeeId: id(item.employeeId),
+    employeeNumber: text(item.employeeNumber, 40),
+    name: text(item.name, 200),
+    jobTitle: text(item.jobTitle, 200),
+    grade: text(item.grade, 40),
+    companyName: text(item.companyName, 200),
+    departmentName: text(item.departmentName, 200),
+    joinedDate: date(item.joinedDate),
+    positionDate: date(item.positionDate),
+    savedGrade: item.savedGrade === null ? null : oneOf(item.savedGrade, GRADES),
+  })
+}
+
+// GET /hr/performance/team?periodCode=: the signed-in appraiser and the team
+// with the grades already given in that period.
+export function readAppraisalTeam(data) {
+  check(isObject(data))
+  return Object.freeze({ appraiser: person(data.appraiser), members: list(data.members, teamMember) })
+}
+
+const rating = (value) => {
+  check(isObject(value))
+  check(value.rating === null || RATINGS.includes(value.rating))
+  return Object.freeze({ rating: value.rating, explanation: text(value.explanation, EXPLANATION_MAX) })
+}
+const lines = (value, max) => { const items = list(value, (item) => text(item, 300)); check(items.length <= max); return items }
+
+export function readAppraisal(data) {
+  check(isObject(data) && isObject(data.ratings) && isObject(data.signatures))
+  check(data.rating === null || (typeof data.rating === 'number' && data.rating >= 1 && data.rating <= 5))
+  return Object.freeze({
+    appraisalId: id(data.appraisalId),
+    appraisalNumber: text(data.appraisalNumber, 40),
+    status: oneOf(data.status, APPRAISAL_STATUSES),
+    periodCode: code(data.periodCode),
+    appraiser: person(data.appraiser),
+    employee: teamMember(data.employee),
+    ratings: Object.freeze(Object.fromEntries(Object.entries(data.ratings).map(([key, value]) => [code(key), rating(value)]))),
+    goals: lines(data.goals, 5),
+    training: lines(data.training, 6),
+    employeeRemarks: text(data.employeeRemarks, 2000),
+    appraiserRemarks: text(data.appraiserRemarks, 2000),
+    signatures: Object.freeze({ employee: nullableDate(data.signatures.employee), appraiser: nullableDate(data.signatures.appraiser) }),
+    rating: data.rating,
+    grade: data.grade === null ? null : oneOf(data.grade, GRADES),
+    updatedAt: instant(data.updatedAt),
+  })
+}
+
+export function readAppraisalListItem(item) {
+  check(isObject(item))
+  check(item.rating === null || (typeof item.rating === 'number' && item.rating >= 1 && item.rating <= 5))
+  return Object.freeze({
+    appraisalId: id(item.appraisalId),
+    appraisalNumber: text(item.appraisalNumber, 40),
+    status: oneOf(item.status, APPRAISAL_STATUSES),
+    employeeName: text(item.employeeName, 200),
+    periodCode: code(item.periodCode),
+    rating: item.rating,
+    grade: item.grade === null ? null : oneOf(item.grade, GRADES),
+    updatedAt: instant(item.updatedAt),
+  })
 }

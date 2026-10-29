@@ -72,6 +72,8 @@ const HR_EMPLOYEE_SERVICES_ROUTES = [
   { id: 'hr-transfer', path: '/hr/employee-services/transfer', label: 'Transfer request', icon: 'arrow-left-right', section: HR, implemented: false, enabledBy: ES_SWITCH },
   { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', label: 'Transfer report', icon: 'chart-column', section: HR, implemented: false, enabledBy: ES_SWITCH },
   { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', label: 'Transfer request', icon: 'arrow-left-right', section: HR, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-appraisal', path: '/hr/performance/appraisal', label: 'Performance appraisal', icon: 'star', section: HR, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-appraisal-record', path: '/hr/performance/appraisal/:appraisalId', label: 'Performance appraisal', icon: 'star', section: HR, implemented: false, enabledBy: ES_SWITCH, nav: false },
 ]
 // Group order: workspace, human resources, security, account.
 const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]

@@ -7,9 +7,11 @@ import { createEmployeeServicesDemoClient } from './demo/employeeServicesDemoCli
 import { hrEmployeeServicesConfig } from './hrEmployeeServicesConfig.js'
 import {
   ID_PATTERN, readEmployeeServicesLookups, readPage, readRecordChange, readRecordChangeListItem, readServiceEmployee, readTransfer, readTransferListItem,
+  readAppraisal, readAppraisalListItem, readAppraisalTeam, readPerformanceLookups,
 } from './hrEmployeeServicesContract.js'
 
 export const EMPLOYEE_SERVICES_BASE = '/hr/employee-services'
+export const PERFORMANCE_BASE = '/hr/performance'
 // List views load one page of this size and search, filter and sort it in the browser.
 export const LIST_LIMIT = 100
 
@@ -49,6 +51,13 @@ export function createEmployeeServices({ client }) {
     }),
     transfers: createRecordService({
       client, base: `${EMPLOYEE_SERVICES_BASE}/transfers`, readRecord: readTransfer, readListItem: readTransferListItem,
+    }),
+    performance: Object.freeze({
+      lookups: async ({ signal } = {}) => readPerformanceLookups((await client.get(`${PERFORMANCE_BASE}/lookups`, { signal })).data),
+      team: async (periodCode, { signal } = {}) => readAppraisalTeam((await client.get(`${PERFORMANCE_BASE}/team`, { params: { periodCode }, signal })).data),
+    }),
+    appraisals: createRecordService({
+      client, base: `${PERFORMANCE_BASE}/appraisals`, readRecord: readAppraisal, readListItem: readAppraisalListItem,
     }),
   })
 }

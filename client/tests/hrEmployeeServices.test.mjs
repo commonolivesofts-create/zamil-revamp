@@ -15,10 +15,12 @@ import {
 import { registeredModules, registry } from '../src/config/registry/index.js'
 import { resolveEmployeeServicesDemoMode } from '../src/features/hr-employee-services/hrEmployeeServicesConfig.js'
 import { resolveDemoMode } from '../src/features/hr-recruitment/hrRecruitmentConfig.js'
-import { readEmployeeServicesLookups, readRecordChange, readServiceEmployee, readTransfer } from '../src/features/hr-employee-services/hrEmployeeServicesContract.js'
+import {
+  readAppraisal, readAppraisalTeam, readEmployeeServicesLookups, readPerformanceLookups, readRecordChange, readServiceEmployee, readTransfer,
+} from '../src/features/hr-employee-services/hrEmployeeServicesContract.js'
 import { createEmployeeServices, identifyEmployeeServicesUser, selectEmployeeServicesClient } from '../src/features/hr-employee-services/hrEmployeeServicesService.js'
 import { createEmployeeServicesDemoClient } from '../src/features/hr-employee-services/demo/employeeServicesDemoClient.js'
-import { DEMO_EMPLOYEE_SERVICES_LOOKUPS, DEMO_REQUESTER, DEMO_SERVICE_EMPLOYEES } from '../src/features/hr-employee-services/demo/employeeServicesDemoData.js'
+import { DEMO_EMPLOYEE_SERVICES_LOOKUPS, DEMO_PERFORMANCE_LOOKUPS, DEMO_REQUESTER, DEMO_SERVICE_EMPLOYEES, DEMO_TEAM } from '../src/features/hr-employee-services/demo/employeeServicesDemoData.js'
 import { ariaSort, filterAndSort, hijriDate, nextSort, statusCounts } from '../src/features/hr-employee-services/shared/esFormat.js'
 import {
   AMOUNT, PAY_KEYS, TEXT_MAX, amountDelta, blankRecordChange, changeTypes, changedKeys, counterState, isRecordChangeLocked, recordChangePayload,
@@ -29,6 +31,10 @@ import {
   OFFICE_APPROVALS, TRANSFER_ROUTE, blankTransfer, isTransferLocked, officeStates, sectionsOf, transferMoves, transferPayload, validateTransfer, withDestination,
   withTransferEmployee,
 } from '../src/features/hr-employee-services/transfer/transferModel.js'
+import {
+  DEFAULT_DISTRIBUTION, DEFAULT_SCALE, appraisalPayload, appraisalResult, averageRating, blankAppraisal, filledLines, gradeAllocation, gradeQuotas, isOverQuota,
+  missingExplanations, needsExplanation, ratedCount, scaleFor, validateAppraisal, yearsUntil,
+} from '../src/features/hr-employee-services/performance/appraisalModel.js'
 import { SESSION_TOKEN, forbidBrowserStorage, recordingFetch, success } from './helpers/http.mjs'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
@@ -264,7 +270,7 @@ test('data source: VITE_HR_EMPLOYEE_SERVICES_DEMO, separate from the recruitment
 
 // ------------------------------------------------------------ navigation and visibility
 
-const ES_IDS = ['hr-record-change', 'hr-record-change-requests', 'hr-record-change-record', 'hr-transfer', 'hr-transfer-report', 'hr-transfer-record']
+const ES_IDS = ['hr-record-change', 'hr-record-change-requests', 'hr-record-change-record', 'hr-transfer', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal', 'hr-appraisal-record']
 const ES_NAV_IDS = ES_IDS.filter((id) => !id.endsWith('-record'))
 const employeeAccess = { status: 'ready', mfaVerified: false, has: () => false }
 const servicesFor = (env) => resolveNavigationEntries(registry.entries, env).filter((route) => ES_IDS.includes(route.id))
@@ -318,6 +324,8 @@ test('routes: session-only module HR_EMPLOYEE_SERVICES; the list paths win over 
     ['hr-transfer', '/hr/employee-services/transfer', true, undefined],
     ['hr-transfer-report', '/hr/employee-services/transfer/report', true, undefined],
     ['hr-transfer-record', '/hr/employee-services/transfer/:transferId', false, undefined],
+    ['hr-appraisal', '/hr/performance/appraisal', true, undefined],
+    ['hr-appraisal-record', '/hr/performance/appraisal/:appraisalId', false, undefined],
   ])
   assert.equal(findAppRoute('/hr/employee-services/record-change/requests')?.id, 'hr-record-change-requests')
   assert.equal(findAppRoute('/hr/employee-services/record-change/12')?.id, 'hr-record-change-record')
@@ -502,4 +510,157 @@ test('transfer page: compact frame with the document strip, tight pickers, radio
   const report = await read(`${FEATURE}transfer/TransferReportPage.jsx`)
   assert.match(report, /<RecordList /)
   assert.match(report, /statuses=\{TRANSFER_STATUSES\}/)
+})
+
+// ------------------------------------------------------------ performance appraisal
+
+const PERF = DEMO_PERFORMANCE_LOOKUPS
+const CRITERIA = PERF.criteria
+const allRated = (rating, changes = {}) => ({
+  ...Object.fromEntries(CRITERIA.map((item) => [item.code, { rating, explanation: needsExplanation(rating) ? 'Because' : '' }])), ...changes,
+})
+const member = (employeeId, savedGrade = null) => ({ employeeId, savedGrade })
+
+test('appraisal: rating scale and grade letters at every boundary', () => {
+  const cases = [[5, 'A'], [4.25, 'A'], [4.24, 'B'], [3.5, 'B'], [3.49, 'C'], [2.5, 'C'], [2.49, 'D'], [1.6, 'D'], [1.59, 'E'], [1.5, 'E'], [1, 'E']]
+  for (const [average, grade] of cases) assert.equal(scaleFor(average).grade, grade, String(average))
+  // The scale is configurable: the lookup's bands are used in any order.
+  assert.equal(scaleFor(4.24, [...PERF.scale].reverse()).grade, 'B')
+  assert.deepEqual(DEFAULT_SCALE.map((band) => [band.min, band.grade]), PERF.scale.map((band) => [band.min, band.grade]), 'the demo lookup matches the form')
+})
+
+test('appraisal: rating is the average of the 20 criteria to two decimals', () => {
+  assert.equal(CRITERIA.length, 20)
+  assert.equal(averageRating({}, CRITERIA), null)
+  assert.equal(averageRating(allRated(4), CRITERIA), 4)
+  const mixed = allRated(4, { C01: { rating: 5, explanation: 'x' }, C02: { rating: 3, explanation: '' }, C03: { rating: 3, explanation: '' } })
+  assert.equal(averageRating(mixed, CRITERIA), 3.95, '(17 × 4 + 5 + 3 + 3) / 20')
+  const thirds = Object.fromEntries(CRITERIA.slice(0, 3).map((item, index) => [item.code, { rating: [4, 4, 5][index], explanation: 'x' }]))
+  assert.equal(averageRating(thirds, CRITERIA), 4.33, '13 / 3 rounded to two decimals')
+  assert.equal(ratedCount(thirds, CRITERIA), 3)
+})
+
+test('appraisal: all 20 are required to submit and a rating of 1 or 5 needs an explanation', () => {
+  const context = { criteria: CRITERIA, team: [member('101')], scale: PERF.scale, distribution: PERF.distribution }
+  const form = (ratings) => ({ ...blankAppraisal('2026'), employeeId: '101', ratings, goals: ['a', 'b', 'c'], signatures: { employee: null, appraiser: '2026-10-29' } })
+  assert.deepEqual(codesOf(validateAppraisal(form(allRated(3)), context, { submit: true })), [])
+  const partial = Object.fromEntries(CRITERIA.slice(0, 19).map((item) => [item.code, { rating: 3, explanation: '' }]))
+  assert.deepEqual(codesOf(validateAppraisal(form(partial), context, { submit: true })), ['C20:required'])
+  assert.deepEqual(codesOf(validateAppraisal(form(partial), context, { submit: false })), [], 'a draft may be partly rated')
+  const extremes = allRated(3, { C04: { rating: 1, explanation: ' ' }, C09: { rating: 5, explanation: '' }, C10: { rating: 5, explanation: 'Led the audit' } })
+  assert.deepEqual(missingExplanations(extremes, CRITERIA), ['C04', 'C09'])
+  assert.deepEqual(codesOf(validateAppraisal(form(extremes), context, { submit: true })), ['C04:explain', 'C09:explain'])
+  assert.equal(needsExplanation(2), false)
+  assert.equal(needsExplanation(4), false)
+})
+
+test('appraisal: employees allowed per grade for teams of 0, 8 and 20 (ceil, at least 1)', () => {
+  assert.deepEqual(DEFAULT_DISTRIBUTION, { A: 15, B: 30, C: 40, D: 10, E: 5 })
+  assert.deepEqual(gradeQuotas(0), { A: 1, B: 1, C: 1, D: 1, E: 1 })
+  assert.deepEqual(gradeQuotas(8), { A: 2, B: 3, C: 4, D: 1, E: 1 })
+  assert.deepEqual(gradeQuotas(20), { A: 3, B: 6, C: 8, D: 2, E: 1 })
+})
+
+test('appraisal: allocation is the grades already given plus this one; over the share warns and needs a remark', () => {
+  const team = [member('1', 'A'), member('2', 'A'), member('3', 'B'), member('4', null), member('5', 'C'), member('6', 'C'), member('7', 'D'), member('8', null)]
+  assert.deepEqual(gradeAllocation(team, '4', null), { A: 2, B: 1, C: 2, D: 1, E: 0 })
+  const withA = gradeAllocation(team, '4', 'A')
+  assert.deepEqual(withA, { A: 3, B: 1, C: 2, D: 1, E: 0 })
+  assert.equal(isOverQuota('A', withA, gradeQuotas(team.length)), true, '3 A grades in a team of 8 (2 allowed)')
+  assert.equal(isOverQuota('B', gradeAllocation(team, '4', 'B'), gradeQuotas(team.length)), false)
+  assert.deepEqual(gradeAllocation(team, '1', 'C'), { A: 1, B: 1, C: 3, D: 1, E: 0 }, "this employee's saved grade is replaced, not counted twice")
+  const context = { criteria: CRITERIA, team, scale: PERF.scale, distribution: PERF.distribution }
+  const over = { ...blankAppraisal('2026'), employeeId: '4', ratings: allRated(5), goals: ['a', 'b', 'c'], signatures: { employee: null, appraiser: '2026-10-29' } }
+  assert.equal(appraisalResult(over, CRITERIA, team, PERF.scale, PERF.distribution).overQuota, true)
+  assert.deepEqual(codesOf(validateAppraisal(over, context, { submit: true })), ['appraiserRemarks:overQuota'], 'not a block: a remark is enough')
+  assert.deepEqual(codesOf(validateAppraisal({ ...over, appraiserRemarks: 'Exceptional year.' }, context, { submit: true })), [])
+  const partial = { ...over, ratings: { C01: { rating: 5, explanation: 'x' } } }
+  assert.equal(appraisalResult(partial, CRITERIA, team, PERF.scale, PERF.distribution).overQuota, false, 'only a complete appraisal counts')
+})
+
+test('appraisal: years to the period end or today, whichever is earlier, to one decimal', () => {
+  assert.equal(yearsUntil('2019-03-10', '2026-12-31', '2026-10-29'), 7.6, 'today is earlier')
+  assert.equal(yearsUntil('2019-03-10', '2025-12-31', '2026-10-29'), 6.8, 'the period end is earlier')
+  assert.equal(yearsUntil('2026-10-01', '2026-12-31', '2026-10-29'), 0)
+  assert.equal(yearsUntil('2027-01-01', '2026-12-31', '2026-10-29'), 0, 'never negative')
+  assert.equal(yearsUntil('', '2026-12-31', '2026-10-29'), null)
+})
+
+test('appraisal: 3 to 5 development goals to submit; training optional; the appraiser signs', () => {
+  const context = { criteria: CRITERIA, team: [member('101')], scale: PERF.scale, distribution: PERF.distribution }
+  const form = (goals, signatures = { employee: null, appraiser: '2026-10-29' }) => ({ ...blankAppraisal('2026'), employeeId: '101', ratings: allRated(3), goals, signatures })
+  assert.deepEqual(codesOf(validateAppraisal(form(['a', ' ', 'b']), context, { submit: true })), ['goals:tooFew'])
+  assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c']), context, { submit: true })), [])
+  assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c', 'd', 'e', 'f']), context, { submit: false })), ['goals:tooMany'])
+  assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c'], { employee: null, appraiser: null }), context, { submit: true })), ['appraiser:required'])
+  assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c'], { employee: '2026-10-29', appraiser: '2026-10-29' }), context, { submit: true })), [], 'the employee may sign now or later')
+  assert.deepEqual(codesOf(validateAppraisal({ ...form([]), employeeId: '' }, context, { submit: false })), ['employeeId:required'])
+  assert.deepEqual(filledLines([' a ', '', 'b']), ['a', 'b'])
+  const body = appraisalPayload({ ...form(['a', '', 'b']), training: ['', 'Excel'] }, CRITERIA)
+  assert.deepEqual(Object.keys(body), ['periodCode', 'employeeId', 'ratings', 'goals', 'training', 'employeeRemarks', 'appraiserRemarks', 'signatures'])
+  assert.deepEqual([body.goals, body.training, Object.keys(body.ratings).length], [['a', 'b'], ['Excel'], 20])
+})
+
+test('contracts: performance lookups, team and appraisal shapes are checked', () => {
+  const lookups = readPerformanceLookups(PERF)
+  assert.equal(lookups.criteria.length, 20)
+  assert.equal(lookups.distribution.C, 40)
+  assert.throws(() => readPerformanceLookups({ ...PERF, criteria: PERF.criteria.slice(1) }), /unexpected response/, 'exactly 20 criteria')
+  assert.throws(() => readPerformanceLookups({ ...PERF, distribution: { ...PERF.distribution, A: 20 } }), /unexpected response/, 'percentages total 100')
+  assert.throws(() => readPerformanceLookups({ ...PERF, scale: PERF.scale.slice(0, 4) }), /unexpected response/, 'every grade has a band')
+  const team = readAppraisalTeam({ appraiser: { name: 'Sample Requester', employeeNumber: '9001' }, members: DEMO_TEAM.map((item) => ({ ...item, savedGrade: null })) })
+  assert.equal(team.members.length, 8)
+  assert.throws(() => readAppraisalTeam({ appraiser: { name: 'x', employeeNumber: '1' }, members: [{ ...DEMO_TEAM[0], savedGrade: 'F' }] }), /unexpected response/)
+  const record = {
+    appraisalId: '3', appraisalNumber: 'EPA-2026-0008', status: 'DRAFT', periodCode: '2026', appraiser: { name: 'Sample Requester', employeeNumber: '9001' },
+    employee: { ...DEMO_TEAM[0], savedGrade: null }, ratings: { C01: { rating: 4, explanation: '' } }, goals: [], training: [], employeeRemarks: '', appraiserRemarks: '',
+    signatures: { employee: null, appraiser: null }, rating: null, grade: null, updatedAt: '2026-10-29T08:00:00.000Z',
+  }
+  assert.equal(readAppraisal(record).ratings.C01.rating, 4)
+  assert.throws(() => readAppraisal({ ...record, ratings: { C01: { rating: 6, explanation: '' } } }), /unexpected response/)
+  assert.throws(() => readAppraisal({ ...record, goals: ['1', '2', '3', '4', '5', '6'] }), /unexpected response/)
+  assert.throws(() => readAppraisal({ ...record, appraiser: null }), /unexpected response/, 'the appraiser comes from the server')
+})
+
+test('demo adapter: appraisal team, save, server rating and grade, submit locks; 404, 409 and 422 error paths', async () => {
+  const restore = forbidBrowserStorage()
+  try {
+    const { client, services } = demoServices()
+    identifyEmployeeServicesUser({ fullName: 'Sample Signed-in User', employeeNumber: '7001' }, client)
+    const team = await services.performance.team('2026')
+    assert.deepEqual(team.appraiser, { name: 'Sample Signed-in User', employeeNumber: '7001' })
+    assert.deepEqual(team.members.map((item) => item.savedGrade), ['B', null, 'C', 'C', 'A', null, 'C', null])
+    await assert.rejects(() => services.performance.team('1999'), (error) => error.status === 422)
+    const previous = (await services.appraisals.list()).items
+    assert.deepEqual(previous.map((item) => [item.appraisalNumber, item.grade, item.rating]), [['EPA-2026-0007', 'B', 4]])
+    const form = { ...blankAppraisal('2026'), employeeId: '102', ratings: allRated(4), goals: ['a', 'b', 'c'] }
+    const draft = await services.appraisals.save(null, appraisalPayload(form, CRITERIA))
+    assert.equal(draft.appraisalNumber, 'EPA-2026-0008')
+    assert.deepEqual(draft.appraiser, { name: 'Sample Signed-in User', employeeNumber: '7001' })
+    assert.deepEqual([draft.rating, draft.grade, draft.employee.name], [4, 'B', 'Sample Employee 002'])
+    assert.equal((await services.performance.team('2026')).members[1].savedGrade, 'B', 'a saved grade counts for the team')
+    await assert.rejects(() => services.appraisals.submit(draft.appraisalId), (error) => error.status === 422 && error.details.some((item) => item.field === 'appraiser'))
+    await services.appraisals.save(draft.appraisalId, appraisalPayload({ ...form, signatures: { employee: null, appraiser: '2026-10-29' } }, CRITERIA))
+    const submitted = await services.appraisals.submit(draft.appraisalId)
+    assert.equal(submitted.status, 'SUBMITTED')
+    await assert.rejects(() => services.appraisals.save(draft.appraisalId, appraisalPayload(form, CRITERIA)), (error) => error.status === 409)
+    await assert.rejects(() => services.appraisals.getById('99'), (error) => error.status === 404)
+    await assert.rejects(() => services.appraisals.save(null, appraisalPayload(form, CRITERIA)), (error) => error.status === 422, 'one appraisal per employee and period')
+  } finally {
+    restore()
+  }
+})
+
+test('appraisal page: compact frame, radio groups for ratings, development tabs, signatures and the report dialog', async () => {
+  const page = await read(`${FEATURE}performance/AppraisalPage.jsx`)
+  assert.match(page, /<RecruitmentShell current="appraisal" flow=\{false\} compact /)
+  assert.match(page, /breadcrumb=\{C\.performanceBreadcrumb\}/)
+  assert.match(page, /className="zrv-hr-pips" role="radiogroup" aria-labelledby=\{labelId\} aria-required="true"/)
+  assert.match(page, /role="tablist" aria-label=\{T\.resultStep\.development\}/)
+  assert.match(page, /role="tabpanel" id=\{`ap-panel-\$\{tab\}`\}/)
+  assert.match(page, /<table className="zrv-hr-es-dtable/, 'the distribution is a real table')
+  assert.match(page, /<ReportDialog title=\{T\.report\.title\}/)
+  assert.match(page, /\{ icon: 'house', label: C\.home, onClick: \(\) => leave\('\/dashboard'\) \}/)
+  assert.doesNotMatch(page, /[Ll]ogout|[Ss]ign out/, 'the app header handles signing out')
+  assert.match(page, /const appraiser = saved\?\.appraiser \?\? team\.appraiser/, 'the appraiser comes from the server')
 })

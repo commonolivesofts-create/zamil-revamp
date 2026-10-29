@@ -24,5 +24,7 @@ export default defineModule({
     { id: 'hr-transfer', path: '/hr/employee-services/transfer', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', order: 110, enabledBy: SWITCH },
     { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', title: 'Transfer report', icon: 'chart-column', group: 'human-resources', order: 111, enabledBy: SWITCH },
     { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', order: 112, hidden: true, enabledBy: SWITCH },
+    { id: 'hr-appraisal', path: '/hr/performance/appraisal', title: 'Performance appraisal', icon: 'star', group: 'human-resources', order: 120, enabledBy: SWITCH },
+    { id: 'hr-appraisal-record', path: '/hr/performance/appraisal/:appraisalId', title: 'Performance appraisal', icon: 'star', group: 'human-resources', order: 121, hidden: true, enabledBy: SWITCH },
   ],
 })

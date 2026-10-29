@@ -469,7 +469,7 @@ test('detail pages are guarded like their list but never listed or searchable', 
   const details = appRoutes.filter((route) => route.nav === false && route.section === 'security')
   assert.deepEqual(details.map((route) => route.path), ['/security/users/:userId', '/security/user-roles/:userId', '/security/permission-overrides/:userId'])
   assert.deepEqual(appRoutes.filter((route) => route.nav === false && route.section !== 'security').map((route) => [route.id, route.section]),
-    ['hr-requisition-record', 'hr-interview-record', 'hr-offer-record', 'hr-orientation-record', 'hr-probation-record', 'hr-record-change-record', 'hr-transfer-record'].map((id) => [id, 'human-resources']))
+    ['hr-requisition-record', 'hr-interview-record', 'hr-offer-record', 'hr-orientation-record', 'hr-probation-record', 'hr-record-change-record', 'hr-transfer-record', 'hr-appraisal-record'].map((id) => [id, 'human-resources']))
   for (const route of details) {
     assert.equal(route.implemented, true)
     assert.equal(routeAccess(route, ready([route.permission], false)), 'mfa_required')
