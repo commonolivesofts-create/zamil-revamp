@@ -135,6 +135,9 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "hr-record-change",
       "hr-record-change-requests",
       "hr-record-change-record",
+      "hr-transfer",
+      "hr-transfer-report",
+      "hr-transfer-record",
       "security-audit",
     ],
   );

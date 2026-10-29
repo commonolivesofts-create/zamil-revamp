@@ -4,10 +4,14 @@
 // adapter returns the same shapes and is read through the same functions.
 import { ApiError } from '../../services/api/apiClient.js'
 import { isIsoDate } from '../hr-recruitment/shared/hrFormat.js'
-import { APPROVAL_STATES, CHANGE_TYPES, PAY_KEYS, RECORD_CHANGE_ROUTE, RECORD_CHANGE_STATUSES } from './recordChange/recordChangeModel.js'
+import { CHANGE_TYPES, PAY_KEYS, RECORD_CHANGE_ROUTE, RECORD_CHANGE_STATUSES } from './recordChange/recordChangeModel.js'
+import { APPROVAL_STATES } from './shared/approvals.js'
+import { OFFICE_APPROVALS, TRANSFER_ROUTE, TRANSFER_STATUSES, YES_NO } from './transfer/transferModel.js'
 
 export const ID_PATTERN = /^[1-9][0-9]{0,18}$/
 export const LOOKUP_CODE = /^[A-Za-z0-9_+-]{1,40}$/
+// Director employee IDs, e.g. D-1004.
+const DIRECTOR_ID = /^[A-Za-z0-9-]{1,20}$/
 
 function invalid() {
   throw new ApiError('The server returned an unexpected response.', { code: 'INVALID_RESPONSE' })
@@ -57,6 +61,23 @@ function readRecordValues(value, { nullable }) {
   })
 }
 
+const department = (item) => {
+  check(isObject(item))
+  return Object.freeze({ ...option(item), sections: options(item.sections) })
+}
+const director = (item) => {
+  check(isObject(item) && typeof item.directorId === 'string' && DIRECTOR_ID.test(item.directorId))
+  return Object.freeze({ directorId: item.directorId, name: text(item.name, 200), area: text(item.area, 200) })
+}
+// The controlled-document strip of the transfer form.
+const transferDocument = (value) => {
+  check(isObject(value))
+  return Object.freeze({
+    title: text(value.title, 200), controlNumber: text(value.controlNumber, 40), version: text(value.version, 20),
+    issueDate: date(value.issueDate), pages: text(value.pages, 40),
+  })
+}
+
 // GET /hr/employee-services/lookups
 export function readEmployeeServicesLookups(data) {
   check(isObject(data))
@@ -65,6 +86,12 @@ export function readEmployeeServicesLookups(data) {
     grades: options(data.grades),
     levels: options(data.levels),
     familyStatuses: options(data.familyStatuses),
+    departments: list(data.departments, department),
+    jobTitles: options(data.jobTitles),
+    directors: list(data.directors, director),
+    bloodTypes: options(data.bloodTypes),
+    companies: options(data.companies),
+    transferDocument: transferDocument(data.transferDocument),
   })
 }
 
@@ -111,6 +138,61 @@ export function readRecordChange(data) {
     attachments: list(data.attachments, attachment),
     approvals,
     updatedAt: instant(data.updatedAt),
+  })
+}
+
+const yesNo = (value) => (value === null ? null : oneOf(value, YES_NO))
+const destination = (value) => {
+  check(isObject(value))
+  return Object.freeze({ jobTitleCode: nullableCode(value.jobTitleCode), departmentCode: nullableCode(value.departmentCode), sectionCode: nullableCode(value.sectionCode) })
+}
+const officeApproval = (item) => {
+  check(isObject(item))
+  return Object.freeze({ role: oneOf(item.role, OFFICE_APPROVALS), state: oneOf(item.state, APPROVAL_STATES), date: nullableDate(item.date) })
+}
+
+// One transfer request.
+export function readTransfer(data) {
+  check(isObject(data))
+  const approvals = list(data.approvals, approval(TRANSFER_ROUTE))
+  const office = list(data.office, officeApproval)
+  check(approvals.length === TRANSFER_ROUTE.length && office.length === OFFICE_APPROVALS.length)
+  return Object.freeze({
+    transferId: id(data.transferId),
+    transferNumber: text(data.transferNumber, 40),
+    status: oneOf(data.status, TRANSFER_STATUSES),
+    requestDate: date(data.requestDate),
+    requestedBy: person(data.requestedBy),
+    companyCode: code(data.companyCode),
+    employee: readServiceEmployee(data.employee),
+    to: destination(data.to),
+    effectiveDate: nullableDate(data.effectiveDate),
+    bloodType: nullableCode(data.bloodType),
+    directorId: data.directorId === null ? null : director({ directorId: data.directorId, name: '', area: '' }).directorId,
+    salaryChange: yesNo(data.salaryChange),
+    budgetedSalary: yesNo(data.budgetedSalary),
+    approvals,
+    office,
+    updatedAt: instant(data.updatedAt),
+  })
+}
+
+export function readTransferListItem(item) {
+  check(isObject(item))
+  return Object.freeze({
+    transferId: id(item.transferId),
+    transferNumber: text(item.transferNumber, 40),
+    status: oneOf(item.status, TRANSFER_STATUSES),
+    employeeName: text(item.employeeName, 200),
+    employeeNumber: text(item.employeeNumber, 40),
+    fromDepartmentName: text(item.fromDepartmentName, 200),
+    toDepartmentName: item.toDepartmentName === null ? null : text(item.toDepartmentName, 200),
+    toSectionName: item.toSectionName === null ? null : text(item.toSectionName, 200),
+    effectiveDate: nullableDate(item.effectiveDate),
+    salaryChange: yesNo(item.salaryChange),
+    budgetedSalary: yesNo(item.budgetedSalary),
+    requestDate: date(item.requestDate),
+    updatedAt: instant(item.updatedAt),
   })
 }
 

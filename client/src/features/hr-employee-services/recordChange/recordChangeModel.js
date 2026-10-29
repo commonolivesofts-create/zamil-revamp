@@ -105,16 +105,5 @@ export function validateRecordChange(form, employee, { submit }) {
 export const counterState = (length, max = TEXT_MAX) => (length > max ? 'over' : length > max * 0.9 ? 'near' : '')
 
 // Approval route after submission: noted by the HR & Admin. Manager, then
-// approved by the President. States: DRAFT (not submitted yet), PENDING
-// (with this approver), WAITING (an earlier approver first) and APPROVED.
+// approved by the President (states: shared/approvals.js).
 export const RECORD_CHANGE_ROUTE = Object.freeze(['NOTED_BY', 'APPROVED_BY'])
-export const APPROVAL_STATES = Object.freeze(['DRAFT', 'PENDING', 'WAITING', 'APPROVED'])
-
-// Approval states derived from the request status (the server assigns them).
-export function routeStates(route, status) {
-  return route.map((_, index) => {
-    if (status === 'APPROVED') return 'APPROVED'
-    if (status === 'SUBMITTED') return index === 0 ? 'PENDING' : 'WAITING'
-    return 'DRAFT'
-  })
-}

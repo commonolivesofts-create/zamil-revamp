@@ -42,6 +42,8 @@ export const EmployeeReportPage = lazy(() => import('@/features/hr-recruitment/r
 // HR employee services.
 export const RecordChangePage = lazy(() => import('@/features/hr-employee-services/recordChange/RecordChangePage.jsx'))
 export const RecordChangeRequestsPage = lazy(() => import('@/features/hr-employee-services/recordChange/RecordChangeRequestsPage.jsx'))
+export const TransferPage = lazy(() => import('@/features/hr-employee-services/transfer/TransferPage.jsx'))
+export const TransferReportPage = lazy(() => import('@/features/hr-employee-services/transfer/TransferReportPage.jsx'))
 export const DeniedPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessDeniedPage })))
 export const AccessPendingPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessPendingPage })))
 export const AccessUnavailablePage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessUnavailablePage })))

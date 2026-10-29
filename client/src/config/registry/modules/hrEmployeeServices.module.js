@@ -21,5 +21,8 @@ export default defineModule({
     { id: 'hr-record-change', path: '/hr/employee-services/record-change', title: 'Personnel record change', icon: 'user-pen', group: 'human-resources', order: 100, enabledBy: SWITCH },
     { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', title: 'Change requests', icon: 'layers', group: 'human-resources', order: 101, enabledBy: SWITCH },
     { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', title: 'Personnel record change', icon: 'user-pen', group: 'human-resources', order: 102, hidden: true, enabledBy: SWITCH },
+    { id: 'hr-transfer', path: '/hr/employee-services/transfer', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', order: 110, enabledBy: SWITCH },
+    { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', title: 'Transfer report', icon: 'chart-column', group: 'human-resources', order: 111, enabledBy: SWITCH },
+    { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', order: 112, hidden: true, enabledBy: SWITCH },
   ],
 })

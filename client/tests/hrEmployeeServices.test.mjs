@@ -15,15 +15,20 @@ import {
 import { registeredModules, registry } from '../src/config/registry/index.js'
 import { resolveEmployeeServicesDemoMode } from '../src/features/hr-employee-services/hrEmployeeServicesConfig.js'
 import { resolveDemoMode } from '../src/features/hr-recruitment/hrRecruitmentConfig.js'
-import { readRecordChange, readServiceEmployee } from '../src/features/hr-employee-services/hrEmployeeServicesContract.js'
+import { readEmployeeServicesLookups, readRecordChange, readServiceEmployee, readTransfer } from '../src/features/hr-employee-services/hrEmployeeServicesContract.js'
 import { createEmployeeServices, identifyEmployeeServicesUser, selectEmployeeServicesClient } from '../src/features/hr-employee-services/hrEmployeeServicesService.js'
 import { createEmployeeServicesDemoClient } from '../src/features/hr-employee-services/demo/employeeServicesDemoClient.js'
-import { DEMO_SERVICE_EMPLOYEES } from '../src/features/hr-employee-services/demo/employeeServicesDemoData.js'
+import { DEMO_EMPLOYEE_SERVICES_LOOKUPS, DEMO_REQUESTER, DEMO_SERVICE_EMPLOYEES } from '../src/features/hr-employee-services/demo/employeeServicesDemoData.js'
 import { ariaSort, filterAndSort, hijriDate, nextSort, statusCounts } from '../src/features/hr-employee-services/shared/esFormat.js'
 import {
   AMOUNT, PAY_KEYS, TEXT_MAX, amountDelta, blankRecordChange, changeTypes, changedKeys, counterState, isRecordChangeLocked, recordChangePayload,
-  recordTotal, routeStates, totalGoesDown, validateRecordChange,
+  recordTotal, totalGoesDown, validateRecordChange,
 } from '../src/features/hr-employee-services/recordChange/recordChangeModel.js'
+import { routeStates } from '../src/features/hr-employee-services/shared/approvals.js'
+import {
+  OFFICE_APPROVALS, TRANSFER_ROUTE, blankTransfer, isTransferLocked, officeStates, sectionsOf, transferMoves, transferPayload, validateTransfer, withDestination,
+  withTransferEmployee,
+} from '../src/features/hr-employee-services/transfer/transferModel.js'
 import { SESSION_TOKEN, forbidBrowserStorage, recordingFetch, success } from './helpers/http.mjs'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
@@ -259,7 +264,7 @@ test('data source: VITE_HR_EMPLOYEE_SERVICES_DEMO, separate from the recruitment
 
 // ------------------------------------------------------------ navigation and visibility
 
-const ES_IDS = ['hr-record-change', 'hr-record-change-requests', 'hr-record-change-record']
+const ES_IDS = ['hr-record-change', 'hr-record-change-requests', 'hr-record-change-record', 'hr-transfer', 'hr-transfer-report', 'hr-transfer-record']
 const ES_NAV_IDS = ES_IDS.filter((id) => !id.endsWith('-record'))
 const employeeAccess = { status: 'ready', mfaVerified: false, has: () => false }
 const servicesFor = (env) => resolveNavigationEntries(registry.entries, env).filter((route) => ES_IDS.includes(route.id))
@@ -310,10 +315,15 @@ test('routes: session-only module HR_EMPLOYEE_SERVICES; the list paths win over 
     ['hr-record-change', '/hr/employee-services/record-change', true, undefined],
     ['hr-record-change-requests', '/hr/employee-services/record-change/requests', true, undefined],
     ['hr-record-change-record', '/hr/employee-services/record-change/:requestId', false, undefined],
+    ['hr-transfer', '/hr/employee-services/transfer', true, undefined],
+    ['hr-transfer-report', '/hr/employee-services/transfer/report', true, undefined],
+    ['hr-transfer-record', '/hr/employee-services/transfer/:transferId', false, undefined],
   ])
   assert.equal(findAppRoute('/hr/employee-services/record-change/requests')?.id, 'hr-record-change-requests')
   assert.equal(findAppRoute('/hr/employee-services/record-change/12')?.id, 'hr-record-change-record')
   assert.equal(findAppRoute('/hr/employee-services/record-change')?.id, 'hr-record-change')
+  assert.equal(findAppRoute('/hr/employee-services/transfer/report')?.id, 'hr-transfer-report')
+  assert.equal(findAppRoute('/hr/employee-services/transfer/3')?.id, 'hr-transfer-record')
 })
 
 // ------------------------------------------------------------ static checks of the screens
@@ -356,7 +366,140 @@ test('employee services sources: no browser storage, no hard-coded people, text 
   }
   // Every demo person follows the fictional "Sample …" pattern.
   for (const person of DEMO_SERVICE_EMPLOYEES) assert.match(person.name, /^Sample Employee \d{3}$/)
-  const data = await read(`${FEATURE}demo/employeeServicesDemoData.js`)
-  const names = [...data.matchAll(/name: '([^']+)'/g)].map((match) => match[1])
-  assert.ok(names.length > 0 && names.every((name) => /^Sample /.test(name)), names.join(', '))
+  const people = [...DEMO_SERVICE_EMPLOYEES.map((item) => item.name), ...DEMO_EMPLOYEE_SERVICES_LOOKUPS.directors.map((item) => item.name), DEMO_REQUESTER.name]
+  assert.ok(people.every((name) => /^Sample /.test(name)), people.join(', '))
+})
+
+// ------------------------------------------------------------ transfer request
+
+const LOOKUPS = DEMO_EMPLOYEE_SERVICES_LOOKUPS
+const transferForm = (changes = {}) => ({
+  ...withTransferEmployee(blankTransfer('2026-10-29', 'ZP_NON_FOOD'), employee),
+  to: { jobTitleCode: 'PAYROLL_OFFICER', departmentCode: 'HR', sectionCode: 'PAYROLL' },
+  effectiveDate: '2026-11-15', directorId: 'D-1018', salaryChange: 'NO', budgetedSalary: 'YES', ...changes,
+})
+
+test('transfer: sections depend on the department; choosing a department clears the section', () => {
+  assert.deepEqual(sectionsOf(LOOKUPS.departments, 'HR').map((item) => item.code), ['HR_SECTION', 'RECRUITMENT', 'PAYROLL'])
+  assert.deepEqual(sectionsOf(LOOKUPS.departments, ''), [])
+  assert.deepEqual(withDestination({ jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: 'PAYROLL' }, 'departmentCode', 'SALES'),
+    { jobTitleCode: 'PACKER', departmentCode: 'SALES', sectionCode: '' })
+  assert.equal(withDestination({ jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: '' }, 'sectionCode', 'PAYROLL').departmentCode, 'HR')
+  const problems = validateTransfer(transferForm({ to: { jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: 'KEY_ACCOUNTS' } }), employee, LOOKUPS.departments, { submit: false })
+  assert.deepEqual(codesOf(problems), ['sectionCode:notInDepartment'])
+})
+
+test('transfer: choosing the employee starts the new job title as now and prefills a known blood type', () => {
+  const form = withTransferEmployee(blankTransfer('2026-10-29', 'ZP_NON_FOOD'), employee)
+  assert.deepEqual(form.to, { jobTitleCode: 'HR_OFFICER', departmentCode: '', sectionCode: '' })
+  assert.equal(form.bloodType, 'O+')
+  assert.equal(withTransferEmployee(blankTransfer('2026-10-29', 'ZP_NON_FOOD'), DEMO_SERVICE_EMPLOYEES[1]).bloodType, '', 'unknown stays empty')
+  assert.equal(withTransferEmployee({ ...blankTransfer('2026-10-29', 'ZP_NON_FOOD'), bloodType: 'AB+' }, employee).bloodType, 'AB+', 'a chosen value is kept')
+})
+
+test('transfer: job title, department and section required; at least one must differ from now', () => {
+  assert.deepEqual(codesOf(validateTransfer(transferForm(), employee, LOOKUPS.departments, { submit: true })), [])
+  const empty = transferForm({ to: { jobTitleCode: '', departmentCode: '', sectionCode: '' } })
+  assert.deepEqual(codesOf(validateTransfer(empty, employee, LOOKUPS.departments, { submit: true })), ['jobTitleCode:required', 'departmentCode:required', 'sectionCode:required'])
+  const same = transferForm({ to: { jobTitleCode: 'HR_OFFICER', departmentCode: 'HR', sectionCode: 'HR_SECTION' } })
+  assert.deepEqual(codesOf(validateTransfer(same, employee, LOOKUPS.departments, { submit: true })), ['to:noMove'])
+  assert.deepEqual(transferMoves(employee, same.to), [])
+  assert.deepEqual(transferMoves(employee, { jobTitleCode: 'HR_OFFICER', departmentCode: 'HR', sectionCode: 'PAYROLL' }), ['sectionCode'], 'a section move alone is a move')
+  assert.deepEqual(transferMoves(employee, transferForm().to), ['jobTitleCode', 'sectionCode'])
+  assert.deepEqual(codesOf(validateTransfer(empty, employee, LOOKUPS.departments, { submit: false })), [], 'a draft needs only the employee')
+  assert.deepEqual(codesOf(validateTransfer(empty, null, LOOKUPS.departments, { submit: false })), ['employee:required'])
+})
+
+test('transfer: effective date not before D.O.J.; director, salary change and budgeted salary required to submit', () => {
+  assert.deepEqual(codesOf(validateTransfer(transferForm({ effectiveDate: '2019-03-09' }), employee, LOOKUPS.departments, { submit: false })), ['effectiveDate:beforeJoining'])
+  assert.deepEqual(codesOf(validateTransfer(transferForm({ effectiveDate: '2019-03-10' }), employee, LOOKUPS.departments, { submit: true })), [])
+  const missing = transferForm({ effectiveDate: '', directorId: '', salaryChange: '', budgetedSalary: 'MAYBE' })
+  const problems = validateTransfer(missing, employee, LOOKUPS.departments, { submit: true })
+  assert.deepEqual(codesOf(problems), ['effectiveDate:required', 'directorId:required', 'salaryChange:required', 'budgetedSalary:required'])
+  assert.ok(problems.every((problem) => problem.step === 1), 'all on the details step')
+})
+
+test('transfer: approval chain in order and the IT & HR approvals', () => {
+  assert.deepEqual(TRANSFER_ROUTE, ['NEW_DEPARTMENT_HEAD', 'OLD_DEPARTMENT_HEAD', 'NEW_DIRECTOR', 'HR_ADMIN_MANAGER', 'GENERAL_MANAGER'])
+  assert.deepEqual(routeStates(TRANSFER_ROUTE, 'DRAFT'), ['DRAFT', 'DRAFT', 'DRAFT', 'DRAFT', 'DRAFT'])
+  assert.deepEqual(routeStates(TRANSFER_ROUTE, 'SUBMITTED'), ['PENDING', 'WAITING', 'WAITING', 'WAITING', 'WAITING'])
+  assert.deepEqual(routeStates(TRANSFER_ROUTE, 'APPROVED'), ['APPROVED', 'APPROVED', 'APPROVED', 'APPROVED', 'APPROVED'])
+  assert.deepEqual(OFFICE_APPROVALS, ['HR_SUPERVISOR', 'IT', 'ADMIN_MANAGER'])
+  assert.deepEqual(officeStates('SUBMITTED', '2026-11-15').map((item) => [item.state, item.date]), [['WAITING', null], ['WAITING', null], ['WAITING', null]])
+  assert.deepEqual(officeStates('APPROVED', '2026-11-15').map((item) => [item.state, item.date]), [['APPROVED', '2026-11-15'], ['APPROVED', '2026-11-15'], ['APPROVED', '2026-11-15']])
+  assert.equal(isTransferLocked('DRAFT'), false)
+  assert.equal(isTransferLocked('SUBMITTED'), true)
+  assert.equal(isTransferLocked('APPROVED'), true)
+})
+
+test('transfer: request body carries only the answers', () => {
+  assert.deepEqual(transferPayload(transferForm({ bloodType: '' }), employee), {
+    companyCode: 'ZP_NON_FOOD', employeeId: '101', to: { jobTitleCode: 'PAYROLL_OFFICER', departmentCode: 'HR', sectionCode: 'PAYROLL' },
+    effectiveDate: '2026-11-15', bloodType: null, directorId: 'D-1018', salaryChange: 'NO', budgetedSalary: 'YES',
+  })
+})
+
+test('contracts: transfer lookups and transfer shapes are checked', () => {
+  const lookups = readEmployeeServicesLookups(LOOKUPS)
+  assert.equal(lookups.departments.find((item) => item.code === 'HR').sections.length, 3)
+  assert.equal(lookups.transferDocument.controlNumber, 'ZPI.TCN.FM.01')
+  assert.deepEqual(lookups.companies.map((item) => item.name), ['Zamil Plastic Non-Food', 'Zamil Plastic Food'])
+  assert.throws(() => readEmployeeServicesLookups({ ...LOOKUPS, directors: [{ directorId: 'D 1', name: 'x', area: 'y' }] }), /unexpected response/)
+  const record = {
+    transferId: '4', transferNumber: 'TRF-2026-0319', status: 'SUBMITTED', requestDate: '2026-10-29', requestedBy: { name: 'Sample Requester', employeeNumber: '9001' },
+    companyCode: 'ZP_FOOD', employee, to: { jobTitleCode: 'PACKER', departmentCode: 'ASSEMBLY', sectionCode: 'PACKING' }, effectiveDate: '2026-11-15',
+    bloodType: 'O+', directorId: 'D-1004', salaryChange: 'NO', budgetedSalary: 'YES',
+    approvals: TRANSFER_ROUTE.map((role, index) => ({ role, state: index === 0 ? 'PENDING' : 'WAITING' })), office: officeStates('SUBMITTED', null),
+    updatedAt: '2026-10-29T08:00:00.000Z',
+  }
+  assert.equal(readTransfer(record).approvals[0].state, 'PENDING')
+  assert.throws(() => readTransfer({ ...record, approvals: record.approvals.slice(1) }), /unexpected response/, 'the whole chain is required')
+  assert.throws(() => readTransfer({ ...record, salaryChange: 'Y' }), /unexpected response/)
+  assert.throws(() => readTransfer({ ...record, office: [] }), /unexpected response/)
+})
+
+test('demo adapter: transfer save, submit, the report and 404, 409 and 422 error paths', async () => {
+  const restore = forbidBrowserStorage()
+  try {
+    const { client, services } = demoServices()
+    identifyEmployeeServicesUser({ fullName: 'Sample Signed-in User', employeeNumber: '7001' }, client)
+    const seeded = await services.transfers.list()
+    assert.deepEqual(seeded.items.map((item) => item.transferNumber).sort(), ['TRF-2026-0311', 'TRF-2026-0314', 'TRF-2026-0318'])
+    const approved = await services.transfers.getById('2')
+    assert.deepEqual(approved.office.map((item) => item.date), ['2026-11-15', '2026-11-15', '2026-11-15'], 'office approvals dated once approved')
+    const draft = await services.transfers.save(null, transferPayload({ ...transferForm(), directorId: '', salaryChange: '' }, employee))
+    assert.equal(draft.transferNumber, 'TRF-2026-0319')
+    assert.deepEqual(draft.requestedBy, { name: 'Sample Signed-in User', employeeNumber: '7001' })
+    assert.equal(draft.companyCode, 'ZP_NON_FOOD')
+    await assert.rejects(() => services.transfers.submit(draft.transferId), (error) => error.status === 422 &&
+      ['directorId', 'salaryChange'].every((field) => error.details.some((item) => item.field === field)))
+    await services.transfers.save(draft.transferId, transferPayload(transferForm(), employee))
+    const submitted = await services.transfers.submit(draft.transferId)
+    assert.equal(submitted.status, 'SUBMITTED')
+    assert.deepEqual(submitted.approvals.map((item) => item.state), ['PENDING', 'WAITING', 'WAITING', 'WAITING', 'WAITING'])
+    const row = (await services.transfers.list()).items.find((item) => item.transferId === draft.transferId)
+    assert.deepEqual([row.fromDepartmentName, row.toDepartmentName, row.toSectionName], ['HR Department', 'HR Department', 'Payroll'])
+    await assert.rejects(() => services.transfers.save(draft.transferId, transferPayload(transferForm(), employee)), (error) => error.status === 409)
+    await assert.rejects(() => services.transfers.getById('77'), (error) => error.status === 404)
+    await assert.rejects(() => services.transfers.save(null, transferPayload(transferForm({ directorId: 'D-9999' }), employee)), (error) => error.status === 422)
+  } finally {
+    restore()
+  }
+})
+
+test('transfer page: compact frame with the document strip, tight pickers, radio groups and a report view', async () => {
+  const page = await read(`${FEATURE}transfer/TransferPage.jsx`)
+  assert.match(page, /<RecruitmentShell current="transfer" flow=\{false\} compact /)
+  assert.match(page, /banner=\{\(\n\s*<dl className="zrv-hr-es-docstrip"/)
+  assert.match(page, /<EmployeePicker id="tr-employee" label=\{T\.moveStep\.employee\} required tight /)
+  assert.match(page, /<EmployeePicker id="tr-director" label=\{T\.detailsStep\.director\} required tight /)
+  assert.match(page, /<RadioCards name="tr-salary-change"/)
+  assert.match(page, /<RadioCards name="tr-budgeted"/)
+  assert.match(page, /disabled=\{disabled\}/, 'the section waits for a department')
+  assert.match(page, /\{ icon: 'chart-column', label: T\.tools\.report, onClick: \(\) => leave\(ES_PATHS\.transferReport\) \}/)
+  assert.match(page, /\{ icon: 'house', label: C\.home, onClick: \(\) => leave\('\/dashboard'\) \}/)
+  assert.match(page, /saved\?\.requestedBy \?\? \{ name: user\?\.fullName/, 'requester from the server (before the first save: the session user)')
+  const report = await read(`${FEATURE}transfer/TransferReportPage.jsx`)
+  assert.match(report, /<RecordList /)
+  assert.match(report, /statuses=\{TRANSFER_STATUSES\}/)
 })

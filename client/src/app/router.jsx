@@ -35,6 +35,8 @@ import {
   EmployeeReportPage,
   RecordChangePage,
   RecordChangeRequestsPage,
+  TransferPage,
+  TransferReportPage,
   DeniedPage,
   NotFoundPage,
   RouterShell,
@@ -127,6 +129,9 @@ export const router = createBrowserRouter([
                   { path: 'hr/employee-services/record-change', handle: { routeId: 'hr-record-change' }, element: <RecordChangePage /> },
                   { path: 'hr/employee-services/record-change/requests', handle: { routeId: 'hr-record-change-requests' }, element: <RecordChangeRequestsPage /> },
                   { path: 'hr/employee-services/record-change/:requestId', handle: { routeId: 'hr-record-change-record' }, element: <RecordChangePage /> },
+                  { path: 'hr/employee-services/transfer', handle: { routeId: 'hr-transfer' }, element: <TransferPage /> },
+                  { path: 'hr/employee-services/transfer/report', handle: { routeId: 'hr-transfer-report' }, element: <TransferReportPage /> },
+                  { path: 'hr/employee-services/transfer/:transferId', handle: { routeId: 'hr-transfer-record' }, element: <TransferPage /> },
                 ]),
               },
               {

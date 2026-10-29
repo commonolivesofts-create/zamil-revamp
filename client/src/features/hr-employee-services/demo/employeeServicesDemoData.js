@@ -16,6 +16,27 @@ export const DEMO_EMPLOYEE_SERVICES_LOOKUPS = Object.freeze({
   grades: options(['G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10']),
   levels: options(['L1', 'L2', 'L3', 'L4']),
   familyStatuses: options(['Single', 'Married', 'Married with family', 'Divorced', 'Widowed']),
+  departments: [
+    ['ASSEMBLY', 'Assembly Department', [['ASSEMBLY_LINE_1', 'Assembly Line 1'], ['ASSEMBLY_LINE_2', 'Assembly Line 2'], ['PACKING', 'Packing']]],
+    ['INJECTION', 'Injection Department', [['INJECTION_HALL_A', 'Injection Hall A'], ['INJECTION_HALL_B', 'Injection Hall B']]],
+    ['FINANCE', 'Finance Department', [['ACCOUNTS', 'Accounts'], ['TREASURY', 'Treasury']]],
+    ['HR', 'HR Department', [['HR_SECTION', 'HR Section'], ['RECRUITMENT', 'Recruitment'], ['PAYROLL', 'Payroll']]],
+    ['SALES', 'Sales Department', [['SALES_SECTION', 'Sales Section'], ['KEY_ACCOUNTS', 'Key Accounts']]],
+    ['MAINTENANCE', 'Maintenance Department', [['MAINTENANCE', 'Maintenance'], ['UTILITIES', 'Utilities']]],
+    ['QUALITY', 'Quality Department', [['QUALITY_CONTROL', 'Quality Control'], ['QUALITY_ASSURANCE', 'Quality Assurance']]],
+    ['WAREHOUSE', 'Warehouse Department', [['RAW_MATERIALS', 'Raw Materials Store'], ['FINISHED_GOODS', 'Finished Goods Store']]],
+    ['TOOL_ROOM', 'Tool Room Department', [['TOOL_ROOM', 'Tool Room']]],
+  ].map(([code, name, sections]) => ({ code, name, sections: sections.map(([sectionCode, sectionName]) => ({ code: sectionCode, name: sectionName })) })),
+  jobTitles: POSITIONS,
+  directors: [
+    { directorId: 'D-1004', name: 'Sample Director A', area: 'Operations' },
+    { directorId: 'D-1011', name: 'Sample Director B', area: 'Commercial' },
+    { directorId: 'D-1018', name: 'Sample Director C', area: 'Finance & Admin' },
+    { directorId: 'D-1022', name: 'Sample Director D', area: 'Engineering' },
+  ],
+  bloodTypes: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((code) => ({ code, name: code.replace('-', '−') })),
+  companies: [{ code: 'ZP_NON_FOOD', name: 'Zamil Plastic Non-Food' }, { code: 'ZP_FOOD', name: 'Zamil Plastic Food' }],
+  transferDocument: { title: 'Transfer Request Form', controlNumber: 'ZPI.TCN.FM.01', version: '1.0', issueDate: '2026-01-01', pages: 'Page 1 of 1' },
 })
 
 const record = (positionCode, basic, house, transport, other, communication, car, gradeCode, levelCode, familyStatusCode) => ({
@@ -59,7 +80,19 @@ export function createDemoServiceRecords() {
       revised: { ...person.current, ...changes }, remarks: '', views: '', attachments: [], updatedAt: `${requestDate}T08:00:00.000Z`,
     }
   }
+  const transfer = (transferId, transferNumber, employeeNumber, to, effectiveDate, directorId, salaryChange, budgetedSalary, status, requestDate) => {
+    const person = structuredClone(byNumber(employeeNumber))
+    return {
+      transferId, transferNumber, status, requestDate, requestedBy: { ...DEMO_REQUESTER }, companyCode: 'ZP_NON_FOOD', employee: person,
+      to, effectiveDate, bloodType: person.bloodType, directorId, salaryChange, budgetedSalary, updatedAt: `${requestDate}T08:00:00.000Z`,
+    }
+  }
   return {
+    transfers: [
+      transfer('1', 'TRF-2026-0311', '2554', { jobTitleCode: 'MACHINE_OPERATOR', departmentCode: 'INJECTION', sectionCode: 'INJECTION_HALL_A' }, '2026-11-08', 'D-1004', 'NO', 'YES', 'SUBMITTED', '2026-10-21'),
+      transfer('2', 'TRF-2026-0314', '2557', { jobTitleCode: 'MOULDING_TECHNICIAN', departmentCode: 'MAINTENANCE', sectionCode: 'UTILITIES' }, '2026-11-15', 'D-1022', 'YES', 'YES', 'APPROVED', '2026-10-14'),
+      transfer('3', 'TRF-2026-0318', '2561', { jobTitleCode: 'SALES_LEADER', departmentCode: 'SALES', sectionCode: 'KEY_ACCOUNTS' }, '2026-12-01', 'D-1011', 'YES', 'NO', 'DRAFT', '2026-10-27'),
+    ],
     recordChanges: [
       request('1', 'PCR-2026-1042', '2561', '2026-11-01', { positionCode: 'SALES_LEADER', basic: 8200, house: 2050, transport: 820, gradeCode: 'G7' }, 'SUBMITTED', '2026-10-20'),
       request('2', 'PCR-2026-1047', '2557', '2026-11-01', { familyStatusCode: 'MARRIED_WITH_FAMILY', house: 1150 }, 'APPROVED', '2026-10-12'),

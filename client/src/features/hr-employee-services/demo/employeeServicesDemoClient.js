@@ -10,12 +10,14 @@
 import { ApiError } from '../../../services/api/apiClient.js'
 import { businessToday } from '../../hr-recruitment/shared/hrFormat.js'
 import {
-  RECORD_CHANGE_ROUTE, changeTypes, isRecordChangeLocked, recordTotal, routeStates, validateRecordChange,
+  RECORD_CHANGE_ROUTE, changeTypes, isRecordChangeLocked, recordTotal, validateRecordChange,
 } from '../recordChange/recordChangeModel.js'
+import { routeStates } from '../shared/approvals.js'
+import { TRANSFER_ROUTE, isTransferLocked, officeStates, sectionsOf, validateTransfer } from '../transfer/transferModel.js'
 import { DEMO_EMPLOYEE_SERVICES_LOOKUPS, DEMO_REQUESTER, DEMO_SERVICE_EMPLOYEES, createDemoServiceRecords } from './employeeServicesDemoData.js'
 
 export const EMPLOYEE_SERVICES_BASE = '/hr/employee-services'
-const ROUTE = /^\/hr\/employee-services\/(record-change-requests)(?:\/([1-9][0-9]*)(?:\/(submit))?)?$/
+const ROUTE = /^\/hr\/employee-services\/(record-change-requests|transfers)(?:\/([1-9][0-9]*)(?:\/(submit))?)?$/
 const MAX_LIMIT = 100
 
 const clone = (value) => structuredClone(value)
@@ -41,21 +43,33 @@ function wait(ms, signal) {
 }
 
 // Approval states as the server returns them.
-const withApprovals = (request) => ({
-  ...request,
-  approvals: routeStates(RECORD_CHANGE_ROUTE, request.status).map((state, index) => ({ role: RECORD_CHANGE_ROUTE[index], state })),
-})
+const approvalsOf = (route, status) => routeStates(route, status).map((state, index) => ({ role: route[index], state }))
 
 const COLLECTIONS = Object.freeze({
   'record-change-requests': Object.freeze({
-    store: 'recordChanges', id: 'requestId', number: 'requestNumber', prefix: 'PCR',
+    store: 'recordChanges', id: 'requestId', number: 'requestNumber', prefix: 'PCR', prepare: 'recordChange',
     locked: (record) => isRecordChangeLocked(record.status),
-    present: withApprovals,
+    present: (record) => ({ ...record, approvals: approvalsOf(RECORD_CHANGE_ROUTE, record.status) }),
     listItem: (record) => ({
       requestId: record.requestId, requestNumber: record.requestNumber, status: record.status,
       employeeName: record.employee.name, employeeNumber: record.employee.employeeNumber, effectiveDate: record.effectiveDate,
       changeTypes: changeTypes(record.employee.current, record.revised),
       totalChange: Math.round((recordTotal(record.revised) - recordTotal(record.employee.current)) * 100) / 100,
+      requestDate: record.requestDate, updatedAt: record.updatedAt,
+    }),
+  }),
+  transfers: Object.freeze({
+    store: 'transfers', id: 'transferId', number: 'transferNumber', prefix: 'TRF', prepare: 'transfer',
+    locked: (record) => isTransferLocked(record.status),
+    present: (record) => ({
+      ...record, approvals: approvalsOf(TRANSFER_ROUTE, record.status), office: officeStates(record.status, record.effectiveDate ?? record.requestDate),
+    }),
+    listItem: (record, lookups) => ({
+      transferId: record.transferId, transferNumber: record.transferNumber, status: record.status,
+      employeeName: record.employee.name, employeeNumber: record.employee.employeeNumber, fromDepartmentName: record.employee.departmentName,
+      toDepartmentName: lookups.departments.find((item) => item.code === record.to.departmentCode)?.name ?? null,
+      toSectionName: sectionsOf(lookups.departments, record.to.departmentCode).find((item) => item.code === record.to.sectionCode)?.name ?? null,
+      effectiveDate: record.effectiveDate, salaryChange: record.salaryChange, budgetedSalary: record.budgetedSalary,
       requestDate: record.requestDate, updatedAt: record.updatedAt,
     }),
   }),
@@ -107,16 +121,39 @@ export function createEmployeeServicesDemoClient({
     }
   }
 
+  // Transfer: the employee snapshot, requester and approvals are server values.
+  function prepareTransfer(body, current, { submit }) {
+    const employee = current?.employee ?? findEmployee(body.employeeId)
+    if (current && body.employeeId && body.employeeId !== current.employee.employeeId) fail(422, 'VALIDATION_ERROR', 'The employee of a saved request cannot change.')
+    const to = { jobTitleCode: body.to?.jobTitleCode ?? '', departmentCode: body.to?.departmentCode ?? '', sectionCode: body.to?.sectionCode ?? '' }
+    const form = {
+      to, effectiveDate: body.effectiveDate ?? '', directorId: body.directorId ?? '', salaryChange: body.salaryChange ?? '', budgetedSalary: body.budgetedSalary ?? '',
+    }
+    const problems = validateTransfer(form, employee, lookups.departments, { submit })
+    if (body.directorId && !lookups.directors.some((item) => item.directorId === body.directorId)) problems.push({ field: 'directorId', code: 'unknown' })
+    if (body.companyCode && !lookups.companies.some((item) => item.code === body.companyCode)) problems.push({ field: 'companyCode', code: 'unknown' })
+    if (problems.length) fail(422, 'VALIDATION_ERROR', submit ? 'The transfer cannot be submitted.' : 'The transfer cannot be saved.', details(problems))
+    const orNull = (value) => value || null
+    return {
+      companyCode: body.companyCode ?? current?.companyCode ?? lookups.companies[0].code, employee: clone(employee),
+      to: { jobTitleCode: orNull(to.jobTitleCode), departmentCode: orNull(to.departmentCode), sectionCode: orNull(to.sectionCode) },
+      effectiveDate: orNull(form.effectiveDate), bloodType: orNull(body.bloodType), directorId: orNull(form.directorId),
+      salaryChange: orNull(form.salaryChange), budgetedSalary: orNull(form.budgetedSalary),
+    }
+  }
+  const prepare = (collection, body, current, options) =>
+    (collection.prepare === 'transfer' ? prepareTransfer : prepareRecordChange)(body, current, options)
+
   function list(collection, params = {}) {
     const items = [...store[collection.store]].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     const { items: slice, pagination } = pageOf(items, params)
-    return respond(slice.map(collection.listItem), { pagination })
+    return respond(slice.map((record) => collection.listItem(record, lookups)), { pagination })
   }
 
   function create(collection, body = {}) {
     const record = {
       [collection.id]: nextId(collection), [collection.number]: nextNumber(collection), status: 'DRAFT', requestDate: today(),
-      requestedBy: requester(), ...prepareRecordChange(body, null, { submit: false }), updatedAt: timestamp(),
+      requestedBy: requester(), ...prepare(collection, body, null, { submit: false }), updatedAt: timestamp(),
     }
     store[collection.store].push(record)
     return respond(collection.present(record), { status: 201 })
@@ -125,7 +162,7 @@ export function createEmployeeServicesDemoClient({
   function update(collection, id, body = {}) {
     const current = find(collection, id)
     if (collection.locked(current)) fail(409, 'CONFLICT', 'This request is read-only because it was already submitted.')
-    const record = { ...clone(current), ...prepareRecordChange(body, current, { submit: false }), updatedAt: timestamp() }
+    const record = { ...clone(current), ...prepare(collection, body, current, { submit: false }), updatedAt: timestamp() }
     store[collection.store][store[collection.store].indexOf(current)] = record
     return respond(collection.present(record))
   }
@@ -133,7 +170,7 @@ export function createEmployeeServicesDemoClient({
   function submit(collection, id) {
     const current = find(collection, id)
     if (collection.locked(current)) fail(409, 'CONFLICT', 'This request is read-only because it was already submitted.')
-    prepareRecordChange({ ...current, employeeId: current.employee.employeeId }, current, { submit: true })
+    prepare(collection, { ...current, employeeId: current.employee.employeeId, directorId: current.directorId }, current, { submit: true })
     const record = { ...clone(current), status: 'SUBMITTED', updatedAt: timestamp() }
     store[collection.store][store[collection.store].indexOf(current)] = record
     return respond(collection.present(record))

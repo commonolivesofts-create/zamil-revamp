@@ -6,7 +6,7 @@ import { ApiError, apiClient } from '../../services/api/apiClient.js'
 import { createEmployeeServicesDemoClient } from './demo/employeeServicesDemoClient.js'
 import { hrEmployeeServicesConfig } from './hrEmployeeServicesConfig.js'
 import {
-  ID_PATTERN, readEmployeeServicesLookups, readPage, readRecordChange, readRecordChangeListItem, readServiceEmployee,
+  ID_PATTERN, readEmployeeServicesLookups, readPage, readRecordChange, readRecordChangeListItem, readServiceEmployee, readTransfer, readTransferListItem,
 } from './hrEmployeeServicesContract.js'
 
 export const EMPLOYEE_SERVICES_BASE = '/hr/employee-services'
@@ -46,6 +46,9 @@ export function createEmployeeServices({ client }) {
     }),
     recordChanges: createRecordService({
       client, base: `${EMPLOYEE_SERVICES_BASE}/record-change-requests`, readRecord: readRecordChange, readListItem: readRecordChangeListItem,
+    }),
+    transfers: createRecordService({
+      client, base: `${EMPLOYEE_SERVICES_BASE}/transfers`, readRecord: readTransfer, readListItem: readTransferListItem,
     }),
   })
 }
