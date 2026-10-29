@@ -65,6 +65,11 @@ tags:
       XX_REQ_WF_REC) is read or written. ticketStatus (ATTRIBUTE1) may only be set
       by HR users (server-side XXZP_HR probe); Inprocess/Approved merely gate
       non-HR updates, and only Draft requests can be deleted.
+  - name: HR Personnel Record Changes
+    description: >-
+      CRUD, filtered listing and employee/position lookups for the Personal Status Change Form.
+      Requires HR.PERSONNEL_RECORD_CHANGES:VIEW / CREATE / UPDATE / DELETE. STATUS is set to
+      DRAFT on creation and is not client writable. This API does not implement workflow actions.
   - name: Authentication Recovery
     description: >-
       Password setup, reset and change and MFA recovery with single-use hashed
@@ -5011,6 +5016,231 @@ paths:
                   requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/hr/personnel-record-changes:
+    get:
+      operationId: listPersonnelRecordChanges
+      tags: [HR Personnel Record Changes]
+      summary: List personnel record changes with optional filters and pagination
+      description: >-
+        Requires HR.PERSONNEL_RECORD_CHANGES:VIEW. Every authorized user sees all requests;
+        visibility is not scoped by creator.
+        Pagination metadata is included inside data.meta and total is a database count.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: search,
+            in: query,
+            schema: { type: string },
+            description: 'Case-insensitive search across employee number, employee name and reference number.',
+          }
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] },
+          }
+        - { name: section, in: query, schema: { type: string } }
+        - { name: department, in: query, schema: { type: string } }
+        - {
+            name: position,
+            in: query,
+            schema: { type: string },
+            description: Matches NEW_POSITION.,
+          }
+        - {
+            name: requestor,
+            in: query,
+            schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' },
+            description: Matches CREATED_BY.,
+          }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          }
+        - {
+            name: sort,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum: [headerId, empNo, empName, formDate, status, oldTotal, newTotal],
+                default: headerId,
+              },
+          }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Filtered page and total count.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    required: [meta, rows]
+                    properties:
+                      meta:
+                        type: object
+                        properties:
+                          page: { type: integer }
+                          pageSize: { type: integer }
+                          total: { type: integer }
+                          sort: { type: string }
+                          order: { type: string, enum: [asc, desc] }
+                      rows:
+                        {
+                          type: array,
+                          items: { $ref: '#/components/schemas/PersonnelRecordChangeListItem' },
+                        }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createPersonnelRecordChange
+      tags: [HR Personnel Record Changes]
+      summary: Create a personnel record change
+      description: >-
+        Requires HR.PERSONNEL_RECORD_CHANGES:CREATE. HEADER_ID, REF_NO, STATUS, USER_ID,
+        signatures and creation audit values are server-owned. STATUS starts as DRAFT and
+        NEW_TOTAL is computed from the six revised allowances.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PersonnelRecordChangeWrite' }
+      responses:
+        '201':
+          description: Created personnel record change.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/PersonnelRecordChange' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/personnel-record-changes/lookups/employees:
+    get:
+      operationId: listPersonnelRecordChangeEmployees
+      tags: [HR Personnel Record Changes]
+      summary: List employee numbers for the form
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Distinct employee numbers ordered ascending. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/personnel-record-changes/lookups/positions:
+    get:
+      operationId: listPersonnelRecordChangePositions
+      tags: [HR Personnel Record Changes]
+      summary: List revised position names
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Distinct position names ordered ascending. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/personnel-record-changes/lookups/employees/{empNo}:
+    get:
+      operationId: getPersonnelRecordChangeEmployeeDetails
+      tags: [HR Personnel Record Changes]
+      summary: Get current employee details and previous-request values for form auto-fill
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: empNo
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+      responses:
+        '200':
+          {
+            description: Employee auto-fill data from the current employee master or latest request.,
+          }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/hr/personnel-record-changes/{headerId}:
+    get:
+      operationId: getPersonnelRecordChange
+      tags: [HR Personnel Record Changes]
+      summary: Read one personnel record change
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+      responses:
+        '200':
+          description: Full record, including old/new compensation and signature data.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/PersonnelRecordChange' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updatePersonnelRecordChange
+      tags: [HR Personnel Record Changes]
+      summary: Update editable personnel record change fields
+      description: STATUS, REF_NO, HEADER_ID and creation audit fields are never updated.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PersonnelRecordChangeWrite' }
+      responses:
+        '200': { description: Updated record. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deletePersonnelRecordChange
+      tags: [HR Personnel Record Changes]
+      summary: Permanently delete a personnel record change
+      description: Allows deletion regardless of request status; only a missing record returns 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200': { description: Record deleted. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/hr/transfer-requests:
     get:
       operationId: listTransferRequests
@@ -5594,6 +5824,87 @@ components:
       schema:
         type: string
   schemas:
+    PersonnelRecordChangeWrite:
+      type: object
+      required: [empNo, effectiveDate, new]
+      properties:
+        empNo: { type: [string, integer], pattern: '^[1-9][0-9]{0,18}$' }
+        formDate: { type: string, format: date }
+        arbDate: { type: [string, 'null'] }
+        effectiveDate: { type: string, format: date }
+        empName: { type: [string, 'null'] }
+        nationality: { type: [string, 'null'] }
+        section: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+        startDate: { type: [string, 'null'], format: date }
+        old: { $ref: '#/components/schemas/PersonnelRecordChangeSalary' }
+        new:
+          allOf:
+            - $ref: '#/components/schemas/PersonnelRecordChangeSalary'
+            - type: object
+              required:
+                [position, basicSal, houseAll, transAll, otherAll, communAll, carAll, maritalStatus]
+        remarks: { type: [string, 'null'], maxLength: 2000 }
+        views: { type: [string, 'null'], maxLength: 2000 }
+      additionalProperties: true
+    PersonnelRecordChangeSalary:
+      type: object
+      properties:
+        position: { type: [string, 'null'] }
+        basicSal: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        houseAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        transAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        otherAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        communAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        carAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        total:
+          {
+            type: [number, string, 'null'],
+            description: Ignored on writes and computed from the six revised allowances.,
+          }
+        maritalStatus: { type: [string, 'null'], enum: [S, M, null] }
+      additionalProperties: true
+    PersonnelRecordChange:
+      allOf:
+        - $ref: '#/components/schemas/PersonnelRecordChangeWrite'
+        - type: object
+          required: [headerId, refNo, status, createdBy, old, new, signatures]
+          properties:
+            headerId: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+            refNo: { type: string }
+            status: { type: [string, 'null'], readOnly: true }
+            createdBy: { type: [string, 'null'], readOnly: true }
+            createdAt: { type: [string, 'null'], format: date, readOnly: true }
+            updatedBy: { type: [string, 'null'], readOnly: true }
+            updatedAt: { type: [string, 'null'], format: date, readOnly: true }
+            signatures:
+              type: object
+              readOnly: true
+              properties:
+                hrAdmin: { type: [string, 'null'] }
+                hrAdminSign: { type: [string, 'null'], format: date }
+                vp: { type: [string, 'null'] }
+                vpSign: { type: [string, 'null'], format: date }
+                president: { type: [string, 'null'] }
+                presidentSign: { type: [string, 'null'], format: date }
+    PersonnelRecordChangeListItem:
+      type: object
+      required: [headerId, refNo, empNo, status]
+      properties:
+        headerId: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+        refNo: { type: string }
+        formDate: { type: [string, 'null'], format: date }
+        effectiveDate: { type: [string, 'null'], format: date }
+        empNo: { type: string }
+        empName: { type: [string, 'null'] }
+        position: { type: [string, 'null'] }
+        section: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+        oldTotal: { type: [number, 'null'] }
+        newTotal: { type: [number, 'null'] }
+        remarks: { type: [string, 'null'] }
+        status: { type: [string, 'null'] }
+        requestor: { type: [string, 'null'] }
     TransferRequestInput:
       type: object
       required: [plant, current, transfer]

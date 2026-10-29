@@ -63,7 +63,9 @@ describe('API documentation', () => {
     const documented = Object.entries(paths)
       .filter(([path]) => path === base || path.startsWith(`${base}/`))
       .flatMap(([path, item]) =>
-        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+        Object.keys(item)
+          .filter((method) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
+          .map((method) => `${method} ${path.slice(base.length)}`),
       );
     assert.deepEqual(documented.sort(), expected.map((x) => x.join(' ')).sort());
     for (const [method, path] of expected) {
@@ -140,7 +142,9 @@ describe('API documentation', () => {
     const documented = Object.entries(paths)
       .filter(([path]) => path === base || path.startsWith(`${base}/`))
       .flatMap(([path, item]) =>
-        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+        Object.keys(item)
+          .filter((method) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
+          .map((method) => `${method} ${path.slice(base.length)}`),
       );
     assert.deepEqual(documented.sort(), expected.map((x) => x.join(' ')).sort());
     for (const [method, path] of expected) {
@@ -170,7 +174,9 @@ describe('API documentation', () => {
     const documented = Object.entries(paths)
       .filter(([path]) => path === base || path.startsWith(`${base}/`))
       .flatMap(([path, item]) =>
-        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+        Object.keys(item)
+          .filter((method) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
+          .map((method) => `${method} ${path.slice(base.length)}`),
       );
     assert.deepEqual(documented.sort(), expected.map((x) => x.join(' ')).sort());
     for (const [method, path] of expected) {
@@ -372,6 +378,35 @@ describe('API documentation', () => {
       assert.ok(operation.security?.length, `${path} security`);
       const csrf = (operation.parameters ?? []).some(
         (p) => p.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+  });
+
+  it('documents every personal-status route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/hr/personnel-record-changes';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/employees'],
+      ['get', '/lookups/positions'],
+      ['get', '/lookups/employees/{empNo}'],
+      ['get', '/{headerId}'],
+      ['put', '/{headerId}'],
+      ['delete', '/{headerId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((entry) => entry.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${path} security`);
+      const csrf = (operation.parameters ?? []).some(
+        (parameter) => parameter.$ref === '#/components/parameters/CsrfToken',
       );
       assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
     }

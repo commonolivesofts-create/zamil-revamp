@@ -36,6 +36,9 @@ import { createDiskStorage } from '../modules/hr/requisitions/requisition.storag
 import { createUsersRouter } from '../modules/users/users.routes.js';
 import { createUsersService } from '../modules/users/users.service.js';
 
+import { createPersonalStatusRoutes } from '../modules/hr/personal-status/personalStatusChange.routes.js';
+import { createPersonalStatusRepository } from '../modules/hr/personal-status/personalStatusChange.repository.js';
+import { createPersonalStatusService } from '../modules/hr/personal-status/personalStatusChange.service.js';
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
  * connection/transaction helpers; production uses the shared Oracle LOW pool.
@@ -174,6 +177,15 @@ export function createApiRouter(appConfig, deps = {}) {
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
   });
+  const personalStatusRepository =
+    deps.personalStatusRepository ?? createPersonalStatusRepository();
+  const personalStatusService =
+    deps.personalStatusService ??
+    createPersonalStatusService({
+      repository: personalStatusRepository,
+      withConnection: db.withConnection,
+      withTransaction: db.withTransaction,
+    });
 
   const transferRequestService = createTransferRequestService({
     repository: deps.transferRequestRepository,
@@ -282,6 +294,16 @@ export function createApiRouter(appConfig, deps = {}) {
       performanceAppraisalService,
       authorize,
       authenticate,
+      auditService,
+    }),
+  );
+  // Personal Status Change Form
+  router.use(
+    '/hr/personnel-record-changes',
+    createPersonalStatusRoutes({
+      personalStatusService,
+      authenticate,
+      authorize,
       auditService,
     }),
   );
