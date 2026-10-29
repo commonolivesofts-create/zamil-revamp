@@ -65,6 +65,11 @@ tags:
       XX_REQ_WF_REC) is read or written. ticketStatus (ATTRIBUTE1) may only be set
       by HR users (server-side XXZP_HR probe); Inprocess/Approved merely gate
       non-HR updates, and only Draft requests can be deleted.
+  - name: HR Personnel Record Changes
+    description: >-
+      CRUD, filtered listing and employee/position lookups for the Personal Status Change Form.
+      Requires HR.PERSONNEL_RECORD_CHANGES:VIEW / CREATE / UPDATE / DELETE. STATUS is set to
+      DRAFT on creation and is not client writable. This API does not implement workflow actions.
   - name: Authentication Recovery
     description: >-
       Password setup, reset and change and MFA recovery with single-use hashed
@@ -5011,6 +5016,700 @@ paths:
                   requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/hr/personnel-record-changes:
+    get:
+      operationId: listPersonnelRecordChanges
+      tags: [HR Personnel Record Changes]
+      summary: List personnel record changes with optional filters and pagination
+      description: >-
+        Requires HR.PERSONNEL_RECORD_CHANGES:VIEW. Every authorized user sees all requests;
+        visibility is not scoped by creator.
+        Pagination metadata is included inside data.meta and total is a database count.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: search,
+            in: query,
+            schema: { type: string },
+            description: 'Case-insensitive search across employee number, employee name and reference number.',
+          }
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] },
+          }
+        - { name: section, in: query, schema: { type: string } }
+        - { name: department, in: query, schema: { type: string } }
+        - {
+            name: position,
+            in: query,
+            schema: { type: string },
+            description: Matches NEW_POSITION.,
+          }
+        - {
+            name: requestor,
+            in: query,
+            schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' },
+            description: Matches CREATED_BY.,
+          }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          }
+        - {
+            name: sort,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum: [headerId, empNo, empName, formDate, status, oldTotal, newTotal],
+                default: headerId,
+              },
+          }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Filtered page and total count.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    required: [meta, rows]
+                    properties:
+                      meta:
+                        type: object
+                        properties:
+                          page: { type: integer }
+                          pageSize: { type: integer }
+                          total: { type: integer }
+                          sort: { type: string }
+                          order: { type: string, enum: [asc, desc] }
+                      rows:
+                        {
+                          type: array,
+                          items: { $ref: '#/components/schemas/PersonnelRecordChangeListItem' },
+                        }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createPersonnelRecordChange
+      tags: [HR Personnel Record Changes]
+      summary: Create a personnel record change
+      description: >-
+        Requires HR.PERSONNEL_RECORD_CHANGES:CREATE. HEADER_ID, REF_NO, STATUS, USER_ID,
+        signatures and creation audit values are server-owned. STATUS starts as DRAFT and
+        NEW_TOTAL is computed from the six revised allowances.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PersonnelRecordChangeWrite' }
+      responses:
+        '201':
+          description: Created personnel record change.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/PersonnelRecordChange' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/personnel-record-changes/lookups/employees:
+    get:
+      operationId: listPersonnelRecordChangeEmployees
+      tags: [HR Personnel Record Changes]
+      summary: List employee numbers for the form
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Distinct employee numbers ordered ascending. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/personnel-record-changes/lookups/positions:
+    get:
+      operationId: listPersonnelRecordChangePositions
+      tags: [HR Personnel Record Changes]
+      summary: List revised position names
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Distinct position names ordered ascending. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/personnel-record-changes/lookups/employees/{empNo}:
+    get:
+      operationId: getPersonnelRecordChangeEmployeeDetails
+      tags: [HR Personnel Record Changes]
+      summary: Get current employee details and previous-request values for form auto-fill
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: empNo
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+      responses:
+        '200':
+          {
+            description: Employee auto-fill data from the current employee master or latest request.,
+          }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/hr/personnel-record-changes/{headerId}:
+    get:
+      operationId: getPersonnelRecordChange
+      tags: [HR Personnel Record Changes]
+      summary: Read one personnel record change
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+      responses:
+        '200':
+          description: Full record, including old/new compensation and signature data.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/PersonnelRecordChange' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updatePersonnelRecordChange
+      tags: [HR Personnel Record Changes]
+      summary: Update editable personnel record change fields
+      description: STATUS, REF_NO, HEADER_ID and creation audit fields are never updated.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PersonnelRecordChangeWrite' }
+      responses:
+        '200': { description: Updated record. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deletePersonnelRecordChange
+      tags: [HR Personnel Record Changes]
+      summary: Permanently delete a personnel record change
+      description: Allows deletion regardless of request status; only a missing record returns 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200': { description: Record deleted. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/hr/transfer-requests:
+    get:
+      operationId: listTransferRequests
+      tags: [HR Transfer Requests]
+      summary: List transfer requests with filters and HR visibility scope
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - {
+            name: plant,
+            in: query,
+            schema: { type: string, enum: [Zamil Plastic Non-Food, Zamil Plastic Food] },
+          }
+        - { name: transferDept, in: query, schema: { type: string } }
+        - { name: currentDept, in: query, schema: { type: string } }
+        - { name: jobTitle, in: query, schema: { type: string } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          }
+        - {
+            name: sort,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum: [headerId, requestedBy, empName, currentJob, transferJob, status, mgrDate],
+                default: headerId,
+              },
+          }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Paginated rows and total count.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    properties:
+                      meta: { type: object }
+                      rows: { type: array, items: { type: object } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createTransferRequest
+      tags: [HR Transfer Requests]
+      summary: Create a transfer request in Draft status
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          { application/json: { schema: { $ref: '#/components/schemas/TransferRequestInput' } } }
+      responses:
+        '201':
+          {
+            description: Created request,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/transfer-requests/lookups/employees:
+    get:
+      operationId: listTransferRequestEmployees
+      tags: [HR Transfer Requests]
+      summary: List employee names for the transfer form
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          {
+            description: Employee names,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/transfer-requests/lookups/employees/{name}:
+    get:
+      operationId: getTransferRequestEmployeeDetails
+      tags: [HR Transfer Requests]
+      summary: Resolve a current employee name to current form fields
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: name, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          {
+            description: Employee details,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/hr/transfer-requests/lookups/jobs:
+    get:
+      operationId: listTransferRequestJobs
+      tags: [HR Transfer Requests]
+      summary: List job titles
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          {
+            description: Job titles,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/transfer-requests/lookups/sections:
+    get:
+      operationId: listTransferRequestSections
+      tags: [HR Transfer Requests]
+      summary: List organization sections
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          {
+            description: Sections,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/transfer-requests/lookups/departments:
+    get:
+      operationId: listTransferRequestDepartments
+      tags: [HR Transfer Requests]
+      summary: List supported transfer departments
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          {
+            description: Departments,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/transfer-requests/lookups/directors:
+    get:
+      operationId: listTransferRequestDirectors
+      tags: [HR Transfer Requests]
+      summary: List director superiors
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          {
+            description: Director names and employee numbers,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/transfer-requests/lookups/blood-types:
+    get:
+      operationId: listTransferRequestBloodTypes
+      tags: [HR Transfer Requests]
+      summary: List blood type lookup values
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          {
+            description: Blood type values,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/transfer-requests/lookups/requestor:
+    get:
+      operationId: getTransferRequestRequestor
+      tags: [HR Transfer Requests]
+      summary: Get the authenticated requestor details
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          {
+            description: Requestor details,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/transfer-requests/{headerId}:
+    get:
+      operationId: getTransferRequest
+      tags: [HR Transfer Requests]
+      summary: Read a complete transfer request
+      security: [{ sessionCookie: [] }]
+      parameters:
+        [{ name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }]
+      responses:
+        '200':
+          {
+            description: Transfer request,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateTransferRequest
+      tags: [HR Transfer Requests]
+      summary: Update an editable transfer request
+      security: [{ sessionCookie: [] }]
+      parameters:
+        [
+          { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } },
+          { $ref: '#/components/parameters/CsrfToken' },
+        ]
+      requestBody:
+        {
+          required: true,
+          content:
+            { application/json: { schema: { $ref: '#/components/schemas/TransferRequestInput' } } },
+        }
+      responses:
+        '200':
+          {
+            description: Updated request,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteTransferRequest
+      tags: [HR Transfer Requests]
+      summary: Delete a Draft or Rejected transfer request
+      security: [{ sessionCookie: [] }]
+      parameters:
+        [
+          { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } },
+          { $ref: '#/components/parameters/CsrfToken' },
+        ]
+      responses:
+        '200':
+          {
+            description: Deleted request,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/TransferRequestResponse' } },
+              },
+          }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/hr/performance-appraisals:
+    get:
+      operationId: listPerformanceAppraisals
+      tags: [HR Performance Appraisals]
+      summary: List appraisals with filters and HR visibility scope
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: year, in: query, schema: { type: integer } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: grade, in: query, schema: { type: string, enum: [A, B, C, D, E] } }
+        - { name: department, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          }
+        - {
+            name: sort,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum: [headerId, empName, empNumber, jobTitle, grade, rating, year, creationDate],
+              },
+          }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200': { description: Appraisals and pagination metadata }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createPerformanceAppraisal
+      tags: [HR Performance Appraisals]
+      summary: Create an appraisal and its rating, development, and training lines
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses:
+        '201': { description: Created appraisal }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '409': { description: Duplicate appraisal for employee and year }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/performance-appraisals/lookups/employees:
+    get:
+      operationId: listPerformanceAppraisalEmployees
+      tags: [HR Performance Appraisals]
+      summary: List eligible subordinates without a non-rejected appraisal for the year
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: year, in: query, schema: { type: integer } }]
+      responses:
+        '200': { description: Eligible employees }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/performance-appraisals/lookups/employees/{name}:
+    get:
+      operationId: getPerformanceAppraisalEmployee
+      tags: [HR Performance Appraisals]
+      summary: Resolve eligible employee form fields and reject duplicate appraisals
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: name, in: path, required: true, schema: { type: string } }
+        - { name: year, in: query, schema: { type: integer } }
+      responses:
+        '200': { description: Employee form fields }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Employee already rated for the selected year }
+  /api/v1/hr/performance-appraisals/lookups/grade-stats:
+    get:
+      operationId: getPerformanceAppraisalGradeStats
+      tags: [HR Performance Appraisals]
+      summary: Get display quota targets and allocated grade counts
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Grade quota data }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/performance-appraisals/lookups/requestor:
+    get:
+      operationId: getPerformanceAppraisalRequestor
+      tags: [HR Performance Appraisals]
+      summary: Get the authenticated appraiser's master data
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Requestor details }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/performance-appraisals/{headerId}:
+    get:
+      operationId: getPerformanceAppraisal
+      tags: [HR Performance Appraisals]
+      summary: Read appraisal header and line arrays
+      security: [{ sessionCookie: [] }]
+      parameters:
+        [{ name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }]
+      responses:
+        '200': { description: Appraisal detail }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updatePerformanceAppraisal
+      tags: [HR Performance Appraisals]
+      summary: Update appraiser-owned fields unless appraisal is Inprocess
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses:
+        '200': { description: Updated appraisal }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Appraisal status is Inprocess }
+    delete:
+      operationId: deletePerformanceAppraisal
+      tags: [HR Performance Appraisals]
+      summary: Delete all appraisal lines and the header
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200': { description: Deleted appraisal }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/hr/performance-appraisals/{headerId}/employee-remarks:
+    put:
+      operationId: updatePerformanceAppraisalEmployeeRemarks
+      tags: [HR Performance Appraisals]
+      summary: Update only the appraised employee's remarks
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [remarks],
+                      properties: { remarks: { type: string } },
+                    },
+                },
+            },
+        }
+      responses:
+        '200': { description: Updated employee remarks }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
 components:
   securitySchemes:
     sessionCookie:
@@ -5125,6 +5824,144 @@ components:
       schema:
         type: string
   schemas:
+    PersonnelRecordChangeWrite:
+      type: object
+      required: [empNo, effectiveDate, new]
+      properties:
+        empNo: { type: [string, integer], pattern: '^[1-9][0-9]{0,18}$' }
+        formDate: { type: string, format: date }
+        arbDate: { type: [string, 'null'] }
+        effectiveDate: { type: string, format: date }
+        empName: { type: [string, 'null'] }
+        nationality: { type: [string, 'null'] }
+        section: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+        startDate: { type: [string, 'null'], format: date }
+        old: { $ref: '#/components/schemas/PersonnelRecordChangeSalary' }
+        new:
+          allOf:
+            - $ref: '#/components/schemas/PersonnelRecordChangeSalary'
+            - type: object
+              required:
+                [position, basicSal, houseAll, transAll, otherAll, communAll, carAll, maritalStatus]
+        remarks: { type: [string, 'null'], maxLength: 2000 }
+        views: { type: [string, 'null'], maxLength: 2000 }
+      additionalProperties: true
+    PersonnelRecordChangeSalary:
+      type: object
+      properties:
+        position: { type: [string, 'null'] }
+        basicSal: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        houseAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        transAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        otherAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        communAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        carAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
+        total:
+          {
+            type: [number, string, 'null'],
+            description: Ignored on writes and computed from the six revised allowances.,
+          }
+        maritalStatus: { type: [string, 'null'], enum: [S, M, null] }
+      additionalProperties: true
+    PersonnelRecordChange:
+      allOf:
+        - $ref: '#/components/schemas/PersonnelRecordChangeWrite'
+        - type: object
+          required: [headerId, refNo, status, createdBy, old, new, signatures]
+          properties:
+            headerId: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+            refNo: { type: string }
+            status: { type: [string, 'null'], readOnly: true }
+            createdBy: { type: [string, 'null'], readOnly: true }
+            createdAt: { type: [string, 'null'], format: date, readOnly: true }
+            updatedBy: { type: [string, 'null'], readOnly: true }
+            updatedAt: { type: [string, 'null'], format: date, readOnly: true }
+            signatures:
+              type: object
+              readOnly: true
+              properties:
+                hrAdmin: { type: [string, 'null'] }
+                hrAdminSign: { type: [string, 'null'], format: date }
+                vp: { type: [string, 'null'] }
+                vpSign: { type: [string, 'null'], format: date }
+                president: { type: [string, 'null'] }
+                presidentSign: { type: [string, 'null'], format: date }
+    PersonnelRecordChangeListItem:
+      type: object
+      required: [headerId, refNo, empNo, status]
+      properties:
+        headerId: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+        refNo: { type: string }
+        formDate: { type: [string, 'null'], format: date }
+        effectiveDate: { type: [string, 'null'], format: date }
+        empNo: { type: string }
+        empName: { type: [string, 'null'] }
+        position: { type: [string, 'null'] }
+        section: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+        oldTotal: { type: [number, 'null'] }
+        newTotal: { type: [number, 'null'] }
+        remarks: { type: [string, 'null'] }
+        status: { type: [string, 'null'] }
+        requestor: { type: [string, 'null'] }
+    TransferRequestInput:
+      type: object
+      required: [plant, current, transfer]
+      properties:
+        plant: { type: string, enum: [Zamil Plastic Non-Food, Zamil Plastic Food] }
+        requestedBy: { type: string, maxLength: 200 }
+        mgrDate: { type: [string, 'null'], format: date }
+        current:
+          type: object
+          properties:
+            empNo: { type: [string, integer] }
+            empName: { type: string }
+            dateOfJoining: { type: [string, 'null'], format: date }
+            jobTitle: { type: string }
+            dept: { type: string }
+            section: { type: string }
+        transfer:
+          type: object
+          required:
+            [
+              jobTitle,
+              dept,
+              section,
+              effectiveDate,
+              bloodType,
+              superiorNo,
+              changeSalary,
+              budgetedSalary,
+            ]
+          properties:
+            jobTitle: { type: string }
+            dept: { type: string }
+            section: { type: string }
+            effectiveDate: { type: string, format: date }
+            bloodType: { type: string }
+            superiorNo: { type: [string, integer] }
+            superiorName: { type: string }
+            changeSalary: { type: string, enum: [Yes, No] }
+            budgetedSalary: { type: string, enum: [Yes, No] }
+        itHr:
+          type: object
+          properties:
+            hrSignature: { type: [string, 'null'] }
+            hrDate: { type: [string, 'null'], format: date }
+            itSignature: { type: [string, 'null'] }
+            itDate: { type: [string, 'null'], format: date }
+            adminSignature:
+              {
+                type: [string, 'null'],
+                description: Shared existing ADMIN_SIGNATURE value; cannot be independently updated.,
+              }
+            adminDate: { type: [string, 'null'], format: date }
+    TransferRequestResponse:
+      type: object
+      properties:
+        success: { const: true }
+        data: {}
     ContractorEmployee:
       type: object
       additionalProperties: false

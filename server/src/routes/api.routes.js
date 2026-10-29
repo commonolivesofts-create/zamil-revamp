@@ -28,10 +28,17 @@ import { createContractorEmployeeRouter } from '../modules/hr/contractor-employe
 import { createContractorEmployeeService } from '../modules/hr/contractor-employees/contractorEmployee.service.js';
 import { createRequisitionRouter } from '../modules/hr/requisitions/requisition.routes.js';
 import { createRequisitionService } from '../modules/hr/requisitions/requisition.service.js';
+import { createTransferRequestRouter } from '../modules/hr/transfer-requests/transferRequest.routes.js';
+import { createTransferRequestService } from '../modules/hr/transfer-requests/transferRequest.service.js';
+import { createPerformanceAppraisalRouter } from '../modules/hr/performance-appraisals/performanceAppraisal.routes.js';
+import { createPerformanceAppraisalService } from '../modules/hr/performance-appraisals/performanceAppraisal.service.js';
 import { createDiskStorage } from '../modules/hr/requisitions/requisition.storage.js';
 import { createUsersRouter } from '../modules/users/users.routes.js';
 import { createUsersService } from '../modules/users/users.service.js';
 
+import { createPersonalStatusRoutes } from '../modules/hr/personal-status/personalStatusChange.routes.js';
+import { createPersonalStatusRepository } from '../modules/hr/personal-status/personalStatusChange.repository.js';
+import { createPersonalStatusService } from '../modules/hr/personal-status/personalStatusChange.service.js';
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
  * connection/transaction helpers; production uses the shared Oracle LOW pool.
@@ -170,6 +177,27 @@ export function createApiRouter(appConfig, deps = {}) {
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
   });
+  const personalStatusRepository =
+    deps.personalStatusRepository ?? createPersonalStatusRepository();
+  const personalStatusService =
+    deps.personalStatusService ??
+    createPersonalStatusService({
+      repository: personalStatusRepository,
+      withConnection: db.withConnection,
+      withTransaction: db.withTransaction,
+    });
+
+  const transferRequestService = createTransferRequestService({
+    repository: deps.transferRequestRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
+  const performanceAppraisalService = createPerformanceAppraisalService({
+    repository: deps.performanceAppraisalRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
 
   const router = Router();
   router.use(createOriginCheck({ allowedOrigins: appConfig.auth.allowedOrigins }));
@@ -251,6 +279,31 @@ export function createApiRouter(appConfig, deps = {}) {
       requisitionService,
       authorize,
       authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/transfer-requests',
+    createTransferRequestRouter({ transferRequestService, authorize, authenticate, auditService }),
+  );
+
+  router.use(
+    '/hr/performance-appraisals',
+    createPerformanceAppraisalRouter({
+      performanceAppraisalService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+  // Personal Status Change Form
+  router.use(
+    '/hr/personnel-record-changes',
+    createPersonalStatusRoutes({
+      personalStatusService,
+      authenticate,
+      authorize,
       auditService,
     }),
   );
