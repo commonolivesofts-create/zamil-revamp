@@ -590,9 +590,10 @@ test('HR visibility switch: true, false, unset in development and unset in produ
     assert.deepEqual(resolveNavigationEntries(registry.entries, env).filter((route) => HR_SWITCHED_IDS.includes(route.id)).map((route) => route.implemented), HR_SWITCHED_IDS.map(() => visible), label)
   }
   assert.equal(isFeatureEnabled(undefined, {}), true, 'entries without a switch are unaffected')
-  const switched = registry.entries.filter((entry) => entry.enabledBy).map((entry) => entry.id)
+  const switched = registry.entries.filter((entry) => entry.enabledBy?.env === SWITCH).map((entry) => entry.id)
   assert.deepEqual(switched, HR_SWITCHED_IDS, 'HR workflow pages use the shared feature switch')
-  assert.ok(registry.entries.filter((entry) => entry.enabledBy).every((entry) => entry.enabledBy.env === SWITCH))
+  // The only other switch is the employee services one (hrEmployeeServices.test.mjs).
+  assert.ok(registry.entries.filter((entry) => entry.enabledBy).every((entry) => [SWITCH, 'VITE_FEATURE_HR_EMPLOYEE_SERVICES'].includes(entry.enabledBy.env)))
   // The data source is a separate switch.
   assert.equal(resolveDemoMode({ [SWITCH]: 'true', DEV: false }), false, 'visible pages can use the real API')
 })

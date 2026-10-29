@@ -33,6 +33,8 @@ import {
   OrientationPage,
   ProbationPage,
   EmployeeReportPage,
+  RecordChangePage,
+  RecordChangeRequestsPage,
   DeniedPage,
   NotFoundPage,
   RouterShell,
@@ -122,6 +124,9 @@ export const router = createBrowserRouter([
                   { path: 'hr/recruitment/probation-evaluation', handle: { routeId: 'hr-probation' }, element: <ProbationPage /> },
                   { path: 'hr/recruitment/probation-evaluation/:evaluationId', handle: { routeId: 'hr-probation-record' }, element: <ProbationPage /> },
                   { path: 'hr/reports/periodwise-employees', handle: { routeId: 'hr-employee-report' }, element: <EmployeeReportPage /> },
+                  { path: 'hr/employee-services/record-change', handle: { routeId: 'hr-record-change' }, element: <RecordChangePage /> },
+                  { path: 'hr/employee-services/record-change/requests', handle: { routeId: 'hr-record-change-requests' }, element: <RecordChangeRequestsPage /> },
+                  { path: 'hr/employee-services/record-change/:requestId', handle: { routeId: 'hr-record-change-record' }, element: <RecordChangePage /> },
                 ]),
               },
               {

@@ -130,7 +130,9 @@ test('the development and preview servers use port 5199 with the same-origin /ap
 test('the sample environment documents only real, public settings', async () => {
   const example = await read('../.env.example')
   const variables = [...example.matchAll(/^([A-Z_]+)=/gm)].map((match) => match[1])
-  assert.deepEqual(variables, ['VITE_APP_NAME', 'VITE_API_BASE_URL', 'VITE_AUTH_DEV_PREVIEW'])
+  assert.deepEqual(variables, ['VITE_APP_NAME', 'VITE_API_BASE_URL', 'VITE_AUTH_DEV_PREVIEW', 'VITE_HR_EMPLOYEE_SERVICES_DEMO'])
+  // Empty (unset): demo data in development builds only; the employee services backend does not exist yet.
+  assert.match(example, /^VITE_HR_EMPLOYEE_SERVICES_DEMO=$/m)
   assert.match(example, /VITE_AUTH_DEV_PREVIEW=false/)
   assert.match(example, /http:\/\/localhost:5199/)
   assert.match(example, /AUTH_FRONTEND_BASE_URL=http:\/\/localhost:5199/)
