@@ -28,6 +28,10 @@ import { createContractorEmployeeRouter } from '../modules/hr/contractor-employe
 import { createContractorEmployeeService } from '../modules/hr/contractor-employees/contractorEmployee.service.js';
 import { createRequisitionRouter } from '../modules/hr/requisitions/requisition.routes.js';
 import { createRequisitionService } from '../modules/hr/requisitions/requisition.service.js';
+import { createTransferRequestRouter } from '../modules/hr/transfer-requests/transferRequest.routes.js';
+import { createTransferRequestService } from '../modules/hr/transfer-requests/transferRequest.service.js';
+import { createPerformanceAppraisalRouter } from '../modules/hr/performance-appraisals/performanceAppraisal.routes.js';
+import { createPerformanceAppraisalService } from '../modules/hr/performance-appraisals/performanceAppraisal.service.js';
 import { createDiskStorage } from '../modules/hr/requisitions/requisition.storage.js';
 import { createUsersRouter } from '../modules/users/users.routes.js';
 import { createUsersService } from '../modules/users/users.service.js';
@@ -171,6 +175,18 @@ export function createApiRouter(appConfig, deps = {}) {
     withTransaction: db.withTransaction,
   });
 
+  const transferRequestService = createTransferRequestService({
+    repository: deps.transferRequestRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
+  const performanceAppraisalService = createPerformanceAppraisalService({
+    repository: deps.performanceAppraisalRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
   const router = Router();
   router.use(createOriginCheck({ allowedOrigins: appConfig.auth.allowedOrigins }));
   router.use(
@@ -249,6 +265,21 @@ export function createApiRouter(appConfig, deps = {}) {
     '/hr/requisitions',
     createRequisitionRouter({
       requisitionService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/transfer-requests',
+    createTransferRequestRouter({ transferRequestService, authorize, authenticate, auditService }),
+  );
+
+  router.use(
+    '/hr/performance-appraisals',
+    createPerformanceAppraisalRouter({
+      performanceAppraisalService,
       authorize,
       authenticate,
       auditService,
