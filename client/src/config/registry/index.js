@@ -12,6 +12,7 @@ import requisitionsModule from './modules/requisitions.module.js'
 import interviewAssessmentsModule from './modules/interviewAssessments.module.js'
 import employmentOffersModule from './modules/employmentOffers.module.js'
 import hrFormsModule from './modules/hrForms.module.js'
+import hrEmployeeServicesModule from './modules/hrEmployeeServices.module.js'
 
 export const registeredModules = Object.freeze([
   commonModule,
@@ -20,6 +21,7 @@ export const registeredModules = Object.freeze([
   interviewAssessmentsModule,
   employmentOffersModule,
   hrFormsModule,
+  hrEmployeeServicesModule,
 ])
 
 // Validated once at import; any definition error throws here.

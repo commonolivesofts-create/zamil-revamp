@@ -38,6 +38,13 @@ export const OfferPage = lazy(() => import('@/features/hr-recruitment/offer/Offe
 export const OrientationPage = lazy(() => import('@/features/hr-recruitment/orientation/OrientationPage.jsx'))
 export const ProbationPage = lazy(() => import('@/features/hr-recruitment/probation/ProbationPage.jsx'))
 export const EmployeeReportPage = lazy(() => import('@/features/hr-recruitment/report/EmployeeReportPage.jsx'))
+
+// HR employee services.
+export const RecordChangePage = lazy(() => import('@/features/hr-employee-services/recordChange/RecordChangePage.jsx'))
+export const RecordChangeRequestsPage = lazy(() => import('@/features/hr-employee-services/recordChange/RecordChangeRequestsPage.jsx'))
+export const TransferPage = lazy(() => import('@/features/hr-employee-services/transfer/TransferPage.jsx'))
+export const TransferReportPage = lazy(() => import('@/features/hr-employee-services/transfer/TransferReportPage.jsx'))
+export const AppraisalPage = lazy(() => import('@/features/hr-employee-services/performance/AppraisalPage.jsx'))
 export const DeniedPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessDeniedPage })))
 export const AccessPendingPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessPendingPage })))
 export const AccessUnavailablePage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessUnavailablePage })))

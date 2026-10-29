@@ -42,3 +42,15 @@ export function initials(name, fallback = '?') {
 }
 
 export const formatAmount = (value) => Number(value || 0).toLocaleString('en-US')
+
+// Page titles animate per character but wrap only between words: each word is
+// one unbreakable group. `start` is the animation index of the word's first
+// character (the spaces between words count, so the stagger is unchanged).
+export function titleWords(title) {
+  let start = 0
+  return String(title ?? '').split(' ').map((text) => {
+    const word = { text, start }
+    start += text.length + 1
+    return word
+  })
+}
