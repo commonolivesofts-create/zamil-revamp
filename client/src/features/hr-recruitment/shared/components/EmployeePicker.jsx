@@ -7,15 +7,17 @@ import { useSettled } from '../useSettled.js'
 
 // Searchable employee picker (ARIA combobox with a listbox). Arrow keys move
 // through the options, Enter picks, Escape closes; results come from the
-// employee search service as the user types.
-export function EmployeePicker({ id, label, required = false, value, onPick, error, describedBy, searchService }) {
+// employee search service as the user types. `tight` is the denser variant
+// (no avatar, list under the input); `cacheKey` separates the cached results
+// of search services that return different employee shapes.
+export function EmployeePicker({ id, label, required = false, value, onPick, error, describedBy, searchService, tight = false, cacheKey = 'hr-employees' }) {
   const listId = useId()
   const statusId = useId()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const search = useSettled(query.trim(), 250)
-  const results = useResource(open ? `hr-employees:${search.toLowerCase()}` : null,
+  const results = useResource(open ? `${cacheKey}:${search.toLowerCase()}` : null,
     (signal) => searchService ? searchService(search, { signal }) : hrRecruitmentServices.employees.search(search, { signal }))
   const matches = results.status === 'ready' ? results.data.items : []
   const status = !open ? '' : results.status === 'loading' ? PICKER_TEXT.searching
@@ -34,10 +36,10 @@ export function EmployeePicker({ id, label, required = false, value, onPick, err
   }
 
   return (
-    <div className={`zrv-hr-combo${error ? ' zrv-hr-is-bad' : ''}`}>
+    <div className={`zrv-hr-combo${tight ? ' zrv-hr-combo--tight' : ''}${error ? ' zrv-hr-is-bad' : ''}`}>
       <label htmlFor={id}>{label}{required && <i className="zrv-hr-req" aria-hidden="true">*</i>}</label>
       <div className="zrv-hr-combo__in">
-        <span className="zrv-hr-combo__av" aria-hidden="true">{initials(value?.name)}</span>
+        {!tight && <span className="zrv-hr-combo__av" aria-hidden="true">{initials(value?.name)}</span>}
         <input id={id} role="combobox" className="ux-input zrv-hr-input" autoComplete="off" placeholder={PICKER_TEXT.placeholder}
           aria-expanded={open} aria-controls={listId} aria-autocomplete="list" aria-required={required || undefined}
           aria-activedescendant={open && matches[active] ? `${listId}-${matches[active].employeeId}` : undefined}

@@ -240,7 +240,8 @@ test('orientation page: flow step 4 keeps the styled editor and uses backend emp
   assert.match(page, /service\.save\(editor\.recordId, payload\)/)
   assert.match(page, /readOnly value=\{toDate \? enDate\(toDate\) : ''\}/, 'To is derived from line dates')
   const loader = await read(`${FEATURE}shared/components/RecruitmentLoader.jsx`)
-  assert.match(loader, /useEffect\(\(\) => identifyDemoUser\(user\?\.fullName\), \[user\?\.fullName\]\)/)
+  assert.match(loader, /identify = identifyDemoUser,/)
+  assert.match(loader, /useEffect\(\(\) => identify\(user\?\.fullName\), \[identify, user\?\.fullName\]\)/)
 })
 
 test('fictional demo data: every demo person follows the "Sample …" pattern; no real-looking names', async () => {
