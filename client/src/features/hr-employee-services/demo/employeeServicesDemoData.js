@@ -1,6 +1,6 @@
-// DEMO DATA ONLY (owner-approved for the HR employee services until their
-// backend exists). Every person is fictional ("Sample Employee 001"); codes and
-// amounts are illustrative. Delete this folder when the real API exists.
+// DEMO DATA ONLY for Transfer Request and Performance Appraisal while their
+// backends are pending. Every person is fictional ("Sample Employee 001");
+// codes and amounts are illustrative. Delete this folder when the APIs exist.
 
 const slug = (name) => name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '')
 const options = (names) => names.map((name) => ({ code: slug(name), name }))

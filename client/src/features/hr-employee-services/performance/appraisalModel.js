@@ -4,7 +4,7 @@
 // configurable; the defaults below are the values of the form.
 import { isIsoDate } from '../../hr-recruitment/shared/hrFormat.js'
 
-export const APPRAISAL_STATUSES = Object.freeze(['DRAFT', 'SUBMITTED'])
+export const APPRAISAL_STATUSES = Object.freeze(['DRAFT', 'SUBMITTED', 'INPROCESS'])
 export const GRADES = Object.freeze(['A', 'B', 'C', 'D', 'E'])
 export const RATINGS = Object.freeze([1, 2, 3, 4, 5])
 export const CRITERIA_COUNT = 20
@@ -26,7 +26,7 @@ export const DEFAULT_SCALE = Object.freeze([
 ])
 export const DEFAULT_DISTRIBUTION = Object.freeze({ A: 15, B: 30, C: 40, D: 10, E: 5 })
 
-export const isAppraisalLocked = (status) => status === 'SUBMITTED'
+export const isAppraisalLocked = (status) => status === 'SUBMITTED' || status === 'INPROCESS'
 
 // The band of an average: the first (highest) band whose minimum it reaches.
 export function scaleFor(average, scale = DEFAULT_SCALE) {
@@ -89,19 +89,21 @@ export const blankAppraisal = (periodCode) => ({
 })
 
 // The grade, quotas and allocation of the form as it stands.
-export function appraisalResult(form, criteria, team, scale, distribution) {
+export function appraisalResult(form, criteria, team, scale, distribution, gradeStats = null) {
   const average = averageRating(form.ratings, criteria)
   const complete = ratedCount(form.ratings, criteria) === criteria.length
   const band = average === null ? null : scaleFor(average, scale)
-  const quotas = gradeQuotas(team.length, distribution)
-  const allocation = gradeAllocation(team, form.employeeId, complete ? band.grade : null)
+  const quotas = gradeStats?.target ?? gradeQuotas(team.length, distribution)
+  const allocation = gradeStats?.allocated
+    ? Object.fromEntries(GRADES.map((grade) => [grade, (gradeStats.allocated[grade] ?? 0) + (complete && band.grade === grade ? 1 : 0)]))
+    : gradeAllocation(team, form.employeeId, complete ? band.grade : null)
   return { average, complete, band, quotas, allocation, overQuota: complete && isOverQuota(band.grade, allocation, quotas) }
 }
 
 // Problems as { field, code, step } in step order (0 employee, 1 criteria,
 // 2 result and development, 3 meeting). A draft needs the employee and texts
 // within their limits; `submit` adds every rule of a submission.
-export function validateAppraisal(form, { criteria, team, scale, distribution }, { submit }) {
+export function validateAppraisal(form, { criteria, team, scale, distribution }, { submit, appraiserSignature = true }) {
   const problems = []
   const add = (field, code, step) => problems.push({ field, code, step })
   if (!team.some((member) => member.employeeId === form.employeeId)) add('employeeId', 'required', 0)
@@ -118,7 +120,7 @@ export function validateAppraisal(form, { criteria, team, scale, distribution },
   if (form.employeeRemarks.length > TEXT_MAX) add('employeeRemarks', 'tooLong', 3)
   if (form.appraiserRemarks.length > TEXT_MAX) add('appraiserRemarks', 'tooLong', 3)
   else if (submit && appraisalResult(form, criteria, team, scale, distribution).overQuota && !form.appraiserRemarks.trim()) add('appraiserRemarks', 'overQuota', 3)
-  if (submit && !form.signatures.appraiser) add('appraiser', 'required', 3)
+  if (submit && appraiserSignature && !form.signatures.appraiser) add('appraiser', 'required', 3)
   return problems
 }
 

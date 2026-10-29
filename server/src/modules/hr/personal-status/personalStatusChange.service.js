@@ -94,19 +94,30 @@ const mapList = (row) => ({
   requestor: row.REQUESTOR,
 });
 
-const oldFromMaster = (master) => ({
-  position: master.JOB_NAME,
-  basicSal: master.BASIC_SALARY,
-  houseAll: master.HOUSING_ALLOWANCE,
-  transAll: master.TRANSPORTATION_ALLOWANCE,
-  otherAll: master.OTHER_ALLOWANCE,
-  communAll: master.COMMUNICATION_ALLOWANCE,
-  carAll: master.CAR_ALLOWANCE,
-  total: master.TOTAL_SALARY,
-  maritalStatus: master.MARITAL_STATUS,
-  grade: null,
-  level: null,
-});
+const oldFromMaster = (master) => {
+  const allowances = [
+    master.BASIC_SALARY,
+    master.HOUSING_ALLOWANCE,
+    master.TRANSPORTATION_ALLOWANCE,
+    master.OTHER_ALLOWANCE,
+    master.COMMUNICATION_ALLOWANCE,
+    master.CAR_ALLOWANCE,
+  ];
+
+  return {
+    position: master.JOB_NAME,
+    basicSal: master.BASIC_SALARY,
+    houseAll: master.HOUSING_ALLOWANCE,
+    transAll: master.TRANSPORTATION_ALLOWANCE,
+    otherAll: master.OTHER_ALLOWANCE,
+    communAll: master.COMMUNICATION_ALLOWANCE,
+    carAll: master.CAR_ALLOWANCE,
+    total: allowances.reduce((sum, amount) => sum + Math.round(Number(amount ?? 0) * 100), 0) / 100,
+    maritalStatus: master.MARITAL_STATUS,
+    grade: null,
+    level: null,
+  };
+};
 
 const toPrefill = (source, empNo, old, branch) => ({
   branch,

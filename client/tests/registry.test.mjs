@@ -47,7 +47,10 @@ const INTERVIEW = 'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS'
 const OFFER = 'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS'
 const PROBATION = 'HR.PROBATION_EVALUATIONS'
 const CONTRACTOR_EMPLOYEES = 'HR.CONTRACTOR_EMPLOYEES'
+const PERSONNEL_RECORD_CHANGES = 'HR.PERSONNEL_RECORD_CHANGES'
+const TRANSFER_REQUESTS = 'HR.TRANSFER_REQUESTS'
 const HR_SWITCH = { env: 'VITE_FEATURE_HR_RECRUITMENT' }
+const ES_SWITCH = { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' }
 const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-requisition', path: '/hr/recruitment/requisition', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true },
   { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true, nav: false },
@@ -60,18 +63,15 @@ const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, permission: `${PROBATION}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
   { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, permission: `${PROBATION}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH, nav: false },
   { id: 'hr-employee-report', path: '/hr/reports/periodwise-employees', label: 'Employee report', icon: 'users', section: HR, permission: `${CONTRACTOR_EMPLOYEES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-record-change', path: '/hr/employee-services/record-change', label: 'Personal status change', icon: 'user-pen', section: HR, permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', label: 'Personal status report', icon: 'layers', section: HR, permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', label: 'Personal status change', icon: 'user-pen', section: HR, permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-transfer', path: '/hr/employee-services/transfer', label: 'Transfer request', icon: 'arrow-left-right', section: HR, permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', label: 'Transfer report', icon: 'chart-column', section: HR, permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', label: 'Transfer request', icon: 'arrow-left-right', section: HR, permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
 ]
-// HR employee services (session-only module HR_EMPLOYEE_SERVICES, owner-approved
-// demo data), switched by VITE_FEATURE_HR_EMPLOYEE_SERVICES; off here (unset
-// outside a development build).
-const ES_SWITCH = { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' }
+// Performance appraisal remains in the session-only HR_EMPLOYEE_SERVICES module.
 const HR_EMPLOYEE_SERVICES_ROUTES = [
-  { id: 'hr-record-change', path: '/hr/employee-services/record-change', label: 'Personnel record change', icon: 'user-pen', section: HR, implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', label: 'Change requests', icon: 'layers', section: HR, implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', label: 'Personnel record change', icon: 'user-pen', section: HR, implemented: false, enabledBy: ES_SWITCH, nav: false },
-  { id: 'hr-transfer', path: '/hr/employee-services/transfer', label: 'Transfer request', icon: 'arrow-left-right', section: HR, implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', label: 'Transfer report', icon: 'chart-column', section: HR, implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', label: 'Transfer request', icon: 'arrow-left-right', section: HR, implemented: false, enabledBy: ES_SWITCH, nav: false },
   { id: 'hr-appraisal', path: '/hr/performance/appraisal', label: 'Performance appraisal', icon: 'star', section: HR, implemented: false, enabledBy: ES_SWITCH },
   { id: 'hr-appraisal-record', path: '/hr/performance/appraisal/:appraisalId', label: 'Performance appraisal', icon: 'star', section: HR, implemented: false, enabledBy: ES_SWITCH, nav: false },
 ]

@@ -7,14 +7,14 @@ export const PAY_KEYS = Object.freeze(['basic', 'house', 'transport', 'other', '
 // Coded values of the record that are chosen from a lookup.
 export const CODE_KEYS = Object.freeze(['positionCode', 'gradeCode', 'levelCode', 'familyStatusCode'])
 export const RECORD_KEYS = Object.freeze(['positionCode', ...PAY_KEYS, 'gradeCode', 'levelCode', 'familyStatusCode'])
-export const RECORD_CHANGE_STATUSES = Object.freeze(['DRAFT', 'SUBMITTED', 'APPROVED'])
+export const RECORD_CHANGE_STATUSES = Object.freeze(['DRAFT', 'INPROCESS', 'SUBMITTED', 'APPROVED', 'REJECTED'])
 export const CHANGE_TYPES = Object.freeze(['POSITION', 'SALARY_INCREASE', 'SALARY_DECREASE', 'ALLOWANCE', 'GRADE_LEVEL', 'FAMILY_STATUS'])
 // Remarks and views & suggestions.
 export const TEXT_MAX = 2000
 // An amount: 0 or more with up to two decimals.
 export const AMOUNT = /^\d+(\.\d{1,2})?$/
 
-export const isRecordChangeLocked = (status) => status === 'SUBMITTED' || status === 'APPROVED'
+export const isRecordChangeLocked = (status) => ['INPROCESS', 'SUBMITTED', 'APPROVED'].includes(status)
 
 const toCents = (value) => Math.round(Number(value) * 100)
 const filled = (value) => value !== '' && value !== null && value !== undefined
@@ -84,12 +84,13 @@ export function validateRecordChange(form, employee, { submit }) {
   const problems = []
   const add = (field, code, step) => problems.push({ field, code, step })
   if (!employee) add('employee', 'required', 0)
-  if (!form.effectiveDate) { if (submit) add('effectiveDate', 'required', 0) }
+  if (!form.effectiveDate) add('effectiveDate', 'required', 0)
   else if (!isIsoDate(form.effectiveDate)) add('effectiveDate', 'invalid', 0)
   else if (employee && form.effectiveDate < employee.startDate) add('effectiveDate', 'beforeStart', 0)
   const revised = form.revised
   if (employee && revised) {
     if (!revised.positionCode) add('positionCode', 'required', 1)
+    if (!revised.familyStatusCode) add('familyStatusCode', 'required', 1)
     for (const key of PAY_KEYS) {
       if (!filled(revised[key])) add(key, 'required', 1)
       else if (!AMOUNT.test(String(revised[key]))) add(key, 'amount', 1)

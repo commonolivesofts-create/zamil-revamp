@@ -1,9 +1,9 @@
 // HR employee services (features/hr-employee-services): Personnel Record
 // Change (form 1110), Transfer Request (ZPI.TCN.FM.01) and the annual
 // Performance Appraisal. Business rules, response contracts, services over the
-// shared API client (mocked transport), the owner-approved in-memory demo
-// adapter, the visibility and data-source switches and static checks of the
-// JSX. No backend, Oracle or browser storage is used.
+// shared API client (mocked transport), the in-memory demo adapter used by
+// transfer/appraisal, the visibility and data-source switches and static
+// checks of the JSX. No backend, Oracle or browser storage is used.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
@@ -35,7 +35,7 @@ import {
   DEFAULT_DISTRIBUTION, DEFAULT_SCALE, appraisalPayload, appraisalResult, averageRating, blankAppraisal, filledLines, gradeAllocation, gradeQuotas, isOverQuota,
   missingExplanations, needsExplanation, ratedCount, scaleFor, validateAppraisal, yearsUntil,
 } from '../src/features/hr-employee-services/performance/appraisalModel.js'
-import { SESSION_TOKEN, forbidBrowserStorage, recordingFetch, success } from './helpers/http.mjs'
+import { SESSION_TOKEN, forbidBrowserStorage, noContent, recordingFetch, success } from './helpers/http.mjs'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 const FEATURE = '../src/features/hr-employee-services/'
@@ -96,14 +96,14 @@ test('record change: a lower total is a reminder, not a block', () => {
 test('record change: effective date is required to submit and never before the start date', () => {
   const form = (effectiveDate) => ({ ...blankRecordChange('2026-10-29'), effectiveDate, revised: { ...editable(current), basic: '7000' } })
   assert.deepEqual(codesOf(validateRecordChange(form(''), employee, { submit: true })), ['effectiveDate:required'])
-  assert.deepEqual(codesOf(validateRecordChange(form(''), employee, { submit: false })), [], 'a draft may leave it empty')
+  assert.deepEqual(codesOf(validateRecordChange(form(''), employee, { submit: false })), ['effectiveDate:required'], 'the API requires an effective date even for drafts')
   assert.deepEqual(codesOf(validateRecordChange(form('2019-03-09'), employee, { submit: false })), ['effectiveDate:beforeStart'])
   assert.deepEqual(codesOf(validateRecordChange(form('2019-03-10'), employee, { submit: true })), [], 'the start date itself is allowed')
   assert.deepEqual(codesOf(validateRecordChange(form('01/11/2026'), employee, { submit: true })), ['effectiveDate:invalid'])
 })
 
 test('record change: employee, position and the six pay items are required; submitting needs a change', () => {
-  assert.deepEqual(codesOf(validateRecordChange(blankRecordChange('2026-10-29'), null, { submit: false })), ['employee:required'])
+  assert.deepEqual(codesOf(validateRecordChange(blankRecordChange('2026-10-29'), null, { submit: false })), ['employee:required', 'effectiveDate:required'])
   const revised = { ...editable(current), positionCode: '', house: '', car: '1.234' }
   const problems = validateRecordChange({ ...blankRecordChange('2026-10-29'), effectiveDate: '2026-11-01', revised }, employee, { submit: true })
   assert.deepEqual(codesOf(problems), ['positionCode:required', 'house:required', 'car:amount', 'revised:noChange'])
@@ -115,7 +115,7 @@ test('record change: employee, position and the six pay items are required; subm
 
 test('record change: remarks and views allow 2000 characters each, with a live counter', () => {
   assert.equal(TEXT_MAX, 2000)
-  const form = (remarks, views) => ({ ...blankRecordChange('2026-10-29'), remarks, views, revised: editable(current) })
+  const form = (remarks, views) => ({ ...blankRecordChange('2026-10-29'), effectiveDate: '2026-11-01', remarks, views, revised: editable(current) })
   assert.deepEqual(codesOf(validateRecordChange(form('x'.repeat(2000), 'y'.repeat(2000)), employee, { submit: false })), [])
   const problems = validateRecordChange(form('x'.repeat(2001), 'y'.repeat(2001)), employee, { submit: false })
   assert.deepEqual(codesOf(problems), ['remarks:tooLong', 'views:tooLong'])
@@ -196,24 +196,76 @@ test('contracts: employee with current record and record change shapes are check
   assert.throws(() => readRecordChange(recordChangeResponse({ requestedBy: null })), /unexpected response/, 'the requester comes from the server')
 })
 
-test('services: record change requests use their paths, with CSRF on save and submit', async () => {
+test('personal status service uses its actual lookup, list and draft CRUD endpoints', async () => {
+  const position = { name: 'Operator' }
+  const old = { position: 'Operator', basicSal: 5000, houseAll: 1000, transAll: 500, otherAll: 0, communAll: 300, carAll: 200, maritalStatus: 'M' }
+  const revised = { ...old, position: 'Supervisor', basicSal: 5500 }
+  const apiRecord = {
+    headerId: '7', refNo: '0007-Production', formDate: '2026-10-29', effectiveDate: '2026-11-01', empNo: '2558', empName: 'Employee Example',
+    nationality: 'Saudi', section: 'Production', department: 'Injection', startDate: '2019-03-17', old, new: revised,
+    remarks: 'Review', views: 'Notes', status: 'DRAFT', signatures: {}, createdAt: '2026-10-29', updatedAt: '2026-10-29',
+  }
+  const autoFill = { branch: 'employeeMaster', empNo: '2558', empName: 'Employee Example', nationality: 'Saudi', section: 'Production',
+    department: 'Injection', startDate: '2019-03-17', old, new: { position: old.position, maritalStatus: 'M' } }
   const { fetchImpl, calls } = recordingFetch((url, init) => {
-    if (url.startsWith('/api/v1/hr/employee-services/employees?')) return success([employee], 200, { pagination: { page: 1, limit: 10, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false } })
-    if (url === '/api/v1/hr/employee-services/record-change-requests' && init.method === 'POST') return success(recordChangeResponse(), 201)
-    if (url === '/api/v1/hr/employee-services/record-change-requests/7' && init.method === 'PUT') return success(recordChangeResponse())
-    if (url === '/api/v1/hr/employee-services/record-change-requests/7/submit') return success(recordChangeResponse({ status: 'SUBMITTED' }))
+    if (url === '/api/v1/hr/personnel-record-changes/lookups/positions') return success([position])
+    if (url === '/api/v1/hr/personnel-record-changes/lookups/employees') return success([{ empNo: '2172' }, { empNo: '2558' }])
+    if (url === '/api/v1/hr/personnel-record-changes/lookups/employees/2172') return success({
+      branch: 'previousRequest', empNo: '2172', empName: null, nationality: null, section: null, department: null, startDate: null,
+      old: { position: 'Head of IT', basicSal: 20000, houseAll: 0, transAll: 0, otherAll: 0, communAll: 0, carAll: 0, total: 20000 },
+      new: { position: 'Head of IT', maritalStatus: null },
+    })
+    if (url === '/api/v1/hr/personnel-record-changes/lookups/employees/2558') return success(autoFill)
+    if (url === '/api/v1/hr/personnel-record-changes?page=1&pageSize=100&sort=headerId&order=desc') {
+      return success({ meta: { page: 1, pageSize: 100, total: 1 }, rows: [{ headerId: '7', refNo: apiRecord.refNo, status: 'DRAFT', empNo: '2558', empName: apiRecord.empName,
+        formDate: apiRecord.formDate, effectiveDate: apiRecord.effectiveDate, position: 'Supervisor', oldTotal: 7000, newTotal: 7500 }] })
+    }
+    if (url === '/api/v1/hr/personnel-record-changes' && init.method === 'POST') return success(apiRecord, 201)
+    if (url === '/api/v1/hr/personnel-record-changes/7' && init.method === 'PUT') return success(apiRecord)
+    if (url === '/api/v1/hr/personnel-record-changes/7' && init.method === 'GET') return success(apiRecord)
+    if (url === '/api/v1/hr/personnel-record-changes/7' && init.method === 'DELETE') return noContent()
     throw new Error(`Unexpected request: ${init.method} ${url}`)
   })
   const csrfStore = createCsrfStore()
   csrfStore.setSessionToken(SESSION_TOKEN)
-  const services = createEmployeeServices({ client: createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore }) })
-  const found = await services.employees.search(' 2558 ')
-  assert.equal(found.items[0].employeeNumber, '2558')
-  assert.equal(calls[0].url, '/api/v1/hr/employee-services/employees?search=2558&page=1&limit=10')
-  await services.recordChanges.save(null, { employeeId: '101' })
-  await services.recordChanges.save('7', { employeeId: '101' })
-  assert.equal((await services.recordChanges.submit('7')).status, 'SUBMITTED')
-  for (const call of calls.slice(1)) assert.equal(call.init.headers.get('X-CSRF-Token'), SESSION_TOKEN, call.url)
+  const client = createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore })
+  const services = createEmployeeServices({ client, recordChangeClient: client })
+  const lookups = await services.recordChanges.getLookups()
+  assert.deepEqual(lookups.positions.map((item) => item.name), ['Operator'])
+  const found = await services.recordChanges.searchEmployees('2558')
+  assert.equal(found.items[0].name, 'Employee Example')
+  assert.equal(found.items[0].current.basic, 5000)
+  const previousRequestEmployee = await services.recordChanges.searchEmployees('2172')
+  assert.equal(previousRequestEmployee.items[0].name, '2172', 'the employee number remains visible when the saved snapshot has no name')
+  assert.equal(previousRequestEmployee.items[0].current.positionName, 'Head of IT')
+  const listed = await services.recordChanges.list()
+  assert.equal(listed.items[0].requestNumber, '0007-Production')
+  assert.equal(listed.items[0].position, 'Supervisor')
+  assert.equal(listed.items[0].totalChange, 500)
+
+  const form = { ...blankRecordChange('2026-10-29'), requestDate: '2026-10-29', effectiveDate: '2026-11-01', revised: {
+    ...found.items[0].current, positionCode: lookups.positions[0].code, basic: '5500',
+  } }
+  const draft = await services.recordChanges.save(null, { ...recordChangePayload(form, found.items[0]), requestDate: form.requestDate, arbDate: '06 Safar 1448' }, found.items[0])
+  assert.equal(draft.requestId, '7')
+  assert.equal(draft.employee.name, 'Employee Example')
+  const updated = await services.recordChanges.save('7', { ...recordChangePayload(form, found.items[0]), requestDate: form.requestDate }, found.items[0])
+  assert.equal(updated.requestNumber, '0007-Production')
+  assert.equal((await services.recordChanges.getById('7')).revised.basic, 5500)
+  await services.recordChanges.delete('7')
+  const postCall = calls.find((call) => call.init.method === 'POST')
+  assert.equal(postCall.url, '/api/v1/hr/personnel-record-changes')
+  const posted = JSON.parse(postCall.init.body)
+  assert.equal(posted.empNo, '2558')
+  assert.equal(posted.formDate, '2026-10-29')
+  assert.equal(posted.arbDate, '06 Safar 1448')
+  assert.equal(posted.effectiveDate, '2026-11-01')
+  assert.equal(posted.old.basicSal, 5000)
+  assert.equal(posted.new.position, 'Operator')
+  assert.equal(posted.new.basicSal, 5500)
+  assert.equal(posted.new.maritalStatus, 'M')
+  const writeCalls = calls.filter((call) => ['POST', 'PUT', 'DELETE'].includes(call.init.method))
+  for (const call of writeCalls) assert.equal(call.init.headers.get('X-CSRF-Token'), SESSION_TOKEN, call.url)
   await assert.rejects(() => services.recordChanges.getById('../7'), /selected record is invalid/)
 })
 
@@ -259,7 +311,7 @@ test('data source: VITE_HR_EMPLOYEE_SERVICES_DEMO, separate from the recruitment
     [{}, false],
   ]
   for (const [env, demo] of states) assert.equal(resolveEmployeeServicesDemoMode(env), demo, JSON.stringify(env))
-  // Turning recruitment off its demo data does not move these screens to the API.
+  // The transfer/appraisal demo switch is independent from recruitment.
   const env = { VITE_HR_RECRUITMENT_DEMO: 'false', DEV: true }
   assert.equal(resolveDemoMode(env), false)
   assert.equal(resolveEmployeeServicesDemoMode(env), true)
@@ -270,9 +322,9 @@ test('data source: VITE_HR_EMPLOYEE_SERVICES_DEMO, separate from the recruitment
 
 // ------------------------------------------------------------ navigation and visibility
 
-const ES_IDS = ['hr-record-change', 'hr-record-change-requests', 'hr-record-change-record', 'hr-transfer', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal', 'hr-appraisal-record']
+const ES_IDS = ['hr-transfer', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal', 'hr-appraisal-record']
 const ES_NAV_IDS = ES_IDS.filter((id) => !id.endsWith('-record'))
-const employeeAccess = { status: 'ready', mfaVerified: false, has: () => false }
+const employeeAccess = { status: 'ready', mfaVerified: false, has: (key) => key === 'HR.TRANSFER_REQUESTS:VIEW' }
 const servicesFor = (env) => resolveNavigationEntries(registry.entries, env).filter((route) => ES_IDS.includes(route.id))
 
 test('visibility switch VITE_FEATURE_HR_EMPLOYEE_SERVICES: true, false, unset in development and in production', () => {
@@ -287,7 +339,9 @@ test('visibility switch VITE_FEATURE_HR_EMPLOYEE_SERVICES: true, false, unset in
     assert.equal(isFeatureEnabled({ env: SWITCH }, env), visible, label)
     assert.deepEqual(servicesFor(env).map((route) => route.implemented), ES_IDS.map(() => visible), label)
   }
-  assert.deepEqual(registry.entries.filter((entry) => entry.enabledBy?.env === SWITCH).map((entry) => entry.id), ES_IDS)
+  assert.deepEqual(registry.entries.filter((entry) => entry.enabledBy?.env === SWITCH).map((entry) => entry.id), [
+    'hr-record-change', 'hr-record-change-requests', 'hr-record-change-record', ...ES_IDS,
+  ])
   // The recruitment switch does not show these pages, and this switch does not show recruitment pages.
   const recruitmentOn = resolveNavigationEntries(registry.entries, { VITE_FEATURE_HR_RECRUITMENT: 'true', DEV: false })
   assert.ok(recruitmentOn.filter((route) => ES_IDS.includes(route.id)).every((route) => !route.implemented))
@@ -314,16 +368,15 @@ test('a switched-off employee services page is absent from the sidebar, palette,
   for (const id of ES_IDS) assert.ok(router.includes(`handle: { routeId: '${id}' }`), `${id} has a router line, filtered by implementedOnly`)
 })
 
-test('routes: session-only module HR_EMPLOYEE_SERVICES; the list paths win over record ids', () => {
+test('routes: transfers use HR permissions and list paths win over record ids', () => {
   const module = registeredModules.find((item) => item.code === 'HR_EMPLOYEE_SERVICES')
   assert.equal(module.rbac, false)
+  const hr = registeredModules.find((item) => item.code === 'HR')
+  assert.deepEqual(hr.resources.find((item) => item.code === 'TRANSFER_REQUESTS').actions, ['VIEW', 'CREATE', 'UPDATE', 'DELETE'])
   assert.deepEqual(servicesFor({ [SWITCH]: 'true' }).map((route) => [route.id, route.path, route.nav !== false, route.permission]), [
-    ['hr-record-change', '/hr/employee-services/record-change', true, undefined],
-    ['hr-record-change-requests', '/hr/employee-services/record-change/requests', true, undefined],
-    ['hr-record-change-record', '/hr/employee-services/record-change/:requestId', false, undefined],
-    ['hr-transfer', '/hr/employee-services/transfer', true, undefined],
-    ['hr-transfer-report', '/hr/employee-services/transfer/report', true, undefined],
-    ['hr-transfer-record', '/hr/employee-services/transfer/:transferId', false, undefined],
+    ['hr-transfer', '/hr/employee-services/transfer', true, 'HR.TRANSFER_REQUESTS:VIEW'],
+    ['hr-transfer-report', '/hr/employee-services/transfer/report', true, 'HR.TRANSFER_REQUESTS:VIEW'],
+    ['hr-transfer-record', '/hr/employee-services/transfer/:transferId', false, 'HR.TRANSFER_REQUESTS:VIEW'],
     ['hr-appraisal', '/hr/performance/appraisal', true, undefined],
     ['hr-appraisal-record', '/hr/performance/appraisal/:appraisalId', false, undefined],
   ])
@@ -405,7 +458,7 @@ test('transfer: choosing the employee starts the new job title as now and prefil
   assert.equal(withTransferEmployee({ ...blankTransfer('2026-10-29', 'ZP_NON_FOOD'), bloodType: 'AB+' }, employee).bloodType, 'AB+', 'a chosen value is kept')
 })
 
-test('transfer: job title, department and section required; at least one must differ from now', () => {
+test('transfer: backend-required destination fields and final-review move validation', () => {
   assert.deepEqual(codesOf(validateTransfer(transferForm(), employee, LOOKUPS.departments, { submit: true })), [])
   const empty = transferForm({ to: { jobTitleCode: '', departmentCode: '', sectionCode: '' } })
   assert.deepEqual(codesOf(validateTransfer(empty, employee, LOOKUPS.departments, { submit: true })), ['jobTitleCode:required', 'departmentCode:required', 'sectionCode:required'])
@@ -414,8 +467,8 @@ test('transfer: job title, department and section required; at least one must di
   assert.deepEqual(transferMoves(employee, same.to), [])
   assert.deepEqual(transferMoves(employee, { jobTitleCode: 'HR_OFFICER', departmentCode: 'HR', sectionCode: 'PAYROLL' }), ['sectionCode'], 'a section move alone is a move')
   assert.deepEqual(transferMoves(employee, transferForm().to), ['jobTitleCode', 'sectionCode'])
-  assert.deepEqual(codesOf(validateTransfer(empty, employee, LOOKUPS.departments, { submit: false })), [], 'a draft needs only the employee')
-  assert.deepEqual(codesOf(validateTransfer(empty, null, LOOKUPS.departments, { submit: false })), ['employee:required'])
+  assert.deepEqual(codesOf(validateTransfer(empty, employee, LOOKUPS.departments, { submit: false })), ['jobTitleCode:required', 'departmentCode:required', 'sectionCode:required'], 'server requires a complete destination even for drafts')
+  assert.deepEqual(codesOf(validateTransfer(empty, null, LOOKUPS.departments, { submit: false })), ['employee:required', 'jobTitleCode:required', 'departmentCode:required', 'sectionCode:required'])
 })
 
 test('transfer: effective date not before D.O.J.; director, salary change and budgeted salary required to submit', () => {
@@ -447,6 +500,60 @@ test('transfer: request body carries only the answers', () => {
   })
 })
 
+test('transfer API adapter maps transfer-request lookups, employee search, drafts and report rows', async () => {
+  const apiRecord = {
+    headerId: '8', plant: 'Zamil Plastic Non-Food', requestedBy: 'Signed-in User', mgrDate: '2026-10-29', status: 'Draft',
+    current: { empNo: '2172', empName: 'Sample Worker', dateOfJoining: '2018-01-01', jobTitle: 'Operator', dept: 'Production Department', section: 'Production Section' },
+    transfer: { jobTitle: 'Technician', dept: 'Maintenance Department', section: 'Maintenance Section', effectiveDate: '2026-11-01',
+      bloodType: 'O+', superiorNo: '900', superiorName: 'Sample Director', changeSalary: 'No', budgetedSalary: 'Yes' },
+    approvals: { transferDeptHead: 'Draft', adminSignature: 'Draft', president: 'Draft', hrManager: 'Draft', generalManager: 'Draft' },
+    itHr: { hrSignature: null, hrDate: null, itSignature: null, itDate: null, adminSignature: null, adminDate: null },
+  }
+  const { fetchImpl, calls } = recordingFetch((url, init) => {
+    if (url === '/api/v1/hr/transfer-requests/lookups/jobs') return success([{ name: 'Operator' }, { name: 'Technician' }])
+    if (url === '/api/v1/hr/transfer-requests/lookups/sections') return success([{ name: 'Production Section' }, { name: 'Maintenance Section' }])
+    if (url === '/api/v1/hr/transfer-requests/lookups/departments') return success(['Production Department', 'Maintenance Department'])
+    if (url === '/api/v1/hr/transfer-requests/lookups/directors') return success([{ name: 'Sample Director', empNo: '900' }])
+    if (url === '/api/v1/hr/transfer-requests/lookups/blood-types') return success([{ code: 'O+' }])
+    if (url === '/api/v1/hr/transfer-requests/lookups/requestor') return success([{ empNo: '500', fullName: 'Signed-in User' }])
+    if (url === '/api/v1/hr/transfer-requests/lookups/employees') return success([{ name: 'Sample Worker' }])
+    if (url.startsWith('/api/v1/hr/transfer-requests/lookups/employees/')) return success({ empNo: '2172', personId: '33', dateOfJoining: '2018-01-01', jobTitle: 'Operator', deptName: 'Production Section' })
+    if (url === '/api/v1/hr/transfer-requests' && init.method === 'POST') return success({ headerId: '8', uuid: 'request-uuid' }, 201)
+    if (url === '/api/v1/hr/transfer-requests/8' && init.method === 'GET') return success(apiRecord)
+    if (url === '/api/v1/hr/transfer-requests?page=1&pageSize=100&sort=headerId&order=desc') {
+      return success({ meta: { page: 1, pageSize: 100, total: 1 }, rows: [{ headerId: '8', plant: apiRecord.plant, mgrDate: apiRecord.mgrDate,
+        empName: 'Sample Worker', empNo: '2172', currentDept: 'Production Department', transferDept: 'Maintenance Department', effectiveDate: '2026-11-01', status: 'Draft' }] })
+    }
+    throw new Error(`Unexpected request: ${init.method} ${url}`)
+  })
+  const csrfStore = createCsrfStore()
+  csrfStore.setSessionToken(SESSION_TOKEN)
+  const client = createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore })
+  const transfers = createEmployeeServices({ client, transferClient: client }).transfers
+  const lookups = await transfers.getLookups()
+  assert.equal(lookups.companies[0].name, 'Zamil Plastic Non-Food')
+  assert.equal(lookups.directors[0].directorId, '900')
+  const found = await transfers.searchEmployees('worker')
+  assert.equal(found.items[0].employeeNumber, '2172')
+  assert.equal(found.items[0].sectionName, 'Production Section')
+  const employeeResult = found.items[0]
+  const form = transferForm({ companyCode: lookups.companies[0].code, to: {
+    jobTitleCode: lookups.jobTitles.find((item) => item.name === 'Technician').code,
+    departmentCode: lookups.departments.find((item) => item.name === 'Maintenance Department').code,
+    sectionCode: lookups.departments.find((item) => item.name === 'Maintenance Department').sections.find((item) => item.name === 'Maintenance Section').code,
+  }, directorId: '900', bloodType: 'O+', salaryChange: 'NO', budgetedSalary: 'YES' })
+  const saved = await transfers.save(null, transferPayload(form, employeeResult), employeeResult)
+  assert.equal(saved.transferId, '8')
+  assert.equal(saved.status, 'DRAFT')
+  const posted = JSON.parse(calls.find((call) => call.init.method === 'POST').init.body)
+  assert.equal(posted.plant, 'Zamil Plastic Non-Food')
+  assert.equal(posted.current.empNo, '2172')
+  assert.deepEqual(posted.transfer, { jobTitle: 'Technician', dept: 'Maintenance Department', section: 'Maintenance Section', effectiveDate: '2026-11-15',
+    bloodType: 'O+', superiorNo: '900', changeSalary: 'No', budgetedSalary: 'Yes' })
+  const report = await transfers.list()
+  assert.deepEqual([report.items[0].transferNumber, report.items[0].employeeNumber, report.items[0].status], ['8', '2172', 'DRAFT'])
+})
+
 test('contracts: transfer lookups and transfer shapes are checked', () => {
   const lookups = readEmployeeServicesLookups(LOOKUPS)
   assert.equal(lookups.departments.find((item) => item.code === 'HR').sections.length, 3)
@@ -475,13 +582,10 @@ test('demo adapter: transfer save, submit, the report and 404, 409 and 422 error
     assert.deepEqual(seeded.items.map((item) => item.transferNumber).sort(), ['TRF-2026-0311', 'TRF-2026-0314', 'TRF-2026-0318'])
     const approved = await services.transfers.getById('2')
     assert.deepEqual(approved.office.map((item) => item.date), ['2026-11-15', '2026-11-15', '2026-11-15'], 'office approvals dated once approved')
-    const draft = await services.transfers.save(null, transferPayload({ ...transferForm(), directorId: '', salaryChange: '' }, employee))
+    const draft = await services.transfers.save(null, transferPayload(transferForm(), employee))
     assert.equal(draft.transferNumber, 'TRF-2026-0319')
     assert.deepEqual(draft.requestedBy, { name: 'Sample Signed-in User', employeeNumber: '7001' })
     assert.equal(draft.companyCode, 'ZP_NON_FOOD')
-    await assert.rejects(() => services.transfers.submit(draft.transferId), (error) => error.status === 422 &&
-      ['directorId', 'salaryChange'].every((field) => error.details.some((item) => item.field === field)))
-    await services.transfers.save(draft.transferId, transferPayload(transferForm(), employee))
     const submitted = await services.transfers.submit(draft.transferId)
     assert.equal(submitted.status, 'SUBMITTED')
     assert.deepEqual(submitted.approvals.map((item) => item.state), ['PENDING', 'WAITING', 'WAITING', 'WAITING', 'WAITING'])
@@ -651,6 +755,47 @@ test('demo adapter: appraisal team, save, server rating and grade, submit locks;
   }
 })
 
+test('backend appraisal adapter uses eligible employee snapshots and creates the backend DTO', async () => {
+  const calls = []
+  const api = {
+    async get(path, options = {}) {
+      calls.push(['GET', path, options])
+      if (path.endsWith('/lookups/grade-stats')) return { data: { quota: { percent: { A: 15, B: 30, C: 40, D: 10, E: 5 }, target: { A: 1, B: 2, C: 3, D: 1, E: 1 }, allocated: { A: 0, B: 1, C: 0, D: 0, E: 0 } } } }
+      if (path.endsWith('/lookups/employees')) return { data: [{ name: 'Eligible Employee', number: '204' }] }
+      if (path.endsWith('/lookups/requestor')) return { data: { fullName: 'Current Appraiser', employeeNumber: '900' } }
+      if (path.endsWith('/lookups/employees/Eligible%20Employee')) return { data: { personId: '3204', number: '204', name: 'Eligible Employee', hireDate: '2020-04-01', jobTitle: 'Engineer', department: 'Operations', evaluatedBy: 'Current Appraiser', yearsInCompany: 6, yearsInPosition: 2 } }
+      if (path.endsWith('/7')) return { data: { headerId: 7, employee: { personId: '3204', number: '204', name: 'Eligible Employee', hireDate: '2020-04-01', jobTitle: 'Engineer', department: 'Operations' }, period: { year: 2026 }, appraiser: { evaluatedBy: 'Current Appraiser' }, result: { rating: 4, grade: 'B' }, criteria: Array.from({ length: 20 }, (_, i) => ({ id: i + 1, rating: 4, justification: '' })), development: [{ need: 'Improve planning' }], training: [{ objective: 'Safety course' }], remarks: { employee: '-', appraiser: '-' }, status: 'Inprocess', creationDate: '2026-10-29' } }
+      throw new Error(`Unexpected GET ${path}`)
+    },
+    async post(path, body) { calls.push(['POST', path, body]); return { data: { headerId: 7 } } },
+    async put() { throw new Error('Unexpected PUT') },
+    async delete() { throw new Error('Unexpected DELETE') },
+  }
+  const services = createEmployeeServices({ client: api, appraisalClient: api })
+  const lookups = await services.performance.lookups()
+  assert.equal(lookups.criteria.length, 20)
+  assert.equal(lookups.periods[0].code, String(new Date().getFullYear()))
+  assert.deepEqual(lookups.gradeStats.allocated, { A: 0, B: 1, C: 0, D: 0, E: 0 })
+  const team = await services.performance.team(String(new Date().getFullYear()))
+  assert.deepEqual(team.appraiser, { name: 'Current Appraiser', employeeNumber: '900' })
+  assert.equal(team.members[0].personId, null, 'the dropdown loads eligible names without calling every detail lookup')
+  assert.equal(calls.filter(([, path]) => path.includes('/lookups/employees/')).length, 0)
+  const selectedEmployee = await services.performance.employee(team.members[0].name, String(new Date().getFullYear()))
+  assert.equal(selectedEmployee.personId, '3204', 'employee details load only after selection')
+  const form = { ...blankAppraisal(String(new Date().getFullYear())), employeeId: '204', ratings: allRated(4), goals: ['Improve planning', 'Communicate clearly', 'Deliver milestones'], training: ['Safety course'] }
+  const created = await services.appraisals.save(null, appraisalPayload(form, CRITERIA), selectedEmployee)
+  assert.equal(created.appraisalId, '7')
+  assert.equal(created.status, 'INPROCESS')
+  assert.equal(created.employee.departmentName, 'Operations')
+  const post = calls.find(([method]) => method === 'POST')
+  assert.equal(post[1], '/hr/performance-appraisals')
+  assert.deepEqual(post[2].employee, { name: 'Eligible Employee', number: '204', personId: '3204' })
+  assert.equal(post[2].year, new Date().getFullYear())
+  assert.deepEqual(post[2].criteria.map((item) => item.id), Array.from({ length: 20 }, (_, i) => i + 1))
+  assert.deepEqual(post[2].development, form.goals)
+  assert.equal(post[2].criteria[0].rating, 4)
+})
+
 test('appraisal page: compact frame, radio groups for ratings, development tabs, signatures and the report dialog', async () => {
   const page = await read(`${FEATURE}performance/AppraisalPage.jsx`)
   assert.match(page, /<RecruitmentShell current="appraisal" flow=\{false\} compact /)
@@ -663,4 +808,6 @@ test('appraisal page: compact frame, radio groups for ratings, development tabs,
   assert.match(page, /\{ icon: 'house', label: C\.home, onClick: \(\) => leave\('\/dashboard'\) \}/)
   assert.doesNotMatch(page, /[Ll]ogout|[Ss]ign out/, 'the app header handles signing out')
   assert.match(page, /const appraiser = saved\?\.appraiser \?\? team\.appraiser/, 'the appraiser comes from the server')
+  assert.match(page, /<EmployeePicker id="ap-employee"[^>]*searchService=\{searchEmployees\}/, 'employee selection uses the searchable picker')
+  assert.match(page, /const matches = term \? members\.filter/, 'employee matches include name and employee number')
 })

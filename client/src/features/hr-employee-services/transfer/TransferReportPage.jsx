@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
+import usePermissions from '@/features/access/usePermissions.js'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { enDate } from '@/features/hr-recruitment/shared/hrFormat.js'
 import { Pill, RecruitmentHeader } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { ES_COMMON_TEXT as C, TRANSFER_TEXT as T } from '../hrEmployeeServicesText.js'
-import { employeeServicesDemo, hrEmployeeServices } from '../hrEmployeeServicesService.js'
+import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { RecordList } from '../shared/RecordList.jsx'
 import { useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
@@ -28,17 +29,18 @@ const columns = [
 export default function TransferReportPage() {
   useEmployeeServicesUser()
   const navigate = useNavigate()
+  const canCreate = usePermissions().can('HR.TRANSFER_REQUESTS:CREATE')
   const transfers = useResource('hr-transfer-report', (signal) => hrEmployeeServices.transfers.list({ signal }))
   return (
     <div className="zrv-hr zrv-hr--transfer-report zrv-hr--compact">
-      <RecruitmentHeader title={R.title} subtitle={R.subtitle} breadcrumb={C.breadcrumb} demo={employeeServicesDemo} />
+      <RecruitmentHeader title={R.title} subtitle={R.subtitle} breadcrumb={C.breadcrumb} />
       <div className="zrv-hr-toolbar" role="toolbar" aria-label={R.title}>
         <div className="zrv-hr-tools">
-          <button type="button" onClick={() => navigate(ES_PATHS.transfer)}><OrvexaIcon name="file-plus" size={17} /><span>{T.tools.newTransfer}</span></button>
+          {canCreate && <button type="button" onClick={() => navigate(ES_PATHS.transfer)}><OrvexaIcon name="file-plus" size={17} /><span>{T.tools.newTransfer}</span></button>}
           <button type="button" onClick={() => window.print()}><OrvexaIcon name="printer" size={17} /><span>{C.print}</span></button>
           <button type="button" onClick={() => navigate('/dashboard')}><OrvexaIcon name="house" size={17} /><span>{C.home}</span></button>
         </div>
-        <button type="button" className="btn-primary zrv-hr-btn" onClick={() => navigate(ES_PATHS.transfer)}><OrvexaIcon name="plus" size={16} /> {R.newTransfer}</button>
+        {canCreate && <button type="button" className="btn-primary zrv-hr-btn" onClick={() => navigate(ES_PATHS.transfer)}><OrvexaIcon name="plus" size={16} /> {R.newTransfer}</button>}
       </div>
       <ResourceState resource={transfers} label={R.noun} empty={C.list.empty}>
         {(page) => (

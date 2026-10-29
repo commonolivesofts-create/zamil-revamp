@@ -2,7 +2,7 @@
 // the page, the demo adapter and the tests use the same rules.
 import { isIsoDate } from '../../hr-recruitment/shared/hrFormat.js'
 
-export const TRANSFER_STATUSES = Object.freeze(['DRAFT', 'SUBMITTED', 'APPROVED'])
+export const TRANSFER_STATUSES = Object.freeze(['DRAFT', 'SUBMITTED', 'INPROCESS', 'APPROVED', 'REJECTED'])
 export const YES_NO = Object.freeze(['YES', 'NO'])
 // Sign-off chain, in order (states: shared/approvals.js).
 export const TRANSFER_ROUTE = Object.freeze(['NEW_DEPARTMENT_HEAD', 'OLD_DEPARTMENT_HEAD', 'NEW_DIRECTOR', 'HR_ADMIN_MANAGER', 'GENERAL_MANAGER'])
@@ -11,7 +11,7 @@ export const OFFICE_APPROVALS = Object.freeze(['HR_SUPERVISOR', 'IT', 'ADMIN_MAN
 // The three things a transfer can change.
 export const MOVE_KEYS = Object.freeze(['jobTitleCode', 'departmentCode', 'sectionCode'])
 
-export const isTransferLocked = (status) => status === 'SUBMITTED' || status === 'APPROVED'
+export const isTransferLocked = (status) => status === 'SUBMITTED' || status === 'INPROCESS' || status === 'APPROVED'
 
 // Sections of a department (they depend on the department).
 export const sectionsOf = (departments, departmentCode) => departments.find((item) => item.code === departmentCode)?.sections ?? []
@@ -53,24 +53,25 @@ export function transferPayload(form, employee) {
 }
 
 // Problems as { field, code, step } in step order (0 move, 1 details).
-// `submit` adds the rules for a submission; a draft needs the employee only,
-// and what it holds must be consistent (section of the department, date).
+// The server requires all persisted fields even on drafts; final review also
+// requires that the destination changes at least one of job, department or section.
 export function validateTransfer(form, employee, departments, { submit }) {
   const problems = []
   const add = (field, code, step) => problems.push({ field, code, step })
   const { to } = form
   if (!employee) add('employee', 'required', 0)
-  if (submit && !to.jobTitleCode) add('jobTitleCode', 'required', 0)
-  if (submit && !to.departmentCode) add('departmentCode', 'required', 0)
-  if (submit && !to.sectionCode) add('sectionCode', 'required', 0)
+  if (!to.jobTitleCode) add('jobTitleCode', 'required', 0)
+  if (!to.departmentCode) add('departmentCode', 'required', 0)
+  if (!to.sectionCode) add('sectionCode', 'required', 0)
   if (to.sectionCode && !sectionsOf(departments, to.departmentCode).some((item) => item.code === to.sectionCode)) add('sectionCode', 'notInDepartment', 0)
   if (submit && employee && to.jobTitleCode && to.departmentCode && to.sectionCode && !transferMoves(employee, to).length) add('to', 'noMove', 0)
-  if (!form.effectiveDate) { if (submit) add('effectiveDate', 'required', 1) }
+  if (!form.effectiveDate) add('effectiveDate', 'required', 1)
   else if (!isIsoDate(form.effectiveDate)) add('effectiveDate', 'invalid', 1)
   else if (employee && form.effectiveDate < employee.startDate) add('effectiveDate', 'beforeJoining', 1)
-  if (submit && !form.directorId) add('directorId', 'required', 1)
-  if (submit && !YES_NO.includes(form.salaryChange)) add('salaryChange', 'required', 1)
-  if (submit && !YES_NO.includes(form.budgetedSalary)) add('budgetedSalary', 'required', 1)
+  if (!form.bloodType) add('bloodType', 'required', 1)
+  if (!form.directorId) add('directorId', 'required', 1)
+  if (!YES_NO.includes(form.salaryChange)) add('salaryChange', 'required', 1)
+  if (!YES_NO.includes(form.budgetedSalary)) add('budgetedSalary', 'required', 1)
   return problems
 }
 

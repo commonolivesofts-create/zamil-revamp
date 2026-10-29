@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import usePermissions from '@/features/access/usePermissions.js'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
@@ -11,7 +12,7 @@ import { Orbit, PanelHead, Pill, RecruitmentShell, RouteCard, Ticket, Tilt } fro
 import { FileDrop, HrField, Review } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { ES_COMMON_TEXT as C, RECORD_CHANGE_TEXT as T } from '../hrEmployeeServicesText.js'
-import { employeeServicesDemo, hrEmployeeServices } from '../hrEmployeeServicesService.js'
+import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { hijriDate } from '../shared/esFormat.js'
 import { ApprovalSigns, Counter } from '../shared/EmployeeServicesParts.jsx'
@@ -23,7 +24,7 @@ import {
 
 const RECORD_CHANGE_BASE = ES_PATHS.recordChange
 const service = hrEmployeeServices.recordChanges
-const loadLookups = (signal) => hrEmployeeServices.lookups.get({ signal })
+const loadLookups = (signal) => service.getLookups({ signal })
 
 // Revised values are edited as text: amounts as typed, codes as chosen.
 const editable = (values) => Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value === null ? '' : String(value)]))
@@ -31,7 +32,7 @@ const editable = (values) => Object.fromEntries(Object.entries(values).map(([key
 export default function RecordChangePage() {
   useEmployeeServicesUser()
   return (
-    <RecruitmentLoader current="record-change" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={employeeServicesDemo}
+    <RecruitmentLoader current="record-change" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb}
       title={T.title} subtitle={T.subtitle} param="requestId" load={service.getById} loadLookups={loadLookups}>
       {({ lookups, record, editorKey }) => <RecordChangeEditor key={editorKey} lookups={lookups} record={record} />}
     </RecruitmentLoader>
@@ -45,6 +46,7 @@ function messageOf({ field, code }) {
 
 function RecordChangeEditor({ lookups, record }) {
   const navigate = useNavigate()
+  const permissions = usePermissions()
   const editor = useRecruitmentForm({
     basePath: RECORD_CHANGE_BASE, idKey: 'requestId', record,
     initialForm: record ? {
@@ -54,23 +56,32 @@ function RecordChangeEditor({ lookups, record }) {
   })
   const { form, set, patch, step, setStep } = editor
   const saved = editor.record
+  const canSave = permissions.can(saved ? 'HR.PERSONNEL_RECORD_CHANGES:UPDATE' : 'HR.PERSONNEL_RECORD_CHANGES:CREATE')
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
   const employee = form.employee
   const current = employee?.current ?? null
   const revised = form.revised
-  const locked = isRecordChangeLocked(saved?.status)
+  const positionOptions = [...lookups.positions]
+  for (const candidate of [
+    { code: current?.positionCode, name: current?.positionName },
+    { code: revised?.positionCode, name: revised?.positionName },
+  ]) {
+    if (candidate.code && candidate.name && !positionOptions.some((item) => item.code === candidate.code)) positionOptions.push(candidate)
+  }
+  const options = { ...lookups, positions: positionOptions }
+  const locked = isRecordChangeLocked(saved?.status) || !canSave
   const types = changeTypes(current, revised)
   const changed = changedKeys(current, revised)
   const totalNow = recordTotal(current)
   const totalRevised = recordTotal(revised)
   const status = saved?.status ?? 'NEW'
-  const nameOf = (list, code) => lookups[list].find((item) => item.code === code)?.name ?? code ?? ''
+  const nameOf = (list, code) => options[list].find((item) => item.code === code)?.name ?? code ?? ''
   const label = { positionCode: 'positions', gradeCode: 'grades', levelCode: 'levels', familyStatusCode: 'familyStatuses' }
   // The picker lists each employee with position and section.
   const searchEmployees = async (search, options) => {
-    const page = await hrEmployeeServices.employees.search(search, options)
-    return { ...page, items: page.items.map((item) => ({ ...item, position: nameOf('positions', item.current.positionCode), section: item.sectionName })) }
+    const page = await service.searchEmployees(search, options)
+    return { ...page, items: page.items.map((item) => ({ ...item, position: item.current.positionName || nameOf('positions', item.current.positionCode), section: item.sectionName })) }
   }
   const shown = (key, values) => (PAY_KEYS.includes(key) ? C.sr(values[key]) : nameOf(label[key], values[key]))
 
@@ -91,7 +102,7 @@ function RecordChangeEditor({ lookups, record }) {
   const save = () => {
     if (locked || !check(false)) return
     editor.perform(async ({ saved: keep }) => {
-      const result = await service.save(editor.recordId, recordChangePayload(form, employee))
+      const result = await service.save(editor.recordId, { ...recordChangePayload(form, employee), requestDate: form.requestDate, arbDate: hijriDate(form.requestDate) }, employee)
       keep(result)
       return result
     }, { success: (result) => T.saved(result.requestNumber) })
@@ -99,17 +110,15 @@ function RecordChangeEditor({ lookups, record }) {
   const requestSubmit = () => {
     if (locked) return
     if (step !== 3) { setStep(3); return }
-    if (check(true)) setDialog('submit')
+    if (check(false)) setDialog('submit')
   }
   const submit = () => {
     setDialog(null)
     editor.perform(async ({ saved: keep }) => {
-      const draft = await service.save(editor.recordId, recordChangePayload(form, employee))
+      const draft = await service.save(editor.recordId, { ...recordChangePayload(form, employee), requestDate: form.requestDate, arbDate: hijriDate(form.requestDate) }, employee)
       keep(draft)
-      const result = await service.submit(draft.requestId)
-      keep(result)
-      return result
-    }, { success: (result) => T.submitted(result.requestNumber) })
+      return draft
+    }, { success: (result) => T.savedForReview(result.requestNumber) })
   }
   const leave = (path) => (editor.dirty && !locked ? setDialog({ path }) : navigate(path))
 
@@ -144,9 +153,10 @@ function RecordChangeEditor({ lookups, record }) {
               value={revised[key]} onChange={(event) => setRevised(key, event.target.value.replace(/[^\d.]/g, ''))} /><span className="zrv-hr-es-suffix" aria-hidden="true">SR</span></>
           ) : (
             <select {...fieldProps(id, { error: errors[key] })} className="ux-select zrv-hr-input" aria-required={key === 'positionCode' || undefined}
+              disabled={locked || key === 'gradeCode' || key === 'levelCode'}
               value={revised[key]} onChange={(event) => setRevised(key, event.target.value)}>
               <option value="">{C.select}</option>
-              {lookups[label[key]].map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+              {options[label[key]].map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
             </select>
           )}
         </div>
@@ -161,8 +171,8 @@ function RecordChangeEditor({ lookups, record }) {
   }
 
   return <>
-    <RecruitmentShell current="record-change" flow={false} breadcrumb={C.breadcrumb} demo={employeeServicesDemo} title={T.title} subtitle={T.subtitle}
-      tools={tools} primary={{ label: T.submit, icon: 'send', onClick: requestSubmit }}
+    <RecruitmentShell current="record-change" flow={false} breadcrumb={C.breadcrumb} title={T.title} subtitle={T.subtitle}
+      tools={tools} primary={{ label: T.submit, icon: 'save', onClick: requestSubmit, disabled: !canSave }}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss} locked={locked} pending={editor.pending} focusError={editor.focusError}
       ticket={<Ticket avatar={initials(employee?.name)} code={T.formCode} items={[
         { k: T.ticket.ref, v: saved?.requestNumber || C.generated },
@@ -198,7 +208,7 @@ function RecordChangeEditor({ lookups, record }) {
         <PanelHead n={1} eyebrow={T.employeeStep.eyebrow} title={T.employeeStep.title} desc={T.employeeStep.desc} />
         <div className="zrv-hr-es-bi"><span>{T.formTitleEn}</span><span lang="ar" dir="rtl">{T.formTitleAr}</span></div>
         <div className="zrv-hr-grid zrv-hr-is-2">
-          <EmployeePicker id="rc-employee" label={T.employeeStep.employee} required value={employee} onPick={pickEmployee} error={errors.employee}
+          <EmployeePicker id="rc-employee" label={T.employeeStep.employee} placeholder={T.employeeStep.employeePlaceholder} required value={employee} onPick={pickEmployee} error={errors.employee}
             searchService={searchEmployees} cacheKey="hr-service-employees" />
           <HrField id="rc-effective" label={T.employeeStep.effective} required error={errors.effectiveDate} hint={form.effectiveDate ? hijriDate(form.effectiveDate) : undefined}>
             <input {...fieldProps('rc-effective', { error: errors.effectiveDate, hint: hijriDate(form.effectiveDate) || undefined })} type="date" className="ux-input zrv-hr-input"
@@ -237,6 +247,7 @@ function RecordChangeEditor({ lookups, record }) {
           <div className="zrv-hr-es-rows">
             {['positionCode', ...PAY_KEYS, 'gradeCode', 'levelCode', 'familyStatusCode'].map(row)}
           </div>
+          <p className="zrv-admin-hint">{T.revisedStep.gradeLevelUnavailable}</p>
           <div className="zrv-hr-es-total">
             <span>{T.revisedStep.total}</span>
             <b>{C.money(totalNow)} <em>→</em> {C.money(totalRevised)}</b>
@@ -265,7 +276,7 @@ function RecordChangeEditor({ lookups, record }) {
           ))}
         </div>
         <h3 className="zrv-hr-subh">{T.remarksStep.documents}</h3>
-        <FileDrop files={form.attachments} onChange={set('attachments')} disabled={locked || editor.pending} />
+        <FileDrop files={form.attachments} onChange={set('attachments')} disabled />
         <p className="zrv-admin-hint">{C.uploadNote}</p>
       </>}
 

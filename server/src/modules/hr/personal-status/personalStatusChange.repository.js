@@ -107,6 +107,29 @@ const SELECT_SQL = `
   FROM ${TABLE} R
 `;
 
+// The employee picker only needs the saved employment snapshot. Keeping this
+// query narrow avoids making autofill depend on unrelated approval/signature
+// columns in the legacy table.
+const LATEST_EMPLOYEE_SQL = `
+  SELECT
+    TO_CHAR(R.EMP_NO) EMP_NO,
+    R.EMP_NAME,
+    R.NATIONALITY,
+    R.SECTION,
+    R.DEPT,
+    TO_CHAR(R.START_DATE, 'YYYY-MM-DD') START_DATE_ISO,
+    R.NEW_POSITION,
+    R.NEW_BASIC_SAL,
+    R.NEW_HOUSE_ALL,
+    R.NEW_TRANS_ALL,
+    R.NEW_OTHER_ALL,
+    R.NEW_COMMUN_ALL,
+    R.NEW_CAR_ALL,
+    R.NEW_TOTAL,
+    R.NEW_MARITAL_STATUS
+  FROM ${TABLE} R
+`;
+
 const INSERT_SQL = `
   INSERT INTO ${TABLE}
   (
@@ -373,8 +396,8 @@ export const createPersonalStatusRepository = () => {
 
   const latest = async (connection, empNo) => {
     const result = await connection.execute(
-      `${SELECT_SQL}
-       WHERE R.EMP_NO = :empNo
+      `${LATEST_EMPLOYEE_SQL}
+       WHERE TO_CHAR(R.EMP_NO) = :empNo
        ORDER BY R.HEADER_ID DESC
        FETCH FIRST 1 ROW ONLY`,
       { empNo },
@@ -399,8 +422,7 @@ export const createPersonalStatusRepository = () => {
          TRANSPORTATION_ALLOWANCE,
          COMMUNICATION_ALLOWANCE,
          CAR_ALLOWANCE,
-         OTHER_ALLOWANCE,
-         TOTAL_SALARY
+         OTHER_ALLOWANCE
        FROM XX_DIGI_EMP_MASTER
        WHERE EMPLOYEE_NUMBER = :empNo
          AND CURRENT_EMP_FLAG = 'Y'
