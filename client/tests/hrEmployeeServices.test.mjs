@@ -347,7 +347,6 @@ test('record change page: not in the recruitment flow, services only, linked err
   assert.match(page, /\{ icon: 'house', label: C\.home, onClick: \(\) => leave\('\/dashboard'\) \}/)
   assert.match(page, /leave\(ES_PATHS\.recordChangeRequests\)/)
   assert.match(page, /editor\.reject\(problems\[0\]\.step/, 'validation opens the step with the first problem')
-  assert.doesNotMatch(page, /Zaid|2493/)
   const list = await read(`${FEATURE}recordChange/RecordChangeRequestsPage.jsx`)
   assert.match(list, /<RecordList /)
   const recordList = await read(`${FEATURE}shared/RecordList.jsx`)
@@ -370,7 +369,8 @@ test('employee services sources: no browser storage, no hard-coded people, text 
   for (const file of files) {
     const source = await read(file)
     assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB/, file)
-    assert.doesNotMatch(source, /Zaid|Sayyed|\b2493\b/, file)
+    // Outside the demo data nobody is hard-coded: requester, appraiser and employee numbers come from the server.
+    if (!file.includes('/demo/')) assert.doesNotMatch(source, /\b(REQUESTER|APPRAISER)\s*=|['"]\d{4}['"]/, file)
   }
   // Every demo person follows the fictional "Sample …" pattern.
   for (const person of DEMO_SERVICE_EMPLOYEES) assert.match(person.name, /^Sample Employee \d{3}$/)

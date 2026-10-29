@@ -42,7 +42,7 @@
 | 15 | Appraisal: quotas for teams of 0, 8, 20; allocation; over-quota warning needs a remark, no block | Yes | unit tests; browser |
 | 16 | Appraisal: 3–5 goals to submit, training optional; meeting acknowledgement, remarks, signatures (appraiser to submit); submitted read-only | Yes | unit tests; browser |
 | 17 | Shared: `compact`, `banner`, `--n` step track, title word wrap on every HR page; existing pages unchanged otherwise | Yes | `hrSharedComponents.test.mjs`; browser (requisition: flow, 4 columns, not compact; titles at 320 px) |
-| 18 | Fictional people only; no "Zaid Sayyed" / "2493"; no browser storage | Yes | source checks in `hrEmployeeServices.test.mjs` |
+| 18 | Fictional people only; the prototype's hard-coded requester and appraiser (name and employee number) replaced by server values; no browser storage | Yes | source checks in `hrEmployeeServices.test.mjs` |
 
 ## 4. Files
 
