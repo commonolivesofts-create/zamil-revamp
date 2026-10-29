@@ -61,8 +61,22 @@ const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, permission: `${PROBATION}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH, nav: false },
   { id: 'hr-employee-report', path: '/hr/reports/periodwise-employees', label: 'Employee report', icon: 'users', section: HR, permission: `${CONTRACTOR_EMPLOYEES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
 ]
+// HR employee services (session-only module HR_EMPLOYEE_SERVICES, owner-approved
+// demo data), switched by VITE_FEATURE_HR_EMPLOYEE_SERVICES; off here (unset
+// outside a development build).
+const ES_SWITCH = { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' }
+const HR_EMPLOYEE_SERVICES_ROUTES = [
+  { id: 'hr-record-change', path: '/hr/employee-services/record-change', label: 'Personnel record change', icon: 'user-pen', section: HR, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', label: 'Change requests', icon: 'layers', section: HR, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', label: 'Personnel record change', icon: 'user-pen', section: HR, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-transfer', path: '/hr/employee-services/transfer', label: 'Transfer request', icon: 'arrow-left-right', section: HR, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', label: 'Transfer report', icon: 'chart-column', section: HR, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', label: 'Transfer request', icon: 'arrow-left-right', section: HR, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-appraisal', path: '/hr/performance/appraisal', label: 'Performance appraisal', icon: 'star', section: HR, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-appraisal-record', path: '/hr/performance/appraisal/:appraisalId', label: 'Performance appraisal', icon: 'star', section: HR, implemented: false, enabledBy: ES_SWITCH, nav: false },
+]
 // Group order: workspace, human resources, security, account.
-const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]
+const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]
 
 test('the derived routes, sections and permission names match the active modules', () => {
   assert.deepEqual(plain(appRoutes), EXPECTED_ROUTES)
@@ -86,7 +100,7 @@ test('the derived routes, sections and permission names match the active modules
     SECURITY_AUDIT_VIEW: `${SA}.SECURITY_AUDIT:VIEW`,
   })
   assert.ok(Object.isFrozen(appRoutes) && appRoutes.every(Object.isFrozen))
-  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS', 'HR'])
+  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS', 'HR', 'HR_EMPLOYEE_SERVICES'])
   assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === SA).map((p) => p.key), SECURITY_RESOURCES.flatMap((r) => r.actions.map((a) => `${SA}.${r.code}:${a}`)))
   assert.deepEqual(registeredModules.find((module) => module.code === 'COMMON').resources, [])
 })

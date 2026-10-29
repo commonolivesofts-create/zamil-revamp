@@ -132,14 +132,22 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "hr-probation",
       "hr-probation-record",
       "hr-employee-report",
+      "hr-record-change",
+      "hr-record-change-requests",
+      "hr-record-change-record",
+      "hr-transfer",
+      "hr-transfer-report",
+      "hr-transfer-record",
+      "hr-appraisal",
+      "hr-appraisal-record",
       "security-audit",
     ],
   );
   assert.ok(
     appRoutes
       .filter((item) => !item.implemented && item.id !== "security-audit")
-      .every((route) => route.enabledBy?.env === "VITE_FEATURE_HR_RECRUITMENT"),
-    "the HR onboarding pages are unavailable only because their switch is off",
+      .every((route) => ["VITE_FEATURE_HR_RECRUITMENT", "VITE_FEATURE_HR_EMPLOYEE_SERVICES"].includes(route.enabledBy?.env)),
+    "the HR onboarding and employee services pages are unavailable only because their switch is off",
   );
   for (const route of appRoutes.filter((item) => !item.implemented)) {
     assert.equal(routeAccess(route, ADMIN), "unavailable", route.id);

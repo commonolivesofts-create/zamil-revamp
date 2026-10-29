@@ -103,12 +103,17 @@ They are registered in `config/registry/modules/hrOnboarding.module.js` (module
 `HR_ONBOARDING`, session-only: `rbac: false`) and use `hrRecruitmentServices.onboardingClient`.
 The three recruitment forms above always use `apiClient` and are not affected by either switch.
 
-### Two switches: visibility and data source
+### Switches: visibility and data source
+
+Four build-time switches control the HR screens; the two `*_EMPLOYEE_SERVICES*` switches belong to
+the employee services screens (see `features/hr-employee-services/README.md`).
 
 | Variable | Decides | `'true'` | `'false'` | unset |
 |---|---|---|---|---|
 | `VITE_FEATURE_HR_RECRUITMENT` | Whether the onboarding pages exist in this build | shown | hidden | shown in development builds, hidden in production builds |
+| `VITE_FEATURE_HR_EMPLOYEE_SERVICES` | Whether the employee services screens (record change, transfer, appraisal) exist | shown | hidden | shown in development builds, hidden in production builds |
 | `VITE_HR_RECRUITMENT_DEMO` | Where shown onboarding pages get their data | demo adapter | `apiClient` | demo in development builds, API in production builds |
+| `VITE_HR_EMPLOYEE_SERVICES_DEMO` | Where the employee services screens get their data | demo adapter | `apiClient` | demo in development builds, API in production builds |
 
 The visibility switch is the registry's generic `enabledBy` mechanism: every entry of the
 `HR_ONBOARDING` module carries `enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' }`. While it is

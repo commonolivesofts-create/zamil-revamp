@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { Badge, Feedback } from '@/features/security-administration/components/AdminUi.jsx'
 import { COMMON_TEXT, FLOW_TEXT } from '../../hrRecruitmentText.js'
+import { titleWords } from '../hrFormat.js'
 import { RECRUITMENT_FLOW as FLOW } from '../recruitmentFlow.js'
 import '@/styles/hr-recruitment.css'
 
@@ -40,8 +41,11 @@ export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.br
       </nav>
       <div className="zrv-hr-head__row">
         <h1 className="zrv-hr-title" aria-label={title}>
-          {title.split('').map((character, index) => (
-            <span key={index} style={{ '--i': index }} aria-hidden="true">{character === ' ' ? ' ' : character}</span>
+          {titleWords(title).map((word, index, words) => (
+            <span key={index} className="zrv-hr-word" aria-hidden="true">
+              {[...word.text].map((character, offset) => <span key={offset} style={{ '--i': word.start + offset }}>{character}</span>)}
+              {index < words.length - 1 ? ' ' : ''}
+            </span>
           ))}
         </h1>
         {demo && <span title={COMMON_TEXT.demoNote}><Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge></span>}
@@ -52,13 +56,16 @@ export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.br
   )
 }
 
-// Frame shared by the three forms: header, flow, toolbar, ticket strip, step
-// track, the stage that slides between steps and the live side column.
-// `focusError` changes after a failed validation: the first invalid field of
-// the (newly opened) step receives focus.
+// Frame shared by the HR forms: header, flow, toolbar, ticket strip, step
+// track (one column per step), the stage that slides between steps and the
+// live side column. `focusError` changes after a failed validation: the first
+// invalid field of the (newly opened) step receives focus. Options: `flow`
+// (false for screens outside the recruitment flow), `compact` (denser layout),
+// `banner` (content between the ticket strip and the step track) and
+// `breadcrumb`.
 export function RecruitmentShell({
   current, title, subtitle, flowStatus, tools, primary, feedback, onDismissFeedback, lookupNotice, ticket, steps, step, onStep, doneSteps,
-  finalLabel, onFinal, side, locked, pending, focusError, demo, children,
+  finalLabel, onFinal, side, locked, pending, focusError, demo, flow = true, compact = false, banner = null, breadcrumb, children,
 }) {
   const [direction, setDirection] = useState({ step, value: 'fwd' })
   const stageRef = useRef(null)
@@ -92,9 +99,9 @@ export function RecruitmentShell({
   }, [focusError])
 
   return (
-    <div className={`zrv-hr zrv-hr--${current}`}>
-      <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} />
-      <FlowNav current={current} status={flowStatus} />
+    <div className={`zrv-hr zrv-hr--${current}${compact ? ' zrv-hr--compact' : ''}`}>
+      <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} breadcrumb={breadcrumb} />
+      {flow && <FlowNav current={current} status={flowStatus} />}
 
       <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>
         <div className="zrv-hr-tools">
@@ -114,8 +121,9 @@ export function RecruitmentShell({
       <Feedback feedback={feedback} onDismiss={onDismissFeedback} />
       {lookupNotice}
       {ticket}
+      {banner}
 
-      <nav className="zrv-hr-track" aria-label={COMMON_TEXT.stepsLabel} style={{ '--step': step }} ref={trackRef}>
+      <nav className="zrv-hr-track" aria-label={COMMON_TEXT.stepsLabel} style={{ '--step': step, '--n': steps.length }} ref={trackRef}>
         <span className="zrv-hr-track__fill" aria-hidden="true" />
         {steps.map(([name, hint], index) => {
           const done = doneSteps[index] && index !== step
