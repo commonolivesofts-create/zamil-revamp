@@ -25,9 +25,17 @@ export const apiProxy = Object.freeze({
 // silently moving to another port, which would break those links.
 export const DEV_PORT = 7382
 
+export function resolveAppEnv({ processEnv, clientEnv, serverEnv }) {
+  return String(processEnv.APP_ENV ?? processEnv.app_env
+    ?? clientEnv.APP_ENV ?? clientEnv.app_env
+    ?? serverEnv.APP_ENV ?? serverEnv.app_env
+    ?? 'development').trim().toLowerCase()
+}
+
 function configureEnvironment(config, { mode }) {
   const env = loadEnv(mode, process.cwd(), '')
-  const appEnv = (process.env.APP_ENV ?? env.APP_ENV ?? 'development').trim().toLowerCase()
+  const serverEnv = loadEnv(mode, fileURLToPath(new URL('../server', import.meta.url)), '')
+  const appEnv = resolveAppEnv({ processEnv: process.env, clientEnv: env, serverEnv })
   if (appEnv === 'test') {
     config.server.host = '0.0.0.0'
     config.server.port = 7382
