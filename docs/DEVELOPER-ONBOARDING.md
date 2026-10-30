@@ -98,17 +98,15 @@ remove dependencies as part of a feature without approval.
 6. Only if you are authorized to enable SMTP: `AUTH_FRONTEND_BASE_URL` becomes required; set it to
    `http://localhost:7382` so e-mailed links open the local frontend (outside development/test it
    must be `https`).
-7. **Administrator MFA (`AUTH_ADMIN_MFA_REQUIRED`).** Keep the default `true`. On your **own
-   machine only**, you may set `AUTH_ADMIN_MFA_REQUIRED=false` to sign in as an administrator with
-   username and password, without enrolling an authenticator. The server refuses to start with
-   `false` unless `NODE_ENV=development`, `HTTP_HOST` is loopback (`127.0.0.1` or `::1`) and
-   `TRUST_PROXY_HOPS=0`, and logs
-   `WARNING: Administrator MFA requirement is disabled for local development.` at startup.
+7. **Administrator MFA (`AUTH_ADMIN_MFA_REQUIRED`).** Keep the default `true`. The explicit
+   `APP_ENV=Test` profile currently disables administrator MFA for the trusted test LAN; admins can
+   sign in with username and password. Local development can also disable it on loopback with
+   `TRUST_PROXY_HOPS=0`. Startup logs a warning whenever this exception is active.
    Password, account, eligibility, lockout, expiry and RBAC checks still apply, sessions are never
    marked MFA-verified, and actions that need a recent authenticator verification (replacing an
    authenticator, authorizing recovery of an administrator account) stay unavailable. Setting it
-   back to `true` ends those sessions on their next request. Never use `false` in UAT, production
-   or any shared or reachable environment.
+   back to `true` ends those sessions on their next request. Never use `false` in UAT or production;
+   keep the Test profile on the trusted test LAN.
 
 Configuration is validated at startup by `server/src/config/index.js`; a missing or invalid value
 stops the server with a clear message. Never read `process.env` anywhere else.
@@ -189,7 +187,7 @@ Details: [frontend testing](../client/docs/FRONTEND-TESTING.md),
 | Login fails with `CSRF_REJECTED` or a 403 on every change | You are not using the same origin. Open `http://localhost:7382`, not `127.0.0.1` or the backend port. |
 | `/health/ready` reports the database as unavailable | Wallet path, wallet password, aliases or credentials are wrong, or the network blocks ADW. Run `npm run db:status` for a safe diagnostic. |
 | Accounts that require MFA cannot finish sign-in | `AUTH_MFA_ENCRYPTION_KEY` is missing. For local administrator testing without an authenticator, see `AUTH_ADMIN_MFA_REQUIRED` in §4. |
-| The backend refuses to start: `"AUTH_ADMIN_MFA_REQUIRED" may be false only when …` | The local MFA exception is only for `NODE_ENV=development` on a loopback `HTTP_HOST` with `TRUST_PROXY_HOPS=0`. Fix those values or set it back to `true`. |
+| The backend refuses to start with `AUTH_ADMIN_MFA_REQUIRED=false` | Local development requires loopback and `TRUST_PROXY_HOPS=0`; the Test exception requires `APP_ENV=Test`, `HTTP_HOST=0.0.0.0` and `TRUST_PROXY_HOPS=0`. UAT/production must keep MFA enabled. |
 | `npm run check` in `server/` fails at Prettier although you changed nothing | Your checkout has CRLF copies of LF files (`git ls-files --eol` shows `i/lf w/crlf`). Follow [Line endings (Windows)](#line-endings-windows) to refresh them. |
 | The app still shows the former product name | Your `client/.env.local` sets `VITE_APP_NAME`; change it to `Zamil Digitalization` or remove the line, then restart Vite. |
 | Password setup/reset or MFA recovery returns `DELIVERY_UNAVAILABLE` | Expected while `SMTP_ENABLED=false`. |

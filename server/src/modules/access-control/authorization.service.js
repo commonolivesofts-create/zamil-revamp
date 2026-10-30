@@ -29,7 +29,7 @@ const isSecurityModule = (moduleCode) =>
  * Pure decision (deny by default): unknown or inactive permission → deny; active DENY override →
  * deny (wins over everything); ALLOW override or role grant → allow; otherwise deny. A
  * security-administration permission additionally requires an MFA-verified session, unless the
- * validated local-development exception (`adminMfaRequired: false`) is active. The exception only
+ * validated non-production exception (`adminMfaRequired: false`) is active. The exception only
  * waives the MFA condition: the grant, DENY and catalogue rules still apply, and the session stays
  * unverified.
  */
@@ -49,7 +49,7 @@ export function createAuthorizationService({
   repository = defaultRepository,
   auditService,
   withConnection = defaultWithConnection,
-  // config.auth.adminMfaRequired; false only for the validated local-development exception.
+  // config.auth.adminMfaRequired; false only for a validated non-production exception.
   adminMfaRequired = true,
 }) {
   const mfaPolicy = { adminMfaRequired };
