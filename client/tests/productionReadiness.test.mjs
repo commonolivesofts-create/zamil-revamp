@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import process from 'node:process'
 import { readFile, readdir } from 'node:fs/promises'
-import viteConfig, { DEV_PORT } from '../vite.config.js'
+import viteConfig, { DEV_PORT, resolveAppEnv } from '../vite.config.js'
 import { createApiClient } from '../src/services/api/apiClient.js'
 import { readMyPermissions } from '../src/features/access/permissionContract.js'
 import { createPermissionStore } from '../src/features/access/permissionStore.js'
@@ -121,14 +121,26 @@ test('the release check guards the Stage 4 guarantees', async () => {
 
 test('the development and preview servers use port 7382 with the same-origin /api proxy', () => {
   assert.equal(DEV_PORT, 7382)
-  const resolvedConfig = viteConfig({ command: 'serve', mode: 'development' })
-  for (const server of [resolvedConfig.server, resolvedConfig.preview]) {
-    assert.equal(server.port, 7382)
-    assert.equal(server.strictPort, true)
-    assert.equal(server.host, '127.0.0.1')
-    assert.equal(server.proxy['/api'].target, 'http://127.0.0.1:7381')
-    assert.equal(server.proxy['/api'].changeOrigin, false)
+  const previous = process.env.APP_ENV
+  process.env.APP_ENV = 'development'
+  try {
+    const resolvedConfig = viteConfig({ command: 'serve', mode: 'development' })
+    for (const server of [resolvedConfig.server, resolvedConfig.preview]) {
+      assert.equal(server.port, 7382)
+      assert.equal(server.strictPort, true)
+      assert.equal(server.host, '127.0.0.1')
+      assert.equal(server.proxy['/api'].target, 'http://127.0.0.1:7381')
+      assert.equal(server.proxy['/api'].changeOrigin, false)
+    }
+  } finally {
+    if (previous === undefined) delete process.env.APP_ENV
+    else process.env.APP_ENV = previous
   }
+})
+
+test('the shared server APP_ENV selects the client profile when no client value is set', () => {
+  assert.equal(resolveAppEnv({ processEnv: {}, clientEnv: {}, serverEnv: { APP_ENV: 'Test' } }), 'test')
+  assert.equal(resolveAppEnv({ processEnv: { APP_ENV: 'development' }, clientEnv: {}, serverEnv: { APP_ENV: 'Test' } }), 'development')
 })
 
 test('APP_ENV=Test exposes the frontend on the LAN and proxies to backend port 7381', () => {
