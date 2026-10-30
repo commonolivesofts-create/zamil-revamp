@@ -119,7 +119,7 @@ export function createMfaService({
   auditService,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
-  // config.auth.adminMfaRequired; false only for the validated local-development exception.
+  // config.auth.adminMfaRequired; false only for a validated non-production exception.
   adminMfaRequired = true,
 }) {
   const mfaPolicy = { adminMfaRequired };

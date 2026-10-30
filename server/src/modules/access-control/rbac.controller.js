@@ -11,7 +11,7 @@ export function createRbacController({ rbacService, authorizationService }) {
         userId: req.auth.userId,
         mfaVerified: req.auth.mfaVerified,
         // Whether SECURITY_ADMINISTRATION permissions need an MFA-verified session on this server
-        // (false only under the local-development exception). The frontend mirrors this; the
+        // (false only under a validated non-production exception). The frontend mirrors this; the
         // backend still decides every request.
         adminMfaRequired: authorizationService.adminMfaRequired,
         permissions: await authorizationService.effectivePermissions(req.auth.userId),

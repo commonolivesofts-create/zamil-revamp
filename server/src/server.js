@@ -14,11 +14,11 @@ process.on('unhandledRejection', (reason) => {
   process.exit(1);
 });
 
-// Configuration only allows this on a loopback-only development listener (config/index.js).
+// Config allows this only for loopback development or the explicit non-production Test profile.
 if (config.auth.adminMfaRequired === false) {
   logger.warn(
     { nodeEnv: config.env, host: config.http.host },
-    'WARNING: Administrator MFA requirement is disabled for local development.',
+    'WARNING: Administrator MFA requirement is disabled for this environment.',
   );
 }
 

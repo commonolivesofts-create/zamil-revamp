@@ -96,7 +96,7 @@ export function createSessionService({
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
   touchIntervalMs,
-  // config.auth.adminMfaRequired; false only for the validated local-development exception.
+  // config.auth.adminMfaRequired; false only for a validated non-production exception.
   adminMfaRequired = true,
 }) {
   const mfaPolicy = { adminMfaRequired };

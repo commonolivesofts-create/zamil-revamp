@@ -27,8 +27,8 @@ export function evaluateEmployeeEligibility(employee) {
  * `privileged` selects the 15-minute idle timeout. Phase 01 cannot verify MFA, so `required`
  * always means "no session".
  *
- * `adminMfaRequired: false` is the local-development exception (AUTH_ADMIN_MFA_REQUIRED, validated
- * in config/index.js): privileged accounts are still classified as privileged (15-minute idle
+ * `adminMfaRequired: false` is the local-development or explicit Test-profile exception
+ * (AUTH_ADMIN_MFA_REQUIRED, validated in config/index.js): privileged accounts are still classified as privileged (15-minute idle
  * timeout, administrator hierarchy) but are not required to pass MFA, and the result says so with
  * `exempted: true`. It never marks anything as verified. Voluntarily enrolled ordinary users keep
  * their MFA requirement.

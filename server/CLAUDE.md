@@ -94,11 +94,11 @@ These APIs are consumed by the frontend's authentication pages, effective-permis
 Security Administration screens (`client/src/features/`); keep their contracts compatible.
 
 Mandatory administrator MFA is controlled by `AUTH_ADMIN_MFA_REQUIRED` (default `true`). The
-**only** approved exception is `AUTH_ADMIN_MFA_REQUIRED=false`, accepted only for
-`NODE_ENV=development` on a loopback `HTTP_HOST` with `TRUST_PROXY_HOPS=0` (enforced by
-`src/config/index.js`; startup fails otherwise), applied through `evaluateMfaRequirement` and the
-authorization evaluator, and never marking a session MFA-verified. **UAT and production must
-require MFA.** Do not add any other MFA bypass. See
+exceptions are local `NODE_ENV=development` on loopback with `TRUST_PROXY_HOPS=0`, and the explicit
+`APP_ENV=Test` shared test profile. Test disables administrator MFA on the LAN; sessions are never
+marked MFA-verified. Keep Test on the trusted test network. **UAT and production must require MFA.**
+The exceptions are enforced by `src/config/index.js` and applied through `evaluateMfaRequirement`
+and the authorization evaluator. See
 [../docs/SECURITY-ESSENTIALS.md](../docs/SECURITY-ESSENTIALS.md).
 
 Product identity: **Zamil Digitalization**, release **V 2.1.0**, defined once in
