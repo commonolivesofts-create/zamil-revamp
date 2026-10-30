@@ -298,15 +298,18 @@ const poolConfig = (value, prefix) =>
 export function loadConfig(env) {
   const hasAppEnv = Object.hasOwn(env, 'APP_ENV');
   const appEnv = hasAppEnv
-    ? String(env.APP_ENV ?? '').trim().toLowerCase()
+    ? String(env.APP_ENV ?? '')
+        .trim()
+        .toLowerCase()
     : null;
-  const runtimeEnv = appEnv === null
-    ? env.NODE_ENV
-    : appEnv === ''
-      ? 'production'
-      : appEnv === 'test'
-        ? 'test'
-        : appEnv;
+  const runtimeEnv =
+    appEnv === null
+      ? env.NODE_ENV
+      : appEnv === ''
+        ? 'production'
+        : appEnv === 'test'
+          ? 'test'
+          : appEnv;
   const isSharedTest = appEnv === 'test';
   const normalizedEnv = {
     ...env,

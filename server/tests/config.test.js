@@ -46,6 +46,31 @@ describe('configuration', () => {
     assert.equal(config.apiDocs.enabled, true);
   });
 
+  it('maps APP_ENV profiles to the requested local, LAN test and production listeners', () => {
+    const development = loadConfig(env({ APP_ENV: 'development' }));
+    assert.equal(development.env, 'development');
+    assert.equal(development.port, 7381);
+    assert.equal(development.http.host, '127.0.0.1');
+    assert.equal(development.links.baseUrl, 'http://localhost:7382');
+
+    const sharedTest = loadConfig(env({ APP_ENV: 'Test' }));
+    assert.equal(sharedTest.env, 'test');
+    assert.equal(sharedTest.port, 7381);
+    assert.equal(sharedTest.http.host, '0.0.0.0');
+    assert.deepEqual(sharedTest.auth.cookie, {
+      name: 'zr_session',
+      secure: false,
+      sameSite: 'lax',
+    });
+    assert.equal(sharedTest.auth.mfa.cookieName, 'zr_mfa');
+    assert.equal(sharedTest.auth.adminMfaRequired, true);
+    assert.equal(sharedTest.links.baseUrl, 'http://10.10.2.160:7382');
+
+    const production = loadConfig(env({ APP_ENV: '' }));
+    assert.equal(production.env, 'production');
+    assert.equal(production.auth.cookie.secure, true);
+  });
+
   it('disables API docs by default outside development and test', () => {
     assert.equal(loadConfig(env({ NODE_ENV: 'production' })).apiDocs.enabled, false);
     assert.equal(loadConfig(env({ NODE_ENV: 'uat' })).apiDocs.enabled, false);
