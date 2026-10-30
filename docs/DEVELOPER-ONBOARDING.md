@@ -96,7 +96,7 @@ remove dependencies as part of a feature without approval.
    e-mail-dependent flows (password setup/reset, MFA recovery) fail closed with
    `503 DELIVERY_UNAVAILABLE`; that is expected.
 6. Only if you are authorized to enable SMTP: `AUTH_FRONTEND_BASE_URL` becomes required; set it to
-   `http://localhost:5199` so e-mailed links open the local frontend (outside development/test it
+   `http://localhost:7382` so e-mailed links open the local frontend (outside development/test it
    must be `https`).
 7. **Administrator MFA (`AUTH_ADMIN_MFA_REQUIRED`).** Keep the default `true`. On your **own
    machine only**, you may set `AUTH_ADMIN_MFA_REQUIRED=false` to sign in as an administrator with
@@ -130,16 +130,16 @@ bundle, so it must never contain a secret.
 Start the backend first, then the frontend, in two terminals:
 
 ```powershell
-cd server; npm run dev        # http://localhost:3000 (watch mode)
-cd client; npm run dev        # http://localhost:5199
+cd server; npm run dev        # http://127.0.0.1:7381 (watch mode)
+cd client; npm run dev        # http://localhost:7382
 ```
 
-Open **http://localhost:5199**.
+Open **http://localhost:7382**.
 
 ### The same-origin `/api` proxy
 
-The browser only ever talks to `http://localhost:5199`. Vite forwards every request under `/api`
-to the backend on `http://127.0.0.1:3000` (`client/vite.config.js`, `apiProxy`, with
+The browser only ever talks to `http://localhost:7382`. Vite forwards every request under `/api`
+to the backend on `http://127.0.0.1:7381` (`client/vite.config.js`, `apiProxy`, with
 `changeOrigin: false`). The target is the backend's development listener address (`HTTP_HOST`
 defaults to `127.0.0.1`); `localhost` resolves to IPv6 `::1` first on Windows. This matters because:
 
@@ -148,16 +148,16 @@ defaults to `127.0.0.1`); `localhost` resolves to IPv6 `::1` first on Windows. T
 - the backend's Origin check accepts state-changing requests whose `Origin` equals its own origin
   as seen through the `Host` header, which the proxy preserves.
 
-Do not point the frontend directly at `http://localhost:3000`, and do not add CORS to the backend.
+Do not point the frontend directly at `http://localhost:7381`, and do not add CORS to the backend.
 
 ### Useful local URLs
 
 | URL | What |
 |---|---|
-| `http://localhost:5199` | Application |
-| `http://localhost:3000/health/live`, `/health/ready` | Backend liveness / Oracle readiness |
-| `http://localhost:3000/api/docs` | Swagger UI (only when `API_DOCS_ENABLED=true`, development/test) |
-| `http://localhost:3000/api/openapi.json` | The OpenAPI document served to Swagger UI |
+| `http://localhost:7382` | Application |
+| `http://127.0.0.1:7381/health/live`, `/health/ready` | Backend liveness / Oracle readiness |
+| `http://127.0.0.1:7381/api/docs` | Swagger UI (only when `API_DOCS_ENABLED=true`, development/test) |
+| `http://127.0.0.1:7381/api/openapi.json` | The OpenAPI document served to Swagger UI |
 
 Signing in against TEST writes real audit, session and user-state rows. Use only the account you
 were authorized to use.
@@ -173,7 +173,7 @@ were authorized to use.
 | `client/` | `npm test` | Frontend tests (`node --test "tests/*.test.mjs"`, mocked transport) |
 | `client/` | `npm run build` | Production build into `client/dist/` |
 | `client/` | `node scripts/verify-production.mjs` | Static release checks on `dist/` (run after a build) |
-| `client/` | `npm run preview` | Serves `dist/` on port 5199 with the same `/api` proxy |
+| `client/` | `npm run preview` | Serves `dist/` on port 7382 with the same `/api` proxy |
 
 Details: [frontend testing](../client/docs/FRONTEND-TESTING.md),
 [backend testing](../server/docs/BACKEND-TESTING.md).
@@ -182,11 +182,11 @@ Details: [frontend testing](../client/docs/FRONTEND-TESTING.md),
 
 | Symptom | Likely cause and fix |
 |---|---|
-| `npm run dev` in `client/` fails with "Port 5199 is in use" | Another process holds the port. `strictPort` is intentional (e-mailed links target 5199); stop the other process. |
+| `npm run dev` in `client/` fails with "Port 7382 is in use" | Another process holds the port. `strictPort` is intentional (e-mailed links target 7382); stop the other process. |
 | The app shows "Session check unavailable", or sign-in says "The application server could not be reached" | The proxy got no answer from the backend (Vite logs `http proxy error`): it is not running, failed at startup (check its terminal, e.g. missing `server/.env`), or is restarting after a file change. `npm run dev` restarts on every saved backend file and the port is closed for about one second; the session check retries this automatically twice, a sign-in is never resent, so submit it again. Otherwise start `server` on port 3000, then retry. |
-| E-mailed setup/reset/recovery links open port 5173 (or `127.0.0.1`) | `AUTH_FRONTEND_BASE_URL` in your `server/.env` is wrong; set it to `http://localhost:5199` and restart the backend. |
+| E-mailed setup/reset/recovery links open port 5173 (or `127.0.0.1`) | `AUTH_FRONTEND_BASE_URL` in your `server/.env` is wrong; set it to `http://localhost:7382` and restart the backend. |
 | Sign-in says "The service is temporarily unavailable" with a Reference | The backend answered `503 SERVICE_UNAVAILABLE`: it could not obtain an Oracle connection in time. Search the backend log for the Reference (request ID) to see the Oracle cause. |
-| Login fails with `CSRF_REJECTED` or a 403 on every change | You are not using the same origin. Open `http://localhost:5199`, not `127.0.0.1` or the backend port. |
+| Login fails with `CSRF_REJECTED` or a 403 on every change | You are not using the same origin. Open `http://localhost:7382`, not `127.0.0.1` or the backend port. |
 | `/health/ready` reports the database as unavailable | Wallet path, wallet password, aliases or credentials are wrong, or the network blocks ADW. Run `npm run db:status` for a safe diagnostic. |
 | Accounts that require MFA cannot finish sign-in | `AUTH_MFA_ENCRYPTION_KEY` is missing. For local administrator testing without an authenticator, see `AUTH_ADMIN_MFA_REQUIRED` in §4. |
 | The backend refuses to start: `"AUTH_ADMIN_MFA_REQUIRED" may be false only when …` | The local MFA exception is only for `NODE_ENV=development` on a loopback `HTTP_HOST` with `TRUST_PROXY_HOPS=0`. Fix those values or set it back to `true`. |

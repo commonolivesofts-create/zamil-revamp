@@ -3,8 +3,9 @@
 // Mocked transport only.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import process from 'node:process'
 import { readFile, readdir } from 'node:fs/promises'
-import viteConfig, { DEV_PORT, apiProxy } from '../vite.config.js'
+import viteConfig, { DEV_PORT } from '../vite.config.js'
 import { createApiClient } from '../src/services/api/apiClient.js'
 import { readMyPermissions } from '../src/features/access/permissionContract.js'
 import { createPermissionStore } from '../src/features/access/permissionStore.js'
@@ -118,12 +119,31 @@ test('the release check guards the Stage 4 guarantees', async () => {
 
 // ------------------------------------------------------------ environment and development server
 
-test('the development and preview servers use port 5199 with the same-origin /api proxy', () => {
-  assert.equal(DEV_PORT, 5199)
-  for (const server of [viteConfig.server, viteConfig.preview]) {
-    assert.equal(server.port, 5199)
+test('the development and preview servers use port 7382 with the same-origin /api proxy', () => {
+  assert.equal(DEV_PORT, 7382)
+  const resolvedConfig = viteConfig({ command: 'serve', mode: 'development' })
+  for (const server of [resolvedConfig.server, resolvedConfig.preview]) {
+    assert.equal(server.port, 7382)
     assert.equal(server.strictPort, true)
-    assert.equal(server.proxy, apiProxy)
+    assert.equal(server.host, '127.0.0.1')
+    assert.equal(server.proxy['/api'].target, 'http://127.0.0.1:7381')
+    assert.equal(server.proxy['/api'].changeOrigin, false)
+  }
+})
+
+test('APP_ENV=Test exposes the frontend on the LAN and proxies to backend port 7381', () => {
+  const previous = process.env.APP_ENV
+  process.env.APP_ENV = 'Test'
+  try {
+    const config = viteConfig({ command: 'serve', mode: 'development' })
+    for (const server of [config.server, config.preview]) {
+      assert.equal(server.host, '0.0.0.0')
+      assert.equal(server.port, 7382)
+      assert.equal(server.proxy['/api'].target, 'http://127.0.0.1:7381')
+    }
+  } finally {
+    if (previous === undefined) delete process.env.APP_ENV
+    else process.env.APP_ENV = previous
   }
 })
 
@@ -134,8 +154,8 @@ test('the sample environment documents only real, public settings', async () => 
   // Empty (unset): demo data in development builds only; the employee services backend does not exist yet.
   assert.match(example, /^VITE_HR_EMPLOYEE_SERVICES_DEMO=$/m)
   assert.match(example, /VITE_AUTH_DEV_PREVIEW=false/)
-  assert.match(example, /http:\/\/localhost:5199/)
-  assert.match(example, /AUTH_FRONTEND_BASE_URL=http:\/\/localhost:5199/)
+  assert.match(example, /http:\/\/localhost:7382/)
+  assert.match(example, /AUTH_FRONTEND_BASE_URL=http:\/\/localhost:7382/)
   assert.equal(/password=|secret=|token=/i.test(example), false)
   const readme = await read('../README.md')
   assert.equal(readme.includes('This template provides a minimal setup'), false, 'not the Vite scaffold README')

@@ -15,19 +15,30 @@ HttpOnly cookies set by the backend, and CSRF tokens are kept in memory only.
 
 ```powershell
 npm install
-npm run dev        # http://localhost:5199, /api proxied to http://localhost:3000
+npm run dev        # http://localhost:7382, /api proxied to http://127.0.0.1:7381
 ```
 
-Copy `.env.example` to `.env.local` only if you need to change a public
-setting. Keep `VITE_AUTH_DEV_PREVIEW=false` for real integration testing.
+Copy `.env.example` to `.env.local` to set public client options. Set the same
+`APP_ENV` in `client/.env.local` and `server/.env`:
+
+| `APP_ENV` | Frontend | Backend |
+|---|---|---|
+| `development` | `http://localhost:7382` | `http://127.0.0.1:7381` |
+| `Test` | `http://10.10.2.160:7382` (listens on all interfaces) | `0.0.0.0:7381` |
+| empty | Production profile | Production profile |
+
+For LAN testing, run `npm run dev` in both `client` and `server`, and open
+`http://10.10.2.160:7382`. The frontend proxies `/api` to port 7381. Test mode
+uses HTTP-compatible session cookies; keep it on the trusted test network. Keep
+`VITE_AUTH_DEV_PREVIEW=false` for real integration testing.
 
 | Script | Purpose |
 |---|---|
-| `npm run dev` | Development server on port 5199 with the same-origin `/api` proxy |
+| `npm run dev` | Development server on port 7382 with the same-origin `/api` proxy |
 | `npm run lint` | ESLint |
 | `npm test` | Node native tests (`tests/*.test.mjs`, mocked transport only) |
 | `npm run build` | Production build to `dist/` |
-| `npm run preview` | Serves `dist/` on port 5199 with the same `/api` proxy |
+| `npm run preview` | Serves `dist/` on port 7382 with the same `/api` proxy |
 | `node scripts/verify-production.mjs` | Static release checks after a build |
 
 ## Deployment requirements

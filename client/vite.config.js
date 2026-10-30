@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
-import { defineConfig } from 'vite'
+import process from 'node:process'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // Same-origin development API: the browser only talks to the Vite origin.
@@ -12,17 +13,45 @@ import react from '@vitejs/plugin-react'
 // would depend on the IPv6-to-IPv4 connection fallback for every request.
 export const apiProxy = Object.freeze({
   '/api': {
-    target: 'http://127.0.0.1:3000',
+    target: process.env.APP_ENV?.trim().toLowerCase() === 'test'
+      ? 'http://127.0.0.1:7381'
+      : 'http://127.0.0.1:3000',
     changeOrigin: false,
   },
 })
 
-// The development origin is http://localhost:5199 (the backend's
+// The development origin is http://localhost:7382 (the backend's
 // AUTH_FRONTEND_BASE_URL e-mail links point here). strictPort fails instead of
 // silently moving to another port, which would break those links.
-export const DEV_PORT = 5199
+export const DEV_PORT = 7382
 
-export default defineConfig({
+function configureEnvironment(config, { mode }) {
+  const env = loadEnv(mode, process.cwd(), '')
+  const appEnv = (process.env.APP_ENV ?? env.APP_ENV ?? 'development').trim().toLowerCase()
+  if (appEnv === 'test') {
+    config.server.host = '0.0.0.0'
+    config.server.port = 7382
+    config.server.proxy = { '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false } }
+    config.preview.host = '0.0.0.0'
+    config.preview.port = 7382
+    config.preview.proxy = { '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false } }
+  } else if (appEnv === 'development') {
+    config.server.host = '127.0.0.1'
+    config.server.port = 7382
+    config.server.proxy = { '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false } }
+    config.preview.host = '127.0.0.1'
+    config.preview.port = 7382
+    config.preview.proxy = { '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false } }
+  } else if (appEnv === '') {
+    config.server.host = '127.0.0.1'
+    config.server.port = 5199
+    config.preview.host = '127.0.0.1'
+    config.preview.port = 5199
+  }
+  return config
+}
+
+export default defineConfig((context) => configureEnvironment({
   plugins: [react()],
   resolve: {
     alias: {
@@ -40,4 +69,4 @@ export default defineConfig({
     strictPort: true,
     proxy: apiProxy,
   },
-})
+}, context))

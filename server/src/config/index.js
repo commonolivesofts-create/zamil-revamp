@@ -296,7 +296,44 @@ const poolConfig = (value, prefix) =>
  * Throws on any missing or invalid setting so the process fails fast at startup.
  */
 export function loadConfig(env) {
-  const { value, error } = envSchema.validate(env, { abortEarly: false, convert: true });
+  const hasAppEnv = Object.hasOwn(env, 'APP_ENV');
+  const appEnv = hasAppEnv
+    ? String(env.APP_ENV ?? '')
+        .trim()
+        .toLowerCase()
+    : null;
+  const runtimeEnv =
+    appEnv === null
+      ? env.NODE_ENV
+      : appEnv === ''
+        ? 'production'
+        : appEnv === 'test'
+          ? 'test'
+          : appEnv;
+  const isSharedTest = appEnv === 'test';
+  const normalizedEnv = {
+    ...env,
+    NODE_ENV: runtimeEnv,
+    ...(appEnv === 'development'
+      ? {
+          PORT: 7381,
+          HTTP_HOST: '127.0.0.1',
+          AUTH_FRONTEND_BASE_URL: 'http://localhost:7382',
+        }
+      : {}),
+    ...(isSharedTest
+      ? {
+          PORT: 7381,
+          HTTP_HOST: '0.0.0.0',
+          AUTH_SESSION_COOKIE_NAME: 'zr_session',
+          AUTH_MFA_COOKIE_NAME: 'zr_mfa',
+          AUTH_COOKIE_SECURE: false,
+          AUTH_ADMIN_MFA_REQUIRED: true,
+          AUTH_FRONTEND_BASE_URL: 'http://10.10.2.160:7382',
+        }
+      : {}),
+  };
+  const { value, error } = envSchema.validate(normalizedEnv, { abortEarly: false, convert: true });
 
   if (error) {
     const problems = error.details.map((detail) => detail.message).join('; ');
