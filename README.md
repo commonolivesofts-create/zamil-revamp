@@ -32,7 +32,7 @@ Database (ADW)** business schema.
 
 1. Read [`docs/README.md`](docs/README.md) — the documentation index and reading order.
 2. Set up your environment with [`docs/DEVELOPER-ONBOARDING.md`](docs/DEVELOPER-ONBOARDING.md)
-   (frontend on `http://localhost:5199`, backend on `http://localhost:3000`).
+   (frontend on `http://localhost:7382`, backend on `http://127.0.0.1:7381`).
 3. Deliver work with [`docs/FEATURE-DELIVERY-WORKFLOW.md`](docs/FEATURE-DELIVERY-WORKFLOW.md) and
    the Git policy in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
