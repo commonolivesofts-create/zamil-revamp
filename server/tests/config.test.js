@@ -63,8 +63,7 @@ describe('configuration', () => {
       sameSite: 'lax',
     });
     assert.equal(sharedTest.auth.mfa.cookieName, 'zr_mfa');
-    assert.equal(sharedTest.auth.adminMfaRequired, false);
-    assert.equal(sharedTest.auth.adminMfaExemption, 'TEST_PROFILE');
+    assert.equal(sharedTest.auth.adminMfaRequired, true);
     assert.equal(sharedTest.links.baseUrl, 'http://10.10.2.160:7382');
 
     const production = loadConfig(env({ APP_ENV: '' }));

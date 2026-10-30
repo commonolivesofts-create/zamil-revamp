@@ -334,7 +334,7 @@ export function loadConfig(env) {
           AUTH_SESSION_COOKIE_NAME: 'zr_session',
           AUTH_MFA_COOKIE_NAME: 'zr_mfa',
           AUTH_COOKIE_SECURE: false,
-          AUTH_ADMIN_MFA_REQUIRED: false,
+          AUTH_ADMIN_MFA_REQUIRED: true,
           AUTH_FRONTEND_BASE_URL: 'http://10.10.2.160:7382',
         }
       : {}),
