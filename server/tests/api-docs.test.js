@@ -133,6 +133,7 @@ describe('API documentation', () => {
     const expected = [
       ['get', ''],
       ['post', ''],
+      ['get', '/lookups/payroll-units'],
       ['get', '/lookups/nationalities'],
       ['get', '/lookups/requisitions'],
       ['get', '/lookups/employees'],
@@ -293,6 +294,7 @@ describe('API documentation', () => {
       ['post', ''],
       ['get', '/lookups/job-titles'],
       ['get', '/lookups/requestor'],
+      ['get', '/lookups/capabilities'],
       ['get', '/lookups/departments'],
       ['get', '/lookups/replacement-for'],
       ['get', '/lookups/budget'],

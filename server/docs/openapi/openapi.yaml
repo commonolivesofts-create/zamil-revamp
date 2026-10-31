@@ -2565,7 +2565,12 @@ paths:
       operationId: getOrientationTraining
       tags: [HR Orientation Trainings]
       summary: Read an orientation training record
-      description: Resolves the table pair through the flag registry and returns header with lines. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      description: >-
+        Resolves the table pair through the flag registry and returns header with lines. Requires
+        `HR.ORIENTATION_TRAININGS:VIEW`. Record access (also for PUT, DELETE and line DELETE): the
+        creator, an HR user (XXZP_HR lookup) or a user in the trained employee's department
+        (XX_DIGI_EMP_MASTER.ORGANIZATION_ID) holding `HR.ORIENTATION_TRAININGS:VIEW`; anyone else
+        receives 403 `FORBIDDEN`.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
@@ -2588,7 +2593,11 @@ paths:
       operationId: updateOrientationTraining
       tags: [HR Orientation Trainings]
       summary: Update an orientation training record
-      description: Updates header and replaces all lines atomically without changing status or creation audit fields. Requires `HR.ORIENTATION_TRAININGS:UPDATE`.
+      description: >-
+        Updates header and replaces all lines atomically without changing status or creation audit
+        fields; sets LAST_UPDATED_BY and LAST_UPDATE_DATE. Returns 409 `ORIENTATION_TRAINING_NOT_DRAFT`
+        when the record is not Draft and 403 outside the record access rule (see GET). Requires
+        `HR.ORIENTATION_TRAININGS:UPDATE`.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
@@ -2604,6 +2613,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/InternalError' }
     delete:
       operationId: deleteOrientationTraining
@@ -2626,7 +2636,9 @@ paths:
       operationId: deleteOrientationTrainingLine
       tags: [HR Orientation Trainings]
       summary: Delete one orientation training line
-      description: Deletes one line from the header's registered variant. Requires `HR.ORIENTATION_TRAININGS:MANAGE_LINES`.
+      description: >-
+        Deletes one line from the header's registered variant. Returns 409 when the record is not
+        Draft and 403 outside the record access rule. Requires `HR.ORIENTATION_TRAININGS:MANAGE_LINES`.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
@@ -2638,6 +2650,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/InternalError' }
   /api/v1/hr/probation-evaluations:
     get:
@@ -2875,7 +2888,11 @@ paths:
       operationId: getProbationEvaluation
       tags: [HR Probation Evaluations]
       summary: Read a probation evaluation
-      description: Returns the header and ordered evaluation lines. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      description: >-
+        Returns the header and ordered evaluation lines. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+        Record access (also for PUT and DELETE): the creator, an HR user (XXZP_HR lookup) or a user
+        in the evaluated employee's department (XX_DIGI_EMP_MASTER.ORGANIZATION_ID) holding
+        `HR.PROBATION_EVALUATIONS:VIEW`; anyone else receives 403 `FORBIDDEN`.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
@@ -2902,8 +2919,9 @@ paths:
       summary: Update a probation evaluation
       description: >-
         Updates header fields and only the supplied existing lines identified by lineId;
-        omitted lines are unchanged. Audit and request-status fields are not updated.
-        Requires `HR.PROBATION_EVALUATIONS:UPDATE` and the X-CSRF-Token header.
+        omitted lines are unchanged. Sets UPDATED_BY and UPDATED_AT; the request status is not
+        changed. Returns 409 when the record is not DRAFT and 403 outside the record access rule
+        (see GET). Requires `HR.PROBATION_EVALUATIONS:UPDATE` and the X-CSRF-Token header.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
@@ -2931,6 +2949,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/ProbationEvaluationUpdateConflict' }
         '500': { $ref: '#/components/responses/InternalError' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
     delete:
@@ -3118,6 +3137,49 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/InterviewAssessmentCreated'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/interview-assessments/lookups/payroll-units:
+    get:
+      operationId: listInterviewAssessmentPayrollUnits
+      tags: [HR Interview Assessments]
+      summary: Payroll business-unit lookup
+      description: >-
+        The payroll business units accepted as `attribute3`, with their labels (README §1.1:
+        IPP and FPP). The legacy APP_BU_INFO table does not exist in the ADW schema, so the
+        values are server constants. Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW`.
+        No query parameters are accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          required: [code, name]
+                          properties:
+                            code: { type: string, example: '300000003618177' }
+                            name: { type: string, example: IPP }
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -4167,6 +4229,46 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/RequisitionJobTitle'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/lookups/capabilities:
+    get:
+      operationId: getRequisitionCapabilities
+      tags: [HR Requisitions]
+      summary: Caller capabilities
+      description: >-
+        What the session user may do beyond the route permission. `canManageTicket` is true
+        for HR users (XXZP_HR lookup, README §9); the same probe refuses a non-HR ticket-status
+        change on create/update with 400. Requires `REQUISITIONS.REQUISITIONS:VIEW`. No query
+        parameters are accepted.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [canManageTicket]
+                        properties:
+                          canManageTicket: { type: boolean }
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -12672,6 +12774,22 @@ components:
             error:
               code: PROBATION_EVALUATION_NOT_DRAFT
               message: Only draft probation evaluations can be deleted
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    ProbationEvaluationUpdateConflict:
+      description: The evaluation cannot be updated because its REQUEST_STATUS is not DRAFT.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: PROBATION_EVALUATION_NOT_DRAFT
+              message: Only draft probation evaluations can be updated
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     ProbationEvaluationIdConflict:

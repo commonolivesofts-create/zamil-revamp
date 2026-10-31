@@ -281,15 +281,6 @@ export function createDemoClient({
     return respond(record)
   }
 
-  // Employees whose name or number contains the search text.
-  function searchEmployees(params = {}) {
-    const search = String(params.search ?? '').trim().toLowerCase()
-    const limit = Math.min(MAX_LIMIT, Math.max(1, Number.parseInt(params.limit, 10) || 10))
-    const items = employees.filter((item) => !search || `${item.name} ${item.employeeNumber}`.toLowerCase().includes(search))
-    return respond(items.slice(0, limit), {
-      pagination: { page: 1, limit, total: items.length, totalPages: Math.ceil(items.length / limit), hasNextPage: items.length > limit, hasPreviousPage: false },
-    })
-  }
 
   // Employees attached to the department at any point in [from, to].
   function periodwiseEmployees(params = {}) {
@@ -308,7 +299,6 @@ export function createDemoClient({
     requests += 1
     await wait(latencyMs, signal)
     if (method === 'GET' && path === `${BASE}/lookups`) return respond(lookups)
-    if (method === 'GET' && path === `${BASE}/employees`) return searchEmployees(params)
     if (method === 'GET' && path === '/hr/reports/periodwise-employees') return periodwiseEmployees(params)
     const match = ROUTE.exec(path)
     if (!match) fail(404, 'NOT_FOUND', 'The requested resource does not exist.')

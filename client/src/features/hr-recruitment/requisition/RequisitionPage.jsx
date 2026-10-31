@@ -264,7 +264,7 @@ function RequisitionEditor({ lookups, lookupStatus, reloadLookups, record: saved
 
         {step === 3 && <>
           <PanelHead n={4} {...T.heads[3]} />
-          {canSave && <HrField id="rq-ticket-status" label={T.labels.ticketStatus} hint={T.hints.ticketStatus}>
+          {canSave && lookups.capabilities?.canManageTicket && <HrField id="rq-ticket-status" label={T.labels.ticketStatus} hint={T.hints.ticketStatus}>
             <LookupSelect id="rq-ticket-status" value={form.ticketStatus} onChange={(event) => editor.patch({ ticketStatus: event.target.value, ticketStatusChanged: true })}
               options={['Open', 'Accepted', 'Close'].map((code) => ({ code, name: code }))} />
           </HrField>}

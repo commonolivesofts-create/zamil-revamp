@@ -5,7 +5,7 @@ import { ApiError, apiClient } from '../../services/api/apiClient.js'
 import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
 import {
-  ID_PATTERN, readEmployee, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readPage, readReport,
+  ID_PATTERN, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readReport,
 } from './hrRecruitmentContract.js'
 import { COMP_KEYS, SPEC_KEYS } from './interview/interviewModel.js'
 import { BENEFIT_KEYS } from './offer/offerModel.js'
@@ -23,7 +23,6 @@ const CONTRACTOR_EMPLOYEES_BASE = '/hr/contractor-employees'
 const OFFER_ALLOWANCE_TYPES = Object.freeze({
   housing: 'housing', transport: 'transportation', vacation: 'annual-vacation', ticket: 'ticket', medical: 'medical', contract: 'contract-period',
 })
-const INTERVIEW_PAYROLL_BUS = Object.freeze(['300000003618177', '300000003618190'])
 const SECONDARY_EDUCATION = Object.freeze({
   SECONDARY_EDUCATION: 'Secondary Education', DIPLOMA: 'Diploma', DEGREE: 'Degree', MASTERS_DEGREE: 'Masters Degree',
 })
@@ -155,7 +154,8 @@ function backendInterviewPayload(body) {
   const interviewers = body.interviewers ?? ['', '', '']
   const outcome = backendOutcome(body.outcome)
   const payroll = String(body.payroll ?? '').trim()
-  if (!INTERVIEW_PAYROLL_BUS.includes(payroll)) {
+  // The allowed units come from /lookups/payroll-units; the backend validates the value.
+  if (!payroll) {
     throw new ApiError('Choose one of the available payroll business units.', { code: 'VALIDATION_ERROR', details: [{ field: 'payroll', message: 'Choose a payroll business unit.' }] })
   }
   const result = {
@@ -281,16 +281,17 @@ function createBackendRequisitionService({ client }) {
   const getById = async (id, { signal } = {}) => requisitionRecord((await client.get(`${REQUISITIONS_BASE}/${segment(id)}`, { signal })).data)
   return Object.freeze({
     async getLookups({ signal } = {}) {
-      const keys = ['jobs', 'departments', 'requester', 'replacements']
+      const keys = ['jobs', 'departments', 'requester', 'replacements', 'capabilities']
       const results = await Promise.allSettled([
         client.get(`${REQUISITIONS_BASE}/lookups/job-titles`, { signal }),
         client.get(`${REQUISITIONS_BASE}/lookups/departments`, { signal }),
         client.get(`${REQUISITIONS_BASE}/lookups/requestor`, { signal }),
         client.get(`${REQUISITIONS_BASE}/lookups/replacement-for`, { signal }),
+        client.get(`${REQUISITIONS_BASE}/lookups/capabilities`, { signal }),
       ])
       if (signal?.aborted) throw results.find((result) => result.status === 'rejected')?.reason ?? Object.assign(new Error('Aborted'), { name: 'AbortError' })
       const data = results.map((result) => result.status === 'fulfilled' ? result.value?.data : null)
-      const valid = [Array.isArray(data[0]), Array.isArray(data[1]), Boolean(data[2] && typeof data[2] === 'object' && !Array.isArray(data[2]) && typeof data[2].fullName === 'string'), Array.isArray(data[3])]
+      const valid = [Array.isArray(data[0]), Array.isArray(data[1]), Boolean(data[2] && typeof data[2] === 'object' && !Array.isArray(data[2]) && typeof data[2].fullName === 'string'), Array.isArray(data[3]), typeof data[4]?.canManageTicket === 'boolean']
       const lookupErrors = Object.freeze(keys.filter((_, index) => results[index].status === 'rejected' || !valid[index]))
       const replacements = Array.isArray(data[3]) ? data[3].map((item) => {
         if (typeof item === 'string') return item
@@ -299,7 +300,9 @@ function createBackendRequisitionService({ client }) {
       return Object.freeze({
         jobs: Object.freeze((Array.isArray(data[0]) ? data[0] : []).map((item) => ({ id: String(item.jobId ?? ''), name: String(item.name ?? '') })).filter((item) => item.name)),
         departments: Object.freeze((Array.isArray(data[1]) ? data[1] : []).map((item) => ({ id: String(item.deptId ?? ''), name: String(item.name ?? '') })).filter((item) => item.name)),
-        requester: String(data[2]?.fullName ?? ''), replacements: Object.freeze(replacements), lookupErrors,
+        requester: String(data[2]?.fullName ?? ''), replacements: Object.freeze(replacements),
+        // The selector stays hidden unless the backend confirms; the backend also refuses the change.
+        capabilities: Object.freeze({ canManageTicket: data[4]?.canManageTicket === true }), lookupErrors,
       })
     },
     getById,
@@ -386,11 +389,12 @@ export function createInterviewService({ client }) {
   const getById = async (id, { signal } = {}) => interviewRecord((await client.get(`${INTERVIEWS_BASE}/${segment(id)}`, { signal })).data)
   return Object.freeze({
     async getLookups({ signal } = {}) {
-      const keys = ['nationalities', 'requisitions', 'employees']
+      const keys = ['nationalities', 'requisitions', 'employees', 'payrollUnits']
       const results = await Promise.allSettled([
         client.get(`${INTERVIEWS_BASE}/lookups/nationalities`, { signal }),
         client.get(`${INTERVIEWS_BASE}/lookups/requisitions`, { signal }),
         client.get(`${INTERVIEWS_BASE}/lookups/employees`, { signal }),
+        client.get(`${INTERVIEWS_BASE}/lookups/payroll-units`, { signal }),
       ])
       if (signal?.aborted) throw results.find((result) => result.status === 'rejected')?.reason ?? Object.assign(new Error('Aborted'), { name: 'AbortError' })
       const data = results.map((result) => result.status === 'fulfilled' ? result.value?.data : null)
@@ -400,8 +404,9 @@ export function createInterviewService({ client }) {
         requisitionNumber: String(item?.requisitionNumber ?? ''), jobName: String(item?.jobName ?? ''),
       })).filter((item) => item.requisitionNumber && item.jobName)
       return Object.freeze({
-        // The existing service exposes valid attribute3 IDs but no friendly labels.
-        payrollBusinessUnits: Object.freeze(INTERVIEW_PAYROLL_BUS.map((code) => Object.freeze({ code, name: code }))),
+        payrollBusinessUnits: Object.freeze((Array.isArray(data[3]) ? data[3] : []).map((item) => Object.freeze({
+          code: String(item?.code ?? ''), name: String(item?.name ?? '') || String(item?.code ?? ''),
+        })).filter((item) => item.code)),
         divisions: DIVISION_OPTIONS, interviewTypes: INTERVIEW_TYPE_OPTIONS, maritalStatuses: MARITAL_OPTIONS,
         certificates: EDUCATION_OPTIONS, certificateChecks: CERTIFICATE_CHECK_OPTIONS,
         nationalities: Object.freeze((Array.isArray(data[0]) ? data[0] : []).map(String).filter(Boolean)),
@@ -492,15 +497,6 @@ export function createOfferService({ client }) {
     },
     async remove(id) {
       await client.delete(`${OFFERS_BASE}/${segment(id)}`)
-    },
-  })
-}
-
-// Employee search for the pickers: a page of matching employees.
-export function createEmployeeService({ client }) {
-  return Object.freeze({
-    async search(search, { limit = 10, signal } = {}) {
-      return readPage(await client.get(`${HR_BASE}/employees`, { params: query({ search: String(search ?? '').trim(), page: 1, limit }), signal }), readEmployee)
     },
   })
 }
@@ -742,7 +738,6 @@ export function createHrRecruitmentServices({
     offers: createOfferService({ client: offerClient }),
     // Suggestions/report lookup and employee search remain on the onboarding adapter.
     lookups: createLookupService({ client: onboardingClient }),
-    employees: createEmployeeService({ client: onboardingClient }),
     orientations: createOrientationService({ client: orientationClient }),
     employeeReport: createEmployeeReportService({ client }),
     probations: createProbationService({ client: probationClient }),

@@ -159,3 +159,92 @@ test('requisition list converts the legacy creation date and the budget lookup s
   const page = await readFile(new URL('requisition/RequisitionPage.jsx', FEATURE), 'utf8')
   assert.match(page, /const budgetName = form\.replacementFor\.trim\(\)/)
 })
+
+test('interview lookups load nationalities, requisitions, interviewers and named payroll units from the API', async () => {
+  const client = fakeClient({
+    'GET /hr/interview-assessments/lookups/nationalities': { data: ['Testland'] },
+    'GET /hr/interview-assessments/lookups/requisitions': { data: [{ requisitionNumber: 'PR-100', jobName: 'Quality Inspector' }] },
+    'GET /hr/interview-assessments/lookups/employees': { data: ['Sample Interviewer A'] },
+    'GET /hr/interview-assessments/lookups/payroll-units': { data: [{ code: '300000003618177', name: 'IPP' }, { code: '300000003618190', name: 'FPP' }] },
+  })
+  const signal = new AbortController().signal
+  const lookups = await services(client).interviews.getLookups({ signal })
+  assert.deepEqual(lookups.payrollBusinessUnits.map((unit) => unit.name), ['IPP', 'FPP'])
+  assert.deepEqual(lookups.nationalities, ['Testland'])
+  assert.equal(lookups.requisitions[0].requisitionNumber, 'PR-100')
+  assert.deepEqual(lookups.employees, ['Sample Interviewer A'])
+  assert.deepEqual(lookups.lookupErrors, [])
+  assert.ok(client.calls.every((call) => call.options.signal === signal))
+})
+
+test('interview lookups report each failed lookup and still return the others', async () => {
+  const client = fakeClient({
+    'GET /hr/interview-assessments/lookups/nationalities': () => { throw new Error('offline') },
+    'GET /hr/interview-assessments/lookups/requisitions': { data: [] },
+    'GET /hr/interview-assessments/lookups/employees': { data: { unexpected: true } },
+    'GET /hr/interview-assessments/lookups/payroll-units': { data: [{ code: '300000003618177', name: 'IPP' }] },
+  })
+  const lookups = await services(client).interviews.getLookups()
+  assert.deepEqual([...lookups.lookupErrors], ['nationalities', 'employees'])
+  assert.equal(lookups.payrollBusinessUnits.length, 1)
+})
+
+test('offer lookups load candidates, titles, business units and every allowance type from the API', async () => {
+  const allowanceTypes = []
+  const client = fakeClient({
+    'GET /hr/employment-offers/lookups/candidates': { data: [{ headerId: '700', intNo: 'IPP-0700', candidateName: 'Test Applicant A', positionName: 'Quality Inspector', requisitionNo: 'PR-100' }] },
+    'GET /hr/employment-offers/lookups/titles': { data: [{ meaning: 'Mr.', description: 'السيد' }] },
+    'GET /hr/employment-offers/lookups/business-units': { data: { businessUnits: ['300000003618177'] } },
+    'GET /hr/employment-offers/lookups/allowances': (call) => {
+      allowanceTypes.push(call.options.params.type)
+      return { data: [{ meaning: `${call.options.params.type} option`, description: '-' }] }
+    },
+  })
+  const lookups = await services(client).offers.getLookups()
+  assert.equal(lookups.candidates[0].candidateName, 'Test Applicant A')
+  assert.equal(lookups.titles[0].meaning, 'Mr.')
+  assert.deepEqual([...lookups.businessUnits], ['300000003618177'])
+  assert.deepEqual(allowanceTypes.sort(), ['annual-vacation', 'contract-period', 'housing', 'medical', 'ticket', 'transportation'])
+  assert.equal(lookups.allowances.housing[0].meaning, 'housing option')
+  assert.equal(lookups.allowances.housing[0].description, '')
+  assert.deepEqual(lookups.lookupErrors, [])
+})
+
+test('offer lookups mark an invalid business-unit response and a failed allowance as lookup errors', async () => {
+  const client = fakeClient({
+    'GET /hr/employment-offers/lookups/candidates': { data: [] },
+    'GET /hr/employment-offers/lookups/titles': { data: [] },
+    'GET /hr/employment-offers/lookups/business-units': { data: [] },
+    'GET /hr/employment-offers/lookups/allowances': (call) => {
+      if (call.options.params.type === 'medical') throw new Error('offline')
+      return { data: [] }
+    },
+  })
+  const lookups = await services(client).offers.getLookups()
+  assert.deepEqual([...lookups.lookupErrors], ['businessUnits', 'allowance:medical'])
+})
+
+test('requisition lookups expose canManageTicket and the page shows the ticket selector only when it is true', async () => {
+  const routes = (canManageTicket) => fakeClient({
+    'GET /hr/requisitions/lookups/job-titles': { data: [] },
+    'GET /hr/requisitions/lookups/departments': { data: [] },
+    'GET /hr/requisitions/lookups/requestor': { data: { fullName: 'Sample Employee 001' } },
+    'GET /hr/requisitions/lookups/replacement-for': { data: [] },
+    'GET /hr/requisitions/lookups/capabilities': canManageTicket === undefined ? () => { throw new Error('offline') } : { data: { canManageTicket } },
+  })
+  assert.equal((await services(routes(true)).requisitions.getLookups()).capabilities.canManageTicket, true)
+  assert.equal((await services(routes(false)).requisitions.getLookups()).capabilities.canManageTicket, false)
+  const failed = await services(routes(undefined)).requisitions.getLookups()
+  assert.equal(failed.capabilities.canManageTicket, false, 'hidden unless the backend confirms')
+  assert.ok(failed.lookupErrors.includes('capabilities'))
+  const page = await readFile(new URL('requisition/RequisitionPage.jsx', FEATURE), 'utf8')
+  assert.match(page, /\{canSave && lookups\.capabilities\?\.canManageTicket && <HrField id="rq-ticket-status"/)
+})
+
+test('the recruitment loader and employee picker have no demo-only lookup or employee-search defaults', async () => {
+  const loader = await readFile(new URL('shared/components/RecruitmentLoader.jsx', FEATURE), 'utf8')
+  const picker = await readFile(new URL('shared/components/EmployeePicker.jsx', FEATURE), 'utf8')
+  assert.match(loader, /param, load, loadLookups, demo = false,/)
+  assert.doesNotMatch(loader + picker, /hrRecruitmentServices/)
+  assert.equal('employees' in services(fakeClient({})), false)
+})

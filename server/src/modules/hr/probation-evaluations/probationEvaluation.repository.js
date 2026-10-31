@@ -129,15 +129,39 @@ export async function listLines(connection, headerId) {
   return result.map(mapLine);
 }
 
-export async function findHeaderStatus(connection, headerId) {
+/** Ownership, status and evaluated employee of one evaluation, for record-level access checks. */
+export async function findAccessFacts(connection, headerId) {
   const [row] = await rows(
     connection,
-    `SELECT REQUEST_STATUS
+    `SELECT CREATED_BY, REQUEST_STATUS, EMP_NUMBER
        FROM XXZP.XXZP_PAF_PROBATION_HEADER
       WHERE HEADER_ID = :headerId`,
     { headerId },
+    { CREATED_BY: ID },
   );
-  return row ? { requestStatus: row.REQUEST_STATUS } : null;
+  return row
+    ? {
+        createdBy: row.CREATED_BY,
+        requestStatus: row.REQUEST_STATUS,
+        employeeNumber: row.EMP_NUMBER,
+      }
+    : null;
+}
+
+/** Whether the actor's current department (ORGANIZATION_ID) is the evaluated employee's. */
+export async function isSameDepartment(connection, { actorEmployeeNumber, subjectEmployeeNumber }) {
+  const result = await rows(
+    connection,
+    `SELECT 1 AS SAME
+       FROM XX_DIGI_EMP_MASTER a
+       JOIN XX_DIGI_EMP_MASTER s ON s.ORGANIZATION_ID = a.ORGANIZATION_ID
+      WHERE a.EMPLOYEE_NUMBER = :actorEmployeeNumber
+        AND a.CURRENT_EMP_FLAG = 'Y'
+        AND s.EMPLOYEE_NUMBER = :subjectEmployeeNumber
+      FETCH FIRST 1 ROWS ONLY`,
+    { actorEmployeeNumber, subjectEmployeeNumber },
+  );
+  return result.length > 0;
 }
 
 export async function updateHeader(connection, header) {
@@ -156,7 +180,9 @@ export async function updateHeader(connection, header) {
             DEPARTMENT = :department,
             EMP_NUMBER = :employeeNumber,
             FROM_DATE = TO_DATE(:fromDate, 'DD-Mon-YYYY'),
-            TO_DATE = TO_DATE(:toDate, 'DD-Mon-YYYY')
+            TO_DATE = TO_DATE(:toDate, 'DD-Mon-YYYY'),
+            UPDATED_AT = SYSDATE,
+            UPDATED_BY = :updatedBy
       WHERE HEADER_ID = :headerId`,
     header,
   );
@@ -328,7 +354,8 @@ export async function findEmployeeDetails(connection, { empName, userId }) {
   if (!ids) return null;
   const [hire] = await rows(
     connection,
-    `SELECT JOINING_DATE AS START_DATE
+    // A date-only string: a JS Date would be serialised in UTC and shift by the server offset.
+    `SELECT TO_CHAR(JOINING_DATE, 'YYYY-MM-DD') AS START_DATE
        FROM XX_DIGI_EMP_MASTER
       WHERE PERSON_ID = :personId AND CURRENT_EMP_FLAG = 'Y'`,
     { personId: ids.PERSON_ID },

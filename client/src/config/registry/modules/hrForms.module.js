@@ -47,7 +47,8 @@ export default defineModule({
     code: 'ORIENTATION_TRAININGS',
     name: 'Orientation Trainings',
     description: 'New employee orientation training records and lines.',
-    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    // MANAGE_LINES guards DELETE /hr/orientation-trainings/:id/lines/:lineId.
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_LINES'],
     navigation: [
       { id: 'hr-orientation', path: '/hr/recruitment/orientation', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', order: 40, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
       { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', order: 41, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },

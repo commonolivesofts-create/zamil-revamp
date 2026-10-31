@@ -10,9 +10,14 @@ const isoDate = (value) => {
   return `${year}-${String(MONTHS.indexOf(month) + 1).padStart(2, '0')}-${day}`;
 };
 
-export function installProbationEvaluations(store, { hrEmployeeNumbers = [] } = {}) {
+// `departments` maps employee numbers to an ORGANIZATION_ID for the same-department rule.
+export function installProbationEvaluations(
+  store,
+  { hrEmployeeNumbers = [], departments = {} } = {},
+) {
   store.state.probationEvaluations = { headers: [], lines: [] };
   store.state.probationHrEmployeeNumbers = [...hrEmployeeNumbers];
+  store.state.probationDepartments = { ...departments };
   const table = () => store.state.probationEvaluations;
   const headerOf = (headerId) => table().headers.find((header) => header.headerId === headerId);
   const linesOf = (headerId) => table().lines.filter((line) => line.headerId === headerId);
@@ -115,16 +120,28 @@ export function installProbationEvaluations(store, { hrEmployeeNumbers = [] } = 
         .sort((a, b) => Number(a.lineId) - Number(b.lineId))
         .map((line) => ({ ...line }));
     },
-    async findHeaderStatus(_connection, headerId) {
+    async findAccessFacts(_connection, headerId) {
       const header = headerOf(headerId);
-      return header ? { requestStatus: header.requestStatus } : null;
+      return header
+        ? {
+            createdBy: header.createdBy,
+            requestStatus: header.requestStatus,
+            employeeNumber: header.employeeNumber,
+          }
+        : null;
+    },
+    async isSameDepartment(_connection, { actorEmployeeNumber, subjectEmployeeNumber }) {
+      const departments = store.state.probationDepartments;
+      return (
+        departments[actorEmployeeNumber] !== undefined &&
+        departments[actorEmployeeNumber] === departments[subjectEmployeeNumber]
+      );
     },
     async updateHeader(_connection, input) {
       const header = headerOf(input.headerId);
       if (!header) return false;
-      Object.assign(header, {
-        ...input,
-      });
+      // Mirrors UPDATED_AT = SYSDATE.
+      Object.assign(header, { ...input, updatedAt: 'SYSDATE' });
       if (store.failures.probationUpdateAfterHeader) throw new Error('injected update failure');
       return true;
     },

@@ -1,6 +1,8 @@
 const copy = (value) => structuredClone(value);
 
-export function installOrientationTrainings(store, { hrUserIds = [] } = {}) {
+// `departments` maps employee numbers to an ORGANIZATION_ID for the same-department rule.
+export function installOrientationTrainings(store, { hrUserIds = [], departments = {} } = {}) {
+  store.state.orientationDepartments = { ...departments };
   store.state.orientationTrainings = {
     headers: { Y: [], N: [] },
     lines: { Y: [], N: [] },
@@ -85,9 +87,12 @@ export function installOrientationTrainings(store, { hrUserIds = [] } = {}) {
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
       return copy(state().lines[variant].filter((line) => line.headerId === headerId));
     },
-    async findStatus(_connection, table, headerId) {
-      const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
-      return headerFor(variant, headerId)?.status ?? null;
+    async isSameDepartment(_connection, { actorEmployeeNumber, subjectEmployeeNumber }) {
+      const departments = store.state.orientationDepartments;
+      return (
+        departments[actorEmployeeNumber] !== undefined &&
+        departments[actorEmployeeNumber] === departments[subjectEmployeeNumber]
+      );
     },
     async updateHeader(_connection, table, input) {
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';

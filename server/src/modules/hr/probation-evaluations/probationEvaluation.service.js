@@ -5,13 +5,24 @@ import {
   withTransaction as defaultWithTransaction,
 } from '../../../database/oracle.js';
 import { AppError } from '../../../shared/errors/AppError.js';
+import { parsePermission } from '../../access-control/authorization.service.js';
 import * as defaultRepository from './probationEvaluation.repository.js';
 import { FORM_TYPES } from './probationEvaluation.validation.js';
+
+const VIEW = parsePermission('HR.PROBATION_EVALUATIONS', 'VIEW');
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const text = (value) => (value === undefined || value === null || value === '' ? '-' : value);
 const notFound = (what = 'Probation evaluation') =>
   new AppError(404, 'RESOURCE_NOT_FOUND', `${what} was not found`);
+const forbidden = () =>
+  new AppError(403, 'FORBIDDEN', 'You do not have permission for this action.');
+const notDraft = (action) =>
+  new AppError(
+    409,
+    'PROBATION_EVALUATION_NOT_DRAFT',
+    `Only draft probation evaluations can be ${action}`,
+  );
 const dateOrderError = () =>
   new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', [
     { field: 'toDate', message: 'toDate must be on or after fromDate' },
@@ -40,8 +51,33 @@ export function createProbationEvaluationService({
   repository = defaultRepository,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
+  // `authorizationService.holds`; denies by default so a missing wiring never widens access.
+  holds = async () => false,
 }) {
   const read = (work) => withConnection(POOLS.LOW, work);
+
+  /**
+   * Record-level access by ID: the creator, an HR user (XXZP_HR lookup, as for list scoping), or
+   * a user in the evaluated employee's department who holds HR.PROBATION_EVALUATIONS:VIEW.
+   * Returns the record's facts; unknown IDs are 404 and other records 403.
+   */
+  async function authorizeRecord(connection, actor, headerId) {
+    const facts = await repository.findAccessFacts(connection, headerId);
+    if (!facts) throw notFound();
+    if (String(facts.createdBy) === String(actor.userId)) return facts;
+    if (await repository.isHrUser(connection, actor.employeeNumber)) return facts;
+    if (
+      facts.employeeNumber &&
+      (await repository.isSameDepartment(connection, {
+        actorEmployeeNumber: actor.employeeNumber,
+        subjectEmployeeNumber: facts.employeeNumber,
+      })) &&
+      (await holds(actor.userId, VIEW))
+    ) {
+      return facts;
+    }
+    throw forbidden();
+  }
 
   function headerBinds(body) {
     if (body.toDate < body.fromDate) throw dateOrderError();
@@ -133,15 +169,23 @@ export function createProbationEvaluationService({
       );
     },
 
-    get(headerId) {
-      return read((connection) => loadDetail(connection, headerId));
+    get(actor, headerId) {
+      return read(async (connection) => {
+        await authorizeRecord(connection, actor, headerId);
+        return loadDetail(connection, headerId);
+      });
     },
 
-    async update(headerId, body) {
+    async update(actor, headerId, body) {
       const common = headerBinds(body);
       return withTransaction(POOLS.LOW, async (connection) => {
-        if (!(await repository.findHeaderStatus(connection, headerId))) throw notFound();
-        const changed = await repository.updateHeader(connection, { ...common, headerId });
+        const facts = await authorizeRecord(connection, actor, headerId);
+        if (facts.requestStatus !== 'DRAFT') throw notDraft('updated');
+        const changed = await repository.updateHeader(connection, {
+          ...common,
+          headerId,
+          updatedBy: actor.userId,
+        });
         if (!changed) throw notFound();
         for (const line of body.lines) {
           const updated = await repository.updateLine(connection, {
@@ -157,17 +201,10 @@ export function createProbationEvaluationService({
       });
     },
 
-    async remove(headerId) {
+    async remove(actor, headerId) {
       return withTransaction(POOLS.LOW, async (connection) => {
-        const existing = await repository.findHeaderStatus(connection, headerId);
-        if (!existing) throw notFound();
-        if (existing.requestStatus !== 'DRAFT') {
-          throw new AppError(
-            409,
-            'PROBATION_EVALUATION_NOT_DRAFT',
-            'Only draft probation evaluations can be deleted',
-          );
-        }
+        const facts = await authorizeRecord(connection, actor, headerId);
+        if (facts.requestStatus !== 'DRAFT') throw notDraft('deleted');
         const deleted = await repository.deleteEvaluation(connection, headerId);
         if (!deleted) throw notFound();
         return { headerId, deleted: true };

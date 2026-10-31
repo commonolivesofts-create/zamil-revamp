@@ -179,12 +179,14 @@ export function createApiRouter(appConfig, deps = {}) {
     repository: deps.probationEvaluationRepository,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
+    holds: (userId, permission) => authorizationService.holds(userId, permission),
   });
 
   const orientationTrainingService = createOrientationTrainingService({
     repository: deps.orientationTrainingRepository,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
+    holds: (userId, permission) => authorizationService.holds(userId, permission),
   });
 
   const contractorEmployeeService = createContractorEmployeeService({

@@ -12,16 +12,19 @@ export function createProbationEvaluationController({ probationEvaluationService
       sendPaginated(res, items, { page, limit: pageSize, total });
     },
     async get(req, res) {
-      sendSuccess(res, await probationEvaluationService.get(req.params.headerId));
+      sendSuccess(res, await probationEvaluationService.get(req.auth, req.params.headerId));
     },
     async create(req, res) {
       sendSuccess(res, await probationEvaluationService.create(req.auth, req.body), 201);
     },
     async update(req, res) {
-      sendSuccess(res, await probationEvaluationService.update(req.params.headerId, req.body));
+      sendSuccess(
+        res,
+        await probationEvaluationService.update(req.auth, req.params.headerId, req.body),
+      );
     },
     async remove(req, res) {
-      sendSuccess(res, await probationEvaluationService.remove(req.params.headerId));
+      sendSuccess(res, await probationEvaluationService.remove(req.auth, req.params.headerId));
     },
     async formTypes(_req, res) {
       sendSuccess(res, probationEvaluationService.formTypes());

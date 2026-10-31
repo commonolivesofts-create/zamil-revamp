@@ -234,3 +234,59 @@ describe('orientation training API', () => {
     assert.equal(f.store.state.orientationTrainings.flags.length, 1);
   });
 });
+
+describe('orientation training record access and draft guard', () => {
+  let f;
+  let hr;
+  let staff;
+  beforeEach(async () => {
+    f = setup();
+    hr = await signIn(f.store, f.hrUser);
+    staff = await signIn(f.store, f.staffUser);
+  });
+  const call = (method, path, session, body) => {
+    const req = request(f.app)[method](`${BASE}${path}`).set('Cookie', session.cookie);
+    if (method !== 'get') req.set('X-CSRF-Token', session.csrf);
+    return body === undefined ? req : req.send(body);
+  };
+  const isForbidden = (response) => {
+    assert.equal(response.status, 403, JSON.stringify(response.body));
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, 'FORBIDDEN');
+  };
+
+  it("returns 403 for another user's record by ID on read, update, delete and line delete", async () => {
+    const id = f.store.seedOrientationTraining({ lines: [{}] });
+    isForbidden(await call('get', `/${id}`, staff));
+    isForbidden(await call('put', `/${id}`, staff, BODY));
+    isForbidden(await call('delete', `/${id}`, staff));
+    isForbidden(await call('delete', `/${id}/lines/1`, staff));
+    assert.equal(f.store.state.orientationTrainings.headers.Y[0].empname, 'Employee E-100Y');
+    assert.equal(f.store.state.orientationTrainings.lines.Y.length, 1);
+    assert.equal((await call('get', `/${id}`, hr)).status, 200, 'HR users keep access');
+    assert.equal((await call('get', '/999', staff)).status, 404, 'unknown IDs stay 404');
+  });
+
+  it('allows the owner and same-department users holding VIEW', async () => {
+    const own = f.store.seedOrientationTraining({ header: { createdBy: f.staffUser.userId } });
+    assert.equal((await call('get', `/${own}`, staff)).status, 200);
+    const other = f.store.seedOrientationTraining();
+    f.store.state.orientationDepartments = { 'E-STAFF': '10', 'E-100Y': '10' };
+    assert.equal((await call('get', `/${other}`, staff)).status, 200);
+    f.rbac.override(f.staffUser, f.permissions.VIEW, 'DENY');
+    isForbidden(await call('put', `/${other}`, staff, BODY));
+  });
+
+  it('blocks updates and line deletes of non-draft records with 409', async () => {
+    const id = f.store.seedOrientationTraining({ header: { status: 'Scheduled' }, lines: [{}] });
+    for (const response of [
+      await call('put', `/${id}`, hr, BODY),
+      await call('delete', `/${id}/lines/1`, hr),
+    ]) {
+      assert.equal(response.status, 409, JSON.stringify(response.body));
+      assert.equal(response.body.error.code, 'ORIENTATION_TRAINING_NOT_DRAFT');
+    }
+    assert.equal(f.store.state.orientationTrainings.headers.Y[0].empname, 'Employee E-100Y');
+    assert.equal(f.store.state.orientationTrainings.lines.Y.length, 1);
+  });
+});
