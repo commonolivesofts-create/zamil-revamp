@@ -42,7 +42,7 @@ export const APPROVED_TARGETS = Object.freeze({
     name: 'TEST',
     lowAlias: 'zpadwtest_low',
     serviceNamePattern: /_zpadwtest_low\./i,
-    dbName: null,
+    dbName: 'G480281AE328134_ZPADWTEST',
     environments: Object.freeze(['development', 'test']),
   }),
 });
