@@ -53,6 +53,18 @@ import { createSickLeaveService } from '../modules/hr/sick-leave/sickLeave.servi
 
 import { parsePermission } from '../modules/access-control/authorization.service.js';
 
+import { createEmployeeClearanceRouter } from '../modules/hr/employee-clearance/employee_clearance_routes.js';
+
+import { createEmployeeClearanceService } from '../modules/hr/employee-clearance/employee_clearance_service.js';
+
+import { createSurveyReportRouter } from '../modules/hr/surveyReport/surveyReport.routes.js';
+
+import { createSurveyReportService } from '../modules/hr/surveyReport/surveyReport.service.js';
+
+import { createProjectCharterRouter } from '../modules/hr/project-charter/projectCharter.routes.js';
+
+import { createProjectCharterService } from '../modules/hr/project-charter/projectCharter.service.js';
+
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
  * connection/transaction helpers; production uses the shared Oracle LOW pool.
@@ -256,6 +268,13 @@ export function createApiRouter(appConfig, deps = {}) {
       }),
   });
 
+  const employeeClearanceService = createEmployeeClearanceService({
+    repository: deps.employeeClearanceRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+    holds: (userId, permission) => authorizationService.holds(userId, permission),
+  });
+
   router.use(
     '/access-control',
     createRbacRouter({ rbacService, authorizationService, authorize, authenticate, auditService }),
@@ -377,6 +396,49 @@ export function createApiRouter(appConfig, deps = {}) {
     '/hr/sick-leave',
     createSickLeaveRouter({
       service: sickLeaveService,
+      authenticate,
+      authorize,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/employee-clearance',
+    createEmployeeClearanceRouter({
+      employeeClearanceService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/survey',
+    createSurveyReportRouter({
+      surveyReportService:
+        deps.surveyReportService ??
+        createSurveyReportService({
+          repository: deps.surveyReportRepository,
+          withConnection: db.withConnection,
+          withTransaction: db.withTransaction,
+        }),
+
+      authenticate,
+      authorize,
+      auditService,
+
+      surveyResourceKey: deps.surveyResourceKey,
+    }),
+  );
+
+  router.use(
+    '/projects/charters',
+    createProjectCharterRouter({
+      projectCharterService: createProjectCharterService({
+        repository: deps.projectCharterRepository,
+        withConnection: db.withConnection,
+        withTransaction: db.withTransaction,
+      }),
       authenticate,
       authorize,
       auditService,
