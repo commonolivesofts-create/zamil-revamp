@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import multer from 'multer';
+import { AppError } from '../../shared/errors/AppError.js';
 import { createRequireCsrfToken } from '../../middleware/csrf.js';
 import { createRequireMfaChallenge, requireMfaAvailable } from '../../middleware/mfaChallenge.js';
 import { createRateLimiter } from '../../middleware/rateLimit.js';
@@ -14,6 +16,7 @@ import {
   mfaRecoveryStartSchema,
   passwordChangeSchema,
   passwordTokenSchema,
+  profileImageQuerySchema,
   recoveryRequestSchema,
 } from './auth.validation.js';
 
@@ -29,6 +32,7 @@ export function createAuthRouter({
   recoveryService,
   authenticate,
   authConfig,
+  profileImageService,
 }) {
   const controller = createAuthController({
     authService,
@@ -43,6 +47,14 @@ export function createAuthRouter({
   const recoveryRateLimit = createRateLimiter(authConfig.loginRateLimit);
   const recovery = createRecoveryController({ recoveryService, cookieConfig: authConfig.cookie });
   const requireCsrfToken = createRequireCsrfToken({ auditService });
+  const imageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  });
+  const receiveProfileImage = (req, res, next) =>
+    imageUpload.single('profileImage')(req, res, (error) =>
+      error ? next(new AppError(400, 'VALIDATION_ERROR', 'Invalid profile image upload')) : next(),
+    );
   const requireMfaChallenge = createRequireMfaChallenge({ cookieName: authConfig.mfa.cookieName });
   const mfaGuards = [mfaRateLimit, requireMfaAvailable(Boolean(mfaService)), requireMfaChallenge];
   const router = Router();
@@ -142,6 +154,42 @@ export function createAuthRouter({
     recovery.changePassword,
   );
   router.get('/me', validate({ query: emptyQuerySchema }), authenticate, controller.getCurrentUser);
+  router.get(
+    '/me/profile-image',
+    authenticate,
+    validate({ query: profileImageQuerySchema }),
+    async (req, res, next) => {
+      try {
+        const image = await profileImageService.get(req.auth.userId);
+        if (!image) return res.status(404).end();
+        res.type(image.mimeType).set('X-Content-Type-Options', 'nosniff').end(image.data);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  router.put(
+    '/me/profile-image',
+    authenticate,
+    requireCsrfToken,
+    receiveProfileImage,
+    async (req, res, next) => {
+      try {
+        await profileImageService.save(req.auth.userId, req.file);
+        res.status(204).end();
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  router.delete('/me/profile-image', authenticate, requireCsrfToken, async (req, res, next) => {
+    try {
+      await profileImageService.remove(req.auth.userId);
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
   router.get('/csrf', validate({ query: emptyQuerySchema }), authenticate, controller.getCsrfToken);
   router.post(
     '/logout',

@@ -9,6 +9,7 @@ import { createOriginCheck } from '../middleware/csrf.js';
 import { createSecurityAuditService } from '../modules/audit/securityAudit.service.js';
 import { createAuthRouter } from '../modules/auth/auth.routes.js';
 import { createAuthService } from '../modules/auth/auth.service.js';
+import { createProfileImageService } from '../modules/users/profileImage.service.js';
 import { createMfaService } from '../modules/auth/mfa.service.js';
 import { createRecoveryService } from '../modules/auth/recovery.service.js';
 import { findDatabaseName } from '../modules/notifications/databaseIdentity.repository.js';
@@ -143,6 +144,7 @@ export function createApiRouter(appConfig, deps = {}) {
     withTransaction: db.withTransaction,
   });
   const authenticate = createAuthenticate({ sessionService, cookieConfig: appConfig.auth.cookie });
+  const profileImageService = createProfileImageService({ db });
   const authorizationService = createAuthorizationService({
     repository: deps.authorizationRepository,
     auditService,
@@ -236,6 +238,7 @@ export function createApiRouter(appConfig, deps = {}) {
       mfaService,
       auditService,
       recoveryService,
+      profileImageService,
       authenticate,
       authConfig: appConfig.auth,
     }),

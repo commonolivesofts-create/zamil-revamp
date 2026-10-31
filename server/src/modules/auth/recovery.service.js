@@ -129,7 +129,7 @@ export function createRecoveryService({
    * DeliveryUnavailable (nothing persisted) or Throttled. `actorUserId` null = anonymous request.
    */
   async function issueToken(account, actionType, { actorUserId, context, details = {} }) {
-    const recipient = delivery.resolveRecipient(account);
+    const recipient = delivery.resolveRecipient(account, actionType);
     if (!delivery.configured) throw new DeliveryUnavailable('NO_CHANNEL_CONFIGURED');
     if (!recipient) throw new DeliveryUnavailable('RECIPIENT_UNAVAILABLE');
     const actor = actorUserId

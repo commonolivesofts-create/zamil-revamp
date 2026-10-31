@@ -18,6 +18,7 @@ const SERVER_ROOT = resolve(import.meta.dirname, '../..');
 export const SMTP_ENDPOINT = Object.freeze({ host: 'smtp.office365.com', port: 587 });
 // The only mailbox that may receive redirected ordinary-user messages outside production.
 export const APPROVED_TEST_RECIPIENT = 'shaikh.azim@olivesofts.com';
+export const USER_CREATION_TEST_RECIPIENT = 'mugalhassan40@gmail.com';
 const email = Joi.string()
   .trim()
   .lowercase()
@@ -218,19 +219,33 @@ const envSchema = Joi.object({
       .valid(APPROVED_TEST_RECIPIENT)
       .when('SMTP_ENABLED', { is: true, then: Joi.required() }),
   }),
+  // New-account PASSWORD_SETUP messages can be sent to one fixed test mailbox.
+  // This override is allowed only in development/test and still requires a verified TEST database.
+  SMTP_USER_CREATION_TEST_OVERRIDE_ENABLED: Joi.boolean()
+    .default(false)
+    .when('NODE_ENV', { is: Joi.valid('uat', 'production'), then: Joi.valid(false) })
+    .when('SMTP_ENABLED', { is: false, then: Joi.valid(false) }),
   SMTP_TEST_DATABASE_NAME: Joi.when('SMTP_TEST_RECIPIENT_OVERRIDE', {
     is: Joi.exist(),
     then: Joi.string()
       .pattern(/^[A-Za-z0-9_$#]{1,128}$/)
       .pattern(/TEST/i, 'test database name')
       .required(),
-    otherwise: Joi.forbidden(),
+    otherwise: Joi.when('SMTP_USER_CREATION_TEST_OVERRIDE_ENABLED', {
+      is: true,
+      then: Joi.string()
+        .pattern(/^[A-Za-z0-9_$#]{1,128}$/)
+        .pattern(/TEST/i, 'test database name')
+        .required(),
+      otherwise: Joi.forbidden(),
+    }),
   }),
   // Privileged-account (incl. Super Administrator) recovery e-mail needs separate approval; it is
   // never redirected to the test mailbox.
   SMTP_PRIVILEGED_DELIVERY_ENABLED: Joi.boolean()
     .default(false)
-    .when('SMTP_TEST_RECIPIENT_OVERRIDE', { is: Joi.exist(), then: Joi.valid(false) }),
+    .when('SMTP_TEST_RECIPIENT_OVERRIDE', { is: Joi.exist(), then: Joi.valid(false) })
+    .when('SMTP_USER_CREATION_TEST_OVERRIDE_ENABLED', { is: true, then: Joi.valid(false) }),
   // Frontend routes that receive the token (in the URL fragment). No frontend change is implied.
   AUTH_FRONTEND_BASE_URL: smtpRequired(
     Joi.string()
@@ -410,6 +425,10 @@ export function loadConfig(env) {
       }),
       password: value.SMTP_PASSWORD ?? null,
       testRecipientOverride: value.SMTP_TEST_RECIPIENT_OVERRIDE ?? null,
+      userCreationTestRecipientOverride: value.SMTP_USER_CREATION_TEST_OVERRIDE_ENABLED
+        ? USER_CREATION_TEST_RECIPIENT
+        : null,
+      userCreationTestOverrideEnabled: value.SMTP_USER_CREATION_TEST_OVERRIDE_ENABLED,
       testDatabaseName: value.SMTP_TEST_DATABASE_NAME ?? null,
       privilegedDeliveryEnabled: value.SMTP_PRIVILEGED_DELIVERY_ENABLED,
     }),

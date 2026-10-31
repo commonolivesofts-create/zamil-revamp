@@ -111,11 +111,16 @@ export function installRecovery(store) {
 export function createRecordingDelivery({
   configured = true,
   testRecipientOverride = null,
+  userCreationTestRecipientOverride = null,
   privilegedDeliveryEnabled = true,
 } = {}) {
   const delivery = {
     configured,
-    resolveRecipient: createRecipientResolver({ testRecipientOverride, privilegedDeliveryEnabled }),
+    resolveRecipient: createRecipientResolver({
+      testRecipientOverride,
+      userCreationTestRecipientOverride,
+      privilegedDeliveryEnabled,
+    }),
     fail: false,
     messages: [],
     async deliver(message) {

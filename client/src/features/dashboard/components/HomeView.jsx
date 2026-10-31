@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
 import ProfileAvatar from "@/components/profile/ProfileAvatar.jsx";
+import useAuth from "@/features/auth/useAuth.js";
 import { appConfig } from "@/config/appConfig.js";
 import DashboardMeta from "@/features/dashboard/components/DashboardMeta.jsx";
 import FolioBook from "@/features/dashboard/components/FolioBook.jsx";
@@ -90,18 +91,84 @@ export default function HomeView({
   accessStatus,
   onNavigate,
   onOpenPage,
-  onOpenProfile,
 }) {
   const [quickCategory, setQuickCategory] = useState("HR");
   const [quickPanelChanged, setQuickPanelChanged] = useState(false);
+  const { updateProfileImage, removeProfileImage } = useAuth();
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageFeedback, setImageFeedback] = useState("");
+  const [imageTarget, setImageTarget] = useState("");
+  const imageTargetRef = useRef("");
+  const loadedImageRef = useRef("");
+  const failedImageRef = useRef("");
   const name = displayName(profile);
-  const roleLine = profile?.isPreview
-    ? "Illustrative preview identity"
-    : [profile?.jobTitle, profile?.department].filter(Boolean).join(" · ") ||
-      "Signed-in employee";
-  const hasLiveFacts = Boolean(profile?.employeeNumber || profile?.email);
+  const heroProfile = profile;
   const visiblePages = pages.slice(0, 4);
   const accessLoading = accessStatus === "loading";
+
+  function waitForImage(source) {
+    if (loadedImageRef.current === source) {
+      imageTargetRef.current = "";
+      setImageTarget("");
+      return;
+    }
+    if (failedImageRef.current === source) {
+      imageTargetRef.current = "";
+      setImageTarget("");
+      setImageFeedback("Photo saved, but its preview could not be loaded.");
+      return;
+    }
+    imageTargetRef.current = source;
+    setImageTarget(source);
+  }
+
+  function handleAvatarLoad(source) {
+    loadedImageRef.current = source;
+    failedImageRef.current = "";
+    if (imageTargetRef.current === source) {
+      imageTargetRef.current = "";
+      setImageTarget("");
+    }
+  }
+
+  function handleAvatarError(source) {
+    failedImageRef.current = source;
+    if (imageTargetRef.current !== source) return;
+    imageTargetRef.current = "";
+    setImageTarget("");
+    setImageFeedback("Photo saved, but its preview could not be loaded.");
+  }
+
+  async function changeProfileImage(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setImageBusy(true);
+    setImageFeedback("");
+    try {
+      const source = await updateProfileImage(file);
+      waitForImage(source);
+      setImageFeedback("Profile photo updated");
+    } catch (error) {
+      setImageFeedback(error.message || "Could not update the profile photo");
+    } finally {
+      setImageBusy(false);
+    }
+  }
+
+  async function resetProfileImage() {
+    setImageBusy(true);
+    setImageFeedback("");
+    try {
+      const source = await removeProfileImage();
+      waitForImage(source);
+      setImageFeedback("Default photo restored");
+    } catch (error) {
+      setImageFeedback(error.message || "Could not restore the default photo");
+    } finally {
+      setImageBusy(false);
+    }
+  }
 
   const openQuick = (category) => {
     setQuickCategory(category);
@@ -124,53 +191,95 @@ export default function HomeView({
             <span className="line-mark" />
             <span>GOOD WORK STARTS WITH ONE MOVE</span>
           </div>
-          <h1
-            className="kinetic-heading gateway-heading"
-            data-zrv-view-title
-            tabIndex={-1}
-          >
-            <span className="sr-only">{name}</span>
-            <span className="kinetic-line kinetic-v5">
-              <NameTyping name={name} />
-            </span>
-            <span className="kinetic-tagline">
-              Your next move.
-              <br />
-              <em>Made effortless.</em>
-            </span>
-          </h1>
           <div className="hero-profile">
-            <ProfileAvatar profile={profile} className="hero-profile-avatar" />
-            <div className="hero-profile-copy">
-              <span className="hero-profile-role">{roleLine}</span>
-              <span className="hero-profile-facts">
-                {profile?.isPreview ? (
-                  <span className="hero-profile-preview">
-                    Workspace · Preview
-                  </span>
-                ) : hasLiveFacts ? (
-                  <>
-                    {profile?.employeeNumber && (
-                      <span>Employee {profile.employeeNumber}</span>
-                    )}
-                    {profile?.email && <span>{profile.email}</span>}
-                  </>
-                ) : (
-                  <span>Signed-in workspace</span>
-                )}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="hero-profile-open"
-              onClick={onOpenProfile}
-              aria-label={`Open profile for ${name}`}
-              aria-haspopup="dialog"
-              title="View employee profile"
+            <div
+              className={`hero-profile-photo-wrap${imageBusy || imageTarget ? " is-uploading" : ""}`}
+              aria-busy={imageBusy || Boolean(imageTarget)}
             >
-              View profile <OrvexaIcon name="arrow-right" className="icon-sm" />
-            </button>
+              <ProfileAvatar
+                profile={heroProfile}
+                className="hero-profile-avatar"
+                onImageLoad={handleAvatarLoad}
+                onImageError={handleAvatarError}
+              />
+              {(imageBusy || imageTarget) && (
+                <span className="hero-profile-photo-loading" aria-hidden="true">
+                  <span />
+                </span>
+              )}
+              {!profile?.isPreview && (
+                <label
+                  className="hero-profile-photo-edit"
+                  title="Change profile photo"
+                >
+                  <span className="sr-only">Change profile photo</span>
+                  <OrvexaIcon name="pencil" />
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={changeProfileImage}
+                    disabled={imageBusy}
+                  />
+                </label>
+              )}
+            </div>
+            <div className="hero-profile-copy">
+              {/* <span className="hero-profile-kicker">
+                {profile?.isPreview ? "PREVIEW ACCOUNT" : "SIGNED IN AS"}
+              </span> */}
+              <h1
+                className="kinetic-heading gateway-heading hero-profile-name"
+                aria-label={name}
+                data-zrv-view-title
+                tabIndex={-1}
+              >
+                <span className="kinetic-line kinetic-v5">
+                  <NameTyping name={name} />
+                </span>
+              </h1>
+              <div className="hero-profile-details">
+                <div className="hero-profile-detail">
+                  <span>ROLE</span>
+                  <strong>{profile?.jobTitle || "Not listed"}</strong>
+                </div>
+                <div className="hero-profile-detail">
+                  <span>TEAM</span>
+                  <strong>{profile?.department || "Not listed"}</strong>
+                </div>
+                {profile?.employeeNumber && (
+                  <div className="hero-profile-detail hero-profile-employee">
+                    <span>EMPLOYEE ID</span>
+                    <strong>{profile.employeeNumber}</strong>
+                  </div>
+                )}
+              </div>
+              {!profile?.isPreview && (
+                <div className="hero-profile-photo-actions">
+                  <span className="hero-profile-photo-hint">Make it yours</span>
+                  <button
+                    className="hero-profile-reset"
+                    type="button"
+                    onClick={resetProfileImage}
+                    disabled={imageBusy}
+                  >
+                    Reset photo
+                  </button>
+                  {imageBusy && <span role="status">Saving photo...</span>}
+                  {imageFeedback && <span role="status">{imageFeedback}</span>}
+                </div>
+              )}
+            </div>
           </div>
+          {/* Temporarily hidden while the hero row alignment is tuned.
+          <h2 className="kinetic-heading gateway-heading hero-tagline">
+            <span className="kinetic-tagline">
+              Make room for
+              <br />
+              <em>great work.</em>
+            </span>
+          </h2>
+          <p className="hero-tagline-note">Your people, tools, and priorities—ready in one place.</p>
+          */}
 
           <div
             className="gateway-actions"

@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import multer from 'multer';
+import { AppError } from '../../shared/errors/AppError.js';
 import { createRequireCsrfToken } from '../../middleware/csrf.js';
 import { validate } from '../../middleware/validate.js';
 import { createUsersController } from './users.controller.js';
@@ -30,6 +32,14 @@ export function createUsersRouter({
 }) {
   const controller = createUsersController({ usersService, recoveryService });
   const requireCsrfToken = createRequireCsrfToken({ auditService });
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  });
+  const receiveImage = (req, res, next) =>
+    upload.single('profileImage')(req, res, (error) =>
+      error ? next(new AppError(400, 'VALIDATION_ERROR', 'Invalid profile image upload')) : next(),
+    );
   const read = (action, schemas) => [
     authenticate,
     authorize(USER_ACCOUNTS, action),
@@ -55,7 +65,15 @@ export function createUsersRouter({
     ...read('CREATE', { query: candidatesQuerySchema }),
     controller.listCandidates,
   );
-  router.post('/', ...write('CREATE', { body: provisionSchema }), controller.provision);
+  router.post(
+    '/',
+    authenticate,
+    requireCsrfToken,
+    authorize(USER_ACCOUNTS, 'CREATE'),
+    receiveImage,
+    validate({ query: emptyQuerySchema, body: provisionSchema }),
+    controller.provision,
+  );
   router.get('/:userId', ...read('VIEW', { params: userIdParams }), controller.getUser);
   router.post(
     '/:userId/activate',

@@ -10,6 +10,8 @@ import { evaluateEmployeeEligibility, evaluatePasswordExpiry } from '../auth/aut
 import { PRIVILEGE_CLASSIFICATION } from '../auth/auth.policy.js';
 import * as defaultSessionRepository from '../auth/session.repository.js';
 import * as defaultRepository from './users.repository.js';
+import * as profileImageRepository from './profileImage.repository.js';
+import { validateImage } from './profileImage.service.js';
 
 /*
  * User administration (docs/07 §3–§5, §10B). `authorize` has already checked the actor's
@@ -86,6 +88,7 @@ export function createUsersService({
   auditService,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
+  imageRepository = profileImageRepository,
 }) {
   const read = (work) => withConnection(POOLS.LOW, work);
 
@@ -217,7 +220,7 @@ export function createUsersService({
       return toDetail(await loadUser(userId));
     },
 
-    async provision(actor, { employeeNumber }, context) {
+    async provision(actor, { employeeNumber }, context, profileImage) {
       const candidates = await read((c) => repository.findEmployeeCandidate(c, employeeNumber));
       if (candidates.length === 0) throw notFound('employee');
       if (candidates[0].userId !== null) {
@@ -236,6 +239,14 @@ export function createUsersService({
       try {
         userId = await withTransaction(POOLS.LOW, async (c) => {
           const id = await repository.insertUser(c, { employeeNumber, actorUserId: actor.userId });
+          if (profileImage) {
+            const mimeType = validateImage(profileImage);
+            await imageRepository.saveProfileImage(c, {
+              userId: id,
+              data: profileImage.buffer,
+              mimeType,
+            });
+          }
           await auditService.record(
             c,
             audit(
