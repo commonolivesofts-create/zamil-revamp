@@ -25,6 +25,8 @@ import { createProbationEvaluationRouter } from '../modules/hr/probation-evaluat
 import { createProbationEvaluationService } from '../modules/hr/probation-evaluations/probationEvaluation.service.js';
 import { createOrientationTrainingRouter } from '../modules/hr/orientation-trainings/orientationTraining.routes.js';
 import { createOrientationTrainingService } from '../modules/hr/orientation-trainings/orientationTraining.service.js';
+import { createPeriodwiseEmployeeRouter } from '../modules/hr/periodwise-employees/periodwiseEmployee.routes.js';
+import { createPeriodwiseEmployeeService } from '../modules/hr/periodwise-employees/periodwiseEmployee.service.js';
 import { createContractorEmployeeRouter } from '../modules/hr/contractor-employees/contractorEmployee.routes.js';
 import { createContractorEmployeeService } from '../modules/hr/contractor-employees/contractorEmployee.service.js';
 import { createRequisitionRouter } from '../modules/hr/requisitions/requisition.routes.js';
@@ -189,6 +191,12 @@ export function createApiRouter(appConfig, deps = {}) {
     holds: (userId, permission) => authorizationService.holds(userId, permission),
   });
 
+  const periodwiseEmployeeService = createPeriodwiseEmployeeService({
+    repository: deps.periodwiseEmployeeRepository,
+    withConnection: db.withConnection,
+    ...(deps.periodwiseToday ? { today: deps.periodwiseToday } : {}),
+  });
+
   const contractorEmployeeService = createContractorEmployeeService({
     repository: deps.contractorEmployeeRepository,
     withConnection: db.withConnection,
@@ -318,6 +326,11 @@ export function createApiRouter(appConfig, deps = {}) {
       authenticate,
       auditService,
     }),
+  );
+
+  router.use(
+    '/hr/reports/periodwise-employees',
+    createPeriodwiseEmployeeRouter({ periodwiseEmployeeService, authorize, authenticate }),
   );
 
   router.use(

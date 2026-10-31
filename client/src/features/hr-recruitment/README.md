@@ -20,7 +20,8 @@ frontend only hides controls. Audit findings and open items are in
 | Employment Offer (1062) | `/hr/recruitment/offer` (`/:offerId`) | `/hr/employment-offers` | `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS` | always |
 | Orientation Training (1101) | `/hr/recruitment/orientation` (`/:scheduleId`) | `/hr/orientation-trainings` | `HR.ORIENTATION_TRAININGS` | `VITE_FEATURE_HR_RECRUITMENT` |
 | Probation Evaluation (1064) | `/hr/recruitment/probation-evaluation` (`/:evaluationId`) | `/hr/probation-evaluations` | `HR.PROBATION_EVALUATIONS` | `VITE_FEATURE_HR_RECRUITMENT` |
-| Employee report (contractor employees) | `/hr/reports/periodwise-employees` | `/hr/contractor-employees` | `HR.CONTRACTOR_EMPLOYEES` | `VITE_FEATURE_HR_RECRUITMENT` |
+| Employee report (contractor employees) | `/hr/reports/contractor-employees` | `/hr/contractor-employees` | `HR.CONTRACTOR_EMPLOYEES` | `VITE_FEATURE_HR_RECRUITMENT` |
+| Periodwise Employees report | `/hr/reports/periodwise-employees` | `/hr/reports/periodwise-employees` | `HR.PERIODWISE_EMPLOYEES` (VIEW only) | `VITE_FEATURE_HR_RECRUITMENT` |
 
 **Registry:**
 - The routes are registered in `config/registry/modules/requisitions.module.js`, `interviewAssessments.module.js`, `employmentOffers.module.js` and `hrForms.module.js` (module `HR`).
@@ -101,7 +102,7 @@ The bilingual package rows map to the single `line` object. The status is always
 
 **Records:**
 - `GET /?flag=Y|N` (list for one table) and `GET /:id`.
-- `POST /` and `PUT /:id`: the update replaces all lines.
+- `POST /` and `PUT /:id`: the update replaces all lines. Header, line and flag-registry IDs come from Oracle identity columns.
 - `DELETE /:id`: Draft only.
 - `DELETE /:id/lines/:lineId`: needs `MANAGE_LINES`.
 
@@ -117,7 +118,7 @@ The bilingual package rows map to the single `line` object. The status is always
 
 **Records:**
 - `GET /` and `GET /:id`.
-- `POST /` and `PUT /:id`: Draft only. The update records `UPDATED_BY` and `UPDATED_AT`.
+- `POST /` and `PUT /:id`: Draft only. The update records `UPDATED_BY` and `UPDATED_AT`. Header and line IDs come from Oracle identity columns.
 - `DELETE /:id`: Draft only.
 
 An unrated criterion is omitted from the payload, and the backend stores it as 0. A stored 0 is shown as "Not rated".
@@ -139,31 +140,45 @@ Date-only values travel as `YYYY-MM-DD` strings in both directions. The backend 
 
 ## Permissions in the frontend
 
-Pages use `usePermissions().can(…)` with the keys in `hrRecruitmentActions.js` to show the save, delete and attachment controls. The backend re-checks every request. `HR.ORIENTATION_TRAININGS:MANAGE_LINES` is in the registry. Its Oracle catalogue row cannot be registered until the existing name conflict on `HR.ORIENTATION_TRAININGS` is resolved: run `npm run db:rbac-register -- --target=TEST` in `server/` to see it.
+Pages use `usePermissions().can(…)` with the keys in `hrRecruitmentActions.js` to show the save, delete and attachment controls. The backend re-checks every request.
+
+The registry's module and resource names, descriptions (none) and display orders match the Oracle catalogue exactly; `hrRecruitmentAudit.test.mjs` pins them. Two registry entries are new: `HR.ORIENTATION_TRAININGS:MANAGE_LINES` and `HR.PERIODWISE_EMPLOYEES:VIEW`. Their Oracle rows are added by the owner with `npm run db:rbac-register -- --target=TEST --apply --fingerprint=…` from `server/`. The preview (without `--apply`) shows the plan; the steps are in the audit report §9.2.
 
 ## Switches
 
 | Variable | Decides | `'true'` | `'false'` | unset |
 |---|---|---|---|---|
-| `VITE_FEATURE_HR_RECRUITMENT` | Whether the Orientation, Probation and Employee report entries exist in this build (registry `enabledBy`) | shown | hidden | shown in development, hidden in production |
-| `VITE_HR_RECRUITMENT_DEMO` | Data source of the not-yet-routed Periodwise Employees page only (`onboardingClient`) | demo adapter | `apiClient` | demo in development, API in production |
+| `VITE_FEATURE_HR_RECRUITMENT` | Whether the Orientation, Probation, Employee report and Periodwise report entries exist in this build (registry `enabledBy`) | shown | hidden | shown in development, hidden in production |
+| `VITE_HR_RECRUITMENT_DEMO` | Data source of the Periodwise Employees report only (`onboardingClient`) | demo adapter | `apiClient` | demo in development, API in production |
 
-The three recruitment forms (1060–1062) have no switch. Neither switch changes where any routed form gets its data. The demo default lives in `hrRecruitmentConfig.js`, because the repository ignores `.env.*` files other than `.env.example`. To override it locally, set the variable in your own `client/.env.local`.
+The three recruitment forms (1060–1062) have no switch. The demo switch changes only the Periodwise report's data source; every form always uses the API. The demo default lives in `hrRecruitmentConfig.js`, because the repository ignores `.env.*` files other than `.env.example`. To override it locally, set the variable in your own `client/.env.local`.
 
-## Periodwise Employees report (not routed yet)
+## Periodwise Employees report
 
-`report/PeriodwiseEmployeesPage.jsx` and `report/periodwiseModel.js` are complete, but they are not in the router. The menu entry at `/hr/reports/periodwise-employees` currently opens the contractor **Employee report**. The page reads:
-- `GET /hr/recruitment/lookups` (departments);
-- `GET /hr/reports/periodwise-employees?department&from&to`.
+`/hr/reports/periodwise-employees` opens `report/PeriodwiseEmployeesPage.jsx`, and the contractor **Employee report** has its own path, `/hr/reports/contractor-employees`. Handoff: `docs/handoffs/FEATURE-PERIODWISE-EMPLOYEES-REPORT.md`.
 
-Neither endpoint exists on the backend. Only the demo adapter (`demo/`) serves them. Building the backend endpoint and the departments lookup, routing the page, and moving the contractor report to its own path are pending the owner's approval of the Oracle source. The proposal is in the audit report.
+**Endpoints** (`HR.PERIODWISE_EMPLOYEES:VIEW`):
+- `GET /hr/reports/periodwise-employees/lookups/departments` returns `[{ code, name }]`, the employee master's `ORGANIZATION_ID` and `DEPARTMENT`.
+- `GET /hr/reports/periodwise-employees` takes `dateFrom`, `dateTo` (required), `department` (`ALL` or a code), `status` (`ALL`/`ACTIVE`/`LEFT`), `search`, `nationality`, `ageBand`, `flagged`, `sortBy`, `sortDir`, `page` and `pageSize` (≤100).
 
-**The demo adapter** (`demo/demoClient.js`, `demo/demoData.js`):
-- has the same interface as `apiClient`;
-- keeps fictional records in memory only (never browser storage);
-- waits 350 ms per request and returns real 404/409/422 error paths.
+**Response:** `data: { rows, summary }` plus `pagination`. The summary sits inside `data` because the shared client keeps only `data` and `pagination`.
+- **Scope:** the period, department and status select the scope. `summary` holds the KPIs and chart data of the whole scope.
+- **Refinements:** search, nationality, age band and "needs checking" narrow only the rows. Rows are then sorted and paged on the server.
+- **National ID:** rows carry `hasNationalId`, never the number.
+- **Department:** the employee's current department.
 
-While the page uses it, the page shows a **Demo data** badge. Remove `demo/`, `hrRecruitmentConfig.js`, `selectClient`, `hrRecruitmentDemo` and `identifyDemoUser` once the report runs on its API.
+**On the page:**
+- It renders the server's rows, page and summary.
+- Clicking a department bar narrows the scope; the other charts filter the table.
+- Export CSV and Print load every filtered row with `reports.allRows`.
+- `periodwiseModel.js` keeps the CSV helpers and the rules the demo adapter uses.
+
+**The demo adapter** (`demo/demoClient.js`, `demo/demoData.js`) is used only while `VITE_HR_RECRUITMENT_DEMO` selects it:
+- it serves the same contract, including numeric department codes and 400 validation errors;
+- it has the same interface as `apiClient`;
+- it keeps fictional records in memory only (never browser storage) and waits 350 ms per request.
+
+While the page uses it, the page shows a **Demo data** badge. To remove the demo, delete `demo/` and `hrRecruitmentConfig.js`, and remove `selectClient`, `hrRecruitmentDemo` and `identifyDemoUser`.
 
 ## Tests
 
@@ -172,4 +187,5 @@ While the page uses it, the page shows a **Demo data** badge. Remove `demo/`, `h
   - `hrRecruitmentAudit.test.mjs`: contract regressions and lookup loading for every form.
   - `hrOnboarding.test.mjs`: orientation, probation, the report and the demo adapter.
   - `hrSharedComponents.test.mjs`.
-- **Server** (`server/tests`, Supertest with fake repositories): `requisitions`, `interview-assessments`, `employment-offers`, `orientation-trainings`, `probation-evaluations` and `hr-date-only`.
+- **Server** (`server/tests`, Supertest with fake repositories): `requisitions`, `interview-assessments`, `employment-offers`, `orientation-trainings`, `probation-evaluations`, `periodwise-employees`, `hr-date-only` and `hr-identity-ids`.
+- **Live TEST check** (writes and deletes its own `ZZTEST` records; owner-run session): `npm run hr:live-crud` in `server/`, see `server/scripts/hr-live-crud.js`.

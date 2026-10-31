@@ -5,7 +5,6 @@ const rows = async (connection, sql, binds, fetchInfo) =>
   (await connection.execute(sql, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo })).rows;
 const headerIdFetch = Object.freeze({ HEADER_ID: ID });
 const lineIdFetch = Object.freeze({ HEADER_ID: ID, LINE_ID: ID });
-const generatedIdFetch = Object.freeze({ ID });
 
 const mapHeader = (row) => ({
   headerId: row.HEADER_ID,
@@ -36,31 +35,12 @@ const mapLine = (row) => ({
   paramAr: row.PARAMA_NAME_AR,
 });
 
-export async function generateHeaderId(connection) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(HEADER_ID + 1), 1) AS ID
-       FROM XXZP.XXZP_PAF_PROBATION_HEADER`,
-    {},
-    generatedIdFetch,
-  );
-  return row?.ID;
-}
-
-export async function findHeaderIdByUuid(connection, uuid) {
-  const [row] = await rows(
-    connection,
-    `SELECT HEADER_ID
-       FROM XXZP.XXZP_PAF_PROBATION_HEADER
-      WHERE UUID = :uuid`,
-    { uuid },
-    headerIdFetch,
-  );
-  return row?.HEADER_ID;
-}
-
+/**
+ * Inserts the header and returns the HEADER_ID assigned by its identity column
+ * (GENERATED ALWAYS), as a decimal string.
+ */
 export async function insertHeader(connection, header) {
-  await connection.execute(
+  const result = await connection.execute(
     `INSERT INTO XXZP.XXZP_PAF_PROBATION_HEADER
        (UUID, FORM_DATE, EMP_ID, GRADE, EVALUATION_PERIOD, FORM_NAME, TOTAL_RATING,
         PREPARED_BY_CMNT, APPROVED_BY_CMNT, EMP_NAME, JOB_T, DEPARTMENT, EMP_NUMBER,
@@ -70,29 +50,20 @@ export async function insertHeader(connection, header) {
         NVL(:evaluationPeriod, '-'), NVL(:formType, '-'), NVL(:totalRating, 0),
         NVL(:comment, '-'), NVL(:comments, '-'), :employeeName, :jobTitle, :department,
         :employeeNumber, TO_DATE(:fromDate, 'DD-Mon-YYYY'), TO_DATE(:toDate, 'DD-Mon-YYYY'),
-        :userName, :userMail, 'DRAFT', SYSDATE, :createdBy)`,
-    header,
+        :userName, :userMail, 'DRAFT', SYSDATE, :createdBy)
+     RETURNING HEADER_ID INTO :headerId`,
+    { ...header, headerId: { dir: oracledb.BIND_OUT, type: oracledb.STRING } },
   );
+  return result.outBinds?.headerId?.[0] ?? null;
 }
 
-export async function generateLineId(connection, headerId) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(LINE_ID + 1), 1) AS ID
-       FROM XXZP.XXZP_PAF_PROBATION_LINES
-      WHERE HEADER_ID = :headerId`,
-    { headerId },
-    generatedIdFetch,
-  );
-  return row?.ID;
-}
-
+/** Inserts one line; LINE_ID is assigned by its identity column (GENERATED ALWAYS). */
 export async function insertLine(connection, line) {
   await connection.execute(
     `INSERT INTO XXZP.XXZP_PAF_PROBATION_LINES
-       (HEADER_ID, LINE_ID, RATING_LINE, PARAM_NAME, PARAMA_NAME_AR)
+       (HEADER_ID, RATING_LINE, PARAM_NAME, PARAMA_NAME_AR)
      VALUES
-       (:headerId, :lineId, NVL(:rating, 0), :param, NVL(:paramAr, '-'))`,
+       (:headerId, NVL(:rating, 0), :param, NVL(:paramAr, '-'))`,
     line,
   );
 }

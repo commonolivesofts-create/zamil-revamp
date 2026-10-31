@@ -5,8 +5,6 @@ const rows = async (connection, sql, binds = {}, fetchInfo) =>
   (await connection.execute(sql, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo })).rows;
 const HEADER_FETCH = Object.freeze({ HEADER_ID: ID, CREATED_BY: ID, ATTRIBUTE2: ID });
 const LINE_FETCH = Object.freeze({ DEP_LINE_ID: ID, HEADER_ID: ID, CREATED_BY: ID });
-const ID_FETCH = Object.freeze({ ID });
-const HEADER_ID_FETCH = Object.freeze({ HEADER_ID: ID });
 
 export const TABLES = Object.freeze({
   Y: Object.freeze({
@@ -107,18 +105,12 @@ export async function findEmployeeDetails(connection, empNo) {
     : null;
 }
 
-export async function generateHeaderId(connection, table) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(HEADER_ID + 1), 1) AS ID FROM ${table.header}`,
-    {},
-    ID_FETCH,
-  );
-  return row?.ID;
-}
-
+/**
+ * Inserts the header and returns the HEADER_ID assigned by the table's identity column, as a
+ * decimal string.
+ */
 export async function insertHeader(connection, table, header) {
-  await connection.execute(
+  const result = await connection.execute(
     `INSERT INTO ${table.header}
        (UUID, EMPLOYEE_NUMBER, DIVISION, EMPLOYEE_NAME, ORIENTATION_DURATION_FROM,
         ORIENTATION_DURATION_TO, STARTING_DATE, ORIENTATION_SCHEDULE_BY, STATUS,
@@ -127,19 +119,11 @@ export async function insertHeader(connection, table, header) {
        (:uuid, :empNo, :section, :empname, TO_DATE(:fromOrient, 'YYYY-MM-DD'),
         TO_DATE(:toOrient, 'YYYY-MM-DD'), TO_DATE(:startDate, 'YYYY-MM-DD'),
         :orientationBy, 'Draft', :createdBy, SYSDATE, :personId, :division,
-        :position, :empType, 'new')`,
-    header,
+        :position, :empType, 'new')
+     RETURNING HEADER_ID INTO :headerId`,
+    { ...header, headerId: { dir: oracledb.BIND_OUT, type: oracledb.STRING } },
   );
-}
-
-export async function findHeaderIdByUuid(connection, table, uuid) {
-  const [row] = await rows(
-    connection,
-    `SELECT HEADER_ID FROM ${table.header} WHERE UUID = :uuid`,
-    { uuid },
-    HEADER_ID_FETCH,
-  );
-  return row?.HEADER_ID;
+  return result.outBinds?.headerId?.[0] ?? null;
 }
 
 export async function setReference(connection, table, headerId, division) {
@@ -157,30 +141,22 @@ export async function setReference(connection, table, headerId, division) {
   return row?.ATTRIBUTE5;
 }
 
+// The registry's HEADER_ID is an identity column (BY DEFAULT) with a primary key.
 export async function registerFlag(connection, headerId, tableName) {
   await connection.execute(
-    `INSERT INTO XXZP.XXZP_NHT_MASTER_FLAG (HEADER_ID, FORM_HEADER_ID, TABLE_NAME)
-     VALUES (NVL((SELECT MAX(HEADER_ID) FROM XXZP.XXZP_NHT_MASTER_FLAG), 1) + 1, :headerId, :tableName)`,
+    `INSERT INTO XXZP.XXZP_NHT_MASTER_FLAG (FORM_HEADER_ID, TABLE_NAME)
+     VALUES (:headerId, :tableName)`,
     { headerId, tableName },
   );
 }
 
-export async function generateLineId(connection, table, headerId) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(DEP_LINE_ID + 1), 1) AS ID FROM ${table.line} WHERE HEADER_ID = :headerId`,
-    { headerId },
-    ID_FETCH,
-  );
-  return row?.ID;
-}
-
+/** Inserts one line; DEP_LINE_ID is assigned by the line table's identity column. */
 export async function insertLine(connection, table, line) {
   await connection.execute(
     `INSERT INTO ${table.line}
-       (DEP_LINE_ID, HEADER_ID, DEPARTMENT, DEPARTMENT_HEAD, ORIENTATION_PERIOD,
+       (HEADER_ID, DEPARTMENT, DEPARTMENT_HEAD, ORIENTATION_PERIOD,
         TIME_FROM, TIME_TO, REMARKS, CREATED_BY, CREATION_DATE, FROM_DATE, TO_DATE, ORIENTATION_DAYS)
-     VALUES (:lineId, :headerId, :department, :departmentHead, :orientationPeriod,
+     VALUES (:headerId, :department, :departmentHead, :orientationPeriod,
              :timeFrom, :timeTo, :remarks, :createdBy, SYSDATE,
              TO_DATE(:fromDate, 'YYYY-MM-DD'), TO_DATE(:toDate, 'YYYY-MM-DD'), :orientationDays)`,
     line,

@@ -24,7 +24,7 @@ const BODY = {
   lines: [{ param: 'Quality of work', paramAr: 'جودة العمل', rating: 4 }],
 };
 
-function setup() {
+function setup({ identityStart } = {}) {
   const store = createAuthStore();
   const rbac = installRbac(store, { syncPrivilegeFlags: true });
   const addPerson = (employeeNumber, fullName) => {
@@ -55,7 +55,7 @@ function setup() {
   rbac.grant(staffRole, permissions.CREATE);
   rbac.assign(staffUser, staffRole);
 
-  installProbationEvaluations(store, { hrEmployeeNumbers: [hrUser.employeeNumber] });
+  installProbationEvaluations(store, { hrEmployeeNumbers: [hrUser.employeeNumber], identityStart });
   const app = createApp(testAuthConfig(), {
     checkReadiness: async () => ({ LOW: true, HIGH: true }),
     api: {
@@ -345,5 +345,25 @@ describe('probation evaluation record access, draft guard and audit', () => {
     const header = f.store.state.probationEvaluations.headers[0];
     assert.equal(header.updatedBy, f.hrUser.userId);
     assert.equal(header.updatedAt, 'SYSDATE');
+  });
+});
+
+describe('probation evaluation IDs come from the identity columns', () => {
+  it('creates an evaluation when the identity is above MAX(HEADER_ID) and sends no LINE_ID', async () => {
+    const f = setup({ identityStart: 1040 });
+    f.store.seedProbationEvaluation({ headerId: '1023' }, [{}]);
+    const hr = await signIn(f.store, f.hrUser);
+    const created = await request(f.app)
+      .post(BASE)
+      .set('Cookie', hr.cookie)
+      .set('X-CSRF-Token', hr.csrf)
+      .send({ ...BODY, lines: [BODY.lines[0], { ...BODY.lines[0], param: 'Teamwork' }] });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.data.headerId, '1040');
+    const lines = f.store.state.probationEvaluations.lines.filter((l) => l.headerId === '1040');
+    assert.deepEqual(
+      lines.map((line) => line.lineId),
+      ['1040', '1041'],
+    );
   });
 });

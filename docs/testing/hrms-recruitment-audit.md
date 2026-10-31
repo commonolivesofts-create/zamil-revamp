@@ -26,9 +26,9 @@ Legend:
 | Personnel Requisition (1060) | ✅ | ✅ | ⚠️ (2 *fixed*, 2 open) | ⚠️ mock | ⚠️ mock | ⚠️ mock | ⚠️ mock (Draft only) | ⚠️ none; out of scope per spec §11 | ✅ | ✅ (fixed DB enums) |
 | Interview Assessment (1061) | ❌→*fixed* (every save returned 400) | ✅ | ❌→⚠️ (3 *fixed*, 4 open) | ⚠️ mock | ⚠️ mock | ⚠️ mock | ⚠️ mock | ⚠️ none; status set only by legacy CI3 | ⚠️ payroll BUs shown as raw IDs | ⚠️ enum constants |
 | Employment Offer (1062) | ✅ | ✅ | ⚠️ (probation period ignored on PUT) | ⚠️ mock | ⚠️ mock | ⚠️ mock | ⚠️ mock | ⚠️ none; spec is CRUD only | ✅ | ✅ |
-| Orientation Training (1101) | ⚠️ (3 *fixed*) | ✅ record access and draft guard *fixed* (round 2); ⚠️ create ID conflict (§8.5) | ❌→⚠️ (2 *fixed*) | ⚠️ mock; likely 409 on TEST (§8.5) | ⚠️ mock | ⚠️ mock | ⚠️ mock; line delete needs the `MANAGE_LINES` row (§8.3) | ⚠️ none; out of scope per spec §11 | ✅ | ✅ (server-side constants per spec) |
-| Probation Evaluation (1064) | ⚠️ (1 *fixed*) | ✅ record access, draft guard, update audit *fixed* (round 2); ⚠️ trusts `totalRating` | ❌→✅ (*fixed*) | ⚠️ mock | ⚠️ mock | ⚠️ mock | ⚠️ mock | ⚠️ none; out of scope per spec §11 | ✅ | ✅ |
-| Periodwise Employees report | ❌ page not routed | ❌ no API | ❌ (calls nonexistent routes) | n/a (report) | ❌ | n/a | n/a | n/a | ❌ | ❌ (KPI rules in client) |
+| Orientation Training (1101) | ⚠️ (3 *fixed*) | ✅ record access, draft guard (round 2); identity IDs, ISO dates (round 3) | ❌→⚠️ (2 *fixed*) | ⚠️ mock; 409 *fixed* (round 3); live pending §9.4 | ⚠️ mock | ⚠️ mock | ⚠️ mock; line delete needs the `MANAGE_LINES` grant (§9.2) | ⚠️ none; out of scope per spec §11 | ✅ | ✅ (server-side constants per spec) |
+| Probation Evaluation (1064) | ⚠️ (1 *fixed*) | ✅ record access, draft guard, update audit (round 2); identity IDs (round 3); ⚠️ trusts `totalRating` | ❌→✅ (*fixed*) | ⚠️ mock; live pending §9.4 | ⚠️ mock | ⚠️ mock | ⚠️ mock | ⚠️ none; out of scope per spec §11 | ✅ | ✅ |
+| Periodwise Employees report | ✅ routed, API-driven (round 3) | ✅ built (round 3) | ✅ | n/a (report) | ⚠️ mock; live pending §9.4 and the permission row | n/a | n/a | n/a | ✅ departments lookup | ✅ rules on the server |
 
 **Common to all forms:**
 - **Permission checks:** every route has `authenticate` and `authorize(<module.resource>, action)`, and every write also has the CSRF check.
@@ -82,10 +82,10 @@ None of these exist. I did not create them (that needs owner approval).
 
 | # | Endpoint | Method | Purpose / consumer | Suggested request → response |
 |---|---|---|---|---|
-| M1 | `/api/v1/hr/reports/periodwise-employees` | GET | Periodwise Employees report (`PeriodwiseEmployeesPage`, `createReportService`) | Query: `department` (`ALL` or a code), `from`, `to` (YYYY-MM-DD, `to ≥ from`; otherwise 422). Response `data: { rows: [{ employeeNumber, name, birthDate\|null, nationality, nationalityCode, job, departmentCode, position, nationalId\|null, startDate, endDate\|null, leavingReason }] }`; `employeeNumber` unique. Not paginated today. For large periods, prefer server-computed KPIs plus a paged table. Needs an Oracle source (employee master and assignment history; gates G1/G4) and a permission resource |
-| M1a | `/api/v1/hr/reports/periodwise-employees/lookups/departments` | GET | Department filter for M1. Replaces the large `readLookups` aggregate, which requires unrelated keys | Response `data: [{ code, name }]` |
-| M2 | `/api/v1/hr/recruitment/lookups` | GET | Default `loadLookups` in `RecruitmentLoader`; only the Periodwise page uses it | Shape of `readLookups` (`hrRecruitmentContract.js:59-102`). **Recommendation:** do not build it; remove the default and use M1a |
-| M3 | `/api/v1/hr/recruitment/employees` | GET | Default `searchService` in `EmployeePicker` (unused by routed pages) | `search,page,limit` → page of `{employeeId, employeeNumber, name, employmentType, startDate, section, division, position, grade, departmentName, evaluationFormCode\|null}`. **Recommendation:** remove the default |
+| M1 (**done**, round 3) | `/api/v1/hr/reports/periodwise-employees` | GET | Periodwise Employees report (`PeriodwiseEmployeesPage`, `createReportService`) | Query: `department` (`ALL` or a code), `from`, `to` (YYYY-MM-DD, `to ≥ from`; otherwise 422). Response `data: { rows: [{ employeeNumber, name, birthDate\|null, nationality, nationalityCode, job, departmentCode, position, nationalId\|null, startDate, endDate\|null, leavingReason }] }`; `employeeNumber` unique. Not paginated today. For large periods, prefer server-computed KPIs plus a paged table. Needs an Oracle source (employee master and assignment history; gates G1/G4) and a permission resource |
+| M1a (**done**, round 3) | `/api/v1/hr/reports/periodwise-employees/lookups/departments` | GET | Department filter for M1. Replaces the large `readLookups` aggregate, which requires unrelated keys | Response `data: [{ code, name }]` |
+| M2 (**not needed**; default and service removed) | `/api/v1/hr/recruitment/lookups` | GET | Default `loadLookups` in `RecruitmentLoader`; only the Periodwise page uses it | Shape of `readLookups` (`hrRecruitmentContract.js:59-102`). **Recommendation:** do not build it; remove the default and use M1a |
+| M3 (**not needed**; default and service removed) | `/api/v1/hr/recruitment/employees` | GET | Default `searchService` in `EmployeePicker` (unused by routed pages) | `search,page,limit` → page of `{employeeId, employeeNumber, name, employmentType, startDate, section, division, position, grade, departmentName, evaluationFormCode\|null}`. **Recommendation:** remove the default |
 | M4 (**done**, round 2) | `/api/v1/hr/interview-assessments/lookups/payroll-units` | GET | Interview `payroll` (`attribute3`) select currently shows raw IDs; the spec names them IPP/FPP | `data: [{ code: '300000003618177', name: 'IPP' }, …]` |
 | M5 (**done** as `canManageTicket` only, round 2) | `/api/v1/hr/requisitions/lookups/capabilities` | GET | Requisition ticket-status selector is shown to everyone; the backend rejects non-HR changes with 400 (`requisition.service.js:115,175`). The UI also locks Inprocess/Approved records that HR may still edit (`service.js:165-174`) | `data: { canManageTicket: boolean, canEditLocked: boolean }` |
 | M6 | Workflow actions (`POST …/:id/submit`, `/approve`, `/reject`, `/return`) for 1060, 1061, 1062, 1064 | POST | No form has submit or approval in the API. The specs put this out of scope (§11), but the offer candidate list (Approved + Passed interviews) is fed only by the legacy CI3 workflow | Owner decision (see §6) |
@@ -438,3 +438,158 @@ DROP SEQUENCE XXZP.XXZP_NHT_MASTER_FLAG_S;
 3. **ID generation:** Option A (code only, recommended), Option B (sequences, DDL), and whether to add unique constraints (§8.5).
 4. **RBAC name conflicts:** how to resolve the 12 conflicts so that `MANAGE_LINES` can be registered with `--apply` (§8.3).
 5. **Live CRUD run:** authorization for writes against TEST, with a dev account that has MFA and the five HR grants. This would also confirm the orientation create 409 in §8.5.
+
+## 9. Round 3 (2026-10-31): owner decisions on §8
+
+**Branch:** `docs/hrms-recruitment-audit`, committed and **not pushed**.
+- Round 1: `345c6c3` "fix(hr-recruitment): HRMS recruitment audit + 11 fixes".
+- Round 2: `6543ab7` "feat(hr-recruitment): HRMS audit round 2: record access, lookups, date fix, README".
+- Your messages were kept, with the conventional-commit prefix that `CONTRIBUTING.md` requires.
+- Author: `Nauman Mirza`.
+- The round 3 work below is **not committed**; nobody asked for that yet.
+
+**Oracle access this round:** read-only against `ZPADWTEST`: dictionary metadata, aggregate counts, `MAX(id)`, the RBAC catalogue's names and the `rbac-register` preview. Nothing was written to Oracle.
+
+### 9.1 IDs: Option A (identity columns): done
+
+**Probation:**
+- `insertHeader` uses `INSERT … RETURNING HEADER_ID INTO :headerId` (an out bind, as a string).
+- `insertLine` no longer sends `LINE_ID`. `LINE_ID` is `GENERATED ALWAYS`, so the old code's explicit `LINE_ID` would have been rejected by Oracle (ORA-32795) on every create with lines.
+- `generateHeaderId`, `findHeaderIdByUuid`, `generateLineId` and the `PROBATION_EVALUATION_ID_CONFLICT` 409 were removed (also from the OpenAPI document).
+
+**Orientation:**
+- `insertHeader` uses `RETURNING HEADER_ID INTO`.
+- `insertLine` no longer sends `DEP_LINE_ID`. The old per-header `MAX+1` gave every new header line 1, which collides with the production line table's primary key on `DEP_LINE_ID`.
+- `registerFlag` no longer computes `MAX(HEADER_ID)+1`; the registry's identity column (BY DEFAULT, PK) assigns it.
+- `ORIENTATION_TRAINING_ID_CONFLICT` was removed.
+
+**Tests:**
+- `server/tests/hr-identity-ids.test.js`: SQL shape, the out bind, no `MAX(` and no ID helpers.
+- `orientation-trainings.test.js`: a shared-service create with the identity at 1081 above `MAX` 38 returns **201, not 409**.
+- `probation-evaluations.test.js`: a create with the identity above `MAX` assigns IDs 1040/1041 to the lines.
+- The fake repositories now model identity columns (never reused, unaffected by rollbacks) and refuse an explicit line ID.
+
+**Unique constraints:** `docs/db/migrations/2026-10-31-hrms-id-unique-constraints/` (change ID **HRMS-ID-UK-001**, **not applied**):
+- `00-duplicate-check.sql`: read-only, run on TEST.
+- `01-migration.sql`: 5 `UNIQUE` constraints, for the DBA.
+- `02-rollback.sql`.
+- `README.md`.
+
+**TEST results (read-only):**
+- **Clean:** probation header and lines, the shared-services orientation header and lines, and the employment offer header.
+- **Blocked by duplicates:**
+  - `XXZPI_PER_REQUISITIONS_ALL.REQUISITION_ID` 100800: 2 rows.
+  - `XXZP_INTERVW_ASSESMNT_HEADER_T.HEADER_ID` 677: 2 rows.
+  - `XXZP_ALL_ATTACHMENTS.HEADER_ID`: 3,564 IDs with exactly 2 rows each (7,201 rows), probably a duplicated load. These three need your data decision; their constraints are commented out in `01`.
+- **Already keyed:** the production orientation header and lines, and the flag registry.
+- **Related risk (recorded, not changed):** the two orientation header tables have separate identities, so the same header ID can later appear in both tables and make the flag registry (`FORM_HEADER_ID`) ambiguous. This does not happen today.
+
+### 9.2 RBAC names: done; registration ready for you
+
+**What changed:**
+- The registry now matches the Oracle catalogue exactly (read on TEST): names "Personal Requisitions", "Transfer Request Form", "Personal Status Change Form", "Employee report", "Probation Evaluation Form" and "Orientation Training Form".
+- No descriptions, since they are NULL in Oracle.
+- Module display orders REQUISITIONS 0, INTERVIEW_ASSESSMENTS 20, EMPLOYMENT_OFFERS 0, HR 0.
+- `client/tests/hrRecruitmentAudit.test.mjs` pins these values.
+
+**Preview** (`npm run db:rbac-register -- --target=TEST`, read-only): **CONFLICT 0**, MATCH 76, UNREGISTERED 46 (Oracle-only rows; untouched), MISSING 4:
+- `PERMISSION REQUISITIONS.REQUISITIONS:MANAGE_ATTACHMENTS` (was blocked by the old name conflict; the backend already requires it);
+- `RESOURCE HR.PERIODWISE_EMPLOYEES`;
+- `PERMISSION HR.PERIODWISE_EMPLOYEES:VIEW`;
+- `PERMISSION HR.ORIENTATION_TRAININGS:MANAGE_LINES`.
+
+**To register (you, gate G1):**
+1. Approve the TEST database identity. The registration script refuses `--apply` until `APPROVED_TARGETS.TEST.dbName` in `server/scripts/lib/rbacRegistration.js` holds the approved value; it is `null` today, and `server/docs/RBAC-REGISTRATION.md` forbids guessing it. The value the preview printed is `G480281AE328134_ZPADWTEST`. I did not make this change. Make it yourself, or tell me to.
+2. From `server/`, run the preview again and confirm it still shows the 4 MISSING rows and the same fingerprint.
+3. Run, in an interactive terminal:
+   `npm run db:rbac-register -- --target=TEST --apply --fingerprint=7c061a8fd4c0b096a63cfa6de140c8ea78e5abcc011b05fd9b137d70f89c5095`
+   It asks for a typed confirmation. If the catalogue changed since this preview, the fingerprint will differ; use the new one the preview prints.
+4. Grant `HR.PERIODWISE_EMPLOYEES:VIEW` (and `HR.ORIENTATION_TRAININGS:MANAGE_LINES` where wanted) to the right roles in Security Administration. Registration creates catalogue rows only, not grants.
+
+### 9.3 Periodwise Employees report: done
+
+- **Source:** `XX_DIGI_EMP_MASTER` (current department) and `XX_DIGI_PERSON_INFO` (leaving reason). `docs/specs` contains no legacy periodwise report and nothing pointing to department history, so I kept the current department as decided.
+- **Endpoints:**
+  - `GET /api/v1/hr/reports/periodwise-employees` takes `dateFrom`, `dateTo`, `department`, `status`, `search`, `nationality`, `ageBand`, `flagged`, `sortBy`, `sortDir`, `page` and `pageSize` (≤100).
+  - `GET …/lookups/departments`.
+  - Both require `HR.PERIODWISE_EMPLOYEES:VIEW`. Every value is a bind variable. Validation errors are 400.
+- **Response:**
+  - `data: { rows, summary }` with `pagination`. The summary sits inside `data` because the shared `apiClient` keeps only `data` and `pagination`; changing that shared client (G3) was not needed.
+  - `summary` (KPIs, department, nationality, age-band and yearly-flow data) is computed on the server for the full scope: period, department and status.
+  - Search, nationality, age band and "needs checking" narrow only the rows.
+  - Rows carry `hasNationalId` and never the number; the SQL never selects it.
+- **Checks on TEST data (aggregates only):** the nationality label is exactly `Saudi`. `ORGANIZATION_ID` to `DEPARTMENT` is one-to-one. 2 rows have no department and 2 no birth date (handled as null). The master holds one row per employee, 162 in total.
+- **Menu:** the contractor report moved to `/hr/reports/contractor-employees` (same permission); `/hr/reports/periodwise-employees` opens the Periodwise page. Each has its own registry entry.
+- **Page:**
+  - It renders server rows and summary, with server sort and pages.
+  - A department chart click narrows the scope; the other charts filter the table.
+  - Export and Print load every filtered row with `reports.allRows`.
+- **Demo adapter:** serves the same contract (numeric department codes, 400 errors), and the tests compare it with the real-client path.
+- **Removed:** `createLookupService` (`/hr/recruitment/lookups`, the last unused default).
+- **Docs:** handoff `docs/handoffs/FEATURE-PERIODWISE-EMPLOYEES-REPORT.md`; OpenAPI updated. `server/docs/08-IMPLEMENTATION_STATUS.md` was not changed: it tracks the platform phases and has no HR feature rows.
+
+### 9.4 Live CRUD on TEST: script ready; not run yet
+
+**Script:** `server/scripts/hr-live-crud.js`, run as `npm run hr:live-crud` from `server/`.
+
+**Inputs:** `LIVE_TEST_COOKIE` and `LIVE_TEST_CSRF` in `server/.env.local`.
+- All three possible `.env.local` locations are confirmed gitignored.
+- The script never prints, logs or stores the values.
+- `LIVE_TEST_COOKIE` accepts `name=value` or the value alone.
+- `LIVE_TEST_BASE_URL` is optional.
+
+**Refusal guards** (checked before any API request):
+- both secrets set;
+- the base URL is loopback;
+- `NODE_ENV` is not production;
+- a read-only Oracle check that the backend's configuration connects to `G480281AE328134_ZPADWTEST`;
+- `GET /auth/me` accepts the session.
+
+Verified: without `.env.local` it refuses before any request.
+
+**Order:**
+1. Orientation, starting with the **shared-services create** (the old 409 case).
+2. Then Probation, Requisition, Interview, Offer, and the Periodwise read.
+
+**Per form:**
+- create, read with field round-trips (including the joining date for the day-shift fix), update with read-back;
+- a read-only check that the update audit columns hold the session user (on its own records only);
+- negative cases: missing or invalid fields (400), unknown ID (404), no CSRF (403), no session (401), non-HR ticket change (400);
+- delete, then read (404).
+
+**Data:**
+- All free text uses the `ZZTEST` prefix.
+- Probation and Offer use a fictional employee or applicant.
+- Orientation must use a real shared-services employee; only that employee's ID number is printed.
+- Interview uses a real approved requisition number.
+
+**Cleanup:**
+- Every created ID is recorded.
+- Each record is deleted in a `finally` block, with a retry pass at the end.
+- The script prints created IDs and cleanup results and exits non-zero if anything is left.
+
+**Not testable with one session:** "another user's ID → 403" (it needs a second, non-HR account; the mocked tests in §8.1 cover it).
+
+**Server:** the dev server on `127.0.0.1:7381` runs this branch. Its new routes answer 401 unauthenticated, and an unknown route answers 404.
+
+**Results:** _to be filled in after the run: step results, created IDs, cleanup._
+
+### 9.5 Tests executed in round 3 (2026-10-31)
+
+- **Server:**
+  - Full `npm test`: **725/725 pass** (mocked Oracle).
+  - Affected suites (requisitions, interview-assessments, employment-offers, orientation-trainings, probation-evaluations, periodwise-employees, contractor-employees, hr-date-only, hr-identity-ids, api-docs, rbac-register, http-foundation): 214/214.
+  - ESLint and Prettier clean on the changed files.
+- **Client:**
+  - Full `node --test tests/*.mjs`: **372/372 pass**.
+  - `eslint src tests` clean; `vite build` succeeds.
+  - Pinned tests updated for intended changes: `registry`, `navigation`, the onboarding route and switch lists, and the two report tests.
+- **Not run:** the live CRUD script (it waits for your session).
+
+### 9.6 Waiting for you
+
+1. **Live run:** put `LIVE_TEST_COOKIE` and `LIVE_TEST_CSRF` in `server/.env.local`, then tell me to run `npm run hr:live-crud` once.
+2. **RBAC registration:** approve and record the TEST `DB_NAME` (`G480281AE328134_ZPADWTEST`), then run the `--apply` command in §9.2 and grant the new permissions. Until then the Periodwise report and the line delete return 403 for everyone.
+3. **Duplicate IDs:** decide on requisition 100800, interview 677 and the attachments table (§9.1) before their unique constraints.
+4. **DBA review** of HRMS-ID-UK-001 (`01-migration.sql` / `02-rollback.sql`).
+5. **Round 3 commit:** say if you want it committed.

@@ -1,8 +1,22 @@
+import assert from 'node:assert/strict';
+
 const copy = (value) => structuredClone(value);
 
 // `departments` maps employee numbers to an ORGANIZATION_ID for the same-department rule.
-export function installOrientationTrainings(store, { hrUserIds = [], departments = {} } = {}) {
+// `identityStart` starts the identity columns above the existing rows (they need not follow
+// MAX(id) + 1, as on TEST where the shared-service header identity is far above its maximum).
+export function installOrientationTrainings(
+  store,
+  { hrUserIds = [], departments = {}, identityStart } = {},
+) {
   store.state.orientationDepartments = { ...departments };
+  // Identity values are never reused and survive rollbacks, so they live outside `state`.
+  const identity = {};
+  const nextIdentity = (key, rows, field) => {
+    identity[key] ??=
+      identityStart ?? rows.reduce((max, row) => Math.max(max, Number(row[field])), 0) + 1;
+    return String(identity[key]++);
+  };
   store.state.orientationTrainings = {
     headers: { Y: [], N: [] },
     lines: { Y: [], N: [] },
@@ -40,21 +54,12 @@ export function installOrientationTrainings(store, { hrUserIds = [], departments
     async findActorName(_connection, userId) {
       return store.state.users.find((user) => user.userId === userId)?.fullName ?? 'Test Actor';
     },
-    async generateHeaderId(_connection, table) {
-      const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
-      return String(
-        state().headers[variant].reduce((max, item) => Math.max(max, Number(item.headerId)), 0) + 1,
-      );
-    },
     async insertHeader(_connection, table, input) {
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
-      const headerId = String(state().headers[variant].length + 1);
+      const headerId = nextIdentity(`header${variant}`, state().headers[variant], 'headerId');
       state().headers[variant].push({ ...input, headerId, status: 'Draft', reference: null });
       if (store.failures.orientation.insertHeader) throw new Error('injected header failure');
-    },
-    async findHeaderIdByUuid(_connection, table, uuid) {
-      const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
-      return state().headers[variant].find((item) => item.uuid === uuid)?.headerId ?? null;
+      return headerId;
     },
     async setReference(_connection, table, headerId, division) {
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
@@ -66,13 +71,11 @@ export function installOrientationTrainings(store, { hrUserIds = [], departments
       state().flags.push({ headerId, tableName });
       if (store.failures.orientation.insertFlag) throw new Error('injected flag failure');
     },
-    async generateLineId(_connection, table, headerId) {
-      const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
-      return String(state().lines[variant].filter((item) => item.headerId === headerId).length + 1);
-    },
     async insertLine(_connection, table, input) {
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
-      state().lines[variant].push({ ...input });
+      assert.equal('lineId' in input, false, 'DEP_LINE_ID comes from the identity column');
+      const lineId = nextIdentity(`line${variant}`, state().lines[variant], 'lineId');
+      state().lines[variant].push({ ...input, lineId });
       if (store.failures.orientation.insertLine) throw new Error('injected line failure');
     },
     async findTableName(_connection, headerId) {

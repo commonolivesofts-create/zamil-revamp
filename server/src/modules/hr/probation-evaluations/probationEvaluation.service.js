@@ -115,15 +115,14 @@ export function createProbationEvaluationService({
       return withTransaction(POOLS.LOW, async (connection) => {
         const uuid = randomUUID();
         const requestor = await repository.findRequestor(connection, actor.userId);
-        const expectedHeaderId = await repository.generateHeaderId(connection);
-        await repository.insertHeader(connection, {
+        // HEADER_ID and LINE_ID come from the tables' identity columns (RETURNING INTO).
+        const headerId = await repository.insertHeader(connection, {
           ...common,
           uuid,
           userName: text(requestor?.fullName),
           userMail: text(requestor?.emailAddress),
           createdBy: actor.userId,
         });
-        const headerId = await repository.findHeaderIdByUuid(connection, uuid);
         if (!headerId) {
           throw new AppError(
             500,
@@ -131,18 +130,9 @@ export function createProbationEvaluationService({
             'Probation evaluation was not created',
           );
         }
-        if (headerId !== expectedHeaderId) {
-          throw new AppError(
-            409,
-            'PROBATION_EVALUATION_ID_CONFLICT',
-            'The probation evaluation identifier changed during creation; retry the request',
-          );
-        }
         for (const line of body.lines) {
-          const lineId = await repository.generateLineId(connection, headerId);
           await repository.insertLine(connection, {
             headerId,
-            lineId,
             rating: line.rating ?? 0,
             param: line.param,
             paramAr: text(line.paramAr),

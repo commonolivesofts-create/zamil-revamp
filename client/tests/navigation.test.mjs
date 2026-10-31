@@ -144,6 +144,7 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "hr-probation",
       "hr-probation-record",
       "hr-employee-report",
+      "hr-periodwise-report",
       "hr-record-change",
       "hr-record-change-requests",
       "hr-record-change-record",

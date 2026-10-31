@@ -74,9 +74,9 @@ export function createOrientationTrainingService({
     throw forbidden();
   }
 
-  async function lineBinds(connection, table, headerId, actorId, item) {
+  // DEP_LINE_ID is assigned by the line table's identity column.
+  function lineBinds(headerId, actorId, item) {
     return {
-      lineId: await repository.generateLineId(connection, table, headerId),
       headerId,
       department: item.department,
       departmentHead: item.departmentHead,
@@ -96,11 +96,7 @@ export function createOrientationTrainingService({
   async function replaceLines(connection, table, headerId, actorId, lines) {
     await repository.deleteLines(connection, table, headerId);
     for (const item of lines) {
-      await repository.insertLine(
-        connection,
-        table,
-        await lineBinds(connection, table, headerId, actorId, item),
-      );
+      await repository.insertLine(connection, table, lineBinds(headerId, actorId, item));
     }
   }
 
@@ -112,10 +108,10 @@ export function createOrientationTrainingService({
         const flag = await repository.resolveFlag(connection, body.empNo);
         if (!flag) throw notFound('Current employee assignment');
         const table = repository.TABLES[flag];
-        const expectedHeaderId = await repository.generateHeaderId(connection, table);
         const uuid = randomUUID();
         const actorName = await repository.findActorName(connection, actor.userId);
-        await repository.insertHeader(connection, table, {
+        // HEADER_ID comes from the header table's identity column (RETURNING INTO).
+        const headerId = await repository.insertHeader(connection, table, {
           uuid,
           empNo: body.empNo,
           section: body.section,
@@ -130,23 +126,11 @@ export function createOrientationTrainingService({
           position: body.position,
           empType: body.type,
         });
-        const headerId = await repository.findHeaderIdByUuid(connection, table, uuid);
         if (!headerId) throw insertionFailed();
-        if (String(headerId) !== String(expectedHeaderId)) {
-          throw new AppError(
-            409,
-            'ORIENTATION_TRAINING_ID_CONFLICT',
-            'The orientation training identifier changed during creation; retry the request',
-          );
-        }
         const reference = await repository.setReference(connection, table, headerId, body.division);
         await repository.registerFlag(connection, headerId, table.tableName);
         for (const item of body.lines) {
-          await repository.insertLine(
-            connection,
-            table,
-            await lineBinds(connection, table, headerId, actor.userId, item),
-          );
+          await repository.insertLine(connection, table, lineBinds(headerId, actor.userId, item));
         }
         return { headerId, flag, reference };
       });

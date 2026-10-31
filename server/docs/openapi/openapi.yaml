@@ -48,6 +48,10 @@ tags:
       revocation, under the protected administrator hierarchy.
   - name: HR Contractor Employees
     description: Contractor employee report, employee record CRUD, and form lookups.
+  - name: HR Periodwise Employees
+    description: >-
+      Read-only report of the employees attached to a department during a period, with
+      server-computed KPIs and chart data.
   - name: HR Interview Assessments
     description: >-
       Interview Assessment Form CRUD (README_interview_assessment_form.md): insert,
@@ -2384,6 +2388,194 @@ paths:
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/reports/periodwise-employees:
+    get:
+      operationId: getPeriodwiseEmployeesReport
+      tags: [HR Periodwise Employees]
+      summary: Periodwise employees report
+      description: >-
+        Employees attached to the department (current XX_DIGI_EMP_MASTER department) at any
+        point in [dateFrom, dateTo]: joined on or before dateTo and not terminated before dateFrom.
+        `department`, `status` and the period form the scope; `data.summary` holds the KPIs and
+        chart data of the whole scope. `search`, `nationality`, `ageBand` and `flagged` narrow
+        only `data.rows`, which are then sorted and paged. The national ID is never returned,
+        only `hasNationalId`. Requires `HR.PERIODWISE_EMPLOYEES:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: dateFrom, in: query, required: true, schema: { type: string, format: date } }
+        - {
+            name: dateTo,
+            in: query,
+            required: true,
+            description: On or after dateFrom.,
+            schema: { type: string, format: date },
+          }
+        - {
+            name: department,
+            in: query,
+            description: ALL or an ORGANIZATION_ID from the departments lookup.,
+            schema: { type: string, pattern: '^(ALL|[0-9]{1,19})$', default: ALL },
+          }
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [ALL, ACTIVE, LEFT], default: ALL },
+          }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: nationality, in: query, schema: { type: string, maxLength: 100 } }
+        - {
+            name: ageBand,
+            in: query,
+            schema: { type: string, enum: [UNDER_30, 30_39, 40_49, 50_59, 60_PLUS] },
+          }
+        - { name: flagged, in: query, schema: { type: boolean, default: false } }
+        - {
+            name: sortBy,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum:
+                  [
+                    employeeNumber,
+                    name,
+                    birthDate,
+                    age,
+                    nationality,
+                    jobTitle,
+                    departmentName,
+                    position,
+                    startDate,
+                    years,
+                    endDate,
+                    leavingReason,
+                  ],
+                default: employeeNumber,
+              },
+          }
+        - { name: sortDir, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+        - {
+            name: page,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100000, default: 1 },
+          }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          }
+      responses:
+        '200':
+          description: One page of rows, the pagination and the summary of the full scope.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, pagination, meta]
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    required: [rows, summary]
+                    properties:
+                      rows:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            employeeNumber: { type: string }
+                            name: { type: string }
+                            birthDate: { type: [string, 'null'], format: date }
+                            age: { type: [integer, 'null'] }
+                            nationality: { type: string }
+                            jobTitle: { type: string }
+                            position: { type: string }
+                            departmentCode: { type: [string, 'null'] }
+                            departmentName: { type: string }
+                            hasNationalId: { type: boolean }
+                            startDate: { type: string, format: date }
+                            endDate: { type: [string, 'null'], format: date }
+                            years: { type: number }
+                            leavingReason: { type: string }
+                            active: { type: boolean }
+                            senior: { type: boolean, description: Aged 60 or over. }
+                            flags:
+                              type: array
+                              items: { type: string, enum: [BIRTH_DATE, NATIONAL_ID] }
+                      summary:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          active: { type: integer }
+                          joiners: { type: integer }
+                          leavers: { type: integer }
+                          turnover: { type: number }
+                          saudization: { type: number }
+                          averageAge: { type: number }
+                          senior: { type: integer }
+                          averageService: { type: number }
+                          flagged: { type: integer }
+                          byDepartment:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                code: { type: [string, 'null'] }
+                                name: { type: string }
+                                count: { type: integer }
+                          byNationality:
+                            type: array
+                            items:
+                              type: object
+                              properties: { name: { type: string }, count: { type: integer } }
+                          ageBands:
+                            type: array
+                            items:
+                              type: object
+                              properties: { band: { type: string }, count: { type: integer } }
+                          yearlyFlow:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                year: { type: string }
+                                joiners: { type: integer }
+                                leavers: { type: integer }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+                  meta: { type: object }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/v1/hr/reports/periodwise-employees/lookups/departments:
+    get:
+      operationId: listPeriodwiseEmployeesDepartments
+      tags: [HR Periodwise Employees]
+      summary: Departments for the report filter
+      description: >-
+        Distinct ORGANIZATION_ID and DEPARTMENT of XX_DIGI_EMP_MASTER. Requires
+        `HR.PERIODWISE_EMPLOYEES:VIEW`. No query parameters are accepted.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Departments ordered by name.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties: { code: { type: string }, name: { type: string } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /api/v1/hr/orientation-trainings:
     get:
       operationId: listOrientationTrainings
@@ -2441,7 +2633,8 @@ paths:
       description: >-
         Resolves the employee variant from current assignment data and inserts the header,
         registry row, and all lines atomically. The body flag is never trusted. Status is
-        initialized to Draft. Requires `HR.ORIENTATION_TRAININGS:CREATE`.
+        initialized to Draft. HEADER_ID, DEP_LINE_ID and the registry ID come from the tables'
+        identity columns. Requires `HR.ORIENTATION_TRAININGS:CREATE`.
       security: [{ sessionCookie: [] }]
       parameters:
         - { $ref: '#/components/parameters/CsrfToken' }
@@ -2768,7 +2961,6 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
-        '409': { $ref: '#/components/responses/ProbationEvaluationIdConflict' }
         '500': { $ref: '#/components/responses/InternalError' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /api/v1/hr/probation-evaluations/lookups/form-types:
@@ -12790,22 +12982,6 @@ components:
             error:
               code: PROBATION_EVALUATION_NOT_DRAFT
               message: Only draft probation evaluations can be updated
-            meta:
-              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
-    ProbationEvaluationIdConflict:
-      description: The database generated header identifier did not match the PAF max-plus-one value.
-      headers:
-        X-Request-Id:
-          $ref: '#/components/headers/RequestId'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error:
-              code: PROBATION_EVALUATION_ID_CONFLICT
-              message: The probation evaluation identifier changed during creation; retry the request
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     UserConflict:

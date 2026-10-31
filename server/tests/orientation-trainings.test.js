@@ -33,7 +33,7 @@ const BODY = {
   ],
 };
 
-function setup() {
+function setup({ identityStart } = {}) {
   const store = createAuthStore();
   const rbac = installRbac(store, { syncPrivilegeFlags: true });
   const addPerson = (employeeNumber, fullName) => {
@@ -63,7 +63,7 @@ function setup() {
     rbac.grant(staffRole, permissions[action]);
   }
   rbac.assign(staffUser, staffRole);
-  installOrientationTrainings(store, { hrUserIds: [hrUser.userId] });
+  installOrientationTrainings(store, { hrUserIds: [hrUser.userId], identityStart });
   const app = createApp(testAuthConfig(), {
     checkReadiness: async () => ({ LOW: true, HIGH: true }),
     api: {
@@ -288,5 +288,28 @@ describe('orientation training record access and draft guard', () => {
     }
     assert.equal(f.store.state.orientationTrainings.headers.Y[0].empname, 'Employee E-100Y');
     assert.equal(f.store.state.orientationTrainings.lines.Y.length, 1);
+  });
+});
+
+describe('orientation training IDs come from the identity columns', () => {
+  it('creates a shared-service record when the identity is far above MAX(HEADER_ID) (no 409)', async () => {
+    // TEST had MAX(HEADER_ID) = 38 with the shared-service identity above 1080.
+    const f = setup({ identityStart: 1081 });
+    f.store.seedOrientationTraining({ header: { headerId: '38' } });
+    const hr = await signIn(f.store, f.hrUser);
+    const created = await request(f.app)
+      .post(BASE)
+      .set('Cookie', hr.cookie)
+      .set('X-CSRF-Token', hr.csrf)
+      .send(BODY);
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.data.headerId, '1081');
+    assert.equal(created.body.data.flag, 'Y');
+    const { lines, flags } = f.store.state.orientationTrainings;
+    assert.deepEqual(
+      lines.Y.filter((line) => line.headerId === '1081').map((line) => line.lineId),
+      ['1081'],
+    );
+    assert.ok(flags.some((item) => item.headerId === '1081' && item.tableName === 'SHARED'));
   });
 });

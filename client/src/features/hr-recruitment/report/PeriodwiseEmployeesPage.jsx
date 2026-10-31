@@ -5,47 +5,50 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { Dialog, Feedback, ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { useResource } from '@/features/security-administration/useAdminData.js'
-import { COMMON_TEXT, REPORT_TEXT as T } from '../hrRecruitmentText.js'
-import { hrRecruitmentDemo, hrRecruitmentServices } from '../hrRecruitmentService.js'
+import { COMMON_TEXT, PERIODWISE_TEXT as T } from '../hrRecruitmentText.js'
+import { PERIODWISE_PAGE_SIZE as PAGE_SIZE, hrRecruitmentDemo, hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { businessToday, enDate, initials } from '../shared/hrFormat.js'
+import { useSettled } from '../shared/useSettled.js'
 import { RecruitmentHeader } from '../shared/components/RecruitmentShell.jsx'
 import { HrField } from '../shared/components/RecruitmentInputs.jsx'
 import { Bars, Donut, Flow } from './ReportCharts.jsx'
-import {
-  ALL_DEPARTMENTS, PAGE_SIZE, RETIREMENT_AGE, ageBandCounts, csvFileName, filterRows, groupCount, quickRanges, runReport, sortRows,
-  summarise, toCsv, validateParams, withBom, yearlyFlow,
-} from './periodwiseModel.js'
+import { ALL_DEPARTMENTS, RETIREMENT_AGE, csvFileName, quickRanges, toCsv, validateParams, withBom } from './periodwiseModel.js'
 import '@/styles/hr-recruitment.css'
 
+// Rows, KPIs and chart data come from GET /hr/reports/periodwise-employees: the server derives
+// age, service and flags, sorts and pages the rows, and summarises the full scope (period,
+// department, status). Search, nationality, age band and "needs checking" narrow only the rows.
 const service = hrRecruitmentServices.reports
 const C = T.columns
-// Table columns: key, label, sortable, numeric, display (and CSV) value. Position is hidden by default.
+const nationalIdText = (row) => (row.hasNationalId ? T.nationalId.onFile : T.nationalId.missing)
+// Table columns: key, label, server sort key, numeric, display (and CSV) value. Position is hidden by default.
 const COLUMNS = Object.freeze([
   { key: 'index', label: C.index, fixed: true },
   { key: 'employeeNumber', label: C.employeeNumber, sort: true, numeric: true },
   { key: 'name', label: C.name, sort: true, fixed: true },
-  { key: 'birthDate', label: C.birthDate, sort: true, show: (row) => enDate(row.birthDate) },
+  { key: 'birthDate', label: C.birthDate, sort: true, show: (row) => (row.birthDate ? enDate(row.birthDate) : '') },
   { key: 'age', label: C.age, sort: true, numeric: true },
   { key: 'nationality', label: C.nationality, sort: true },
-  { key: 'job', label: C.job, sort: true },
+  { key: 'jobTitle', label: C.job, sort: true },
   { key: 'departmentName', label: C.department, sort: true },
   { key: 'position', label: C.position, sort: true, hidden: true },
-  { key: 'nationalId', label: C.nationalId, sort: true },
+  { key: 'hasNationalId', label: C.nationalId, show: nationalIdText },
   { key: 'startDate', label: C.startDate, sort: true, show: (row) => enDate(row.startDate) },
   { key: 'years', label: C.years, sort: true, numeric: true, show: (row) => row.years.toFixed(2) },
   { key: 'endDate', label: C.endDate, sort: true, show: (row) => (row.endDate ? enDate(row.endDate) : '') },
   { key: 'leavingReason', label: C.leavingReason, sort: true },
 ])
 const valueOf = (column, row) => (column.show ? column.show(row) : row[column.key] ?? '')
+const STATUS = Object.freeze({ all: 'ALL', active: 'ACTIVE', left: 'LEFT' })
 
 export default function PeriodwiseEmployeesPage() {
-  const lookups = useResource('hr-recruitment-lookups', (signal) => hrRecruitmentServices.lookups.get({ signal }))
+  const departments = useResource('hr-periodwise-departments', (signal) => service.departments({ signal }))
   return (
     <div className="zrv-hr zrv-hr--report">
       <RecruitmentHeader title={T.title} subtitle={T.subtitle} breadcrumb={T.breadcrumb} demo={hrRecruitmentDemo} />
-      {lookups.status === 'ready'
-        ? <Report departments={lookups.data.departments} />
-        : <div className="zrv-admin-panel"><ResourceState resource={lookups} label={COMMON_TEXT.loadingLookups} empty={COMMON_TEXT.loadingLookups}>{() => null}</ResourceState></div>}
+      {departments.status === 'ready'
+        ? <Report departments={departments.data} />
+        : <div className="zrv-admin-panel"><ResourceState resource={departments} label={COMMON_TEXT.loadingLookups} empty={T.table.noData}>{() => null}</ResourceState></div>}
     </div>
   )
 }
@@ -68,18 +71,24 @@ function Report({ departments }) {
   const [columnMenu, setColumnMenu] = useState(false)
   const [open, setOpen] = useState(null)
   const [notice, setNotice] = useState(null)
-  const [printing, setPrinting] = useState(false)
+  const [printRows, setPrintRows] = useState(null)
+  const [busy, setBusy] = useState(null)
+  const search = useSettled(filters.search.trim(), 300)
 
-  const report = useResource(ran ? `hr-periodwise:${ran.department}:${ran.from}:${ran.to}:${version}` : null,
-    (signal) => service.periodwiseEmployees(ran, { signal }))
+  // A department picked on the chart narrows the report scope (and so the summary).
+  const query = ran && {
+    dateFrom: ran.from, dateTo: ran.to, department: filters.department || ran.department, status: STATUS[filters.status],
+    search, nationality: filters.nationality, ageBand: filters.band, flagged: filters.flagged,
+    sortBy: sort.key, sortDir: sort.direction > 0 ? 'asc' : 'desc',
+  }
+  const report = useResource(query ? `hr-periodwise:${version}:${JSON.stringify(query)}:${page}` : null,
+    (signal) => service.periodwiseEmployees({ ...query, page: page + 1, pageSize: PAGE_SIZE }, { signal }))
 
-  // Printing lists every filtered row, not just the current page.
+  // Browser printing (Ctrl+P) prints the page shown; the Print button prints every filtered row.
   useEffect(() => {
-    const before = () => flushSync(() => setPrinting(true))
-    const after = () => setPrinting(false)
-    window.addEventListener('beforeprint', before)
+    const after = () => setPrintRows(null)
     window.addEventListener('afterprint', after)
-    return () => { window.removeEventListener('beforeprint', before); window.removeEventListener('afterprint', after) }
+    return () => window.removeEventListener('afterprint', after)
   }, [])
 
   // The column chooser closes on a pointer press outside it (and on Escape).
@@ -107,47 +116,68 @@ function Report({ departments }) {
     setPage(0)
   }
 
-  const rows = report.status === 'ready'
-    ? runReport(report.data.rows.map((row) => ({ ...row, departmentName: departmentName(row.departmentCode) })), ran, today) : []
-  const summary = report.status === 'ready' ? summarise(rows, ran) : null
-  const filtered = sortRows(filterRows(rows, filters), sort)
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const ready = report.status === 'ready'
+  const rows = ready ? report.data.rows : []
+  const summary = ready ? report.data.summary : null
+  const pagination = ready ? report.data.pagination : null
+  const total = pagination?.total ?? 0
+  const pages = Math.max(1, pagination?.totalPages ?? 1)
   const current = Math.min(page, pages - 1)
-  const view = printing ? filtered : filtered.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE)
+  const view = printRows ?? rows
   const columns = COLUMNS.filter((column) => !hidden.includes(column.key))
-  const activeRows = rows.filter((row) => row.active)
   const chips = [
     filters.department && [T.table.chips.department, departmentName(filters.department), () => setFilter('department', '')],
     filters.nationality && [T.table.chips.nationality, filters.nationality, () => setFilter('nationality', '')],
     filters.band && [T.table.chips.band, T.bands[filters.band], () => setFilter('band', '')],
     filters.flagged && [T.table.chips.data, T.table.chips.needsChecking, () => setFilter('flagged', false)],
   ].filter(Boolean)
-  const sortBy = (key) => setSort((value) => (value.key === key ? { key, direction: -value.direction } : { key, direction: 1 }))
+  const sortBy = (key) => {
+    setSort((value) => (value.key === key ? { key, direction: -value.direction } : { key, direction: 1 }))
+    setPage(0)
+  }
 
-  const exportCsv = () => {
-    const csv = toCsv(filtered, columns.map((column) => ({ label: column.label, value: (row, index) => (column.key === 'index' ? index + 1 : valueOf(column, row)) })))
+  // Export and print need every filtered row, so they load all pages first.
+  const loadAll = async (message) => {
+    setBusy(message)
     try {
+      return await service.allRows(query)
+    } finally {
+      setBusy(null)
+    }
+  }
+  const exportCsv = async () => {
+    try {
+      const all = await loadAll(T.exporting)
+      const csv = toCsv(all, columns.map((column) => ({ label: column.label, value: (row, index) => (column.key === 'index' ? index + 1 : valueOf(column, row)) })))
       const url = URL.createObjectURL(new Blob([withBom(csv)], { type: 'text/csv;charset=utf-8' }))
       const link = document.createElement('a')
       link.href = url
       link.download = csvFileName(ran)
       link.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
-      setNotice({ kind: 'success', message: T.exported(filtered.length), details: [] })
-    } catch {
-      setNotice({ kind: 'error', message: T.exportFailed, details: [] })
+      setNotice({ kind: 'success', message: T.exported(all.length), details: [] })
+    } catch (error) {
+      setNotice({ kind: 'error', message: error?.message || T.exportFailed, details: [] })
+    }
+  }
+  const printAll = async () => {
+    try {
+      const all = await loadAll(T.printing)
+      flushSync(() => setPrintRows(all))
+      window.print()
+    } catch (error) {
+      setNotice({ kind: 'error', message: error?.message || T.exportFailed, details: [] })
     }
   }
 
-  const ready = report.status === 'ready'
   return (
     <>
       <div className="zrv-hr-toolbar" role="toolbar" aria-label={T.tools.label}>
         <div className="zrv-hr-tools">
           <button type="button" onClick={() => navigate('/dashboard')} title={T.tools.home}><OrvexaIcon name="house" size={17} /><span>{T.tools.home}</span></button>
           <button type="button" onClick={() => setEditing(true)} disabled={!ran || editing} title={T.tools.change}><OrvexaIcon name="sliders-horizontal" size={17} /><span>{T.tools.change}</span></button>
-          <button type="button" onClick={exportCsv} disabled={!ready || !filtered.length} title={T.tools.export}><OrvexaIcon name="download" size={17} /><span>{T.tools.export}</span></button>
-          <button type="button" onClick={() => window.print()} disabled={!ready} title={T.tools.print}><OrvexaIcon name="printer" size={17} /><span>{T.tools.print}</span></button>
+          <button type="button" onClick={exportCsv} disabled={!ready || !total || Boolean(busy)} title={T.tools.export}><OrvexaIcon name="download" size={17} /><span>{T.tools.export}</span></button>
+          <button type="button" onClick={printAll} disabled={!ready || Boolean(busy)} title={T.tools.print}><OrvexaIcon name="printer" size={17} /><span>{T.tools.print}</span></button>
         </div>
         {ran && !editing && (
           <div className="zrv-hr-rp-params">
@@ -158,6 +188,7 @@ function Report({ departments }) {
       </div>
 
       <Feedback feedback={notice} onDismiss={() => setNotice(null)} />
+      {busy && <p className="zrv-admin-state" role="status">{busy}</p>}
 
       {editing && (
         <section className={`zrv-hr-rp-setup${ran ? ' zrv-hr-is-inline' : ''}`} aria-labelledby="rp-setup-title">
@@ -216,32 +247,32 @@ function Report({ departments }) {
           ))}
         </section>
 
-        {rows.length > 0 && (
+        {summary.total > 0 && (
           <section className="zrv-hr-rp-charts">
             <article className="zrv-hr-rp-card"><h3>{T.charts.department} <small>{T.charts.filter}</small></h3>
-              <Bars label={T.charts.department} active={filters.department} onPick={(value) => setFilter('department', value)}
-                data={groupCount(rows, 'departmentCode').slice(0, 8).map(([code, count]) => [code, departmentName(code), count])} />
+              <Bars label={T.charts.department} active={filters.department} onPick={(value) => setFilter('department', value ?? '')}
+                data={summary.byDepartment.filter((item) => item.code).slice(0, 8).map((item) => [item.code, item.name || departmentName(item.code), item.count])} />
             </article>
             <article className="zrv-hr-rp-card"><h3>{T.charts.nationality} <small>{T.charts.active}</small></h3>
-              <Donut data={groupCount(activeRows, 'nationality')} active={filters.nationality} onPick={(value) => setFilter('nationality', value)} />
+              <Donut data={summary.byNationality.map((item) => [item.name, item.count])} active={filters.nationality} onPick={(value) => setFilter('nationality', value)} />
             </article>
             <article className="zrv-hr-rp-card"><h3>{T.charts.bands} <small>{T.charts.active}</small></h3>
               <Bars label={T.charts.bands} active={filters.band} onPick={(value) => setFilter('band', value)}
-                data={ageBandCounts(activeRows).map(([key, count]) => [key, T.bands[key], count])} />
+                data={summary.ageBands.map((item) => [item.band, T.bands[item.band], item.count])} />
             </article>
             <article className="zrv-hr-rp-card"><h3>{T.charts.flow} <small>{T.charts.byYear}</small></h3>
-              <Flow data={yearlyFlow(rows, Number(today.slice(0, 4)))} />
+              <Flow data={summary.yearlyFlow.map((item) => [item.year, item.joiners, item.leavers])} />
             </article>
           </section>
         )}
 
         <section className="zrv-hr-rp-card zrv-hr-rp-table-card" aria-labelledby="rp-table-title">
           <div className="zrv-hr-rp-tbar">
-            <h3 id="rp-table-title">{T.table.title} <small>{T.table.count(filtered.length, rows.length)}</small></h3>
+            <h3 id="rp-table-title">{T.table.title} <small>{T.table.count(total, summary.total)}</small></h3>
             <div className="zrv-hr-rp-search">
               <OrvexaIcon name="search" size={16} />
               <label className="zrv-hr-sr" htmlFor="rp-search">{T.table.search}</label>
-              <input id="rp-search" type="search" value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder={T.table.searchPlaceholder} />
+              <input id="rp-search" type="search" maxLength={100} value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder={T.table.searchPlaceholder} />
             </div>
             <div className="zrv-hr-seg zrv-hr-seg--status" role="group" aria-label={T.table.status} style={{ '--li': T.table.statuses.findIndex(([value]) => value === filters.status) }}>
               <span className="zrv-hr-seg__pill" aria-hidden="true" />
@@ -271,7 +302,7 @@ function Report({ departments }) {
               {chips.map(([label, value, clear]) => (
                 <button key={label} type="button" onClick={clear} aria-label={T.table.chips.remove(`${label}: ${value}`)}>{label}: <b>{value}</b><OrvexaIcon name="x" size={12} /></button>
               ))}
-              <button type="button" className="zrv-hr-rp-chips__clear" onClick={() => setFilters((value) => ({ ...value, department: '', nationality: '', band: '', flagged: false }))}>{T.table.chips.clear}</button>
+              <button type="button" className="zrv-hr-rp-chips__clear" onClick={() => { setFilters((value) => ({ ...value, department: '', nationality: '', band: '', flagged: false })); setPage(0) }}>{T.table.chips.clear}</button>
             </div>
           )}
           <div className="zrv-hr-rp-legend zrv-hr-rp-legend--top">
@@ -302,7 +333,7 @@ function Report({ departments }) {
                     className={[row.senior && 'zrv-hr-rp-senior', row.flags.length && 'zrv-hr-rp-flag', !row.active && 'zrv-hr-rp-gone'].filter(Boolean).join(' ') || undefined}>
                     {columns.map((column) => (
                       <td key={column.key} className={column.numeric ? 'zrv-hr-is-num' : undefined}>
-                        {column.key === 'index' ? (printing ? index + 1 : current * PAGE_SIZE + index + 1)
+                        {column.key === 'index' ? (printRows ? index + 1 : current * PAGE_SIZE + index + 1)
                           : column.key === 'name' ? (
                             <button type="button" className="zrv-hr-rp-name" onClick={() => setOpen(row)}>
                               {row.name}{row.flags.length > 0 && <span className="zrv-hr-rp-dot" title={T.table.flagTitle(row.flags.map((flag) => T.flags[flag]))} aria-label={T.table.flagTitle(row.flags.map((flag) => T.flags[flag]))} />}
@@ -312,12 +343,12 @@ function Report({ departments }) {
                     ))}
                   </tr>
                 ))}
-                {!view.length && <tr><td colSpan={columns.length} className="zrv-hr-rp-empty">{rows.length ? T.table.empty : T.table.noData}</td></tr>}
+                {!view.length && <tr><td colSpan={columns.length} className="zrv-hr-rp-empty">{summary.total ? T.table.empty : T.table.noData}</td></tr>}
               </tbody>
             </table>
           </div>
           <nav className="zrv-hr-rp-pager" aria-label={T.table.title}>
-            <span role="status">{T.table.showing(filtered.length ? current * PAGE_SIZE + 1 : 0, Math.min(filtered.length, current * PAGE_SIZE + PAGE_SIZE), filtered.length)}</span>
+            <span role="status">{T.table.showing(total ? current * PAGE_SIZE + 1 : 0, Math.min(total, current * PAGE_SIZE + PAGE_SIZE), total)}</span>
             <div>
               <button type="button" className="btn-secondary zrv-hr-btn" disabled={current === 0} onClick={() => setPage(current - 1)}><OrvexaIcon name="arrow-left" size={15} /> {T.table.previous}</button>
               <b>{T.table.page(current + 1, pages)}</b>
@@ -335,7 +366,7 @@ function Report({ departments }) {
               <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">{T.panel.eyebrow}</span><span className="zrv-hr-mono">#{open.employeeNumber}</span></div>
               <div className="zrv-hr-dark__who">
                 <span className="zrv-hr-dark__av" aria-hidden="true">{initials(open.name)}</span>
-                <div><div className="zrv-hr-dark__sub">{open.job} · {open.departmentName}</div></div>
+                <div><div className="zrv-hr-dark__sub">{open.jobTitle} · {open.departmentName}</div></div>
               </div>
               <div className="zrv-hr-dark__badges">
                 {open.active ? <span className="zrv-hr-is-solid">{T.panel.active}</span> : <span>{T.panel.left(open.leavingReason)}</span>}
@@ -346,9 +377,9 @@ function Report({ departments }) {
             <dl className="zrv-hr-review zrv-hr-rp-facts">
               {[
                 [T.panel.birth, open.birthDate ? T.panel.birthValue(enDate(open.birthDate), open.age) : COMMON_TEXT.dash],
-                [T.panel.nationalId, open.nationalId || T.panel.missing], [T.panel.start, enDate(open.startDate)],
+                [T.panel.nationalId, nationalIdText(open)], [T.panel.start, enDate(open.startDate)],
                 [T.panel.end, open.endDate ? enDate(open.endDate) : COMMON_TEXT.dash], [T.panel.service, T.panel.serviceValue(open.years)], [T.panel.position, open.position],
-              ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd className={value === T.panel.missing ? 'zrv-hr-is-missing' : undefined}>{value}</dd></div>)}
+              ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd className={value === T.nationalId.missing ? 'zrv-hr-is-missing' : undefined}>{value}</dd></div>)}
             </dl>
             {open.flags.length > 0 && <p className="zrv-hr-note">{T.panel.check(open.flags.map((flag) => T.flags[flag]))}</p>}
             <div className="zrv-hr-rp-tl">

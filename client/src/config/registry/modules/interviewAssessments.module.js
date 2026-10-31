@@ -5,8 +5,7 @@ import { defineModule } from '../defineModule.js'
 export default defineModule({
   code: 'INTERVIEW_ASSESSMENTS',
   name: 'Interview Assessments',
-  description: 'Interview assessment records and evaluation details.',
-  displayOrder: 21,
+  displayOrder: 20,
   resources: [{
     code: 'INTERVIEW_ASSESSMENTS',
     name: 'Interview Assessments',

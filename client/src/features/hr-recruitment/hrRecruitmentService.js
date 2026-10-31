@@ -5,7 +5,7 @@ import { ApiError, apiClient } from '../../services/api/apiClient.js'
 import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
 import {
-  ID_PATTERN, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readReport,
+  ID_PATTERN, readInterview, readInterviewListItem, readOffer, readOfferListItem, readReport, readReportDepartments,
 } from './hrRecruitmentContract.js'
 import { COMP_KEYS, SPEC_KEYS } from './interview/interviewModel.js'
 import { BENEFIT_KEYS } from './offer/offerModel.js'
@@ -371,16 +371,6 @@ function query(values) {
   return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== null && value !== ''))
 }
 
-// Lookup suggestions for the recruitment flow and the session-only HR report.
-export function createLookupService({ client }) {
-  return Object.freeze({
-    async get({ signal } = {}) {
-      const { data } = await client.get(`${HR_BASE}/lookups`, { signal })
-      return readLookups(data)
-    },
-  })
-}
-
 export function createRequisitionService({ client }) {
   return createBackendRequisitionService({ client })
 }
@@ -706,14 +696,36 @@ export function createProbationService({ client }) {
   })
 }
 
-// Periodwise Employees: every employee attached to the department (or all
-// departments) at any point in [from, to]. Age, service, KPIs and charts are
-// derived on the page (report/periodwiseModel.js).
+// Periodwise Employees: every employee attached to the department (or all departments) at any
+// point in [dateFrom, dateTo]. The server derives age, service and flags, pages the rows and
+// returns the KPIs and chart data of the full scope (period, department, status) as `summary`.
+const PERIODWISE_BASE = `${HR_REPORTS_BASE}/periodwise-employees`
+export const PERIODWISE_PAGE_SIZE = 25
+const EXPORT_PAGE_SIZE = 100
+const EXPORT_MAX_PAGES = 200
+
 export function createReportService({ client }) {
+  const params = (filters) => query({
+    dateFrom: filters.dateFrom, dateTo: filters.dateTo, department: filters.department, status: filters.status,
+    search: filters.search, nationality: filters.nationality, ageBand: filters.ageBand, flagged: filters.flagged ? 'true' : undefined,
+    sortBy: filters.sortBy, sortDir: filters.sortDir, page: filters.page ?? 1, pageSize: filters.pageSize ?? PERIODWISE_PAGE_SIZE,
+  })
+  const periodwiseEmployees = async (filters, { signal } = {}) => readReport(await client.get(PERIODWISE_BASE, { params: params(filters), signal }))
   return Object.freeze({
-    async periodwiseEmployees({ department, from, to }, { signal } = {}) {
-      const { data } = await client.get(`${HR_REPORTS_BASE}/periodwise-employees`, { params: query({ department, from, to }), signal })
-      return readReport(data)
+    periodwiseEmployees,
+    async departments({ signal } = {}) {
+      const { data } = await client.get(`${PERIODWISE_BASE}/lookups/departments`, { signal })
+      return readReportDepartments(data)
+    },
+    // Every row of the filtered set (CSV export and printing), page by page.
+    async allRows(filters, { signal } = {}) {
+      const rows = []
+      for (let page = 1; page <= EXPORT_MAX_PAGES; page += 1) {
+        const result = await periodwiseEmployees({ ...filters, page, pageSize: EXPORT_PAGE_SIZE }, { signal })
+        rows.push(...result.rows)
+        if (!result.pagination.hasNextPage) return Object.freeze(rows)
+      }
+      throw new ApiError('The report is too large to export at once; narrow the filters.', { code: 'REPORT_TOO_LARGE' })
     },
   })
 }
@@ -737,7 +749,6 @@ export function createHrRecruitmentServices({
     interviews: createInterviewService({ client: interviewClient }),
     offers: createOfferService({ client: offerClient }),
     // Suggestions/report lookup and employee search remain on the onboarding adapter.
-    lookups: createLookupService({ client: onboardingClient }),
     orientations: createOrientationService({ client: orientationClient }),
     employeeReport: createEmployeeReportService({ client }),
     probations: createProbationService({ client: probationClient }),

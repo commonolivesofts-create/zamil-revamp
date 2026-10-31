@@ -4,8 +4,7 @@ import { defineModule } from '../defineModule.js'
 export default defineModule({
   code: 'EMPLOYMENT_OFFERS',
   name: 'Employment Offers',
-  description: 'Employment offer records.',
-  displayOrder: 22,
+  displayOrder: 0,
   resources: [{
     code: 'EMPLOYMENT_OFFERS',
     name: 'Employment Offers',

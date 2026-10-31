@@ -248,3 +248,35 @@ test('the recruitment loader and employee picker have no demo-only lookup or emp
   assert.doesNotMatch(loader + picker, /hrRecruitmentServices/)
   assert.equal('employees' in services(fakeClient({})), false)
 })
+
+// The Oracle RBAC catalogue (XX_ZRV_APP_MODULES / XX_ZRV_RESOURCES on TEST, 2026-10-31) is the
+// source of these names; descriptions are NULL there, so the registry sends none. A mismatch is a
+// CONFLICT in `npm run db:rbac-register` and blocks registering child permissions.
+test('HR registry modules and resources match the Oracle catalogue exactly', async () => {
+  const { registeredModules } = await import('../src/config/registry/index.js')
+  const byCode = Object.fromEntries(registeredModules.map((module) => [module.code, module]))
+  const expected = {
+    REQUISITIONS: [0, { REQUISITIONS: 'Personal Requisitions' }, 'Personal Requisitions'],
+    INTERVIEW_ASSESSMENTS: [20, { INTERVIEW_ASSESSMENTS: 'Interview Assessments' }, 'Interview Assessments'],
+    EMPLOYMENT_OFFERS: [0, { EMPLOYMENT_OFFERS: 'Employment Offers' }, 'Employment Offers'],
+    HR: [0, {
+      TRANSFER_REQUESTS: 'Transfer Request Form', PERSONNEL_RECORD_CHANGES: 'Personal Status Change Form', CONTRACTOR_EMPLOYEES: 'Employee report',
+      PROBATION_EVALUATIONS: 'Probation Evaluation Form', ORIENTATION_TRAININGS: 'Orientation Training Form',
+    }, 'Human Resources'],
+  }
+  for (const [code, [displayOrder, resources, name]] of Object.entries(expected)) {
+    const module = byCode[code]
+    assert.equal(module.name, name, code)
+    assert.equal(module.displayOrder, displayOrder, `${code} display order`)
+    assert.equal(module.description, undefined, `${code} description (NULL in Oracle)`)
+    for (const [resourceCode, resourceName] of Object.entries(resources)) {
+      const resource = module.resources.find((item) => item.code === resourceCode)
+      assert.equal(resource.name, resourceName, `${code}.${resourceCode}`)
+      assert.equal(resource.description, undefined, `${code}.${resourceCode} description`)
+    }
+  }
+  const orientation = byCode.HR.resources.find((item) => item.code === 'ORIENTATION_TRAININGS')
+  assert.ok(orientation.actions.includes('MANAGE_LINES'))
+  const periodwise = byCode.HR.resources.find((item) => item.code === 'PERIODWISE_EMPLOYEES')
+  assert.deepEqual([...periodwise.actions], ['VIEW'], 'the report is read-only')
+})

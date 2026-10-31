@@ -4,12 +4,10 @@ import { defineModule } from '../defineModule.js'
 export default defineModule({
   code: 'HR',
   name: 'Human Resources',
-  description: 'Human resources workflows.',
-  displayOrder: 23,
+  displayOrder: 0,
   resources: [{
     code: 'TRANSFER_REQUESTS',
-    name: 'Transfer Requests',
-    description: 'View and manage employee transfer requests.',
+    name: 'Transfer Request Form',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
       { id: 'hr-transfer', path: '/hr/employee-services/transfer', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', order: 110, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
@@ -18,8 +16,7 @@ export default defineModule({
     ],
   }, {
     code: 'PERSONNEL_RECORD_CHANGES',
-    name: 'Personal Status Change',
-    description: 'Create, update, view and delete personal status change requests.',
+    name: 'Personal Status Change Form',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
       { id: 'hr-record-change', path: '/hr/employee-services/record-change', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', order: 100, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
@@ -28,16 +25,22 @@ export default defineModule({
     ],
   }, {
     code: 'CONTRACTOR_EMPLOYEES',
-    name: 'Employee Report',
-    description: 'Read contractor employee records and report filters.',
+    name: 'Employee report',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
-      { id: 'hr-employee-report', path: '/hr/reports/periodwise-employees', title: 'Employee report', icon: 'users', group: 'human-resources', order: 80, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-employee-report', path: '/hr/reports/contractor-employees', title: 'Employee report', icon: 'users', group: 'human-resources', order: 80, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+    ],
+  }, {
+    code: 'PERIODWISE_EMPLOYEES',
+    name: 'Periodwise Employees',
+    // Read-only report: GET /hr/reports/periodwise-employees (and its departments lookup).
+    actions: ['VIEW'],
+    navigation: [
+      { id: 'hr-periodwise-report', path: '/hr/reports/periodwise-employees', title: 'Periodwise employees', icon: 'chart-column', group: 'human-resources', order: 81, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
     ],
   }, {
     code: 'PROBATION_EVALUATIONS',
-    name: 'Probation Evaluations',
-    description: 'Probation evaluation records.',
+    name: 'Probation Evaluation Form',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
       { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', order: 50, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
@@ -45,8 +48,7 @@ export default defineModule({
     ],
   }, {
     code: 'ORIENTATION_TRAININGS',
-    name: 'Orientation Trainings',
-    description: 'New employee orientation training records and lines.',
+    name: 'Orientation Training Form',
     // MANAGE_LINES guards DELETE /hr/orientation-trainings/:id/lines/:lineId.
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_LINES'],
     navigation: [

@@ -532,35 +532,61 @@ test('report: contract, service request and the demo adapter', async () => {
   assert.ok(rows.every((row) => !row.endDate || row.endDate > row.startDate), 'every leaver leaves after joining')
   assert.ok(rows.every((row) => Boolean(row.endDate) === Boolean(row.leavingReason)), 'leavers, and only leavers, have a reason')
   assert.ok(rows.some((row) => !row.nationalId) && rows.some((row) => ageOn(row.birthDate, TODAY) < 16) && rows.some((row) => ageOn(row.birthDate, TODAY) >= 60), 'every flag has data')
-  assert.equal(readReport({ rows: rows.slice(0, 3) }).rows.length, 3)
-  assert.throws(() => readReport({ rows: [rows[0], rows[0]] }), (error) => error.code === 'INVALID_RESPONSE', 'duplicate employee numbers')
-  assert.throws(() => readReport({ rows: [{ ...rows[0], startDate: '2026/01/01' }] }), (error) => error.code === 'INVALID_RESPONSE')
-  const { fetchImpl, calls } = recordingFetch(() => success({ rows: rows.slice(0, 2) }))
+
+  // The real API: query names, the { rows, summary } data and the pagination.
+  const demoPage = await demoServices().client.get('/hr/reports/periodwise-employees', { params: { dateFrom: PERIOD.from, dateTo: PERIOD.to, pageSize: 2 } })
+  const { fetchImpl, calls } = recordingFetch(() => success(demoPage.data, 200, { pagination: demoPage.pagination }))
   const services = createHrRecruitmentServices({ client: createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore: createCsrfStore() }) })
-  await services.reports.periodwiseEmployees({ department: 'PROD', from: '2026-01-01', to: '2026-06-30' })
-  assert.equal(`${calls[0].init.method} ${calls[0].url}`, 'GET /api/v1/hr/reports/periodwise-employees?department=PROD&from=2026-01-01&to=2026-06-30')
+  const page = await services.reports.periodwiseEmployees({ dateFrom: '2026-01-01', dateTo: '2026-06-30', department: '103', status: 'LEFT', search: 'pack', flagged: true, sortBy: 'age', sortDir: 'asc', page: 2 })
+  assert.equal(`${calls[0].init.method} ${calls[0].url}`, 'GET /api/v1/hr/reports/periodwise-employees?dateFrom=2026-01-01&dateTo=2026-06-30&department=103&status=LEFT&search=pack&flagged=true&sortBy=age&sortDir=asc&page=2&pageSize=25')
+  assert.equal(page.rows.length, 2)
+  assert.equal(typeof page.summary.total, 'number')
+  assert.equal(page.rows.some((row) => 'nationalId' in row), false, 'the contract has no national ID number')
+
+  // The reader rejects duplicates, bad dates, unknown flags and a missing summary.
+  const valid = { data: demoPage.data, pagination: demoPage.pagination }
+  assert.equal(readReport(valid).rows.length, 2)
+  assert.throws(() => readReport({ ...valid, data: { ...valid.data, rows: [valid.data.rows[0], valid.data.rows[0]] } }), (error) => error.code === 'INVALID_RESPONSE')
+  assert.throws(() => readReport({ ...valid, data: { ...valid.data, rows: [{ ...valid.data.rows[0], startDate: '2026/01/01' }] } }), (error) => error.code === 'INVALID_RESPONSE')
+  assert.throws(() => readReport({ ...valid, data: { ...valid.data, rows: [{ ...valid.data.rows[0], flags: ['GUESS'] }] } }), (error) => error.code === 'INVALID_RESPONSE')
+  assert.throws(() => readReport({ ...valid, data: { rows: valid.data.rows } }), (error) => error.code === 'INVALID_RESPONSE')
+
+  // The demo adapter follows the same contract and rules.
   const demo = demoServices().services
-  const all = await demo.reports.periodwiseEmployees(PERIOD)
-  assert.ok(all.rows.every((row) => inPeriod(row, PERIOD)), 'the server applies the period rule')
-  const production = await demo.reports.periodwiseEmployees({ ...PERIOD, department: 'PROD' })
-  assert.ok(production.rows.length > 0 && production.rows.every((row) => row.departmentCode === 'PROD'))
-  await assert.rejects(demo.reports.periodwiseEmployees({ ...PERIOD, from: '2026-07-01' }), (error) => error.status === 422 && error.details[0].field === 'to')
-  await assert.rejects(demo.reports.periodwiseEmployees({ ...PERIOD, department: 'NOPE' }), (error) => error.status === 422)
+  const departments = await demo.reports.departments()
+  assert.ok(departments.length > 0 && departments.every((item) => /^\d+$/.test(item.code)), 'numeric codes like ORGANIZATION_ID')
+  const all = await demo.reports.periodwiseEmployees({ dateFrom: PERIOD.from, dateTo: PERIOD.to, pageSize: 100 })
+  assert.equal(all.summary.total, all.pagination.total)
+  assert.ok(all.rows.every((row) => inPeriod(row, PERIOD)), 'the period rule')
+  const production = departments.find((item) => item.name === 'Production').code
+  const scoped = await demo.reports.periodwiseEmployees({ dateFrom: PERIOD.from, dateTo: PERIOD.to, department: production, status: 'ACTIVE', pageSize: 100 })
+  assert.ok(scoped.rows.length > 0 && scoped.rows.every((row) => row.departmentCode === production && row.active))
+  assert.equal(scoped.summary.total, scoped.rows.length, 'status and department scope the summary')
+  const flagged = await demo.reports.periodwiseEmployees({ dateFrom: PERIOD.from, dateTo: PERIOD.to, flagged: true, pageSize: 100 })
+  assert.ok(flagged.rows.every((row) => row.flags.length > 0) && flagged.rows.length === all.summary.flagged)
+  assert.equal(flagged.summary.total, all.summary.total, 'refinements narrow only the rows')
+  const every = await demo.reports.allRows({ dateFrom: PERIOD.from, dateTo: PERIOD.to })
+  assert.equal(every.length, all.summary.total, 'export and print load every page')
+  await assert.rejects(demo.reports.periodwiseEmployees({ dateFrom: '2026-07-01', dateTo: PERIOD.to }), (error) => error.status === 400 && error.details[0].field === 'dateTo')
+  await assert.rejects(demo.reports.periodwiseEmployees({ dateFrom: PERIOD.from, dateTo: PERIOD.to, department: 'PROD' }), (error) => error.status === 400)
 })
 
-test('report page: outside the flow, sortable headers, column chooser, side panel and export', async () => {
+test('report page: outside the flow, server rows and summary, column chooser, side panel and export', async () => {
   assert.equal(RECRUITMENT_FLOW.some((item) => item.path.includes('/reports/')), false, 'the report is not part of the flow')
   const page = await read(`${FEATURE}report/PeriodwiseEmployeesPage.jsx`)
   assert.equal(/<FlowNav|<RecruitmentShell/.test(page), false)
   assert.match(page, /<RecruitmentHeader title=\{T\.title\} subtitle=\{T\.subtitle\} breadcrumb=\{T\.breadcrumb\} demo=\{hrRecruitmentDemo\} \/>/)
+  assert.match(page, /service\.departments\(\{ signal \}\)/, 'departments come from the report lookup')
+  assert.match(page, /service\.periodwiseEmployees\(\{ \.\.\.query, page: page \+ 1, pageSize: PAGE_SIZE \}, \{ signal \}\)/, 'rows and summary come from the API')
+  assert.match(page, /service\.allRows\(query\)/, 'export and print load every filtered row')
+  assert.doesNotMatch(page, /runReport|summarise\(|filterRows|sortRows|groupCount|hrRecruitmentServices\.lookups/, 'no client-side report computation')
+  assert.doesNotMatch(page, /(row|open).nationalId/, 'no national ID value is shown')
   assert.match(page, /aria-sort=\{sort\.key === column\.key \? \(sort\.direction > 0 \? 'ascending' : 'descending'\) : column\.sort \? 'none' : undefined\}/)
   assert.match(page, /\{ key: 'position', label: C\.position, sort: true, hidden: true \}/, 'Position hidden by default')
   assert.match(page, /event\.key === 'Escape' && columnMenu/, 'Escape closes the column chooser')
   assert.match(page, /<Dialog title=\{open\.name\} onClose=\{\(\) => setOpen\(null\)\}>/, 'the side panel is the shared dialog (focus trap, Escape)')
   assert.match(page, /new Blob\(\[withBom\(csv\)\], \{ type: 'text\/csv;charset=utf-8' \}\)/)
-  assert.match(page, /filtered\.slice\(current \* PAGE_SIZE, current \* PAGE_SIZE \+ PAGE_SIZE\)/)
-  assert.match(page, /const view = printing \? filtered :/, 'printing lists every filtered row')
-  for (const key of ['employeeNumber', 'name', 'birthDate', 'age', 'nationality', 'job', 'departmentName', 'position', 'nationalId', 'startDate', 'years', 'endDate', 'leavingReason']) {
+  for (const key of ['employeeNumber', 'name', 'birthDate', 'age', 'nationality', 'jobTitle', 'departmentName', 'position', 'hasNationalId', 'startDate', 'years', 'endDate', 'leavingReason']) {
     assert.match(page, new RegExp(`key: '${key}'`), key)
   }
   const css = await read('../src/styles/hr-recruitment.css')
@@ -572,7 +598,7 @@ test('report page: outside the flow, sortable headers, column chooser, side pane
 // VITE_FEATURE_HR_RECRUITMENT controls the visibility of HR workflow pages;
 // each state is resolved through the same function used by the application.
 const SWITCH = 'VITE_FEATURE_HR_RECRUITMENT'
-const HR_SWITCHED_IDS = ['hr-orientation', 'hr-orientation-record', 'hr-probation', 'hr-probation-record', 'hr-employee-report']
+const HR_SWITCHED_IDS = ['hr-orientation', 'hr-orientation-record', 'hr-probation', 'hr-probation-record', 'hr-employee-report', 'hr-periodwise-report']
 
 test('HR visibility switch: true, false, unset in development and unset in production', () => {
   const states = [
@@ -606,7 +632,11 @@ test('orientation, probation and employee report use backend HR permissions', ()
   const employeeReport = resolveNavigationEntries(registry.entries, { [SWITCH]: 'true' }).find((route) => route.id === 'hr-employee-report')
   assert.equal(employeeReport.permission, 'HR.CONTRACTOR_EMPLOYEES:VIEW')
   assert.equal(employeeReport.implemented, true)
-  assert.equal(findAppRoute('/hr/reports/periodwise-employees')?.id, 'hr-employee-report')
+  assert.equal(findAppRoute('/hr/reports/contractor-employees')?.id, 'hr-employee-report')
+  const periodwise = resolveNavigationEntries(registry.entries, { [SWITCH]: 'true' }).find((route) => route.id === 'hr-periodwise-report')
+  assert.equal(periodwise.permission, 'HR.PERIODWISE_EMPLOYEES:VIEW')
+  assert.equal(periodwise.implemented, true)
+  assert.equal(findAppRoute('/hr/reports/periodwise-employees')?.id, 'hr-periodwise-report', 'each report link opens its own page')
   const probation = resolveNavigationEntries(registry.entries, { [SWITCH]: 'true' }).find((route) => route.id === 'hr-probation')
   assert.equal(probation.permission, 'HR.PROBATION_EVALUATIONS:VIEW')
   assert.equal(probation.implemented, true)
