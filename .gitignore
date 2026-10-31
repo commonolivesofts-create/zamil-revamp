@@ -11,7 +11,7 @@
 .env.*
 !.env.example
 .npmrc
-
+/php-ci3-old-app
 # ==========================================
 # Oracle wallets and sensitive key files
 # ==========================================
