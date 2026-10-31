@@ -181,6 +181,9 @@ export function readInterview(data) {
     weakness: text(data.weakness),
     outcome: oneOf(data.outcome, OUTCOMES, { nullable: true }),
     adminManagerName: nullableText(data.adminManagerName, 200),
+    // Kept so an update does not overwrite these backend evaluation fields with blanks.
+    managingDirector: text(data.managingDirector ?? '', 200),
+    hrRepresentative: text(data.hrRepresentative ?? '', 200),
     departmentRepresentative: text(data.departmentRepresentative, 200),
     payroll: text(data.payroll, 60),
     hrComment: text(data.hrComment, 1000),

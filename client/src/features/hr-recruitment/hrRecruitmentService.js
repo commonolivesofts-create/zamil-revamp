@@ -183,7 +183,7 @@ function backendInterviewPayload(body) {
     },
     evaluation: {
       status: outcome, interviewedBy: String(interviewers[0] ?? '').trim(),
-      adminManager: String(body.adminManager ?? '').trim(), managningDirector: String(body.managingDirector ?? '').trim(),
+      adminManager: String(body.adminManagerName ?? body.adminManager ?? '').trim(), managningDirector: String(body.managingDirector ?? '').trim(),
       hrRep: String(body.hrRepresentative ?? '').trim(), deptRep: String(body.departmentRepresentative ?? '').trim(),
       comment: String(body.hrComment ?? '').trim(),
     },
@@ -348,7 +348,8 @@ function createBackendRequisitionService({ client }) {
       return Object.freeze({ items: Object.freeze(result.data.map((item) => Object.freeze({
         requisitionId: String(item.requisitionId), requisitionNumber: String(item.requisitionNumber ?? ''),
         status: String(item.requisitionStatus ?? ''), jobTitle: String(item.jobName ?? ''),
-        departmentName: String(item.deptName ?? ''), updatedAt: item.lastUpdateDate ?? item.creationDate ?? null,
+        // CREATION_DATE arrives as 'DD-Mon-YY', which Date cannot parse reliably.
+        departmentName: String(item.deptName ?? ''), updatedAt: item.lastUpdateDate ?? (legacyDate(item.creationDate) || null),
       }))), pagination: result.pagination })
     },
   })
@@ -571,12 +572,14 @@ export function createOrientationService({ client }) {
     getById,
     async save(id, body) {
       const payload = {
-        empNo: body.employee.employeeNumber, fromOrient: body.fromOrient, toOrient: body.toOrient, startDate: body.employee.startDate,
+        // startDate is optional but must be a valid date when sent, so an unknown joining date is omitted.
+        empNo: body.employee.employeeNumber, fromOrient: body.fromOrient, toOrient: body.toOrient, ...(body.employee.startDate ? { startDate: body.employee.startDate } : {}),
         orientationBy: body.orientationBy || '', flag: body.flag, section: body.employee.section, empname: body.employee.name,
         personId: body.employee.employeeId, division: body.employee.division, type: body.employee.employmentType, position: body.employee.position,
         lines: body.lines.map((line) => ({ ...(line.lineId ? { lineId: line.lineId } : {}), department: line.department, departmentHead: line.departmentHead,
           fromDate: line.fromDate, toDate: line.toDate, orientationDays: line.orientationDays, timeFrom: line.timeFrom, timeTo: line.timeTo,
-          orientationPeriod: line.orientationPeriod || '', remarks: line.remarks || '' })),
+          // Blank lets the server recompute the period from the (possibly edited) times.
+          orientationPeriod: '', remarks: line.remarks || '' })),
       }
       const result = id ? await client.put(`${ORIENTATION_BASE}/${segment(id)}`, payload) : await client.post(ORIENTATION_BASE, payload)
       const savedId = String(id ?? result.data?.headerId ?? '')
@@ -644,7 +647,8 @@ export function createProbationService({ client }) {
         position: textValue(data.jobTitle), grade: textValue(data.grade), departmentName: textValue(data.department), startDate: '' }),
       fromDate: fromLegacyDate(data.fromDate), toDate: fromLegacyDate(data.toDate), comment: textValue(data.comment), comments: textValue(data.comments),
       totalRating: Number(data.totalRating ?? 0), lines: Object.freeze(data.lines.map((line) => Object.freeze({
-        lineId: String(line.lineId), param: textValue(line.param), paramAr: textValue(line.paramAr), rating: Number(line.rating ?? 0),
+        // A stored 0 means "not rated"; the form represents that as blank.
+        lineId: String(line.lineId), param: textValue(line.param), paramAr: textValue(line.paramAr), rating: Number(line.rating) || '',
       }))),
     })
   }
@@ -694,7 +698,8 @@ export function createProbationService({ client }) {
         grade: Number(body.employee.grade) || 0, jobTitle: body.employee.position, department: body.employee.departmentName,
         fromDate: body.fromDate, toDate: body.toDate, comment: body.comment, comments: body.comments,
         totalRating: body.lines.reduce((total, line) => total + (Number(line.rating) || 0), 0),
-        lines: body.lines.map((line) => ({ ...(id ? { lineId: line.lineId } : {}), param: line.param, paramAr: line.paramAr || '', rating: Number(line.rating) || 0 })),
+        // The backend accepts only 1–5 and stores an omitted rating as 0 (not rated).
+        lines: body.lines.map((line) => ({ ...(id ? { lineId: line.lineId } : {}), param: line.param, paramAr: line.paramAr || '', ...(Number(line.rating) ? { rating: Number(line.rating) } : {}) })),
       }
       const result = id ? await client.put(`${PROBATION_BASE}/${segment(id)}`, payload) : await client.post(PROBATION_BASE, payload)
       const savedId = String(id ?? result.data?.headerId ?? '')

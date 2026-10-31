@@ -37,7 +37,7 @@ const formFromRecord = (record) => ({
 
 export default function OrientationPage() {
   return (
-    <RecruitmentLoader current="orientation" title={T.title} subtitle={T.subtitle} param="scheduleId" load={service.getById} loadLookups={service.getLookups}>
+    <RecruitmentLoader current="orientation" title={T.title} subtitle={T.subtitle} param="scheduleId" load={service.getById} loadLookups={(signal) => service.getLookups({ signal })}>
       {({ lookups, record, editorKey }) => <OrientationEditor key={editorKey} lookups={lookups} record={record} />}
     </RecruitmentLoader>
   )

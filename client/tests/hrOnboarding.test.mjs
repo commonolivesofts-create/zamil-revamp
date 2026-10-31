@@ -234,7 +234,7 @@ test('orientation page: flow step 4 keeps the styled editor and uses backend emp
   assert.match(picker, /role="status" aria-live="polite"/)
   const page = await read(`${FEATURE}orientation/OrientationPage.jsx`)
   assert.match(page, /<EmployeePicker id="ori-name" label=\{T\.labels\.name\} required/)
-  assert.match(page, /loadLookups=\{service\.getLookups\}/)
+  assert.match(page, /loadLookups=\{\(signal\) => service\.getLookups\(\{ signal \}\)\}/)
   assert.match(page, /service\.employeeSetup\(picked\.employeeNumber\)/)
   assert.match(page, /const lines = form\.lines/)
   assert.match(page, /service\.save\(editor\.recordId, payload\)/)
