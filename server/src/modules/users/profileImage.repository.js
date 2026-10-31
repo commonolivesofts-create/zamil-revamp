@@ -1,5 +1,15 @@
 import oracledb from 'oracledb';
 
+export async function findProfileImageVersion(connection, userId) {
+  const result = await connection.execute(
+    `SELECT TO_CHAR(updated_at AT TIME ZONE 'UTC', 'YYYYMMDDHH24MISSFF6') AS version
+       FROM xx_zrv_user_profile_images WHERE user_id = :userId`,
+    { userId },
+    { outFormat: oracledb.OUT_FORMAT_OBJECT },
+  );
+  return result.rows[0]?.VERSION ?? null;
+}
+
 export async function findProfileImage(connection, userId) {
   const result = await connection.execute(
     `SELECT image_blob, mime_type FROM xx_zrv_user_profile_images WHERE user_id = :userId`,

@@ -2,6 +2,7 @@
 // Relative imports keep this module loadable by the Node-native tests.
 import { apiClient } from "../../services/api/apiClient.js";
 import { authEndpoints } from "../../config/authConfig.js";
+import { apiConfig } from "../../config/apiConfig.js";
 import {
   readCsrfToken,
   readCurrentUser,
@@ -24,6 +25,7 @@ const challengeRequest = { ...ownUnauthorized, csrf: "challenge" };
 // Anonymous recovery endpoints: authorized by the link token in the body, never
 // by a session, so they carry no CSRF token and cannot end a signed-in session.
 const publicRequest = { ...ownUnauthorized, csrf: "none" };
+const profileImagePath = `${apiConfig.baseUrl === "/" ? "" : apiConfig.baseUrl}${authEndpoints.profileImage}`;
 
 export function createAuthService({ client }) {
   return Object.freeze({
@@ -57,7 +59,7 @@ export function createAuthService({ client }) {
         signal,
         responseType: "void",
       });
-      return `${authEndpoints.profileImage}?v=${Date.now()}`;
+      return `${profileImagePath}?v=${Date.now()}`;
     },
 
     async removeProfileImage({ signal } = {}) {
@@ -66,7 +68,7 @@ export function createAuthService({ client }) {
         signal,
         responseType: "void",
       });
-      return `${authEndpoints.profileImage}?v=${Date.now()}`;
+      return `${profileImagePath}?v=${Date.now()}`;
     },
 
     async getCsrfToken({ signal } = {}) {
