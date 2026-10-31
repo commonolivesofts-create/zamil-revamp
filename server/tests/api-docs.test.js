@@ -17,7 +17,7 @@ describe('API documentation', () => {
   });
 
   it('documents every authentication route with its security requirement', () => {
-    const { paths, components } = loadOpenApiSpec();
+    const { paths, components, tags } = loadOpenApiSpec();
     const expected = [
       ['get', '/api/v1/auth/password/policy', false],
       ['post', '/api/v1/auth/recovery/request', false],
@@ -42,6 +42,7 @@ describe('API documentation', () => {
       assert.ok(operation, `${method.toUpperCase()} ${path} is documented`);
       assert.equal(Boolean(operation.security?.length), authenticated, `${path} security`);
     }
+    assert.equal(tags[0].name, 'Authentication', 'Authentication appears first in Swagger UI');
     assert.equal(components.securitySchemes.sessionCookie.name, config.auth.cookie.name);
   });
 
@@ -410,6 +411,103 @@ describe('API documentation', () => {
       );
       assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
     }
+  });
+
+  it('documents every Employee of the Month route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/hr/employee-of-the-month';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/employees'],
+      ['get', '/lookups/requestor'],
+      ['get', '/lookups/criteria'],
+      ['get', '/{headerId}'],
+      ['put', '/{headerId}'],
+      ['delete', '/{headerId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((entry) => entry.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${method} ${path} session security`);
+      const csrf = (operation.parameters ?? []).some(
+        (parameter) => parameter.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+  });
+
+  it('documents every Ideas route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/ideas';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/employees'],
+      ['get', '/lookups/employees/{empNo}'],
+      ['get', '/lookups/divisions'],
+      ['get', '/lookups/categories'],
+      ['get', '/{headerId}'],
+      ['put', '/{headerId}'],
+      ['delete', '/{headerId}'],
+      ['post', '/{headerId}/feasibility'],
+      ['post', '/{headerId}/attachments'],
+      ['delete', '/{headerId}/attachments/{attachmentId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((entry) => entry.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${method} ${path} session security`);
+      const csrf = (operation.parameters ?? []).some(
+        (parameter) => parameter.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+  });
+
+  it('documents every Sick Leave route with session security and CSRF on changes', () => {
+    const { paths, components } = loadOpenApiSpec();
+    const base = '/api/v1/hr/sick-leave';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/employees'],
+      ['get', '/lookups/employees/{empNumber}'],
+      ['get', '/{headerId}'],
+      ['put', '/{headerId}'],
+      ['delete', '/{headerId}'],
+      ['post', '/{headerId}/attachments'],
+      ['delete', '/{headerId}/attachments/{attachmentId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item).map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(documented.sort(), expected.map((entry) => entry.join(' ')).sort());
+    for (const [method, path] of expected) {
+      const operation = paths[`${base}${path}`][method];
+      assert.ok(operation.security?.length, `${method} ${path} session security`);
+      const csrf = (operation.parameters ?? []).some(
+        (parameter) => parameter.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method} ${path} CSRF parameter`);
+    }
+
+    assert.ok(components.schemas.SickLeaveCreateMultipart.properties.files);
+    assert.equal(components.schemas.SickLeaveCreateMultipart.properties.files.minItems, 1);
+    assert.ok(components.schemas.SickLeaveWrite.properties.fromDate);
+    assert.ok(components.schemas.SickLeaveDetail.allOf[1].properties);
   });
 
   it('serves the specification at /api/openapi.json', async () => {

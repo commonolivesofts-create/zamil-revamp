@@ -20,6 +20,20 @@ servers:
   - url: /
     description: Current host
 tags:
+  - name: Authentication
+    description: >-
+      Password login, MFA enrollment and verification, current session, CSRF token and
+      logout. Login username is the employee-master USER_NAME; passwords are verified
+      against the local Argon2id hash. Successful sign-in sets the session cookie unless
+      an MFA challenge is required.
+  - name: Authentication Recovery
+    description: >-
+      Password setup, reset and change and MFA recovery with single-use hashed
+      tokens delivered by Office 365 SMTP to XX_DIGI_EMP_MASTER.EMAIL_ADDRESS (the
+      Super Administrator: pinned address only; outside production: the approved
+      test mailbox only). The token is only ever in the e-mailed link's URL
+      fragment. Without SMTP configuration, delivery-dependent requests fail
+      closed with 503 DELIVERY_UNAVAILABLE.
   - name: Health
     description: Process and dependency health checks for runtime supervision.
   - name: Access Control
@@ -70,20 +84,26 @@ tags:
       CRUD, filtered listing and employee/position lookups for the Personal Status Change Form.
       Requires HR.PERSONNEL_RECORD_CHANGES:VIEW / CREATE / UPDATE / DELETE. STATUS is set to
       DRAFT on creation and is not client writable. This API does not implement workflow actions.
-  - name: Authentication Recovery
+  - name: HR Employee of the Month
     description: >-
-      Password setup, reset and change and MFA recovery with single-use hashed
-      tokens delivered by Office 365 SMTP to XX_DIGI_EMP_MASTER.EMAIL_ADDRESS (the
-      Super Administrator: pinned address only; outside production: the approved
-      test mailbox only). The token is only ever in the e-mailed link's URL
-      fragment. Without SMTP configuration, delivery-dependent requests fail
-      closed with 503 DELIVERY_UNAVAILABLE.
-  - name: Authentication
+      Employee of the Month nominations, employee/requestor/criteria lookups and filtered
+      listing. Requires HR.EMPLOYEE_OF_THE_MONTH:VIEW / CREATE / UPDATE / DELETE.
+      Non-HR list results are restricted to nominations created by the authenticated user;
+      HR list results include all nominations.
+  - name: HR Sick Leave
     description: >-
-      Password login, current session and logout. Login username is the employee
-      master USER_NAME; passwords are verified against the local Argon2id hash.
-      Multi-factor verification is not yet available: accounts that require it
-      cannot sign in until it is implemented.
+      Sick Leave requests, employee lookups and attachments. Routes require an authenticated
+      session and the corresponding action on the configured Sick Leave RBAC resource. The
+      resource key and HR-wide visibility permission must match existing catalogue entries;
+      the implementation fails closed if the route resource is not configured. Without the
+      optional verified HR visibility permission, records remain scoped to the authenticated
+      employee or their created requests. Write operations also require CSRF validation.
+  - name: Ideas
+    description: >-
+      Idea proposal listing, creation, updates, employee/division/category lookups and
+      feasibility calculation. All operations require an authenticated session. Non-HR users
+      can access only ideas they created; HR users can access all ideas. Soft deletion and
+      attachment upload/deletion are currently unavailable and return conflicts.
 paths:
   /api/v1/auth/password/policy:
     get:
@@ -5542,6 +5562,563 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/hr/employee-of-the-month:
+    get:
+      operationId: listEmployeeOfTheMonthNominations
+      tags: [HR Employee of the Month]
+      summary: List nominations with filters and pagination
+      description: >-
+        Requires HR.EMPLOYEE_OF_THE_MONTH:VIEW. Non-HR users see nominations they created;
+        HR users see all nominations. The response uses meta.page, meta.pageSize, meta.total
+        and meta.totalPages.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] },
+          }
+        - {
+            name: department,
+            in: query,
+            schema: { type: string, enum: [production, shared-services] },
+          }
+        - { name: employeeNumber, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: requestNo, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: date_from, in: query, schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' } }
+        - { name: date_to, in: query, schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          }
+        - {
+            name: sort,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum: [headerId, requestNo, employeeName, activityDate, status, createdAt],
+                default: createdAt,
+              },
+          }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Nomination page and pagination metadata.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeOfTheMonthListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createEmployeeOfTheMonthNomination
+      tags: [HR Employee of the Month]
+      summary: Create a nomination
+      description: >-
+        Requires HR.EMPLOYEE_OF_THE_MONTH:CREATE. The employee must be active, employee
+        details must match the employee master, self-nomination is rejected, and the criteria
+        line count and order must match the selected department. New nominations start in DRAFT.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmployeeOfTheMonthWrite' }
+      responses:
+        '201':
+          description: Created nomination with criteria lines.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeOfTheMonthDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/employee-of-the-month/lookups/employees:
+    get:
+      operationId: listEmployeeOfTheMonthEmployees
+      tags: [HR Employee of the Month]
+      summary: Search active employees for nomination
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: empNo, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: name, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: email, in: query, schema: { type: string, maxLength: 200 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+      responses:
+        '200':
+          description: Matching active employees, capped by limit.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/EmployeeOfTheMonthEmployee' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/employee-of-the-month/lookups/requestor:
+    get:
+      operationId: getEmployeeOfTheMonthRequestor
+      tags: [HR Employee of the Month]
+      summary: Get the authenticated requestor's employee-master details
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Requestor employee number, name and e-mail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/EmployeeOfTheMonthRequestor' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/hr/employee-of-the-month/lookups/criteria:
+    get:
+      operationId: getEmployeeOfTheMonthCriteria
+      tags: [HR Employee of the Month]
+      summary: Get criteria and rating scale for a department
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: department,
+            in: query,
+            required: true,
+            schema: { type: string, enum: [production, shared-services] },
+          }
+      responses:
+        '200':
+          description: Department-specific ordered criteria and the rating scale.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/EmployeeOfTheMonthCriteria' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/employee-of-the-month/{headerId}:
+    get:
+      operationId: getEmployeeOfTheMonthNomination
+      tags: [HR Employee of the Month]
+      summary: Read a nomination and its criteria lines
+      description: >-
+        Requires HR.EMPLOYEE_OF_THE_MONTH:VIEW. Non-HR users can access only nominations
+        they created; HR users can access all nominations.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: headerId,
+            in: path,
+            required: true,
+            schema: { type: string, pattern: '^[1-9]\d*$' },
+          }
+      responses:
+        '200':
+          description: Nomination detail.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeOfTheMonthDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateEmployeeOfTheMonthNomination
+      tags: [HR Employee of the Month]
+      summary: Update an editable nomination and its criteria lines
+      description: >-
+        Requires HR.EMPLOYEE_OF_THE_MONTH:UPDATE. Non-HR users can update only nominations
+        they created; HR users can update all nominations. Updates are rejected while status
+        is INPROCESS; updating an APPROVED nomination returns it to DRAFT. Department cannot change.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: headerId,
+            in: path,
+            required: true,
+            schema: { type: string, pattern: '^[1-9]\d*$' },
+          }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmployeeOfTheMonthWrite' }
+      responses:
+        '200':
+          description: Updated nomination with criteria lines.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeOfTheMonthDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteEmployeeOfTheMonthNomination
+      tags: [HR Employee of the Month]
+      summary: Delete a Draft or Rejected nomination
+      description: >-
+        Requires HR.EMPLOYEE_OF_THE_MONTH:DELETE. Non-HR users can delete only nominations
+        they created; HR users can delete all nominations. Only Draft or Rejected nominations
+        can be deleted.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: headerId,
+            in: path,
+            required: true,
+            schema: { type: string, pattern: '^[1-9]\d*$' },
+          }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200':
+          description: Deleted nomination identifier.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    required: [headerId]
+                    properties: { headerId: { type: integer } }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/ideas:
+    get:
+      operationId: listIdeas
+      tags: [Ideas]
+      summary: List ideas with filters and pagination
+      description: >-
+        The response data contains items, page, pageSize and total. HR users see all ideas
+        unless mine=true; other users see only ideas they created. Filtering supports status,
+        idea/request and employee identifiers, division, project/investment category, creation
+        dates and free-text search.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, maxLength: 30 } }
+        - { name: idNo, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: empNo, in: query, schema: { type: string, maxLength: 100 } }
+        - {
+            name: division,
+            in: query,
+            schema: { type: string, enum: ['300000003618177', '300000003618190'] },
+          }
+        - {
+            name: invCategory,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum:
+                  [
+                    machine,
+                    robot,
+                    tools,
+                    mold,
+                    auxiliary,
+                    building,
+                    computer,
+                    material,
+                    exchange_rate,
+                  ],
+              },
+          }
+        - {
+            name: category,
+            in: query,
+            schema: { type: string, enum: [innovation, development, environmental, automation] },
+          }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: q, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: mine, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          }
+      responses:
+        '200':
+          description: Ideas and total-count pagination data.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createIdea
+      tags: [Ideas]
+      summary: Create an idea
+      description: >-
+        Employee name and department are resolved from the active employee master. The server
+        calculates depreciation, IRR, NPV and ROI and creates the idea in DRAFT status.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IdeaWrite' }
+      responses:
+        '201':
+          description: Created idea.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/ideas/lookups/employees:
+    get:
+      operationId: searchIdeaEmployees
+      tags: [Ideas]
+      summary: Search current employees for an idea
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+      responses:
+        '200':
+          description: Up to 100 matching current employees.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/IdeaEmployee' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/v1/ideas/lookups/employees/{empNo}:
+    get:
+      operationId: getIdeaEmployee
+      tags: [Ideas]
+      summary: Get current employee details for an idea
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: empNo, in: path, required: true, schema: { type: string, maxLength: 30 } }
+      responses:
+        '200':
+          description: Current employee details and resolved division.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/IdeaEmployeeDetails' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/v1/ideas/lookups/divisions:
+    get:
+      operationId: listIdeaDivisions
+      tags: [Ideas]
+      summary: List divisions available for ideas
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Supported division identifiers and display names.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/IdeaDivision' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/v1/ideas/lookups/categories:
+    get:
+      operationId: getIdeaCategories
+      tags: [Ideas]
+      summary: List project and investment categories
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Project categories and investment categories with depreciation years.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/IdeaCategories' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/v1/ideas/{headerId}:
+    get:
+      operationId: getIdea
+      tags: [Ideas]
+      summary: Get an idea and its attachments
+      description: An idea outside the caller's HR-or-owner scope is returned as not found.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+      responses:
+        '200':
+          description: Idea details and attachment metadata.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateIdea
+      tags: [Ideas]
+      summary: Update an editable idea
+      description: Only ideas in DRAFT or REJECTED status may be updated.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IdeaWrite' }
+      responses:
+        '200':
+          description: Updated idea.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteIdea
+      tags: [Ideas]
+      summary: Request soft deletion of an idea
+      description: >-
+        Currently unavailable. The endpoint returns 409 because no verified soft-delete
+        mechanism is defined for the idea schema.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Soft deletion is unavailable for this schema.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /api/v1/ideas/{headerId}/feasibility:
+    post:
+      operationId: calculateIdeaFeasibility
+      tags: [Ideas]
+      summary: Calculate feasibility metrics for an idea
+      description: Recalculates feasibility metrics from the saved investment and saving values.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200':
+          description: Updated idea with calculated metrics.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/ideas/{headerId}/attachments:
+    post:
+      operationId: uploadIdeaAttachment
+      tags: [Ideas]
+      summary: Upload an attachment to an idea
+      description: >-
+        Currently unavailable. The endpoint returns 409 because the verified attachment
+        key and upload storage behavior are not defined.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409':
+          description: Attachment upload is unavailable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /api/v1/ideas/{headerId}/attachments/{attachmentId}:
+    delete:
+      operationId: deleteIdeaAttachment
+      tags: [Ideas]
+      summary: Delete an idea attachment
+      description: >-
+        Currently unavailable. The endpoint returns 409 because verified attachment key
+        and file-storage deletion behavior are not defined.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - {
+            name: attachmentId,
+            in: path,
+            required: true,
+            schema: { $ref: '#/components/schemas/Id' },
+          }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409':
+          description: Attachment deletion is unavailable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /api/v1/hr/performance-appraisals:
     get:
       operationId: listPerformanceAppraisals
@@ -5710,6 +6287,381 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/hr/sick-leave:
+    get:
+      operationId: listSickLeaveRequests
+      tags: [HR Sick Leave]
+      summary: List Sick Leave requests with filters and pagination
+      description: >-
+        Requires the configured Sick Leave resource's VIEW action. By default, results are
+        limited to requests for the authenticated employee or created by that user. A verified
+        HR visibility permission can expand the scope; `mine=true` restricts results to the
+        authenticated employee or their created requests. The response data object contains
+        `items`, `page`, `pageSize` and `total`. `totalLeaveDays` is populated for HR-visible
+        users and null otherwise.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: status,
+            in: query,
+            schema:
+              { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED, ALL], default: ALL },
+          }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: empId, in: query, schema: { type: string, maxLength: 40 } }
+        - { name: empName, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: mine, in: query, schema: { type: boolean, default: false } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          }
+      responses:
+        '200':
+          description: Matching requests and total-count pagination data.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SickLeaveListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '503':
+          description: Sick Leave RBAC resource is not configured; access fails closed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createSickLeaveRequest
+      tags: [HR Sick Leave]
+      summary: Create a Sick Leave request with required attachments
+      description: >-
+        Requires the configured Sick Leave resource's CREATE action and a session-bound CSRF
+        token. The employee must be the authenticated employee or an eligible direct report.
+        Leave type must exist in the configured lookup. The server calculates the inclusive
+        leave duration from the dates and day types; a one-day request must use the same day
+        type at both ends. At least one allowed attachment is required (up to 10 files, each
+        at most 10 MiB). Creation fails closed if required Oracle schema capabilities or the
+        configured leave-type lookup cannot be verified. No RBAC key or lookup code is implied
+        by this contract.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/SickLeaveCreateMultipart' }
+      responses:
+        '201':
+          description: Sick Leave request and its attachment metadata were created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SickLeaveCreateResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: The request is missing or is outside the caller's record scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: >-
+            The Sick Leave RBAC resource, configured leave-type lookup, or required Oracle
+            schema capabilities could not be verified; the write fails closed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/sick-leave/lookups/employees:
+    get:
+      operationId: listSickLeaveEmployees
+      tags: [HR Sick Leave]
+      summary: Search the authenticated employee and eligible direct reports
+      description: Requires the configured Sick Leave resource's VIEW action.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          }
+      responses:
+        '200':
+          description: Matching employee records, capped by pageSize.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SickLeaveEmployee' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '503':
+          description: Sick Leave RBAC resource is not configured; access fails closed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /api/v1/hr/sick-leave/lookups/employees/{empNumber}:
+    get:
+      operationId: getSickLeaveEmployee
+      tags: [HR Sick Leave]
+      summary: Get eligible employee details for a Sick Leave request
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: empNumber, in: path, required: true, schema: { type: string, maxLength: 40 } }
+      responses:
+        '200':
+          description: Employee details for the authenticated employee or an eligible direct report.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data: { $ref: '#/components/schemas/SickLeaveEmployee' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: The employee does not exist or is outside the caller's eligible scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Sick Leave RBAC resource is not configured; access fails closed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /api/v1/hr/sick-leave/{headerId}:
+    get:
+      operationId: getSickLeaveRequest
+      tags: [HR Sick Leave]
+      summary: Get one Sick Leave request and its attachment metadata
+      description: >-
+        Requires the configured Sick Leave resource's VIEW action. Non-HR visibility is limited
+        to the authenticated employee or request creator. Reading the day-type fields fails
+        closed when the required Oracle columns cannot be verified.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: headerId,
+            in: path,
+            required: true,
+            schema: { $ref: '#/components/schemas/SickLeaveId' },
+          }
+      responses:
+        '200':
+          description: Sick Leave request detail.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SickLeaveDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503':
+          description: Sick Leave RBAC resource or required day-type schema cannot be verified.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+    put:
+      operationId: updateSickLeaveRequest
+      tags: [HR Sick Leave]
+      summary: Replace the editable Sick Leave request fields
+      description: >-
+        Requires the configured Sick Leave resource's UPDATE action and a session-bound CSRF
+        token. Only requests in Draft or REJECTED status can be updated. The server recalculates
+        leave duration and validates the employee and configured leave-type lookup. The JSON
+        body uses the same fields as creation except attachments; client-supplied calculated or
+        server-owned values are ignored. Required Oracle schema and lookup configuration are
+        checked before writing.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: headerId,
+            in: path,
+            required: true,
+            schema: { $ref: '#/components/schemas/SickLeaveId' },
+          }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SickLeaveWrite' }
+      responses:
+        '200':
+          description: Updated Sick Leave request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SickLeaveMutationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: The request is missing or is outside the caller's record scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: The request status does not permit updates (STATE_CONFLICT).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Sick Leave RBAC, leave-type lookup or required Oracle schema cannot be verified.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+    delete:
+      operationId: deleteSickLeaveRequest
+      tags: [HR Sick Leave]
+      summary: Delete an editable Sick Leave request
+      description: >-
+        Requires the configured Sick Leave resource's DELETE action and a session-bound CSRF
+        token. Only Draft or REJECTED requests can be deleted. In addition to HR visibility,
+        the authenticated user must be the request creator; being the employee on the request
+        alone does not grant delete access. Attachment metadata is deleted with the request.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: headerId,
+            in: path,
+            required: true,
+            schema: { $ref: '#/components/schemas/SickLeaveId' },
+          }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200':
+          description: Request deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SickLeaveDeleteResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: The request is missing or is outside the caller's record scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: The request status does not permit deletion (STATE_CONFLICT).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Sick Leave RBAC resource is not configured; access fails closed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /api/v1/hr/sick-leave/{headerId}/attachments:
+    post:
+      operationId: addSickLeaveAttachments
+      tags: [HR Sick Leave]
+      summary: Add attachments to an editable Sick Leave request
+      description: >-
+        Requires the configured Sick Leave resource's MANAGE_ATTACHMENTS action and a
+        session-bound CSRF token. Only Draft or REJECTED requests can receive attachments.
+        Provide at least one allowed file; up to 10 files of at most 10 MiB each are accepted.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: headerId,
+            in: path,
+            required: true,
+            schema: { $ref: '#/components/schemas/SickLeaveId' },
+          }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/SickLeaveAttachmentsUpload' }
+      responses:
+        '200':
+          description: Attachment metadata added.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SickLeaveAttachmentsResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: The request or attachment is missing or outside the caller's record scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: The request status does not permit attachment changes (STATE_CONFLICT).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Sick Leave RBAC resource or required Oracle schema cannot be verified.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /api/v1/hr/sick-leave/{headerId}/attachments/{attachmentId}:
+    delete:
+      operationId: deleteSickLeaveAttachment
+      tags: [HR Sick Leave]
+      summary: Delete an attachment from an editable Sick Leave request
+      description: >-
+        Requires the configured Sick Leave resource's MANAGE_ATTACHMENTS action and a
+        session-bound CSRF token. Only Draft or REJECTED requests can have attachments deleted.
+        The attachment must belong to the specified request.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - {
+            name: headerId,
+            in: path,
+            required: true,
+            schema: { $ref: '#/components/schemas/SickLeaveId' },
+          }
+        - {
+            name: attachmentId,
+            in: path,
+            required: true,
+            schema: { $ref: '#/components/schemas/SickLeaveId' },
+          }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200':
+          description: Attachment deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SickLeaveDeleteAttachmentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: The request or attachment does not exist in the requested scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: The request status does not permit attachment deletion (STATE_CONFLICT).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Sick Leave RBAC resource is not configured; access fails closed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 components:
   securitySchemes:
     sessionCookie:
@@ -8182,6 +9134,587 @@ components:
           maxItems: 500
           items:
             enum: [Replacement, Addition]
+    EmployeeOfTheMonthWrite:
+      type: object
+      additionalProperties: false
+      required: [department, employee, activityDate, overallRating, remark, lines]
+      properties:
+        department: { type: string, enum: [production, shared-services] }
+        employee:
+          type: object
+          additionalProperties: false
+          required: [number, name, email, position, departmentName]
+          properties:
+            number: { type: string }
+            name: { type: string }
+            email: { type: string }
+            position: { type: string }
+            departmentName: { type: string }
+        activityDate: { type: string, format: date }
+        overallRating: { type: string, enum: [A, AS, BS, CS] }
+        remark: { type: string, minLength: 1 }
+        lines:
+          type: array
+          description: >-
+            Must contain exactly four ordered lines for production or six ordered lines
+            for shared-services; lineNumber starts at zero.
+          items: { $ref: '#/components/schemas/EmployeeOfTheMonthLineWrite' }
+    EmployeeOfTheMonthLineWrite:
+      type: object
+      additionalProperties: false
+      required: [lineNumber, rating, remark]
+      properties:
+        lineNumber: { type: integer, minimum: 0 }
+        rating: { type: string, enum: [A, AS, BS, CS] }
+        remark: { type: string, minLength: 1, maxLength: 500 }
+    EmployeeOfTheMonthEmployee:
+      type: object
+      required: [employeeNumber, fullName, email, position, department, personId]
+      properties:
+        employeeNumber: { type: string }
+        fullName: { type: string }
+        email: { type: string }
+        position: { type: string }
+        department: { type: string }
+        personId: { type: integer }
+    EmployeeOfTheMonthRequestor:
+      type: object
+      required: [employeeNumber, fullName, email]
+      properties:
+        employeeNumber: { type: string }
+        fullName: { type: string }
+        email: { type: string }
+    EmployeeOfTheMonthCriterion:
+      type: object
+      required: [lineNumber, criterion]
+      properties:
+        lineNumber: { type: integer, minimum: 0 }
+        criterion: { type: string }
+    EmployeeOfTheMonthRatingScale:
+      type: object
+      required: [code, label]
+      properties:
+        code: { type: string, enum: [A, AS, BS, CS] }
+        label: { type: string }
+    EmployeeOfTheMonthCriteria:
+      type: object
+      required: [department, criteria, ratingScale]
+      properties:
+        department: { type: string, enum: [production, shared-services] }
+        criteria:
+          type: array
+          items: { $ref: '#/components/schemas/EmployeeOfTheMonthCriterion' }
+        ratingScale:
+          type: array
+          items: { $ref: '#/components/schemas/EmployeeOfTheMonthRatingScale' }
+    EmployeeOfTheMonthLine:
+      type: object
+      required: [lineNumber, criterion, rating, remark]
+      properties:
+        lineNumber: { type: integer, minimum: 0 }
+        criterion: { type: string }
+        rating: { type: [string, 'null'], enum: [A, AS, BS, CS, null] }
+        remark: { type: [string, 'null'] }
+    EmployeeOfTheMonthNomination:
+      type: object
+      required:
+        [
+          headerId,
+          uuid,
+          requestNo,
+          department,
+          employeeNumber,
+          employeeName,
+          employeeEmail,
+          employeePosition,
+          employeeDepartment,
+          activityDate,
+          overallRating,
+          remark,
+          status,
+          createdBy,
+          createdByEmpNum,
+          createdAt,
+          updatedBy,
+          lines,
+        ]
+      properties:
+        headerId: { type: integer }
+        uuid: { type: string, format: uuid }
+        requestNo: { type: [string, 'null'] }
+        department: { type: string, enum: [Production, Shared-services] }
+        employeeNumber: { type: string }
+        employeeName: { type: string }
+        employeeEmail: { type: string }
+        employeePosition: { type: string }
+        employeeDepartment: { type: string }
+        activityDate: { type: string, format: date }
+        overallRating: { type: string, enum: [A, AS, BS, CS] }
+        remark: { type: string }
+        status: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] }
+        createdBy: { type: string }
+        createdByEmpNum: { type: [string, integer] }
+        createdAt: { type: string }
+        updatedBy: { type: [string, integer, 'null'] }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/EmployeeOfTheMonthLine' }
+    EmployeeOfTheMonthDetailResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/EmployeeOfTheMonthNomination' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    EmployeeOfTheMonthListItem:
+      type: object
+      required:
+        [
+          headerId,
+          requestNo,
+          department,
+          employeeNumber,
+          employeeName,
+          employeePosition,
+          employeeDepartment,
+          activityDate,
+          overallRating,
+          remark,
+          ratings,
+          status,
+          requestor,
+          createdAt,
+        ]
+      properties:
+        headerId: { type: integer }
+        requestNo: { type: [string, 'null'] }
+        department: { type: string, enum: [Production, Shared-services] }
+        employeeNumber: { type: string }
+        employeeName: { type: string }
+        employeePosition: { type: string }
+        employeeDepartment: { type: string }
+        activityDate: { type: string, format: date }
+        overallRating: { type: string, enum: [A, AS, BS, CS] }
+        remark: { type: string }
+        ratings:
+          type: object
+          required: [A, AS, BS, CS]
+          properties:
+            A: { type: integer }
+            AS: { type: integer }
+            BS: { type: integer }
+            CS: { type: integer }
+        status: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] }
+        requestor: { type: [string, 'null'] }
+        createdAt: { type: string }
+    EmployeeOfTheMonthListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/EmployeeOfTheMonthListItem' }
+        meta:
+          type: object
+          required: [page, pageSize, total, totalPages]
+          properties:
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+            totalPages: { type: integer }
+    IdeaWrite:
+      type: object
+      additionalProperties: false
+      required: [empNo, division, title, projectType, investmentCategory, hasInvestment]
+      properties:
+        empNo: { type: string, minLength: 1 }
+        empName: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+        division: { type: string, enum: ['300000003618177', '300000003618190'] }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        idea: { type: [string, 'null'] }
+        projectType: { type: string, enum: [innovation, development, environmental, automation] }
+        investmentCategory:
+          type: string
+          enum:
+            [machine, robot, tools, mold, auxiliary, building, computer, material, exchange_rate]
+        hasInvestment: { type: string, enum: [yes, no] }
+        investmentValue:
+          oneOf:
+            - { type: number, minimum: 0 }
+            - { type: string, pattern: "^[0-9][0-9,']*(\\.[0-9]+)?$" }
+        saving:
+          oneOf:
+            - { type: number, minimum: 0 }
+            - { type: string, pattern: "^[0-9][0-9,']*(\\.[0-9]+)?$" }
+    IdeaEmployee:
+      type: object
+      required: [empNo, empName, department]
+      properties:
+        empNo: { type: string }
+        empName: { type: string }
+        department: { type: string }
+    IdeaEmployeeDetails:
+      allOf:
+        - $ref: '#/components/schemas/IdeaEmployee'
+        - type: object
+          required: [divisionId, divisionName]
+          properties:
+            divisionId:
+              { type: [string, 'null'], enum: ['300000003618177', '300000003618190', null] }
+            divisionName: { type: [string, 'null'], enum: ['IPP BU', 'FPP BU', null] }
+    IdeaDivision:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, enum: ['300000003618177', '300000003618190'] }
+        name: { type: string, enum: ['IPP BU', 'FPP BU'] }
+    IdeaCategoryOption:
+      type: object
+      required: [value, label]
+      properties:
+        value: { type: string }
+        label: { type: string }
+        depreciationYears: { type: integer, minimum: 0 }
+    IdeaCategories:
+      type: object
+      required: [projectTypes, investmentCategories]
+      properties:
+        projectTypes:
+          type: array
+          items: { $ref: '#/components/schemas/IdeaCategoryOption' }
+        investmentCategories:
+          type: array
+          items: { $ref: '#/components/schemas/IdeaCategoryOption' }
+    Idea:
+      type: object
+      required:
+        [
+          headerId,
+          uuid,
+          idNo,
+          empNo,
+          empName,
+          division,
+          divisionName,
+          department,
+          title,
+          idea,
+          projectType,
+          investmentCategory,
+          hasInvestment,
+          investmentValue,
+          saving,
+          depreciation,
+          irr,
+          npv,
+          roi,
+          status,
+          approvedBy,
+          createdBy,
+          creationDate,
+        ]
+      properties:
+        headerId: { type: integer }
+        uuid: { type: string, format: uuid }
+        idNo: { type: [string, 'null'] }
+        empNo: { type: [string, 'null'] }
+        empName: { type: [string, 'null'] }
+        division: { type: [string, 'null'] }
+        divisionName: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+        title: { type: [string, 'null'] }
+        idea: { type: [string, 'null'] }
+        projectType: { type: [string, 'null'] }
+        investmentCategory: { type: [string, 'null'] }
+        hasInvestment: { type: [string, 'null'] }
+        investmentValue: { type: [number, string, 'null'] }
+        saving: { type: [number, string, 'null'] }
+        depreciation: { type: [number, string, 'null'] }
+        irr: { type: [number, string, 'null'] }
+        npv: { type: [number, string, 'null'] }
+        roi: { type: [number, string, 'null'] }
+        status: { type: [string, 'null'] }
+        approvedBy: { type: [string, 'null'] }
+        createdBy: { type: [string, integer, 'null'] }
+        creationDate: { type: [string, 'null'], format: date }
+    IdeaListItem:
+      allOf:
+        - $ref: '#/components/schemas/Idea'
+        - type: object
+          properties:
+            pendingAt: { type: [string, 'null'] }
+    IdeaAttachment:
+      type: object
+      required: [attachmentId, fileName, attachedOn]
+      properties:
+        attachmentId: { type: integer }
+        fileName: { type: string }
+        attachedOn: { type: string, format: date }
+    IdeaResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/Idea' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    IdeaDetailResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Idea'
+            - type: object
+              properties:
+                attachments:
+                  type: array
+                  items: { $ref: '#/components/schemas/IdeaAttachment' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    IdeaListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [items, page, pageSize, total]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/IdeaListItem' }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SickLeaveId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+      description: Positive decimal identifier, supplied as a path string.
+    SickLeaveWrite:
+      type: object
+      additionalProperties: false
+      required: [empNumber, leaveType, fromDate, toDate, fromDayType, toDayType, comments]
+      properties:
+        empNumber: { type: string, maxLength: 40 }
+        leaveType:
+          type: string
+          maxLength: 100
+          description: Must match an existing lookup code from the configured leave-type lookup.
+        fromDate: { type: string, format: date }
+        toDate: { type: string, format: date }
+        fromDayType: { type: string, enum: [FULL, HALF] }
+        toDayType: { type: string, enum: [FULL, HALF] }
+        comments: { type: string, minLength: 1, maxLength: 2000 }
+        days:
+          description: Accepted but stripped; the server calculates the leave duration.
+        empName:
+          description: Accepted but stripped; the server resolves the employee name.
+        status:
+          description: Accepted but stripped; status is not client-writable.
+        createdBy:
+          description: Accepted but stripped; creator identity comes from the session.
+    SickLeaveCreateMultipart:
+      type: object
+      additionalProperties: false
+      required: [empNumber, leaveType, fromDate, toDate, fromDayType, toDayType, comments, files]
+      properties:
+        empNumber: { type: string, maxLength: 40 }
+        leaveType:
+          type: string
+          maxLength: 100
+          description: Must match an existing lookup code from the configured leave-type lookup.
+        fromDate: { type: string, format: date }
+        toDate: { type: string, format: date }
+        fromDayType: { type: string, enum: [FULL, HALF] }
+        toDayType: { type: string, enum: [FULL, HALF] }
+        comments: { type: string, minLength: 1, maxLength: 2000 }
+        days: { description: Accepted but stripped; the server calculates this value. }
+        empName: { description: Accepted but stripped; the server resolves this value. }
+        status: { description: Accepted but stripped; status is not client-writable. }
+        createdBy: { description: Accepted but stripped; creator identity comes from the session. }
+        files:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: string
+            format: binary
+          description: >-
+            Files with extensions jpg, jpeg, png, gif, txt, doc, docx, pdf, xls,
+            xlsx, csv, html, ppt, pptx, odt or xml; maximum 10 MiB per file.
+    SickLeaveAttachmentsUpload:
+      type: object
+      additionalProperties: false
+      required: [files]
+      properties:
+        files:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: string
+            format: binary
+          description: >-
+            Files with extensions jpg, jpeg, png, gif, txt, doc, docx, pdf, xls,
+            xlsx, csv, html, ppt, pptx, odt or xml; maximum 10 MiB per file.
+    SickLeaveEmployee:
+      type: object
+      required: [empNumber, empName, department]
+      properties:
+        empNumber: { type: string }
+        empName: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+    SickLeaveListItem:
+      type: object
+      required:
+        [
+          headerId,
+          empId,
+          empName,
+          leaveType,
+          fromDate,
+          toDate,
+          days,
+          status,
+          createdAt,
+          pendingAt,
+          totalLeaveDays,
+        ]
+      properties:
+        headerId: { type: [integer, string] }
+        empId: { type: [integer, string, 'null'] }
+        empName: { type: [string, 'null'] }
+        leaveType: { type: [string, 'null'] }
+        fromDate: { type: [string, 'null'], format: date }
+        toDate: { type: [string, 'null'], format: date }
+        days: { type: [number, 'null'] }
+        status: { type: [string, 'null'] }
+        createdAt: { type: [string, 'null'] }
+        pendingAt:
+          type: 'null'
+          description: Currently always null; no pending timestamp is returned by this API.
+        totalLeaveDays:
+          type: [number, 'null']
+          description: Available to HR-visible users; null for other users.
+    SickLeaveDetail:
+      allOf:
+        - $ref: '#/components/schemas/SickLeaveListItem'
+        - type: object
+          required: [comments, fromDayType, toDayType, attachments]
+          properties:
+            comments: { type: [string, 'null'] }
+            fromDayType: { type: string, enum: [FULL, HALF] }
+            toDayType: { type: string, enum: [FULL, HALF] }
+            attachments:
+              type: array
+              items: { $ref: '#/components/schemas/SickLeaveStoredAttachment' }
+    SickLeaveStoredAttachment:
+      type: object
+      required: [ATTACHMENT_ID, FILE_NAME, ATTACHED_ON]
+      properties:
+        ATTACHMENT_ID: { type: [integer, string] }
+        FILE_NAME: { type: string }
+        ATTACHED_ON: { type: [string, 'null'] }
+    SickLeaveCreatedAttachment:
+      type: object
+      required: [attachmentId, fileName]
+      properties:
+        attachmentId: { type: [integer, string] }
+        fileName: { type: string }
+    SickLeaveCreateResult:
+      type: object
+      required: [headerId, days, attachments]
+      properties:
+        headerId: { type: [integer, string] }
+        days: { type: number }
+        attachments:
+          type: array
+          items: { $ref: '#/components/schemas/SickLeaveCreatedAttachment' }
+    SickLeaveMutationResult:
+      type: object
+      required: [headerId, days]
+      properties:
+        headerId: { type: integer }
+        days: { type: number }
+    SickLeaveDeleteResult:
+      type: object
+      required: [headerId, deleted]
+      properties:
+        headerId: { type: integer }
+        deleted: { const: true }
+    SickLeaveDeleteAttachmentResult:
+      type: object
+      required: [attachmentId, deleted]
+      properties:
+        attachmentId: { type: integer }
+        deleted: { const: true }
+    SickLeaveListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [items, page, pageSize, total]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/SickLeaveListItem' }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SickLeaveDetailResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SickLeaveDetail' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SickLeaveCreateResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SickLeaveCreateResult' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SickLeaveMutationResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SickLeaveMutationResult' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SickLeaveDeleteResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SickLeaveDeleteResult' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SickLeaveAttachmentsResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [attachments]
+          properties:
+            attachments:
+              type: array
+              items: { $ref: '#/components/schemas/SickLeaveCreatedAttachment' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SickLeaveDeleteAttachmentResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SickLeaveDeleteAttachmentResult' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
   responses:
     MfaSignedIn:
       description: >-

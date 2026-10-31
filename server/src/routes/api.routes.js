@@ -39,6 +39,20 @@ import { createUsersService } from '../modules/users/users.service.js';
 import { createPersonalStatusRoutes } from '../modules/hr/personal-status/personalStatusChange.routes.js';
 import { createPersonalStatusRepository } from '../modules/hr/personal-status/personalStatusChange.repository.js';
 import { createPersonalStatusService } from '../modules/hr/personal-status/personalStatusChange.service.js';
+
+import { createEmployeeOfTheMonthRouter } from '../modules/hr/employee-of-the-month/employeeOfTheMonth.routes.js';
+
+import { createEmployeeOfTheMonthService } from '../modules/hr/employee-of-the-month/employeeOfTheMonth.service.js';
+
+import { createIdeaRouter } from '../modules/hr/ideas/idea form routes .js';
+import { createIdeaService } from '../modules/hr/ideas/idea form service.js';
+
+import { createSickLeaveRouter } from '../modules/hr/sick-leave/sickLeave.routes.js';
+
+import { createSickLeaveService } from '../modules/hr/sick-leave/sickLeave.service.js';
+
+import { parsePermission } from '../modules/access-control/authorization.service.js';
+
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
  * connection/transaction helpers; production uses the shared Oracle LOW pool.
@@ -213,6 +227,34 @@ export function createApiRouter(appConfig, deps = {}) {
       authConfig: appConfig.auth,
     }),
   );
+
+  const employeeOfTheMonthService = createEmployeeOfTheMonthService({
+    repository: deps.employeeOfTheMonthRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+  });
+
+  const sickLeaveService = createSickLeaveService({
+    repository: deps.sickLeaveRepository,
+    withConnection: db.withConnection,
+    withTransaction: db.withTransaction,
+
+    storage: deps.sickLeaveStorage ?? createDiskStorage(),
+
+    // HR visibility must be verified through RBAC.
+    hrCheck:
+      deps.sickLeaveHrCheck ??
+      (async (actor) => {
+        const key = process.env.SICK_LEAVE_HR_RESOURCE_KEY;
+
+        if (!key) return false;
+
+        const permission = parsePermission(key, process.env.SICK_LEAVE_HR_ACTION ?? 'VIEW');
+
+        return authorizationService.holds(actor.userId, permission);
+      }),
+  });
+
   router.use(
     '/access-control',
     createRbacRouter({ rbacService, authorizationService, authorize, authenticate, auditService }),
@@ -302,6 +344,38 @@ export function createApiRouter(appConfig, deps = {}) {
     '/hr/personnel-record-changes',
     createPersonalStatusRoutes({
       personalStatusService,
+      authenticate,
+      authorize,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/employee-of-the-month',
+    createEmployeeOfTheMonthRouter({
+      service: employeeOfTheMonthService,
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/ideas',
+    createIdeaRouter({
+      ideaService: createIdeaService({
+        withConnection: db.withConnection,
+        withTransaction: db.withTransaction,
+      }),
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/sick-leave',
+    createSickLeaveRouter({
+      service: sickLeaveService,
       authenticate,
       authorize,
       auditService,
