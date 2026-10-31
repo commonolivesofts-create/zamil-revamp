@@ -548,7 +548,7 @@ test("the workspace dashboard uses real identity data and labels its demo conten
   assert.match(home, /profile\.employeeNumber/);
   assert.match(home, /profile\?\.department/);
   assert.match(avatar, /profileAvatarUrl\(profile\)/);
-  assert.match(avatar, /onError=\{\(\) => \{/);
+  assert.match(avatar, /onError=\{markFailed\}/);
   assert.match(avatar, /initialsOf\(displayName\(profile\)\)/);
   assert.match(home, /AUTHORIZED PAGES/);
   assert.match(home, /onOpenPage\(page\)/);

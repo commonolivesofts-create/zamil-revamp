@@ -15,14 +15,26 @@ export default function ProfileAvatar({
   onImageLoad,
   onImageError,
 }) {
-  const [failedSource, setFailedSource] = useState("");
+  const [imageStates, setImageStates] = useState(() => new Map());
   const requestedSource =
     profileAvatarUrl(profile) || profileImageEndpoint(profile?.id);
+  const placeholderSource = "/profile-placeholder.png";
   const source =
-    requestedSource && failedSource !== requestedSource
+    requestedSource && imageStates.get(requestedSource) !== "failed"
       ? requestedSource
-      : "/profile-placeholder.png";
-  const showImage = source !== failedSource;
+      : placeholderSource;
+  const showImage = imageStates.get(source) !== "failed";
+  const imageLoading = showImage && imageStates.get(source) !== "loaded";
+
+  function markLoaded() {
+    setImageStates((current) => new Map(current).set(source, "loaded"));
+    onImageLoad?.(source);
+  }
+
+  function markFailed() {
+    setImageStates((current) => new Map(current).set(source, "failed"));
+    onImageError?.(source);
+  }
 
   return (
     <span
@@ -30,19 +42,21 @@ export default function ProfileAvatar({
       aria-hidden="true"
     >
       {showImage ? (
-        <img
-          key={source}
-          src={source}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          referrerPolicy="no-referrer"
-          onLoad={() => onImageLoad?.(source)}
-          onError={() => {
-            setFailedSource(source);
-            onImageError?.(source);
-          }}
-        />
+        <>
+          {imageLoading && <span className="zrv-profile-avatar-skeleton" />}
+          <img
+            key={source}
+            className={imageLoading ? "is-loading" : ""}
+            src={source}
+            alt=""
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onLoad={markLoaded}
+            onError={markFailed}
+          />
+        </>
       ) : (
         <span className="zrv-profile-avatar-initials">
           {initialsOf(displayName(profile))}

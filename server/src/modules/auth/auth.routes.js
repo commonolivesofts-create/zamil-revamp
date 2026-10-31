@@ -160,6 +160,13 @@ export function createAuthRouter({
     validate({ query: profileImageQuerySchema }),
     async (req, res, next) => {
       try {
+        const version = await profileImageService.getVersion(req.auth.userId);
+        if (!version) {
+          return res.set('Cache-Control', 'private, no-store').status(404).end();
+        }
+        res.set('Cache-Control', 'private, no-cache, must-revalidate').set('ETag', `"${version}"`);
+        if (req.fresh) return res.status(304).end();
+
         const image = await profileImageService.get(req.auth.userId);
         if (!image) return res.status(404).end();
         res.type(image.mimeType).set('X-Content-Type-Options', 'nosniff').end(image.data);
