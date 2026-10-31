@@ -166,9 +166,8 @@ const envSchema = Joi.object({
     .max(64)
     .pattern(/^[^:]+$/)
     .default(PRODUCT.name),
-  // Mandatory administrator MFA (docs/07 §4). Default true. `false` exists ONLY for a developer's
-  // own machine: it is refused unless NODE_ENV=development, the listener is loopback-only and no
-  // reverse proxy is trusted (see the cross-field rule below). Exact `true`/`false` only.
+  // Mandatory administrator MFA (docs/07 §4). Default true. `false` is permitted for local
+  // development and for the explicitly selected non-production APP_ENV=Test profile.
   AUTH_ADMIN_MFA_REQUIRED: Joi.boolean().sensitive().default(true),
   AUTH_MFA_COOKIE_NAME: Joi.string()
     .pattern(/^[A-Za-z0-9_-]+$/)
@@ -243,21 +242,28 @@ const envSchema = Joi.object({
   AUTH_MFA_RECOVERY_PATH: routePath.default('/mfa/recovery'),
 })
   .custom((value, helpers) => {
-    // The administrator-MFA exception never reaches UAT, production, a shared or exposed
-    // development listener, or a deployment behind a reverse proxy. Unsafe values stop startup;
-    // they are never silently corrected.
+    // The local-development exception is loopback-only. The explicit Test profile may disable
+    // administrator MFA on its shared listener; UAT and production always require it.
     if (value.AUTH_ADMIN_MFA_REQUIRED === false) {
-      if (value.NODE_ENV !== 'development') {
+      const isTestProfile =
+        String(value.APP_ENV ?? '')
+          .trim()
+          .toLowerCase() === 'test' && value.NODE_ENV === 'test';
+      if (isTestProfile) {
+        if (value.HTTP_HOST !== '0.0.0.0' || value.TRUST_PROXY_HOPS !== 0) {
+          return helpers.message(
+            '"AUTH_ADMIN_MFA_REQUIRED=false" in APP_ENV=Test requires HTTP_HOST=0.0.0.0 and TRUST_PROXY_HOPS=0',
+          );
+        }
+      } else if (value.NODE_ENV !== 'development') {
         return helpers.message(
-          '"AUTH_ADMIN_MFA_REQUIRED" may be false only when NODE_ENV is development',
+          '"AUTH_ADMIN_MFA_REQUIRED" may be false only in local development or APP_ENV=Test',
         );
-      }
-      if (!isLoopbackHost(value.HTTP_HOST)) {
+      } else if (!isLoopbackHost(value.HTTP_HOST)) {
         return helpers.message(
           '"AUTH_ADMIN_MFA_REQUIRED=false" requires a loopback HTTP_HOST (127.0.0.1 or ::1)',
         );
-      }
-      if (value.TRUST_PROXY_HOPS !== 0) {
+      } else if (value.TRUST_PROXY_HOPS !== 0) {
         return helpers.message(
           '"AUTH_ADMIN_MFA_REQUIRED=false" is not allowed behind a reverse proxy (TRUST_PROXY_HOPS must be 0)',
         );
@@ -328,7 +334,7 @@ export function loadConfig(env) {
           AUTH_SESSION_COOKIE_NAME: 'zr_session',
           AUTH_MFA_COOKIE_NAME: 'zr_mfa',
           AUTH_COOKIE_SECURE: false,
-          AUTH_ADMIN_MFA_REQUIRED: true,
+          AUTH_ADMIN_MFA_REQUIRED: env.AUTH_ADMIN_MFA_REQUIRED ?? false,
           AUTH_FRONTEND_BASE_URL: 'http://10.10.2.160:7382',
         }
       : {}),
@@ -364,8 +370,13 @@ export function loadConfig(env) {
         sameSite: value.AUTH_COOKIE_SAMESITE,
       }),
       allowedOrigins: Object.freeze([...value.AUTH_ALLOWED_ORIGINS]),
-      // false only on a loopback-only development machine (validated above).
+      // false only under local-development or explicit Test-profile exceptions (validated above).
       adminMfaRequired: value.AUTH_ADMIN_MFA_REQUIRED,
+      adminMfaExemption: isSharedTest
+        ? 'TEST_PROFILE'
+        : value.NODE_ENV === 'development'
+          ? 'LOCAL_DEVELOPMENT'
+          : null,
       sessionTouchIntervalMs: value.AUTH_SESSION_TOUCH_INTERVAL_S * 1000,
       loginRateLimit: Object.freeze({
         max: value.AUTH_LOGIN_RATE_LIMIT_MAX,

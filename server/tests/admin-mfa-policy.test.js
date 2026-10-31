@@ -50,7 +50,7 @@ describe('AUTH_ADMIN_MFA_REQUIRED configuration', () => {
     }
   });
 
-  it('accepts false only for development on loopback without a trusted proxy', () => {
+  it('accepts false for local development on loopback without a trusted proxy', () => {
     const loaded = loadConfig(baseEnv({ AUTH_ADMIN_MFA_REQUIRED: 'false' }));
     assert.equal(loaded.auth.adminMfaRequired, false);
     assert.equal(loaded.http.host, '127.0.0.1');
@@ -63,11 +63,26 @@ describe('AUTH_ADMIN_MFA_REQUIRED configuration', () => {
     }
   });
 
+  it('allows false in the explicit Test profile on its shared listener', () => {
+    const loaded = loadConfig(baseEnv({ APP_ENV: 'Test', AUTH_ADMIN_MFA_REQUIRED: 'false' }));
+    assert.equal(loaded.env, 'test');
+    assert.equal(loaded.http.host, '0.0.0.0');
+    assert.equal(loaded.port, 7381);
+    assert.equal(loaded.auth.adminMfaRequired, false);
+    assert.throws(
+      () =>
+        loadConfig(
+          baseEnv({ APP_ENV: 'Test', AUTH_ADMIN_MFA_REQUIRED: 'false', TRUST_PROXY_HOPS: '1' }),
+        ),
+      /APP_ENV=Test requires HTTP_HOST=0.0.0.0 and TRUST_PROXY_HOPS=0/,
+    );
+  });
+
   it('refuses false in UAT, production and test (startup fails, nothing is overridden)', () => {
     for (const NODE_ENV of ['uat', 'production', 'test']) {
       assert.throws(
         () => loadConfig(baseEnv({ NODE_ENV, AUTH_ADMIN_MFA_REQUIRED: 'false' })),
-        /"AUTH_ADMIN_MFA_REQUIRED" may be false only when NODE_ENV is development/,
+        /may be false only in local development or APP_ENV=Test/,
         NODE_ENV,
       );
     }
@@ -112,9 +127,7 @@ describe('AUTH_ADMIN_MFA_REQUIRED configuration', () => {
     const server = readFileSync(new URL('../src/server.js', import.meta.url), 'utf8');
     assert.match(server, /if \(config\.auth\.adminMfaRequired === false\) \{\s*logger\.warn\(/);
     assert.ok(
-      server.includes(
-        "'WARNING: Administrator MFA requirement is disabled for local development.'",
-      ),
+      server.includes("'WARNING: Administrator MFA requirement is disabled for this environment.'"),
     );
   });
 });

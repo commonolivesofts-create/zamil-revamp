@@ -62,8 +62,8 @@ import { parsePermission } from '../modules/access-control/authorization.service
  */
 export function createApiRouter(appConfig, deps = {}) {
   const db = deps.db ?? {};
-  // Mandatory administrator MFA (default true). false only under the local-development exception
-  // validated by config/index.js; every service applies the same policy.
+  // Mandatory administrator MFA (default true). false only under the local-development or explicit
+  // APP_ENV=Test exception validated by config/index.js; every service applies the same policy.
   const adminMfaRequired = appConfig.auth.adminMfaRequired !== false;
   const auditService = createSecurityAuditService({
     repository: deps.auditRepository,
@@ -103,6 +103,7 @@ export function createApiRouter(appConfig, deps = {}) {
     withTransaction: db.withTransaction,
     argon2Cost: deps.argon2Cost ?? appConfig.auth.argon2,
     adminMfaRequired,
+    adminMfaExemption: appConfig.auth.adminMfaExemption ?? 'LOCAL_DEVELOPMENT',
   });
   // Office 365 SMTP when enabled; otherwise unconfigured, so delivery-dependent flows fail closed.
   const withDatabase = db.withConnection ?? withConnection;

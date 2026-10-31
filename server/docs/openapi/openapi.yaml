@@ -7707,9 +7707,8 @@ components:
           type: boolean
           description: >-
             Whether SECURITY_ADMINISTRATION permissions require an MFA-verified session on
-            this server. Always true except under the local-development exception
-            (AUTH_ADMIN_MFA_REQUIRED=false, allowed only for NODE_ENV=development on a loopback
-            listener). It never changes `mfaVerified`.
+            this server. Always true except under the loopback local-development exception or
+            the explicit APP_ENV=Test profile. It never changes `mfaVerified`.
         permissions:
           type: array
           items:

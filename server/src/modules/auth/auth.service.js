@@ -181,8 +181,9 @@ export function createAuthService({
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
   argon2Cost,
-  // config.auth.adminMfaRequired; false only for the validated local-development exception.
+  // config.auth.adminMfaRequired; false only for a validated non-production exception.
   adminMfaRequired = true,
+  adminMfaExemption = 'LOCAL_DEVELOPMENT',
 }) {
   const recordAuthenticationFailure = createFailureRecorder({
     authRepository,
@@ -318,7 +319,7 @@ export function createAuthService({
             mfaVerified: false,
             // An exempted administrator keeps the privileged 15-minute idle timeout.
             privileged: mfa.privileged,
-            mfaExemption: mfa.exempted ? 'LOCAL_DEVELOPMENT' : null,
+            mfaExemption: mfa.exempted ? adminMfaExemption : null,
             context,
           },
         ),

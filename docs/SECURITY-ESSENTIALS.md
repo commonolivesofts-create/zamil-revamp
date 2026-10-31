@@ -33,20 +33,20 @@ Never store session data, CSRF tokens, permissions or user data in `localStorage
 `sessionStorage`, IndexedDB or `document.cookie` (enforced by
 `client/tests/securityBoundaries.test.mjs` for the auth and API folders).
 
-### Mandatory administrator MFA and its local-development exception
+### Mandatory administrator MFA and non-production exceptions
 
 Administrators and other privileged accounts must pass MFA (`evaluateMfaRequirement` in
 `server/src/modules/auth/auth.eligibility.js`, applied at login, on every session request and in
 the authorization evaluator). The owner-approved backend setting `AUTH_ADMIN_MFA_REQUIRED`
-(default `true`, `server/src/config/index.js`) may be `false` **only** on a developer's own
-machine: startup is refused unless `NODE_ENV=development`, `HTTP_HOST` is loopback and
-`TRUST_PROXY_HOPS=0`.
+(default `true`, `server/src/config/index.js`) may be `false` for local development on loopback with
+`TRUST_PROXY_HOPS=0`, or in the explicit `APP_ENV=Test` profile. Test runs on the shared test LAN
+without administrator MFA; keep it on that trusted network. UAT and production always require MFA.
 
 Under the exception, privileged accounts sign in without an MFA challenge and may use the
 Security Administration operations their RBAC permissions allow, but:
 
 - sessions are **never** marked MFA-verified (`MFA_VERIFIED_AT` stays NULL) and the login audit
-  row records `mfaExemption: LOCAL_DEVELOPMENT`;
+  row records `LOCAL_DEVELOPMENT` or `TEST_PROFILE` as the exemption source;
 - password, eligibility, account status, lockout, expiry, CSRF, rate limits, RBAC and the
   administrator hierarchy are unchanged; voluntarily enrolled ordinary users still use MFA;
 - actions that require a *recent* MFA verification remain unavailable;
