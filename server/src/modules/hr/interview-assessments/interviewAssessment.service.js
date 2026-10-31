@@ -6,6 +6,7 @@ import {
 } from '../../../database/oracle.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as defaultRepository from './interviewAssessment.repository.js';
+import { PAYROLL_UNITS } from './interviewAssessment.validation.js';
 
 /*
  * Interview Assessment Form rules (README_interview_assessment_form.md). `authorize` has already
@@ -350,6 +351,7 @@ export function createInterviewAssessmentService({
       });
     },
 
+    payrollUnits: () => PAYROLL_UNITS.map((unit) => ({ ...unit })),
     nationalities: () => read((c) => repository.listNationalities(c)),
     requisitions: () => read((c) => repository.listApprovedRequisitions(c)),
     employees: () => read((c) => repository.listEmployeeNames(c)),

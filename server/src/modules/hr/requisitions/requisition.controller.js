@@ -52,6 +52,9 @@ export function createRequisitionController({ requisitionService }) {
     async jobTitles(req, res) {
       sendSuccess(res, await requisitionService.jobTitles());
     },
+    async capabilities(req, res) {
+      sendSuccess(res, await requisitionService.capabilities(req.auth));
+    },
     async requestor(req, res) {
       sendSuccess(res, await requisitionService.requestor(req.auth));
     },

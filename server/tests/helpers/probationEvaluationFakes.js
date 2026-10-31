@@ -1,3 +1,5 @@
+import assert from 'node:assert/strict';
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const legacyDate = (value) => {
   if (!value) return '01-JAN-00';
@@ -10,9 +12,14 @@ const isoDate = (value) => {
   return `${year}-${String(MONTHS.indexOf(month) + 1).padStart(2, '0')}-${day}`;
 };
 
-export function installProbationEvaluations(store, { hrEmployeeNumbers = [] } = {}) {
+// `departments` maps employee numbers to an ORGANIZATION_ID for the same-department rule.
+export function installProbationEvaluations(
+  store,
+  { hrEmployeeNumbers = [], departments = {}, identityStart } = {},
+) {
   store.state.probationEvaluations = { headers: [], lines: [] };
   store.state.probationHrEmployeeNumbers = [...hrEmployeeNumbers];
+  store.state.probationDepartments = { ...departments };
   const table = () => store.state.probationEvaluations;
   const headerOf = (headerId) => table().headers.find((header) => header.headerId === headerId);
   const linesOf = (headerId) => table().lines.filter((line) => line.headerId === headerId);
@@ -51,22 +58,20 @@ export function installProbationEvaluations(store, { hrEmployeeNumbers = [] } = 
     return true;
   };
 
+  // Identity columns (GENERATED ALWAYS): values are never reused, survive rollbacks and need not
+  // follow MAX(id) + 1. `identityStart` lets a test start them far above the existing rows.
+  const identity = { header: identityStart, line: identityStart };
+  const nextIdentity = (key, rows, idOf) => {
+    identity[key] ??= rows.reduce((max, row) => Math.max(max, Number(idOf(row))), 0) + 1;
+    return String(identity[key]++);
+  };
+
   const repository = {
-    async generateHeaderId() {
-      const next =
-        table().headers.reduce((max, header) => Math.max(max, Number(header.headerId)), 0) + 1;
-      return String(next);
-    },
-    async findHeaderIdByUuid(_connection, uuid) {
-      return table().headers.find((header) => header.uuid === uuid)?.headerId ?? null;
-    },
     async findRequestor(_connection, userId) {
       return requestorFor(userId);
     },
     async insertHeader(_connection, input) {
-      const headerId = String(
-        table().headers.reduce((max, header) => Math.max(max, Number(header.headerId)), 0) + 1,
-      );
+      const headerId = nextIdentity('header', table().headers, (header) => header.headerId);
       table().headers.push({
         ...input,
         headerId,
@@ -75,14 +80,12 @@ export function installProbationEvaluations(store, { hrEmployeeNumbers = [] } = 
         requestStatus: 'DRAFT',
       });
       if (store.failures.probationInsertAfterHeader) throw new Error('injected insert failure');
-    },
-    async generateLineId(_connection, headerId) {
-      const next =
-        linesOf(headerId).reduce((max, line) => Math.max(max, Number(line.lineId)), 0) + 1;
-      return String(next);
+      return headerId;
     },
     async insertLine(_connection, input) {
-      table().lines.push({ ...input });
+      assert.equal('lineId' in input, false, 'LINE_ID is GENERATED ALWAYS and must not be sent');
+      const lineId = nextIdentity('line', table().lines, (line) => line.lineId);
+      table().lines.push({ ...input, lineId });
       if (store.failures.probationInsertAfterLine) throw new Error('injected line failure');
     },
     async findHeader(_connection, headerId) {
@@ -115,16 +118,28 @@ export function installProbationEvaluations(store, { hrEmployeeNumbers = [] } = 
         .sort((a, b) => Number(a.lineId) - Number(b.lineId))
         .map((line) => ({ ...line }));
     },
-    async findHeaderStatus(_connection, headerId) {
+    async findAccessFacts(_connection, headerId) {
       const header = headerOf(headerId);
-      return header ? { requestStatus: header.requestStatus } : null;
+      return header
+        ? {
+            createdBy: header.createdBy,
+            requestStatus: header.requestStatus,
+            employeeNumber: header.employeeNumber,
+          }
+        : null;
+    },
+    async isSameDepartment(_connection, { actorEmployeeNumber, subjectEmployeeNumber }) {
+      const departments = store.state.probationDepartments;
+      return (
+        departments[actorEmployeeNumber] !== undefined &&
+        departments[actorEmployeeNumber] === departments[subjectEmployeeNumber]
+      );
     },
     async updateHeader(_connection, input) {
       const header = headerOf(input.headerId);
       if (!header) return false;
-      Object.assign(header, {
-        ...input,
-      });
+      // Mirrors UPDATED_AT = SYSDATE.
+      Object.assign(header, { ...input, updatedAt: 'SYSDATE' });
       if (store.failures.probationUpdateAfterHeader) throw new Error('injected update failure');
       return true;
     },

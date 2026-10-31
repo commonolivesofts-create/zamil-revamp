@@ -102,6 +102,19 @@ export const REPORT_TEXT = Object.freeze({
   errors: Object.freeze({ from: 'Choose a start date', to: 'Choose an end date', toBeforeFrom: 'End date is before start date' }),
 })
 
+// The Periodwise Employees report shares the report vocabulary above. The API returns only
+// whether a national ID is on file, never the number.
+export const PERIODWISE_TEXT = Object.freeze({
+  ...REPORT_TEXT,
+  title: 'Periodwise Employees',
+  subtitle: 'Employees attached to a department at any point in a period, with KPIs and charts.',
+  table: Object.freeze({ ...REPORT_TEXT.table, searchPlaceholder: 'Search name, emp no, job, department' }),
+  columns: Object.freeze({ ...REPORT_TEXT.columns, nationalId: 'National ID' }),
+  nationalId: Object.freeze({ onFile: 'On file', missing: 'Missing' }),
+  printing: 'Preparing every row for printing…',
+  exporting: 'Preparing the export…',
+})
+
 export const PROBATION_TEXT = Object.freeze({
   title: 'Probation Evaluation',
   subtitle: 'Evaluate a new employee’s probation period. Pick the employee and form type, score each criterion, then recommend.',

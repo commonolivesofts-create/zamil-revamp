@@ -49,8 +49,10 @@ function RequisitionEditor({ lookups, lookupStatus, reloadLookups, record: saved
   const canSave = record ? permissions.can(ACTIONS.REQUISITION_UPDATE) : permissions.can(ACTIONS.REQUISITION_CREATE)
   const canDelete = Boolean(record && record.status === 'Draft' && permissions.can(ACTIONS.REQUISITION_DELETE))
   const canRemoveAttachment = permissions.can(ACTIONS.REQUISITION_MANAGE_ATTACHMENTS)
-  const budget = useResource(form.replacementFor ? `hr-requisition-budget:${form.replacementFor}` : null,
-    (signal) => service.getBudget(form.replacementFor, { signal }))
+  // The backend trims the name and echoes it back; send it trimmed so the echo matches.
+  const budgetName = form.replacementFor.trim()
+  const budget = useResource(budgetName ? `hr-requisition-budget:${budgetName}` : null,
+    (signal) => service.getBudget(budgetName, { signal }))
   const progress = requisitionProgress(form)
   const errors = showErrors ? Object.fromEntries(progress.missing.map((check) => [check.key, COMMON_TEXT.required])) : {}
   const lead = leadTime(today, form.neededDate)
@@ -262,7 +264,7 @@ function RequisitionEditor({ lookups, lookupStatus, reloadLookups, record: saved
 
         {step === 3 && <>
           <PanelHead n={4} {...T.heads[3]} />
-          {canSave && <HrField id="rq-ticket-status" label={T.labels.ticketStatus} hint={T.hints.ticketStatus}>
+          {canSave && lookups.capabilities?.canManageTicket && <HrField id="rq-ticket-status" label={T.labels.ticketStatus} hint={T.hints.ticketStatus}>
             <LookupSelect id="rq-ticket-status" value={form.ticketStatus} onChange={(event) => editor.patch({ ticketStatus: event.target.value, ticketStatusChanged: true })}
               options={['Open', 'Accepted', 'Close'].map((code) => ({ code, name: code }))} />
           </HrField>}

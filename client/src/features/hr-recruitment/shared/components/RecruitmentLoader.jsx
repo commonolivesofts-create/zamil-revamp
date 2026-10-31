@@ -4,7 +4,7 @@ import useAuth from '@/features/auth/useAuth.js'
 import { ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT } from '../../hrRecruitmentText.js'
-import { hrRecruitmentServices, identifyDemoUser } from '../../hrRecruitmentService.js'
+import { identifyDemoUser } from '../../hrRecruitmentService.js'
 import { FlowNav, RecruitmentHeader } from './RecruitmentShell.jsx'
 import '@/styles/hr-recruitment.css'
 
@@ -15,7 +15,7 @@ import '@/styles/hr-recruitment.css'
 // outside it); `identify` tells a demo adapter the signed-in name, and
 // `breadcrumb` replaces the recruitment breadcrumb.
 export function RecruitmentLoader({
-  current, title, subtitle, param, load, loadLookups = (signal) => hrRecruitmentServices.lookups.get({ signal }), demo = false,
+  current, title, subtitle, param, load, loadLookups, demo = false,
   flow = true, identify = identifyDemoUser, breadcrumb, children,
 }) {
   const params = useParams()

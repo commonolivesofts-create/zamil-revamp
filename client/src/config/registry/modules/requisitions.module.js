@@ -4,12 +4,11 @@ import { defineModule } from '../defineModule.js'
 
 export default defineModule({
   code: 'REQUISITIONS',
-  name: 'Personnel Requisitions',
-  description: 'Personnel requisition records and supporting attachments.',
-  displayOrder: 20,
+  name: 'Personal Requisitions',
+  displayOrder: 0,
   resources: [{
     code: 'REQUISITIONS',
-    name: 'Personnel Requisitions',
+    name: 'Personal Requisitions',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_ATTACHMENTS'],
     navigation: [
       { id: 'hr-requisition', path: '/hr/recruitment/requisition', title: 'Personnel requisition', icon: 'clipboard-list', group: 'human-resources', order: 10 },

@@ -103,7 +103,8 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
     return result.valid
   }
   const saveRecord = async ({ saved }) => {
-    const result = await service.save(editor.recordId, interviewPayload(form))
+    // The backend requires the position name; it is derived from the linked requisition.
+    const result = await service.save(editor.recordId, { ...interviewPayload(form), positionTitle: position })
     saved(result)
     return result
   }
@@ -223,7 +224,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
           <RatingRows group="spec" keys={SPEC_KEYS} values={form.spec} onRate={rate('spec')} onRemark={remark('spec')} missing={missing.spec} />
           <div className="zrv-hr-grid zrv-hr-mt">
             <HrField id="ia-specrem" label={T.labels.specRemarks} wide>
-              <input id="ia-specrem" className="ux-input zrv-hr-input" value={form.specRemarks} onChange={set('specRemarks')} maxLength={1000} />
+              <input id="ia-specrem" className="ux-input zrv-hr-input" value={form.specRemarks} onChange={set('specRemarks')} maxLength={500} />
             </HrField>
           </div>
         </>}
@@ -233,7 +234,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
           <RatingRows group="comp" keys={COMP_KEYS} values={form.comp} onRate={rate('comp')} onRemark={remark('comp')} missing={missing.comp} />
           <div className="zrv-hr-grid zrv-hr-mt">
             <HrField id="ia-comprem" label={T.labels.compRemarks} wide>
-              <input id="ia-comprem" className="ux-input zrv-hr-input" value={form.compRemarks} onChange={set('compRemarks')} maxLength={1000} />
+              <input id="ia-comprem" className="ux-input zrv-hr-input" value={form.compRemarks} onChange={set('compRemarks')} maxLength={500} />
             </HrField>
             <HrField id="ia-str" label={T.labels.strengths}>
               <textarea id="ia-str" className="ux-textarea zrv-hr-input" value={form.strengths} onChange={set('strengths')} />
@@ -273,7 +274,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
               </select>
             </HrField>
             <HrField id="ia-hrc" label={T.labels.hrComment} wide>
-              <input id="ia-hrc" className="ux-input zrv-hr-input" value={form.hrComment} onChange={set('hrComment')} maxLength={1000} />
+              <input id="ia-hrc" className="ux-input zrv-hr-input" value={form.hrComment} onChange={set('hrComment')} maxLength={500} />
             </HrField>
             {form.interviewers.map((name, index) => (
               <HrField key={index} id={`ia-int${index + 1}`} label={T.labels.interviewer(index)}>

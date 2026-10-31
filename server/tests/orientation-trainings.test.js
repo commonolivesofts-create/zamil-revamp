@@ -33,7 +33,7 @@ const BODY = {
   ],
 };
 
-function setup() {
+function setup({ identityStart } = {}) {
   const store = createAuthStore();
   const rbac = installRbac(store, { syncPrivilegeFlags: true });
   const addPerson = (employeeNumber, fullName) => {
@@ -63,7 +63,7 @@ function setup() {
     rbac.grant(staffRole, permissions[action]);
   }
   rbac.assign(staffUser, staffRole);
-  installOrientationTrainings(store, { hrUserIds: [hrUser.userId] });
+  installOrientationTrainings(store, { hrUserIds: [hrUser.userId], identityStart });
   const app = createApp(testAuthConfig(), {
     checkReadiness: async () => ({ LOW: true, HIGH: true }),
     api: {
@@ -232,5 +232,84 @@ describe('orientation training API', () => {
     assert.equal((await send('delete', '/1')).status, 500);
     assert.equal(f.store.state.orientationTrainings.lines.Y.length, 1);
     assert.equal(f.store.state.orientationTrainings.flags.length, 1);
+  });
+});
+
+describe('orientation training record access and draft guard', () => {
+  let f;
+  let hr;
+  let staff;
+  beforeEach(async () => {
+    f = setup();
+    hr = await signIn(f.store, f.hrUser);
+    staff = await signIn(f.store, f.staffUser);
+  });
+  const call = (method, path, session, body) => {
+    const req = request(f.app)[method](`${BASE}${path}`).set('Cookie', session.cookie);
+    if (method !== 'get') req.set('X-CSRF-Token', session.csrf);
+    return body === undefined ? req : req.send(body);
+  };
+  const isForbidden = (response) => {
+    assert.equal(response.status, 403, JSON.stringify(response.body));
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, 'FORBIDDEN');
+  };
+
+  it("returns 403 for another user's record by ID on read, update, delete and line delete", async () => {
+    const id = f.store.seedOrientationTraining({ lines: [{}] });
+    isForbidden(await call('get', `/${id}`, staff));
+    isForbidden(await call('put', `/${id}`, staff, BODY));
+    isForbidden(await call('delete', `/${id}`, staff));
+    isForbidden(await call('delete', `/${id}/lines/1`, staff));
+    assert.equal(f.store.state.orientationTrainings.headers.Y[0].empname, 'Employee E-100Y');
+    assert.equal(f.store.state.orientationTrainings.lines.Y.length, 1);
+    assert.equal((await call('get', `/${id}`, hr)).status, 200, 'HR users keep access');
+    assert.equal((await call('get', '/999', staff)).status, 404, 'unknown IDs stay 404');
+  });
+
+  it('allows the owner and same-department users holding VIEW', async () => {
+    const own = f.store.seedOrientationTraining({ header: { createdBy: f.staffUser.userId } });
+    assert.equal((await call('get', `/${own}`, staff)).status, 200);
+    const other = f.store.seedOrientationTraining();
+    f.store.state.orientationDepartments = { 'E-STAFF': '10', 'E-100Y': '10' };
+    assert.equal((await call('get', `/${other}`, staff)).status, 200);
+    f.rbac.override(f.staffUser, f.permissions.VIEW, 'DENY');
+    isForbidden(await call('put', `/${other}`, staff, BODY));
+  });
+
+  it('blocks updates and line deletes of non-draft records with 409', async () => {
+    const id = f.store.seedOrientationTraining({ header: { status: 'Scheduled' }, lines: [{}] });
+    for (const response of [
+      await call('put', `/${id}`, hr, BODY),
+      await call('delete', `/${id}/lines/1`, hr),
+    ]) {
+      assert.equal(response.status, 409, JSON.stringify(response.body));
+      assert.equal(response.body.error.code, 'ORIENTATION_TRAINING_NOT_DRAFT');
+    }
+    assert.equal(f.store.state.orientationTrainings.headers.Y[0].empname, 'Employee E-100Y');
+    assert.equal(f.store.state.orientationTrainings.lines.Y.length, 1);
+  });
+});
+
+describe('orientation training IDs come from the identity columns', () => {
+  it('creates a shared-service record when the identity is far above MAX(HEADER_ID) (no 409)', async () => {
+    // TEST had MAX(HEADER_ID) = 38 with the shared-service identity above 1080.
+    const f = setup({ identityStart: 1081 });
+    f.store.seedOrientationTraining({ header: { headerId: '38' } });
+    const hr = await signIn(f.store, f.hrUser);
+    const created = await request(f.app)
+      .post(BASE)
+      .set('Cookie', hr.cookie)
+      .set('X-CSRF-Token', hr.csrf)
+      .send(BODY);
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.data.headerId, '1081');
+    assert.equal(created.body.data.flag, 'Y');
+    const { lines, flags } = f.store.state.orientationTrainings;
+    assert.deepEqual(
+      lines.Y.filter((line) => line.headerId === '1081').map((line) => line.lineId),
+      ['1081'],
+    );
+    assert.ok(flags.some((item) => item.headerId === '1081' && item.tableName === 'SHARED'));
   });
 });
