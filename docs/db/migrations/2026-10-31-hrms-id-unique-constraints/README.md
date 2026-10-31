@@ -41,6 +41,12 @@ The production orientation header and line tables and `XXZP_NHT_MASTER_FLAG` alr
 ## Before the three blocked constraints can be added
 
 These need an owner decision on the data. No data change is proposed here.
+
+**Update 2026-10-31:**
+- The read-only analysis is in `docs/testing/hrms-recruitment-audit.md` §10.
+- The proposed cleanup is `../2026-10-31-hrms-duplicate-cleanup/` (HRMS-DUP-CLEAN-001, not applied). Uncomment the three constraints only after it has been committed and verified.
+
+The original notes follow.
 - **Requisition 100800 and interview 677:** two rows share each ID. Compare the two rows of each, read-only, e.g. `SELECT * FROM XXZP.XXZPI_PER_REQUISITIONS_ALL WHERE REQUISITION_ID = 100800`, and decide which row is authoritative.
 - **Attachments:** exactly two rows for 3,564 IDs looks like a duplicated data load, not a design. Before deciding, check whether each pair differs in `FORM_HEADER_ID`, `FORM_NAME`, `FILE_NAME` or `UUID`.
 

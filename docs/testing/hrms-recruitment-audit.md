@@ -446,7 +446,9 @@ DROP SEQUENCE XXZP.XXZP_NHT_MASTER_FLAG_S;
 - Round 2: `6543ab7` "feat(hr-recruitment): HRMS audit round 2: record access, lookups, date fix, README".
 - Your messages were kept, with the conventional-commit prefix that `CONTRIBUTING.md` requires.
 - Author: `Nauman Mirza`.
-- The round 3 work below is **not committed**; nobody asked for that yet.
+- Round 3: `3071dfe` "feat(hr-recruitment): HRMS audit round 3: identity IDs, RBAC names, Periodwise report" (committed after your approval; the unrelated `.gitignore` change stays unstaged).
+- RBAC target: `481e7fb` "chore(rbac): approve TEST DB_NAME for RBAC registration" (§9.2).
+- §9.4 results, §10 and the HRMS-DUP-CLEAN-001 scripts are later changes and are not committed yet.
 
 **Oracle access this round:** read-only against `ZPADWTEST`: dictionary metadata, aggregate counts, `MAX(id)`, the RBAC catalogue's names and the `rbac-register` preview. Nothing was written to Oracle.
 
@@ -499,8 +501,8 @@ DROP SEQUENCE XXZP.XXZP_NHT_MASTER_FLAG_S;
 - `PERMISSION HR.ORIENTATION_TRAININGS:MANAGE_LINES`.
 
 **To register (you, gate G1):**
-1. Approve the TEST database identity. The registration script refuses `--apply` until `APPROVED_TARGETS.TEST.dbName` in `server/scripts/lib/rbacRegistration.js` holds the approved value; it is `null` today, and `server/docs/RBAC-REGISTRATION.md` forbids guessing it. The value the preview printed is `G480281AE328134_ZPADWTEST`. I did not make this change. Make it yourself, or tell me to.
-2. From `server/`, run the preview again and confirm it still shows the 4 MISSING rows and the same fingerprint.
+1. Approve the TEST database identity. The registration script refuses `--apply` until `APPROVED_TARGETS.TEST.dbName` in `server/scripts/lib/rbacRegistration.js` holds the approved value; it is `null` today, and `server/docs/RBAC-REGISTRATION.md` forbids guessing it. **Done in `481e7fb`** after your confirmation: `dbName: 'G480281AE328134_ZPADWTEST'`. `rbac-register.test.js` pins the value, and the refusal tests now use an explicit unconfigured target (31/31 pass). `server/docs/RBAC-REGISTRATION.md` records the approval.
+2. Preview re-run after the change (read-only): `DB_NAME: G480281AE328134_ZPADWTEST (matches the approved DB_NAME)`, CONFLICT 0, MATCH 76, MISSING 4 (the same four rows), UNREGISTERED 46, **same fingerprint** `7c061a8f…c5095`.
 3. Run, in an interactive terminal:
    `npm run db:rbac-register -- --target=TEST --apply --fingerprint=7c061a8fd4c0b096a63cfa6de140c8ea78e5abcc011b05fd9b137d70f89c5095`
    It asks for a typed confirmation. If the catalogue changed since this preview, the fingerprint will differ; use the new one the preview prints.
@@ -572,7 +574,12 @@ Verified: without `.env.local` it refuses before any request.
 
 **Server:** the dev server on `127.0.0.1:7381` runs this branch. Its new routes answer 401 unauthenticated, and an unknown route answers 404.
 
-**Results:** _to be filled in after the run: step results, created IDs, cleanup._
+**Results (2026-10-31): not run.** After your go-ahead I checked for the session values first:
+- `server/.env.local` does not exist;
+- no `LIVE_TEST_*` key is in `server/.env` or `client/.env` (checked by name only);
+- no `.env.local` exists anywhere in the repository.
+
+The script was **not started**, so no request was sent and no record was created; there is nothing to clean up. The one authorized run is still unused. Once the file exists, say so and I will run it once.
 
 ### 9.5 Tests executed in round 3 (2026-10-31)
 
@@ -584,12 +591,141 @@ Verified: without `.env.local` it refuses before any request.
   - Full `node --test tests/*.mjs`: **372/372 pass**.
   - `eslint src tests` clean; `vite build` succeeds.
   - Pinned tests updated for intended changes: `registry`, `navigation`, the onboarding route and switch lists, and the two report tests.
-- **Not run:** the live CRUD script (it waits for your session).
+- **Not run:** the live CRUD script (`server/.env.local` was missing; §9.4).
+- **After the approvals:** `rbac-register.test.js` 31/31; ESLint and Prettier clean on the two changed files.
 
 ### 9.6 Waiting for you
 
-1. **Live run:** put `LIVE_TEST_COOKIE` and `LIVE_TEST_CSRF` in `server/.env.local`, then tell me to run `npm run hr:live-crud` once.
-2. **RBAC registration:** approve and record the TEST `DB_NAME` (`G480281AE328134_ZPADWTEST`), then run the `--apply` command in §9.2 and grant the new permissions. Until then the Periodwise report and the line delete return 403 for everyone.
-3. **Duplicate IDs:** decide on requisition 100800, interview 677 and the attachments table (§9.1) before their unique constraints.
+Updated after the round 3 approvals:
+1. **Live run:** create `server/.env.local` with `LIVE_TEST_COOKIE` and `LIVE_TEST_CSRF` (it did not exist), then tell me to run `npm run hr:live-crud` once.
+2. **RBAC registration:** the `DB_NAME` is set. Run the `--apply` command in §9.2 and grant the new permissions. Until then the Periodwise report and the line delete return 403 for everyone.
+3. **Duplicate IDs:** see §10. The DBA reviews HRMS-DUP-CLEAN-001, and you decide on the ID generation fixes in §10.4.
 4. **DBA review** of HRMS-ID-UK-001 (`01-migration.sql` / `02-rollback.sql`).
-5. **Round 3 commit:** say if you want it committed.
+
+## 10. Duplicate IDs: read-only analysis (2026-10-31)
+
+**Method:**
+- Only SELECTs on `ZPADWTEST`. Each script first checks `DB_NAME`.
+- Rows were compared in memory. Only column names, match flags, counts and month ranges were printed; no row value appears here or in any log.
+- Nothing was written. No sequence `NEXTVAL` was taken.
+
+### 10.1 Requisition 100800: an exact copy
+
+| | Columns |
+|---|---|
+| **Differ** | none |
+| **Same** (31) | `REQUISITION_ID`, `REQUISITION_NUMBER`, `REQUISITION_STATUS`, `REQUESTED_BY`, `REQUESTER_NAME`, `REQUEST_DATE`, `JOB_ID`, `JOB_NAME`, `DEPT_ID`, `DEPT_NAME`, `DATE_NEEDED`, `REASON_OF_REQ`, `REPLACEMENT_FOR`, `REASON`, `BUDGETED`, `BUDGETED_SAL`, `HIGH_SCHOOL`, `DIPLOMA`, `HIGHER_DIPLOMA`, `DEGREE`, `MASTER_DEGREE`, `GCC_EXP`, `WORK_EXP`, `SKILLS`, `OTHER`, `ATTRIBUTE1`, `CREATION_DATE` (to the second), `CREATED_BY`, `LAST_UPDATE_DATE`, `LAST_UPDATED_BY`, `LAST_UPDATE_LOGIN` |
+| **Null in both** | the other 19 |
+
+- No attachment and no interview references 100800.
+- Neighbouring IDs step by both +20 and +1 (…780, …781, …800, …801, …820–…824). So more than one ID generator has written to this table.
+- **Verdict:** a double insert or double load of one requisition. Deleting one copy loses nothing.
+
+### 10.2 Interview 677: two different interviews
+
+| | Columns |
+|---|---|
+| **Differ** (31) | `UUID`, `CANDIDATE_NAME`, `POSITION_NAME`, `MARITAL_STATUS`, `AGE`, `INTERVIEW_DATE`, `INTERVIEW_TIME`, `DIPLOMA_CHK`, `COLLEGE_CHK`, `LAST_POSITION_HELD`, `COMPANY_NAME`, `INTERVIEWED_BY`, `PERSONAL_SPEC_TOTAL`, `CREATED_BY`, `STATUS`. Set in one row only: `SECONDARY_EDUCATION`, `DIPLOMA`, `COLLEGE`, `MASTER_DEGREE`, `TOTAL_YEARS_EXPERIENCE`, `RELEVANT_YEARS_EXPERIENCE`, `NOT_RELEVANT_EXPERIENCE`, `PERSONAL_SPEC_RESULT`, `JOB_COMPETENCY_TOTAL`, `JOB_COMPETENCY_RESULT`, `LAST_UPDATED_BY`, `LAST_UPDATE_LOGIN`, `LAST_UPDATE_DATE`, `INTERVIEWEDBY2`, `INTERVIEWEDBY3`, `INT_NO` |
+| **Same** (8) | `HEADER_ID`, `NATIONALITY`, `INTERVIEW_TYPE`, `SECONDARY_EDUCATION_CHK`, `MASTER_DEGREE_CHK`, `CREATION_DATE` (to the second), `ATTRIBUTE3`, `ATTRIBUTE4` |
+| **Null in both** | 23 |
+
+- Two users created two different candidates' interviews in the **same second**. This is the `MAX+1` race.
+- One row is `Approved` and has `INT_NO`; the other is `InProcess` without one.
+- **Child rows:** `XXZP_INTERVIEW_EVAL_T`, `XXZP_PERSONAL_SPEC_T` and `XXZP_JOB_COMPETENCY_T` each have 3 rows on 677. By `CREATED_BY`, 2 belong to the `Approved` interview's creator and 1 to the `InProcess` creator.
+  - Child `UUID`s never match their header's `UUID` (0 matches across each whole table), so `CREATED_BY` is the only usable link.
+- **Not affected:**
+  - No employment offer references an `INT_NO` of 677.
+  - The attachments with `FORM_HEADER_ID` 677 belong to other forms (`ECR` 2, `ETS` 4), not to the interview.
+- **Effect today:** the Node read and list join the children on `HEADER_ID` alone, so both interviews show each other's children, and the list shows duplicated rows.
+- **Side finding (not in the cleanup):** other interviews also have more than one child row: `EVAL` 5 headers, `PERSONAL_SPEC` 15, `JOB_COMPETENCY` 19. This needs a separate decision.
+
+### 10.3 Attachments: the legacy history loaded twice
+
+**Counts:**
+- 7,201 rows and 3,637 distinct `HEADER_ID`s.
+- 3,564 IDs have exactly 2 rows (7,128 rows); 73 IDs have one row.
+
+**Per pair (3,564 pairs):**
+
+| Column | Pairs with equal values |
+|---|---|
+| `UUID` | 3,564: null in all 7,128 rows |
+| `FORM_HEADER_ID` | 3,564 |
+| `FORM_NAME` | 3,564 |
+| `FILE_NAME` | 3,564 |
+| `ATTACHED_ON` | 120; differs in 3,444 |
+| All columns | 120 pairs are byte-for-byte equal rows |
+
+No pair disagrees on anything but `ATTACHED_ON`.
+
+**File content hash:** not computable here.
+- The table holds only `FILE_NAME`; there is no BLOB column.
+- The files are in the CI3 `./attachments/` folder and the Node `server/attachments/` folder. Neither is in this workspace: `php-ci3-old-app/` is empty and `server/attachments/` does not exist.
+- Both rows of every pair name the same file of the same form record, so they point to **one** physical file and the content is the same by construction.
+- A hash pass on the file server would only confirm that each file exists. I can prepare the file list and a `sha256sum` command for operations if you want it.
+
+**Dates (month ranges only):**
+- The duplicated IDs run from 1 to 3,654.
+- Earlier row of each pair: 2001-01 to 2025-03. Later row: 2022-03 to 2031-12.
+- Gaps within a pair are 0 to 8,742 whole days, with only 43 distinct values.
+- The 73 single rows are IDs 48,442–48,573, attached 2025-08 to 2025-10, across 18 forms. These are recent, normal inserts.
+
+**Caveat:** TEST dates look masked or shifted. 488 attachment rows, 32 requisitions and 84 interviews are dated in the future (up to 2031), so the dates cannot say *when* the duplicates were made. The pattern does point to the old ID range being loaded twice in a migration or refresh rather than to user activity:
+- every old ID appears exactly twice;
+- each pair names the same file;
+- none of the recent rows is affected.
+
+Whether production has the same duplicates is unknown: run HRMS-ID-UK-001 `00-duplicate-check.sql` there.
+
+**Forms affected:** the pairs span every form that uses the table, for example `ECR` 1,901, `SICKLEAVE` 618, `Requisition` 181, `ETS` 169 and `TTR-*` at least 316. The cleanup therefore touches attachments of other modules too (G4). For the 181 requisition pairs, the requisition screen lists each file twice today.
+
+### 10.4 Can current inserts still create duplicates? Yes
+
+**CI3:**
+- I could not read the current CI3 code: `php-ci3-old-app/` is empty in this workspace.
+- The specs, which cite the CI3 code, show read-then-insert IDs with no lock and no sequence:
+  - requisition `NVL(MAX(REQUISITION_ID + 20), 100000)` (`models/Requisition_model.php:583`);
+  - attachments `NVL(MAX(HEADER_ID)+1, 1)` per row (`:626-635`);
+  - interview `NVL(MAX(HEADER_ID + 1), 636)`.
+- Someone with access to the CI3 code should confirm that it still does this.
+
+**Oracle (TEST dictionary):** none of the three tables has a primary key, unique key, unique index or trigger. Nothing stops a duplicate, so two concurrent saves or a double submit still store one. Interview 677 is exactly that case.
+
+**Node backend:** it uses the same pattern, kept in round 1 for legacy parity:
+- `requisition.repository.js` `generateRequisitionId` (`MAX+20`) and `generateAttachmentId` (`MAX+1`);
+- `interviewAssessment.repository.js` (`MAX+1`);
+- also `personalStatusChange.repository.js` (`MAX+1`), outside this audit.
+
+**Mixed generators on `XXZP_ALL_ATTACHMENTS`:**
+- Sick leave inserts through the identity: `LAST_NUMBER` 48,581, cache 20.
+- CI3 and the Node requisition API use `MAX+1`; `MAX` is 48,573.
+- When a `MAX+1` writer takes a value that the identity still holds in its cache, the identity later hands out the same value again, which creates a duplicate.
+- Requisitions (identity 105,373 vs `MAX` 105,020) and interviews (1,590 vs 1,571) carry the same risk as soon as anything uses their identity.
+
+**Recommendation (nothing below is changed yet):**
+1. **Clean up** with HRMS-DUP-CLEAN-001 (§10.5).
+2. **Add the three `UNIQUE` constraints straight after**, by uncommenting them in HRMS-ID-UK-001 `01-migration.sql`.
+   - A race then fails with `ORA-00001` for CI3 and Node alike, instead of being stored.
+   - CI3 users would see an error when a race happens (G4 decision).
+3. **Switch the Node requisition, interview and requisition-attachment inserts to the identity column with `RETURNING`**, as done for Probation and Orientation in §9.1. This needs your approval because it changes legacy-parity behaviour:
+   - requisition numbers would step by 1 instead of 20;
+   - `INT_NO` embeds the interview ID.
+4. **CI3:** move to the identity or a sequence, or retire these screens.
+   - Until then the constraint is the only guard.
+   - CI3's `MAX+20` can land on values the identity hands out later. The Node insert would then get `ORA-00001` and needs a retry.
+
+### 10.5 Cleanup plan for the DBA: HRMS-DUP-CLEAN-001 (not applied)
+
+Location: `docs/db/migrations/2026-10-31-hrms-duplicate-cleanup/`.
+
+| File | What it does |
+|---|---|
+| `00-precheck.sql` | Read-only. Expected values are in the comments. **Run on TEST today: every value matched.** |
+| `01-backup.sql` | `XXZP_DUPFIX_*` backup tables (CTAS) of every touched row, and the interview ID map |
+| `02-cleanup.sql` | One PL/SQL block, **no commit**:<br>• delete one copy of requisition 100800;<br>• move the `InProcess` interview and its 3 children (`CREATED_BY`) from 677 to a new ID from the identity sequence;<br>• keep the earliest `ATTACHED_ON` row of each agreeing attachment pair and delete the other (3,564 rows).<br>Every step checks its row count and raises if it is off. |
+| `03-verify.sql` | Same-session checks before `COMMIT` |
+| `04-rollback.sql` | Restores from the backup tables after a commit. Drop the unique constraints first if they were added. |
+
+- Only `00` was executed. `01`–`04` were reviewed but not run anywhere.
+- The DBA should confirm on TEST that the owner may select `NEXTVAL` from the interview identity's `ISEQ$$_…` sequence; the README gives the fallback.
+- Production needs its own precheck first.
