@@ -1688,6 +1688,61 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/me/profile-image:
+    get:
+      operationId: getMyProfileImage
+      tags: [Authentication]
+      summary: Get the signed-in user's profile image
+      description: Returns the current user's image. It is stored in XX_ZRV_USER_PROFILE_IMAGES and requires a signed-in session.
+      parameters:
+        - in: query
+          name: v
+          description: Optional image revision used to refresh cached avatar URLs.
+          schema: { type: string, pattern: '^(?:[1-9][0-9]{0,18}|[0-9]{13})$' }
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: PNG, JPEG or WebP image bytes.
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { description: No profile image is set. }
+    put:
+      operationId: updateMyProfileImage
+      tags: [Authentication]
+      summary: Update the signed-in user's profile image
+      description: Uploads a PNG, JPEG or WebP image of at most 5 MB. The account is derived from the session.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [profileImage]
+              properties:
+                profileImage: { type: string, format: binary }
+      responses:
+        '204': { description: Image updated. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    delete:
+      operationId: deleteMyProfileImage
+      tags: [Authentication]
+      summary: Remove the signed-in user's profile image
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204': { description: Image removed. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
   /api/v1/users:
     get:
       operationId: listUsers
@@ -1786,6 +1841,18 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ProvisionRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required: [employeeNumber]
+              properties:
+                employeeNumber:
+                  type: string
+                  maxLength: 30
+                  pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*$'
+                profileImage:
+                  type: string
+                  format: binary
       responses:
         '201':
           description: Created.
