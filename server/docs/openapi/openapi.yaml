@@ -84,6 +84,16 @@ tags:
       CRUD, filtered listing and employee/position lookups for the Personal Status Change Form.
       Requires HR.PERSONNEL_RECORD_CHANGES:VIEW / CREATE / UPDATE / DELETE. STATUS is set to
       DRAFT on creation and is not client writable. This API does not implement workflow actions.
+  - name: HR Employee Clearance
+    description: >-
+      Employee Clearance request CRUD, paginated listing, and employee, approver, and computer
+      destination lookups. Each endpoint requires the matching
+      EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW / CREATE / UPDATE / DELETE permission;
+      VIEW_ALL separately controls all-employee scope and visibility. Ordinary employee scope
+      covers the authenticated employee and verified direct reports using PERSON_ID /
+      SUPERVISOR_ID. Visibility and writes are scoped to the request employee, not its creator.
+      Updates and deletes are restricted to Draft or Rejected requests. No workflow actions,
+      approval processing, email, PDF, or attachment APIs are provided.
   - name: HR Employee of the Month
     description: >-
       Employee of the Month nominations, employee/requestor/criteria lookups and filtered
@@ -104,6 +114,19 @@ tags:
       feasibility calculation. All operations require an authenticated session. Non-HR users
       can access only ideas they created; HR users can access all ideas. Soft deletion and
       attachment upload/deletion are currently unavailable and return conflicts.
+  - name: Employee Survey
+    description: >-
+      Anonymous employee survey submission and authenticated response/report reads. The
+      protected routes use the existing survey permission resource configured by the
+      application; no permission identifier is defined by this contract. The survey router is
+      mounted at `/survey`. A missing permission key fails closed; the current error handler
+      surfaces that configuration error as `500 INTERNAL_ERROR`.
+  - name: Project Charters
+    description: >-
+      Project Charter CRUD, approved-idea and employee lookups, and reward read/write routes.
+      Routes require the configured `PROJECT_CHARTERS.PROJECT_CHARTERS` resource and action.
+      Charter creation is unavailable until the database-generated header ID mechanism is
+      verified; reward writes remain disabled pending approved grading thresholds.
 paths:
   /api/v1/auth/password/policy:
     get:
@@ -6662,6 +6685,1181 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /api/v1/hr/employee-clearance:
+    get:
+      operationId: listEmployeeClearances
+      tags: [HR Employee Clearance]
+      summary: List Employee Clearance requests
+      description: >-
+        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW` (checked on every request).
+        Results include requests for the caller and verified direct reports, determined by the
+        employee-master PERSON_ID / SUPERVISOR_ID relationship. A caller holding
+        `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW_ALL` can see all requests. The `pendingAt`
+        filter is accepted for compatibility but currently returns an empty result whenever
+        supplied; workflow lookup is not implemented. Results are ordered by header ID descending.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: status
+          in: query
+          description: Status filter; comparison is case-insensitive. `ALL` disables this filter.
+          schema:
+            type: string
+            enum: [Draft, InProcess, Approved, Accepted, Rejected, ALL]
+        - name: q
+          in: query
+          description: Case-insensitive contains search on employee name, employee number, or reference number.
+          schema: { type: string, maxLength: 150 }
+        - name: empNo
+          in: query
+          description: Exact positive integer employee number.
+          schema: { type: integer, minimum: 1 }
+        - name: department
+          in: query
+          description: Case-insensitive contains search on department.
+          schema: { type: string, maxLength: 150 }
+        - name: purpose
+          in: query
+          description: Case-insensitive contains search on purpose.
+          schema: { type: string, maxLength: 150 }
+        - name: createdFrom
+          in: query
+          description: Inclusive creation-date lower bound.
+          schema: { type: string, format: date }
+        - name: createdTo
+          in: query
+          description: Inclusive creation-date upper bound.
+          schema: { type: string, format: date }
+        - name: pendingAt
+          in: query
+          description: >-
+            Compatibility filter only. Any non-empty value currently produces no results;
+            workflow lookup is not implemented.
+          schema: { type: string, maxLength: 150 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        '200':
+          description: Filtered page; pagination fields are inside `data`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeClearanceListResponse' }
+              example:
+                success: true
+                data:
+                  page: 1
+                  pageSize: 25
+                  total: 1
+                  items:
+                    - headerId: '42'
+                      referenceNo: EC/26/042
+                      empNo: 12345
+                      empName: Example Employee
+                      jobTitle: Technician
+                      department: Operations
+                      contact: '5550100'
+                      division: '300000003618177'
+                      purpose: Employee clearance
+                      computerReturned: true
+                      status: Draft
+                      vacationFrom: null
+                      vacationTo: null
+                      pendingAt: null
+                      workflowStarted: null
+                      workflowEnded: null
+                      createdAt: '2026-10-31'
+                  meta:
+                    requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createEmployeeClearance
+      tags: [HR Employee Clearance]
+      summary: Create an Employee Clearance request
+      description: >-
+        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:CREATE` and a session-bound
+        `X-CSRF-Token`. The employee must be the caller or a direct report, unless the caller
+        holds `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW_ALL`. Employee, manager, destination,
+        checkbox flags, matrix subjects, identifiers, reference number, and creation status are
+        resolved or generated server-side. The initial status is `Draft`.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmployeeClearanceWrite' }
+            example:
+              employee: { empNo: 12345 }
+              contact: '5550100'
+              purpose: Employee clearance
+              vacationFrom: '2026-11-01'
+              vacationTo: '2026-11-15'
+              departmentManager:
+                name: Example Manager
+                date: '2026-10-31'
+                signature: ''
+              itManager: { name: '', date: null, signature: '' }
+              computerReceivedBy: it
+              computerSignature: ''
+              sections:
+                employeeDept:
+                  items: [files, tools]
+                  comments: ''
+                  cost: null
+                  approver: ''
+                  signature: ''
+              itMatrix:
+                - { action: no action, accessTo: '' }
+                - { action: no action, accessTo: '' }
+                - { action: no action, accessTo: '' }
+                - { action: no action, accessTo: '' }
+                - { action: no action, accessTo: '' }
+      responses:
+        '201':
+          description: Created. Returns the generated ID, reference number, and Draft status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeClearanceCreateResponse' }
+              example:
+                success: true
+                data: { headerId: '42', referenceNo: '300000003618177/26/042', status: Draft }
+                meta: { requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Employee does not exist or is outside the caller's employee scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/employee-clearance/lookups/employees:
+    get:
+      operationId: listEmployeeClearanceEmployees
+      tags: [HR Employee Clearance]
+      summary: List employees for Employee Clearance
+      description: >-
+        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW`. By default returns the caller
+        and direct reports, filtered by name or employee number. `scope=all` widens the lookup
+        only when the caller holds `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW_ALL`; otherwise
+        the lookup remains scoped. Results include pagination inside `data`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: scope
+          in: query
+          schema: { type: string, enum: [scoped, all], default: scoped }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 150 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Employee lookup page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeClearanceEmployeesResponse' }
+              example:
+                success: true
+                data:
+                  page: 1
+                  pageSize: 50
+                  total: 1
+                  items:
+                    - empNo: 12345
+                      fullName: Example Employee
+                      jobTitle: Technician
+                      department: Operations
+                      division: '300000003618177'
+                      userEmail: employee@example.invalid
+                meta: { requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/employee-clearance/lookups/employees/{empNo}:
+    get:
+      operationId: getEmployeeClearanceEmployee
+      tags: [HR Employee Clearance]
+      summary: Get Employee Clearance employee details
+      description: >-
+        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW`. Returns auto-fill details only
+        when the employee is in the caller's scope or the caller holds
+        `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW_ALL`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: empNo
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Employee details for the form.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/EmployeeClearanceEmployee' }
+              example:
+                success: true
+                data:
+                  empNo: 12345
+                  fullName: Example Employee
+                  jobTitle: Technician
+                  department: Operations
+                  division: '300000003618177'
+                  userEmail: employee@example.invalid
+                  personId: 123
+                  directManager: Example Manager
+                  supervisorUserId: '456'
+                meta: { requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/employee-clearance/lookups/approvers:
+    get:
+      operationId: listEmployeeClearanceApprovers
+      tags: [HR Employee Clearance]
+      summary: List approvers for a clearance section
+      description: Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: section
+          in: query
+          schema:
+            type: string
+            enum: [department, quality, warehouse, accounts, admin]
+            default: department
+      responses:
+        '200':
+          description: Approvers for the requested section.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeClearanceApproversResponse' }
+              example:
+                success: true
+                data:
+                  section: department
+                  items:
+                    - { name: Example Manager, empNo: 5678, userId: 456 }
+                meta: { requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/employee-clearance/lookups/computer-destinations:
+    get:
+      operationId: listEmployeeClearanceComputerDestinations
+      tags: [HR Employee Clearance]
+      summary: List computer return destinations
+      description: >-
+        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW`. Employee choices are restricted to
+        the caller and verified direct reports; callers holding
+        `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW_ALL` can see all eligible employees. The
+        fixed IT and No Computer options are available to all callers.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Employee destinations plus the fixed IT and No Computer options.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeClearanceComputerDestinationsResponse' }
+              example:
+                success: true
+                data:
+                  - { value: '12345', label: Example Employee, kind: employee }
+                  - { value: it, label: IT, kind: it }
+                  - { value: none, label: No Computer, kind: none }
+                meta: { requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/employee-clearance/{headerId}:
+    get:
+      operationId: getEmployeeClearance
+      tags: [HR Employee Clearance]
+      summary: Read one Employee Clearance request
+      description: >-
+        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW`. The caller must hold `VIEW_ALL`
+        or be in scope for the employee on the request; creator status alone does not grant
+        visibility. Request status does not trigger workflow processing.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/EmployeeClearanceId' }
+      responses:
+        '200':
+          description: Employee Clearance request detail.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeClearanceDetailResponse' }
+              example:
+                success: true
+                data:
+                  headerId: '42'
+                  referenceNo: '300000003618177/26/042'
+                  empNo: 12345
+                  empName: Example Employee
+                  jobTitle: Technician
+                  department: Operations
+                  division: '300000003618177'
+                  contact: '5550100'
+                  purpose: Employee clearance
+                  computerReturned: true
+                  status: Draft
+                  createdBy: '456'
+                  vacationFrom: '2026-11-01'
+                  vacationTo: '2026-11-15'
+                  departmentManager:
+                    { name: Example Manager, empNo: 5678, date: '2026-10-31', signature: '' }
+                  computerReceivedBy: it
+                  itManager: { name: '', date: null, signature: '' }
+                  itMatrix: []
+                  sections:
+                    employeeDept: null
+                    quality: null
+                    warehouse: null
+                    accounts: null
+                    admin: null
+                meta: { requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: The request was not found or is outside the caller's visibility scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: updateEmployeeClearance
+      tags: [HR Employee Clearance]
+      summary: Update an Employee Clearance request
+      description: >-
+        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:UPDATE` and a session-bound
+        `X-CSRF-Token`. The caller must hold `VIEW_ALL` or be in scope for the employee on the
+        request. Only Draft or Rejected requests can be updated; employee, department-manager,
+        and destination values are validated and normalized server-side. Status and workflow
+        state are not changed.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/EmployeeClearanceId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmployeeClearanceWrite' }
+      responses:
+        '200':
+          description: Request updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeClearanceUpdateResponse' }
+              example:
+                success: true
+                data: { headerId: '42', updated: true }
+                meta: { requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: The request was not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Request status does not permit updates (STATE_CONFLICT).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteEmployeeClearance
+      tags: [HR Employee Clearance]
+      summary: Delete an Employee Clearance request
+      description: >-
+        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:DELETE` and a session-bound
+        `X-CSRF-Token`. The caller must hold `VIEW_ALL` or be in scope for the employee on the
+        request. Only Draft or Rejected requests can be deleted. The request's Employee Clearance
+        section rows are removed in the same service transaction.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/EmployeeClearanceId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200':
+          description: Request and its form rows deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeClearanceDeleteResponse' }
+              example:
+                success: true
+                data:
+                  headerId: '42'
+                  deleted:
+                    XX_CLEARANCE_IT: 5
+                    XX_CLEARANCE_EMPLOYEES: 1
+                    XX_CLEARANCE_QUALITY: 1
+                    XX_CLEARANCE_WH: 1
+                    XX_CLEARANCE_ACCOUNTS: 1
+                    XX_CLEARANCE_ADMIN: 1
+                    XXZP_EMCLFOR_WORK: 1
+                    XX_CLEARANCE_HEADER: 1
+                meta: { requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: The request was not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Request status does not permit deletion (STATE_CONFLICT).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/survey/meta:
+    get:
+      operationId: getEmployeeSurveyMeta
+      tags: [Employee Survey]
+      summary: Get Employee Survey form metadata
+      description: >-
+        Returns the configured demographics, section and question catalogue, and accepted
+        answers. This route does not require authentication. Question text may be null when a
+        language is not present in the stored catalogue.
+      responses:
+        '200':
+          description: Survey metadata.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyMetaResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/survey/responses:
+    post:
+      operationId: createEmployeeSurveyResponse
+      tags: [Employee Survey]
+      summary: Submit an Employee Survey response
+      description: >-
+        Accepts an anonymous response and stores its header and 29 answer lines in one
+        transaction. The selected language's canonical question text must exist in the
+        catalogue or the request fails with `SURVEY_CATALOGUE_UNAVAILABLE` (503). The global
+        origin check applies to this state-changing request; no session-bound CSRF token is
+        required because this route is anonymous.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurveySubmission' }
+      responses:
+        '201':
+          description: Response created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyCreatedResponse' }
+              example:
+                success: true
+                data: { headerId: 42, lineCount: 29 }
+                meta: { requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '503':
+          description: Canonical question text is unavailable in the selected language.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    get:
+      operationId: listEmployeeSurveyResponses
+      tags: [Employee Survey]
+      summary: List submitted Employee Survey responses
+      description: >-
+        Requires an authenticated session and the existing configured survey `VIEW`
+        permission. The query searches remark text case-insensitively and filters by the
+        validated demographics, year, and submitted date range. Joi accepts ISO dates and
+        timestamps for `from` and `to`, but the repository converts them with the date-only
+        format `YYYY-MM-DD`; timestamp values may therefore fail at the database layer.
+        Pagination is returned inside `data` as `page`,
+        `pageSize`, `total`, and `items` (not in the shared top-level pagination envelope).
+        If the application has no configured survey permission resource, the route fails
+        closed and the current error handler returns an internal error.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: year
+          in: query
+          schema: { $ref: '#/components/schemas/SurveyListYear' }
+        - name: age
+          in: query
+          schema: { $ref: '#/components/schemas/SurveyAge' }
+        - name: jobLevel
+          in: query
+          schema: { $ref: '#/components/schemas/SurveyJobLevel' }
+        - name: department
+          in: query
+          schema: { $ref: '#/components/schemas/SurveyDepartment' }
+        - name: experience
+          in: query
+          schema: { $ref: '#/components/schemas/SurveyExperience' }
+        - name: from
+          in: query
+          description: ISO date or date-time lower boundary, inclusive.
+          schema:
+            oneOf:
+              - type: string
+                format: date
+              - type: string
+                format: date-time
+        - name: to
+          in: query
+          description: ISO date or date-time upper boundary, inclusive.
+          schema:
+            oneOf:
+              - type: string
+                format: date
+              - type: string
+                format: date-time
+        - name: q
+          in: query
+          description: Case-insensitive substring search in response remarks.
+          schema: { type: string, maxLength: 200 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: A page of matching survey responses.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/survey/responses/{headerId}:
+    get:
+      operationId: getEmployeeSurveyResponse
+      tags: [Employee Survey]
+      summary: Get one submitted Employee Survey response
+      description: Requires an authenticated session and the existing configured survey `VIEW` permission.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: The survey response, grouped by section.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Survey response not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteEmployeeSurveyResponse
+      tags: [Employee Survey]
+      summary: Delete one submitted Employee Survey response
+      description: >-
+        Requires an authenticated session, the existing configured survey `DELETE` permission,
+        and a session-bound `X-CSRF-Token`. The header and its answer lines are deleted in one
+        transaction. The global origin check also applies.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200':
+          description: The survey response and its answer lines were deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyDeleteResponse' }
+              example:
+                success: true
+                data: { headers: 1, lines: 29 }
+                meta: { requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Survey response not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/survey/reports/questions:
+    get:
+      operationId: listEmployeeSurveyQuestions
+      tags: [Employee Survey]
+      summary: List Employee Survey report questions
+      description: Requires an authenticated session and the existing configured survey `VIEW` permission.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Question keys and bilingual catalogue text.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyQuestionsResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/survey/reports/filters:
+    get:
+      operationId: getEmployeeSurveyReportFilters
+      tags: [Employee Survey]
+      summary: Get global Employee Survey report filters
+      description: >-
+        Requires an authenticated session and the existing configured survey `VIEW` permission.
+        Returned demographic values are restricted to values accepted by the survey submission
+        validation; `years` contains years present in the stored response data.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Available global report filter values.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyFiltersResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/survey/reports/question-filters:
+    post:
+      operationId: getEmployeeSurveyQuestionFilters
+      tags: [Employee Survey]
+      summary: Get filter values for a question
+      description: >-
+        Requires an authenticated session and the existing configured survey `VIEW` permission.
+        This POST reads report data and does not require a CSRF token.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurveyQuestionRequest' }
+      responses:
+        '200':
+          description: Available filter values for responses to the selected question.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyFiltersResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/survey/reports/distribution:
+    post:
+      operationId: getEmployeeSurveyAnswerDistribution
+      tags: [Employee Survey]
+      summary: Get answer distribution for a question
+      description: >-
+        Requires an authenticated session and the existing configured survey `VIEW` permission.
+        Optional dimension filters determine totals and which charts are selected. This POST
+        reads report data and does not require a CSRF token.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurveyDistributionRequest' }
+      responses:
+        '200':
+          description: Answer percentages, weighted score, and selected dimension charts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyDistributionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/survey/reports/category-score:
+    post:
+      operationId: getEmployeeSurveyCategoryScore
+      tags: [Employee Survey]
+      summary: Get weighted score for a survey category
+      description: >-
+        Requires an authenticated session and the existing configured survey `VIEW` permission.
+        This POST reads report data and does not require a CSRF token.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurveyCategoryRequest' }
+      responses:
+        '200':
+          description: Category score summary.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyCategoryScoreResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/survey/reports/yearwise:
+    post:
+      operationId: getEmployeeSurveyYearwiseReport
+      tags: [Employee Survey]
+      summary: Get a question's answer distribution by year
+      description: >-
+        Requires an authenticated session and the existing configured survey `VIEW` permission.
+        The requested year list must contain at least one unique year. This POST reads report
+        data and does not require a CSRF token.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurveyYearwiseRequest' }
+      responses:
+        '200':
+          description: Answer distribution grouped by the requested years.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyYearwiseResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/survey/reports/category-department:
+    get:
+      operationId: getEmployeeSurveyCategoryDepartmentReport
+      tags: [Employee Survey]
+      summary: Get category and department analysis
+      description: >-
+        Requires an authenticated session and the existing configured survey `VIEW` permission.
+        Returns all survey categories, their department summaries, and an overall summary for
+        the selected year and demographic filters.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: year
+          in: query
+          schema: { $ref: '#/components/schemas/SurveyCategoryDepartmentYear' }
+        - name: age
+          in: query
+          schema: { $ref: '#/components/schemas/SurveyOptionalAge' }
+        - name: jobLevel
+          in: query
+          schema: { $ref: '#/components/schemas/SurveyOptionalJobLevel' }
+        - name: department
+          in: query
+          schema: { $ref: '#/components/schemas/SurveyOptionalDepartment' }
+        - name: experience
+          in: query
+          schema: { $ref: '#/components/schemas/SurveyOptionalExperience' }
+      responses:
+        '200':
+          description: Category and department weighted score summaries.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SurveyCategoryDepartmentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/projects/charters:
+    get:
+      operationId: listProjectCharters
+      tags: [Project Charters]
+      summary: List Project Charters
+      description: >-
+        Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`.
+        Results are ordered by header ID descending. `from`/`to` filter expected project dates;
+        `createdFrom`/`createdTo` filter charter creation dates. This list returns `total` and
+        `items` in `data`; it does not use the shared top-level pagination object.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive contains search on project name, project manager, or idea number.
+          schema: { type: [string, 'null'], maxLength: 200 }
+        - name: ideaNo
+          in: query
+          description: Exact idea number.
+          schema: { type: [string, 'null'], maxLength: 100 }
+        - name: status
+          in: query
+          description: The only accepted status filter.
+          schema: { type: string, enum: [Pending] }
+        - name: projectManager
+          in: query
+          schema: { type: [string, 'null'], maxLength: 200 }
+        - name: processOwner
+          in: query
+          schema: { type: [string, 'null'], maxLength: 200 }
+        - name: from
+          in: query
+          description: Expected project start date lower bound, YYYY-MM-DD.
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        - name: to
+          in: query
+          description: Expected project completion date upper bound, YYYY-MM-DD.
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        - name: createdFrom
+          in: query
+          description: Charter creation date lower bound, YYYY-MM-DD.
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        - name: createdTo
+          in: query
+          description: Charter creation date upper bound, YYYY-MM-DD.
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        '200':
+          description: Matching Project Charters.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectCharterListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createProjectCharter
+      tags: [Project Charters]
+      summary: Create a Project Charter
+      description: >-
+        Requires `PROJECT_CHARTERS.PROJECT_CHARTERS:CREATE`, an authenticated session, and
+        `X-CSRF-Token`. The request schema is validated, but the service currently always returns
+        `503 CHARTER_ID_GENERATOR_UNVERIFIED`; creation is blocked until the database-generated
+        `HEADER_ID` mechanism is verified. The API does not calculate an ID or use MAX+1.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectCharterCreate' }
+      responses:
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '503':
+          description: Project Charter creation is blocked pending verification of database-generated HEADER_ID.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/projects/charters/lookups/ideas:
+    get:
+      operationId: listApprovedProjectCharterIdeas
+      tags: [Project Charters]
+      summary: List approved ideas for Project Charters
+      description: Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Approved ideas, ordered by idea header ID descending.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectCharterIdeasResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/projects/charters/lookups/ideas/{ideaId}:
+    get:
+      operationId: getApprovedProjectCharterIdea
+      tags: [Project Charters]
+      summary: Get an approved idea for a Project Charter
+      description: >-
+        Requires `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`. The idea ID is a positive decimal
+        string. The service returns `400 VALIDATION_ERROR` if the idea is not approved.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: ideaId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ProjectCharterId' }
+      responses:
+        '200':
+          description: Approved idea details.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectCharterIdeaResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/projects/charters/lookups/employees:
+    get:
+      operationId: listProjectCharterEmployees
+      tags: [Project Charters]
+      summary: Search employees for Project Charters
+      description: >-
+        Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`.
+        Returns an array of matching employees; `page` and `pageSize` control repository
+        pagination, but the response does not include total-count metadata. `scope` is accepted
+        as a string but is not used by the current repository query.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: q
+          in: query
+          schema: { type: [string, 'null'], maxLength: 100 }
+        - name: scope
+          in: query
+          schema: { type: [string, 'null'], maxLength: 30 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        '200':
+          description: A page of matching employees.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectCharterEmployeesResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/projects/charters/lookups/employees/{empNo}:
+    get:
+      operationId: getProjectCharterEmployee
+      tags: [Project Charters]
+      summary: Get an employee for a Project Charter
+      description: Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: empNo
+          in: path
+          required: true
+          schema: { type: string, maxLength: 30, minLength: 1 }
+      responses:
+        '200':
+          description: Employee details.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectCharterEmployeeResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Employee not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/projects/charters/{headerId}:
+    get:
+      operationId: getProjectCharter
+      tags: [Project Charters]
+      summary: Get a Project Charter
+      description: Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ProjectCharterId' }
+      responses:
+        '200':
+          description: Project Charter details, milestones, and reward-existence indicator.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectCharterDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Project Charter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: updateProjectCharter
+      tags: [Project Charters]
+      summary: Update a Project Charter
+      description: >-
+        Requires `PROJECT_CHARTERS.PROJECT_CHARTERS:UPDATE`, an authenticated session, and
+        `X-CSRF-Token`. Only a `Pending` charter can be updated. The existing linked idea must
+        still be approved; the request cannot reassign the charter to a different idea.
+        `expectedEndDate` must be on or after `expectedStartDate`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ProjectCharterId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectCharterUpdate' }
+      responses:
+        '200':
+          description: Updated Project Charter.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectCharterDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Project Charter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Charter is not Pending or can no longer be updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteProjectCharter
+      tags: [Project Charters]
+      summary: Delete a Project Charter
+      description: >-
+        Requires `PROJECT_CHARTERS.PROJECT_CHARTERS:DELETE`, an authenticated session, and
+        `X-CSRF-Token`. Only a `Pending` charter can be deleted. Its reward and charter rows are
+        deleted in the same transaction.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ProjectCharterId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200':
+          description: Delete row counts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectCharterDeleteResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Project Charter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Charter is not Pending and cannot be deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/projects/charters/{headerId}/reward:
+    get:
+      operationId: getProjectCharterReward
+      tags: [Project Charters]
+      summary: Get Project Charter reward information
+      description: >-
+        Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`. The
+        associated idea must be approved. `record` is null when no reward row exists, and
+        `gradingEnabled` is currently false.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ProjectCharterId' }
+      responses:
+        '200':
+          description: Reward information and current grading availability.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectCharterRewardResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Project Charter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: updateProjectCharterReward
+      tags: [Project Charters]
+      summary: Update Project Charter actual savings
+      description: >-
+        Requires `PROJECT_CHARTERS.PROJECT_CHARTERS:UPDATE`, an authenticated session, and
+        `X-CSRF-Token`. The body is validated, but writes are currently disabled and return
+        `409 REWARD_GRADING_UNCONFIRMED` after confirming the charter exists. Grading thresholds
+        must be approved before reward updates are enabled.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ProjectCharterId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [actualSavings]
+              properties:
+                actualSavings: { type: number, minimum: 0 }
+      responses:
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Project Charter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Reward writes are disabled until grading thresholds are approved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
 components:
   securitySchemes:
     sessionCookie:
@@ -9713,6 +10911,1428 @@ components:
       properties:
         success: { const: true }
         data: { $ref: '#/components/schemas/SickLeaveDeleteAttachmentResult' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    EmployeeClearanceId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+      description: Positive Oracle header identifier represented as a decimal string.
+    EmployeeClearanceNullableDate:
+      oneOf:
+        - type: string
+          format: date
+        - type: 'null'
+        - type: string
+          const: ''
+      description: ISO calendar date, null, or an empty string.
+    EmployeeClearanceSignature:
+      type: string
+      enum: ['', Approved, Rejected, Hold]
+      default: ''
+    EmployeeClearanceSectionCommonWrite:
+      type: object
+      properties:
+        comments: { type: [string, 'null'], maxLength: 2000, default: '' }
+        approver: { type: [string, 'null'], maxLength: 500, default: '' }
+        signature: { $ref: '#/components/schemas/EmployeeClearanceSignature' }
+    EmployeeClearanceEmployeeDeptWrite:
+      allOf:
+        - $ref: '#/components/schemas/EmployeeClearanceSectionCommonWrite'
+        - type: object
+          properties:
+            items:
+              type: array
+              uniqueItems: true
+              default: []
+              items:
+                type: string
+                enum:
+                  - files
+                  - tools
+                  - instruments
+                  - book_manuals
+                  - manuals
+                  - office_keys
+                  - documents
+                  - locker_keys
+                  - safety_items
+                  - vehicle
+                  - office_stationary
+                  - others
+            cost: { type: [number, 'null'], minimum: 0, default: null }
+      unevaluatedProperties: false
+    EmployeeClearanceQualityWrite:
+      allOf:
+        - $ref: '#/components/schemas/EmployeeClearanceSectionCommonWrite'
+        - type: object
+          properties:
+            items:
+              type: array
+              uniqueItems: true
+              default: []
+              items: { type: string, enum: [uniform, knife, documents, others] }
+            cost: { type: [number, 'null'], minimum: 0, default: null }
+      unevaluatedProperties: false
+    EmployeeClearanceWarehouseWrite:
+      allOf:
+        - $ref: '#/components/schemas/EmployeeClearanceSectionCommonWrite'
+        - type: object
+          properties:
+            items:
+              type: array
+              uniqueItems: true
+              default: []
+              items: { type: string, enum: [tools, others] }
+            cost: { type: [number, 'null'], minimum: 0, default: null }
+      unevaluatedProperties: false
+    EmployeeClearanceAccountsWrite:
+      allOf:
+        - $ref: '#/components/schemas/EmployeeClearanceSectionCommonWrite'
+        - type: object
+          properties:
+            items:
+              type: array
+              uniqueItems: true
+              default: []
+              items: { type: string, enum: [loans, others] }
+            cost: { type: [number, 'null'], minimum: 0, default: null }
+      unevaluatedProperties: false
+    EmployeeClearanceAdminWrite:
+      allOf:
+        - $ref: '#/components/schemas/EmployeeClearanceSectionCommonWrite'
+        - type: object
+          properties:
+            items:
+              type: array
+              uniqueItems: true
+              default: []
+              items:
+                type: string
+                enum:
+                  - iqama
+                  - id_cards
+                  - bank_loan
+                  - driving_license
+                  - gurantor
+                  - mobile_chip
+                  - medical_cards
+                  - door_attendance
+                  - others
+            appDate: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+            visaExpiry: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+      unevaluatedProperties: false
+    EmployeeClearanceSectionsWrite:
+      type: object
+      properties:
+        employeeDept: { $ref: '#/components/schemas/EmployeeClearanceEmployeeDeptWrite' }
+        quality: { $ref: '#/components/schemas/EmployeeClearanceQualityWrite' }
+        warehouse: { $ref: '#/components/schemas/EmployeeClearanceWarehouseWrite' }
+        accounts: { $ref: '#/components/schemas/EmployeeClearanceAccountsWrite' }
+        admin: { $ref: '#/components/schemas/EmployeeClearanceAdminWrite' }
+      additionalProperties: false
+      description: >-
+        Each section defaults to an empty selection and blank comments/approver/signature.
+    EmployeeClearanceITMatrixLineWrite:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum:
+            - delete
+            - no action
+            - remote access
+            - copy give to
+            - forward copy to
+            - cisco jaber
+            - disabled untill
+        accessTo:
+          type: [string, 'null']
+          maxLength: 500
+          description: >-
+            Required as an ISO date for `disabled untill`. A date-shaped value is rejected for
+            every other action. Empty/null values are permitted for other actions.
+      additionalProperties: true
+    EmployeeClearanceWrite:
+      type: object
+      required: [employee, contact, purpose, departmentManager, computerReceivedBy, itMatrix]
+      properties:
+        employee:
+          type: object
+          required: [empNo]
+          properties:
+            empNo: { type: integer, minimum: 1 }
+          additionalProperties: true
+          description: Only empNo is used; employee details are loaded from the employee master.
+        contact: { type: string, minLength: 1, maxLength: 100 }
+        purpose: { type: string, minLength: 1, maxLength: 1000 }
+        vacationFrom: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+        vacationTo: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+        departmentManager:
+          type: object
+          required: [name]
+          properties:
+            name: { type: string, minLength: 1, maxLength: 500 }
+            empNo:
+              description: Accepted but stripped; manager employee number is resolved server-side.
+            date: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+            signature: { $ref: '#/components/schemas/EmployeeClearanceSignature' }
+          additionalProperties: false
+        itManager:
+          type: object
+          properties:
+            name: { type: [string, 'null'], maxLength: 500, default: '' }
+            date: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+            signature: { $ref: '#/components/schemas/EmployeeClearanceSignature' }
+          additionalProperties: false
+        computerReceivedBy:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: '`it`, `none`, or a value from the computer-destinations lookup.'
+        computerSignature: { $ref: '#/components/schemas/EmployeeClearanceSignature' }
+        sections: { $ref: '#/components/schemas/EmployeeClearanceSectionsWrite' }
+        itMatrix:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items: { $ref: '#/components/schemas/EmployeeClearanceITMatrixLineWrite' }
+          description: >-
+            Exactly five lines in the form's fixed subject order. lineId and other additional
+            properties are accepted but ignored; line IDs and subject labels are server-owned.
+      additionalProperties: true
+      description: >-
+        vacationTo must be on or after vacationFrom when both are supplied. Signature and section
+        defaults are applied by the server.
+    EmployeeClearanceCreateResult:
+      type: object
+      required: [headerId, referenceNo, status]
+      properties:
+        headerId: { $ref: '#/components/schemas/EmployeeClearanceId' }
+        referenceNo: { type: string }
+        status: { type: string, const: Draft }
+    EmployeeClearanceUpdateResult:
+      type: object
+      required: [headerId, updated]
+      properties:
+        headerId: { $ref: '#/components/schemas/EmployeeClearanceId' }
+        updated: { type: boolean, const: true }
+    EmployeeClearanceDeleteCounts:
+      type: object
+      required:
+        [
+          XX_CLEARANCE_IT,
+          XX_CLEARANCE_EMPLOYEES,
+          XX_CLEARANCE_QUALITY,
+          XX_CLEARANCE_WH,
+          XX_CLEARANCE_ACCOUNTS,
+          XX_CLEARANCE_ADMIN,
+          XXZP_EMCLFOR_WORK,
+          XX_CLEARANCE_HEADER,
+        ]
+      properties:
+        XX_CLEARANCE_IT: { type: integer }
+        XX_CLEARANCE_EMPLOYEES: { type: integer }
+        XX_CLEARANCE_QUALITY: { type: integer }
+        XX_CLEARANCE_WH: { type: integer }
+        XX_CLEARANCE_ACCOUNTS: { type: integer }
+        XX_CLEARANCE_ADMIN: { type: integer }
+        XXZP_EMCLFOR_WORK: { type: integer }
+        XX_CLEARANCE_HEADER: { type: integer }
+    EmployeeClearanceDeleteResult:
+      type: object
+      required: [headerId, deleted]
+      properties:
+        headerId: { $ref: '#/components/schemas/EmployeeClearanceId' }
+        deleted: { $ref: '#/components/schemas/EmployeeClearanceDeleteCounts' }
+    EmployeeClearanceListItem:
+      type: object
+      required:
+        [
+          headerId,
+          empNo,
+          empName,
+          contact,
+          purpose,
+          computerReturned,
+          status,
+          pendingAt,
+          workflowStarted,
+          workflowEnded,
+        ]
+      properties:
+        headerId: { $ref: '#/components/schemas/EmployeeClearanceId' }
+        referenceNo: { type: [string, 'null'] }
+        empNo: { oneOf: [{ type: string }, { type: integer }] }
+        empName: { type: [string, 'null'] }
+        jobTitle: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+        contact: { type: [string, 'null'] }
+        division: { type: [string, 'null'] }
+        purpose: { type: [string, 'null'] }
+        computerReturned: { type: boolean }
+        status:
+          type: string
+          description: ACCEPTED is presented as Approved; other stored status values pass through.
+        vacationFrom: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+        vacationTo: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+        pendingAt: { type: 'null', description: Workflow lookup is not implemented. }
+        workflowStarted: { type: 'null', description: Workflow processing is not implemented. }
+        workflowEnded: { type: 'null', description: Workflow processing is not implemented. }
+        createdAt: { type: [string, 'null'], format: date }
+    EmployeeClearanceListData:
+      type: object
+      required: [page, pageSize, total, items]
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/EmployeeClearanceListItem' }
+    EmployeeClearanceEmployee:
+      type: object
+      required: [empNo, fullName, jobTitle, department, division, userEmail]
+      properties:
+        empNo: { oneOf: [{ type: string }, { type: integer }] }
+        fullName: { type: [string, 'null'] }
+        jobTitle: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+        division: { type: [string, 'null'] }
+        userEmail: { type: [string, 'null'], format: email }
+        personId: { oneOf: [{ type: string }, { type: integer }] }
+        directManager: { type: [string, 'null'] }
+        supervisorUserId:
+          oneOf:
+            - { type: string }
+            - { type: integer }
+            - { type: 'null' }
+    EmployeeClearanceEmployeeListItem:
+      type: object
+      required: [empNo, fullName, jobTitle, department, division, userEmail]
+      properties:
+        empNo: { oneOf: [{ type: string }, { type: integer }] }
+        fullName: { type: [string, 'null'] }
+        jobTitle: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+        division: { type: [string, 'null'] }
+        userEmail: { type: [string, 'null'], format: email }
+    EmployeeClearanceApprover:
+      type: object
+      required: [name, empNo, userId]
+      properties:
+        name: { type: string }
+        empNo: { oneOf: [{ type: string }, { type: integer }] }
+        userId: { oneOf: [{ type: string }, { type: integer }] }
+    EmployeeClearanceSection:
+      type: object
+      required: [items, flags, comments, cost, approver, signature, managerUserId]
+      properties:
+        items:
+          type: array
+          items: { type: string }
+        flags:
+          type: object
+          additionalProperties: { type: integer, enum: [0, 1] }
+        comments: { type: [string, 'null'] }
+        cost: { oneOf: [{ type: number }, { type: string }, { type: 'null' }] }
+        approver: { type: [string, 'null'] }
+        signature: { type: [string, 'null'] }
+        managerUserId:
+          oneOf:
+            - { type: string }
+            - { type: integer }
+            - { type: 'null' }
+        vacationFrom: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+        vacationTo: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+        appDate: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+        visaExpiry: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+    EmployeeClearanceITMatrixLine:
+      type: object
+      required: [lineId, subject, action, accessTo]
+      properties:
+        lineId: { oneOf: [{ type: string }, { type: integer }] }
+        subject: { type: string }
+        action: { type: [string, 'null'] }
+        accessTo: { type: [string, 'null'] }
+    EmployeeClearanceDetail:
+      type: object
+      required:
+        [
+          headerId,
+          empNo,
+          computerReturned,
+          status,
+          createdBy,
+          departmentManager,
+          computerReceivedBy,
+          itManager,
+          itMatrix,
+          sections,
+        ]
+      properties:
+        headerId: { $ref: '#/components/schemas/EmployeeClearanceId' }
+        referenceNo: { type: [string, 'null'] }
+        empNo: { oneOf: [{ type: string }, { type: integer }] }
+        empName: { type: [string, 'null'] }
+        jobTitle: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+        division: { type: [string, 'null'] }
+        contact: { type: [string, 'null'] }
+        purpose: { type: [string, 'null'] }
+        computerReturned: { type: boolean }
+        status: { type: string }
+        createdBy: { $ref: '#/components/schemas/EmployeeClearanceId' }
+        vacationFrom: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+        vacationTo: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+        departmentManager:
+          type: object
+          required: [name, date, signature]
+          properties:
+            name: { type: [string, 'null'] }
+            empNo: { oneOf: [{ type: string }, { type: integer }, { type: 'null' }] }
+            date: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+            signature: { type: [string, 'null'] }
+        computerReceivedBy: { type: [string, 'null'] }
+        itManager:
+          type: object
+          required: [name, date, signature]
+          properties:
+            name: { type: [string, 'null'] }
+            date: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
+            signature: { type: [string, 'null'] }
+        itMatrix:
+          type: array
+          items: { $ref: '#/components/schemas/EmployeeClearanceITMatrixLine' }
+        sections:
+          type: object
+          required: [employeeDept, quality, warehouse, accounts, admin]
+          properties:
+            employeeDept:
+              {
+                oneOf:
+                  [{ $ref: '#/components/schemas/EmployeeClearanceSection' }, { type: 'null' }],
+              }
+            quality:
+              {
+                oneOf:
+                  [{ $ref: '#/components/schemas/EmployeeClearanceSection' }, { type: 'null' }],
+              }
+            warehouse:
+              {
+                oneOf:
+                  [{ $ref: '#/components/schemas/EmployeeClearanceSection' }, { type: 'null' }],
+              }
+            accounts:
+              {
+                oneOf:
+                  [{ $ref: '#/components/schemas/EmployeeClearanceSection' }, { type: 'null' }],
+              }
+            admin:
+              {
+                oneOf:
+                  [{ $ref: '#/components/schemas/EmployeeClearanceSection' }, { type: 'null' }],
+              }
+    EmployeeClearanceListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/EmployeeClearanceListData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    EmployeeClearanceCreateResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/EmployeeClearanceCreateResult' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    EmployeeClearanceUpdateResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/EmployeeClearanceUpdateResult' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    EmployeeClearanceDeleteResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/EmployeeClearanceDeleteResult' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    EmployeeClearanceDetailResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/EmployeeClearanceDetail' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    EmployeeClearanceEmployeesResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [page, pageSize, total, items]
+          properties:
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/EmployeeClearanceEmployeeListItem' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    EmployeeClearanceApproversResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [section, items]
+          properties:
+            section:
+              type: string
+              enum: [department, quality, warehouse, accounts, admin]
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/EmployeeClearanceApprover' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    EmployeeClearanceComputerDestination:
+      type: object
+      required: [value, label, kind]
+      properties:
+        value: { type: string }
+        label: { type: string }
+        kind: { type: string, enum: [employee, it, none] }
+    EmployeeClearanceComputerDestinationsResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/EmployeeClearanceComputerDestination' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    EmployeeClearanceEmployeeResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/EmployeeClearanceEmployee' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyLanguage:
+      type: string
+      enum: [en, ar]
+    SurveyAge:
+      type: string
+      enum: ['20-29', '30-39', '40-49', '50-59', '60 or More']
+    SurveyJobLevel:
+      type: string
+      enum: [Manager, Supervisor, Office Staff, Engineer, Workers]
+    SurveyDepartment:
+      type: string
+      enum:
+        - Administration & HR
+        - Purchasing
+        - Finance
+        - Production Food
+        - Production Non- food
+        - Warehouse
+        - Quality
+        - IT
+        - Technical And Development Moulding
+        - Sales Marketing food
+        - Sales Marketing Non- food
+        - Planning Section
+        - Maintenance Section
+    SurveyExperience:
+      type: string
+      enum: ['Less than One Year', '1-2 Years', '3-5 Years', '6-9 Years', '10 Years or More']
+    SurveyQuestionKey:
+      type: string
+      enum:
+        - relation_1
+        - relation_2
+        - relation_3
+        - relation_4
+        - relation_5
+        - teamwork_1
+        - teamwork_2
+        - teamwork_3
+        - info_1
+        - info_2
+        - info_3
+        - official_1
+        - official_2
+        - official_3
+        - official_4
+        - career_1
+        - career_2
+        - career_3
+        - career_4
+        - career_5
+        - career_6
+        - career_7
+        - notes_1
+        - notes_2
+        - work_1
+        - work_2
+        - work_3
+        - fairness_1
+        - fairness_2
+    SurveyAnswer:
+      type: string
+      enum: [Strongly Agree, Agree, Disagree, Strongly Disagree]
+    SurveyYear:
+      oneOf:
+        - type: string
+          pattern: '^\d{4}$'
+        - type: integer
+          minimum: 1900
+          maximum: 9999
+    SurveyListYear:
+      anyOf:
+        - $ref: '#/components/schemas/SurveyYear'
+        - type: string
+          const: ALL
+    SurveyCategoryDepartmentYear:
+      anyOf:
+        - $ref: '#/components/schemas/SurveyYear'
+        - type: string
+          const: __ALL__
+        - type: 'null'
+    SurveyOptionalAge:
+      type: [string, 'null']
+      enum: ['20-29', '30-39', '40-49', '50-59', '60 or More', __ALL__, '', null]
+    SurveyOptionalJobLevel:
+      type: [string, 'null']
+      enum: [Manager, Supervisor, Office Staff, Engineer, Workers, __ALL__, '', null]
+    SurveyOptionalDepartment:
+      type: [string, 'null']
+      enum:
+        - Administration & HR
+        - Purchasing
+        - Finance
+        - Production Food
+        - Production Non- food
+        - Warehouse
+        - Quality
+        - IT
+        - Technical And Development Moulding
+        - Sales Marketing food
+        - Sales Marketing Non- food
+        - Planning Section
+        - Maintenance Section
+        - __ALL__
+        - ''
+        - null
+    SurveyOptionalExperience:
+      type: [string, 'null']
+      enum:
+        - Less than One Year
+        - 1-2 Years
+        - 3-5 Years
+        - 6-9 Years
+        - 10 Years or More
+        - __ALL__
+        - ''
+        - null
+    SurveySubmission:
+      type: object
+      additionalProperties: false
+      required: [language, demographics, answers]
+      properties:
+        language: { $ref: '#/components/schemas/SurveyLanguage' }
+        demographics:
+          type: object
+          additionalProperties: false
+          required: [age, jobLevel, department, experience]
+          properties:
+            age: { $ref: '#/components/schemas/SurveyAge' }
+            jobLevel: { $ref: '#/components/schemas/SurveyJobLevel' }
+            department: { $ref: '#/components/schemas/SurveyDepartment' }
+            experience: { $ref: '#/components/schemas/SurveyExperience' }
+        answers:
+          type: object
+          additionalProperties: false
+          required:
+            - relation_1
+            - relation_2
+            - relation_3
+            - relation_4
+            - relation_5
+            - teamwork_1
+            - teamwork_2
+            - teamwork_3
+            - info_1
+            - info_2
+            - info_3
+            - official_1
+            - official_2
+            - official_3
+            - official_4
+            - career_1
+            - career_2
+            - career_3
+            - career_4
+            - career_5
+            - career_6
+            - career_7
+            - notes_1
+            - notes_2
+            - work_1
+            - work_2
+            - work_3
+            - fairness_1
+            - fairness_2
+          properties:
+            relation_1: { $ref: '#/components/schemas/SurveyAnswer' }
+            relation_2: { $ref: '#/components/schemas/SurveyAnswer' }
+            relation_3: { $ref: '#/components/schemas/SurveyAnswer' }
+            relation_4: { $ref: '#/components/schemas/SurveyAnswer' }
+            relation_5: { $ref: '#/components/schemas/SurveyAnswer' }
+            teamwork_1: { $ref: '#/components/schemas/SurveyAnswer' }
+            teamwork_2: { $ref: '#/components/schemas/SurveyAnswer' }
+            teamwork_3: { $ref: '#/components/schemas/SurveyAnswer' }
+            info_1: { $ref: '#/components/schemas/SurveyAnswer' }
+            info_2: { $ref: '#/components/schemas/SurveyAnswer' }
+            info_3: { $ref: '#/components/schemas/SurveyAnswer' }
+            official_1: { $ref: '#/components/schemas/SurveyAnswer' }
+            official_2: { $ref: '#/components/schemas/SurveyAnswer' }
+            official_3: { $ref: '#/components/schemas/SurveyAnswer' }
+            official_4: { $ref: '#/components/schemas/SurveyAnswer' }
+            career_1: { $ref: '#/components/schemas/SurveyAnswer' }
+            career_2: { $ref: '#/components/schemas/SurveyAnswer' }
+            career_3: { $ref: '#/components/schemas/SurveyAnswer' }
+            career_4: { $ref: '#/components/schemas/SurveyAnswer' }
+            career_5: { $ref: '#/components/schemas/SurveyAnswer' }
+            career_6: { $ref: '#/components/schemas/SurveyAnswer' }
+            career_7: { $ref: '#/components/schemas/SurveyAnswer' }
+            notes_1: { $ref: '#/components/schemas/SurveyAnswer' }
+            notes_2: { $ref: '#/components/schemas/SurveyAnswer' }
+            work_1: { $ref: '#/components/schemas/SurveyAnswer' }
+            work_2: { $ref: '#/components/schemas/SurveyAnswer' }
+            work_3: { $ref: '#/components/schemas/SurveyAnswer' }
+            fairness_1: { $ref: '#/components/schemas/SurveyAnswer' }
+            fairness_2: { $ref: '#/components/schemas/SurveyAnswer' }
+        remarks:
+          type: object
+          default: {}
+          propertyNames: { $ref: '#/components/schemas/SurveyQuestionKey' }
+          additionalProperties:
+            type: string
+            maxLength: 500
+    SurveyQuestionRequest:
+      type: object
+      additionalProperties: false
+      required: [question_key]
+      properties:
+        question_key: { $ref: '#/components/schemas/SurveyQuestionKey' }
+    SurveyDistributionRequest:
+      type: object
+      additionalProperties: false
+      required: [question_key]
+      properties:
+        question_key: { $ref: '#/components/schemas/SurveyQuestionKey' }
+        age: { $ref: '#/components/schemas/SurveyOptionalAge' }
+        job_level: { $ref: '#/components/schemas/SurveyOptionalJobLevel' }
+        department: { $ref: '#/components/schemas/SurveyOptionalDepartment' }
+        experience: { $ref: '#/components/schemas/SurveyOptionalExperience' }
+        year:
+          anyOf:
+            - $ref: '#/components/schemas/SurveyYear'
+            - type: string
+              enum: [__ALL__, ALL]
+            - type: 'null'
+    SurveyCategoryRequest:
+      type: object
+      additionalProperties: false
+      required: [category_key]
+      properties:
+        category_key:
+          type: string
+          enum: [relation, teamwork, info, official, career, notes, work, fairness]
+        age: { $ref: '#/components/schemas/SurveyOptionalAge' }
+        job_level: { $ref: '#/components/schemas/SurveyOptionalJobLevel' }
+        department: { $ref: '#/components/schemas/SurveyOptionalDepartment' }
+        experience: { $ref: '#/components/schemas/SurveyOptionalExperience' }
+        year:
+          anyOf:
+            - $ref: '#/components/schemas/SurveyYear'
+            - type: string
+              enum: [__ALL__, ALL]
+            - type: 'null'
+    SurveyYearwiseRequest:
+      type: object
+      additionalProperties: false
+      required: [question_key, years]
+      properties:
+        question_key: { $ref: '#/components/schemas/SurveyQuestionKey' }
+        years:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/SurveyYear' }
+    SurveyLocalizedText:
+      type: object
+      required: [en, ar]
+      properties:
+        en: { type: [string, 'null'] }
+        ar: { type: [string, 'null'] }
+    SurveySectionTitle:
+      type: object
+      required: [en, ar]
+      properties:
+        en: { type: string }
+        ar: { type: string }
+    SurveyQuestion:
+      type: object
+      required: [key, slot, section, code, title, text]
+      properties:
+        key: { $ref: '#/components/schemas/SurveyQuestionKey' }
+        slot: { type: integer, minimum: 1, maximum: 29 }
+        section:
+          type: string
+          enum: [relation, teamwork, info, official, career, notes, work, fairness]
+        code:
+          type: integer
+          enum: [10, 20, 30, 40, 50, 60, 70, 80]
+        title: { $ref: '#/components/schemas/SurveySectionTitle' }
+        text: { $ref: '#/components/schemas/SurveyLocalizedText' }
+    SurveyMetaSection:
+      type: object
+      required: [key, code, title]
+      properties:
+        key:
+          type: string
+          enum: [relation, teamwork, info, official, career, notes, work, fairness]
+        code:
+          type: integer
+          enum: [10, 20, 30, 40, 50, 60, 70, 80]
+        title: { $ref: '#/components/schemas/SurveySectionTitle' }
+    SurveyMetaData:
+      type: object
+      required: [demographics, sections, questions, answers]
+      properties:
+        demographics:
+          type: object
+          required: [age, jobLevel, department, experience]
+          properties:
+            age:
+              type: array
+              items: { $ref: '#/components/schemas/SurveyAge' }
+            jobLevel:
+              type: array
+              items: { $ref: '#/components/schemas/SurveyJobLevel' }
+            department:
+              type: array
+              items: { $ref: '#/components/schemas/SurveyDepartment' }
+            experience:
+              type: array
+              items: { $ref: '#/components/schemas/SurveyExperience' }
+        sections:
+          type: array
+          items: { $ref: '#/components/schemas/SurveyMetaSection' }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/SurveyQuestion' }
+        answers:
+          type: array
+          items: { $ref: '#/components/schemas/SurveyAnswer' }
+    SurveyQuestionListItem:
+      type: object
+      required: [question_key, section_en, section_ar, question_en, question_ar]
+      properties:
+        question_key: { $ref: '#/components/schemas/SurveyQuestionKey' }
+        section_en: { type: string }
+        section_ar: { type: string }
+        question_en: { type: [string, 'null'] }
+        question_ar: { type: [string, 'null'] }
+    SurveyHeader:
+      type: object
+      required: [headerId, ageBand, jobLevel, department, experience, submittedAt, year]
+      properties:
+        headerId: { type: integer, minimum: 1 }
+        ageBand: { $ref: '#/components/schemas/SurveyAge' }
+        jobLevel: { $ref: '#/components/schemas/SurveyJobLevel' }
+        department: { $ref: '#/components/schemas/SurveyDepartment' }
+        experience: { $ref: '#/components/schemas/SurveyExperience' }
+        submittedAt:
+          type: [string, 'null']
+          format: date
+        year: { type: integer }
+    SurveyListItem:
+      allOf:
+        - $ref: '#/components/schemas/SurveyHeader'
+        - type: object
+          required: [lineCount]
+          properties:
+            lineCount: { type: integer, minimum: 0 }
+    SurveyListData:
+      type: object
+      required: [items, total, page, pageSize]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SurveyListItem' }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 200 }
+    SurveyAnswerDetail:
+      type: object
+      required: [questionKey, slot, text, answer, remark]
+      properties:
+        questionKey: { $ref: '#/components/schemas/SurveyQuestionKey' }
+        slot: { type: integer, minimum: 1, maximum: 29 }
+        text: { $ref: '#/components/schemas/SurveyLocalizedText' }
+        answer:
+          type: string
+          description: Stored answer text returned as-is, including legacy Arabic values.
+        remark: { type: [string, 'null'] }
+    SurveyDetailSection:
+      type: object
+      required: [key, code, title, answers]
+      properties:
+        key:
+          type: string
+          enum: [relation, teamwork, info, official, career, notes, work, fairness]
+        code:
+          type: integer
+          enum: [10, 20, 30, 40, 50, 60, 70, 80]
+        title: { $ref: '#/components/schemas/SurveySectionTitle' }
+        answers:
+          type: array
+          items: { $ref: '#/components/schemas/SurveyAnswerDetail' }
+    SurveyDetail:
+      allOf:
+        - $ref: '#/components/schemas/SurveyHeader'
+        - type: object
+          required: [sections]
+          properties:
+            sections:
+              type: array
+              minItems: 8
+              maxItems: 8
+              items: { $ref: '#/components/schemas/SurveyDetailSection' }
+    SurveyScoreSummary:
+      type: object
+      required:
+        - stronglyAgree
+        - stronglyAgreeCount
+        - agree
+        - agreeCount
+        - disagree
+        - disagreeCount
+        - stronglyDisagree
+        - stronglyDisagreeCount
+        - totalCount
+        - responses
+        - weightedScore
+        - weightedPercent
+      properties:
+        stronglyAgree: { type: number, minimum: 0, maximum: 100 }
+        stronglyAgreeCount: { type: integer, minimum: 0 }
+        agree: { type: number, minimum: 0, maximum: 100 }
+        agreeCount: { type: integer, minimum: 0 }
+        disagree: { type: number, minimum: 0, maximum: 100 }
+        disagreeCount: { type: integer, minimum: 0 }
+        stronglyDisagree: { type: number, minimum: 0, maximum: 100 }
+        stronglyDisagreeCount: { type: integer, minimum: 0 }
+        totalCount: { type: integer, minimum: 0 }
+        responses: { type: integer, minimum: 0 }
+        weightedScore: { type: [number, 'null'], minimum: 1, maximum: 5 }
+        weightedPercent: { type: [number, 'null'], minimum: 0, maximum: 100 }
+    SurveyChartSeries:
+      type: object
+      required: [name, data]
+      properties:
+        name: { $ref: '#/components/schemas/SurveyAnswer' }
+        data:
+          type: array
+          items: { type: number, minimum: 0, maximum: 100 }
+    SurveyChart:
+      type: object
+      required: [categories, series]
+      properties:
+        categories:
+          type: array
+          items: { type: string }
+        series:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items: { $ref: '#/components/schemas/SurveyChartSeries' }
+    SurveyDistributionChart:
+      type: object
+      required: [selected, title, data]
+      properties:
+        selected: { type: boolean }
+        title: { type: string }
+        data: { $ref: '#/components/schemas/SurveyChart' }
+    SurveyDistributionData:
+      type: object
+      required: [has_data, question, scoreSummary, charts]
+      properties:
+        has_data: { type: boolean }
+        question:
+          type: object
+          required: [key, en, ar]
+          properties:
+            key: { $ref: '#/components/schemas/SurveyQuestionKey' }
+            en: { type: [string, 'null'] }
+            ar: { type: [string, 'null'] }
+        scoreSummary:
+          allOf:
+            - $ref: '#/components/schemas/SurveyScoreSummary'
+            - type: object
+              required: [scoringDirection]
+              properties:
+                scoringDirection: { type: string, enum: [standard, reverse] }
+        charts:
+          type: object
+          required: [age, job, department, experience]
+          properties:
+            age: { $ref: '#/components/schemas/SurveyDistributionChart' }
+            job: { $ref: '#/components/schemas/SurveyDistributionChart' }
+            department: { $ref: '#/components/schemas/SurveyDistributionChart' }
+            experience: { $ref: '#/components/schemas/SurveyDistributionChart' }
+        message:
+          type: string
+          description: Present only when no matching response data exists.
+    SurveyCategoryScoreData:
+      type: object
+      required: [has_data, categoryKey, section, questionCount, scoreSummary]
+      properties:
+        has_data: { type: boolean }
+        categoryKey:
+          type: string
+          enum: [relation, teamwork, info, official, career, notes, work, fairness]
+        section: { $ref: '#/components/schemas/SurveySectionTitle' }
+        questionCount: { type: integer, minimum: 1 }
+        scoreSummary: { $ref: '#/components/schemas/SurveyScoreSummary' }
+    SurveyYearwiseData:
+      type: object
+      required: [has_data, question, chart]
+      properties:
+        has_data: { type: boolean }
+        question:
+          type: object
+          required: [key, en, ar]
+          properties:
+            key: { $ref: '#/components/schemas/SurveyQuestionKey' }
+            en: { type: [string, 'null'] }
+            ar: { type: [string, 'null'] }
+        chart: { $ref: '#/components/schemas/SurveyChart' }
+    SurveyDepartmentSummary:
+      allOf:
+        - $ref: '#/components/schemas/SurveyScoreSummary'
+        - type: object
+          required: [department]
+          properties:
+            department: { type: string }
+    SurveyCategoryDepartment:
+      type: object
+      required: [categoryKey, section, questionCount, departments, total]
+      properties:
+        categoryKey:
+          type: string
+          enum: [relation, teamwork, info, official, career, notes, work, fairness]
+        section: { $ref: '#/components/schemas/SurveySectionTitle' }
+        questionCount: { type: integer, minimum: 1 }
+        departments:
+          type: array
+          items: { $ref: '#/components/schemas/SurveyDepartmentSummary' }
+        total: { $ref: '#/components/schemas/SurveyDepartmentSummary' }
+    SurveyCategoryDepartmentData:
+      type: object
+      required: [has_data, selectedYear, categories, overallSummary]
+      properties:
+        has_data: { type: boolean }
+        selectedYear: { type: string }
+        categories:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items: { $ref: '#/components/schemas/SurveyCategoryDepartment' }
+        overallSummary:
+          allOf:
+            - $ref: '#/components/schemas/SurveyDepartmentSummary'
+            - type: object
+              required: [categoryCount, selectedYear]
+              properties:
+                categoryCount: { type: integer, const: 8 }
+                selectedYear: { type: string }
+    SurveyMetaResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SurveyMetaData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyCreatedResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [headerId, lineCount]
+          properties:
+            headerId: { type: integer, minimum: 1 }
+            lineCount: { type: integer, const: 29 }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SurveyListData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyDetailResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SurveyDetail' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyDeleteResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [headers, lines]
+          properties:
+            headers: { type: integer, minimum: 0 }
+            lines: { type: integer, minimum: 0 }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyQuestionsResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/SurveyQuestionListItem' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyFiltersResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [ages, jobs, departments, experiences, years]
+          properties:
+            ages:
+              type: array
+              items: { $ref: '#/components/schemas/SurveyAge' }
+            jobs:
+              type: array
+              items: { $ref: '#/components/schemas/SurveyJobLevel' }
+            departments:
+              type: array
+              items: { $ref: '#/components/schemas/SurveyDepartment' }
+            experiences:
+              type: array
+              items: { $ref: '#/components/schemas/SurveyExperience' }
+            years:
+              type: array
+              items: { type: integer }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyDistributionResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SurveyDistributionData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyCategoryScoreResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SurveyCategoryScoreData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyYearwiseResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SurveyYearwiseData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    SurveyCategoryDepartmentResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SurveyCategoryDepartmentData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    ProjectCharterId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+      description: Positive decimal identifier.
+    ProjectCharterMilestone:
+      type: object
+      additionalProperties: false
+      properties:
+        start: { type: boolean, default: false }
+        complete: { type: boolean, default: false }
+    ProjectCharterMilestones:
+      type: object
+      additionalProperties: false
+      properties:
+        formProjectTeam: { $ref: '#/components/schemas/ProjectCharterMilestone' }
+        finalizePlan: { $ref: '#/components/schemas/ProjectCharterMilestone' }
+        definePhase: { $ref: '#/components/schemas/ProjectCharterMilestone' }
+        analysisPhase: { $ref: '#/components/schemas/ProjectCharterMilestone' }
+        improvementPhase: { $ref: '#/components/schemas/ProjectCharterMilestone' }
+        controlPhase: { $ref: '#/components/schemas/ProjectCharterMilestone' }
+        projectSummary: { $ref: '#/components/schemas/ProjectCharterMilestone' }
+    ProjectCharterFields:
+      type: object
+      required:
+        - projectManager
+        - expectedStartDate
+        - expectedEndDate
+        - purpose
+        - expectedDeliverables
+      properties:
+        projectManager: { type: string, minLength: 1, maxLength: 240 }
+        processImpacted: { type: [string, 'null'], maxLength: 4000 }
+        expectedStartDate:
+          type: string
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        expectedEndDate:
+          type: string
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        purpose: { type: string, minLength: 1, maxLength: 4000 }
+        expectedDeliverables: { type: string, minLength: 1, maxLength: 4000 }
+        milestones:
+          allOf:
+            - $ref: '#/components/schemas/ProjectCharterMilestones'
+          default: {}
+        projectTeam: { type: [string, 'null'], maxLength: 4000 }
+        supportResources: { type: [string, 'null'], maxLength: 4000 }
+        specialNeeds: { type: [string, 'null'], maxLength: 4000 }
+        processOwner: { type: [string, 'null'], maxLength: 240 }
+        keyStakeholders: { type: [string, 'null'], maxLength: 4000 }
+        finalCustomer: { type: [string, 'null'], maxLength: 4000 }
+        preparedBy: { type: [string, 'null'], maxLength: 240 }
+    ProjectCharterCreate:
+      allOf:
+        - $ref: '#/components/schemas/ProjectCharterFields'
+        - type: object
+          required: [ideaId]
+          properties:
+            ideaId: { $ref: '#/components/schemas/ProjectCharterId' }
+      unevaluatedProperties: false
+    ProjectCharterUpdate:
+      allOf:
+        - $ref: '#/components/schemas/ProjectCharterFields'
+      unevaluatedProperties: false
+    ProjectCharter:
+      type: object
+      required:
+        - headerId
+        - ideaId
+        - ideaNum
+        - projectName
+        - projectManager
+        - businessUnit
+        - processImpacted
+        - expectedStartDate
+        - expectedEndDate
+        - purpose
+        - expectedDeliverables
+        - projectTeam
+        - supportResources
+        - specialNeeds
+        - processOwner
+        - keyStakeholders
+        - finalCustomer
+        - preparedBy
+        - creationDate
+        - status
+      properties:
+        headerId: { $ref: '#/components/schemas/ProjectCharterId' }
+        ideaId: { type: [string, 'null'], pattern: '^[1-9][0-9]{0,18}$' }
+        ideaNum: { type: [string, integer, 'null'] }
+        projectName: { type: [string, 'null'] }
+        projectManager: { type: [string, 'null'] }
+        businessUnit: { type: [string, 'null'] }
+        processImpacted: { type: [string, 'null'] }
+        expectedStartDate: { type: [string, 'null'], format: date }
+        expectedEndDate: { type: [string, 'null'], format: date }
+        purpose: { type: [string, 'null'] }
+        expectedDeliverables: { type: [string, 'null'] }
+        projectTeam: { type: [string, 'null'] }
+        supportResources: { type: [string, 'null'] }
+        specialNeeds: { type: [string, 'null'] }
+        processOwner: { type: [string, 'null'] }
+        keyStakeholders: { type: [string, 'null'] }
+        finalCustomer: { type: [string, 'null'] }
+        preparedBy: { type: [string, 'null'] }
+        creationDate: { type: [string, 'null'], format: date }
+        status: { type: [string, 'null'] }
+    ProjectCharterDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProjectCharter'
+        - type: object
+          required: [milestones, rewardExists]
+          properties:
+            milestones: { $ref: '#/components/schemas/ProjectCharterMilestones' }
+            rewardExists: { type: boolean }
+    ProjectCharterIdea:
+      type: object
+      required: [ideaId, ideaNum, title]
+      properties:
+        ideaId: { $ref: '#/components/schemas/ProjectCharterId' }
+        ideaNum: { type: [string, integer, 'null'] }
+        title: { type: [string, 'null'] }
+    ProjectCharterApprovedIdea:
+      allOf:
+        - $ref: '#/components/schemas/ProjectCharterIdea'
+        - type: object
+          required:
+            - businessUnit
+            - estimatedSavings
+            - investmentAmount
+            - investmentCategory
+            - ideaCategory
+          properties:
+            businessUnit: { type: [string, 'null'] }
+            estimatedSavings: { type: [number, 'string', 'null'] }
+            investmentAmount: { type: [number, 'string', 'null'] }
+            investmentCategory: { type: [string, 'null'] }
+            ideaCategory: { type: [string, 'null'] }
+    ProjectCharterEmployee:
+      type: object
+      required: [empNo, fullName, jobTitle, department]
+      properties:
+        empNo: { type: string }
+        fullName: { type: [string, 'null'] }
+        jobTitle: { type: [string, 'null'] }
+        department: { type: [string, 'null'] }
+    ProjectCharterListData:
+      type: object
+      required: [total, items]
+      properties:
+        total: { type: integer, minimum: 0 }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ProjectCharter' }
+    ProjectCharterRewardRecord:
+      type: object
+      required:
+        - headerId
+        - ideaNum
+        - projectName
+        - projectManager
+        - expectedStartDate
+        - expectedEndDate
+        - processOwner
+        - ideaCategory
+        - estimatedSavings
+        - actualSavings
+        - irrRate
+        - percentage
+        - totalGrade
+        - reward
+      properties:
+        headerId: { $ref: '#/components/schemas/ProjectCharterId' }
+        ideaNum: { type: [string, integer, 'null'] }
+        projectName: { type: [string, 'null'] }
+        projectManager: { type: [string, 'null'] }
+        expectedStartDate: { type: [string, 'null'], format: date }
+        expectedEndDate: { type: [string, 'null'], format: date }
+        processOwner: { type: [string, 'null'] }
+        ideaCategory: { type: [string, 'null'] }
+        estimatedSavings: { type: [number, 'string', 'null'] }
+        actualSavings: { type: [number, 'string', 'null'] }
+        irrRate: { type: [number, 'string', 'null'] }
+        percentage: { type: [number, 'string', 'null'] }
+        totalGrade: { type: [number, 'string', 'null'] }
+        reward: { type: [string, 'null'] }
+    ProjectCharterListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/ProjectCharterListData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    ProjectCharterDetailResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/ProjectCharterDetail' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    ProjectCharterDeleteResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [charterDeleted, rewardDeleted]
+          properties:
+            charterDeleted: { type: integer, minimum: 0 }
+            rewardDeleted: { type: integer, minimum: 0 }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    ProjectCharterIdeasResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/ProjectCharterIdea' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    ProjectCharterIdeaResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/ProjectCharterApprovedIdea' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    ProjectCharterEmployeesResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/ProjectCharterEmployee' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    ProjectCharterEmployeeResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/ProjectCharterEmployee' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    ProjectCharterRewardResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [headerId, idea, record, gradingEnabled]
+          properties:
+            headerId: { $ref: '#/components/schemas/ProjectCharterId' }
+            idea: { $ref: '#/components/schemas/ProjectCharterApprovedIdea' }
+            record:
+              anyOf:
+                - $ref: '#/components/schemas/ProjectCharterRewardRecord'
+                - type: 'null'
+            gradingEnabled: { const: false }
         meta: { $ref: '#/components/schemas/ResponseMeta' }
   responses:
     MfaSignedIn:

@@ -510,6 +510,71 @@ describe('API documentation', () => {
     assert.ok(components.schemas.SickLeaveDetail.allOf[1].properties);
   });
 
+  it('documents all Employee Clearance routes, permissions, schemas, and CSRF requirements', () => {
+    const { paths, components, tags } = loadOpenApiSpec();
+    const base = '/api/v1/hr/employee-clearance';
+    const expected = [
+      ['get', ''],
+      ['post', ''],
+      ['get', '/lookups/employees'],
+      ['get', '/lookups/employees/{empNo}'],
+      ['get', '/lookups/approvers'],
+      ['get', '/lookups/computer-destinations'],
+      ['get', '/{headerId}'],
+      ['put', '/{headerId}'],
+      ['delete', '/{headerId}'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item)
+          .filter((method) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
+          .map((method) => `${method} ${path.slice(base.length)}`),
+      );
+
+    assert.deepEqual(
+      documented.sort(),
+      expected.map(([method, path]) => `${method} ${path}`).sort(),
+    );
+
+    for (const [method, suffix] of expected) {
+      const operation = paths[`${base}${suffix}`][method];
+      assert.ok(operation.security?.length, `${method.toUpperCase()} ${suffix} session security`);
+      const csrf = (operation.parameters ?? []).some(
+        (parameter) => parameter.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method.toUpperCase()} ${suffix} CSRF`);
+    }
+
+    assert.match(tags.find(({ name }) => name === 'HR Employee Clearance').description, /VIEW_ALL/);
+    assert.match(paths[base].get.description, /EMPLOYEE_CLEARANCE\.EMPLOYEE_CLEARANCE:VIEW/);
+    assert.match(paths[base].post.description, /EMPLOYEE_CLEARANCE\.EMPLOYEE_CLEARANCE:CREATE/);
+    assert.match(
+      paths[`${base}/{headerId}`].put.description,
+      /EMPLOYEE_CLEARANCE\.EMPLOYEE_CLEARANCE:UPDATE/,
+    );
+    assert.match(
+      paths[`${base}/{headerId}`].delete.description,
+      /EMPLOYEE_CLEARANCE\.EMPLOYEE_CLEARANCE:DELETE/,
+    );
+
+    assert.equal(
+      paths[base].post.requestBody.content['application/json'].schema.$ref,
+      '#/components/schemas/EmployeeClearanceWrite',
+    );
+    assert.equal(
+      paths[`${base}/{headerId}`].put.requestBody.content['application/json'].schema.$ref,
+      '#/components/schemas/EmployeeClearanceWrite',
+    );
+    assert.deepEqual(components.schemas.EmployeeClearanceWrite.properties.itMatrix.items, {
+      $ref: '#/components/schemas/EmployeeClearanceITMatrixLineWrite',
+    });
+    assert.equal(components.schemas.EmployeeClearanceWrite.properties.itMatrix.minItems, 5);
+    assert.equal(components.schemas.EmployeeClearanceWrite.properties.itMatrix.maxItems, 5);
+    assert.ok(components.schemas.EmployeeClearanceDetail.properties.sections);
+    assert.ok(components.schemas.EmployeeClearanceListResponse.properties.data);
+  });
+
   it('serves the specification at /api/openapi.json', async () => {
     const res = await request(app).get('/api/openapi.json').expect(200);
 
@@ -527,5 +592,17 @@ describe('API documentation', () => {
 
     await request(disabledApp).get('/api/docs/').expect(404);
     await request(disabledApp).get('/api/openapi.json').expect(404);
+  });
+
+  it('mounts the Employee Clearance, Survey Report, and Project Charter routers', async () => {
+    const responses = await Promise.all([
+      request(app).get('/api/v1/hr/employee-clearance'),
+      request(app).get('/api/v1/survey/reports/questions'),
+      request(app).get('/api/v1/projects/charters'),
+    ]);
+
+    for (const response of responses) {
+      assert.equal(response.status, 401);
+    }
   });
 });
