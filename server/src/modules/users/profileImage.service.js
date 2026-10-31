@@ -28,6 +28,7 @@ export function createProfileImageService({ db = {}, repo = repository } = {}) {
   const read = db.withConnection ?? withConnection;
   const write = db.withTransaction ?? withTransaction;
   return Object.freeze({
+    getVersion: (userId) => read(POOLS.LOW, (c) => repo.findProfileImageVersion(c, userId)),
     get: (userId) => read(POOLS.LOW, (c) => repo.findProfileImage(c, userId)),
     save: (userId, file) => {
       const mimeType = validateImage(file);
