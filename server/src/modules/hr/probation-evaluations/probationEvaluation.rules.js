@@ -6,13 +6,18 @@ export const PASS_MARK = 71;
 export const evaluationResult = (totalRating) =>
   Number(totalRating) >= PASS_MARK ? 'ACCEPTABLE' : 'NOT_ACCEPTABLE';
 
+/** TOTAL_RATING is always the sum of the line ratings (0 = not rated); a client total is ignored. */
+export const ratingTotal = (lines) =>
+  lines.reduce((sum, line) => sum + (Number(line.rating) || 0), 0);
+
 /**
- * Legacy stored '01-JAN-00' (2000-01-01) for a blank date. FORM_DATE holds the joining date and is
- * optional, so a blank one is written as this value and read back as null.
+ * FORM_DATE holds the joining date and is optional. The column is nullable (verified in the TEST
+ * dictionary), so a blank date is stored as NULL. Legacy wrote '01-JAN-00' (2000-01-01) instead;
+ * both read back as null.
  */
-export const BLANK_DATE = '2000-01-01';
-export const toStoredDate = (value) => value || BLANK_DATE;
-export const fromStoredDate = (value) => (!value || value === BLANK_DATE ? null : value);
+export const LEGACY_BLANK_DATE = '2000-01-01';
+export const toStoredDate = (value) => value || null;
+export const fromStoredDate = (value) => (!value || value === LEGACY_BLANK_DATE ? null : value);
 
 const blank = (value) =>
   value === undefined || value === null || String(value).trim() === '' || value === '-';

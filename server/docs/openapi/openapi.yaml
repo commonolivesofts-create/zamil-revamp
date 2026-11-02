@@ -9758,7 +9758,7 @@ components:
           format: date
           description: >-
             FORM_DATE: the employee's joining date (legacy meaning), optional. A blank value is
-            stored as the legacy 2000-01-01 and read back as null.
+            stored as NULL; NULL and the legacy blank 2000-01-01 both read back as null.
         evaluationPeriod: { type: string, maxLength: 200 }
         formType:
           type: string
@@ -9780,7 +9780,12 @@ components:
         toDate: { type: string, format: date, description: Must be on or after fromDate. }
         comment: { type: string, maxLength: 4000 }
         comments: { type: string, maxLength: 4000, description: Legacy APPROVED_BY_CMNT field. }
-        totalRating: { type: integer, minimum: 0, maximum: 100 }
+        totalRating:
+          description: >-
+            Ignored. The server always computes TOTAL_RATING as the sum of the line ratings;
+            any value sent here is accepted for compatibility and discarded.
+        evaluationResult:
+          description: Ignored. The server derives the result from the computed total.
     ProbationEvaluationWriteRequest:
       allOf:
         - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
@@ -9852,7 +9857,13 @@ components:
         grade: { type: integer }
         evaluationPeriod: { type: string }
         formType: { type: string }
-        totalRating: { type: integer }
+        totalRating:
+          type: integer
+          description: Sum of the line ratings, computed by the server on read.
+        evaluationResult:
+          type: string
+          enum: [ACCEPTABLE, NOT_ACCEPTABLE]
+          description: 71 and above ACCEPTABLE, 70 and below NOT_ACCEPTABLE.
         comment: { type: string }
         comments: { type: string }
         jobTitle: { type: string }

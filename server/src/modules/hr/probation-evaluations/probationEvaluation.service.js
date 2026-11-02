@@ -7,7 +7,12 @@ import {
 import { AppError } from '../../../shared/errors/AppError.js';
 import { parsePermission } from '../../access-control/authorization.service.js';
 import * as defaultRepository from './probationEvaluation.repository.js';
-import { evaluationResult, fromStoredDate, toStoredDate } from './probationEvaluation.rules.js';
+import {
+  evaluationResult,
+  fromStoredDate,
+  ratingTotal,
+  toStoredDate,
+} from './probationEvaluation.rules.js';
 import { FORM_TYPES } from './probationEvaluation.validation.js';
 
 const VIEW = parsePermission('HR.PROBATION_EVALUATIONS', 'VIEW');
@@ -81,8 +86,8 @@ export function createProbationEvaluationService({
       grade: body.grade ?? 0,
       evaluationPeriod: text(body.evaluationPeriod),
       formType: body.formType,
-      totalRating:
-        body.totalRating ?? body.lines.reduce((sum, line) => sum + (line.rating ?? 0), 0),
+      // Always computed from the ratings; the schema strips any client total or result.
+      totalRating: ratingTotal(body.lines),
       comment: text(body.comment),
       comments: text(body.comments),
       employeeName: body.employeeName,
@@ -98,7 +103,14 @@ export function createProbationEvaluationService({
     const header = await repository.findHeader(connection, headerId);
     if (!header) throw notFound();
     const lines = await repository.listLines(connection, headerId);
-    return { ...header, formDate: fromStoredDate(header.formDate), lines };
+    const totalRating = ratingTotal(lines);
+    return {
+      ...header,
+      formDate: fromStoredDate(header.formDate),
+      totalRating,
+      evaluationResult: evaluationResult(totalRating),
+      lines,
+    };
   }
 
   return {

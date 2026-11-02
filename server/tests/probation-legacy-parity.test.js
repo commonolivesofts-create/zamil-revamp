@@ -46,7 +46,7 @@ function fakeConnection(rowsFor = () => []) {
   };
 }
 
-function fakeService({ requestStatus = 'DRAFT', header = {}, listItems = [] } = {}) {
+function fakeService({ requestStatus = 'DRAFT', header = {}, listItems = [], lines = [] } = {}) {
   const writes = { headers: [], lines: [], headerUpdates: [], lineUpdates: [] };
   const repository = {
     findRequestor: async () => ({
@@ -60,7 +60,7 @@ function fakeService({ requestStatus = 'DRAFT', header = {}, listItems = [] } = 
     updateHeader: async (_connection, header) => (writes.headerUpdates.push(header), true),
     updateLine: async (_connection, line) => (writes.lineUpdates.push(line), true),
     findHeader: async () => ({ headerId: '7', formDate: '2026-08-05', ...header }),
-    listLines: async () => [],
+    listLines: async () => lines,
     listEvaluations: async () => ({ total: listItems.length, items: listItems }),
     findEmployeeDetails: async () => ({
       ids: { personId: '5001', employeeNumber: 'E-0001' },
@@ -165,13 +165,35 @@ describe('probation parity: fields', () => {
     assert.deepEqual(errorsOf(createBodySchema, { ...BODY, formDate: '2026-02-30' }), ['formDate']);
   });
 
-  it('stores a blank joining date as the legacy value (2000-01-01) and reads it back as null', async () => {
-    const { service, writes } = fakeService({ header: { formDate: '2000-01-01' } });
+  it('stores a blank joining date as NULL (FORM_DATE is nullable) and stores a known one as is', async () => {
+    const { service, writes } = fakeService();
     await service.create(ACTOR, valueOf(createBodySchema, without('formDate')));
-    assert.equal(writes.headers[0].formDate, '2000-01-01');
-    assert.equal((await service.get(ACTOR, '7')).formDate, null);
     await service.create(ACTOR, valueOf(createBodySchema, BODY));
-    assert.equal(writes.headers[1].formDate, BODY.formDate, 'a joining date is stored as is');
+    await service.update(
+      ACTOR,
+      '7',
+      valueOf(updateBodySchema, { ...without('formDate'), lines: [{ lineId: '11', param: 'A' }] }),
+    );
+    assert.deepEqual(
+      [writes.headers[0].formDate, writes.headers[1].formDate, writes.headerUpdates[0].formDate],
+      [null, BODY.formDate, null],
+    );
+  });
+
+  it('reads both NULL and the legacy blank 2000-01-01 as a blank joining date', async () => {
+    for (const [stored, expected] of [
+      [null, null],
+      ['2000-01-01', null],
+      ['2026-08-05', '2026-08-05'],
+    ]) {
+      const { service } = fakeService({ header: { formDate: stored } });
+      assert.equal((await service.get(ACTOR, '7')).formDate, expected, String(stored));
+      const listed = fakeService({
+        listItems: [{ headerId: '7', formDate: stored, totalRating: 0 }],
+      });
+      const { items } = await listed.service.list(ACTOR, { page: 1, pageSize: 20 });
+      assert.equal(items[0].formDate, expected, `list ${stored}`);
+    }
   });
 
   it('binds and selects every probation date as YYYY-MM-DD (no month names, no two-digit years)', async () => {
@@ -216,22 +238,59 @@ describe('probation parity: dependencies', () => {
     assert.equal(writes.headers[0].totalRating, 8);
   });
 
-  it('caps TOTAL_RATING at 100 (20 criteria x 5)', () => {
-    assert.deepEqual(errorsOf(createBodySchema, { ...BODY, totalRating: 101 }), ['totalRating']);
+  it('caps TOTAL_RATING at 100 (20 criteria x 5)', async () => {
+    const lines = Array.from({ length: 20 }, (_, index) => ({ param: `C${index}`, rating: 5 }));
+    const { service, writes } = fakeService();
+    await service.create(ACTOR, valueOf(createBodySchema, { ...BODY, lines }));
+    assert.equal(writes.headers[0].totalRating, 100);
   });
 
-  it(
-    'derives TOTAL_RATING from the lines even when the client sends a total',
-    { todo: 'DIFFERENT (as legacy): the server trusts a client-sent totalRating' },
-    async () => {
-      const { service, writes } = fakeService();
-      await service.create(
-        ACTOR,
-        valueOf(createBodySchema, { ...BODY, totalRating: 99, lines: [{ param: 'A', rating: 1 }] }),
-      );
-      assert.equal(writes.headers[0].totalRating, 1);
-    },
-  );
+  it('derives TOTAL_RATING from the lines and ignores a total or result sent by the client', async () => {
+    for (const [schema, body] of [
+      [createBodySchema, { ...BODY, lines: [{ param: 'A', rating: 1 }] }],
+      [updateBodySchema, { ...BODY, lines: [{ lineId: '11', param: 'A', rating: 1 }] }],
+    ]) {
+      const forged = { ...body, totalRating: 99, evaluationResult: 'ACCEPTABLE' };
+      assert.deepEqual(errorsOf(schema, forged), [], 'accepted for compatibility');
+      const value = valueOf(schema, forged);
+      assert.equal('totalRating' in value || 'evaluationResult' in value, false, 'stripped');
+      assert.deepEqual(errorsOf(schema, { ...body, totalRating: 'x' }), [], 'any value is ignored');
+    }
+    const { service, writes } = fakeService();
+    const forged = { totalRating: 99, evaluationResult: 'ACCEPTABLE' };
+    await service.create(
+      ACTOR,
+      valueOf(createBodySchema, { ...BODY, ...forged, lines: [{ param: 'A', rating: 1 }] }),
+    );
+    await service.update(
+      ACTOR,
+      '7',
+      valueOf(updateBodySchema, {
+        ...BODY,
+        ...forged,
+        lines: [{ lineId: '11', param: 'A', rating: 2 }],
+      }),
+    );
+    assert.deepEqual([writes.headers[0].totalRating, writes.headerUpdates[0].totalRating], [1, 2]);
+    // Even a service caller that bypasses the schema cannot set the total.
+    await service.create(ACTOR, { ...BODY, totalRating: 99, lines: [{ param: 'A', rating: 3 }] });
+    assert.equal(writes.headers[1].totalRating, 3);
+  });
+
+  it('returns the total and result computed from the stored ratings on read', async () => {
+    const rated = (count) =>
+      Array.from({ length: count }, (_, index) => ({ lineId: `${index + 1}`, rating: 5 }));
+    for (const [lines, expected] of [
+      [rated(14), [70, 'NOT_ACCEPTABLE']],
+      [rated(15), [75, 'ACCEPTABLE']],
+      [[{ lineId: '1', rating: 0 }], [0, 'NOT_ACCEPTABLE']],
+    ]) {
+      // A stored TOTAL_RATING that disagrees with the lines is not trusted.
+      const { service } = fakeService({ header: { totalRating: 99 }, lines });
+      const detail = await service.get(ACTOR, '7');
+      assert.deepEqual([detail.totalRating, detail.evaluationResult], expected);
+    }
+  });
 
   it('rejects an end date before the start date (new cross-field rule)', () => {
     assert.deepEqual(errorsOf(createBodySchema, { ...BODY, toDate: '2026-08-04' }), ['']);

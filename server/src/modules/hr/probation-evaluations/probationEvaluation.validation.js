@@ -83,7 +83,9 @@ const headerBase = {
   comment: text(4000),
   // `comments` maps to APPROVED_BY_CMNT and exists in the legacy write form.
   comments: text(4000),
-  totalRating: Joi.number().integer().min(0).max(100),
+  // Computed by the server from the line ratings: accepted for compatibility, then discarded.
+  totalRating: Joi.any().strip(),
+  evaluationResult: Joi.any().strip(),
 };
 
 const withDateOrder = (schema) =>

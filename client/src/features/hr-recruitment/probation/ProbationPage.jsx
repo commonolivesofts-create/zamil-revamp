@@ -156,7 +156,7 @@ function ProbationEditor({ lookups, record }) {
     {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
     {dialog === 'report' && <ReportDialog title="Probation evaluation records" resourceKey="hr-probation-report" load={service.list} onClose={() => setDialog(null)}
       numberOf={(item) => item.evaluationNumber} statusOf={(item) => item.status} pathOf={(item) => `${BASE}/${item.evaluationId}`}
-      columns={[["Employee", (item) => item.employeeName], ["Emp. no.", (item) => item.employeeNumber], ["Department", (item) => item.department],
+      columns={[["Employee", (item) => item.employeeName], ["Emp. no.", (item) => item.employeeNumber], ["Job title", (item) => item.jobTitle], ["Department", (item) => item.department],
         ["Form type", (item) => item.formType], ["Total rating", (item) => item.totalRating], ["Evaluation", (item) => RESULT_TEXT[item.evaluationResult]],
         ["Pending at", (item) => item.pendingAt]]}
       dateColumn={['Created', (item) => item.createdAt]} />}

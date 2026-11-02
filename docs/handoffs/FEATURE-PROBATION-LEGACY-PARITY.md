@@ -80,7 +80,7 @@ OpenAPI updated: Yes (`listProbationEvaluations`, write/list/detail schemas). `s
 |---|---|
 | SQL changes (DDL/DML scripts) | None |
 | Approval reference (gate G1/G4) | No DDL. Exclusion table choice is pending HR confirmation (see report §6, M9) |
-| Applied to TEST | Not applied; no Oracle access in this run |
+| Applied to TEST | Not applied. Round 3 ran read-only dictionary checks and counts on TEST (report §10); no writes |
 | Transactions | Unchanged (`create`, `update`, `remove`) |
 
 ## 8. Authentication and permissions
@@ -117,8 +117,9 @@ None (not requested).
 
 - No approval workflow: `pendingAt` is always null; `validateForSubmit` / `submitProblems` are not wired to any route or button.
 - Criteria per form type are not implemented. The design is in the report §9 and waits for `prf-new.js`.
-- Employee-list exclusion uses `XXZPI_HR_PA_HEADER_TAB`; legacy names `XXZPI_HR_PAF_HEADER_TAB` (not verified in the dictionary). Pending HR confirmation.
-- A blank joining date is stored as the legacy 2000-01-01 and read as blank. An employee who really joined on 2000-01-01 would show a blank joining date.
+- Employee-list exclusion uses `XXZPI_HR_PA_HEADER_TAB`. Legacy reads `XXZP.XXZPI_HR_PAF_HEADER_TAB`, a separate real table (467 rows on TEST, round 3), which no legacy code writes. Pending HR confirmation (report Q10).
+- Round 3: a blank joining date is stored as NULL (`FORM_DATE` is nullable on TEST). NULL and the legacy 2000-01-01 both read as blank, so an employee who really joined on 2000-01-01 would show a blank joining date.
+- Round 3: the server computes `TOTAL_RATING` and the evaluation result from the ratings and discards client values. The Records list shows Job Title.
 - Records created by the new form before this change hold the form date (not the joining date) in FORM_DATE. Re-selecting the employee refills it.
 
 ## 13. Follow-up work

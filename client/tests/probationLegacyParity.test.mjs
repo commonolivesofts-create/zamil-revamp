@@ -214,25 +214,36 @@ test("parity: update sends each LINE_ID, as the legacy line_id<n> hidden fields"
 
 // -------------------------------------------------------------- dependencies
 
-test("parity: total rating is the sum of the line ratings (legacy TOTAL_RATING, max 20 x 5 = 100)", async () => {
-  const client = fakeClient({
-    [`POST ${BASE}`]: { data: { headerId: "7" } },
-    [`GET ${BASE}/7`]: { data: STORED },
-  });
-  const lines = Array.from({ length: 20 }, (_, index) => ({
-    lineId: null,
-    param: `Criterion ${index + 1}`,
-    paramAr: "",
-    rating: 5,
-  }));
-  await probations(client).save(null, draft({ lines }));
-  const body = client.calls.find((call) => call.method === "POST").body;
-  assert.equal(body.totalRating, 100);
-  await probations(client).save(null, draft());
+test("parity: the page previews the total as the sum of the ratings (max 20 x 5 = 100)", () => {
+  const lines = Array.from({ length: 20 }, () => ({ rating: 5 }));
+  assert.equal(totalRating(lines), 100);
   assert.equal(
-    client.calls.filter((call) => call.method === "POST")[1].body.totalRating,
+    totalRating([{ rating: 5 }, { rating: "" }]),
     5,
     "a blank rating counts as 0",
+  );
+});
+
+test("parity: the client sends no total or result; the server computes them from the ratings", async () => {
+  const client = fakeClient({
+    [`POST ${BASE}`]: { data: { headerId: "7" } },
+    [`PUT ${BASE}/7`]: { data: { headerId: "7" } },
+    [`GET ${BASE}/7`]: {
+      data: { ...STORED, totalRating: 9, evaluationResult: "NOT_ACCEPTABLE" },
+    },
+  });
+  const service = probations(client);
+  await service.save(null, draft());
+  const record = await service.getById("7");
+  await service.save("7", { ...record, lines: record.lines });
+  for (const { body } of client.calls.filter((call) => call.body)) {
+    assert.equal("totalRating" in body, false);
+    assert.equal("evaluationResult" in body, false);
+  }
+  assert.equal(
+    record.totalRating,
+    9,
+    "the total shown after save comes from the API",
   );
 });
 
@@ -500,6 +511,7 @@ test("parity: new records start as DRAFT and the list maps status and total", as
           headerId: "7",
           employeeName: "Sample Employee 001",
           employeeNumber: "E-0001",
+          jobTitle: "Sample Title",
           department: "Sample Department",
           formType: "Trainee",
           totalRating: 72,
@@ -521,12 +533,20 @@ test("parity: new records start as DRAFT and the list maps status and total", as
   assert.deepEqual(
     [
       item.employeeNumber,
+      item.jobTitle,
       item.department,
       item.evaluationResult,
       item.pendingAt,
       item.createdAt,
     ],
-    ["E-0001", "Sample Department", "ACCEPTABLE", "", "2026-11-02"],
+    [
+      "E-0001",
+      "Sample Title",
+      "Sample Department",
+      "ACCEPTABLE",
+      "",
+      "2026-11-02",
+    ],
     "from the API only",
   );
 });
@@ -549,10 +569,11 @@ test(
   },
 );
 
-test("parity: the records list shows employee number, department, evaluation result, pending-at and the created date", async () => {
+test("parity: the records list shows employee number, job title, department, evaluation result, pending-at and the created date", async () => {
   const page = await readFile(PAGE, "utf8");
   for (const column of [
     '\\["Emp\\. no\\.", \\(item\\) => item\\.employeeNumber\\]',
+    '\\["Job title", \\(item\\) => item\\.jobTitle\\]',
     '\\["Department", \\(item\\) => item\\.department\\]',
     '\\["Evaluation", \\(item\\) => RESULT_TEXT\\[item\\.evaluationResult\\]\\]',
     '\\["Pending at", \\(item\\) => item\\.pendingAt\\]',

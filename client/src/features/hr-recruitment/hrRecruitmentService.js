@@ -1484,6 +1484,7 @@ export function createProbationService({ client }) {
       status: String(data.requestStatus ?? "DRAFT"),
       employeeName: String(data.employeeName ?? ""),
       employeeNumber: textValue(data.employeeNumber),
+      jobTitle: textValue(data.jobTitle),
       department: textValue(data.department),
       formType: String(data.formType ?? ""),
       totalRating: Number(data.totalRating ?? 0),
@@ -1624,10 +1625,7 @@ export function createProbationService({ client }) {
         toDate: body.toDate,
         comment: body.comment,
         comments: body.comments,
-        totalRating: body.lines.reduce(
-          (total, line) => total + (Number(line.rating) || 0),
-          0,
-        ),
+        // No total: the server computes TOTAL_RATING and the result from the ratings.
         // The backend accepts only 1–5 and stores an omitted rating as 0 (not rated).
         lines: body.lines.map((line) => ({
           ...(id ? { lineId: line.lineId } : {}),

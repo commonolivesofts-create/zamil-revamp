@@ -6,8 +6,13 @@
   and new-only fields made optional.
 - Round 2 (owner-approved): credential redaction, status filter, joining date, evaluation result,
   list columns, submit rules, employee-list exclusion, and the criteria design (design only).
+- Round 3 (owner-approved): server-computed total and result, read-only TEST dictionary checks
+  (exclusion table, FORM_DATE nullability, joining-date count), NULL for a blank joining date,
+  Job Title in Records, and the unpushed `main` commits (§10).
 
-No Oracle access and no database writes in either round.
+Rounds 1–2 had no Oracle access. Round 3 ran **read-only** `SELECT`s on TEST (`zpadwtest_*`) inside
+`SET TRANSACTION READ ONLY` + rollback, printing only owners, types, nullability and counts.
+No database writes in any round.
 **Masking:** no real names, e-mail addresses, credentials or employee data from the legacy code are
 reproduced here. Test data is fictional (`Sample Employee 001`, `E-0001`).
 
@@ -73,14 +78,14 @@ header input is shown but ignored. The new form persists every field while the r
 | 1 | Form type | `FORM_NAME` | select, 5 values · **not required** · `''`→`-` · create only | select from `GET lookups/form-types` (same 5 values) · **required / required** · editable in DRAFT | **DIFFERENT** (required) |
 | 2 | Employee Name → Employee | `EMP_NAME` | select of subordinates (hierarchy query, minus employees with an annual appraisal this year) · not required | searchable picker, same hierarchy + exclusion (R2) · **required / required** · max 200 | **DIFFERENT** (required) |
 | 3 | Employee Number | `EMP_NUMBER` | read-only autofill · not required | read-only autofill · required (via employee) / required · max 50 | **DIFFERENT** (required) |
-| 4 | **Joining Date** (R2) | `FORM_DATE` | text input, autofilled with the employee's `JOINING_DATE` · optional · blank→`01-JAN-00` | read-only "Joining date", autofilled from `employee-details` · optional / optional · blank stored as the legacy 2000-01-01, read back as blank · `YYYY-MM-DD` | **MATCH** (meaning, autofill, optional; read-only by owner decision, legacy input was editable) |
+| 4 | **Joining Date** (R2) | `FORM_DATE` | text input, autofilled with the employee's `JOINING_DATE` · optional · blank→`01-JAN-00` | read-only "Joining date", autofilled from `employee-details` · optional / optional · blank stored as **NULL** (R3; column is nullable on TEST); NULL and the legacy 2000-01-01 both read back as blank · `YYYY-MM-DD` | **MATCH** (meaning, autofill, optional; read-only by owner decision, legacy input was editable) |
 | 5 | Job Title | `JOB_T` | read-only autofill · optional | read-only autofill · optional · max 200 | **MATCH** |
 | 6 | Job Grade → Grade | `GRADE` | read-only, **never filled** → stored `0` | **editable** number ≥ 0 integer · optional · default 0 | **DIFFERENT** (editable, new rule) |
 | 7 | Department | `DEPARTMENT` | read-only autofill · optional | read-only autofill · optional · max 200 | **MATCH** |
 | 8 | Evaluation Period From | `FROM_DATE` | `date` · required (HTML) | `date` · required / required (real calendar date) | **MATCH** |
 | 9 | Evaluation Period To | `TO_DATE` | `date` · required (HTML) | `date` · required / required | **MATCH** |
 | 10 | Prepared & Agreed by | `USER_NAME`, `USER_MAIL` | hidden, from the session user | read-only display; server takes it from the session (body field rejected) | **MATCH** |
-| 11 | Total | `TOTAL_RATING` | hidden, computed by `prf-new.js` (source missing) | computed live (sum of ratings); server sums lines when absent; 0–100 | **MATCH** (assumed sum, see §8) |
+| 11 | Total (R3) | `TOTAL_RATING` | hidden, computed by `prf-new.js` (source missing); server trusted it | page previews the sum; **the server always computes it from the ratings** on create/update and on detail reads; a client `totalRating` / `evaluationResult` is accepted and discarded; 0–100 | **MATCH** (assumed sum, see §8; stricter server) |
 | 12 | Comments (Prepared by) (R2) | `PREPARED_BY_CMNT` | textarea · read-only on create, **required on edit save** | textarea "Comments" · optional on draft save · **required on submit** (`validateForSubmit` / `submitProblems`, ready, not wired) | **DIFFERENT** (stage: submit instead of edit save, by owner decision) |
 | 13 | Suggestion (Approved by) (R2) | `APPROVED_BY_CMNT` | textarea · read-only on create, **required on edit save**; used by approvers during the workflow | textarea "Suggestion" · optional on draft save · **required on submit** (ready, not wired) · DRAFT only | **DIFFERENT** (stage; approver editing needs the workflow) |
 | 14 | Evaluation Result (R2) | derived from `TOTAL_RATING` | Acceptable 71–100 / Not acceptable 0–70 on edit view, report, e-mail | Acceptable / Not acceptable on the ratings step, the review step, the ticket, the side card and the Records list (list value from the API's `evaluationResult`) | **MATCH** |
@@ -127,11 +132,11 @@ Round 2 added row 19 (created date, now shown) and renumbered the line rows.
 |---|---|---|---|
 | D1 (R2) | Employee select → AJAX `getEmpDetails` fills employee number, job title, department, **joining date → `prf_date`**, person ID | fills number, job title, department, person ID **and the joining date** (`formDate` ← `startDate`, cleared while loading) | **MATCH** |
 | D2 | Form type change → `showDropInfo()` renders that type's criteria (`prf-new.js`, **not in repo**) | form type has no effect on lines | **MISSING** (design in §9) |
-| D3 | Rating change → total recalculated | total recomputed live; server sums lines when absent but **trusts a client total** | **MATCH** (client) / server note M14 |
+| D3 (R3) | Rating change → total recalculated | page recomputes live (preview); the server computes `TOTAL_RATING` and the result from the ratings and ignores any client value | **MATCH** |
 | D4 (R2) | Total → result band: ≤70 Not acceptable, ≥71 Acceptable | `formResult(lines)` on the page (shown once a criterion is rated); server `evaluationResult(total)` in list rows | **MATCH** |
 | D5 | `REQUEST_STATUS = APPROVED` → "Approved by: HR SUPERVISOR" | — | **MISSING** (needs workflow) |
 | D6 | Employee list = the user's reporting hierarchy | same query | **MATCH** |
-| D7 (R2) | Employee list excludes employees with a non-rejected annual PAF this year (`XXZPI_HR_PAF_HEADER_TAB`) | `NOT EXISTS` on `XXZP.XXZPI_HR_PA_HEADER_TAB`, current year (`TO_CHAR(SYSDATE,'YYYY')`), status not `REJECTED` (case-insensitive) | **MATCH — pending HR confirmation** (see Q4 / Q10 on the table name) |
+| D7 (R2) | Employee list excludes employees with a non-rejected annual PAF this year (`XXZPI_HR_PAF_HEADER_TAB`) | `NOT EXISTS` on `XXZP.XXZPI_HR_PA_HEADER_TAB`, current year (`TO_CHAR(SYSDATE,'YYYY')`), status not `REJECTED` (case-insensitive) | **DIFFERENT table — pending HR confirmation.** R3 dictionary check: legacy really reads `XXZP.XXZPI_HR_PAF_HEADER_TAB`, a separate table (§10.1); code not changed yet |
 | D8 | Prepared by = session user | from session on create | **MATCH** |
 | D9 | Submit button only after first save; refused if `INPROCESS`/`APPROVED` | no Submit (workflow not started) | **MISSING** |
 | D10 (R2) | Edit view: Comments, Suggestion and each rating `required` on save | required on **submit** (`validateForSubmit`, `submitProblems`), lenient on draft save | **DIFFERENT** (owner decision) |
@@ -141,8 +146,9 @@ Round 2 added row 19 (created date, now shown) and renumbered the line rows.
 | D14–D15 | "Already Rating Given" alert, rating-block resets, joining-date month parsing | — | N/A: dead code in legacy |
 | D16 | Demo-only: recommendation suggestion, probation end, form-type reset | demo model only | **NEW ONLY** |
 
-Counts now: MATCH 7 (D1, D3, D4, D6, D7, D8, D13) · DIFFERENT 1 (D10) · MISSING 3 (D2, D5, D9) ·
-NEW ONLY 3 · N/A 2. (Round 1: 4 · 3 · 4 · 3.)
+Counts now: MATCH 6 (D1, D3, D4, D6, D8, D13) · DIFFERENT 2 (D7 table, D10) · MISSING 3 (D2, D5,
+D9) · NEW ONLY 3 · N/A 2. (Round 1: 4 · 3 · 4 · 3. Round 2 counted D7 as MATCH; the R3 dictionary
+check shows legacy reads a different table.)
 
 ---
 
@@ -160,7 +166,7 @@ NEW ONLY 3 · N/A 2. (Round 1: 4 · 3 · 4 · 3.)
 | F8 | Approver adds Suggestion during workflow | yes (no status check) | no (DRAFT only) | **MISSING** |
 | F9 | Final status | `APPROVED` / `REJECTED` | only `DRAFT` is written | **MISSING** |
 | F10 | Notifications | HTML e-mail at each step | none | **MISSING** |
-| F11 (R2) | List / search | HR sees all, others their own; Emp. #, Name, Job Title, Department, Total, Evaluation, Status, Date, Pending At | same scoping; server paging/search/filters; Records: number, Employee, Emp. no., Department, Form type, Total, Evaluation, Pending at (blank until the workflow exists), Status, Created. Status filter uses the stored uppercase values | **DIFFERENT** (Job Title not in the dialog; pending-at blank until the workflow) |
+| F11 (R2) | List / search | HR sees all, others their own; Emp. #, Name, Job Title, Department, Total, Evaluation, Status, Date, Pending At | same scoping; server paging/search/filters; Records: number, Employee, Emp. no., Job title (R3), Department, Form type, Total, Evaluation, Pending at (blank until the workflow exists), Status, Created. Status filter uses the stored uppercase values | **DIFFERENT** (pending-at blank until the workflow) |
 | F12 | View a record | any header ID, no access check | record-level authorization | **DIFFERENT** (intended) |
 | F13 | Print | link does nothing | browser print | **DIFFERENT** (new works) |
 | F14 | Delete | not available | `DELETE` while `DRAFT` | **NEW ONLY** |
@@ -183,8 +189,32 @@ probation spec doc is corrected to match.
 
 ## 5. Test results
 
-All tests are mocked (fake repository / fake HTTP client / fake connection / page source). No
-Oracle connection, no database writes, no browser, no screenshots. Executed on 2026-11-02.
+All tests are mocked (fake repository / fake HTTP client / fake connection / page source). Tests
+use no Oracle connection, no database writes, no browser, no screenshots. Executed on 2026-11-02.
+
+**Round 3 results (current):**
+
+| Command | Result |
+|---|---|
+| `server> node --import ./tests/setup.js --test tests/probation-legacy-parity.test.js` | **26 tests: 25 pass, 0 fail, 1 todo** |
+| `server> npm test` · `npm run lint` · `npm run format:check` | 758 tests: 757 pass, 0 fail, 1 todo · clean · clean |
+| `client> node --test tests/probationLegacyParity.test.mjs` | **24 tests: 22 pass, 0 fail, 2 todo** |
+| `client> npm test` · `npm run lint` · `npm run build` | 397 tests: 395 pass, 0 fail, 2 todo · clean · built |
+
+Round 3 test changes:
+- Server todo → real: "derives TOTAL_RATING from the lines and ignores a total or result sent by the
+  client" (create, update, schema strip, and a direct service call).
+- Server, new: "returns the total and result computed from the stored ratings on read".
+- Server, replaced: "stores a blank joining date as NULL" and "reads both NULL and the legacy blank
+  2000-01-01 as a blank joining date" replace the round-2 sentinel test. "caps TOTAL_RATING at 100"
+  is now computed from 20 × 5.
+- Client: "the client sends no total or result", the preview total test, and Job Title in the list
+  mapping and column test.
+
+Remaining todos: server — approver Suggestion while `INPROCESS` (workflow); client — criteria by
+form type, Submit / workflow.
+
+**Round 2 results (history):**
 
 | Command | Result |
 |---|---|
@@ -232,12 +262,13 @@ Effort: XS < 2 h · S ≤ 1 day · M 2–4 days · L ≥ 1 week. Gates per `docs
 | M6 | Approver Suggestion during workflow (#13, F8) | P2 | Not started | With M4 |
 | M7 | Report columns (F11) | P2 | **Done (R2)** | Pending at is `null` from the API until M4; Job Title not added (not requested) |
 | M8 | "Approved by: HR SUPERVISOR" (#15, D5) | P3 | Not started | With M4 |
-| M9 | Employee list exclusion (D7) | P3 | **Done (R2) — pending HR confirmation** | Uses `XXZPI_HR_PA_HEADER_TAB` (see Q10) |
+| M9 | Employee list exclusion (D7) | P3 | **Done (R2) — pending HR confirmation; table differs (R3)** | Code uses `XXZPI_HR_PA_HEADER_TAB`; legacy reads `XXZP.XXZPI_HR_PAF_HEADER_TAB` (§10.1). Not changed, by instruction |
 | M10 | Comments / Suggestion / ratings required (D10) | P3 | **Done (R2) as submit rules** | `validateForSubmit` (client), `submitProblems` (server); not wired until M4 |
 | M11 | Always 20 lines (#24) | P3 | Falls out of M1 | — |
 | M12 | Hard-coded SMTP credential in tracked docs | **P0** | **Done (R2)** | Redacted in commit "chore(security): redact legacy credentials from docs"; history not rewritten; rotation by the owner |
 | M13 | Status filter `Rejected` vs stored `REJECTED` | P2 | **Done (R2)** | Validation, OpenAPI, spec doc |
-| M14 | Server trusts a client-sent `totalRating` | P3 | Open | Always compute from the lines on the server (XS) |
+| M14 | Server trusts a client-sent `totalRating` | P3 | **Done (R3)** | Server computes total and result from the ratings; client values stripped; the client no longer sends a total |
+| M15 | Job Title in Records (F11) | P3 | **Done (R3)** | From the API's `jobTitle` |
 
 ### 6.1 Credential sweep (R2)
 
@@ -294,10 +325,11 @@ No new dependency, no DDL, no database writes, no change in `php-ci3-old-app`.
 3. The demo-only model holds "new requirements", so its extra fields count as NEW ONLY.
 4. Legacy header inputs on the edit view look editable but are not persisted. Making them editable in
    DRAFT is treated as an intended improvement.
-5. (R2) The legacy blank date `'01-JAN-00'` was stored as 2000-01-01 (RR/YY year rules). The new code
-   writes the same value for a blank joining date, so it does not depend on whether `FORM_DATE` is
-   nullable (not verified in the dictionary). An employee who really joined on 2000-01-01 would
-   show a blank joining date.
+5. (R2, revised R3) The legacy blank date `'01-JAN-00'` was stored as 2000-01-01. `FORM_DATE` is
+   nullable on TEST (`DATE`, `NULLABLE=Y`, no check constraints), so the new code stores **NULL**
+   for a blank joining date. On read, NULL and 2000-01-01 are both blank, so an employee who really
+   joined on 2000-01-01 would still show blank. Production nullability is assumed to match TEST
+   (not verified).
 6. (R2) Records created by the new form before this change hold a *form date* (default today) in
    FORM_DATE. They show it as the joining date until the employee is re-selected and saved.
 
@@ -308,13 +340,16 @@ No new dependency, no DDL, no database writes, no change in `php-ci3-old-app`.
   appraisal this year? It is implemented as in legacy for now.
 - Q6 Keep the new `toDate ≥ fromDate` and grade-integer rules?
 - Q8 Keep or remove the unreachable demo-only redesign (recommendation, signatures, allocated points)?
-- Q10 (R2) Legacy reads `XXZPI_HR_PAF_HEADER_TAB` for the exclusion. The new code uses
-  `XXZPI_HR_PA_HEADER_TAB`, the annual appraisal table the performance-appraisal module already
-  reads and writes, with the same predicate. The appraisal spec flags the `PAF` name as possibly
-  stale. Confirm in the dictionary which table holds this year's appraisals.
-- Q11 (R2) Should Job Title also be a Records column (legacy report had it)?
+- Q10 (R3, open) The dictionary shows two separate real tables (§10.1). Legacy probation excludes
+  using `XXZPI_HR_PAF_HEADER_TAB`. The legacy *annual appraisal* form writes only
+  `XXZPI_HR_PA_HEADER_TAB`, and no legacy code writes the `PAF` table. Which table should
+  probation use: the legacy `PAF` table (parity), the `PA` table (where annual appraisals are
+  actually written), or none (Q4)?
+- Q12 (R3) One TEST record has the created date in `FORM_DATE` (§10.2). Correct it (a data change
+  needing authorization), or leave it as TEST data?
 
 Answered in round 2: Q2 (joining date), Q5 (required on submit), Q7 (redact), Q9 (branch).
+Answered in round 3: Q11 (Job Title added).
 
 ---
 
@@ -384,3 +419,70 @@ Saved records keep their stored lines.
 
 **Effort:** table + endpoint + UI M (2–4 days); seed script S–M once the file is available.
 **Gates:** G1 (DDL, seed rows), G4 (CI3 coexistence).
+
+---
+
+## 10. Round 3 findings (read-only TEST checks and Git)
+
+Method: a standalone Node script using the server's configured pool (alias `zpadwtest_low`).
+- Every statement was a `SELECT` with bound values, inside `SET TRANSACTION READ ONLY`, followed by
+  a rollback.
+- Output was limited to owners, object types, nullability and counts.
+- The script lived in a scratch location and is not committed.
+
+### 10.1 Exclusion table
+
+| Name | `ALL_TABLES` | `ALL_VIEWS` | `ALL_SYNONYMS` | `ALL_OBJECTS` | Rows (TEST) | Rule columns |
+|---|---|---|---|---|---|---|
+| `XXZPI_HR_PAF_HEADER_TAB` | owner `XXZP` | none | none | `TABLE`, `VALID` | 467 | `EMPLOYEE_NUMBER` (VARCHAR2), `YEAR` (NUMBER), `STATUS` (VARCHAR2) |
+| `XXZPI_HR_PA_HEADER_TAB` | owner `XXZP` | none | none | `TABLE`, `VALID` | 624 | same three columns |
+
+**Which one the legacy rule uses:** `XXZP.XXZPI_HR_PAF_HEADER_TAB`.
+- Legacy `getEmp` / `getAllEmp` name it without a schema, and other legacy models name it as
+  `XXZP.XXZPI_HR_PAF_HEADER_TAB`.
+- No synonym exists, so the unqualified name can only resolve to the `XXZP` table. For the app's
+  TEST user, both unqualified names resolve, since that user's current schema owns them.
+- It is a real, separate table, not a stale name. However, the legacy annual appraisal form writes
+  only to `XXZPI_HR_PA_HEADER_TAB`; no legacy code inserts into or updates the `PAF` table.
+
+The new code currently uses `XXZPI_HR_PA_HEADER_TAB` and was **not changed**, by instruction.
+Decision: Q10.
+
+### 10.2 FORM_DATE nullability and contents
+
+- `XXZP.XXZP_PAF_PROBATION_HEADER.FORM_DATE`: `DATE`, `NULLABLE = Y`, no check constraints.
+  `FROM_DATE`, `TO_DATE` and `CREATED_AT` are also nullable.
+- **Applied (R3):** a blank joining date is now stored as `NULL`. Reads treat `NULL` and the legacy
+  `2000-01-01` as blank.
+
+Counts on TEST (no values read out):
+
+| Measure | Count |
+|---|---|
+| Probation headers | 5 |
+| `FORM_DATE` is NULL | 0 |
+| `FORM_DATE` = 2000-01-01 (legacy blank) | 0 |
+| **`FORM_DATE` = the record's created date** (same day, also within ±1 day) | **1** |
+| …of which differ from the employee's joining date | 1 |
+| `FORM_DATE` equals the employee's joining date | 0 |
+| Headers whose `EMP_NUMBER` has no current employee row | 5 |
+| Headers changed by the new API (`UPDATED_AT`/`UPDATED_BY` set) | 0 |
+| Headers whose stored `TOTAL_RATING` ≠ sum of their line ratings | 0 (2 headers have no lines) |
+
+All five TEST headers point to employee numbers with no current `XX_DIGI_EMP_MASTER` row. A
+joining date therefore cannot be compared for any of them. One record holds its created date
+(Q12). No data was changed.
+
+### 10.3 Local `main` commits not on `origin/main`
+
+| Hash | Message | Author | Date | Files |
+|---|---|---|---|---|
+| `1448779` | `feat(hr-recruitment): identity IDs for requisitions, interviews and attachments` | Nauman Mirza | 2026-11-02 | 23 files (+748 / −283): requisition and interview-assessment repositories/services and fakes; `hr-identity-concurrency.test.js` (new) and `hr-identity-ids.test.js`; OpenAPI; HR recruitment README; `docs/testing/hrms-recruitment-audit.md`; DB migration docs under `docs/db/migrations/` (duplicate-cleanup scripts `00`–`04`, new interview-677 scripts `10`–`13`, identity-constraint migration and README) |
+| `298d70a` | `it Merge branch 'main' of https://github.com/commonolivesofts-create/zamil-revamp` | Nauman Mirza | 2026-11-02 | Merge of `origin/main` (`cfb24a6`, #45) into local `1448779`. Clean merge, no own changes (combined diff empty). Against `origin`'s side it brings exactly `1448779`'s 23 files |
+
+Notes:
+- The merge message starts with a stray `it`.
+- `origin/main` has since moved to `d9fe99e` (#46, English salary certificate), so local `main` is
+  2 ahead and 1 behind.
+- This branch is based on local `main`, so a PR from it would include `1448779` and the merge.
+- Nothing was pushed.
