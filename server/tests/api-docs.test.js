@@ -598,7 +598,10 @@ describe('API documentation', () => {
           .filter((method) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
           .map((method) => `${method} ${path.slice(base.length)}`),
       );
-    assert.deepEqual(documented.sort(), expected.map(([method, path]) => `${method} ${path}`).sort());
+    assert.deepEqual(
+      documented.sort(),
+      expected.map(([method, path]) => `${method} ${path}`).sort(),
+    );
 
     for (const [method, suffix, action] of expected) {
       const operation = paths[`${base}${suffix}`][method];

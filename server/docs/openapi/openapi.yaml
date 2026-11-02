@@ -8645,7 +8645,8 @@ paths:
           description: Matching employee numbers.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ArabicSalaryCertificateEmployeeNumbersResponse' }
+              schema:
+                { $ref: '#/components/schemas/ArabicSalaryCertificateEmployeeNumbersResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
@@ -8964,7 +8965,8 @@ paths:
           description: A page of matching distinct employee numbers.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/EnglishSalaryCertificateEmployeeNumbersResponse' }
+              schema:
+                { $ref: '#/components/schemas/EnglishSalaryCertificateEmployeeNumbersResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
@@ -14227,8 +14229,7 @@ components:
     EnglishSalaryCertificateWrite:
       type: object
       additionalProperties: false
-      required:
-        [employeeNo, certDate, toEmpName, approvalName, allowanceFlag, joiningDate]
+      required: [employeeNo, certDate, toEmpName, approvalName, allowanceFlag, joiningDate]
       properties:
         employeeNo: { type: string, minLength: 1, maxLength: 80 }
         certDate: { $ref: '#/components/schemas/EnglishSalaryCertificateDate' }

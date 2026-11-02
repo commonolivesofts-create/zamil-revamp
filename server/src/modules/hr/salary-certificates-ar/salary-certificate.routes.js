@@ -1,17 +1,10 @@
-
 import { Router } from 'express';
 
-import {
-  createRequireCsrfToken,
-} from '../../../middleware/csrf.js';
+import { createRequireCsrfToken } from '../../../middleware/csrf.js';
 
-import {
-  validate,
-} from '../../../middleware/validate.js';
+import { validate } from '../../../middleware/validate.js';
 
-import {
-  createSalaryCertificateController,
-} from './salary-certificate.controller.js';
+import { createSalaryCertificateController } from './salary-certificate.controller.js';
 
 import {
   empty,
@@ -24,16 +17,10 @@ import {
 
 const RESOURCE = 'HR.SALARY_CERTIFICATES_AR';
 
-export function createSalaryCertificateRoutes({
-  service,
-  authenticate,
-  authorize,
-  auditService,
-}) {
+export function createSalaryCertificateRoutes({ service, authenticate, authorize, auditService }) {
   const router = Router();
 
-  const controller =
-    createSalaryCertificateController(service);
+  const controller = createSalaryCertificateController(service);
 
   const csrf = createRequireCsrfToken({
     auditService,
@@ -75,7 +62,7 @@ export function createSalaryCertificateRoutes({
     ...read('VIEW', {
       query: pickerQuery,
     }),
-    controller.employees
+    controller.employees,
   );
 
   // Employee details
@@ -84,15 +71,11 @@ export function createSalaryCertificateRoutes({
     ...read('VIEW', {
       params: empParams,
     }),
-    controller.employee
+    controller.employee,
   );
 
   // Approver lookup
-  router.get(
-    '/lookups/approvers',
-    ...read('VIEW'),
-    controller.approvers
-  );
+  router.get('/lookups/approvers', ...read('VIEW'), controller.approvers);
 
   // List certificates
   router.get(
@@ -100,7 +83,7 @@ export function createSalaryCertificateRoutes({
     ...read('VIEW', {
       query: listQuery,
     }),
-    controller.list
+    controller.list,
   );
 
   // Create certificate
@@ -109,7 +92,7 @@ export function createSalaryCertificateRoutes({
     ...write('CREATE', {
       body: writeBody,
     }),
-    controller.create
+    controller.create,
   );
 
   // HTML print
@@ -118,7 +101,7 @@ export function createSalaryCertificateRoutes({
     ...read('VIEW', {
       params: idParams,
     }),
-    controller.print
+    controller.print,
   );
 
   // Get certificate
@@ -127,7 +110,7 @@ export function createSalaryCertificateRoutes({
     ...read('VIEW', {
       params: idParams,
     }),
-    controller.read
+    controller.read,
   );
 
   // Update certificate
@@ -137,7 +120,7 @@ export function createSalaryCertificateRoutes({
       params: idParams,
       body: writeBody,
     }),
-    controller.update
+    controller.update,
   );
 
   // Delete certificate
@@ -146,7 +129,7 @@ export function createSalaryCertificateRoutes({
     ...write('DELETE', {
       params: idParams,
     }),
-    controller.remove
+    controller.remove,
   );
 
   return router;

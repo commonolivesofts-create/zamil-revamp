@@ -1,4 +1,3 @@
-
 import oracledb from 'oracledb';
 
 export const FIELDS = [
@@ -46,17 +45,14 @@ export const DATES = new Set([
   'contract_expiry',
 ]);
 
-export const NUMBERS = new Set([
-  'monthly_salary',
-  'visit_days',
-]);
+export const NUMBERS = new Set(['monthly_salary', 'visit_days']);
 
 const TABLE = 'XX_DIGI_BUSINESS_VISA_LETTERS';
 
-const cols = FIELDS.map(f =>
+const cols = FIELDS.map((f) =>
   DATES.has(f)
     ? `TO_CHAR(${f.toUpperCase()}, 'YYYY-MM-DD') AS ${f.toUpperCase()}`
-    : f.toUpperCase()
+    : f.toUpperCase(),
 ).join(', ');
 
 const projection = `
@@ -67,10 +63,8 @@ const projection = `
   TO_CHAR(UPDATED_AT,'YYYY-MM-DD HH24:MI') AS UPDATED_AT
 `;
 
-const map = row =>
-  row && Object.fromEntries(
-    Object.entries(row).map(([k, v]) => [k.toLowerCase(), v])
-  );
+const map = (row) =>
+  row && Object.fromEntries(Object.entries(row).map(([k, v]) => [k.toLowerCase(), v]));
 
 const run = (c, sql, binds = {}) =>
   c.execute(sql, binds, {
@@ -83,7 +77,7 @@ export async function get(c, id, lock = false) {
     `SELECT ${projection}
      FROM ${TABLE}
      WHERE ID = :id${lock ? ' FOR UPDATE' : ''}`,
-    { id }
+    { id },
   );
 
   return map(r.rows[0]);
@@ -96,24 +90,19 @@ export async function duplicate(c, ref, id = null) {
      FROM ${TABLE}
      WHERE UPPER(TRIM(REF_NO)) = UPPER(TRIM(:ref))
        AND (:id IS NULL OR ID <> :id)`,
-    { ref, id }
+    { ref, id },
   );
 
   return Number(r.rows[0].N) > 0;
 }
 
-const sqlValue = f =>
-  DATES.has(f)
-    ? `TO_DATE(:${f},'YYYY-MM-DD')`
-    : `:${f}`;
+const sqlValue = (f) => (DATES.has(f) ? `TO_DATE(:${f},'YYYY-MM-DD')` : `:${f}`);
 
 export async function insert(c, body, actor) {
-  const names = FIELDS.map(f => f.toUpperCase()).join(',');
+  const names = FIELDS.map((f) => f.toUpperCase()).join(',');
   const values = FIELDS.map(sqlValue).join(',');
 
-  const binds = Object.fromEntries(
-    FIELDS.map(f => [f, body[f] ?? null])
-  );
+  const binds = Object.fromEntries(FIELDS.map((f) => [f, body[f] ?? null]));
 
   binds.actor = actor;
   binds.newId = {
@@ -128,7 +117,7 @@ export async function insert(c, body, actor) {
      VALUES
       (${values}, :actor, SYSTIMESTAMP)
      RETURNING ID INTO :newId`,
-    binds
+    binds,
   );
 
   return String(r.outBinds.newId[0]);
@@ -139,9 +128,7 @@ export async function update(c, id, changes, actor) {
 
   if (!f.length) return;
 
-  const set = f.map(
-    k => `${k.toUpperCase()} = ${sqlValue(k)}`
-  ).join(',');
+  const set = f.map((k) => `${k.toUpperCase()} = ${sqlValue(k)}`).join(',');
 
   await run(
     c,
@@ -150,16 +137,12 @@ export async function update(c, id, changes, actor) {
          UPDATED_BY = :actor,
          UPDATED_AT = SYSTIMESTAMP
      WHERE ID = :id`,
-    { id, actor, ...changes }
+    { id, actor, ...changes },
   );
 }
 
 export async function remove(c, id) {
-  const r = await run(
-    c,
-    `DELETE FROM ${TABLE} WHERE ID = :id`,
-    { id }
-  );
+  const r = await run(c, `DELETE FROM ${TABLE} WHERE ID = :id`, { id });
 
   return r.rowsAffected;
 }
@@ -177,22 +160,18 @@ function predicate(q) {
           ? 'UPPER(REF_NO) LIKE UPPER(:ref_no)'
           : k === 'status'
             ? 'UPPER(TRIM(STATUS)) = UPPER(TRIM(:status))'
-            : 'DIVISION_ID = :division_id'
+            : 'DIVISION_ID = :division_id',
       );
     }
   }
 
   if (q.from) {
-    where.push(
-      "LETTER_DATE >= TO_DATE(:fromDate,'YYYY-MM-DD')"
-    );
+    where.push("LETTER_DATE >= TO_DATE(:fromDate,'YYYY-MM-DD')");
     b.fromDate = q.from;
   }
 
   if (q.to) {
-    where.push(
-      "LETTER_DATE < TO_DATE(:toDate,'YYYY-MM-DD') + 1"
-    );
+    where.push("LETTER_DATE < TO_DATE(:toDate,'YYYY-MM-DD') + 1");
     b.toDate = q.to;
   }
 
@@ -210,9 +189,7 @@ function predicate(q) {
   }
 
   return {
-    where: where.length
-      ? ' WHERE ' + where.join(' AND ')
-      : '',
+    where: where.length ? ' WHERE ' + where.join(' AND ') : '',
     binds: b,
   };
 }
@@ -220,33 +197,25 @@ function predicate(q) {
 export async function list(c, q) {
   const { where, binds } = predicate(q);
 
-  const count = await run(
-    c,
-    `SELECT COUNT(*) AS TOTAL FROM ${TABLE}${where}`,
-    binds
-  );
+  const count = await run(c, `SELECT COUNT(*) AS TOTAL FROM ${TABLE}${where}`, binds);
 
   const safe =
-    /^(id|ref_no|letter_date|employee_name|status|division_id|created_at)( (asc|desc))?$/i
-      .exec(q.sort || 'id desc');
+    /^(id|ref_no|letter_date|employee_name|status|division_id|created_at)( (asc|desc))?$/i.exec(
+      q.sort || 'id desc',
+    );
 
-  const order = safe
-    ? `${safe[1].toUpperCase()} ${(safe[3] || 'DESC').toUpperCase()}`
-    : 'ID DESC';
+  const order = safe ? `${safe[1].toUpperCase()} ${(safe[3] || 'DESC').toUpperCase()}` : 'ID DESC';
 
   const page = q.page || 1;
   const limit = q.limit ?? 10;
 
-  const sql = `
+  const sql =
+    `
     SELECT ${projection}
     FROM ${TABLE}
     ${where}
     ORDER BY ${order}
-  ` + (
-    limit
-      ? ' OFFSET :offset ROWS FETCH NEXT :take ROWS ONLY'
-      : ''
-  );
+  ` + (limit ? ' OFFSET :offset ROWS FETCH NEXT :take ROWS ONLY' : '');
 
   const result = await run(
     c,
@@ -257,7 +226,7 @@ export async function list(c, q) {
           offset: (page - 1) * limit,
           take: limit,
         }
-      : binds
+      : binds,
   );
 
   return {
@@ -274,7 +243,7 @@ export async function employees(c) {
      WHERE EMPLOYEE_NUMBER IS NOT NULL
        AND UPPER(NVL(CURRENT_EMP_FLAG,'Y')) = 'Y'
      GROUP BY EMPLOYEE_NUMBER, FULL_NAME
-     ORDER BY FULL_NAME`
+     ORDER BY FULL_NAME`,
   );
 
   return r.rows.map(map);
@@ -313,7 +282,7 @@ export async function employee(c, employeeNumber) {
          ORIGINAL_DATE_OF_HIRE DESC NULLS LAST
      )
      WHERE ROWNUM = 1`,
-    { employeeNumber }
+    { employeeNumber },
   );
 
   return map(r.rows[0]);

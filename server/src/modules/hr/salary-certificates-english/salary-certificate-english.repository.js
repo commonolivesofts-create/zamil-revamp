@@ -1,4 +1,3 @@
-
 import oracledb from 'oracledb';
 
 const opts = {
@@ -97,21 +96,14 @@ const names = [
 ];
 
 const assignments = fields
-  .map((col, i) =>
-    `${col}=${
-      col.endsWith('_DATE')
-        ? `TO_DATE(:${names[i]},'YYYY-MM-DD')`
-        : `:${names[i]}`
-    }`
+  .map(
+    (col, i) =>
+      `${col}=${col.endsWith('_DATE') ? `TO_DATE(:${names[i]},'YYYY-MM-DD')` : `:${names[i]}`}`,
   )
   .join(', ');
 
 const inputSql = fields
-  .map((col, i) =>
-    col.endsWith('_DATE')
-      ? `TO_DATE(:${names[i]},'YYYY-MM-DD')`
-      : `:${names[i]}`
-  )
+  .map((col, i) => (col.endsWith('_DATE') ? `TO_DATE(:${names[i]},'YYYY-MM-DD')` : `:${names[i]}`))
   .join(', ');
 
 export const repository = {
@@ -120,18 +112,14 @@ export const repository = {
       `${source}
        WHERE M.EMPLOYEE_NUMBER = :empNo`,
       { empNo },
-      opts
+      opts,
     );
 
     return result.rows;
   },
 
   signers: async (c) => {
-    const result = await c.execute(
-      signerSql,
-      {},
-      opts
-    );
+    const result = await c.execute(signerSql, {}, opts);
 
     return result.rows;
   },
@@ -158,7 +146,7 @@ export const repository = {
         offset: (page - 1) * pageSize,
         size: pageSize,
       },
-      opts
+      opts,
     );
 
     return result.rows;
@@ -173,7 +161,7 @@ export const repository = {
       ${lock ? 'FOR UPDATE' : ''}
       `,
       { id },
-      opts
+      opts,
     );
 
     return result.rows[0];
@@ -253,7 +241,7 @@ export const repository = {
       ${where}
       `,
       binds,
-      opts
+      opts,
     );
 
     const total = countResult.rows[0].TOTAL;
@@ -292,7 +280,7 @@ export const repository = {
         offset: (q.page - 1) * q.pageSize,
         size: q.pageSize,
       },
-      opts
+      opts,
     );
 
     return {
@@ -302,9 +290,7 @@ export const repository = {
   },
 
   create: async (c, p, user, uuid) => {
-    const binds = Object.fromEntries(
-      names.map((k) => [k, p[k]])
-    );
+    const binds = Object.fromEntries(names.map((k) => [k, p[k]]));
 
     const result = await c.execute(
       `
@@ -338,7 +324,7 @@ export const repository = {
           type: oracledb.NUMBER,
         },
       },
-      opts
+      opts,
     );
 
     return result.outBinds.outId[0];
@@ -352,14 +338,12 @@ export const repository = {
       WHERE ID = :id
         AND REF_NO IS NULL
       `,
-      { id, refNo }
+      { id, refNo },
     );
   },
 
   update: async (c, id, p, user) => {
-    const binds = Object.fromEntries(
-      names.map((k) => [k, p[k]])
-    );
+    const binds = Object.fromEntries(names.map((k) => [k, p[k]]));
 
     return c.execute(
       `
@@ -378,7 +362,7 @@ export const repository = {
         ...binds,
         id,
         userId: user,
-      }
+      },
     );
   },
 
@@ -389,7 +373,7 @@ export const repository = {
       WHERE ID = :id
         AND STATUS = 'DRAFT'
       `,
-      { id }
+      { id },
     );
   },
 };

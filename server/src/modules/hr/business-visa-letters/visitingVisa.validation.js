@@ -1,4 +1,3 @@
-
 import Joi from 'joi';
 
 const iso = Joi.string()
@@ -7,18 +6,17 @@ const iso = Joi.string()
     const [y, m, d] = v.split('-').map(Number);
     const t = new Date(Date.UTC(y, m - 1, d));
 
-    return t.getUTCFullYear() === y &&
-      t.getUTCMonth() === m - 1 &&
-      t.getUTCDate() === d
+    return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d
       ? v
       : h.error('date.invalid');
   });
 
-const txt = (n = 1000) =>
-  Joi.string().trim().max(n).allow('', null);
+const txt = (n = 1000) => Joi.string().trim().max(n).allow('', null);
 
 export const idParams = Joi.object({
-  id: Joi.string().pattern(/^[1-9]\d*$/).required(),
+  id: Joi.string()
+    .pattern(/^[1-9]\d*$/)
+    .required(),
 });
 
 export const employeeParams = Joi.object({
@@ -49,9 +47,7 @@ export const writeBody = Joi.object({
   embassy: txt(1000),
   embassy_location: txt(1000),
   opening_text: txt(1000),
-  request_for: Joi.string()
-    .valid('Business Single', 'Business Multiple')
-    .allow(null, ''),
+  request_for: Joi.string().valid('Business Single', 'Business Multiple').allow(null, ''),
   subject: txt(1000),
   employee_name: txt(250),
   nationality: txt(1000),

@@ -1,4 +1,3 @@
-
 export function createVisitingVisaController({ service: s }) {
   return {
     list: async (req, res) => {
@@ -10,9 +9,7 @@ export function createVisitingVisaController({ service: s }) {
         data: {
           pagination: {
             total_records: total,
-            total_pages: limit
-              ? Math.ceil(total / limit)
-              : 1,
+            total_pages: limit ? Math.ceil(total / limit) : 1,
             current_page: page,
             limit,
           },
@@ -36,11 +33,7 @@ export function createVisitingVisaController({ service: s }) {
     update: async (req, res) =>
       res.json({
         success: true,
-        data: await s.update(
-          req.auth,
-          req.params.id,
-          req.body
-        ),
+        data: await s.update(req.auth, req.params.id, req.body),
       }),
 
     remove: async (req, res) =>
@@ -58,9 +51,7 @@ export function createVisitingVisaController({ service: s }) {
     employee: async (req, res) =>
       res.json({
         success: true,
-        data: await s.employee(
-          req.params.employeeNumber
-        ),
+        data: await s.employee(req.params.employeeNumber),
       }),
 
     options: async (req, res) =>
@@ -94,27 +85,20 @@ export function createVisitingVisaController({ service: s }) {
         'updated_at',
       ];
 
-      const cell = v =>
+      const cell = (v) =>
         `"${String(v ?? '')
-          .replace(/^[=+@-]/, x => `'${x}`)
+          .replace(/^[=+@-]/, (x) => `'${x}`)
           .replace(/"/g, '""')}"`;
 
       const csv = [
         headers.join(','),
-        ...items.map(row =>
-          headers.map(k => cell(row[k])).join(',')
-        ),
+        ...items.map((row) => headers.map((k) => cell(row[k])).join(',')),
       ].join('\r\n');
 
       res
         .type('text/csv')
         .attachment(
-          `business_visa_letters_${
-            new Date()
-              .toISOString()
-              .replace(/[-:]/g, '')
-              .slice(0, 15)
-          }.csv`
+          `business_visa_letters_${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}.csv`,
         )
         .send(csv);
     },
