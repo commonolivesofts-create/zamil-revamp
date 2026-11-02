@@ -68,6 +68,18 @@ import { createProjectCharterRouter } from '../modules/hr/project-charter/projec
 
 import { createProjectCharterService } from '../modules/hr/project-charter/projectCharter.service.js';
 
+import { createSalaryCertificateRoutes } from '../modules/hr/salary-certificates-ar/salary-certificate.routes.js';
+
+import { createSalaryCertificateService } from '../modules/hr/salary-certificates-ar/salary-certificate.service.js';
+
+import { createVisitingVisaRouter } from '../modules/hr/business-visa-letters/visitingVisa.routes.js';
+
+import { createVisitingVisaService } from '../modules/hr/business-visa-letters/visitingVisa.service.js';
+
+import { createSalaryCertificateEnglishRoutes } from '../modules/hr/salary-certificates-english/salary-certificate-english.routes.js';
+
+import { createSalaryCertificateEnglishService } from '../modules/hr/salary-certificates-english/salary-certificate-english.service.js';
+
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
  * connection/transaction helpers; production uses the shared Oracle LOW pool.
@@ -457,6 +469,55 @@ export function createApiRouter(appConfig, deps = {}) {
         withConnection: db.withConnection,
         withTransaction: db.withTransaction,
       }),
+      authenticate,
+      authorize,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/salary-certificates-ar',
+
+    createSalaryCertificateRoutes({
+      service:
+        deps.salaryCertificateService ??
+        createSalaryCertificateService({
+          withConnection: db.withConnection,
+
+          withTransaction: db.withTransaction,
+
+          repository: deps.salaryCertificateRepository,
+        }),
+
+      authenticate,
+      authorize,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/business-visa-letters',
+    createVisitingVisaRouter({
+      service: createVisitingVisaService({
+        withConnection: db.withConnection,
+        withTransaction: db.withTransaction,
+      }),
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/salary-certificates',
+    createSalaryCertificateEnglishRoutes({
+      service:
+        deps.salaryCertificateEnglishService ??
+        createSalaryCertificateEnglishService({
+          withConnection: db.withConnection,
+          withTransaction: db.withTransaction,
+          repository: deps.salaryCertificateEnglishRepository,
+        }),
       authenticate,
       authorize,
       auditService,
