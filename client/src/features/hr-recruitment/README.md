@@ -66,6 +66,8 @@ All list endpoints take `page` and `pageSize` and return the standard envelope w
 | Experience | `gccExp`, `workExp`: `0 - 2`, `2 - 5`, `5 - 10`, `> 10` |
 | Skills, other, remarks, package | `skills`, `other`, `remark`, `totalPackage` |
 
+**IDs:** the requisition ID and the attachment IDs come from Oracle identity columns. The requisition number equals the ID, as before. **Requisition numbers now step by 1** (the legacy `MAX + 20` step is gone; audit report §11).
+
 `requestDate` is sent only on create. The backend sets the requester, the number and the status (`Draft`, `Inprocess`, `Approved`, `Rejected`). There is no submit or approval action in the API, so the page saves drafts and treats `Inprocess` and `Approved` as read-only.
 
 ### Interview Assessment (1061)
@@ -82,6 +84,7 @@ All list endpoints take `page` and `pageSize` and return the standard envelope w
 - `managingDirector` and `hrRepresentative` are read and sent back unchanged.
 - Ratings are 1–5 or `N/A`. Remarks are limited to 500 characters, as on the backend.
 - The backend sets the status; the API has no submit or approval action.
+- The header ID comes from an Oracle identity column. `INT_NO` keeps its format, `<attribute3>-<ID padded to 3>`, and is written from that ID in the same transaction.
 
 ### Employment Offer (1062)
 
@@ -122,6 +125,13 @@ The bilingual package rows map to the single `line` object. The status is always
 - `DELETE /:id`: Draft only.
 
 An unrated criterion is omitted from the payload, and the backend stores it as 0. A stored 0 is shown as "Not rated".
+
+**Legacy rules** (see `docs/testing/probation-legacy-comparison.md`):
+- `formDate` (FORM_DATE) is the employee's **joining date**, as in the legacy form. It is read-only, filled from `employee-details`, optional, and omitted from the payload when blank. The ticket and the Records list show the record's **created** date.
+- **Evaluation:** Acceptable when the total rating is 71 or more, Not acceptable at 70 or below (`probationRules.js`; the list takes the server's `evaluationResult`).
+- **Records** columns: employee number, job title, department, evaluation, pending-at (null from the API until the approval workflow exists) and the created date.
+- **Total:** the page shows a live preview; the payload carries no total. The server computes `TOTAL_RATING` and the result from the ratings and discards any client value.
+- `validateForSubmit` (Comments, Suggestion and a 1–5 rating on every criterion) is ready for the workflow. It is not wired yet, and draft saves stay lenient.
 
 ## Record access and status rules (backend)
 
@@ -187,5 +197,5 @@ While the page uses it, the page shows a **Demo data** badge. To remove the demo
   - `hrRecruitmentAudit.test.mjs`: contract regressions and lookup loading for every form.
   - `hrOnboarding.test.mjs`: orientation, probation, the report and the demo adapter.
   - `hrSharedComponents.test.mjs`.
-- **Server** (`server/tests`, Supertest with fake repositories): `requisitions`, `interview-assessments`, `employment-offers`, `orientation-trainings`, `probation-evaluations`, `periodwise-employees`, `hr-date-only` and `hr-identity-ids`.
+- **Server** (`server/tests`, Supertest with fake repositories): `requisitions`, `interview-assessments`, `employment-offers`, `orientation-trainings`, `probation-evaluations`, `periodwise-employees`, `hr-date-only`, `hr-identity-ids` and `hr-identity-concurrency` (parallel creates never share an ID).
 - **Live TEST check** (writes and deletes its own `ZZTEST` records; owner-run session): `npm run hr:live-crud` in `server/`, see `server/scripts/hr-live-crud.js`.

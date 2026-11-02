@@ -326,7 +326,11 @@ export async function isHrUser(connection, userId) {
   const result = await rows(
     connection,
     `SELECT LOOKUP_CODE FROM XX_DIGI_LOOKUP_VALUES
-      WHERE LOOKUP_TYPE = 'XXZP_HR' AND TAG = :userId FETCH FIRST 1 ROWS ONLY`,
+      WHERE LOOKUP_TYPE = 'XXZP_HR'
+        AND TAG = (SELECT TO_CHAR(MAX(E.USER_ID)) FROM XX_DIGI_EMP_MASTER E
+              JOIN XX_ZRV_USERS U ON U.EMPLOYEE_NUMBER = E.EMPLOYEE_NUMBER
+             WHERE U.USER_ID = :userId AND E.CURRENT_EMP_FLAG = 'Y'
+             HAVING COUNT(DISTINCT E.USER_ID) = 1 AND COUNT(*) = COUNT(E.USER_ID)) FETCH FIRST 1 ROWS ONLY`,
     { userId },
   );
   return result.length > 0;
@@ -411,11 +415,12 @@ export async function isSameDepartment(connection, { actorEmployeeNumber, subjec
   return result.length > 0;
 }
 
-export async function findActorName(connection, userId) {
+export async function findActorName(connection, employeeNumber) {
   const [row] = await rows(
     connection,
-    `SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId FETCH FIRST 1 ROWS ONLY`,
-    { userId },
+    `SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER
+      WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y' FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber },
   );
   return row?.FULL_NAME;
 }

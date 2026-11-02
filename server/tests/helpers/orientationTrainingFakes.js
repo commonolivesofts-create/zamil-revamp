@@ -51,8 +51,11 @@ export function installOrientationTrainings(
         startDate: '2026-01-01',
       };
     },
-    async findActorName(_connection, userId) {
-      return store.state.users.find((user) => user.userId === userId)?.fullName ?? 'Test Actor';
+    async findActorName(_connection, employeeNumber) {
+      return (
+        store.state.users.find((user) => user.employeeNumber === employeeNumber)?.fullName ??
+        'Test Actor'
+      );
     },
     async insertHeader(_connection, table, input) {
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';

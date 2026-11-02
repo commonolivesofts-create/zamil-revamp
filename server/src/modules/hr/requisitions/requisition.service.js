@@ -61,9 +61,7 @@ export function createRequisitionService({
     const written = [];
     try {
       for (const file of uploaded) {
-        const attachmentId = await repository.generateAttachmentId(connection);
-        await repository.insertAttachment(connection, {
-          attachmentId,
+        const attachmentId = await repository.insertAttachment(connection, {
           requisitionId,
           fileName: file.fileName,
         });
@@ -116,15 +114,13 @@ export function createRequisitionService({
 
       const { requisitionId } = await withTransaction(POOLS.LOW, async (connection) => {
         // REQUESTED_BY/REQUESTER_NAME are server-set from the employee master (§3.2), never body.
-        const requestor = await repository.findRequestor(connection, actor.userId);
+        const requestor = await repository.findRequestor(connection, actor.employeeNumber);
         if (!requestor) {
           throw new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', [
             { field: 'employeeNumber', message: 'No employee record exists for your account' },
           ]);
         }
-        const id = await repository.generateRequisitionId(connection);
-        await repository.insertHeader(connection, {
-          reqId: id,
+        const id = await repository.insertHeader(connection, {
           requestedBy: requestor.employeeNumber,
           requesterName: requestor.fullName,
           requestDate: toLegacyDate(body.requestDate),
@@ -152,6 +148,7 @@ export function createRequisitionService({
           ticketStatus: isHr ? (body.ticketStatus ?? '') : '',
           createdBy: actor.userId,
         });
+        await repository.setRequisitionNumber(connection, id);
         await appendAttachments(connection, id, uploaded);
         return { requisitionId: id };
       });
@@ -299,7 +296,7 @@ export function createRequisitionService({
 
     async requestor(actor) {
       const requestor = await read((connection) =>
-        repository.findRequestor(connection, actor.userId),
+        repository.findRequestor(connection, actor.employeeNumber),
       );
       if (!requestor) throw new AppError(404, 'NOT_FOUND', 'Employee record not found');
       return requestor;
@@ -312,7 +309,7 @@ export function createRequisitionService({
 
     async replacementFor(actor, search = '') {
       const requestor = await read((connection) =>
-        repository.findRequestor(connection, actor.userId),
+        repository.findRequestor(connection, actor.employeeNumber),
       );
       if (!requestor?.employeeNumber) {
         // The legacy lookup returned an empty result when the signed-in user

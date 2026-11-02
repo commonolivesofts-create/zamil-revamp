@@ -1,7 +1,8 @@
 /*
  * In-memory double of requisition.repository.js over an auth store's `state` (so transactions
- * snapshot/rollback it too). It mirrors the SQL semantics the service relies on: max+20 header
- * keys with the 100000 fallback, 'Draft' insert with the corrected ATTRIBUTE14/15 ticket dates,
+ * snapshot/rollback it too). It mirrors the SQL semantics the service relies on: identity-column
+ * header and attachment keys (never reused, untouched by rollbacks, no explicit ID accepted),
+ * REQUISITION_NUMBER set from the ID, 'Draft' insert with the corrected ATTRIBUTE14/15 ticket dates,
  * the §7.1 filters/sort/pagination, the §7.4 HR + recursive-supervisor scope, the corrected
  * non-wiping update, the attachment rows keyed by FORM_HEADER_ID, the §6 delete guards and the
  * §8 lookups. It does NOT prove the SQL; it proves the wiring of routes/controllers/service and
@@ -34,7 +35,9 @@ export function installRequisitions(
   store,
   { hrUserIds = [], empMaster = [], deptMaster = [], interviewReferenceNumbers = [] } = {},
 ) {
-  store.state.requisitionForm = { nextAttachmentId: 1, headers: [], attachments: [] };
+  store.state.requisitionForm = { headers: [], attachments: [] };
+  // Identity sequences live outside `state`: a rolled-back insert still consumes its value.
+  const identity = { requisition: 100000, attachment: 1 };
   store.state.hrUserIds = [...hrUserIds];
   store.state.empMaster = empMaster.map((employee) => ({ ...employee }));
   store.state.deptMaster = deptMaster.map((dept) => ({ ...dept }));
@@ -114,16 +117,14 @@ export function installRequisitions(
       .map((a) => ({ ...a }));
 
   const requisitionRepository = {
-    async generateRequisitionId() {
-      const ids = table().headers.map((h) => Number(h.requisitionId));
-      return String(ids.length ? Math.max(...ids) + 20 : 100000);
-    },
     async insertHeader(_c, h) {
+      if ('reqId' in h) throw new Error('REQUISITION_ID is an identity column: no explicit ID');
+      const id = String(identity.requisition++);
       const ticket = h.ticketStatus || null;
       table().headers.push({
         ...h,
-        requisitionId: h.reqId,
-        requisitionNumber: h.reqId,
+        requisitionId: id,
+        requisitionNumber: null,
         requisitionStatus: 'Draft', // README §11: the only status this API ever writes
         ticketStatus: ticket,
         acceptedDate: ticket === 'Accepted' ? legacyDay(store.now()) : null,
@@ -133,6 +134,11 @@ export function installRequisitions(
         updatedBy: null,
         updatedAt: null,
       });
+      return id;
+    },
+    async setRequisitionNumber(_c, requisitionId) {
+      const header = table().headers.find((h) => h.requisitionId === requisitionId);
+      header.requisitionNumber = header.requisitionId;
     },
 
     async findHeader(_c, requisitionId) {
@@ -165,16 +171,17 @@ export function installRequisitions(
       return true;
     },
 
-    async generateAttachmentId() {
-      return String(table().nextAttachmentId++);
-    },
-    async insertAttachment(_c, { attachmentId, requisitionId, fileName }) {
+    async insertAttachment(_c, args) {
+      if ('attachmentId' in args) throw new Error('attachment HEADER_ID is an identity column');
+      const { requisitionId, fileName } = args;
+      const attachmentId = String(identity.attachment++);
       table().attachments.push({
         attachmentId,
         requisitionId,
         fileName,
         attachedOn: legacyDay(store.now()),
       });
+      return attachmentId;
     },
     async listAttachments(_c, requisitionId) {
       return attachmentRows(requisitionId);
@@ -313,8 +320,8 @@ export function installRequisitions(
       }
       return [...seen.values()].sort((a, b) => Number(b.JOB_ID) - Number(a.JOB_ID));
     },
-    async findRequestor(_c, userId) {
-      const employee = store.state.empMaster.find((e) => String(e.userId) === String(userId));
+    async findRequestor(_c, employeeNumber) {
+      const employee = store.state.empMaster.find((e) => e.employeeNumber === employeeNumber);
       return employee
         ? {
             fullName: employee.fullName,
@@ -400,7 +407,7 @@ export function installRequisitions(
     attachments = [],
   } = {}) {
     const t = table();
-    const id = requisitionId ?? String(100000 + 20 * t.headers.length);
+    const id = requisitionId ?? String(identity.requisition++);
     t.headers.push({
       requisitionId: id,
       requisitionNumber: id,
@@ -439,7 +446,7 @@ export function installRequisitions(
     });
     for (const fileName of attachments) {
       t.attachments.push({
-        attachmentId: String(t.nextAttachmentId++),
+        attachmentId: String(identity.attachment++),
         requisitionId: id,
         fileName,
         attachedOn: legacyDay(store.now()),

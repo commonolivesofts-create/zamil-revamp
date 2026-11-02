@@ -2895,8 +2895,9 @@ paths:
         Returns filtered, paginated PAF records. HR membership is checked server-side
         against XX_DIGI_LOOKUP_VALUES (LOOKUP_TYPE 'XXZP_HR', MEANING equal to the
         authenticated employee number); other actors are scoped to their own CREATED_BY.
-        Does not return workflow-derived columns. Requires
-        `HR.PROBATION_EVALUATIONS:VIEW` (default-deny catalogue authorization).
+        Each row carries the derived evaluationResult (TOTAL_RATING 71–100 ACCEPTABLE,
+        0–70 NOT_ACCEPTABLE) and pendingAt, which stays null until the approval workflow
+        exists. Requires `HR.PROBATION_EVALUATIONS:VIEW` (default-deny catalogue authorization).
       security:
         - sessionCookie: []
       parameters:
@@ -2914,7 +2915,7 @@ paths:
         - {
             name: requestStatus,
             in: query,
-            schema: { type: string, enum: [DRAFT, INPROCESS, APPROVED, Rejected] },
+            schema: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] },
           }
         - {
             name: formType,
@@ -3034,8 +3035,14 @@ paths:
       operationId: listProbationEvaluationEmployees
       tags: [HR Probation Evaluations]
       summary: List employees in the actor hierarchy
-      description: Uses the approved employee hierarchy lookup SQL. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      description: >-
+        Employees reporting (directly or indirectly) to the signed-in user, as the legacy form,
+        without employees who have a non-rejected annual appraisal this year. The signed-in
+        user is found by employee number. Optional `search` matches the name or employee number;
+        at most 50 rows, ordered by name. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
       security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
       responses:
         '200':
           description: Hierarchical employee list.
@@ -3052,8 +3059,12 @@ paths:
                           type: object
                           properties:
                             hierarchyLevel: { type: integer }
-                            userId: { $ref: '#/components/schemas/Id' }
+                            userId:
+                              type: [string, 'null']
+                              description: Legacy EBS user ID (may be null).
+                            employeeNumber: { type: string }
                             fullName: { type: string }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '500': { $ref: '#/components/responses/InternalError' }
@@ -3342,7 +3353,9 @@ paths:
         REQUISITION_STATUS 'Approved'); the totals rate9 / cRating7 are recomputed
         server-side from the numeric ratings; empty text stores '-', empty numbers
         store 0; business dates travel as 'YYYY-MM-DD' and are stored as 'DD-Mon-YY'.
-        INT_NO is ATTRIBUTE3 + '-' + the zero-padded headerId. STATUS is written
+        HEADER_ID comes from the Oracle identity column (INSERT … RETURNING, no
+        MAX-based key); INT_NO is ATTRIBUTE3 + '-' + that headerId zero-padded to 3,
+        written in the same transaction. STATUS is written
         'Incomplete' only. Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:CREATE` (re-evaluated
         in Oracle on every request) and the `X-CSRF-Token` header.
       security:
@@ -4375,9 +4388,10 @@ paths:
       tags: [HR Requisitions]
       summary: Insert a requisition
       description: >-
-        Inserts the header in ONE transaction with REQUISITION_ID =
-        NVL(MAX(REQUISITION_ID + 20), 100000) and REQUISITION_NUMBER =
-        REQUISITION_ID (README §3.1). REQUISITION_STATUS is written 'Draft' only and
+        Inserts the header in ONE transaction. REQUISITION_ID comes from the
+        Oracle identity column (INSERT … RETURNING, no MAX-based key; IDs step by 1)
+        and REQUISITION_NUMBER is set to the same value in the same transaction
+        (README §3.1). Attachment HEADER_IDs also come from the identity column. REQUISITION_STATUS is written 'Draft' only and
         no workflow row is created (README §11). REQUESTED_BY / REQUESTER_NAME are
         server-set from the employee master of the session user and rejected when
         taken from the body. Business dates travel as 'YYYY-MM-DD' and are stored as
@@ -10429,7 +10443,12 @@ components:
     ProbationEvaluationWriteFields:
       type: object
       properties:
-        formDate: { type: string, format: date }
+        formDate:
+          type: string
+          format: date
+          description: >-
+            FORM_DATE: the employee's joining date (legacy meaning), optional. A blank value is
+            stored as NULL; NULL and the legacy blank 2000-01-01 both read back as null.
         evaluationPeriod: { type: string, maxLength: 200 }
         formType:
           type: string
@@ -10451,12 +10470,17 @@ components:
         toDate: { type: string, format: date, description: Must be on or after fromDate. }
         comment: { type: string, maxLength: 4000 }
         comments: { type: string, maxLength: 4000, description: Legacy APPROVED_BY_CMNT field. }
-        totalRating: { type: integer, minimum: 0, maximum: 100 }
+        totalRating:
+          description: >-
+            Ignored. The server always computes TOTAL_RATING as the sum of the line ratings;
+            any value sent here is accepted for compatibility and discarded.
+        evaluationResult:
+          description: Ignored. The server derives the result from the computed total.
     ProbationEvaluationWriteRequest:
       allOf:
         - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
         - type: object
-          required: [formDate, formType, employeeName, employeeNumber, fromDate, toDate, lines]
+          required: [formType, employeeName, employeeNumber, fromDate, toDate, lines]
           properties:
             lines:
               type: array
@@ -10468,7 +10492,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
         - type: object
-          required: [formDate, formType, employeeName, employeeNumber, fromDate, toDate, lines]
+          required: [formType, employeeName, employeeNumber, fromDate, toDate, lines]
           properties:
             lines:
               type: array
@@ -10488,21 +10512,27 @@ components:
           department,
           formType,
           totalRating,
+          evaluationResult,
           requestStatus,
+          pendingAt,
           createdAt,
           createdBy,
         ]
       properties:
         headerId: { $ref: '#/components/schemas/Id' }
-        formDate: { type: string, format: date }
+        formDate: { type: [string, 'null'], format: date, description: Joining date. }
         employeeName: { type: string }
         employeeNumber: { type: string }
         jobTitle: { type: string }
         department: { type: string }
         formType: { type: string }
         totalRating: { type: integer }
-        requestStatus: { type: string }
-        createdAt: { type: string }
+        evaluationResult: { type: string, enum: [ACCEPTABLE, NOT_ACCEPTABLE] }
+        requestStatus: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] }
+        pendingAt:
+          type: 'null'
+          description: The pending approver; always null until the approval workflow exists.
+        createdAt: { type: string, format: date }
         createdBy: { $ref: '#/components/schemas/Id' }
     ProbationEvaluation:
       type: object
@@ -10510,22 +10540,28 @@ components:
       properties:
         headerId: { $ref: '#/components/schemas/Id' }
         uuid: { type: string, format: uuid }
-        formDate: { type: string, format: date }
+        formDate: { type: [string, 'null'], format: date, description: Joining date. }
         employeeName: { type: string }
         employeeNumber: { type: string }
         empId: { type: string }
         grade: { type: integer }
         evaluationPeriod: { type: string }
         formType: { type: string }
-        totalRating: { type: integer }
+        totalRating:
+          type: integer
+          description: Sum of the line ratings, computed by the server on read.
+        evaluationResult:
+          type: string
+          enum: [ACCEPTABLE, NOT_ACCEPTABLE]
+          description: 71 and above ACCEPTABLE, 70 and below NOT_ACCEPTABLE.
         comment: { type: string }
         comments: { type: string }
         jobTitle: { type: string }
         department: { type: string }
         fromDate: { type: string, format: date }
         toDate: { type: string, format: date }
-        requestStatus: { type: string }
-        createdAt: { type: string }
+        requestStatus: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] }
+        createdAt: { type: string, format: date }
         lines:
           type: array
           items: { $ref: '#/components/schemas/ProbationEvaluationLine' }

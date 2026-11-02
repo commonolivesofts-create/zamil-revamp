@@ -1400,6 +1400,8 @@ export function createEmployeeReportService({ client }) {
   });
 }
 
+const PROBATION_RESULTS = Object.freeze(["ACCEPTABLE", "NOT_ACCEPTABLE"]);
+
 export function createProbationService({ client }) {
   const fromLegacyDate = (value) => {
     if (typeof value !== "string") return "";
@@ -1443,7 +1445,9 @@ export function createProbationService({ client }) {
       evaluationId: String(data.headerId),
       evaluationNumber: String(data.headerId),
       status: String(data.requestStatus ?? "DRAFT"),
+      // FORM_DATE is the employee's joining date (legacy meaning); null when blank.
       formDate: fromLegacyDate(data.formDate),
+      createdAt: fromLegacyDate(data.createdAt),
       evaluationPeriod: textValue(data.evaluationPeriod),
       formType: textValue(data.formType),
       employee: Object.freeze({
@@ -1453,7 +1457,7 @@ export function createProbationService({ client }) {
         position: textValue(data.jobTitle),
         grade: textValue(data.grade),
         departmentName: textValue(data.department),
-        startDate: "",
+        startDate: fromLegacyDate(data.formDate),
       }),
       fromDate: fromLegacyDate(data.fromDate),
       toDate: fromLegacyDate(data.toDate),
@@ -1479,25 +1483,31 @@ export function createProbationService({ client }) {
       evaluationNumber: String(data.headerId),
       status: String(data.requestStatus ?? "DRAFT"),
       employeeName: String(data.employeeName ?? ""),
+      employeeNumber: textValue(data.employeeNumber),
+      jobTitle: textValue(data.jobTitle),
+      department: textValue(data.department),
       formType: String(data.formType ?? ""),
       totalRating: Number(data.totalRating ?? 0),
-      updatedAt: data.createdAt ?? null,
+      // Derived by the server from TOTAL_RATING (71+ ACCEPTABLE).
+      evaluationResult: PROBATION_RESULTS.includes(data.evaluationResult)
+        ? data.evaluationResult
+        : "",
+      // The pending approver; null until the approval workflow exists.
+      pendingAt: textValue(data.pendingAt),
+      createdAt: fromLegacyDate(data.createdAt),
     });
   const getById = async (id, { signal } = {}) =>
     readRecord(
       (await client.get(`${PROBATION_BASE}/${segment(id)}`, { signal })).data,
     );
   return Object.freeze({
+    // Employees are not preloaded: the picker searches the API as the user types.
     async getLookups({ signal } = {}) {
-      const [types, employees, requestor] = await Promise.all([
+      const [types, requestor] = await Promise.all([
         client.get(`${PROBATION_BASE}/lookups/form-types`, { signal }),
-        client.get(`${PROBATION_BASE}/lookups/employees`, { signal }),
         client.get(`${PROBATION_BASE}/lookups/requestor`, { signal }),
       ]);
-      if (
-        !Array.isArray(types.data?.formTypes) ||
-        !Array.isArray(employees.data)
-      )
+      if (!Array.isArray(types.data?.formTypes))
         throw new ApiError(
           "The server returned unexpected probation form options.",
           { code: "INVALID_RESPONSE" },
@@ -1515,19 +1525,6 @@ export function createProbationService({ client }) {
           ),
           ratingScale: Object.freeze([]),
         }),
-        employees: Object.freeze(
-          employees.data.map((item) =>
-            Object.freeze({
-              employeeId: String(item.userId),
-              employeeNumber: "",
-              name: String(item.fullName),
-              position: "",
-              grade: "",
-              departmentName: "",
-              startDate: "",
-            }),
-          ),
-        ),
         requestor: requestor.data ?? null,
       });
     },
@@ -1546,28 +1543,31 @@ export function createProbationService({ client }) {
         departmentName: String(data?.dept?.name ?? ""),
       });
     },
+    // The signed-in user's reporting hierarchy (legacy rule), filtered on the server by name or
+    // employee number; a blank search lists the first matches. Details load on selection.
     async searchEmployees(search = "", { signal } = {}) {
+      const term = String(search).trim();
       const { data } = await client.get(`${PROBATION_BASE}/lookups/employees`, {
+        ...(term ? { params: { search: term } } : {}),
         signal,
       });
       if (!Array.isArray(data))
         throw new ApiError("The server returned unexpected employees.", {
           code: "INVALID_RESPONSE",
         });
-      const value = String(search).trim().toLocaleLowerCase();
       const items = data
+        .filter((item) => typeof item?.fullName === "string" && item.fullName)
         .map((item) =>
           Object.freeze({
-            employeeId: String(item.userId),
-            employeeNumber: "",
-            name: String(item.fullName),
+            employeeId: "",
+            employeeNumber: String(item.employeeNumber ?? ""),
+            name: item.fullName,
             position: "",
             grade: "",
             departmentName: "",
             startDate: "",
           }),
-        )
-        .filter((item) => item.name.toLocaleLowerCase().includes(value));
+        );
       return Object.freeze({
         items: Object.freeze(items),
         pagination: Object.freeze({
@@ -1598,7 +1598,8 @@ export function createProbationService({ client }) {
     getById,
     async save(id, body) {
       const payload = {
-        formDate: body.formDate,
+        // The joining date is optional; a blank one is omitted (the server stores the legacy blank).
+        ...(body.formDate ? { formDate: body.formDate } : {}),
         evaluationPeriod: body.evaluationPeriod,
         formType: body.formType,
         employeeName: body.employee.name,
@@ -1611,10 +1612,7 @@ export function createProbationService({ client }) {
         toDate: body.toDate,
         comment: body.comment,
         comments: body.comments,
-        totalRating: body.lines.reduce(
-          (total, line) => total + (Number(line.rating) || 0),
-          0,
-        ),
+        // No total: the server computes TOTAL_RATING and the result from the ratings.
         // The backend accepts only 1–5 and stores an omitted rating as 0 (not rated).
         lines: body.lines.map((line) => ({
           ...(id ? { lineId: line.lineId } : {}),

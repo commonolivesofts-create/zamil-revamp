@@ -21,37 +21,40 @@ const ID_FETCH = { HEADER_ID: ID, CREATED_BY: ID };
 
 // --- Key generation & insert (README §3) --------------------------------------------------------
 
-/** Legacy max+1 key with the documented 636 fallback, generated inside the caller's transaction. */
-export async function generateHeaderId(connection) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(HEADER_ID + 1), 636) AS ID
-       FROM XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T`,
-    {},
-  );
-  return String(row.ID);
-}
-
+/**
+ * Inserts the header and returns the HEADER_ID the identity column assigned (RETURNING INTO; no
+ * MAX-based key, so concurrent creates cannot clash — audit §10.4). INT_NO depends on that ID and
+ * is written by setIntNo in the same transaction.
+ */
 export async function insertHeader(connection, h) {
-  await connection.execute(
+  const result = await connection.execute(
     `INSERT INTO XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T
-       (UUID, HEADER_ID, CANDIDATE_NAME, POSITION_NAME, NATIONALITY, MARITAL_STATUS, AGE,
+       (UUID, CANDIDATE_NAME, POSITION_NAME, NATIONALITY, MARITAL_STATUS, AGE,
         INTERVIEW_DATE, INTERVIEW_TIME, INTERVIEW_TYPE, SECONDARY_EDUCATION, SECONDARY_EDUCATION_CHK,
         LAST_POSITION_HELD, COMPANY_NAME, RELEVANT_YEARS_EXPERIENCE, INTERVIEWED_BY,
         PERSONAL_SPEC_TOTAL, PERSONAL_SPEC_RESULT, JOB_COMPETENCY_TOTAL, JOB_COMPETENCY_RESULT,
         CREATED_BY, CREATION_DATE, ATTRIBUTE3, ATTRIBUTE4, STATUS,
-        INTERVIEWEDBY2, INTERVIEWEDBY3, INT_NO, LOCATION, CURR_EMPLOYER, JOINING, MAJOR, DIVISION,
+        INTERVIEWEDBY2, INTERVIEWEDBY3, LOCATION, CURR_EMPLOYER, JOINING, MAJOR, DIVISION,
         CUR_SAL_BASIC, EXP_SAL_BASIC, CUR_SAL_TOTAL, EXP_SAL_TOTAL)
      VALUES
-       (:uuid, :headerId, :candidateName, :positionName, :nationality, :maritalStatus, NVL(:age, 0),
+       (:uuid, :candidateName, :positionName, :nationality, :maritalStatus, NVL(:age, 0),
         TO_DATE(:interviewDate, 'DD-Mon-YY'), :interviewTime, :interviewType, :secondaryEducation, :secondaryEducationChk,
         :lastPositionHeld, :companyName, NVL(:relevantYearsExperience, 0), :interviewedBy,
         NVL(:personalSpecTotal, 0), :personalSpecResult, NVL(:jobCompetencyTotal, 0), :jobCompetencyResult,
         :createdBy, SYSDATE, :attribute3, :requisitionNo, :status,
-        :interviewedBy2, :interviewedBy3, :intNo, :location, :currentEmployer,
+        :interviewedBy2, :interviewedBy3, :location, :currentEmployer,
         TO_DATE(:joining, 'DD-Mon-YY'), :major, :division,
-        :curSalBasic, :expSalBasic, :curSalTotal, :expSalTotal)`,
-    h,
+        :curSalBasic, :expSalBasic, :curSalTotal, :expSalTotal)
+     RETURNING HEADER_ID INTO :headerId`,
+    { ...h, headerId: { dir: oracledb.BIND_OUT, type: oracledb.STRING } },
+  );
+  return result.outBinds.headerId[0];
+}
+
+export async function setIntNo(connection, { headerId, intNo }) {
+  await connection.execute(
+    `UPDATE XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T SET INT_NO = :intNo WHERE HEADER_ID = :headerId`,
+    { headerId, intNo },
   );
 }
 
@@ -383,7 +386,11 @@ export async function isHrUser(connection, userId) {
     connection,
     `SELECT LOOKUP_CODE
        FROM XX_DIGI_LOOKUP_VALUES
-      WHERE LOOKUP_TYPE = 'XXZP_HR' AND TAG = :userId
+      WHERE LOOKUP_TYPE = 'XXZP_HR'
+        AND TAG = (SELECT TO_CHAR(MAX(E.USER_ID)) FROM XX_DIGI_EMP_MASTER E
+              JOIN XX_ZRV_USERS U ON U.EMPLOYEE_NUMBER = E.EMPLOYEE_NUMBER
+             WHERE U.USER_ID = :userId AND E.CURRENT_EMP_FLAG = 'Y'
+             HAVING COUNT(DISTINCT E.USER_ID) = 1 AND COUNT(*) = COUNT(E.USER_ID))
       FETCH FIRST 1 ROWS ONLY`,
     { userId },
   );

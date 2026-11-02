@@ -33,16 +33,20 @@ export const FORM_TYPES = Object.freeze([
   'Supervisors_and_Foremens',
 ]);
 
+// REQUEST_STATUS values the legacy form writes (insert, then Probation_Model::updateRequestStatus).
+export const REQUEST_STATUSES = Object.freeze(['DRAFT', 'INPROCESS', 'APPROVED', 'REJECTED']);
+
 export const emptyQuerySchema = Joi.object({});
 export const emptyBodySchema = Joi.object({});
 export const headerIdParams = Joi.object({ headerId: id.required() });
+export const employeesQuerySchema = Joi.object({ search: text(100) });
 export const employeeDetailsQuerySchema = Joi.object({ empName: requiredText(200) });
 
 export const listQuerySchema = Joi.object({
   page,
   pageSize,
   search: text(100),
-  requestStatus: Joi.string().valid('DRAFT', 'INPROCESS', 'APPROVED', 'Rejected'),
+  requestStatus: Joi.string().valid(...REQUEST_STATUSES),
   formType: Joi.string().valid(...FORM_TYPES),
   empNumber: text(50),
   department: text(200),
@@ -63,7 +67,8 @@ const lineBase = {
 };
 
 const headerBase = {
-  formDate: isoDate.required(),
+  // FORM_DATE: the employee's joining date, filled from HR records (legacy meaning).
+  formDate: isoDate,
   evaluationPeriod: text(200),
   formType: Joi.string()
     .valid(...FORM_TYPES)
@@ -79,7 +84,9 @@ const headerBase = {
   comment: text(4000),
   // `comments` maps to APPROVED_BY_CMNT and exists in the legacy write form.
   comments: text(4000),
-  totalRating: Joi.number().integer().min(0).max(100),
+  // Computed by the server from the line ratings: accepted for compatibility, then discarded.
+  totalRating: Joi.any().strip(),
+  evaluationResult: Joi.any().strip(),
 };
 
 const withDateOrder = (schema) =>

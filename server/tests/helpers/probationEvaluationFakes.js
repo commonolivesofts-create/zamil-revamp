@@ -1,16 +1,8 @@
 import assert from 'node:assert/strict';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const legacyDate = (value) => {
-  if (!value) return '01-JAN-00';
-  const [year, month, day] = value.split('-');
-  return `${day}-${MONTHS[Number(month) - 1]}-${year}`;
-};
-const isoDate = (value) => {
-  if (!value || value === '01-JAN-00') return null;
-  const [, day, month, year] = /^(\d{2})-([A-Za-z]{3})-(\d{4})$/.exec(value);
-  return `${year}-${String(MONTHS.indexOf(month) + 1).padStart(2, '0')}-${day}`;
-};
+// Dates are bound and selected as 'YYYY-MM-DD' strings (TO_DATE/TO_CHAR), so the fake stores them as is.
+const storedDate = (value) => value;
+const readDate = (value) => value ?? null;
 
 // `departments` maps employee numbers to an ORGANIZATION_ID for the same-department rule.
 export function installProbationEvaluations(
@@ -23,10 +15,10 @@ export function installProbationEvaluations(
   const table = () => store.state.probationEvaluations;
   const headerOf = (headerId) => table().headers.find((header) => header.headerId === headerId);
   const linesOf = (headerId) => table().lines.filter((line) => line.headerId === headerId);
-  const requestorFor = (userId) => {
-    const user = store.state.users.find((item) => item.userId === userId);
-    const employee =
-      user && store.state.employees.find((item) => item.employeeNumber === user.employeeNumber);
+  // The repository resolves the signed-in user by EMPLOYEE_NUMBER (XX_DIGI_EMP_MASTER.USER_ID is
+  // the legacy EBS ID, not this application's user ID).
+  const requestorFor = (employeeNumber) => {
+    const employee = store.state.employees.find((item) => item.employeeNumber === employeeNumber);
     return employee
       ? {
           fullName: employee.fullName,
@@ -67,8 +59,8 @@ export function installProbationEvaluations(
   };
 
   const repository = {
-    async findRequestor(_connection, userId) {
-      return requestorFor(userId);
+    async findRequestor(_connection, employeeNumber) {
+      return requestorFor(employeeNumber);
     },
     async insertHeader(_connection, input) {
       const headerId = nextIdentity('header', table().headers, (header) => header.headerId);
@@ -94,7 +86,7 @@ export function installProbationEvaluations(
       return {
         headerId: header.headerId,
         uuid: header.uuid,
-        formDate: isoDate(header.formDate),
+        formDate: readDate(header.formDate),
         employeeName: header.employeeName,
         employeeNumber: header.employeeNumber,
         empId: header.empId,
@@ -106,8 +98,8 @@ export function installProbationEvaluations(
         comments: header.comments,
         jobTitle: header.jobTitle,
         department: header.department,
-        fromDate: isoDate(header.fromDate),
-        toDate: isoDate(header.toDate),
+        fromDate: readDate(header.fromDate),
+        toDate: readDate(header.toDate),
         requestStatus: header.requestStatus,
         createdAt: header.createdAt,
       };
@@ -180,7 +172,7 @@ export function installProbationEvaluations(
         total: rows.length,
         items: rows.slice(offset, offset + limit).map((header) => ({
           headerId: header.headerId,
-          formDate: isoDate(header.formDate),
+          formDate: readDate(header.formDate),
           employeeName: header.employeeName,
           employeeNumber: header.employeeNumber,
           jobTitle: header.jobTitle,
@@ -193,16 +185,33 @@ export function installProbationEvaluations(
         })),
       };
     },
-    async listEmployees(_connection, userId) {
-      const user = store.state.users.find((item) => item.userId === userId);
-      const employee =
-        user && store.state.employees.find((item) => item.employeeNumber === user.employeeNumber);
-      return employee ? [{ hierarchyLevel: 2, userId, fullName: employee.fullName }] : [];
+    // Every other employee stands in for the actor's reporting hierarchy.
+    async listEmployees(_connection, { employeeNumber, search = '' }) {
+      store.state.probationEmployeeQueries = [
+        ...(store.state.probationEmployeeQueries ?? []),
+        { employeeNumber, search },
+      ];
+      if (!requestorFor(employeeNumber)) return [];
+      const term = String(search ?? '').toUpperCase();
+      return store.state.employees
+        .filter((item) => item.employeeNumber !== employeeNumber)
+        .filter(
+          (item) =>
+            !term ||
+            item.fullName.toUpperCase().includes(term) ||
+            String(item.employeeNumber).includes(term),
+        )
+        .map((item) => ({
+          hierarchyLevel: 2,
+          userId: null,
+          employeeNumber: item.employeeNumber,
+          fullName: item.fullName,
+        }));
     },
-    async findEmployeeDetails(_connection, { empName, userId }) {
+    async findEmployeeDetails(_connection, { empName, employeeNumber }) {
       const employee = store.state.employees.find((item) => item.fullName === empName);
       if (!employee) return null;
-      const requestor = requestorFor(userId);
+      const requestor = requestorFor(employeeNumber);
       return {
         ids: { personId: '7001', employeeNumber: employee.employeeNumber },
         hire: { startDate: new Date('2020-01-01T00:00:00Z') },
@@ -219,7 +228,7 @@ export function installProbationEvaluations(
     const headerId = String(header.headerId ?? table().headers.length + 1);
     table().headers.push({
       uuid: `test-${headerId}`,
-      formDate: legacyDate('2026-10-01'),
+      formDate: storedDate('2026-10-01'),
       employeeName: 'Test Employee',
       employeeNumber: 'T-1001',
       empId: 'P-1001',
@@ -231,8 +240,8 @@ export function installProbationEvaluations(
       comments: '-',
       jobTitle: 'Engineer',
       department: 'Engineering',
-      fromDate: legacyDate('2026-01-01'),
-      toDate: legacyDate('2026-09-30'),
+      fromDate: storedDate('2026-01-01'),
+      toDate: storedDate('2026-09-30'),
       requestStatus: 'DRAFT',
       createdBy: '100',
       createdDate: '2026-10-19',

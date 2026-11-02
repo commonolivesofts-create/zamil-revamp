@@ -1,7 +1,8 @@
 /*
  * In-memory double of interviewAssessment.repository.js over an auth store's `state` (so
  * transactions snapshot/rollback it too). It mirrors the SQL semantics the service relies on:
- * max+1 header keys with the 636 fallback, insert of the four rows, header read with the
+ * identity-column header keys (never reused, untouched by rollbacks, no explicit ID accepted) with
+ * INT_NO set after the insert, insert of the four rows, header read with the
  * position's approval authority, child rows keyed by HEADER_ID, MERGE-style upserts with the
  * audit trio, the delete order (children then header), §7.1 filters/sort/pagination, the §7.4
  * HR-membership scope and the §8 lookups. It does NOT prove the SQL; it proves the wiring of
@@ -30,7 +31,6 @@ export function installInterviewAssessments(
   { hrUserIds = [], requisitions = [], nationalities = [], employees = [], jobMaster = [] } = {},
 ) {
   store.state.interviewAssessments = {
-    nextHeaderId: 636,
     headers: [],
     personalSpecs: [],
     competencies: [],
@@ -44,6 +44,8 @@ export function installInterviewAssessments(
   store.state.jobMaster = jobMaster;
 
   const table = () => store.state.interviewAssessments; // re-read: a rollback replaces the object
+  // The identity sequence lives outside `state`: a rolled-back insert still consumes its value.
+  const identity = { header: 636 };
   const headerOf = (headerId) => table().headers.find((h) => h.headerId === headerId);
   const specOf = (headerId) => table().personalSpecs.find((s) => s.headerId === headerId);
   const compOf = (headerId) => table().competencies.find((j) => j.headerId === headerId);
@@ -91,11 +93,20 @@ export function installInterviewAssessments(
   });
 
   const interviewAssessmentRepository = {
-    async generateHeaderId() {
-      return String(table().nextHeaderId++);
-    },
     async insertHeader(_c, h) {
-      table().headers.push({ ...h, createdAt: store.now(), updatedAt: null });
+      if ('headerId' in h) throw new Error('HEADER_ID is an identity column: no explicit ID');
+      const headerId = String(identity.header++);
+      table().headers.push({
+        ...h,
+        headerId,
+        intNo: null,
+        createdAt: store.now(),
+        updatedAt: null,
+      });
+      return headerId;
+    },
+    async setIntNo(_c, { headerId, intNo }) {
+      table().headers.find((h) => h.headerId === headerId).intNo = intNo;
     },
     async insertPersonalSpec(_c, s) {
       table().personalSpecs.push({ ...s });
@@ -338,7 +349,7 @@ export function installInterviewAssessments(
     headerId,
   } = {}) {
     const t = table();
-    const id = headerId ?? String(t.nextHeaderId++);
+    const id = headerId ?? String(identity.header++);
     t.headers.push({
       headerId: id,
       uuid: `seed-uuid-${id}`,

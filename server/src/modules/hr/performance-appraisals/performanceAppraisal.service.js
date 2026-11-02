@@ -124,7 +124,7 @@ export function createPerformanceAppraisalService({
       validateLines(body);
       return withTransaction(POOLS.LOW, async (c) => {
         const employee = body.employee?.name
-          ? await repository.findEmployee(c, body.employee.name, actor.userId)
+          ? await repository.findEmployee(c, body.employee.name, actor.employeeNumber)
           : null;
         if (
           !employee ||
@@ -211,7 +211,7 @@ export function createPerformanceAppraisalService({
       return withTransaction(POOLS.LOW, async (c) => {
         const appraisal = await repository.findHeader(c, headerId);
         if (!appraisal) throw notFound();
-        const requestor = await repository.findRequestor(c, actor.userId);
+        const requestor = await repository.findRequestor(c, actor.employeeNumber);
         if (!requestor || String(requestor.employeeNumber) !== String(appraisal.employee.number))
           throw new AppError(
             403,
@@ -230,7 +230,7 @@ export function createPerformanceAppraisalService({
       });
     },
     async employees(actor, year = currentYear()) {
-      const items = await read((c) => repository.listEmployees(c, actor.userId, year));
+      const items = await read((c) => repository.listEmployees(c, actor.employeeNumber, year));
       return items.map((r) => ({
         hierarchyLevel: r.HIERARCHY_LEVEL,
         userId: r.USER_ID,
@@ -240,7 +240,7 @@ export function createPerformanceAppraisalService({
     },
     async employeeDetails(actor, name, year = currentYear()) {
       return read(async (c) => {
-        const employee = await repository.findEmployee(c, name, actor.userId);
+        const employee = await repository.findEmployee(c, name, actor.employeeNumber);
         if (!employee) throw new AppError(404, 'EMP_NOT_FOUND', 'Employee was not found');
         await assertUnique(c, employee.number, year);
         return employee;
@@ -248,7 +248,7 @@ export function createPerformanceAppraisalService({
     },
     async gradeStats(actor) {
       const data = await read(async (c) => {
-        const employees = await repository.listEmployees(c, actor.userId, currentYear());
+        const employees = await repository.listEmployees(c, actor.employeeNumber, currentYear());
         return repository.gradeStats(c, actor.userId, employees.length);
       });
       const percent = { A: 15, B: 30, C: 40, D: 10, E: 5 };
@@ -268,7 +268,7 @@ export function createPerformanceAppraisalService({
       };
     },
     requestor(actor) {
-      return read((c) => repository.findRequestor(c, actor.userId));
+      return read((c) => repository.findRequestor(c, actor.employeeNumber));
     },
   };
 }
