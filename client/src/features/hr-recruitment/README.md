@@ -66,6 +66,8 @@ All list endpoints take `page` and `pageSize` and return the standard envelope w
 | Experience | `gccExp`, `workExp`: `0 - 2`, `2 - 5`, `5 - 10`, `> 10` |
 | Skills, other, remarks, package | `skills`, `other`, `remark`, `totalPackage` |
 
+**IDs:** the requisition ID and the attachment IDs come from Oracle identity columns. The requisition number equals the ID, as before. **Requisition numbers now step by 1** (the legacy `MAX + 20` step is gone; audit report §11).
+
 `requestDate` is sent only on create. The backend sets the requester, the number and the status (`Draft`, `Inprocess`, `Approved`, `Rejected`). There is no submit or approval action in the API, so the page saves drafts and treats `Inprocess` and `Approved` as read-only.
 
 ### Interview Assessment (1061)
@@ -82,6 +84,7 @@ All list endpoints take `page` and `pageSize` and return the standard envelope w
 - `managingDirector` and `hrRepresentative` are read and sent back unchanged.
 - Ratings are 1–5 or `N/A`. Remarks are limited to 500 characters, as on the backend.
 - The backend sets the status; the API has no submit or approval action.
+- The header ID comes from an Oracle identity column. `INT_NO` keeps its format, `<attribute3>-<ID padded to 3>`, and is written from that ID in the same transaction.
 
 ### Employment Offer (1062)
 
@@ -194,5 +197,5 @@ While the page uses it, the page shows a **Demo data** badge. To remove the demo
   - `hrRecruitmentAudit.test.mjs`: contract regressions and lookup loading for every form.
   - `hrOnboarding.test.mjs`: orientation, probation, the report and the demo adapter.
   - `hrSharedComponents.test.mjs`.
-- **Server** (`server/tests`, Supertest with fake repositories): `requisitions`, `interview-assessments`, `employment-offers`, `orientation-trainings`, `probation-evaluations`, `periodwise-employees`, `hr-date-only` and `hr-identity-ids`.
+- **Server** (`server/tests`, Supertest with fake repositories): `requisitions`, `interview-assessments`, `employment-offers`, `orientation-trainings`, `probation-evaluations`, `periodwise-employees`, `hr-date-only`, `hr-identity-ids` and `hr-identity-concurrency` (parallel creates never share an ID).
 - **Live TEST check** (writes and deletes its own `ZZTEST` records; owner-run session): `npm run hr:live-crud` in `server/`, see `server/scripts/hr-live-crud.js`.

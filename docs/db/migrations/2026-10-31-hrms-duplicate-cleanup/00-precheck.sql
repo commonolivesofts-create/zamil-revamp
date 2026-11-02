@@ -1,6 +1,7 @@
--- HRMS-DUP-CLEAN-001 precheck: read-only. Run on the target before 01..03 and compare with the
--- expected values in the comments (TEST, ZPADWTEST, 2026-10-31). If any value differs, STOP: the
--- cleanup was written for these exact findings.
+-- HRMS-DUP-CLEAN-001 precheck (requisition 100800 and attachments): read-only. Run on the target
+-- before 01..03 and compare with the expected values in the comments (TEST, ZPADWTEST,
+-- 2026-10-31). If any value differs, STOP: the cleanup was written for these exact findings.
+-- Interview 677 has its own scripts: 10-interview-677-precheck.sql .. 13-interview-677-rollback.sql.
 
 -- 1. Requisition 100800: expect ROWS_ = 2 and DISTINCT_ROWS = 1 (the two rows are identical).
 SELECT (SELECT COUNT(*) FROM XXZP.XXZPI_PER_REQUISITIONS_ALL
@@ -16,42 +17,11 @@ SELECT (SELECT COUNT(*) FROM XXZP.XXZP_ALL_ATTACHMENTS
          WHERE ATTRIBUTE4 = '100800') AS INTERVIEWS
   FROM DUAL;
 
--- 3. Interview 677: expect two rows, one 'Approved' with INT_NO and one 'InProcess' without,
---    created by two different users.
-SELECT STATUS, NVL2(INT_NO, 'Y', 'N') AS HAS_INT_NO, COUNT(*) AS ROWS_
-  FROM XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T
- WHERE HEADER_ID = 677
- GROUP BY STATUS, NVL2(INT_NO, 'Y', 'N');
-SELECT COUNT(DISTINCT CREATED_BY) AS CREATORS
-  FROM XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T WHERE HEADER_ID = 677;
-
--- 4. Interview 677 children per header row, matched by CREATED_BY: expect InProcess 1 and
---    Approved 2 in each table (3 child rows per table in total).
-SELECT 'EVAL' AS T, h.STATUS, COUNT(c.ROWID) AS CHILDREN
-  FROM XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T h
-  LEFT JOIN XXZP.XXZP_INTERVIEW_EVAL_T c ON c.HEADER_ID = h.HEADER_ID AND c.CREATED_BY = h.CREATED_BY
- WHERE h.HEADER_ID = 677 GROUP BY h.STATUS
-UNION ALL
-SELECT 'PSPEC', h.STATUS, COUNT(c.ROWID)
-  FROM XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T h
-  LEFT JOIN XXZP.XXZP_PERSONAL_SPEC_T c ON c.HEADER_ID = h.HEADER_ID AND c.CREATED_BY = h.CREATED_BY
- WHERE h.HEADER_ID = 677 GROUP BY h.STATUS
-UNION ALL
-SELECT 'JCOMP', h.STATUS, COUNT(c.ROWID)
-  FROM XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T h
-  LEFT JOIN XXZP.XXZP_JOB_COMPETENCY_T c ON c.HEADER_ID = h.HEADER_ID AND c.CREATED_BY = h.CREATED_BY
- WHERE h.HEADER_ID = 677 GROUP BY h.STATUS;
-
--- 5. Offers that reference an INT_NO of interview 677: expect 0.
-SELECT COUNT(*) AS OFFERS
-  FROM XXZP.XXZP_EMPLOYMENT_OFFER_HEADER_T
- WHERE ATTRIBUTE10 IN (SELECT INT_NO FROM XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T WHERE HEADER_ID = 677);
-
--- 6. Attachments: expect DUP_IDS = 3564, DUP_ROWS = 7128, MAX_GROUP = 2.
+-- 3. Attachments: expect DUP_IDS = 3564, DUP_ROWS = 7128, MAX_GROUP = 2.
 SELECT COUNT(*) AS DUP_IDS, SUM(N) AS DUP_ROWS, MAX(N) AS MAX_GROUP
   FROM (SELECT COUNT(*) N FROM XXZP.XXZP_ALL_ATTACHMENTS GROUP BY HEADER_ID HAVING COUNT(*) > 1);
 
--- 7. Attachments: duplicate groups whose rows disagree on anything except ATTACHED_ON: expect 0.
+-- 4. Attachments: duplicate groups whose rows disagree on anything except ATTACHED_ON: expect 0.
 --    Only groups that agree are cleaned; any group listed here needs a manual decision.
 SELECT COUNT(*) AS DISAGREEING_GROUPS
   FROM (SELECT HEADER_ID
@@ -63,12 +33,12 @@ SELECT COUNT(*) AS DISAGREEING_GROUPS
              OR COUNT(DISTINCT NVL(FORM_NAME, '~')) > 1
              OR COUNT(DISTINCT NVL(FILE_NAME, '~')) > 1));
 
--- 8. Backup table names are free: expect no rows.
-SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER = 'XXZP' AND TABLE_NAME LIKE 'XXZP_DUPFIX%';
+-- 5. Backup table names are free: expect no rows.
+SELECT TABLE_NAME FROM ALL_TABLES
+ WHERE OWNER = 'XXZP' AND TABLE_NAME IN ('XXZP_DUPFIX_REQ_BAK', 'XXZP_DUPFIX_ATT_BAK');
 
--- 9. Unique constraints from HRMS-ID-UK-001 on these three tables must not exist yet: expect no rows.
+-- 6. Unique constraints from HRMS-ID-UK-001 on these tables must not exist yet: expect no rows.
 SELECT TABLE_NAME, CONSTRAINT_NAME
   FROM ALL_CONSTRAINTS
  WHERE OWNER = 'XXZP' AND CONSTRAINT_TYPE IN ('P', 'U')
-   AND TABLE_NAME IN ('XXZPI_PER_REQUISITIONS_ALL', 'XXZP_INTERVW_ASSESMNT_HEADER_T',
-                      'XXZP_ALL_ATTACHMENTS');
+   AND TABLE_NAME IN ('XXZPI_PER_REQUISITIONS_ALL', 'XXZP_ALL_ATTACHMENTS');

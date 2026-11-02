@@ -1,9 +1,9 @@
--- HRMS-DUP-CLEAN-001 rollback. NOT APPLIED. Restores the rows from the 01-backup.sql tables after
+-- HRMS-DUP-CLEAN-001 rollback (requisition 100800 and attachments). NOT APPLIED. Restores the rows from the 01-backup.sql tables after
 -- 02-cleanup.sql was committed. Run as the XXZP owner, then COMMIT after the checks at the end.
--- Before running: if HRMS-ID-UK-001 constraints were added to these three tables afterwards,
+-- Before running: if HRMS-ID-UK-001 constraints were added to these two tables afterwards,
 -- drop them first (restoring the duplicates would violate them).
 -- Rows created after the cleanup are not touched, except that a new attachment reusing a
--- backed-up HEADER_ID would be left alongside the restored rows (check step 3 below).
+-- backed-up HEADER_ID would be left alongside the restored rows (check step 2 below).
 
 -- 1. Requisition 100800: the two backed-up rows are identical; put one copy back if only one
 --    row is left.
@@ -25,25 +25,14 @@ SELECT REQUISITION_ID, UUID, REQUISITION_NUMBER, REQUISITION_STATUS, WF_INTERNAL
  WHERE ROWNUM = 1
    AND (SELECT COUNT(*) FROM XXZP.XXZPI_PER_REQUISITIONS_ALL WHERE REQUISITION_ID = 100800) = 1;
 
--- 2. Interview: move the renumbered header and children back to 677.
-UPDATE XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T SET HEADER_ID = 677
- WHERE HEADER_ID = (SELECT NEW_HEADER_ID FROM XXZP.XXZP_DUPFIX_INT_MAP);
-UPDATE XXZP.XXZP_INTERVIEW_EVAL_T SET HEADER_ID = 677
- WHERE HEADER_ID = (SELECT NEW_HEADER_ID FROM XXZP.XXZP_DUPFIX_INT_MAP);
-UPDATE XXZP.XXZP_PERSONAL_SPEC_T SET HEADER_ID = 677
- WHERE HEADER_ID = (SELECT NEW_HEADER_ID FROM XXZP.XXZP_DUPFIX_INT_MAP);
-UPDATE XXZP.XXZP_JOB_COMPETENCY_T SET HEADER_ID = 677
- WHERE HEADER_ID = (SELECT NEW_HEADER_ID FROM XXZP.XXZP_DUPFIX_INT_MAP);
-
--- 3. Attachments: re-insert every backed-up row whose original ROWID no longer exists.
+-- 2. Attachments: re-insert every backed-up row whose original ROWID no longer exists.
 INSERT INTO XXZP.XXZP_ALL_ATTACHMENTS (UUID, HEADER_ID, FORM_HEADER_ID, FORM_NAME, FILE_NAME, ATTACHED_ON)
 SELECT b.UUID, b.HEADER_ID, b.FORM_HEADER_ID, b.FORM_NAME, b.FILE_NAME, b.ATTACHED_ON
   FROM XXZP.XXZP_DUPFIX_ATT_BAK b
  WHERE NOT EXISTS (SELECT 1 FROM XXZP.XXZP_ALL_ATTACHMENTS a WHERE a.ROWID = CHARTOROWID(b.ORIG_ROWID));
 
--- Checks before COMMIT: expect REQ 2, INT_677 2, ATT_ROWS equal to the backup count (7128 on TEST).
+-- Checks before COMMIT: expect REQ 2 and ATT_ROWS equal to the backup count (7128 on TEST).
 SELECT (SELECT COUNT(*) FROM XXZP.XXZPI_PER_REQUISITIONS_ALL WHERE REQUISITION_ID = 100800) AS REQ,
-       (SELECT COUNT(*) FROM XXZP.XXZP_INTERVW_ASSESMNT_HEADER_T WHERE HEADER_ID = 677) AS INT_677,
        (SELECT COUNT(*) FROM XXZP.XXZP_ALL_ATTACHMENTS
          WHERE HEADER_ID IN (SELECT HEADER_ID FROM XXZP.XXZP_DUPFIX_ATT_BAK)) AS ATT_ROWS,
        (SELECT COUNT(*) FROM XXZP.XXZP_DUPFIX_ATT_BAK) AS ATT_BACKUP
