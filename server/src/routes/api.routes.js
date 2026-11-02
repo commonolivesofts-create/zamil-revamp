@@ -72,14 +72,20 @@ import { createSalaryCertificateRoutes } from '../modules/hr/salary-certificates
 
 import { createSalaryCertificateService } from '../modules/hr/salary-certificates-ar/salary-certificate.service.js';
 
+import { createVisitingVisaRouter } from '../modules/hr/business-visa-letters/visitingVisa.routes.js';
+
+import { createVisitingVisaService } from '../modules/hr/business-visa-letters/visitingVisa.service.js';
+
 import { createSalaryCertificateEnglishRoutes } from '../modules/hr/salary-certificates-english/salary-certificate-english.routes.js';
 
 import { createSalaryCertificateEnglishService } from '../modules/hr/salary-certificates-english/salary-certificate-english.service.js';
 
-import { createVisitingVisaRouter as createBusinessVisaLetterRouter } from '../modules/hr/business-visa-letter/business-visiting-visa-letter.routes.js';
-import { createVisitingVisaService as createBusinessVisaLetterService } from '../modules/hr/business-visa-letter/business-visiting-visa-letter.service.js';
 import { createTouristVisaRoutes } from '../modules/hr/tourist-visa-letters/tourist-visa-letter.routes.js';
 import { createTouristVisaService } from '../modules/hr/tourist-visa-letters/tourist-visa-letter.service.js';
+
+import { createWarningLetterRoutes } from '../modules/hr/warning-letters/warning-letter.routes.js';
+
+import { createWarningLetterService } from '../modules/hr/warning-letters/warning-letter.service.js';
 
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
@@ -497,25 +503,9 @@ export function createApiRouter(appConfig, deps = {}) {
   );
 
   router.use(
-    '/salary-certificates',
-    createSalaryCertificateEnglishRoutes({
-      service:
-        deps.salaryCertificateEnglishService ??
-        createSalaryCertificateEnglishService({
-          withConnection: db.withConnection,
-          withTransaction: db.withTransaction,
-          repository: deps.salaryCertificateEnglishRepository,
-        }),
-      authenticate,
-      authorize,
-      auditService,
-    }),
-  );
-
-  router.use(
     '/hr/business-visa-letters',
-    createBusinessVisaLetterRouter({
-      service: createBusinessVisaLetterService({
+    createVisitingVisaRouter({
+      service: createVisitingVisaService({
         withConnection: db.withConnection,
         withTransaction: db.withTransaction,
       }),
@@ -540,5 +530,32 @@ export function createApiRouter(appConfig, deps = {}) {
       auditService,
     }),
   );
+
+  router.use(
+    '/salary-certificates',
+    createSalaryCertificateEnglishRoutes({
+      service:
+        deps.salaryCertificateEnglishService ??
+        createSalaryCertificateEnglishService({
+          withConnection: db.withConnection,
+          withTransaction: db.withTransaction,
+          repository: deps.salaryCertificateEnglishRepository,
+        }),
+      authenticate,
+      authorize,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/warning-letters',
+    createWarningLetterRoutes({
+      service: createWarningLetterService(),
+      authenticate,
+      authorize,
+      auditService,
+    }),
+  );
+
   return router;
 }

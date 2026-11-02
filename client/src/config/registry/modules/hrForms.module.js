@@ -79,5 +79,11 @@ export default defineModule({
     description: 'View and manage tourist visa letters.',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [],
+  }, {
+    code: 'WARNING_LETTERS',
+    name: 'Warning Letters',
+    description: 'View and manage warning letters.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
   }],
 })
