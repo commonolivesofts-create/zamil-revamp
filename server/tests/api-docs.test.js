@@ -577,6 +577,43 @@ describe('API documentation', () => {
     assert.ok(components.schemas.EmployeeClearanceListResponse.properties.data);
   });
 
+  it('documents every Arabic Salary Certificate route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/salary-certificates-ar';
+    const expected = [
+      ['get', '/lookups/employee-numbers', 'VIEW'],
+      ['get', '/lookups/employees/{empNo}', 'VIEW'],
+      ['get', '/lookups/approvers', 'VIEW'],
+      ['get', '', 'VIEW'],
+      ['post', '', 'CREATE'],
+      ['get', '/{id}/print', 'VIEW'],
+      ['get', '/{id}', 'VIEW'],
+      ['put', '/{id}', 'UPDATE'],
+      ['delete', '/{id}', 'DELETE'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item)
+          .filter((method) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
+          .map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(
+      documented.sort(),
+      expected.map(([method, path]) => `${method} ${path}`).sort(),
+    );
+
+    for (const [method, suffix, action] of expected) {
+      const operation = paths[`${base}${suffix}`][method];
+      assert.ok(operation.security?.length, `${method.toUpperCase()} ${suffix} session security`);
+      assert.match(operation.description, new RegExp(`HR\\.SALARY_CERTIFICATES_AR:${action}\\b`));
+      const csrf = (operation.parameters ?? []).some(
+        (parameter) => parameter.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method.toUpperCase()} ${suffix} CSRF`);
+    }
+  });
+
   it('serves the specification at /api/openapi.json', async () => {
     const res = await request(app).get('/api/openapi.json').expect(200);
 
@@ -596,11 +633,14 @@ describe('API documentation', () => {
     await request(disabledApp).get('/api/openapi.json').expect(404);
   });
 
-  it('mounts the Employee Clearance, Survey Report, and Project Charter routers', async () => {
+  it('mounts protected Employee Clearance, Survey Report, Project Charter, and HR form routers', async () => {
     const responses = await Promise.all([
       request(app).get('/api/v1/hr/employee-clearance'),
       request(app).get('/api/v1/survey/reports/questions'),
       request(app).get('/api/v1/projects/charters'),
+      request(app).get('/api/v1/salary-certificates-ar'),
+      request(app).get('/api/v1/salary-certificates'),
+      request(app).get('/api/v1/hr/business-visa-letters'),
     ]);
 
     for (const response of responses) {
