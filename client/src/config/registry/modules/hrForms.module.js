@@ -67,5 +67,23 @@ export default defineModule({
     description: 'View and manage English salary certificates.',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [],
+  }, {
+    code: 'BUSINESS_VISA_LETTERS',
+    name: 'Business Visiting Visa Letters',
+    description: 'View and manage business visiting visa letters.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
+  }, {
+    code: 'TOURIST_VISA_LETTERS',
+    name: 'Tourist Visa Letters',
+    description: 'View and manage tourist visa letters.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
+  }, {
+    code: 'WARNING_LETTERS',
+    name: 'Warning Letters',
+    description: 'View and manage warning letters.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
   }],
 })
