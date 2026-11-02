@@ -127,7 +127,9 @@ export async function isHr(c, userId) {
     `SELECT COUNT(*) AS CNT
      FROM XX_DIGI_LOOKUP_VALUES
      WHERE LOOKUP_TYPE = 'XXZP_HR'
-       AND TAG = :userId`,
+       AND TAG IN (SELECT TO_CHAR(E.USER_ID) FROM XX_DIGI_EMP_MASTER E
+             JOIN XX_ZRV_USERS U ON U.EMPLOYEE_NUMBER = E.EMPLOYEE_NUMBER
+            WHERE U.USER_ID = :userId AND E.CURRENT_EMP_FLAG = 'Y')`,
     { userId: String(userId) },
   );
 
