@@ -990,43 +990,28 @@ test("probation: validation for save and submit opens the first step with a prob
     [Object.keys(unscored.errors), unscored.firstStep],
     [[`criterion:${WORKERS[2].code}`], 1],
   );
-  const submit = validateProbation(base, context, { submit: true });
-  assert.deepEqual(Object.keys(submit.errors), [
-    "recommendation",
-    "evaluatorSignature",
-  ]);
-  assert.equal(submit.firstStep, 2);
-  assert.deepEqual(
-    Object.keys(
-      validateProbation(
-        { ...base, recommendation: "EXTEND", signatures: SIGNED },
-        context,
-        { submit: true },
-      ).errors,
-    ),
-    ["extendBy"],
-  );
-  const contradiction = { ...base, recommendation: "END", signatures: SIGNED };
+  // New-only fields (not in the legacy form) are optional: recommendation,
+  // extension, justification and signatures never block the evaluation.
   assert.equal(
-    validateProbation(contradiction, context, { submit: true }).errors
-      .justification,
-    "Explain why the recommendation differs from the result",
-  );
-  assert.equal(
-    validateProbation(
-      { ...contradiction, justification: "Safety breach" },
-      context,
-      { submit: true },
-    ).valid,
+    validateProbation(base, context).valid,
     true,
+    "no recommendation or signature",
   );
-  assert.equal(
-    validateProbation({ ...base, recommendation: "CONFIRM" }, context, {
-      submit: true,
-    }).firstStep,
-    3,
-    "only the signature missing: sign-off step",
-  );
+  for (const optional of [
+    { recommendation: "EXTEND", extendBy: "" },
+    { recommendation: "END", justification: "" },
+    {
+      recommendation: "CONFIRM",
+      signatures: { evaluator: null, employee: null },
+    },
+    { recommendation: "EXTEND", extendBy: "2", signatures: SIGNED },
+  ]) {
+    assert.deepEqual(
+      validateProbation({ ...base, ...optional }, context).errors,
+      {},
+      JSON.stringify(optional),
+    );
+  }
   assert.deepEqual(
     [isProbationLocked("SUBMITTED"), isProbationLocked("DRAFT")],
     [true, false],

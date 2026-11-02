@@ -61,7 +61,8 @@ function ProbationEditor({ lookups, record }) {
   }
   const validate = () => {
     const next = {}
-    if (!employee?.name || !employee?.employeeNumber || !employee?.employeeId) next.employee = 'Select an employee with complete employee details.'
+    // EMP_ID (person ID) is new-only and optional: legacy records store '-'.
+    if (!employee?.name || !employee?.employeeNumber) next.employee = 'Select an employee with complete employee details.'
     if (!form.formType) next.formType = 'Select a form type.'
     if (!form.formDate) next.formDate = 'Form date is required.'
     if (!form.fromDate) next.fromDate = 'Evaluation start date is required.'
