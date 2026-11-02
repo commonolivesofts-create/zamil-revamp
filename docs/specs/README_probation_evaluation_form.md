@@ -54,7 +54,7 @@ Exactly **2 tables**, keyed by `HEADER_ID`. The header is 1 row per evaluation; 
 | `TO_DATE` | DATE `DD-Mon-YYYY` | `to_date` | evaluation period to, default `01-JAN-00` |
 | `USER_NAME` | VARCHAR2 | `hidden_username` | prepared-by user name, default `'-'` |
 | `USER_MAIL` | VARCHAR2 | `hidden_useremail` | prepared-by email, default `'-'` |
-| `REQUEST_STATUS` | VARCHAR2 | — | `DRAFT` \| `INPROCESS` \| `APPROVED` \| `Rejected`. **API writes `'DRAFT'` only** |
+| `REQUEST_STATUS` | VARCHAR2 | — | `DRAFT` \| `INPROCESS` \| `APPROVED` \| `REJECTED`. **API writes `'DRAFT'` only** |
 | `CREATED_AT` | DATE `DD-Mon-YYYY` | — | audit |
 | `CREATED_BY` | NUMBER | — | audit = authenticated user id |
 
@@ -272,7 +272,7 @@ DEPARTMENT, TOTAL_RATING, REQUEST_STATUS, CREATED_AT, PENDING_AT` (workflow-deri
 |---|---|---|---|
 | `page` / `pageSize` | int (1 / 20, max 100) | — | `OFFSET/FETCH` |
 | `search` | string | `EMP_NAME`, `EMP_NUMBER`, `JOB_T`, `DEPARTMENT` | partial match |
-| `requestStatus` | string | `REQUEST_STATUS` | `DRAFT` \| `INPROCESS` \| `APPROVED` \| `Rejected` |
+| `requestStatus` | string | `REQUEST_STATUS` | `DRAFT` \| `INPROCESS` \| `APPROVED` \| `REJECTED` |
 | `formType` | string | `FORM_NAME` | exact form type |
 | `empNumber` | string | `EMP_NUMBER` | exact |
 | `department` | string | `DEPARTMENT` | exact or partial |
@@ -414,7 +414,8 @@ WHERE PERSON_ID = :personId AND CURRENT_EMP_FLAG = 'Y';
 | `employeeName` | required, max ~200 |
 | `employeeNumber` | required, max ~50 |
 | `formType` | required: one of the 5 values (§8.1) |
-| `formDate`, `fromDate`, `toDate` | required valid dates (ISO in, `DD-Mon-YYYY` stored); `toDate >= fromDate` |
+| `formDate` | optional: the employee's joining date (legacy `prf_date` meaning), auto-filled; blank stored as the legacy 2000-01-01 and read back as null |
+| `fromDate`, `toDate` | required valid dates (ISO in and out; bound and selected as `YYYY-MM-DD`); `toDate >= fromDate` |
 | `grade` | integer ≥ 0 (default 0) |
 | `totalRating` | integer 0–100 (legacy sums line ratings; server may recompute) |
 | `lines` | required array, max 20 items |
@@ -459,14 +460,14 @@ WHERE PERSON_ID = :personId AND CURRENT_EMP_FLAG = 'Y';
 ## 11. WORKFLOW — EXPLICITLY OUT OF SCOPE (verified present in legacy; do NOT implement)
 
 - `ProbationFlow::submit()` (`controllers/ProbationFlow.php:66-296`) — SMTP mail
-  (hard-coded `workflowmailer@zamilplastic.com` / `D@989955427519ud`),
+  (hard-coded SMTP mailbox `[REDACTED]` / password `[REDACTED]`),
   `callXXPHP_WORKFLOW(... 'EPRBF' ...)`, then `updateRequestStatus(id, 'INPROCESS')`.
 - `ProbationFlow::workflow()` (`controllers/ProbationFlow.php:298-754`) — approve/reject handler
-  writing `REQUEST_STATUS = 'Approved' | 'Rejected'`.
+  writing `REQUEST_STATUS = 'APPROVED' | 'REJECTED'`.
 - `Workflow_model::callXXPHP_WORKFLOW` (`models/Workflow_model.php`), `Data_model` notification
   IDs/status close, `Zmailer` EPRBF mail actions (approve/reject/forward/RFI/delegation),
   delegation `form_code = 1064`.
-- **Status transitions:** any API call setting `REQUEST_STATUS` to `INPROCESS`/`Approved`/`Rejected`.
+- **Status transitions:** any API call setting `REQUEST_STATUS` to `INPROCESS`/`APPROVED`/`REJECTED`.
   Only `'DRAFT'` is written by this API; other values are only **read** (list filter).
 - **Listing columns that are workflow projections:** `PENDING_AT` — excluded from §7.
 - `fetchApprover()` / `XX_PROBATION_WF` lookup — workflow-only.

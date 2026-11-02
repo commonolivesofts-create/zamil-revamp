@@ -313,8 +313,8 @@ export function installRequisitions(
       }
       return [...seen.values()].sort((a, b) => Number(b.JOB_ID) - Number(a.JOB_ID));
     },
-    async findRequestor(_c, userId) {
-      const employee = store.state.empMaster.find((e) => String(e.userId) === String(userId));
+    async findRequestor(_c, employeeNumber) {
+      const employee = store.state.empMaster.find((e) => e.employeeNumber === employeeNumber);
       return employee
         ? {
             fullName: employee.fullName,

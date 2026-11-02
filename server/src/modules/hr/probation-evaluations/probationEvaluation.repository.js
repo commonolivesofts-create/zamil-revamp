@@ -46,10 +46,10 @@ export async function insertHeader(connection, header) {
         PREPARED_BY_CMNT, APPROVED_BY_CMNT, EMP_NAME, JOB_T, DEPARTMENT, EMP_NUMBER,
         FROM_DATE, TO_DATE, USER_NAME, USER_MAIL, REQUEST_STATUS, CREATED_AT, CREATED_BY)
      VALUES
-       (:uuid, TO_DATE(:formDate, 'DD-Mon-YYYY'), :empId, NVL(:grade, 0),
+       (:uuid, TO_DATE(:formDate, 'YYYY-MM-DD'), :empId, NVL(:grade, 0),
         NVL(:evaluationPeriod, '-'), NVL(:formType, '-'), NVL(:totalRating, 0),
         NVL(:comment, '-'), NVL(:comments, '-'), :employeeName, :jobTitle, :department,
-        :employeeNumber, TO_DATE(:fromDate, 'DD-Mon-YYYY'), TO_DATE(:toDate, 'DD-Mon-YYYY'),
+        :employeeNumber, TO_DATE(:fromDate, 'YYYY-MM-DD'), TO_DATE(:toDate, 'YYYY-MM-DD'),
         :userName, :userMail, 'DRAFT', SYSDATE, :createdBy)
      RETURNING HEADER_ID INTO :headerId`,
     { ...header, headerId: { dir: oracledb.BIND_OUT, type: oracledb.STRING } },
@@ -68,12 +68,12 @@ export async function insertLine(connection, line) {
   );
 }
 
-const HEADER_COLUMNS = `HEADER_ID, UUID, TO_CHAR(FORM_DATE, 'DD-Mon-YYYY') AS FORM_DATE,
+const HEADER_COLUMNS = `HEADER_ID, UUID, TO_CHAR(FORM_DATE, 'YYYY-MM-DD') AS FORM_DATE,
   EMP_ID, GRADE, EVALUATION_PERIOD, FORM_NAME, TOTAL_RATING, PREPARED_BY_CMNT,
   APPROVED_BY_CMNT, EMP_NAME, JOB_T, DEPARTMENT, EMP_NUMBER,
-  TO_CHAR(FROM_DATE, 'DD-Mon-YYYY') AS FROM_DATE,
-  TO_CHAR(TO_DATE, 'DD-Mon-YYYY') AS TO_DATE, REQUEST_STATUS,
-  TO_CHAR(CREATED_AT, 'DD-Mon-YY') AS CREATED_AT`;
+  TO_CHAR(FROM_DATE, 'YYYY-MM-DD') AS FROM_DATE,
+  TO_CHAR(TO_DATE, 'YYYY-MM-DD') AS TO_DATE, REQUEST_STATUS,
+  TO_CHAR(CREATED_AT, 'YYYY-MM-DD') AS CREATED_AT`;
 
 export async function findHeader(connection, headerId) {
   const [row] = await rows(
@@ -138,7 +138,7 @@ export async function isSameDepartment(connection, { actorEmployeeNumber, subjec
 export async function updateHeader(connection, header) {
   const result = await connection.execute(
     `UPDATE XXZP.XXZP_PAF_PROBATION_HEADER
-        SET FORM_DATE = TO_DATE(:formDate, 'DD-Mon-YYYY'),
+        SET FORM_DATE = TO_DATE(:formDate, 'YYYY-MM-DD'),
             EMP_ID = :empId,
             GRADE = NVL(:grade, 0),
             EVALUATION_PERIOD = NVL(:evaluationPeriod, '-'),
@@ -150,8 +150,8 @@ export async function updateHeader(connection, header) {
             JOB_T = :jobTitle,
             DEPARTMENT = :department,
             EMP_NUMBER = :employeeNumber,
-            FROM_DATE = TO_DATE(:fromDate, 'DD-Mon-YYYY'),
-            TO_DATE = TO_DATE(:toDate, 'DD-Mon-YYYY'),
+            FROM_DATE = TO_DATE(:fromDate, 'YYYY-MM-DD'),
+            TO_DATE = TO_DATE(:toDate, 'YYYY-MM-DD'),
             UPDATED_AT = SYSDATE,
             UPDATED_BY = :updatedBy
       WHERE HEADER_ID = :headerId`,
@@ -202,9 +202,9 @@ const FILTERS = Object.freeze({
   dateFrom: () => "H.CREATED_AT >= TO_DATE(:dateFrom, 'YYYY-MM-DD')",
   dateTo: () => "H.CREATED_AT < TO_DATE(:dateTo, 'YYYY-MM-DD') + 1",
 });
-const LIST_COLUMNS = `H.HEADER_ID, TO_CHAR(H.FORM_DATE, 'DD-Mon-YYYY') AS FORM_DATE,
+const LIST_COLUMNS = `H.HEADER_ID, TO_CHAR(H.FORM_DATE, 'YYYY-MM-DD') AS FORM_DATE,
   H.EMP_NAME, H.EMP_NUMBER, H.JOB_T, H.DEPARTMENT, H.FORM_NAME,
-  H.TOTAL_RATING, H.REQUEST_STATUS, TO_CHAR(H.CREATED_AT, 'DD-Mon-YY') AS CREATED_AT,
+  H.TOTAL_RATING, H.REQUEST_STATUS, TO_CHAR(H.CREATED_AT, 'YYYY-MM-DD') AS CREATED_AT,
   H.CREATED_BY`;
 const mapListItem = (row) => ({
   headerId: row.HEADER_ID,
@@ -271,38 +271,66 @@ export async function isHrUser(connection, employeeNumber) {
   return result.length > 0;
 }
 
-export async function listEmployees(connection, userId) {
+/**
+ * The actor's reporting hierarchy, as the legacy form: without employees who already have a
+ * non-rejected annual appraisal this year (pending HR confirmation). Legacy reads
+ * XXZPI_HR_PAF_HEADER_TAB, which nothing writes any more (TEST holds years 2017–2022 only); the
+ * annual appraisal form, legacy and new, writes XXZPI_HR_PA_HEADER_TAB, so the rule reads that.
+ *
+ * The actor is found by EMPLOYEE_NUMBER: XX_DIGI_EMP_MASTER.USER_ID holds the legacy EBS user ID,
+ * not this application's user ID. `search` (optional) matches the name or employee number.
+ */
+export const EMPLOYEE_SEARCH_LIMIT = 50;
+
+export async function listEmployees(connection, { employeeNumber, search = '' }) {
   const result = await rows(
     connection,
-    `SELECT LEVEL AS HIERARCHY_LEVEL, USER_ID, FULL_NAME
-       FROM XX_DIGI_EMP_MASTER
-      WHERE SYSTEM_PERSON_TYPE IN ('EMP', 'EMP_APL')
-        AND ASSIGNMENT_STATUS_TYPE_ID = '1'
-        AND CURRENT_EMP_FLAG = 'Y'
-        AND LEVEL != 1
-      START WITH FULL_NAME = (
-        SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId
-      )
-      CONNECT BY PRIOR FULL_NAME = SUPERVISOR_NAME`,
-    { userId },
-    { USER_ID: ID },
+    `SELECT MIN(HIERARCHY_LEVEL) AS HIERARCHY_LEVEL, USER_ID, EMPLOYEE_NUMBER, FULL_NAME
+       FROM (
+         SELECT LEVEL AS HIERARCHY_LEVEL, OT.USER_ID, OT.EMPLOYEE_NUMBER, OT.FULL_NAME
+           FROM XX_DIGI_EMP_MASTER OT
+          WHERE OT.SYSTEM_PERSON_TYPE IN ('EMP', 'EMP_APL')
+            AND OT.ASSIGNMENT_STATUS_TYPE_ID = '1'
+            AND OT.CURRENT_EMP_FLAG = 'Y'
+            AND LEVEL != 1
+            AND NOT EXISTS (
+              SELECT 1 FROM XXZP.XXZPI_HR_PA_HEADER_TAB HD
+               WHERE HD.EMPLOYEE_NUMBER = OT.EMPLOYEE_NUMBER
+                 AND HD.YEAR = TO_CHAR(SYSDATE, 'YYYY')
+                 AND NVL(UPPER(HD.STATUS), '-') <> 'REJECTED'
+            )
+          START WITH OT.FULL_NAME = (
+            SELECT MAX(FULL_NAME) FROM XX_DIGI_EMP_MASTER
+             WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
+          )
+          CONNECT BY NOCYCLE PRIOR OT.FULL_NAME = OT.SUPERVISOR_NAME
+       )
+      WHERE :search IS NULL
+         OR INSTR(UPPER(FULL_NAME), UPPER(:search)) > 0
+         OR INSTR(EMPLOYEE_NUMBER, :search) > 0
+      GROUP BY USER_ID, EMPLOYEE_NUMBER, FULL_NAME
+      ORDER BY FULL_NAME
+      FETCH FIRST ${EMPLOYEE_SEARCH_LIMIT} ROWS ONLY`,
+    { employeeNumber, search: search || null },
+    { USER_ID: ID, EMPLOYEE_NUMBER: ID },
   );
   return result.map((row) => ({
     hierarchyLevel: row.HIERARCHY_LEVEL,
     userId: row.USER_ID,
+    employeeNumber: row.EMPLOYEE_NUMBER,
     fullName: row.FULL_NAME,
   }));
 }
 
-export async function findRequestor(connection, userId) {
+/** The signed-in user's own record ("Prepared by"), by their employee number. */
+export async function findRequestor(connection, employeeNumber) {
   const [row] = await rows(
     connection,
     `SELECT FULL_NAME, EMAIL_ADDRESS, EMPLOYEE_NUMBER
        FROM XX_DIGI_EMP_MASTER
-      WHERE EMPLOYEE_NUMBER = (
-        SELECT EMPLOYEE_NUMBER FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId
-      )`,
-    { userId },
+      WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
+      FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber },
   );
   return row
     ? {
@@ -313,7 +341,7 @@ export async function findRequestor(connection, userId) {
     : null;
 }
 
-export async function findEmployeeDetails(connection, { empName, userId }) {
+export async function findEmployeeDetails(connection, { empName, employeeNumber }) {
   const [ids] = await rows(
     connection,
     `SELECT PERSON_ID, EMPLOYEE_NUMBER
@@ -349,12 +377,12 @@ export async function findEmployeeDetails(connection, { empName, userId }) {
   );
   const [supervisor] = await rows(
     connection,
+    // The appraiser: the signed-in user, by employee number.
     `SELECT FULL_NAME, PERSON_ID
        FROM XX_DIGI_EMP_MASTER
-      WHERE EMPLOYEE_NUMBER IN (
-        SELECT DISTINCT EMPLOYEE_NUMBER FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId
-      )`,
-    { userId },
+      WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
+      FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber },
     { PERSON_ID: ID },
   );
   const [position] = job

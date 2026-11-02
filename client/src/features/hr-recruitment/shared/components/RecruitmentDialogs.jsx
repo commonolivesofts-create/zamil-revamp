@@ -7,8 +7,11 @@ import { COMMON_TEXT } from '../../hrRecruitmentText.js'
 import { REPORT_PAGE_SIZE } from '../../hrRecruitmentService.js'
 
 // Report: the recent records of one form, a page at a time, each linking to
-// its form. `columns`: [[header, (item) => value]].
-export function ReportDialog({ title, resourceKey, load, columns, numberOf, statusOf, pathOf, onClose }) {
+// its form. `columns`: [[header, (item) => value]]. `dateColumn`: the last
+// [header, (item) => value] column, by default when the record was last updated.
+const UPDATED_COLUMN = [COMMON_TEXT.reportUpdated, (item) => formatInstant(item.updatedAt)]
+export function ReportDialog({ title, resourceKey, load, columns, dateColumn = UPDATED_COLUMN, numberOf, statusOf, pathOf, onClose }) {
+  const [dateHeader, dateOf] = dateColumn
   const [page, setPage] = useState(1)
   const records = useResource(`${resourceKey}:${page}`, (signal) => load({ page, limit: REPORT_PAGE_SIZE }, { signal }))
   return (
@@ -24,7 +27,7 @@ export function ReportDialog({ title, resourceKey, load, columns, numberOf, stat
                     <th scope="col">{COMMON_TEXT.reportNumber}</th>
                     {columns.map(([header]) => <th key={header} scope="col">{header}</th>)}
                     <th scope="col">{COMMON_TEXT.reportStatus}</th>
-                    <th scope="col">{COMMON_TEXT.reportUpdated}</th>
+                    <th scope="col">{dateHeader}</th>
                     <th scope="col"><span className="zrv-hr-sr">{COMMON_TEXT.open}</span></th>
                   </tr>
                 </thead>
@@ -34,7 +37,7 @@ export function ReportDialog({ title, resourceKey, load, columns, numberOf, stat
                       <td>{numberOf(item) || COMMON_TEXT.dash}</td>
                       {columns.map(([header, value]) => <td key={header}>{value(item) || COMMON_TEXT.dash}</td>)}
                       <td>{statusOf(item)}</td>
-                      <td>{formatInstant(item.updatedAt)}</td>
+                      <td>{dateOf(item) || COMMON_TEXT.dash}</td>
                       <td><Link className="zrv-admin-link" to={pathOf(item)} onClick={onClose}>{COMMON_TEXT.open}</Link></td>
                     </tr>
                   ))}

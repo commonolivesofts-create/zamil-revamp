@@ -133,14 +133,14 @@ function orientationProblems(record, employee) {
 }
 
 // Probation checks as the backend would run them, on the stored record.
-function probationProblems(record, employee, lookups, { submit }) {
+function probationProblems(record, employee, lookups) {
   const formType = lookups.probation.formTypes.find((item) => item.code === record.formTypeCode)
   const form = {
     formTypeCode: formType ? record.formTypeCode : '', employeeId: employee ? employee.employeeId : '', fromDate: record.fromDate ?? '', toDate: record.toDate ?? '',
     scores: record.scores ?? {}, recommendation: record.recommendation ?? '', extendBy: record.extendByMonths ? String(record.extendByMonths) : '',
     justification: record.justification ?? '', signatures: record.signatures ?? {},
   }
-  const { errors } = validateProbation(form, { employee, criteria: formType?.criteria ?? [] }, { submit })
+  const { errors } = validateProbation(form, { employee, criteria: formType?.criteria ?? [] })
   return Object.entries(errors).map(([field, message]) => ({ field, message }))
 }
 
@@ -217,7 +217,7 @@ export function createDemoClient({
     }
     if (collection.store === 'evaluations') {
       const person = employees.find((item) => item.employeeId === (record.employeeId ?? record.employee?.employeeId))
-      const problems = probationProblems(record, person, lookups, { submit: false })
+      const problems = probationProblems(record, person, lookups)
       if (problems.length) fail(422, 'VALIDATION_ERROR', 'The evaluation cannot be saved.', problems)
       record.employee = clone(person)
       delete record.employeeId
@@ -267,7 +267,7 @@ export function createDemoClient({
       if (!interviewComplete(record)) fail(422, 'VALIDATION_ERROR', INTERVIEW_TEXT.errors.incomplete)
       record.status = 'SUBMITTED'
     } else if (collection.store === 'evaluations') {
-      const problems = probationProblems({ ...record, employeeId: record.employee.employeeId }, record.employee, lookups, { submit: true })
+      const problems = probationProblems({ ...record, employeeId: record.employee.employeeId }, record.employee, lookups)
       if (problems.length) fail(422, 'VALIDATION_ERROR', 'The evaluation cannot be submitted.', problems)
       record.status = 'SUBMITTED'
     } else {

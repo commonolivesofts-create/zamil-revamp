@@ -990,43 +990,28 @@ test("probation: validation for save and submit opens the first step with a prob
     [Object.keys(unscored.errors), unscored.firstStep],
     [[`criterion:${WORKERS[2].code}`], 1],
   );
-  const submit = validateProbation(base, context, { submit: true });
-  assert.deepEqual(Object.keys(submit.errors), [
-    "recommendation",
-    "evaluatorSignature",
-  ]);
-  assert.equal(submit.firstStep, 2);
-  assert.deepEqual(
-    Object.keys(
-      validateProbation(
-        { ...base, recommendation: "EXTEND", signatures: SIGNED },
-        context,
-        { submit: true },
-      ).errors,
-    ),
-    ["extendBy"],
-  );
-  const contradiction = { ...base, recommendation: "END", signatures: SIGNED };
+  // New-only fields (not in the legacy form) are optional: recommendation,
+  // extension, justification and signatures never block the evaluation.
   assert.equal(
-    validateProbation(contradiction, context, { submit: true }).errors
-      .justification,
-    "Explain why the recommendation differs from the result",
-  );
-  assert.equal(
-    validateProbation(
-      { ...contradiction, justification: "Safety breach" },
-      context,
-      { submit: true },
-    ).valid,
+    validateProbation(base, context).valid,
     true,
+    "no recommendation or signature",
   );
-  assert.equal(
-    validateProbation({ ...base, recommendation: "CONFIRM" }, context, {
-      submit: true,
-    }).firstStep,
-    3,
-    "only the signature missing: sign-off step",
-  );
+  for (const optional of [
+    { recommendation: "EXTEND", extendBy: "" },
+    { recommendation: "END", justification: "" },
+    {
+      recommendation: "CONFIRM",
+      signatures: { evaluator: null, employee: null },
+    },
+    { recommendation: "EXTEND", extendBy: "2", signatures: SIGNED },
+  ]) {
+    assert.deepEqual(
+      validateProbation({ ...base, ...optional }, context).errors,
+      {},
+      JSON.stringify(optional),
+    );
+  }
   assert.deepEqual(
     [isProbationLocked("SUBMITTED"), isProbationLocked("DRAFT")],
     [true, false],
@@ -1115,9 +1100,14 @@ test("probation service uses the backend draft and lookup contracts", async () =
   const { fetchImpl, calls } = recordingFetch((url, init) => {
     if (url.endsWith("/lookups/form-types"))
       return success({ formTypes: ["Trainee"] });
-    if (url.endsWith("/lookups/employees"))
+    if (/\/lookups\/employees(\?|$)/.test(url))
       return success([
-        { hierarchyLevel: 2, userId: "71", fullName: "Sample Employee 001" },
+        {
+          hierarchyLevel: 2,
+          userId: null,
+          employeeNumber: "30401",
+          fullName: "Sample Employee 001",
+        },
       ]);
     if (url.endsWith("/lookups/requestor"))
       return success({ fullName: "Sample Requestor", employeeNumber: "2502" });
@@ -1143,10 +1133,11 @@ test("probation service uses the backend draft and lookup contracts", async () =
     ["Trainee"],
   );
   assert.deepEqual(
-    (await services.probations.searchEmployees("sample")).items.map(
-      (item) => item.name,
-    ),
-    ["Sample Employee 001"],
+    (await services.probations.searchEmployees("sample")).items.map((item) => [
+      item.name,
+      item.employeeNumber,
+    ]),
+    [["Sample Employee 001", "30401"]],
   );
   assert.equal(
     (await services.probations.employeeDetails("Sample Employee 001"))
@@ -1179,16 +1170,15 @@ test("probation service uses the backend draft and lookup contracts", async () =
     calls.map((call) => `${call.init.method} ${call.url}`),
     [
       "GET /api/v1/hr/probation-evaluations/lookups/form-types",
-      "GET /api/v1/hr/probation-evaluations/lookups/employees",
       "GET /api/v1/hr/probation-evaluations/lookups/requestor",
-      "GET /api/v1/hr/probation-evaluations/lookups/employees",
+      "GET /api/v1/hr/probation-evaluations/lookups/employees?search=sample",
       "GET /api/v1/hr/probation-evaluations/lookups/employee-details?empName=Sample+Employee+001",
       "POST /api/v1/hr/probation-evaluations",
       "GET /api/v1/hr/probation-evaluations/8",
     ],
   );
-  assert.equal(calls[5].init.headers.get("X-CSRF-Token"), SESSION_TOKEN);
-  assert.deepEqual(JSON.parse(calls[5].init.body).lines, [
+  assert.equal(calls[4].init.headers.get("X-CSRF-Token"), SESSION_TOKEN);
+  assert.deepEqual(JSON.parse(calls[4].init.body).lines, [
     { param: "Quality", paramAr: "", rating: 4 },
   ]);
 });
@@ -1204,7 +1194,11 @@ test("probation page connects to backend supported fields", async () => {
     /loadLookups=\{\(signal\) => service\.getLookups\(\{ signal \}\)\}/,
   );
   assert.match(page, /searchService=\{searchEmployees\}/);
-  assert.match(page, /lookups\.employees\.filter/);
+  assert.match(
+    page,
+    /const searchEmployees = \(query, options\) =>\s*service\.searchEmployees\(query, options\)/,
+  );
+  assert.doesNotMatch(page, /lookups\.employees/, "no preloaded employee list");
   assert.match(page, /<EmployeePicker id="pa-emp"/);
   assert.match(page, /Rating \(1–5\)/);
   assert.match(page, /Add criterion/);

@@ -481,13 +481,14 @@ export async function listJobTitles(connection) {
 }
 
 /** The logged-in requestor (§8.2). */
-export async function findRequestor(connection, userId) {
+export async function findRequestor(connection, employeeNumber) {
   const [row] = await rows(
     connection,
-    `SELECT DISTINCT FULL_NAME, EMAIL_ADDRESS, EMPLOYEE_NUMBER
+    `SELECT FULL_NAME, EMAIL_ADDRESS, EMPLOYEE_NUMBER
        FROM XX_DIGI_EMP_MASTER
-      WHERE USER_ID = :userId`,
-    { userId },
+      WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
+      FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber },
     { EMPLOYEE_NUMBER: ID },
   );
   return row

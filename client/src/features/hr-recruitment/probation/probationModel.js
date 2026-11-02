@@ -65,7 +65,7 @@ export function suggestedRecommendation(totals) {
   return totals.percent >= EXTEND_FROM ? 'EXTEND' : 'END'
 }
 
-// A justification is required when the recommendation contradicts the result.
+// The recommendation contradicts the result (a justification is then useful, not required).
 export function contradictsResult(recommendation, totals) {
   if (!totals.complete || !recommendation) return false
   const acceptable = totals.percent >= PASS_MARK
@@ -110,9 +110,10 @@ export function withFormType(form, code) {
   return { ...form, formTypeCode: code, scores: {}, notes: {} }
 }
 
-// Errors for saving (setup and every criterion scored) and, for submitting,
-// the recommendation, extension, justification and evaluator signature.
-export function validateProbation(form, { employee, criteria }, { submit = false } = {}) {
+// Errors for saving and submitting: setup and every criterion scored (as in the
+// legacy form). The recommendation, extension, justification and signatures
+// are new-only fields and stay optional.
+export function validateProbation(form, { employee, criteria }) {
   const text = PROBATION_TEXT.errors
   const errors = {}
   if (!form.formTypeCode) errors.formTypeCode = text.type
@@ -124,15 +125,7 @@ export function validateProbation(form, { employee, criteria }, { submit = false
   for (const criterion of criteria) {
     if (!isScored(form.scores[criterion.code])) errors[`criterion:${criterion.code}`] = text.criterion
   }
-  if (submit) {
-    const totals = evaluationTotals(criteria, form.scores)
-    if (!form.recommendation) errors.recommendation = text.recommendation
-    if (form.recommendation === 'EXTEND' && !form.extendBy) errors.extendBy = text.extendBy
-    if (contradictsResult(form.recommendation, totals) && !form.justification.trim()) errors.justification = text.justification
-    if (!form.signatures.evaluator) errors.evaluatorSignature = text.signature
-  }
-  const stepOf = (key) => (['formTypeCode', 'employeeId', 'fromDate', 'toDate'].includes(key) ? 0
-    : key.startsWith('criterion:') ? 1 : ['recommendation', 'extendBy', 'justification'].includes(key) ? 2 : 3)
+  const stepOf = (key) => (['formTypeCode', 'employeeId', 'fromDate', 'toDate'].includes(key) ? 0 : 1)
   const keys = Object.keys(errors)
   return { errors, firstStep: keys.length ? Math.min(...keys.map(stepOf)) : -1, valid: keys.length === 0 }
 }

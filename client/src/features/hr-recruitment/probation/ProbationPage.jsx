@@ -2,19 +2,20 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
-import { businessToday, initials } from '../shared/hrFormat.js'
+import { initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog, ReportDialog } from '../shared/components/RecruitmentDialogs.jsx'
 import { PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
 import { HrField } from '../shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '../shared/components/EmployeePicker.jsx'
+import { RESULT_TEXT, RESULT_TONE, formResult, totalRating } from './probationRules.js'
 
 const BASE = '/hr/recruitment/probation-evaluation'
 const service = hrRecruitmentServices.probations
-const today = businessToday
 const emptyLine = () => ({ lineId: null, param: '', paramAr: '', rating: '' })
-const blank = () => ({ formDate: today(), evaluationPeriod: '', formType: '', fromDate: '', toDate: '', comment: '', comments: '', lines: [emptyLine()] })
+// formDate is FORM_DATE: the employee's joining date (legacy meaning), filled on selection.
+const blank = () => ({ formDate: '', evaluationPeriod: '', formType: '', fromDate: '', toDate: '', comment: '', comments: '', lines: [emptyLine()] })
 const steps = [['Employee & period', 'Evaluation details'], ['Ratings', 'Add and rate criteria'], ['Comments', 'Review and save']]
 
 export default function ProbationPage() {
@@ -38,22 +39,22 @@ function ProbationEditor({ lookups, record }) {
   const employeeRequest = useRef(0)
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
-  const total = form.lines.reduce((sum, line) => sum + (Number(line.rating) || 0), 0)
-  const searchEmployees = (query) => {
-    const term = query.trim().toLocaleLowerCase()
-    return Promise.resolve({ items: lookups.employees.filter((item) => item.name.toLocaleLowerCase().includes(term)) })
-  }
+  const total = totalRating(form.lines)
+  const result = formResult(form.lines)
+  const resultPill = result ? <Pill tone={RESULT_TONE[result]}>{RESULT_TEXT[result]}</Pill> : 'Not rated yet'
+  // Searches the API as the user types (the signed-in user's reporting hierarchy, as legacy).
+  const searchEmployees = (query, options) => service.searchEmployees(query, options)
   const setValue = (key) => (event) => { set(key)(event); setErrors((value) => ({ ...value, [key]: '' })) }
   const updateLine = (index, key, value) => patch((current) => ({ lines: current.lines.map((line, row) => row === index ? { ...line, [key]: value } : line) }))
   const selectEmployee = async (item) => {
     const request = ++employeeRequest.current
     setEmployee(item)
-    patch({ employee: item })
+    patch({ employee: item, formDate: '' })
     try {
       const details = await service.employeeDetails(item.name)
       if (request !== employeeRequest.current) return
       setEmployee(details)
-      patch({ employee: details })
+      patch({ employee: details, formDate: details.startDate || '' })
     } catch {
       if (request !== employeeRequest.current) return
       setErrors((value) => ({ ...value, employee: 'Could not load the selected employee details. Please try again.' }))
@@ -61,9 +62,9 @@ function ProbationEditor({ lookups, record }) {
   }
   const validate = () => {
     const next = {}
-    if (!employee?.name || !employee?.employeeNumber || !employee?.employeeId) next.employee = 'Select an employee with complete employee details.'
+    // EMP_ID (person ID) is new-only and optional: legacy records store '-'.
+    if (!employee?.name || !employee?.employeeNumber) next.employee = 'Select an employee with complete employee details.'
     if (!form.formType) next.formType = 'Select a form type.'
-    if (!form.formDate) next.formDate = 'Form date is required.'
     if (!form.fromDate) next.fromDate = 'Evaluation start date is required.'
     if (!form.toDate) next.toDate = 'Evaluation end date is required.'
     if (form.fromDate && form.toDate && form.toDate < form.fromDate) next.toDate = 'End date must be on or after the start date.'
@@ -106,8 +107,10 @@ function ProbationEditor({ lookups, record }) {
       locked={false} pending={editor.pending} focusError={editor.focusError}
       ticket={<Ticket avatar={initials(employee?.name)} code="PAF · 1064" items={[
         { k: 'Evaluation no.', v: record?.evaluationNumber || 'Assigned on save' },
+        { k: 'Created', v: record?.createdAt || 'Set on save' },
         { k: 'Employee', v: employee?.name || 'Not selected', big: true },
         { k: 'Form type', v: form.formType || '—' }, { k: 'Total rating', v: `${total}/100` },
+        { k: 'Evaluation', v: resultPill },
         { k: 'Status', v: <Pill tone="warn">{record?.status || 'Not saved'}</Pill> },
       ]} />}
       steps={steps} step={step} onStep={setStep} doneSteps={[Boolean(employee && form.formType && form.fromDate && form.toDate), form.lines.every((line) => line.param && line.rating !== ''), Boolean(form.comment || form.comments)]}
@@ -116,14 +119,14 @@ function ProbationEditor({ lookups, record }) {
           <div className="zrv-hr-dark__who"><span className="zrv-hr-dark__av">{initials(employee?.name)}</span><div><h3 className="zrv-hr-dark__title">{employee?.name || 'Select an employee'}</h3><div className="zrv-hr-dark__sub">{employee ? `${employee.position || '—'} · ${employee.grade || '—'}` : 'Employee details appear here'}</div></div></div>
           <div className="zrv-hr-dark__badges"><span>{form.formType || 'Choose form type'}</span><span>{employee?.departmentName || 'Department'}</span></div>
         </Tilt>
-        <section className="zrv-hr-scorecard zrv-hr-card"><b>{total}</b><span> Total rating · {form.lines.length} criteria</span><p>Ratings use the backend scale from 1 to 5.</p></section>
+        <section className="zrv-hr-scorecard zrv-hr-card"><b>{total}</b><span> Total rating · {form.lines.length} criteria</span><p>Evaluation: {resultPill}</p><p>Ratings use the backend scale from 1 to 5. 71 and above is Acceptable; 70 and below is Not acceptable.</p></section>
       </>}>
       {step === 0 && <><PanelHead n={1} eyebrow="Employee and period" title="Choose the employee and evaluation period." desc="Employee information is loaded from HR records." />
         <EmployeePicker id="pa-emp" label="Employee" required value={employee} onPick={selectEmployee} error={errors.employee} searchService={searchEmployees} />
         <div className="zrv-hr-grid zrv-hr-is-3 zrv-hr-mt">{readOnly('pa-no', 'Employee number', employee?.employeeNumber)}{readOnly('pa-title', 'Job title', employee?.position)}
           <HrField id="pa-grade" label="Grade" error={errors.grade}><input id="pa-grade" className="ux-input zrv-hr-input" type="number" min="0" step="1" value={employee?.grade ?? ''} aria-invalid={Boolean(errors.grade)} onChange={(event) => { const grade = event.target.value; setEmployee((current) => ({ ...current, grade })); patch({ employee: { ...employee, grade } }); setErrors((value) => ({ ...value, grade: '' })) }} /></HrField>
           {readOnly('pa-dept', 'Department', employee?.departmentName)}{readOnly('pa-requestor', 'Prepared by', lookups.requestor?.fullName)}
-          <HrField id="pa-form-date" label="Form date" required error={errors.formDate}><input id="pa-form-date" className="ux-input zrv-hr-input" type="date" value={form.formDate} onChange={setValue('formDate')} /></HrField>
+          {readOnly('pa-joining', 'Joining date', form.formDate)}
           <HrField id="pa-type" label="Form type" required error={errors.formType}><select id="pa-type" className="ux-input zrv-hr-input" value={form.formType} onChange={setValue('formType')}><option value="">Select a form type</option>{lookups.probation.formTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></HrField>
           <HrField id="pa-from" label="Evaluation from" required error={errors.fromDate}><input id="pa-from" className="ux-input zrv-hr-input" type="date" value={form.fromDate} onChange={setValue('fromDate')} /></HrField>
           <HrField id="pa-to" label="Evaluation to" required error={errors.toDate}><input id="pa-to" className="ux-input zrv-hr-input" type="date" value={form.toDate} onChange={setValue('toDate')} /></HrField>
@@ -139,17 +142,21 @@ function ProbationEditor({ lookups, record }) {
         </div>)}
         {errors.lines && <p className="zrv-auth-field-error">{errors.lines}</p>}
         {!record && form.lines.length < 20 && <button type="button" className="btn-secondary zrv-hr-btn zrv-hr-mt" onClick={() => patch((current) => ({ lines: [...current.lines, emptyLine()] }))}><OrvexaIcon name="plus" size={15} /> Add criterion</button>}
+        <p className="zrv-hr-mt">Total rating: <b>{total}</b> · Evaluation: {resultPill}</p>
       </>}
       {step === 2 && <><PanelHead n={3} eyebrow="Comments" title="Add comments and review the draft." desc="The server stores these comments with the evaluation." />
-        <div className="zrv-hr-grid zrv-hr-is-2"><HrField id="pa-comment" label="Comment"><textarea id="pa-comment" className="ux-textarea zrv-hr-input" value={form.comment} onChange={setValue('comment')} maxLength={4000} /></HrField>
-          <HrField id="pa-comments" label="Additional comments"><textarea id="pa-comments" className="ux-textarea zrv-hr-input" value={form.comments} onChange={setValue('comments')} maxLength={4000} /></HrField></div>
+        <div className="zrv-hr-grid zrv-hr-is-2"><HrField id="pa-comment" label="Comments"><textarea id="pa-comment" className="ux-textarea zrv-hr-input" value={form.comment} onChange={setValue('comment')} maxLength={4000} /></HrField>
+          <HrField id="pa-comments" label="Suggestion"><textarea id="pa-comments" className="ux-textarea zrv-hr-input" value={form.comments} onChange={setValue('comments')} maxLength={4000} /></HrField></div>
         <div className="zrv-hr-sep" /><p><b>{employee?.name || 'No employee selected'}</b> · {form.formType || 'No form type'} · {form.fromDate || '—'} to {form.toDate || '—'}</p>
-        <p>Total rating: <b>{total}</b> · Criteria: {form.lines.length}</p>
+        <p>Total rating: <b>{total}</b> · Criteria: {form.lines.length} · Evaluation: {resultPill}</p>
       </>}
       </RecruitmentShell>
     {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
     {dialog === 'report' && <ReportDialog title="Probation evaluation records" resourceKey="hr-probation-report" load={service.list} onClose={() => setDialog(null)}
       numberOf={(item) => item.evaluationNumber} statusOf={(item) => item.status} pathOf={(item) => `${BASE}/${item.evaluationId}`}
-      columns={[["Employee", (item) => item.employeeName], ["Form type", (item) => item.formType], ["Total rating", (item) => item.totalRating]]} />}
+      columns={[["Employee", (item) => item.employeeName], ["Emp. no.", (item) => item.employeeNumber], ["Job title", (item) => item.jobTitle], ["Department", (item) => item.department],
+        ["Form type", (item) => item.formType], ["Total rating", (item) => item.totalRating], ["Evaluation", (item) => RESULT_TEXT[item.evaluationResult]],
+        ["Pending at", (item) => item.pendingAt]]}
+      dateColumn={['Created', (item) => item.createdAt]} />}
   </>
 }

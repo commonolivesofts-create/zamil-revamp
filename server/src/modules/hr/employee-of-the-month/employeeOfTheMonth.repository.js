@@ -29,16 +29,15 @@ export async function isHrUser(c, userId) {
   );
 }
 
-export async function requestor(c, userId) {
+export async function requestor(c, employeeNumber) {
   return (
     await rows(
       c,
       `SELECT EMPLOYEE_NUMBER, FULL_NAME, EMAIL_ADDRESS
        FROM XX_DIGI_EMP_MASTER
-       WHERE USER_ID = :userId
-         AND USER_ID <> 0
+       WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
          AND ROWNUM = 1`,
-      { userId },
+      { employeeNumber },
     )
   )[0];
 }
