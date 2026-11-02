@@ -126,6 +126,13 @@ The bilingual package rows map to the single `line` object. The status is always
 
 An unrated criterion is omitted from the payload, and the backend stores it as 0. A stored 0 is shown as "Not rated".
 
+**Legacy rules** (see `docs/testing/probation-legacy-comparison.md`):
+- `formDate` (FORM_DATE) is the employee's **joining date**, as in the legacy form. It is read-only, filled from `employee-details`, optional, and omitted from the payload when blank. The ticket and the Records list show the record's **created** date.
+- **Evaluation:** Acceptable when the total rating is 71 or more, Not acceptable at 70 or below (`probationRules.js`; the list takes the server's `evaluationResult`).
+- **Records** columns: employee number, job title, department, evaluation, pending-at (null from the API until the approval workflow exists) and the created date.
+- **Total:** the page shows a live preview; the payload carries no total. The server computes `TOTAL_RATING` and the result from the ratings and discards any client value.
+- `validateForSubmit` (Comments, Suggestion and a 1–5 rating on every criterion) is ready for the workflow. It is not wired yet, and draft saves stay lenient.
+
 ## Record access and status rules (backend)
 
 **Orientation and probation records by ID** (`GET`/`PUT`/`DELETE /:id`, and orientation's line delete) are open only to:

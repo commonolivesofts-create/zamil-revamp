@@ -563,7 +563,7 @@ Hardcoded in legacy JS (`views/ZPIL/nht-new.php:241-244`) — return as static r
 ## 11. WORKFLOW — EXPLICITLY OUT OF SCOPE (verified present in legacy; do NOT implement)
 
 - `Newhiretrain::submitWorkflow()` (`controllers/Newhiretrain.php:131-400`) — SMTP mail
-  (hard-coded `workflowmailer@zamilplastic.com` / `D@989955427519ud`), `callXXPHP_WORKFLOW(... 'NHTF' ...)`,
+  (hard-coded SMTP mailbox `[REDACTED]` / password `[REDACTED]`), `callXXPHP_WORKFLOW(... 'NHTF' ...)`,
   then `updateRequestStatus(id, flag, 'INPROCESS')`.
 - `NHT_Flow::workflow()` / `workflow1()` (`controllers/NHT_Flow.php`) — approve/reject handlers
   writing `STATUS = 'Approved' | 'Rejected'`.

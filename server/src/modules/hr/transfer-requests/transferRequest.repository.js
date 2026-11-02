@@ -154,14 +154,13 @@ export async function listBloodTypes(c) {
     )
   ).map((r) => ({ code: r.CODE }));
 }
-export async function findRequestor(c, userId) {
+export async function findRequestor(c, employeeNumber) {
   return (
     await rows(
       c,
       `SELECT DISTINCT EMPLOYEE_NUMBER, FULL_NAME, EMAIL_ADDRESS
-    FROM XX_DIGI_EMP_MASTER WHERE EMPLOYEE_NUMBER IN
-      (SELECT EMPLOYEE_NUMBER FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId)`,
-      { userId },
+    FROM XX_DIGI_EMP_MASTER WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'`,
+      { employeeNumber },
       ID_FETCH,
     )
   ).map((r) => ({ empNo: r.EMPLOYEE_NUMBER, fullName: r.FULL_NAME, email: r.EMAIL_ADDRESS }));

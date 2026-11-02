@@ -114,7 +114,7 @@ export function createRequisitionService({
 
       const { requisitionId } = await withTransaction(POOLS.LOW, async (connection) => {
         // REQUESTED_BY/REQUESTER_NAME are server-set from the employee master (§3.2), never body.
-        const requestor = await repository.findRequestor(connection, actor.userId);
+        const requestor = await repository.findRequestor(connection, actor.employeeNumber);
         if (!requestor) {
           throw new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', [
             { field: 'employeeNumber', message: 'No employee record exists for your account' },
@@ -296,7 +296,7 @@ export function createRequisitionService({
 
     async requestor(actor) {
       const requestor = await read((connection) =>
-        repository.findRequestor(connection, actor.userId),
+        repository.findRequestor(connection, actor.employeeNumber),
       );
       if (!requestor) throw new AppError(404, 'NOT_FOUND', 'Employee record not found');
       return requestor;
@@ -309,7 +309,7 @@ export function createRequisitionService({
 
     async replacementFor(actor, search = '') {
       const requestor = await read((connection) =>
-        repository.findRequestor(connection, actor.userId),
+        repository.findRequestor(connection, actor.employeeNumber),
       );
       if (!requestor?.employeeNumber) {
         // The legacy lookup returned an empty result when the signed-in user

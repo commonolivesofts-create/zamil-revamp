@@ -411,11 +411,12 @@ export async function isSameDepartment(connection, { actorEmployeeNumber, subjec
   return result.length > 0;
 }
 
-export async function findActorName(connection, userId) {
+export async function findActorName(connection, employeeNumber) {
   const [row] = await rows(
     connection,
-    `SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId FETCH FIRST 1 ROWS ONLY`,
-    { userId },
+    `SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER
+      WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y' FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber },
   );
   return row?.FULL_NAME;
 }
