@@ -69,3 +69,15 @@ permission store, database layer or design system. Extend the ones listed above.
 - Backend phase handoffs: [`server/docs/handoffs/`](../server/docs/handoffs/) (historical records; do not rewrite).
 - Backend implementation status: [`server/docs/08-IMPLEMENTATION_STATUS.md`](../server/docs/08-IMPLEMENTATION_STATUS.md).
 - New features: one handoff per feature using the [template](FEATURE-HANDOFF-TEMPLATE.md).
+
+## Master Workflow Manager — locked delivery and user guides
+
+- [Workflow Manager documentation index](workflow-manager/README.md)
+- [Locked requirements v3.1](workflow-manager/REQUIREMENTS-v3.1-LOCKED.md) and [final v3.2 addendum](workflow-manager/REQUIREMENTS-v3.2-LOCKED.md) — together with the original v3.0 baseline
+- [Two-phase M1–M7/E1–E7 development roadmap](workflow-manager/DEVELOPMENT-ROADMAP.md)
+- [Screen-specific user guide matrix](workflow-manager/SCREEN-GUIDE-MATRIX.md) and [guide index](workflow-manager/USER-GUIDE-INDEX.md)
+- [Form-specific setup guide index](workflow-manager/forms/README.md)
+- [ITSAZZ + Orvexa delivery standard](workflow-manager/DELIVERY-AND-UX-STANDARD-LOCKED.md)
+- [Owner-reported Oracle TEST structural baseline](workflow-manager/TEST-SCHEMA-BASELINE.md)
+
+Documentation is planning guidance until its corresponding screen and operations have been verified; requirements lock does not authorize code, database writes or deployments.
