@@ -14,7 +14,7 @@ import { COMP_KEYS, HR_FIELDS, SPEC_KEYS } from '../interview/interviewModel.js'
 import { BENEFIT_KEYS, issuedStatus } from '../offer/offerModel.js'
 import { scheduleIssues, scheduleToDate } from '../orientation/orientationModel.js'
 import { validateProbation } from '../probation/probationModel.js'
-import { ALL_DEPARTMENTS, inPeriod } from '../report/periodwiseModel.js'
+import { AGE_BANDS, ALL_DEPARTMENTS, ageBandCounts, groupCount, inBand, runReport, sortRows, summarise, yearlyFlow } from '../report/periodwiseModel.js'
 import { isIsoDate } from '../shared/hrFormat.js'
 import { DEMO_ASSIGNED, DEMO_EMPLOYEES, DEMO_LOOKUPS, createDemoRecords, createDemoReportRows } from './demoData.js'
 
@@ -281,35 +281,64 @@ export function createDemoClient({
     return respond(record)
   }
 
-  // Employees whose name or number contains the search text.
-  function searchEmployees(params = {}) {
-    const search = String(params.search ?? '').trim().toLowerCase()
-    const limit = Math.min(MAX_LIMIT, Math.max(1, Number.parseInt(params.limit, 10) || 10))
-    const items = employees.filter((item) => !search || `${item.name} ${item.employeeNumber}`.toLowerCase().includes(search))
-    return respond(items.slice(0, limit), {
-      pagination: { page: 1, limit, total: items.length, totalPages: Math.ceil(items.length / limit), hasNextPage: items.length > limit, hasPreviousPage: false },
-    })
-  }
 
-  // Employees attached to the department at any point in [from, to].
+  // Periodwise Employees, with the API contract of GET /hr/reports/periodwise-employees: the
+  // period, department and status select the scope (and the summary); search, nationality,
+  // age band and "needs checking" narrow only the rows; then sort and page. Demo departments
+  // get numeric codes like the API's ORGANIZATION_ID.
+  const departmentIds = Object.fromEntries(lookups.departments.map((item, index) => [item.code, String(101 + index)]))
+  const reportDepartments = lookups.departments.map((item) => ({ code: departmentIds[item.code], name: item.name }))
   function periodwiseEmployees(params = {}) {
     const department = params.department || ALL_DEPARTMENTS
+    const status = params.status || 'ALL'
+    const page = Number(params.page ?? 1)
+    const pageSize = Number(params.pageSize ?? 25)
     const problems = []
-    if (!isIsoDate(params.from)) problems.push({ field: 'from', message: 'from is required' })
-    if (!isIsoDate(params.to)) problems.push({ field: 'to', message: 'to is required' })
-    if (isIsoDate(params.from) && isIsoDate(params.to) && params.to < params.from) problems.push({ field: 'to', message: 'to must not be before from' })
-    if (department !== ALL_DEPARTMENTS && !lookups.departments.some((item) => item.code === department)) problems.push({ field: 'department', message: 'unknown department' })
-    if (problems.length) fail(422, 'VALIDATION_ERROR', 'The report parameters are not valid.', problems)
-    const rows = reportRows.filter((row) => (department === ALL_DEPARTMENTS || row.departmentCode === department) && inPeriod(row, params))
-    return respond({ rows })
+    if (!isIsoDate(params.dateFrom)) problems.push({ field: 'dateFrom', message: '"dateFrom" is required' })
+    if (!isIsoDate(params.dateTo)) problems.push({ field: 'dateTo', message: '"dateTo" is required' })
+    if (isIsoDate(params.dateFrom) && isIsoDate(params.dateTo) && params.dateTo < params.dateFrom) problems.push({ field: 'dateTo', message: '"dateTo" must be on or after "dateFrom"' })
+    if (department !== ALL_DEPARTMENTS && !/^[0-9]{1,19}$/.test(department)) problems.push({ field: 'department', message: '"department" has an invalid format' })
+    if (!['ALL', 'ACTIVE', 'LEFT'].includes(status)) problems.push({ field: 'status', message: '"status" is not allowed' })
+    if (!Number.isInteger(page) || page < 1 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > MAX_LIMIT) problems.push({ field: 'pageSize', message: '"pageSize" is not allowed' })
+    if (problems.length) fail(400, 'VALIDATION_ERROR', 'Request validation failed', problems)
+    const scopeParams = { department, from: params.dateFrom, to: params.dateTo }
+    const names = Object.fromEntries(reportDepartments.map((item) => [item.code, item.name]))
+    const items = runReport(reportRows.map((row) => ({ ...row, departmentCode: departmentIds[row.departmentCode] })), scopeParams, today())
+      .filter((row) => status === 'ALL' || (status === 'ACTIVE' ? row.active : !row.active))
+      .map((row) => ({
+        employeeNumber: row.employeeNumber, name: row.name, birthDate: row.birthDate, age: row.age, nationality: row.nationality,
+        jobTitle: row.job, position: row.position, departmentCode: row.departmentCode, departmentName: names[row.departmentCode] ?? '',
+        hasNationalId: Boolean(row.nationalId), startDate: row.startDate, endDate: row.endDate, years: row.years,
+        leavingReason: row.leavingReason, active: row.active, senior: row.senior, flags: row.flags,
+      }))
+    const active = items.filter((row) => row.active)
+    const kpis = summarise(items, scopeParams)
+    const summary = {
+      total: kpis.total, active: kpis.active, joiners: kpis.joiners, leavers: kpis.leavers, turnover: kpis.turnover, saudization: kpis.saudization,
+      averageAge: kpis.averageAge, senior: kpis.senior, averageService: kpis.averageService, flagged: kpis.flagged,
+      byDepartment: groupCount(items, 'departmentCode').map(([code, count]) => ({ code, name: names[code] ?? '', count })),
+      byNationality: groupCount(active, 'nationality').map(([name, count]) => ({ name, count })),
+      ageBands: ageBandCounts(active).map(([band, count]) => ({ band, count })),
+      yearlyFlow: yearlyFlow(items, Number(today().slice(0, 4))).map(([year, joiners, leavers]) => ({ year, joiners, leavers })),
+    }
+    const term = String(params.search ?? '').trim().toLowerCase()
+    const band = AGE_BANDS.find(([code]) => code === params.ageBand)
+    const refined = items.filter((row) => (!params.nationality || row.nationality === params.nationality) && (!band || inBand(row.age, band))
+      && (params.flagged !== 'true' || row.flags.length > 0)
+      && (!term || `${row.employeeNumber} ${row.name} ${row.jobTitle} ${row.departmentName}`.toLowerCase().includes(term)))
+    const sorted = sortRows(refined, { key: params.sortBy || 'employeeNumber', direction: params.sortDir === 'asc' ? 1 : -1 })
+    const totalPages = Math.ceil(sorted.length / pageSize)
+    return respond({ rows: sorted.slice((page - 1) * pageSize, page * pageSize), summary }, {
+      pagination: { page, limit: pageSize, total: sorted.length, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 },
+    })
   }
 
   async function request(method, path, { params, body, signal } = {}) {
     requests += 1
     await wait(latencyMs, signal)
     if (method === 'GET' && path === `${BASE}/lookups`) return respond(lookups)
-    if (method === 'GET' && path === `${BASE}/employees`) return searchEmployees(params)
     if (method === 'GET' && path === '/hr/reports/periodwise-employees') return periodwiseEmployees(params)
+    if (method === 'GET' && path === '/hr/reports/periodwise-employees/lookups/departments') return respond(reportDepartments)
     const match = ROUTE.exec(path)
     if (!match) fail(404, 'NOT_FOUND', 'The requested resource does not exist.')
     const [, name, id, action] = match

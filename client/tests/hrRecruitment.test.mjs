@@ -100,6 +100,7 @@ test('all recruitment services use the supplied API client and validate path IDs
   assert.deepEqual(calls.map((call) => call[1]), [
     '/hr/requisitions/lookups/job-titles', '/hr/requisitions/lookups/departments',
     '/hr/requisitions/lookups/requestor', '/hr/requisitions/lookups/replacement-for',
+    '/hr/requisitions/lookups/capabilities',
   ])
   assert.throws(() => segment('../1'), (error) => error.code === 'INVALID_ID')
   assert.throws(() => segment('0'), (error) => error.code === 'INVALID_ID')

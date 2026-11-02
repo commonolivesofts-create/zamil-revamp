@@ -5,7 +5,6 @@ const rows = async (connection, sql, binds, fetchInfo) =>
   (await connection.execute(sql, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo })).rows;
 const headerIdFetch = Object.freeze({ HEADER_ID: ID });
 const lineIdFetch = Object.freeze({ HEADER_ID: ID, LINE_ID: ID });
-const generatedIdFetch = Object.freeze({ ID });
 
 const mapHeader = (row) => ({
   headerId: row.HEADER_ID,
@@ -36,31 +35,12 @@ const mapLine = (row) => ({
   paramAr: row.PARAMA_NAME_AR,
 });
 
-export async function generateHeaderId(connection) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(HEADER_ID + 1), 1) AS ID
-       FROM XXZP.XXZP_PAF_PROBATION_HEADER`,
-    {},
-    generatedIdFetch,
-  );
-  return row?.ID;
-}
-
-export async function findHeaderIdByUuid(connection, uuid) {
-  const [row] = await rows(
-    connection,
-    `SELECT HEADER_ID
-       FROM XXZP.XXZP_PAF_PROBATION_HEADER
-      WHERE UUID = :uuid`,
-    { uuid },
-    headerIdFetch,
-  );
-  return row?.HEADER_ID;
-}
-
+/**
+ * Inserts the header and returns the HEADER_ID assigned by its identity column
+ * (GENERATED ALWAYS), as a decimal string.
+ */
 export async function insertHeader(connection, header) {
-  await connection.execute(
+  const result = await connection.execute(
     `INSERT INTO XXZP.XXZP_PAF_PROBATION_HEADER
        (UUID, FORM_DATE, EMP_ID, GRADE, EVALUATION_PERIOD, FORM_NAME, TOTAL_RATING,
         PREPARED_BY_CMNT, APPROVED_BY_CMNT, EMP_NAME, JOB_T, DEPARTMENT, EMP_NUMBER,
@@ -70,29 +50,20 @@ export async function insertHeader(connection, header) {
         NVL(:evaluationPeriod, '-'), NVL(:formType, '-'), NVL(:totalRating, 0),
         NVL(:comment, '-'), NVL(:comments, '-'), :employeeName, :jobTitle, :department,
         :employeeNumber, TO_DATE(:fromDate, 'DD-Mon-YYYY'), TO_DATE(:toDate, 'DD-Mon-YYYY'),
-        :userName, :userMail, 'DRAFT', SYSDATE, :createdBy)`,
-    header,
+        :userName, :userMail, 'DRAFT', SYSDATE, :createdBy)
+     RETURNING HEADER_ID INTO :headerId`,
+    { ...header, headerId: { dir: oracledb.BIND_OUT, type: oracledb.STRING } },
   );
+  return result.outBinds?.headerId?.[0] ?? null;
 }
 
-export async function generateLineId(connection, headerId) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(LINE_ID + 1), 1) AS ID
-       FROM XXZP.XXZP_PAF_PROBATION_LINES
-      WHERE HEADER_ID = :headerId`,
-    { headerId },
-    generatedIdFetch,
-  );
-  return row?.ID;
-}
-
+/** Inserts one line; LINE_ID is assigned by its identity column (GENERATED ALWAYS). */
 export async function insertLine(connection, line) {
   await connection.execute(
     `INSERT INTO XXZP.XXZP_PAF_PROBATION_LINES
-       (HEADER_ID, LINE_ID, RATING_LINE, PARAM_NAME, PARAMA_NAME_AR)
+       (HEADER_ID, RATING_LINE, PARAM_NAME, PARAMA_NAME_AR)
      VALUES
-       (:headerId, :lineId, NVL(:rating, 0), :param, NVL(:paramAr, '-'))`,
+       (:headerId, NVL(:rating, 0), :param, NVL(:paramAr, '-'))`,
     line,
   );
 }
@@ -129,15 +100,39 @@ export async function listLines(connection, headerId) {
   return result.map(mapLine);
 }
 
-export async function findHeaderStatus(connection, headerId) {
+/** Ownership, status and evaluated employee of one evaluation, for record-level access checks. */
+export async function findAccessFacts(connection, headerId) {
   const [row] = await rows(
     connection,
-    `SELECT REQUEST_STATUS
+    `SELECT CREATED_BY, REQUEST_STATUS, EMP_NUMBER
        FROM XXZP.XXZP_PAF_PROBATION_HEADER
       WHERE HEADER_ID = :headerId`,
     { headerId },
+    { CREATED_BY: ID },
   );
-  return row ? { requestStatus: row.REQUEST_STATUS } : null;
+  return row
+    ? {
+        createdBy: row.CREATED_BY,
+        requestStatus: row.REQUEST_STATUS,
+        employeeNumber: row.EMP_NUMBER,
+      }
+    : null;
+}
+
+/** Whether the actor's current department (ORGANIZATION_ID) is the evaluated employee's. */
+export async function isSameDepartment(connection, { actorEmployeeNumber, subjectEmployeeNumber }) {
+  const result = await rows(
+    connection,
+    `SELECT 1 AS SAME
+       FROM XX_DIGI_EMP_MASTER a
+       JOIN XX_DIGI_EMP_MASTER s ON s.ORGANIZATION_ID = a.ORGANIZATION_ID
+      WHERE a.EMPLOYEE_NUMBER = :actorEmployeeNumber
+        AND a.CURRENT_EMP_FLAG = 'Y'
+        AND s.EMPLOYEE_NUMBER = :subjectEmployeeNumber
+      FETCH FIRST 1 ROWS ONLY`,
+    { actorEmployeeNumber, subjectEmployeeNumber },
+  );
+  return result.length > 0;
 }
 
 export async function updateHeader(connection, header) {
@@ -156,7 +151,9 @@ export async function updateHeader(connection, header) {
             DEPARTMENT = :department,
             EMP_NUMBER = :employeeNumber,
             FROM_DATE = TO_DATE(:fromDate, 'DD-Mon-YYYY'),
-            TO_DATE = TO_DATE(:toDate, 'DD-Mon-YYYY')
+            TO_DATE = TO_DATE(:toDate, 'DD-Mon-YYYY'),
+            UPDATED_AT = SYSDATE,
+            UPDATED_BY = :updatedBy
       WHERE HEADER_ID = :headerId`,
     header,
   );
@@ -328,7 +325,8 @@ export async function findEmployeeDetails(connection, { empName, userId }) {
   if (!ids) return null;
   const [hire] = await rows(
     connection,
-    `SELECT JOINING_DATE AS START_DATE
+    // A date-only string: a JS Date would be serialised in UTC and shift by the server offset.
+    `SELECT TO_CHAR(JOINING_DATE, 'YYYY-MM-DD') AS START_DATE
        FROM XX_DIGI_EMP_MASTER
       WHERE PERSON_ID = :personId AND CURRENT_EMP_FLAG = 'Y'`,
     { personId: ids.PERSON_ID },

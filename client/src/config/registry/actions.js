@@ -71,6 +71,7 @@ export const STANDARD_ACTIONS = Object.freeze(Object.fromEntries([
   action('IMPORT', 'Import', 'REPORTING', 'Import data into the application.'),
   action('UPLOAD', 'Upload', 'REPORTING', 'Upload files or attachments.'),
   action('MANAGE_ATTACHMENTS', 'Manage attachments', 'CORE', 'Upload and remove attachments on a record.'),
+  action('MANAGE_LINES', 'Manage lines', 'CORE', 'Remove individual line items from a record.'),
   action('DOWNLOAD', 'Download', 'REPORTING', 'Download files or attachments.'),
   // Security and administration.
   action('CONFIGURE', 'Configure', 'SECURITY', 'Change module configuration or settings.'),

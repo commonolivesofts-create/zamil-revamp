@@ -24,7 +24,7 @@ const BODY = {
   lines: [{ param: 'Quality of work', paramAr: 'جودة العمل', rating: 4 }],
 };
 
-function setup() {
+function setup({ identityStart } = {}) {
   const store = createAuthStore();
   const rbac = installRbac(store, { syncPrivilegeFlags: true });
   const addPerson = (employeeNumber, fullName) => {
@@ -55,7 +55,7 @@ function setup() {
   rbac.grant(staffRole, permissions.CREATE);
   rbac.assign(staffUser, staffRole);
 
-  installProbationEvaluations(store, { hrEmployeeNumbers: [hrUser.employeeNumber] });
+  installProbationEvaluations(store, { hrEmployeeNumbers: [hrUser.employeeNumber], identityStart });
   const app = createApp(testAuthConfig(), {
     checkReadiness: async () => ({ LOW: true, HIGH: true }),
     api: {
@@ -272,5 +272,98 @@ describe('probation evaluation API', () => {
     assert.equal((await send('delete', '/1', hr)).status, 500);
     assert.equal(f.store.state.probationEvaluations.headers.length, 1);
     assert.equal(f.store.state.probationEvaluations.lines.length, 1);
+  });
+});
+
+describe('probation evaluation record access, draft guard and audit', () => {
+  let f;
+  let hr;
+  let editor;
+  let editorUser;
+  beforeEach(async () => {
+    f = setup();
+    // A non-HR user who may view and update (but is not HR in the XXZP_HR lookup).
+    f.store.addEmployee({
+      employeeNumber: 'E-EDIT',
+      fullName: 'Eli Example',
+      email: 'e-edit@example.invalid',
+    });
+    editorUser = f.store.addUser('E-EDIT', { passwordHash: 'argon2-hash-placeholder' });
+    const role = f.rbac.addRole('PAF_EDITOR_TEST');
+    f.rbac.grant(role, f.permissions.VIEW);
+    f.rbac.grant(role, f.permissions.UPDATE);
+    f.rbac.grant(role, f.permissions.DELETE);
+    f.rbac.assign(editorUser, role);
+    hr = await signIn(f.store, f.hrUser);
+    editor = await signIn(f.store, editorUser);
+  });
+  const update = { ...BODY, lines: [{ ...BODY.lines[0], lineId: '1' }] };
+  const call = (method, path, session, body) => {
+    const req = request(f.app)[method](`${BASE}${path}`).set('Cookie', session.cookie);
+    if (method !== 'get') req.set('X-CSRF-Token', session.csrf);
+    return body === undefined ? req : req.send(body);
+  };
+  const isForbidden = (response) => {
+    assert.equal(response.status, 403, JSON.stringify(response.body));
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, 'FORBIDDEN');
+  };
+
+  it("returns 403 for another user's record by ID on read, update and delete", async () => {
+    const id = f.store.seedProbationEvaluation({}, [{ lineId: '1' }]);
+    isForbidden(await call('get', `/${id}`, editor));
+    isForbidden(await call('put', `/${id}`, editor, update));
+    isForbidden(await call('delete', `/${id}`, editor));
+    assert.equal(f.store.state.probationEvaluations.headers[0].employeeName, 'Test Employee');
+    assert.equal((await call('get', `/${id}`, hr)).status, 200, 'HR users keep access');
+    assert.equal((await call('get', '/999', editor)).status, 404, 'unknown IDs stay 404');
+  });
+
+  it('allows the owner and same-department users holding VIEW', async () => {
+    const own = f.store.seedProbationEvaluation({ createdBy: editorUser.userId }, [{}]);
+    assert.equal((await call('get', `/${own}`, editor)).status, 200);
+    const other = f.store.seedProbationEvaluation({ employeeNumber: 'T-2002' }, [{}]);
+    f.store.state.probationDepartments = { 'E-EDIT': '20', 'T-2002': '20' };
+    assert.equal((await call('get', `/${other}`, editor)).status, 200);
+    f.rbac.override(editorUser, f.permissions.VIEW, 'DENY');
+    isForbidden(await call('put', `/${other}`, editor, update));
+  });
+
+  it('blocks updates of non-draft evaluations with 409', async () => {
+    const id = f.store.seedProbationEvaluation({ requestStatus: 'INPROCESS' }, [{}]);
+    const response = await call('put', `/${id}`, hr, update);
+    assert.equal(response.status, 409, JSON.stringify(response.body));
+    assert.equal(response.body.error.code, 'PROBATION_EVALUATION_NOT_DRAFT');
+    assert.equal(f.store.state.probationEvaluations.headers[0].employeeName, 'Test Employee');
+    assert.equal(f.store.state.probationEvaluations.headers[0].updatedBy, undefined);
+  });
+
+  it('records UPDATED_BY and UPDATED_AT on update', async () => {
+    const id = f.store.seedProbationEvaluation({}, [{}]);
+    const response = await call('put', `/${id}`, hr, update);
+    assert.equal(response.status, 200, JSON.stringify(response.body));
+    const header = f.store.state.probationEvaluations.headers[0];
+    assert.equal(header.updatedBy, f.hrUser.userId);
+    assert.equal(header.updatedAt, 'SYSDATE');
+  });
+});
+
+describe('probation evaluation IDs come from the identity columns', () => {
+  it('creates an evaluation when the identity is above MAX(HEADER_ID) and sends no LINE_ID', async () => {
+    const f = setup({ identityStart: 1040 });
+    f.store.seedProbationEvaluation({ headerId: '1023' }, [{}]);
+    const hr = await signIn(f.store, f.hrUser);
+    const created = await request(f.app)
+      .post(BASE)
+      .set('Cookie', hr.cookie)
+      .set('X-CSRF-Token', hr.csrf)
+      .send({ ...BODY, lines: [BODY.lines[0], { ...BODY.lines[0], param: 'Teamwork' }] });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.data.headerId, '1040');
+    const lines = f.store.state.probationEvaluations.lines.filter((l) => l.headerId === '1040');
+    assert.deepEqual(
+      lines.map((line) => line.lineId),
+      ['1040', '1041'],
+    );
   });
 });

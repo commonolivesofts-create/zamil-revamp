@@ -5,7 +5,7 @@ import { ApiError, apiClient } from '../../services/api/apiClient.js'
 import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
 import {
-  ID_PATTERN, readEmployee, readInterview, readInterviewListItem, readLookups, readOffer, readOfferListItem, readPage, readReport,
+  ID_PATTERN, readInterview, readInterviewListItem, readOffer, readOfferListItem, readReport, readReportDepartments,
 } from './hrRecruitmentContract.js'
 import { COMP_KEYS, SPEC_KEYS } from './interview/interviewModel.js'
 import { BENEFIT_KEYS } from './offer/offerModel.js'
@@ -23,7 +23,6 @@ const CONTRACTOR_EMPLOYEES_BASE = '/hr/contractor-employees'
 const OFFER_ALLOWANCE_TYPES = Object.freeze({
   housing: 'housing', transport: 'transportation', vacation: 'annual-vacation', ticket: 'ticket', medical: 'medical', contract: 'contract-period',
 })
-const INTERVIEW_PAYROLL_BUS = Object.freeze(['300000003618177', '300000003618190'])
 const SECONDARY_EDUCATION = Object.freeze({
   SECONDARY_EDUCATION: 'Secondary Education', DIPLOMA: 'Diploma', DEGREE: 'Degree', MASTERS_DEGREE: 'Masters Degree',
 })
@@ -155,7 +154,8 @@ function backendInterviewPayload(body) {
   const interviewers = body.interviewers ?? ['', '', '']
   const outcome = backendOutcome(body.outcome)
   const payroll = String(body.payroll ?? '').trim()
-  if (!INTERVIEW_PAYROLL_BUS.includes(payroll)) {
+  // The allowed units come from /lookups/payroll-units; the backend validates the value.
+  if (!payroll) {
     throw new ApiError('Choose one of the available payroll business units.', { code: 'VALIDATION_ERROR', details: [{ field: 'payroll', message: 'Choose a payroll business unit.' }] })
   }
   const result = {
@@ -183,7 +183,7 @@ function backendInterviewPayload(body) {
     },
     evaluation: {
       status: outcome, interviewedBy: String(interviewers[0] ?? '').trim(),
-      adminManager: String(body.adminManager ?? '').trim(), managningDirector: String(body.managingDirector ?? '').trim(),
+      adminManager: String(body.adminManagerName ?? body.adminManager ?? '').trim(), managningDirector: String(body.managingDirector ?? '').trim(),
       hrRep: String(body.hrRepresentative ?? '').trim(), deptRep: String(body.departmentRepresentative ?? '').trim(),
       comment: String(body.hrComment ?? '').trim(),
     },
@@ -281,16 +281,17 @@ function createBackendRequisitionService({ client }) {
   const getById = async (id, { signal } = {}) => requisitionRecord((await client.get(`${REQUISITIONS_BASE}/${segment(id)}`, { signal })).data)
   return Object.freeze({
     async getLookups({ signal } = {}) {
-      const keys = ['jobs', 'departments', 'requester', 'replacements']
+      const keys = ['jobs', 'departments', 'requester', 'replacements', 'capabilities']
       const results = await Promise.allSettled([
         client.get(`${REQUISITIONS_BASE}/lookups/job-titles`, { signal }),
         client.get(`${REQUISITIONS_BASE}/lookups/departments`, { signal }),
         client.get(`${REQUISITIONS_BASE}/lookups/requestor`, { signal }),
         client.get(`${REQUISITIONS_BASE}/lookups/replacement-for`, { signal }),
+        client.get(`${REQUISITIONS_BASE}/lookups/capabilities`, { signal }),
       ])
       if (signal?.aborted) throw results.find((result) => result.status === 'rejected')?.reason ?? Object.assign(new Error('Aborted'), { name: 'AbortError' })
       const data = results.map((result) => result.status === 'fulfilled' ? result.value?.data : null)
-      const valid = [Array.isArray(data[0]), Array.isArray(data[1]), Boolean(data[2] && typeof data[2] === 'object' && !Array.isArray(data[2]) && typeof data[2].fullName === 'string'), Array.isArray(data[3])]
+      const valid = [Array.isArray(data[0]), Array.isArray(data[1]), Boolean(data[2] && typeof data[2] === 'object' && !Array.isArray(data[2]) && typeof data[2].fullName === 'string'), Array.isArray(data[3]), typeof data[4]?.canManageTicket === 'boolean']
       const lookupErrors = Object.freeze(keys.filter((_, index) => results[index].status === 'rejected' || !valid[index]))
       const replacements = Array.isArray(data[3]) ? data[3].map((item) => {
         if (typeof item === 'string') return item
@@ -299,7 +300,9 @@ function createBackendRequisitionService({ client }) {
       return Object.freeze({
         jobs: Object.freeze((Array.isArray(data[0]) ? data[0] : []).map((item) => ({ id: String(item.jobId ?? ''), name: String(item.name ?? '') })).filter((item) => item.name)),
         departments: Object.freeze((Array.isArray(data[1]) ? data[1] : []).map((item) => ({ id: String(item.deptId ?? ''), name: String(item.name ?? '') })).filter((item) => item.name)),
-        requester: String(data[2]?.fullName ?? ''), replacements: Object.freeze(replacements), lookupErrors,
+        requester: String(data[2]?.fullName ?? ''), replacements: Object.freeze(replacements),
+        // The selector stays hidden unless the backend confirms; the backend also refuses the change.
+        capabilities: Object.freeze({ canManageTicket: data[4]?.canManageTicket === true }), lookupErrors,
       })
     },
     getById,
@@ -348,7 +351,8 @@ function createBackendRequisitionService({ client }) {
       return Object.freeze({ items: Object.freeze(result.data.map((item) => Object.freeze({
         requisitionId: String(item.requisitionId), requisitionNumber: String(item.requisitionNumber ?? ''),
         status: String(item.requisitionStatus ?? ''), jobTitle: String(item.jobName ?? ''),
-        departmentName: String(item.deptName ?? ''), updatedAt: item.lastUpdateDate ?? item.creationDate ?? null,
+        // CREATION_DATE arrives as 'DD-Mon-YY', which Date cannot parse reliably.
+        departmentName: String(item.deptName ?? ''), updatedAt: item.lastUpdateDate ?? (legacyDate(item.creationDate) || null),
       }))), pagination: result.pagination })
     },
   })
@@ -367,16 +371,6 @@ function query(values) {
   return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== null && value !== ''))
 }
 
-// Lookup suggestions for the recruitment flow and the session-only HR report.
-export function createLookupService({ client }) {
-  return Object.freeze({
-    async get({ signal } = {}) {
-      const { data } = await client.get(`${HR_BASE}/lookups`, { signal })
-      return readLookups(data)
-    },
-  })
-}
-
 export function createRequisitionService({ client }) {
   return createBackendRequisitionService({ client })
 }
@@ -385,11 +379,12 @@ export function createInterviewService({ client }) {
   const getById = async (id, { signal } = {}) => interviewRecord((await client.get(`${INTERVIEWS_BASE}/${segment(id)}`, { signal })).data)
   return Object.freeze({
     async getLookups({ signal } = {}) {
-      const keys = ['nationalities', 'requisitions', 'employees']
+      const keys = ['nationalities', 'requisitions', 'employees', 'payrollUnits']
       const results = await Promise.allSettled([
         client.get(`${INTERVIEWS_BASE}/lookups/nationalities`, { signal }),
         client.get(`${INTERVIEWS_BASE}/lookups/requisitions`, { signal }),
         client.get(`${INTERVIEWS_BASE}/lookups/employees`, { signal }),
+        client.get(`${INTERVIEWS_BASE}/lookups/payroll-units`, { signal }),
       ])
       if (signal?.aborted) throw results.find((result) => result.status === 'rejected')?.reason ?? Object.assign(new Error('Aborted'), { name: 'AbortError' })
       const data = results.map((result) => result.status === 'fulfilled' ? result.value?.data : null)
@@ -399,8 +394,9 @@ export function createInterviewService({ client }) {
         requisitionNumber: String(item?.requisitionNumber ?? ''), jobName: String(item?.jobName ?? ''),
       })).filter((item) => item.requisitionNumber && item.jobName)
       return Object.freeze({
-        // The existing service exposes valid attribute3 IDs but no friendly labels.
-        payrollBusinessUnits: Object.freeze(INTERVIEW_PAYROLL_BUS.map((code) => Object.freeze({ code, name: code }))),
+        payrollBusinessUnits: Object.freeze((Array.isArray(data[3]) ? data[3] : []).map((item) => Object.freeze({
+          code: String(item?.code ?? ''), name: String(item?.name ?? '') || String(item?.code ?? ''),
+        })).filter((item) => item.code)),
         divisions: DIVISION_OPTIONS, interviewTypes: INTERVIEW_TYPE_OPTIONS, maritalStatuses: MARITAL_OPTIONS,
         certificates: EDUCATION_OPTIONS, certificateChecks: CERTIFICATE_CHECK_OPTIONS,
         nationalities: Object.freeze((Array.isArray(data[0]) ? data[0] : []).map(String).filter(Boolean)),
@@ -495,15 +491,6 @@ export function createOfferService({ client }) {
   })
 }
 
-// Employee search for the pickers: a page of matching employees.
-export function createEmployeeService({ client }) {
-  return Object.freeze({
-    async search(search, { limit = 10, signal } = {}) {
-      return readPage(await client.get(`${HR_BASE}/employees`, { params: query({ search: String(search ?? '').trim(), page: 1, limit }), signal }), readEmployee)
-    },
-  })
-}
-
 export function createOrientationService({ client }) {
   const dateOnly = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : ''
   const textValue = (value) => value == null || value === '-' ? '' : String(value)
@@ -571,12 +558,14 @@ export function createOrientationService({ client }) {
     getById,
     async save(id, body) {
       const payload = {
-        empNo: body.employee.employeeNumber, fromOrient: body.fromOrient, toOrient: body.toOrient, startDate: body.employee.startDate,
+        // startDate is optional but must be a valid date when sent, so an unknown joining date is omitted.
+        empNo: body.employee.employeeNumber, fromOrient: body.fromOrient, toOrient: body.toOrient, ...(body.employee.startDate ? { startDate: body.employee.startDate } : {}),
         orientationBy: body.orientationBy || '', flag: body.flag, section: body.employee.section, empname: body.employee.name,
         personId: body.employee.employeeId, division: body.employee.division, type: body.employee.employmentType, position: body.employee.position,
         lines: body.lines.map((line) => ({ ...(line.lineId ? { lineId: line.lineId } : {}), department: line.department, departmentHead: line.departmentHead,
           fromDate: line.fromDate, toDate: line.toDate, orientationDays: line.orientationDays, timeFrom: line.timeFrom, timeTo: line.timeTo,
-          orientationPeriod: line.orientationPeriod || '', remarks: line.remarks || '' })),
+          // Blank lets the server recompute the period from the (possibly edited) times.
+          orientationPeriod: '', remarks: line.remarks || '' })),
       }
       const result = id ? await client.put(`${ORIENTATION_BASE}/${segment(id)}`, payload) : await client.post(ORIENTATION_BASE, payload)
       const savedId = String(id ?? result.data?.headerId ?? '')
@@ -644,7 +633,8 @@ export function createProbationService({ client }) {
         position: textValue(data.jobTitle), grade: textValue(data.grade), departmentName: textValue(data.department), startDate: '' }),
       fromDate: fromLegacyDate(data.fromDate), toDate: fromLegacyDate(data.toDate), comment: textValue(data.comment), comments: textValue(data.comments),
       totalRating: Number(data.totalRating ?? 0), lines: Object.freeze(data.lines.map((line) => Object.freeze({
-        lineId: String(line.lineId), param: textValue(line.param), paramAr: textValue(line.paramAr), rating: Number(line.rating ?? 0),
+        // A stored 0 means "not rated"; the form represents that as blank.
+        lineId: String(line.lineId), param: textValue(line.param), paramAr: textValue(line.paramAr), rating: Number(line.rating) || '',
       }))),
     })
   }
@@ -694,7 +684,8 @@ export function createProbationService({ client }) {
         grade: Number(body.employee.grade) || 0, jobTitle: body.employee.position, department: body.employee.departmentName,
         fromDate: body.fromDate, toDate: body.toDate, comment: body.comment, comments: body.comments,
         totalRating: body.lines.reduce((total, line) => total + (Number(line.rating) || 0), 0),
-        lines: body.lines.map((line) => ({ ...(id ? { lineId: line.lineId } : {}), param: line.param, paramAr: line.paramAr || '', rating: Number(line.rating) || 0 })),
+        // The backend accepts only 1–5 and stores an omitted rating as 0 (not rated).
+        lines: body.lines.map((line) => ({ ...(id ? { lineId: line.lineId } : {}), param: line.param, paramAr: line.paramAr || '', ...(Number(line.rating) ? { rating: Number(line.rating) } : {}) })),
       }
       const result = id ? await client.put(`${PROBATION_BASE}/${segment(id)}`, payload) : await client.post(PROBATION_BASE, payload)
       const savedId = String(id ?? result.data?.headerId ?? '')
@@ -705,14 +696,36 @@ export function createProbationService({ client }) {
   })
 }
 
-// Periodwise Employees: every employee attached to the department (or all
-// departments) at any point in [from, to]. Age, service, KPIs and charts are
-// derived on the page (report/periodwiseModel.js).
+// Periodwise Employees: every employee attached to the department (or all departments) at any
+// point in [dateFrom, dateTo]. The server derives age, service and flags, pages the rows and
+// returns the KPIs and chart data of the full scope (period, department, status) as `summary`.
+const PERIODWISE_BASE = `${HR_REPORTS_BASE}/periodwise-employees`
+export const PERIODWISE_PAGE_SIZE = 25
+const EXPORT_PAGE_SIZE = 100
+const EXPORT_MAX_PAGES = 200
+
 export function createReportService({ client }) {
+  const params = (filters) => query({
+    dateFrom: filters.dateFrom, dateTo: filters.dateTo, department: filters.department, status: filters.status,
+    search: filters.search, nationality: filters.nationality, ageBand: filters.ageBand, flagged: filters.flagged ? 'true' : undefined,
+    sortBy: filters.sortBy, sortDir: filters.sortDir, page: filters.page ?? 1, pageSize: filters.pageSize ?? PERIODWISE_PAGE_SIZE,
+  })
+  const periodwiseEmployees = async (filters, { signal } = {}) => readReport(await client.get(PERIODWISE_BASE, { params: params(filters), signal }))
   return Object.freeze({
-    async periodwiseEmployees({ department, from, to }, { signal } = {}) {
-      const { data } = await client.get(`${HR_REPORTS_BASE}/periodwise-employees`, { params: query({ department, from, to }), signal })
-      return readReport(data)
+    periodwiseEmployees,
+    async departments({ signal } = {}) {
+      const { data } = await client.get(`${PERIODWISE_BASE}/lookups/departments`, { signal })
+      return readReportDepartments(data)
+    },
+    // Every row of the filtered set (CSV export and printing), page by page.
+    async allRows(filters, { signal } = {}) {
+      const rows = []
+      for (let page = 1; page <= EXPORT_MAX_PAGES; page += 1) {
+        const result = await periodwiseEmployees({ ...filters, page, pageSize: EXPORT_PAGE_SIZE }, { signal })
+        rows.push(...result.rows)
+        if (!result.pagination.hasNextPage) return Object.freeze(rows)
+      }
+      throw new ApiError('The report is too large to export at once; narrow the filters.', { code: 'REPORT_TOO_LARGE' })
     },
   })
 }
@@ -736,8 +749,6 @@ export function createHrRecruitmentServices({
     interviews: createInterviewService({ client: interviewClient }),
     offers: createOfferService({ client: offerClient }),
     // Suggestions/report lookup and employee search remain on the onboarding adapter.
-    lookups: createLookupService({ client: onboardingClient }),
-    employees: createEmployeeService({ client: onboardingClient }),
     orientations: createOrientationService({ client: orientationClient }),
     employeeReport: createEmployeeReportService({ client }),
     probations: createProbationService({ client: probationClient }),

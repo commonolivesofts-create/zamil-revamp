@@ -31,8 +31,10 @@ import { defineModule } from '../../client/src/config/registry/defineModule.js';
 
 const SERVICE = 'g1234_zpadwtest_low.adb.oraclecloud.com';
 const TARGET = APPROVED_TARGETS.TEST;
-// Apply tests use a TEST target with an approved DB_NAME; the committed target has none yet.
+// Apply tests use a TEST target whose approved DB_NAME matches the fake connection; the
+// unconfigured copy exercises the guard that refuses apply while no DB_NAME is approved.
 const CONFIGURED = Object.freeze({ TEST: Object.freeze({ ...TARGET, dbName: 'ZPADWTEST' }) });
+const UNCONFIGURED = Object.freeze({ TEST: Object.freeze({ ...TARGET, dbName: null }) });
 const appConfig = { env: 'test', database: { pools: { LOW: { alias: TARGET.lowAlias } } } };
 
 // Isolated fixture modules: never part of the active registry.
@@ -340,6 +342,10 @@ describe('RBAC catalogue registration CLI', () => {
       ])
         assert.throws(() => parseArgs(argv), RegistrationRefused, argv.join(' '));
       assert.deepEqual(Object.keys(APPROVED_TARGETS), ['TEST'], 'only TEST is approved');
+    });
+
+    it('pins the owner-approved TEST DB_NAME', () => {
+      assert.equal(APPROVED_TARGETS.TEST.dbName, 'G480281AE328134_ZPADWTEST');
     });
 
     it('refuses an unapproved environment or LOW alias before connecting', async () => {
@@ -921,8 +927,7 @@ describe('RBAC catalogue registration CLI', () => {
 
   describe('database identity (SERVICE_NAME and DB_NAME)', () => {
     it('previews without an approved DB_NAME and reports the actual one', async () => {
-      const { code, fake, out } = await run(['--target=TEST'], { targets: APPROVED_TARGETS });
-      assert.equal(APPROVED_TARGETS.TEST.dbName, null, 'no TEST DB_NAME is assumed');
+      const { code, fake, out } = await run(['--target=TEST'], { targets: UNCONFIGURED });
       assert.equal(code, EXIT.OK);
       assert.match(
         out,
@@ -932,9 +937,9 @@ describe('RBAC catalogue registration CLI', () => {
     });
 
     it('refuses apply before connecting while no approved DB_NAME is configured', async () => {
-      const fp = fingerprintOf((await run(['--target=TEST'], { targets: APPROVED_TARGETS })).out);
+      const fp = fingerprintOf((await run(['--target=TEST'], { targets: UNCONFIGURED })).out);
       const { code, fake, out } = await run(['--target=TEST', '--apply', `--fingerprint=${fp}`], {
-        targets: APPROVED_TARGETS,
+        targets: UNCONFIGURED,
         io: fakeIo({ typed: 'anything' }),
       });
       assert.equal(code, EXIT.REFUSED);
@@ -979,11 +984,11 @@ describe('RBAC catalogue registration CLI', () => {
     });
 
     it('changes the plan fingerprint when DB_NAME changes', async () => {
-      const a = fingerprintOf((await run(['--target=TEST'], { targets: APPROVED_TARGETS })).out);
+      const a = fingerprintOf((await run(['--target=TEST'], { targets: UNCONFIGURED })).out);
       const b = fingerprintOf(
         (
           await run(['--target=TEST'], {
-            targets: APPROVED_TARGETS,
+            targets: UNCONFIGURED,
             scenario: { dbName: 'OTHERDB' },
           })
         ).out,
@@ -1041,9 +1046,10 @@ describe('RBAC catalogue registration CLI', () => {
     }
 
     it('refuses --apply without an approved DB_NAME before the wallet, the Oracle module or a pool', async () => {
-      assert.equal(APPROVED_TARGETS.TEST.dbName, null);
       const io = fakeIo();
-      const { load, calls } = spyLoaders();
+      const { load, calls } = spyLoaders({
+        registration: { ...registrationLib, APPROVED_TARGETS: UNCONFIGURED },
+      });
       const code = await runCli({
         argv: ['--target=TEST', '--apply', `--fingerprint=${FP}`],
         io: io.io,
@@ -1097,9 +1103,9 @@ describe('RBAC catalogue registration CLI', () => {
       }
     });
 
-    it('the real executable refuses --apply without an approved DB_NAME before touching the wallet', () => {
-      // Valid test configuration, but a wallet directory that does not exist: even a regression
-      // could not open a connection; the message shows which guard stopped the run.
+    it('the real executable stops --apply at wallet validation, before any connection', () => {
+      // Valid test configuration and the approved TEST DB_NAME, but a wallet directory that does not
+      // exist: the run can never open a connection; the message shows which guard stopped it.
       const result = spawnSync(
         process.execPath,
         ['scripts/rbac-register.js', '--target=TEST', '--apply', `--fingerprint=${FP}`],
@@ -1121,11 +1127,8 @@ describe('RBAC catalogue registration CLI', () => {
         },
       );
       assert.equal(result.status, 1, `${result.stdout}${result.stderr}`);
-      assert.match(
-        result.stdout,
-        /^Refused: Apply is disabled: no approved DB_NAME is configured for target TEST/,
-      );
-      assert.doesNotMatch(result.stdout, /wallet/i);
+      assert.match(result.stdout, /^Refused: Oracle wallet validation failed./);
+      assert.doesNotMatch(result.stdout, /Committed|fingerprint/i);
     });
   });
 

@@ -18,6 +18,11 @@ export const loginSchema = Joi.object({
 // Endpoints that take no input still reject unexpected query parameters.
 export const emptyQuerySchema = Joi.object({});
 
+// Optional image revision used by the browser to fetch a newly uploaded avatar.
+export const profileImageQuerySchema = Joi.object({
+  v: Joi.string().pattern(/^(?:[1-9][0-9]{0,18}|[0-9]{13})$/),
+});
+
 // Endpoints that take no body still reject unexpected fields.
 export const emptyBodySchema = Joi.object({});
 

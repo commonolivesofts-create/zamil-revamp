@@ -47,6 +47,7 @@ export function createInterviewAssessmentRouter({
   });
 
   router.get('/', ...read('VIEW', { query: listQuerySchema }), controller.list);
+  router.get('/lookups/payroll-units', ...read('VIEW'), controller.payrollUnits);
   router.get('/lookups/nationalities', ...read('VIEW'), controller.nationalities);
   router.get('/lookups/requisitions', ...read('VIEW'), controller.requisitions);
   router.get('/lookups/employees', ...read('VIEW'), controller.employees);

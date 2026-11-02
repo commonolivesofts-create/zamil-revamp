@@ -21,10 +21,10 @@ it never runs on backend start-up, deployment, login or frontend loading.
   that adds the verified database identity to `APPROVED_TARGETS` in
   `server/scripts/lib/rbacRegistration.js`.
 - A target's identity is its `SERVICE_NAME` pattern **and** its owner-approved `DB_NAME`
-  (`SYS_CONTEXT('USERENV', 'DB_NAME')`). The TEST `DB_NAME` is **not configured yet**: the preview
-  runs and prints the actual `DB_NAME`, but **apply is refused** (before connecting) until that value
-  has been recorded from a preview, approved by the owner and added to `APPROVED_TARGETS.TEST.dbName`
-  through a reviewed change. Never guess it.
+  (`SYS_CONTEXT('USERENV', 'DB_NAME')`). The TEST `DB_NAME` `G480281AE328134_ZPADWTEST` was
+  recorded from a preview and approved by the owner on 2026-10-31; it is set in
+  `APPROVED_TARGETS.TEST.dbName`. A target without an approved `DB_NAME` still previews (and prints
+  the actual value), but **apply is refused** before connecting. Never guess a `DB_NAME`.
 
 ## Commands (from `server/`)
 

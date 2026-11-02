@@ -159,13 +159,15 @@ export function createSmtpDelivery({
   fetchImpl = fetch,
 }) {
   const override = smtp.testRecipientOverride;
+  const userCreationOverride = smtp.userCreationTestRecipientOverride;
+  const hasTestOverride = Boolean(override || userCreationOverride);
   const getAccessToken =
     smtp.authMethod === 'OAUTH2' ? createOAuthTokenProvider(smtp.oauth, { fetchImpl }) : null;
   const transport = createTransport(createTransportOptions(smtp, getAccessToken));
   let identityVerified = false;
 
   async function assertTestDatabase() {
-    if (!override || identityVerified) return;
+    if (!hasTestOverride || identityVerified) return;
     const name = await readDatabaseName().catch(() => null);
     if (!name || name !== smtp.testDatabaseName) {
       logger.error(
@@ -180,20 +182,31 @@ export function createSmtpDelivery({
     configured: true,
     resolveRecipient: createRecipientResolver({
       testRecipientOverride: override,
+      userCreationTestRecipientOverride: userCreationOverride,
       privilegedDeliveryEnabled: smtp.privilegedDeliveryEnabled,
     }),
 
     async deliver({ purpose, recipient, employeeNumber, token, expiresAt }) {
       await assertTestDatabase();
-      // Defence in depth: under an override only the override mailbox may ever be addressed.
-      if (override ? recipient.address !== override : recipient.source === 'TEST_OVERRIDE') {
+      // Defence in depth: setup mail follows its dedicated switch; other ordinary
+      // recovery mail retains the general test override policy.
+      const setupRecipientAllowed =
+        purpose === 'PASSWORD_SETUP'
+          ? userCreationOverride
+            ? recipient.address === userCreationOverride &&
+              recipient.source === 'USER_CREATION_TEST_OVERRIDE'
+            : recipient.source === 'EMPLOYEE_MASTER'
+          : override
+            ? recipient.address === override && recipient.source === 'TEST_OVERRIDE'
+            : recipient.source !== 'TEST_OVERRIDE';
+      if (!setupRecipientAllowed) {
         throw new DeliveryUnavailable('RECIPIENT_NOT_PERMITTED');
       }
       const message = composeMessage({
         purpose,
         link: buildLink(links, purpose, token),
         expiresAt,
-        test: Boolean(override),
+        test: hasTestOverride,
         employeeNumber,
       });
       let info;

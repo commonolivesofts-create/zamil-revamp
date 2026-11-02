@@ -674,6 +674,17 @@ describe('interview assessment API', () => {
   });
 
   describe('lookups', () => {
+    it('lists the payroll business units with their labels, matching the accepted attribute3 values', async () => {
+      const res = await get('/lookups/payroll-units');
+      assert.equal(res.status, 200);
+      assert.deepEqual(res.body.data, [
+        { code: '300000003618177', name: 'IPP' },
+        { code: '300000003618190', name: 'FPP' },
+      ]);
+      assert.equal(res.headers['cache-control'], 'no-store');
+      assert.equal((await request(f.app).get(`${BASE}/lookups/payroll-units`)).status, 401);
+    });
+
     it('lists nationalities from XXZP_NATIONALITY', async () => {
       const res = await get('/lookups/nationalities');
       assert.equal(res.status, 200);

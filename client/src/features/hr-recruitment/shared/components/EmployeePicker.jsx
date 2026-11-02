@@ -1,7 +1,6 @@
 import { useId, useState } from 'react'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { PICKER_TEXT } from '../../hrRecruitmentText.js'
-import { hrRecruitmentServices } from '../../hrRecruitmentService.js'
 import { initials } from '../hrFormat.js'
 import { useSettled } from '../useSettled.js'
 
@@ -19,7 +18,7 @@ export function EmployeePicker({ id, label, required = false, value, onPick, err
   const search = useSettled(query.trim(), 250)
   const pendingSearch = open && search !== query.trim()
   const results = useResource(open ? `${cacheKey}:${search.toLowerCase()}` : null,
-    (signal) => searchService ? searchService(search, { signal }) : hrRecruitmentServices.employees.search(search, { signal }))
+    (signal) => searchService(search, { signal }))
   const matches = !pendingSearch && results.status === 'ready' ? results.data.items : []
   const status = !open ? '' : pendingSearch || results.status === 'loading' ? PICKER_TEXT.searching
     : results.status === 'error' ? PICKER_TEXT.failed : PICKER_TEXT.results(matches.length)

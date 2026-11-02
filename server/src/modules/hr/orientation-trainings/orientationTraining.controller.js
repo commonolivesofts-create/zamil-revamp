@@ -12,7 +12,7 @@ export function createOrientationTrainingController({ orientationTrainingService
       sendPaginated(res, result.items, { page, limit: pageSize, total: result.total });
     },
     async get(req, res) {
-      sendSuccess(res, await orientationTrainingService.get(req.params.headerId));
+      sendSuccess(res, await orientationTrainingService.get(req.auth, req.params.headerId));
     },
     async create(req, res) {
       sendSuccess(res, await orientationTrainingService.create(req.auth, req.body), 201);
@@ -24,12 +24,16 @@ export function createOrientationTrainingController({ orientationTrainingService
       );
     },
     async remove(req, res) {
-      sendSuccess(res, await orientationTrainingService.remove(req.params.headerId));
+      sendSuccess(res, await orientationTrainingService.remove(req.auth, req.params.headerId));
     },
     async removeLine(req, res) {
       sendSuccess(
         res,
-        await orientationTrainingService.removeLine(req.params.headerId, req.params.lineId),
+        await orientationTrainingService.removeLine(
+          req.auth,
+          req.params.headerId,
+          req.params.lineId,
+        ),
       );
     },
     async flag(req, res) {

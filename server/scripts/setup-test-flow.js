@@ -3,12 +3,12 @@
 //
 // It runs the API in this process (loopback, ephemeral port) from the same validated configuration
 // it checks, so the effective SMTP settings cannot differ from what was verified:
-//   1. Safety preflight (before any network or e-mail): non-production, SMTP enabled, test override
-//      = the approved mailbox, privileged delivery off, and the connected database's DB_NAME equals
+//   1. Safety preflight (before any network or e-mail): non-production, SMTP enabled, new-account
+//      test override enabled, privileged delivery off, and the connected database's DB_NAME equals
 //      SMTP_TEST_DATABASE_NAME (read-only).
 //   2. Super Administrator sign-in through the existing MFA flow (hidden prompts) and checks that
 //      the target is eligible, PENDING, without password, not privileged, and that the effective
-//      recipient is ONLY the approved test mailbox.
+//      recipient is ONLY the configured new-account test mailbox.
 //   3. Issues the setup e-mail through POST /users/{id}/password-setup, then signs Zaid out.
 //   4. The operator pastes the link (or token) from the TEST inbox and chooses the new password, all
 //      at hidden prompts; setup is completed through POST /auth/password/setup.
@@ -17,7 +17,11 @@
 // Secrets (passwords, codes, token, link, cookies) stay in memory and are never printed or stored.
 import { pathToFileURL } from 'node:url';
 import { createApp } from '../src/app.js';
-import { APPROVED_TEST_RECIPIENT, config } from '../src/config/index.js';
+import {
+  APPROVED_TEST_RECIPIENT,
+  USER_CREATION_TEST_RECIPIENT,
+  config,
+} from '../src/config/index.js';
 import { closeDatabase, createPool, POOLS, withConnection } from '../src/database/oracle.js';
 import { validateWallet } from '../src/database/wallet.js';
 import { checkPasswordPolicy } from '../src/modules/auth/password.js';
@@ -53,6 +57,9 @@ export function preflightProblems(appConfig, databaseName) {
   if (!smtp.enabled) problems.push('SMTP_ENABLED is not true');
   if (smtp.testRecipientOverride !== APPROVED_TEST_RECIPIENT) {
     problems.push('test recipient override is not the approved mailbox');
+  }
+  if (smtp.userCreationTestRecipientOverride !== USER_CREATION_TEST_RECIPIENT) {
+    problems.push('new-account test recipient override is not enabled');
   }
   if (smtp.privilegedDeliveryEnabled) problems.push('privileged delivery is enabled');
   if (!smtp.testDatabaseName || databaseName !== smtp.testDatabaseName) {
@@ -137,19 +144,24 @@ export async function runScenario({
     ['no roles, no active sessions', d.roles?.length === 0 && d.activeSessions?.length === 0],
   ];
   for (const [label, ok] of preconditions) check(label, ok);
-  // Effective recipient under the running configuration: only the approved test mailbox.
+  // Effective recipient under the running configuration: only the fixed setup-test mailbox.
   const recipient = createRecipientResolver({
     testRecipientOverride: smtp.testRecipientOverride,
+    userCreationTestRecipientOverride: smtp.userCreationTestRecipientOverride,
     privilegedDeliveryEnabled: smtp.privilegedDeliveryEnabled,
-  })({
-    employeeNumber: d.employeeNumber,
-    employee: d.employee,
-    isPrivilegedRoleMember: d.classification?.privilegedRoleMember,
-    hasSecurityAdministration: d.classification?.securityAdministration,
-  });
+  })(
+    {
+      employeeNumber: d.employeeNumber,
+      employee: d.employee,
+      isPrivilegedRoleMember: d.classification?.privilegedRoleMember,
+      hasSecurityAdministration: d.classification?.securityAdministration,
+    },
+    'PASSWORD_SETUP',
+  );
   check(
-    'effective recipient is only the approved test mailbox',
-    recipient?.address === APPROVED_TEST_RECIPIENT && recipient?.source === 'TEST_OVERRIDE',
+    'effective recipient is only the new-account test mailbox',
+    recipient?.address === USER_CREATION_TEST_RECIPIENT &&
+      recipient?.source === 'USER_CREATION_TEST_OVERRIDE',
   );
   if (failures > 0) return stop('a precondition failed');
 
@@ -257,7 +269,7 @@ export async function main({ argv, io }) {
       return 1;
     }
     say(
-      'PASS  preflight: non-production, TEST database identity, approved test mailbox only, privileged delivery off',
+      'PASS  preflight: non-production, TEST database identity, new-account test mailbox only, privileged delivery off',
     );
 
     server = createApp(config).listen(0, '127.0.0.1');

@@ -328,6 +328,12 @@ export function createRequisitionService({
       return { fullName, totalPackage };
     },
 
+    /** What the caller may do beyond the route permission; the same probe enforces it on save. */
+    async capabilities(actor) {
+      const isHr = await read((connection) => repository.isHrUser(connection, actor.userId));
+      return { canManageTicket: isHr };
+    },
+
     async filterOptions(actor) {
       const isHr = await read((connection) => repository.isHrUser(connection, actor.userId));
       return read((connection) =>

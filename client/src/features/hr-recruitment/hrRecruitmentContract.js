@@ -181,6 +181,9 @@ export function readInterview(data) {
     weakness: text(data.weakness),
     outcome: oneOf(data.outcome, OUTCOMES, { nullable: true }),
     adminManagerName: nullableText(data.adminManagerName, 200),
+    // Kept so an update does not overwrite these backend evaluation fields with blanks.
+    managingDirector: text(data.managingDirector ?? '', 200),
+    hrRepresentative: text(data.hrRepresentative ?? '', 200),
     departmentRepresentative: text(data.departmentRepresentative, 200),
     payroll: text(data.payroll, 60),
     hrComment: text(data.hrComment, 1000),
@@ -296,29 +299,80 @@ export function readOrientationListItem(data) {
   })
 }
 
-// A row of the Periodwise Employees report.
+// Periodwise Employees report (GET /hr/reports/periodwise-employees). The API never returns the
+// national ID itself, only whether one is on file.
+export const REPORT_FLAGS = Object.freeze(['BIRTH_DATE', 'NATIONAL_ID'])
+export const REPORT_AGE_BANDS = Object.freeze(['UNDER_30', '30_39', '40_49', '50_59', '60_PLUS'])
+const count = (value) => { check(Number.isInteger(value) && value >= 0); return value }
+const decimal = (value) => { check(typeof value === 'number' && Number.isFinite(value) && value >= 0); return value }
+const departmentCode = (value) => { check(value === null || (typeof value === 'string' && ID_PATTERN.test(value))); return value }
+
 export function readReportRow(data) {
-  check(isObject(data))
+  check(isObject(data) && Array.isArray(data.flags) && typeof data.hasNationalId === 'boolean')
+  check(typeof data.active === 'boolean' && typeof data.senior === 'boolean')
+  check(data.age === null || Number.isInteger(data.age))
   return Object.freeze({
-    employeeNumber: text(data.employeeNumber, 30),
-    name: text(data.name, 200),
+    employeeNumber: text(data.employeeNumber, 60),
+    name: text(data.name, 240),
     birthDate: date(data.birthDate),
-    nationality: text(data.nationality, 60),
-    job: text(data.job, 200),
-    departmentCode: code(data.departmentCode) ?? invalid(),
-    position: text(data.position, 200),
-    nationalId: nullableText(data.nationalId, 30),
+    age: data.age,
+    nationality: text(data.nationality, 100),
+    jobTitle: text(data.jobTitle, 240),
+    position: text(data.position, 240),
+    departmentCode: departmentCode(data.departmentCode),
+    departmentName: text(data.departmentName, 240),
+    hasNationalId: data.hasNationalId,
     startDate: date(data.startDate) ?? invalid(),
     endDate: date(data.endDate),
-    leavingReason: text(data.leavingReason, 200),
+    years: decimal(data.years),
+    leavingReason: text(data.leavingReason, 240),
+    active: data.active,
+    senior: data.senior,
+    flags: Object.freeze(data.flags.map((flag) => oneOf(flag, REPORT_FLAGS))),
   })
 }
 
-export function readReport(data) {
-  check(isObject(data) && Array.isArray(data.rows))
-  const rows = data.rows.map(readReportRow)
+export function readReportSummary(data) {
+  check(isObject(data) && Array.isArray(data.byDepartment) && Array.isArray(data.byNationality))
+  check(Array.isArray(data.ageBands) && Array.isArray(data.yearlyFlow))
+  return Object.freeze({
+    total: count(data.total), active: count(data.active), joiners: count(data.joiners), leavers: count(data.leavers),
+    turnover: decimal(data.turnover), saudization: decimal(data.saudization), averageAge: decimal(data.averageAge),
+    senior: count(data.senior), averageService: decimal(data.averageService), flagged: count(data.flagged),
+    byDepartment: Object.freeze(data.byDepartment.map((item) => {
+      check(isObject(item))
+      return Object.freeze({ code: departmentCode(item.code), name: text(item.name, 240), count: count(item.count) })
+    })),
+    byNationality: Object.freeze(data.byNationality.map((item) => {
+      check(isObject(item))
+      return Object.freeze({ name: text(item.name, 100), count: count(item.count) })
+    })),
+    ageBands: Object.freeze(data.ageBands.map((item) => {
+      check(isObject(item))
+      return Object.freeze({ band: oneOf(item.band, REPORT_AGE_BANDS), count: count(item.count) })
+    })),
+    yearlyFlow: Object.freeze(data.yearlyFlow.map((item) => {
+      check(isObject(item) && /^\d{4}$/.test(item.year))
+      return Object.freeze({ year: item.year, joiners: count(item.joiners), leavers: count(item.leavers) })
+    })),
+  })
+}
+
+// The client result `{ data: { rows, summary }, pagination }`: one page of rows, the pagination
+// and the summary of the full scope.
+export function readReport(result) {
+  check(isObject(result?.data) && Array.isArray(result.data.rows) && isObject(result.pagination))
+  const rows = result.data.rows.map(readReportRow)
   check(new Set(rows.map((row) => row.employeeNumber)).size === rows.length)
-  return Object.freeze({ rows: Object.freeze(rows) })
+  return Object.freeze({ rows: Object.freeze(rows), pagination: result.pagination, summary: readReportSummary(result.data.summary) })
+}
+
+export function readReportDepartments(data) {
+  check(Array.isArray(data))
+  return Object.freeze(data.map((item) => {
+    check(isObject(item))
+    return Object.freeze({ code: departmentCode(item.code) ?? invalid(), name: text(item.name, 240) })
+  }))
 }
 
 const wholePoints = (value) => { check(Number.isInteger(value) && value >= 0 && value <= 100); return value }
