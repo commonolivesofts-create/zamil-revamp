@@ -508,7 +508,7 @@ export async function listDepartments(connection) {
 }
 
 /** Employees supervised by the requestor — REPLACEMENT_FOR candidates (§8.4). */
-export async function listReplacementCandidates(connection, employeeNumber) {
+export async function listReplacementCandidates(connection, employeeNumber, search = '') {
   const result = await rows(
     connection,
     `SELECT FULL_NAME
@@ -516,8 +516,10 @@ export async function listReplacementCandidates(connection, employeeNumber) {
       WHERE SUPERVISOR_NAME IN (
         SELECT FULL_NAME
           FROM XX_DIGI_EMP_MASTER
-         WHERE EMPLOYEE_NUMBER = :employeeNumber)`,
-    { employeeNumber },
+         WHERE EMPLOYEE_NUMBER = :employeeNumber)
+        AND (:search IS NULL OR INSTR(UPPER(FULL_NAME), UPPER(:search)) > 0)
+      ORDER BY FULL_NAME`,
+    { employeeNumber, search: search || null },
   );
   return result.map((row) => row.FULL_NAME);
 }

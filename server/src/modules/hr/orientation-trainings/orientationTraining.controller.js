@@ -40,7 +40,7 @@ export function createOrientationTrainingController({ orientationTrainingService
       sendSuccess(res, await orientationTrainingService.flag(req.query.empNo));
     },
     async employees(req, res) {
-      sendSuccess(res, await orientationTrainingService.employees(req.auth));
+      sendSuccess(res, await orientationTrainingService.employees(req.query.search));
     },
     async managers(_req, res) {
       sendSuccess(res, await orientationTrainingService.managers());
