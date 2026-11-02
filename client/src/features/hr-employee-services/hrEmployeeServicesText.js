@@ -28,7 +28,7 @@ export const ES_COMMON_TEXT = Object.freeze({
   reviewProblems: (count) => (count === 1 ? 'One item needs attention.' : `${count} items need attention.`),
   counter: (length, max) => `${length} / ${max}`,
   status: Object.freeze({ NEW: 'New', DRAFT: 'Draft', INPROCESS: 'In process', SUBMITTED: 'Submitted', APPROVED: 'Approved', REJECTED: 'Rejected' }),
-  approval: Object.freeze({ DRAFT: 'After submit', PENDING: 'Pending', WAITING: 'Waiting', APPROVED: 'Approved' }),
+  approval: Object.freeze({ DRAFT: 'After submit', PENDING: 'Pending', WAITING: 'Waiting', APPROVED: 'Approved', REJECTED: 'Rejected' }),
   list: Object.freeze({
     all: 'All',
     statusLabel: 'Status',
@@ -99,6 +99,8 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
       name: 'Name · الاسم', nationality: 'Nationality · الجنسية', section: 'Section · القسم', department: 'Department · الدائرة',
       startDate: 'Start date · تاريخ البدء', position: 'Position · الوظيفة',
     }),
+    currentFamilyStatus: 'Current family status · الحالة العائلية',
+    beforeStart: 'The effective date is before the employee’s start date.',
     currentRecord: 'Current employee record',
     currentRecordAr: 'معلومات الموظف الحالية',
     total: 'Total SR',
@@ -119,8 +121,8 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
   revisedStep: Object.freeze({
     eyebrow: 'Step 02 · Revised record',
     title: 'What is changing?',
-    desc: 'Revised values start as the current ones. Change only what’s different; each change shows its difference.',
-    gradeLevelUnavailable: 'Grade and level are shown on the form, but the current API does not return or save these fields.',
+    desc: 'The revised position and family status start as the current ones. Enter the revised amounts; each change shows its difference.',
+    gradeLevelOptional: 'Grade and level are optional (up to 50 characters each).',
     head: Object.freeze(['Item', 'Current', '', 'Revised', 'Difference', '']),
     currentPrefix: 'Current:',
     total: 'Total SR · الإجمالي',
@@ -155,13 +157,21 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
   changeTypes: CHANGE_TYPE_TEXT,
   errors: Object.freeze({
     employee: Object.freeze({ required: 'Choose the employee' }),
-    effectiveDate: Object.freeze({ required: 'Effective date is required', invalid: 'Enter a valid date', beforeStart: 'Effective date is before the employee’s start date' }),
+    effectiveDate: Object.freeze({ required: 'Effective date is required', invalid: 'Enter a valid date' }),
+    currentFamilyStatus: Object.freeze({ invalid: 'Choose Single or Married' }),
     positionCode: Object.freeze({ required: 'Position is required' }),
     familyStatusCode: Object.freeze({ required: 'Family status is required' }),
-    amount: Object.freeze({ required: (label) => `${label} is required`, amount: 'Enter an amount of 0 or more, with up to 2 decimals' }),
-    revised: Object.freeze({ noChange: 'Nothing has changed from the current record' }),
+    gradeCode: Object.freeze({ tooLong: 'Keep the grade to 50 characters or fewer' }),
+    levelCode: Object.freeze({ tooLong: 'Keep the level to 50 characters or fewer' }),
+    amount: Object.freeze({ required: (label) => `${label} is required`, amount: 'Enter an amount of 0 or more: up to 7 characters, with up to 2 decimals' }),
     remarks: Object.freeze({ tooLong: 'Keep remarks to 2000 characters or fewer' }),
     views: Object.freeze({ tooLong: 'Keep views to 2000 characters or fewer' }),
+  }),
+  // The legacy printout labels (form.php).
+  print: Object.freeze({
+    title: 'PERSONNEL RECORD CHANGE FORM', status: 'Status', date: 'Date', ref: 'Ref#', effective: 'Effective Date', empNo: 'Emp#', name: 'Name',
+    nationality: 'Nationality', section: 'Section', department: 'Department', startDate: 'Start Date', item: 'Item',
+    current: 'Current Employee’s Record', revised: 'Revised Employee’s Record', total: 'Total SR', remarks: 'Remarks', views: 'Views & Suggestions',
   }),
   saved: (number) => `Draft ${number} saved.`,
   savedForReview: (number) => `Draft ${number} saved. The current API does not support submission yet.`,
@@ -177,8 +187,14 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
     newRequest: 'New request',
     heading: 'Requests',
     search: 'Search requests',
-    searchPlaceholder: 'Search ref, employee or change type',
-    columns: Object.freeze({ number: 'Ref #', employee: 'Employee', effective: 'Effective', changes: 'Position', delta: 'Total change (SR)', status: 'Status', created: 'Created' }),
+    searchPlaceholder: 'Search ref, employee, position, section, department or requestor',
+    export: 'Export CSV',
+    // The legacy report columns (Change Requests).
+    columns: Object.freeze({
+      number: 'Ref #', empNo: 'Emp No', employee: 'Emp name', position: 'Position', section: 'Section', department: 'Department',
+      previous: 'Previous salary', revised: 'Revised salary', remarks: 'Remarks', requestor: 'Requestor', pendingAt: 'Pending at', status: 'Status',
+    }),
+    csvFile: 'personnel_record_changes.csv',
   }),
 })
 
