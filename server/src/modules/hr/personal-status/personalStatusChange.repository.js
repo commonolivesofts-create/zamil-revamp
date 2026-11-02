@@ -14,6 +14,24 @@ const legacyDateIso = (column) =>
   `TO_CHAR(TO_DATE(${column} DEFAULT NULL ON CONVERSION ERROR, ${LEGACY_DATE_FORMAT}), 'YYYY-MM-DD')`;
 const toLegacyDate = (bind) => `TO_CHAR(TO_DATE(:${bind}, 'YYYY-MM-DD'), ${LEGACY_DATE_FORMAT})`;
 
+// Some legacy requests were saved without the employee snapshot (blank name, department, ...). Those
+// identity fields read from the employee's current master row instead; stored values win.
+const masterOf = (expression) => `(
+    SELECT MAX(${expression})
+    FROM XX_DIGI_EMP_MASTER EM
+    WHERE EM.EMPLOYEE_NUMBER = R.EMP_NO
+      AND EM.CURRENT_EMP_FLAG = 'Y'
+  )`;
+const EMP_NAME_SQL = `COALESCE(R.EMP_NAME, ${masterOf('EM.FULL_NAME')})`;
+const SECTION_SQL = `COALESCE(R.SECTION, ${masterOf('EM.DIVISION')})`;
+const DEPT_SQL = `COALESCE(R.DEPT, ${masterOf('EM.DEPARTMENT')})`;
+const IDENTITY_COLUMNS = `
+    ${EMP_NAME_SQL} EMP_NAME,
+    COALESCE(R.NATIONALITY, ${masterOf('EM.NATIONALITY')}) NATIONALITY,
+    ${SECTION_SQL} SECTION,
+    ${DEPT_SQL} DEPT,
+    COALESCE(${legacyDateIso('R.START_DATE')}, ${masterOf("TO_CHAR(EM.JOINING_DATE, 'YYYY-MM-DD')")}) START_DATE_ISO`;
+
 // The employee snapshot: the current information and record, written on create and again only
 // when the employee changes (server values, never taken from the request body).
 const snapshotFields = {
@@ -75,12 +93,7 @@ const SELECT_SQL = `
     R.ARB_DATE,
     TO_CHAR(R.EFFECTIVE_DATE, 'YYYY-MM-DD') EFFECTIVE_DATE_ISO,
     TO_CHAR(R.USER_ID) USER_ID,
-    TO_CHAR(R.EMP_NO) EMP_NO,
-    R.EMP_NAME,
-    R.NATIONALITY,
-    R.SECTION,
-    R.DEPT,
-    ${legacyDateIso('R.START_DATE')} START_DATE_ISO,
+    TO_CHAR(R.EMP_NO) EMP_NO,${IDENTITY_COLUMNS},
     R.OLD_POSITION,
     R.OLD_BASIC_SAL,
     R.OLD_HOUSE_ALL,
@@ -119,9 +132,10 @@ const SELECT_SQL = `
   FROM ${TABLE} R
 `;
 
-// The employee picker only needs the saved employment snapshot of the latest request.
+// Auto-fill: the revised record of the employee's latest approved request is the current record.
 const LATEST_EMPLOYEE_SQL = `
   SELECT
+    TO_CHAR(R.HEADER_ID) HEADER_ID,
     TO_CHAR(R.EMP_NO) EMP_NO,
     R.EMP_NAME,
     R.NATIONALITY,
@@ -136,7 +150,9 @@ const LATEST_EMPLOYEE_SQL = `
     R.NEW_COMMUN_ALL,
     R.NEW_CAR_ALL,
     R.NEW_TOTAL,
-    R.NEW_MARITAL_STATUS
+    R.NEW_MARITAL_STATUS,
+    R.NEW_GRADE,
+    R.NEW_LEVEL
   FROM ${TABLE} R
 `;
 
@@ -210,10 +226,10 @@ const LIST_COLUMNS = `
   TO_CHAR(R.FORM_DATE, 'YYYY-MM-DD') FORM_DATE_ISO,
   TO_CHAR(R.EFFECTIVE_DATE, 'YYYY-MM-DD') EFFECTIVE_DATE_ISO,
   TO_CHAR(R.EMP_NO) EMP_NO,
-  R.EMP_NAME,
+  ${EMP_NAME_SQL} EMP_NAME,
   R.NEW_POSITION,
-  R.SECTION,
-  R.DEPT,
+  ${SECTION_SQL} SECTION,
+  ${DEPT_SQL} DEPT,
   R.OLD_TOTAL,
   R.NEW_TOTAL,
   R.REMARKS,
@@ -261,7 +277,7 @@ const buildFilters = (filters) => {
     'search',
     filters.search ? `%${escapeLike(filters.search)}%` : null,
     `(
-      UPPER(R.EMP_NAME) LIKE UPPER(:search) ESCAPE '\\'
+      UPPER(${EMP_NAME_SQL}) LIKE UPPER(:search) ESCAPE '\\'
       OR UPPER(R.REF_NO) LIKE UPPER(:search) ESCAPE '\\'
       OR TO_CHAR(R.EMP_NO) LIKE :search ESCAPE '\\'
     )`,
@@ -269,9 +285,9 @@ const buildFilters = (filters) => {
 
   add('status', filters.status, 'UPPER(R.STATUS) = :status');
 
-  add('section', filters.section, 'R.SECTION = :section');
+  add('section', filters.section, `${SECTION_SQL} = :section`);
 
-  add('department', filters.department, 'R.DEPT = :department');
+  add('department', filters.department, `${DEPT_SQL} = :department`);
 
   add('position', filters.position, 'R.NEW_POSITION = :position');
 
@@ -463,6 +479,7 @@ export const createPersonalStatusRepository = () => {
     const result = await connection.execute(
       `${LATEST_EMPLOYEE_SQL}
        WHERE TO_CHAR(R.EMP_NO) = :empNo
+         AND UPPER(R.STATUS) = 'APPROVED'
        ORDER BY R.HEADER_ID DESC
        FETCH FIRST 1 ROW ONLY`,
       { empNo },

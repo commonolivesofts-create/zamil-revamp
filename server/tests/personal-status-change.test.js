@@ -175,9 +175,10 @@ function createRepository() {
     state,
     latest: async (_connection, empNo) =>
       [...state.rows]
-        .filter((row) => row.EMP_NO === empNo)
+        .filter((row) => row.EMP_NO === empNo && row.STATUS === 'APPROVED')
         .sort((a, b) => (BigInt(b.HEADER_ID) > BigInt(a.HEADER_ID) ? 1 : -1))[0] ?? null,
-    master: async (_connection, empNo) => MASTER[empNo]?.row ?? null,
+    master: async (_connection, empNo) =>
+      MASTER[empNo]?.current === false ? null : (MASTER[empNo]?.row ?? null),
     positionExists: async (_connection, name) => ['Operator', 'Supervisor', 'Clerk'].includes(name),
     insert: async (_connection, values, userId) => {
       if (state.failures.insert) throw new Error('insert failed');
@@ -583,7 +584,7 @@ describe('personal status change API', () => {
     assert.equal(injection.body.data.meta.total, 0);
   });
 
-  it('auto-fill: legacy branches; branch A uses TOTAL_SALARY; only position and family status prefill the revised record', async () => {
+  it('auto-fill: master employee info; current record from the latest APPROVED request, else the master', async () => {
     assert.deepEqual((await get('/lookups/employees')).body.data, [
       { empNo: '12001' },
       { empNo: '12002' },
@@ -597,12 +598,58 @@ describe('personal status change API', () => {
     assert.equal(branchA.old.basicSal, 5000);
     assert.equal(branchA.old.total, 7100);
     assert.deepEqual(branchA.new, { position: 'Operator', maritalStatus: 'M' });
+    // A draft (or rejected / in-process) request is a proposal, not the current record.
     await create();
+    assert.equal((await get('/lookups/employees/12001')).body.data.branch, 'employeeMaster');
+
+    // An approved request saved with a blank snapshot (as legacy rows on TEST): the employee's
+    // information still comes from the master, the current record from the approved request.
+    Object.assign(rows()[0], {
+      STATUS: 'APPROVED',
+      EMP_NAME: null,
+      NATIONALITY: null,
+      SECTION: null,
+      DEPT: null,
+      START_DATE_ISO: null,
+      NEW_MARITAL_STATUS: 'married',
+      NEW_TOTAL: null,
+    });
     const branchB = (await get('/lookups/employees/12001')).body.data;
     assert.equal(branchB.branch, 'previousRequest');
+    assert.deepEqual(
+      [
+        branchB.empName,
+        branchB.nationality,
+        branchB.section,
+        branchB.department,
+        branchB.startDate,
+      ],
+      ['Employee Example', 'Nationality A', 'Production', 'Injection', '2019-03-17'],
+    );
     assert.equal(branchB.old.position, 'Supervisor');
-    assert.equal(branchB.old.total, 7500);
-    assert.equal(branchB.old.maritalStatus, null, 'legacy branch B returns no family status');
+    assert.equal(branchB.old.basicSal, 5500);
+    assert.equal(branchB.old.total, 7500, 'a missing NEW_TOTAL is the sum of the six items');
+    assert.equal(branchB.old.maritalStatus, 'M', 'legacy free text read as S/M');
+    assert.deepEqual(branchB.new, { position: 'Supervisor', maritalStatus: 'M' });
+
+    rows()[0].NEW_MARITAL_STATUS = null;
+    assert.equal(
+      (await get('/lookups/employees/12001')).body.data.old.maritalStatus,
+      'M',
+      "no family status on the request: the master's",
+    );
+
+    // No current master row: the approved request's snapshot is the only source.
+    MASTER[12001].current = false;
+    Object.assign(rows()[0], { EMP_NAME: 'Stored Name', SECTION: 'Stored Section' });
+    const noMaster = (await get('/lookups/employees/12001')).body.data;
+    assert.equal(noMaster.empName, 'Stored Name');
+    assert.equal(noMaster.section, 'Stored Section');
+    assert.equal(noMaster.old.maritalStatus, null);
+    rows()[0].STATUS = 'DRAFT';
+    assert.equal((await get('/lookups/employees/12001')).status, 404, 'neither source');
+    delete MASTER[12001].current;
+
     assert.equal((await get('/lookups/employees/99999')).status, 404);
     assert.equal(
       (await get('/lookups/employees/99999')).body.error.message,

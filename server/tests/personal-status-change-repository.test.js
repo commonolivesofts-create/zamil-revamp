@@ -66,10 +66,20 @@ describe('personal status change repository', () => {
       assert.doesNotMatch(sql, new RegExp(`TO_CHAR\\(R\\.${column},`));
     }
     assert.doesNotMatch(sql, /TO_CHAR\(R\.START_DATE,/);
+    // A blank stored snapshot reads the employee's current master row.
+    for (const [stored, master] of [
+      ['R.EMP_NAME', 'EM.FULL_NAME'],
+      ['R.NATIONALITY', 'EM.NATIONALITY'],
+      ['R.SECTION', 'EM.DIVISION'],
+      ['R.DEPT', 'EM.DEPARTMENT'],
+    ]) {
+      assert.ok(sql.includes(`COALESCE(${stored}, (`) && sql.includes(`MAX(${master})`), stored);
+    }
+    assert.match(sql, /EM\.EMPLOYEE_NUMBER = R\.EMP_NO\s+AND EM\.CURRENT_EMP_FLAG = 'Y'/);
     assert.equal(binds.headerId, '9007199254740993');
   });
 
-  it('autofill: latest request snapshot and the master row with TOTAL_SALARY', async () => {
+  it('autofill: the latest APPROVED request and the current master row with TOTAL_SALARY', async () => {
     const connection = mockConnection([{ rows: [{ EMP_NO: '2172' }] }, { rows: [{}] }]);
     const repository = createPersonalStatusRepository();
     await repository.latest(connection, '2172');
@@ -77,7 +87,11 @@ describe('personal status change repository', () => {
     assert.equal(connection.calls[0].binds.empNo, '2172');
     assert.match(connection.calls[0].sql, /TO_CHAR\(R\.EMP_NO\) = :empNo/);
     assert.match(connection.calls[0].sql, LEGACY_DATE);
-    assert.doesNotMatch(connection.calls[0].sql, /HR_ADMIN_SIGN|PRESIDENT_SIGN|R\.STATUS/);
+    assert.match(
+      connection.calls[0].sql,
+      /UPPER\(R\.STATUS\) = 'APPROVED'\s+ORDER BY R\.HEADER_ID DESC/,
+    );
+    assert.doesNotMatch(connection.calls[0].sql, /HR_ADMIN_SIGN|PRESIDENT_SIGN/);
     assert.match(connection.calls[1].sql, /TOTAL_SALARY/);
     assert.match(connection.calls[1].sql, /CURRENT_EMP_FLAG = 'Y'/);
   });

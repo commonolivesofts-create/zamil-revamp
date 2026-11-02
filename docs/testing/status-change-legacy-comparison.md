@@ -346,3 +346,50 @@ leaves the request unchanged.
 8. The demo adapter for record changes is test-only (the live page always uses the API); its
    `SUBMITTED` status was left as is.
 9. Running the identity insert on TEST was not done (no writes); the statement was parsed only.
+
+---
+
+## 10. Round 2 — auto-fill returned blank employee data
+
+**Report.** `GET /lookups/employees/{empNo}` for one employee returned `branch: previousRequest` with
+name, nationality, section, department, start date and family status all `null`.
+
+**Cause (TEST, read only, null flags only).** The employee's latest request is an APPROVED legacy row
+saved **with a blank employee snapshot**. Legacy `getEmpDetails` branch B copies the latest row of
+**any status** as-is, so the CI3 form shows the same blanks; the API reproduced that legacy bug. Two
+more data faults sit in the same branch:
+
+- 4 of 49 requests have no name and 5 no department (all legacy rows).
+- The latest request is DRAFT, REJECTED or INPROCESS for 11 of 30 employees, so legacy shows a
+  *proposed*, never-approved salary as the current one.
+- Branch B never returns a family status, and legacy rows store family status as free text
+  (`Married`, `single`, `Family Status`, …).
+
+**Fix (server is the source of truth).**
+
+| Data | Source now | Legacy |
+|---|---|---|
+| Name, nationality, section, department, start date | current `XX_DIGI_EMP_MASTER` row; the approved request's snapshot only when there is no current row | latest request (any status), else master |
+| Current position, six pay items, total | revised record of the latest **APPROVED** request (missing `NEW_TOTAL` = sum of the items); else master (`TOTAL_SALARY`) | latest request of any status |
+| Current family status | that request's revised status, else the master's; always `S`/`M` or `null` | blank in branch B |
+| Revised defaults | position and family status of the current record | same |
+| No current master row and no approved request | 404 "No Data Available for given Employee Number" | latest request's snapshot |
+
+Read and list also show the current master's name, nationality, section, department and start date
+when a stored request has them blank (stored values win). List search and the section/department
+filters use the same values. Family status in every response is `S`/`M` or `null`.
+
+**Results on TEST (read only).**
+
+| Check | Result |
+|---|---|
+| Reported employee | every field filled; family status `M`; total equals the sum of the items |
+| Auto-fill for the 30 employees with requests | 25 return data with **no** blank name, department, start date, family status or total (21 from an approved request, 4 from the master); 5 return 404. Of those 5, 3 numbers are not in the master and 2 are former employees, each with only a draft or rejected request |
+| Read 49 / list 49 | all succeed; 2 rows still have no name (drafts for numbers not in the master) |
+
+The UI needed no code change: the picker, the Emp Name field, the ticket and the list show the API's
+name. Tests: server 839 pass / 0 fail / 5 todo (new auto-fill cases: blank approved snapshot, draft
+ignored, free-text family status, no master row, neither source); client 416 pass / 0 fail.
+
+**Deviation from legacy (for your confirmation, B10):** a draft, rejected or in-process request no
+longer counts as the employee's current record; only approved requests do.

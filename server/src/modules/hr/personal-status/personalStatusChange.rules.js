@@ -18,6 +18,19 @@ export const MARITAL_STATUSES = Object.freeze(['S', 'M']);
 /** Status values stored by legacy (upper case; Rec_flow writes INPROCESS/APPROVED/REJECTED). */
 export const STATUSES = Object.freeze(['DRAFT', 'INPROCESS', 'APPROVED', 'REJECTED']);
 
+/**
+ * Family status as S or M. The legacy input accepted free text, so stored rows also hold Married,
+ * single, m, Unmarried, ...; anything else is null.
+ */
+export const maritalCode = (value) => {
+  const text = String(value ?? '')
+    .trim()
+    .toUpperCase();
+  if (text === 'M' || text === 'MARRIED') return 'M';
+  if (text === 'S' || text === 'SINGLE' || text === 'UNMARRIED') return 'S';
+  return null;
+};
+
 /** Legacy maxlength="7" on every revised amount. */
 export const AMOUNT_MAX_LENGTH = 7;
 

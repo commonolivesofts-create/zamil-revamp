@@ -5634,6 +5634,11 @@ paths:
       operationId: getPersonnelRecordChangeEmployeeDetails
       tags: [HR Personnel Record Changes]
       summary: Get current employee details and previous-request values for form auto-fill
+      description: >-
+        Employee information (name, nationality, section, department, start date) from the current
+        employee master row; the current record (position, pay items, total, family status S/M) from the
+        revised record of the latest APPROVED request, otherwise from the master. 404 when the employee
+        has neither.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: empNo

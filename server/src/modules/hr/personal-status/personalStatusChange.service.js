@@ -12,7 +12,13 @@ import {
   employeeNumber,
 } from './personalStatusChange.validation.js';
 import { createPersonalStatusRepository } from './personalStatusChange.repository.js';
-import { businessToday, hijriDate, referenceNumber } from './personalStatusChange.rules.js';
+import {
+  businessToday,
+  hijriDate,
+  maritalCode,
+  payTotal,
+  referenceNumber,
+} from './personalStatusChange.rules.js';
 
 const defaultRepository = createPersonalStatusRepository();
 
@@ -43,7 +49,8 @@ const group = (row, prefix) => ({
   communAll: row[`${prefix}_COMMUN_ALL`] ?? null,
   carAll: row[`${prefix}_CAR_ALL`] ?? null,
   total: row[`${prefix}_TOTAL`] ?? null,
-  maritalStatus: row[`${prefix}_MARITAL_STATUS`] ?? null,
+  // S or M; legacy rows may hold free text.
+  maritalStatus: maritalCode(row[`${prefix}_MARITAL_STATUS`]),
   grade: row[`${prefix}_GRADE`] ?? null,
   level: row[`${prefix}_LEVEL`] ?? null,
 });
@@ -120,10 +127,17 @@ const oldFromMaster = (master) => ({
   communAll: master.COMMUNICATION_ALLOWANCE,
   carAll: master.CAR_ALLOWANCE,
   total: master.TOTAL_SALARY ?? null,
-  maritalStatus: master.MARITAL_STATUS,
+  maritalStatus: maritalCode(master.MARITAL_STATUS),
   grade: null,
   level: null,
 });
+
+// The revised record of an approved request; a missing NEW_TOTAL is the sum of its six items.
+const oldFromRequest = (request) => {
+  const old = group(request, 'NEW');
+  old.total ??= payTotal(old);
+  return old;
+};
 
 const toPrefill = (source, empNo, old, branch) => ({
   branch,
@@ -188,38 +202,40 @@ export const createPersonalStatusService = ({
   const read = (work) => withConnection(POOLS.LOW, work);
   const write = (work) => withTransaction(POOLS.LOW, work);
 
+  /**
+   * Legacy getEmpDetails, with its data gaps closed:
+   * - the employee's information (name, nationality, section, department, start date) is the
+   *   current master row; the latest approved request's snapshot only when there is no current row
+   *   (legacy copied the latest request, and some were saved with a blank snapshot);
+   * - the current record (position, pay, total, family status) is the revised record of the latest
+   *   APPROVED request (legacy branch B took the latest request of any status, so a draft or
+   *   rejected proposal became the "current" salary); without one, the master row (branch A);
+   * - family status is S or M; when the request has none, the master's.
+   */
   const autoFillOnConnection = async (connection, empNo) => {
-    const latest = await repository.latest(connection, empNo);
-
-    // Legacy branch B: the employee already has a request; its revised values are the current
-    // record. This branch does not return a family status (legacy leaves it blank).
-    if (latest) {
-      const old = group(latest, 'NEW');
-
-      old.maritalStatus = null;
-
-      return toPrefill(
-        {
-          FULL_NAME: latest.EMP_NAME,
-          NATIONALITY: latest.NATIONALITY,
-          DIVISION: latest.SECTION,
-          DEPARTMENT_NAME: latest.DEPT,
-          JOINING_DATE_ISO: latest.START_DATE_ISO,
-        },
-        empNo,
-        old,
-        'previousRequest',
-      );
-    }
-
-    // Legacy branch A: no previous request.
     const master = await repository.master(connection, empNo);
+    const approved = await repository.latest(connection, empNo);
 
-    if (!master) {
+    if (!master && !approved) {
       throw noEmployee();
     }
 
-    return toPrefill(master, empNo, oldFromMaster(master), 'employeeMaster');
+    const identity = master ?? {
+      FULL_NAME: approved.EMP_NAME,
+      NATIONALITY: approved.NATIONALITY,
+      DIVISION: approved.SECTION,
+      DEPARTMENT_NAME: approved.DEPT,
+      JOINING_DATE_ISO: approved.START_DATE_ISO,
+    };
+
+    if (!approved) {
+      return toPrefill(identity, empNo, oldFromMaster(master), 'employeeMaster');
+    }
+
+    const old = oldFromRequest(approved);
+    old.maritalStatus ??= maritalCode(master?.MARITAL_STATUS);
+
+    return toPrefill(identity, empNo, old, 'previousRequest');
   };
 
   /** Validated answers plus, when `withSnapshot`, the server-computed employee snapshot. */
