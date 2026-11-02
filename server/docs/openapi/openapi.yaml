@@ -3327,7 +3327,9 @@ paths:
         REQUISITION_STATUS 'Approved'); the totals rate9 / cRating7 are recomputed
         server-side from the numeric ratings; empty text stores '-', empty numbers
         store 0; business dates travel as 'YYYY-MM-DD' and are stored as 'DD-Mon-YY'.
-        INT_NO is ATTRIBUTE3 + '-' + the zero-padded headerId. STATUS is written
+        HEADER_ID comes from the Oracle identity column (INSERT … RETURNING, no
+        MAX-based key); INT_NO is ATTRIBUTE3 + '-' + that headerId zero-padded to 3,
+        written in the same transaction. STATUS is written
         'Incomplete' only. Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:CREATE` (re-evaluated
         in Oracle on every request) and the `X-CSRF-Token` header.
       security:
@@ -4360,9 +4362,10 @@ paths:
       tags: [HR Requisitions]
       summary: Insert a requisition
       description: >-
-        Inserts the header in ONE transaction with REQUISITION_ID =
-        NVL(MAX(REQUISITION_ID + 20), 100000) and REQUISITION_NUMBER =
-        REQUISITION_ID (README §3.1). REQUISITION_STATUS is written 'Draft' only and
+        Inserts the header in ONE transaction. REQUISITION_ID comes from the
+        Oracle identity column (INSERT … RETURNING, no MAX-based key; IDs step by 1)
+        and REQUISITION_NUMBER is set to the same value in the same transaction
+        (README §3.1). Attachment HEADER_IDs also come from the identity column. REQUISITION_STATUS is written 'Draft' only and
         no workflow row is created (README §11). REQUESTED_BY / REQUESTER_NAME are
         server-set from the employee master of the session user and rejected when
         taken from the body. Business dates travel as 'YYYY-MM-DD' and are stored as

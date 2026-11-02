@@ -72,23 +72,19 @@ const mapHeader = (row) => ({
 
 // --- Key generation & insert (README §3) --------------------------------------------------------
 
-/** Legacy max+20 key with the 100000 fallback (§3.1), generated inside the caller's transaction. */
-export async function generateRequisitionId(connection) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(REQUISITION_ID + 20), 100000) AS ID
-       FROM XXZPI_PER_REQUISITIONS_ALL`,
-    {},
-  );
-  return String(row.ID);
-}
+const OUT_ID = { dir: oracledb.BIND_OUT, type: oracledb.STRING };
 
+/**
+ * Inserts the header and returns the REQUISITION_ID the identity column assigned (RETURNING INTO;
+ * no MAX-based key, so concurrent creates cannot clash). REQUISITION_NUMBER is filled from that ID
+ * by setRequisitionNumber in the same transaction. IDs step by 1 (audit §10.4), not the legacy 20.
+ */
 export async function insertHeader(connection, h) {
-  await connection.execute(
+  const result = await connection.execute(
     `INSERT INTO XXZPI_PER_REQUISITIONS_ALL
-       (${HEADER_COLUMNS}, CREATION_DATE, CREATED_BY)
+       (${HEADER_COLUMNS.replace('REQUISITION_ID, REQUISITION_NUMBER, ', '')}, CREATION_DATE, CREATED_BY)
      VALUES
-       (:reqId, :reqId, 'Draft', :requestedBy, :requesterName,
+       ('Draft', :requestedBy, :requesterName,
         TO_DATE(:requestDate, 'DD-Mon-YY'), :jobId, :jobName, :deptId, :deptName,
         TO_DATE(:dateNeeded, 'DD-Mon-YY'), :reasonOfReq,
         :replacementFor, :reason, NVL(:budgeted, 'N'), NVL(:budgetedSal, 0),
@@ -99,8 +95,20 @@ export async function insertHeader(connection, h) {
         NVL(:ticketStatus, ''),
         CASE WHEN :ticketStatus = 'Accepted' THEN ${TODAY} ELSE '' END,
         CASE WHEN :ticketStatus = 'Close'    THEN ${TODAY} ELSE '' END,
-        SYSDATE, :createdBy)`,
-    h,
+        SYSDATE, :createdBy)
+     RETURNING REQUISITION_ID INTO :reqId`,
+    { ...h, reqId: OUT_ID },
+  );
+  return result.outBinds.reqId[0];
+}
+
+/** README §3.1: REQUISITION_NUMBER is the same value as REQUISITION_ID. */
+export async function setRequisitionNumber(connection, requisitionId) {
+  await connection.execute(
+    `UPDATE XXZPI_PER_REQUISITIONS_ALL
+        SET REQUISITION_NUMBER = TO_CHAR(REQUISITION_ID)
+      WHERE REQUISITION_ID = :requisitionId`,
+    { requisitionId },
   );
 }
 
@@ -201,24 +209,17 @@ export async function updateHeader(connection, { requisitionId, values, ticket, 
 
 // --- Attachments (README §1.2, §6) --------------------------------------------------------------
 
-/** Legacy max+1 attachment key (§3.1), generated inside the caller's transaction, per row. */
-export async function generateAttachmentId(connection) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(HEADER_ID) + 1, 1) AS ID FROM xxzp_all_attachments`,
-    {},
-  );
-  return String(row.ID);
-}
-
-export async function insertAttachment(connection, { attachmentId, requisitionId, fileName }) {
-  await connection.execute(
+/** One attachment row; HEADER_ID comes from the identity column and is returned (RETURNING INTO). */
+export async function insertAttachment(connection, { requisitionId, fileName }) {
+  const result = await connection.execute(
     `INSERT INTO xxzp_all_attachments
-       (HEADER_ID, FORM_HEADER_ID, FORM_NAME, FILE_NAME, ATTACHED_ON)
+       (FORM_HEADER_ID, FORM_NAME, FILE_NAME, ATTACHED_ON)
      VALUES
-       (:attachmentId, :requisitionId, 'Requisition', :fileName, SYSDATE)`,
-    { attachmentId, requisitionId, fileName },
+       (:requisitionId, 'Requisition', :fileName, SYSDATE)
+     RETURNING HEADER_ID INTO :attachmentId`,
+    { requisitionId, fileName, attachmentId: OUT_ID },
   );
+  return result.outBinds.attachmentId[0];
 }
 
 const ATTACHMENT_FETCH = { HEADER_ID: ID, FORM_HEADER_ID: ID };
