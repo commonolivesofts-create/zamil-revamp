@@ -119,11 +119,11 @@ function EmployeeReport({ departments }) {
               <table className="zrv-hr-rp-table">
                 <caption className="zrv-hr-sr">Employee report</caption>
                 <thead><tr>{header('employee_number', 'Employee no.')}{header('employee_name', 'Employee name')}<th scope="col">Division</th><th scope="col">Department</th><th scope="col">Contractor</th>{header('start_date', 'Start date')}{header('end_date', 'End date')}{header('status', 'Status')}<th scope="col">Details</th></tr></thead>
-                <tbody>{items.map((employee) => <tr key={employee.empId}>
-                  <td>{employee.employeeNumber}</td><td>{employee.name}</td><td>{employee.division}</td>
+                <tbody>{items.map((employee, index) => <tr key={employee.empId || `row-${index}`}>
+                  <td>{employee.employeeNumber || '—'}</td><td>{employee.name || '—'}</td><td>{employee.division}</td>
                   <td>{employee.department}{employee.productionSection ? ` · ${employee.productionSection}` : ''}</td>
                   <td>{employee.contractorName} · {employee.contractorNumber}</td><td>{enDate(employee.startDate)}</td>
-                  <td>{employee.endDate ? enDate(employee.endDate) : '—'}</td><td>{employee.status}</td>
+                  <td>{employee.endDate ? enDate(employee.endDate) : '—'}</td><td>{employee.status || '—'}</td>
                   <td><button type="button" className="zrv-admin-link" onClick={() => setSelected(employee)}>View</button></td>
                 </tr>)}</tbody>
               </table>
@@ -134,13 +134,13 @@ function EmployeeReport({ departments }) {
       </ResourceState>
     </div>}
 
-    {selected && <Dialog title={selected.name} onClose={() => setSelected(null)}>
+    {selected && <Dialog title={selected.name || 'Employee'} onClose={() => setSelected(null)}>
       <dl className="zrv-hr-review zrv-hr-rp-facts">
         {[
-          ['Employee number', selected.employeeNumber], ['Iqamah', selected.iqamah], ['Division', selected.division], ['Department', selected.department],
+          ['Employee number', selected.employeeNumber || '—'], ['Iqamah', selected.iqamah], ['Division', selected.division], ['Department', selected.department],
           ['Production section', selected.productionSection], ['Job title', selected.jobTitle], ['Direct boss', selected.directBoss], ['Place', selected.place],
           ['Replacement', selected.replacement], ['Contractor', `${selected.contractorName} · ${selected.contractorNumber}`], ['Rate', formatRate(selected.rate)],
-          ['Start date', enDate(selected.startDate)], ['End date', selected.endDate ? enDate(selected.endDate) : '—'], ['Status', selected.status],
+          ['Start date', enDate(selected.startDate)], ['End date', selected.endDate ? enDate(selected.endDate) : '—'], ['Status', selected.status || '—'],
           ['Ajeer', selected.ajeer ? 'Yes' : 'No'], ['SFDA', selected.sfda ? 'Yes' : 'No'], ['Blacklist', selected.blacklist ? 'Yes' : 'No'], ['Remark', selected.remark || '—'],
         ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>

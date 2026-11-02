@@ -685,6 +685,35 @@ test("employee report service uses the contractor employee lookup and paginated 
   );
 });
 
+test("employee report service lists incomplete legacy rows and rejects malformed values", async () => {
+  const legacy = {
+    emp_id: null,
+    employee_number: null,
+    employee_name: "Sample Contractor Employee",
+    status: null,
+    con_number: 500,
+  };
+  const listWith = (row) => {
+    const { fetchImpl } = recordingFetch(() =>
+      success([row], 200, {
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false },
+      }),
+    );
+    return createHrRecruitmentServices({
+      client: createApiClient({ baseUrl: "/api/v1", fetchImpl }),
+    }).employeeReport.list({ dateFrom: "2025-02-11", dateTo: "2026-02-11", page: 1 });
+  };
+  const report = await listWith(legacy);
+  assert.deepEqual(
+    [report.items[0].empId, report.items[0].employeeNumber, report.items[0].status],
+    ["", "", ""],
+  );
+  assert.equal((await listWith({ ...legacy, emp_id: "0" })).items[0].empId, "0");
+  for (const bad of [{ emp_id: "-1" }, { emp_id: "1.5" }, { status: "Pending" }]) {
+    await assert.rejects(listWith({ ...legacy, ...bad }), (error) => error.code === "INVALID_RESPONSE");
+  }
+});
+
 // ------------------------------------------------------------ static checks
 
 test("orientation page: flow step 4 keeps the styled editor and uses backend employee skill rows", async () => {
