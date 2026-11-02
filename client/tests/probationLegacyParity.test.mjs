@@ -12,6 +12,13 @@ import {
   validateProbation,
   withEmployee,
 } from "../src/features/hr-recruitment/probation/probationModel.js";
+import {
+  RESULT_TEXT,
+  evaluationResult,
+  formResult,
+  totalRating,
+  validateForSubmit,
+} from "../src/features/hr-recruitment/probation/probationRules.js";
 
 const PAGE = new URL(
   "../src/features/hr-recruitment/probation/ProbationPage.jsx",
@@ -57,7 +64,7 @@ const probations = (client) =>
 const STORED = Object.freeze({
   headerId: "7",
   requestStatus: "DRAFT",
-  formDate: "05-Aug-2026",
+  formDate: "2026-08-05",
   evaluationPeriod: "-",
   formType: "Engineers_Staff",
   empId: "-",
@@ -66,8 +73,9 @@ const STORED = Object.freeze({
   jobTitle: "Sample Title",
   grade: 0,
   department: "Sample Department",
-  fromDate: "05-Aug-2026",
-  toDate: "04-Nov-2026",
+  fromDate: "2026-08-05",
+  toDate: "2026-11-04",
+  createdAt: "2026-11-02",
   comment: "-",
   comments: "-",
   totalRating: 9,
@@ -89,7 +97,7 @@ const EMPLOYEE = Object.freeze({
 });
 
 const draft = (overrides = {}) => ({
-  formDate: "2026-11-02",
+  formDate: "2026-08-05",
   evaluationPeriod: "",
   formType: "Engineers_Staff",
   fromDate: "2026-08-05",
@@ -121,7 +129,14 @@ test("parity: legacy '-' and 0 placeholders read back as empty values", async ()
   );
 });
 
-test("parity: legacy DD-Mon-YYYY and DD-Mon-YY dates convert to ISO", async () => {
+test("parity: dates arrive as YYYY-MM-DD; older DD-Mon-YYYY / DD-Mon-YY values still convert", async () => {
+  const iso = await probations(
+    fakeClient({ [`GET ${BASE}/7`]: { data: STORED } }),
+  ).getById("7");
+  assert.deepEqual(
+    [iso.formDate, iso.fromDate, iso.toDate, iso.createdAt],
+    ["2026-08-05", "2026-08-05", "2026-11-04", "2026-11-02"],
+  );
   const client = fakeClient({
     [`GET ${BASE}/7`]: {
       data: { ...STORED, formDate: "05-AUG-26", toDate: "04-Nov-2026" },
@@ -271,16 +286,44 @@ test("parity: evaluation result threshold is 0–70 Not acceptable, 71–100 Acc
   assert.equal(evaluationTotals(criteria, { A: 70 }).acceptable, false);
 });
 
-test(
-  "parity: the live page shows the Acceptable / Not acceptable result next to the total",
-  {
-    todo: "MISSING in new page: legacy shows the result band (error-con/success-con)",
-  },
-  async () => {
-    const page = await readFile(PAGE, "utf8");
-    assert.match(page, /resultFor|Acceptable/);
-  },
-);
+test("parity: the result band is computed from the total: 71+ Acceptable, 70 and below Not acceptable", () => {
+  assert.deepEqual([0, 70, 71, 100, "71"].map(evaluationResult), [
+    "NOT_ACCEPTABLE",
+    "NOT_ACCEPTABLE",
+    "ACCEPTABLE",
+    "ACCEPTABLE",
+    "ACCEPTABLE",
+  ]);
+  const rated = (ratings) =>
+    ratings.map((rating) => ({ param: "C", paramAr: "", rating }));
+  assert.equal(totalRating(rated([5, 4, ""])), 9);
+  assert.equal(
+    formResult(rated(["", ""])),
+    null,
+    "no result before any rating",
+  );
+  assert.equal(formResult(rated(Array(15).fill(5))), "ACCEPTABLE", "75");
+  assert.equal(formResult(rated(Array(14).fill(5))), "NOT_ACCEPTABLE", "70");
+  assert.deepEqual(RESULT_TEXT, {
+    ACCEPTABLE: "Acceptable",
+    NOT_ACCEPTABLE: "Not acceptable",
+  });
+});
+
+test("parity: the page shows the result on the form, the side card and the ticket", async () => {
+  const page = await readFile(PAGE, "utf8");
+  assert.match(page, /const result = formResult\(form\.lines\)/);
+  assert.equal(
+    page.match(/\{resultPill\}/g).length,
+    3,
+    "ratings step, review step and side card",
+  );
+  assert.match(page, /\{ k: 'Evaluation', v: resultPill \}/);
+  assert.match(
+    page,
+    /71 and above is Acceptable; 70 and below is Not acceptable/,
+  );
+});
 
 test(
   "parity: choosing a form type loads that type's predefined criteria",
@@ -294,16 +337,54 @@ test(
   },
 );
 
-test(
-  "parity: the joining date fills from the selected employee (legacy prf_date -> FORM_DATE)",
-  {
-    todo: "DIFFERENT: the new page uses FORM_DATE as a form date defaulting to today",
-  },
-  async () => {
-    const page = await readFile(PAGE, "utf8");
-    assert.match(page, /startDate/);
-  },
-);
+test("parity: FORM_DATE is the joining date: read-only and filled from the selected employee", async () => {
+  const page = await readFile(PAGE, "utf8");
+  assert.match(
+    page,
+    /readOnly\('pa-joining', 'Joining date', form\.formDate\)/,
+  );
+  assert.match(
+    page,
+    /patch\(\{ employee: details, formDate: details\.startDate \|\| '' \}\)/,
+  );
+  assert.match(
+    page,
+    /patch\(\{ employee: item, formDate: '' \}\)/,
+    "cleared while loading",
+  );
+  assert.doesNotMatch(page, /businessToday|Form date/, "no longer a form date");
+  assert.doesNotMatch(page, /next\.formDate/, "not required");
+});
+
+test("parity: the joining date is sent when known and omitted when blank", async () => {
+  const client = fakeClient({
+    [`POST ${BASE}`]: { data: { headerId: "7" } },
+    [`GET ${BASE}/7`]: { data: STORED },
+  });
+  const service = probations(client);
+  await service.save(null, draft());
+  await service.save(null, draft({ formDate: "" }));
+  const [known, blank] = client.calls
+    .filter((call) => call.method === "POST")
+    .map((call) => call.body);
+  assert.equal(known.formDate, "2026-08-05");
+  assert.equal("formDate" in blank, false);
+});
+
+test("parity: a blank joining date (null from the API) reads back empty; the created date is kept", async () => {
+  const client = fakeClient({
+    [`GET ${BASE}/7`]: { data: { ...STORED, formDate: null } },
+  });
+  const record = await probations(client).getById("7");
+  assert.equal(record.formDate, "");
+  assert.equal(record.employee.startDate, "");
+  assert.equal(record.createdAt, "2026-11-02");
+  const page = await readFile(PAGE, "utf8");
+  assert.match(
+    page,
+    /\{ k: 'Created', v: record\?\.createdAt \|\| 'Set on save' \}/,
+  );
+});
 
 // ---------------------------------------------------------------- validation
 
@@ -312,13 +393,7 @@ test("parity: page requires employee, form type, evaluation from/to and criterio
   const requiredIds = [...page.matchAll(/id="(pa-[\w-]+)"[^>]*\brequired\b/g)]
     .map((match) => match[1])
     .sort();
-  assert.deepEqual(requiredIds, [
-    "pa-emp",
-    "pa-form-date",
-    "pa-from",
-    "pa-to",
-    "pa-type",
-  ]);
+  assert.deepEqual(requiredIds, ["pa-emp", "pa-from", "pa-to", "pa-type"]);
   assert.match(page, /label=\{`Criterion \$\{index \+ 1\}`\} required/);
   for (const optional of [
     "pa-period",
@@ -352,16 +427,42 @@ test("parity: the five legacy form types come from the server lookup", async () 
   );
 });
 
-test(
-  "parity: Comments and Suggestion are required when editing a saved evaluation",
-  {
-    todo: "DIFFERENT: legacy prf_uplines marks both textareas required; new keeps them optional",
-  },
-  async () => {
-    const page = await readFile(PAGE, "utf8");
-    assert.match(page, /id="pa-comment"[^>]*\brequired\b/);
-  },
-);
+test("parity: Comments, Suggestion and every rating are required to submit, not to save a draft", async () => {
+  const lines = [
+    { param: "A", paramAr: "", rating: 4 },
+    { param: "B", paramAr: "", rating: "" },
+  ];
+  const incomplete = validateForSubmit({ comment: " ", comments: "", lines });
+  assert.deepEqual(Object.keys(incomplete.errors), [
+    "comment",
+    "comments",
+    "rating:1",
+  ]);
+  assert.equal(incomplete.valid, false);
+  assert.deepEqual(
+    validateForSubmit({
+      comment: "Prepared",
+      comments: "Suggestion",
+      lines: [{ ...lines[0] }, { ...lines[1], rating: "3" }],
+    }),
+    { errors: {}, valid: true },
+  );
+  assert.deepEqual(
+    Object.keys(
+      validateForSubmit({ comment: "a", comments: "b", lines: [] }).errors,
+    ),
+    ["lines"],
+  );
+  const page = await readFile(PAGE, "utf8");
+  assert.doesNotMatch(page, /validateForSubmit/, "not wired: no Submit yet");
+  assert.doesNotMatch(
+    page,
+    /next\.comment/,
+    "draft save keeps comments optional",
+  );
+  assert.match(page, /label="Comments"/);
+  assert.match(page, /label="Suggestion"/);
+});
 
 test("new-only fields stay optional: recommendation, extension, justification, signatures", () => {
   const criteria = [{ code: "A", points: 100 }];
@@ -398,19 +499,35 @@ test("parity: new records start as DRAFT and the list maps status and total", as
         {
           headerId: "7",
           employeeName: "Sample Employee 001",
+          employeeNumber: "E-0001",
+          department: "Sample Department",
           formType: "Trainee",
           totalRating: 72,
+          evaluationResult: "ACCEPTABLE",
           requestStatus: "DRAFT",
-          createdAt: "02-Nov-26",
+          pendingAt: null,
+          createdAt: "2026-11-02",
         },
       ],
       pagination: { page: 1, limit: 20, total: 1 },
     },
   });
   const list = await probations(client).list();
+  const [item] = list.items;
   assert.deepEqual(
-    [list.items[0].status, list.items[0].totalRating, list.items[0].formType],
+    [item.status, item.totalRating, item.formType],
     ["DRAFT", 72, "Trainee"],
+  );
+  assert.deepEqual(
+    [
+      item.employeeNumber,
+      item.department,
+      item.evaluationResult,
+      item.pendingAt,
+      item.createdAt,
+    ],
+    ["E-0001", "Sample Department", "ACCEPTABLE", "", "2026-11-02"],
+    "from the API only",
   );
 });
 
@@ -432,17 +549,26 @@ test(
   },
 );
 
-test(
-  "parity: the records list shows employee number, department, evaluation result and pending-at",
-  {
-    todo: "MISSING: legacy report columns Emp. #, Job Title, Department, Evaluation, Date, Pending At",
-  },
-  async () => {
-    const page = await readFile(PAGE, "utf8");
-    assert.match(page, /\["Department"/);
-    assert.match(page, /Pending at/i);
-  },
-);
+test("parity: the records list shows employee number, department, evaluation result, pending-at and the created date", async () => {
+  const page = await readFile(PAGE, "utf8");
+  for (const column of [
+    '\\["Emp\\. no\\.", \\(item\\) => item\\.employeeNumber\\]',
+    '\\["Department", \\(item\\) => item\\.department\\]',
+    '\\["Evaluation", \\(item\\) => RESULT_TEXT\\[item\\.evaluationResult\\]\\]',
+    '\\["Pending at", \\(item\\) => item\\.pendingAt\\]',
+    "dateColumn=\\{\\['Created', \\(item\\) => item\\.createdAt\\]\\}",
+  ]) {
+    assert.match(page, new RegExp(column), column);
+  }
+  const client = fakeClient({
+    [`GET ${BASE}`]: {
+      data: [{ headerId: "8", totalRating: 10, evaluationResult: "UNKNOWN" }],
+      pagination: { page: 1, limit: 20, total: 1 },
+    },
+  });
+  const [item] = (await probations(client).list()).items;
+  assert.equal(item.evaluationResult, "", "an unknown result is not shown");
+});
 
 test("new-only EMP_ID (person ID) is optional: a legacy record with EMP_ID '-' can be saved", async () => {
   const page = await readFile(PAGE, "utf8");

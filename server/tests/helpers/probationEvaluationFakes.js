@@ -1,16 +1,8 @@
 import assert from 'node:assert/strict';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const legacyDate = (value) => {
-  if (!value) return '01-JAN-00';
-  const [year, month, day] = value.split('-');
-  return `${day}-${MONTHS[Number(month) - 1]}-${year}`;
-};
-const isoDate = (value) => {
-  if (!value || value === '01-JAN-00') return null;
-  const [, day, month, year] = /^(\d{2})-([A-Za-z]{3})-(\d{4})$/.exec(value);
-  return `${year}-${String(MONTHS.indexOf(month) + 1).padStart(2, '0')}-${day}`;
-};
+// Dates are bound and selected as 'YYYY-MM-DD' strings (TO_DATE/TO_CHAR), so the fake stores them as is.
+const storedDate = (value) => value;
+const readDate = (value) => value ?? null;
 
 // `departments` maps employee numbers to an ORGANIZATION_ID for the same-department rule.
 export function installProbationEvaluations(
@@ -94,7 +86,7 @@ export function installProbationEvaluations(
       return {
         headerId: header.headerId,
         uuid: header.uuid,
-        formDate: isoDate(header.formDate),
+        formDate: readDate(header.formDate),
         employeeName: header.employeeName,
         employeeNumber: header.employeeNumber,
         empId: header.empId,
@@ -106,8 +98,8 @@ export function installProbationEvaluations(
         comments: header.comments,
         jobTitle: header.jobTitle,
         department: header.department,
-        fromDate: isoDate(header.fromDate),
-        toDate: isoDate(header.toDate),
+        fromDate: readDate(header.fromDate),
+        toDate: readDate(header.toDate),
         requestStatus: header.requestStatus,
         createdAt: header.createdAt,
       };
@@ -180,7 +172,7 @@ export function installProbationEvaluations(
         total: rows.length,
         items: rows.slice(offset, offset + limit).map((header) => ({
           headerId: header.headerId,
-          formDate: isoDate(header.formDate),
+          formDate: readDate(header.formDate),
           employeeName: header.employeeName,
           employeeNumber: header.employeeNumber,
           jobTitle: header.jobTitle,
@@ -219,7 +211,7 @@ export function installProbationEvaluations(
     const headerId = String(header.headerId ?? table().headers.length + 1);
     table().headers.push({
       uuid: `test-${headerId}`,
-      formDate: legacyDate('2026-10-01'),
+      formDate: storedDate('2026-10-01'),
       employeeName: 'Test Employee',
       employeeNumber: 'T-1001',
       empId: 'P-1001',
@@ -231,8 +223,8 @@ export function installProbationEvaluations(
       comments: '-',
       jobTitle: 'Engineer',
       department: 'Engineering',
-      fromDate: legacyDate('2026-01-01'),
-      toDate: legacyDate('2026-09-30'),
+      fromDate: storedDate('2026-01-01'),
+      toDate: storedDate('2026-09-30'),
       requestStatus: 'DRAFT',
       createdBy: '100',
       createdDate: '2026-10-19',

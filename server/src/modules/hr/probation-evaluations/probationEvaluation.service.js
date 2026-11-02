@@ -7,11 +7,11 @@ import {
 import { AppError } from '../../../shared/errors/AppError.js';
 import { parsePermission } from '../../access-control/authorization.service.js';
 import * as defaultRepository from './probationEvaluation.repository.js';
+import { evaluationResult, fromStoredDate, toStoredDate } from './probationEvaluation.rules.js';
 import { FORM_TYPES } from './probationEvaluation.validation.js';
 
 const VIEW = parsePermission('HR.PROBATION_EVALUATIONS', 'VIEW');
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const text = (value) => (value === undefined || value === null || value === '' ? '-' : value);
 const notFound = (what = 'Probation evaluation') =>
   new AppError(404, 'RESOURCE_NOT_FOUND', `${what} was not found`);
@@ -27,13 +27,6 @@ const dateOrderError = () =>
   new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', [
     { field: 'toDate', message: 'toDate must be on or after fromDate' },
   ]);
-
-/** Convert a date-only ISO value to the PAF legacy Oracle bind format. */
-export function toLegacyDate(value) {
-  if (!value) return '01-JAN-00';
-  const [year, month, day] = value.split('-');
-  return `${day}-${MONTHS[Number(month) - 1]}-${year}`;
-}
 
 export function searchPattern(search) {
   if (!search) return undefined;
@@ -82,7 +75,8 @@ export function createProbationEvaluationService({
   function headerBinds(body) {
     if (body.toDate < body.fromDate) throw dateOrderError();
     return {
-      formDate: toLegacyDate(body.formDate),
+      // FORM_DATE is the employee's joining date (legacy meaning); optional.
+      formDate: toStoredDate(body.formDate),
       empId: text(body.empId),
       grade: body.grade ?? 0,
       evaluationPeriod: text(body.evaluationPeriod),
@@ -95,8 +89,8 @@ export function createProbationEvaluationService({
       jobTitle: text(body.jobTitle),
       department: text(body.department),
       employeeNumber: body.employeeNumber,
-      fromDate: toLegacyDate(body.fromDate),
-      toDate: toLegacyDate(body.toDate),
+      fromDate: body.fromDate,
+      toDate: body.toDate,
     };
   }
 
@@ -104,7 +98,7 @@ export function createProbationEvaluationService({
     const header = await repository.findHeader(connection, headerId);
     if (!header) throw notFound();
     const lines = await repository.listLines(connection, headerId);
-    return { ...header, lines };
+    return { ...header, formDate: fromStoredDate(header.formDate), lines };
   }
 
   return {
@@ -147,7 +141,7 @@ export function createProbationEvaluationService({
         repository.isHrUser(connection, actor.employeeNumber),
       );
       const createdBy = isHr ? null : actor.userId;
-      return read((connection) =>
+      const { total, items } = await read((connection) =>
         repository.listEvaluations(connection, {
           limit: pageSize,
           offset: (page - 1) * pageSize,
@@ -157,6 +151,16 @@ export function createProbationEvaluationService({
           sortDir,
         }),
       );
+      return {
+        total,
+        items: items.map((item) => ({
+          ...item,
+          formDate: fromStoredDate(item.formDate),
+          evaluationResult: evaluationResult(item.totalRating),
+          // The approver a request waits for; null until the workflow exists.
+          pendingAt: null,
+        })),
+      };
     },
 
     get(actor, headerId) {

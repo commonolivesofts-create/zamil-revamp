@@ -1,8 +1,13 @@
 # Probation Evaluation (1064) — Legacy CI3 vs New Form Comparison
 
-**Date:** 2026-11-02 · **Branch state:** uncommitted working-tree changes on `main` (no Git writes made)
-**Scope:** read-only comparison of the legacy CI3 form against the new React/Node form, mocked tests
-only (no Oracle access, no database writes), and one allowed code change: new-only fields made optional.
+**Date:** 2026-11-02 · **Branch:** `test/probation-legacy-comparison` (committed, not pushed)
+**Scope:**
+- Round 1: read-only comparison of the legacy CI3 form against the new React/Node form, mocked tests,
+  and new-only fields made optional.
+- Round 2 (owner-approved): credential redaction, status filter, joining date, evaluation result,
+  list columns, submit rules, employee-list exclusion, and the criteria design (design only).
+
+No Oracle access and no database writes in either round.
 **Masking:** no real names, e-mail addresses, credentials or employee data from the legacy code are
 reproduced here. Test data is fictional (`Sample Employee 001`, `E-0001`).
 
@@ -11,6 +16,7 @@ Status of the new form: the live page (`ProbationPage.jsx`) always uses the API 
 A second, richer model (`probationModel.js`) — recommendations, signatures, per-type criteria with
 allocated points — is used only by the demo adapter and the contract readers. The live page cannot
 reach it. Both are covered below and labelled "live" or "demo-only".
+Rows changed in round 2 are marked **(R2)**.
 
 ---
 
@@ -23,260 +29,358 @@ reach it. Both are covered below and labelled "live" or "demo-only".
 | `controllers/Probation.php` | Routes: `index` (create / edit by `uri segment 3`), `add_probation_data` (save), `probreport` (report), `getEmpDetails` (AJAX autofill) |
 | `controllers/ProbationFlow.php` | Workflow: `submit()` (start, e-mail to direct manager), `workflow()` (approve / reject per step, e-mails), `send_email()` |
 | `models/Probation_Model.php` | `add_form_data()` (insert header + 20 lines / update), `getEmpDetails()`, `fetchDirectManager()`, `fetchApprover()`, `updateRequestStatus()` |
-| `models/Data_model.php` | `getEmp()` / `getAllEmp()` (employee list, l.3123/3167), `fetchFormData()` (l.3198), `getPROBRecords()` (report + HR scoping, l.5250), `getRequestedBy()` (l.5623), `getExpenseFlowRec()` (step approver lookup, l.5953) |
+| `models/Data_model.php` | `getEmp()` / `getAllEmp()` (employee list), `fetchFormData()`, `getPROBRecords()` (report + HR scoping), `getRequestedBy()`, `getExpenseFlowRec()` (step approver lookup) |
 | `views/probation/probation.php` | Create view + inline jQuery (employee autofill) |
 | `views/probation/prf_uplines.php` | Edit/view of a saved form + inline jQuery (Submit, autofill) |
 | `views/probation/header.php` | Toolbar: Save, Submit (only after first save), Report, Request Form, Print, Home |
 | `views/probation/prob_report.php` | Report list (DataTables) |
 | Shared, referenced: `Workflow_model::callXXPHP_WORKFLOW`, `delegatedUser`, `checkRequestOpen`, `check_RFI_mode`, `Zmailer` (approve / reject / forward / reassign / request-information links) | Workflow engine (`XXPHP_WORKFLOW`, msg type `EPRBF`, lookup `XX_PROBATION_WF`) |
-| **Not in the repository:** `assets/prf-new.js`, `assets/prf.css` | `showDropInfo()` (criteria per form type), rating total calculation, `one()` handlers |
+| **Not in the repository:** `assets/prf-new.js`, `assets/prf.css` | `showDropInfo()` (criteria per form type), rating total calculation |
 
 No probation-specific stored procedures or packages are called. All SQL is inline in the PHP. No
-probation-specific route entry exists in `config/routes.php`. CI3 default controller/method routing
-applies. There is no print/PDF view: the toolbar **Print** link is `javascript:void(0)`.
+probation route entry exists in `config/routes.php`; CI3 default routing applies. There is no
+print/PDF view: the toolbar **Print** link is `javascript:void(0)`.
 
 ### 1.2 New
 
 | Layer | File |
 |---|---|
 | Page | `client/src/features/hr-recruitment/probation/ProbationPage.jsx` (live) |
+| Live rules (R2) | `client/src/features/hr-recruitment/probation/probationRules.js` (result band, `validateForSubmit`) |
 | Model | `client/src/features/hr-recruitment/probation/probationModel.js` (demo adapter + contract only) |
-| Service | `client/src/features/hr-recruitment/hrRecruitmentService.js` → `createProbationService` (l.1403) |
+| Service | `client/src/features/hr-recruitment/hrRecruitmentService.js` → `createProbationService` |
 | Contract | `client/src/features/hr-recruitment/hrRecruitmentContract.js` → `readProbation`, `readProbationListItem` (demo shape) |
 | Demo adapter | `client/src/features/hr-recruitment/demo/demoClient.js`, `demo/demoData.js` |
-| Text | `client/src/features/hr-recruitment/hrRecruitmentText.js` → `PROBATION_TEXT` |
-| Routes / nav | `client/src/app/router.jsx`, `client/src/routes/RouteComponents.jsx`, `client/src/config/registry/modules/hrForms.module.js` |
-| Backend | `server/src/modules/hr/probation-evaluations/probationEvaluation.{routes,controller,service,repository,validation}.js` |
-| Docs | `docs/specs/README_probation_evaluation_form.md`, `client/src/features/hr-recruitment/README.md`, `docs/handoffs/FEATURE-HR-RECRUITMENT.md` |
-| Existing tests | `server/tests/probation-evaluations.test.js` (+ `helpers/probationEvaluationFakes.js`), `client/tests/hrOnboarding.test.mjs`, `client/tests/hrRecruitmentAudit.test.mjs` |
-| New tests (this task) | `server/tests/probation-legacy-parity.test.js`, `client/tests/probationLegacyParity.test.mjs` |
+| Shared dialog | `client/src/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx` → `ReportDialog` |
+| Backend | `server/src/modules/hr/probation-evaluations/probationEvaluation.{routes,controller,service,repository,validation,rules}.js` (`rules` new in R2) |
+| Docs | `docs/specs/README_probation_evaluation_form.md`, `client/src/features/hr-recruitment/README.md`, `server/docs/openapi/openapi.yaml`, `docs/handoffs/FEATURE-PROBATION-LEGACY-PARITY.md` |
+| Tests | `server/tests/probation-evaluations.test.js`, `server/tests/probation-legacy-parity.test.js`, `server/tests/hr-date-only.test.js`, `client/tests/probationLegacyParity.test.mjs`, `client/tests/hrOnboarding.test.mjs`, `client/tests/hrRecruitmentAudit.test.mjs` |
 
 ---
 
 ## 2. Field matrix
 
 Conventions: "Req." is the **effective** required-ness: legacy client (HTML `required`) or server,
-new client or server. Legacy server validation is none. Every empty value is replaced by `-`, `0` or
-`01-JAN-00`. "Edit after save" means legacy `prf_uplines.php`, whose `UPDATE` persists **only**
-`TOTAL_RATING`, `PREPARED_BY_CMNT`, `APPROVED_BY_CMNT` and line ratings. Every other header input is shown
-but ignored. The new form persists every field while the record is `DRAFT`.
+new client or server. Legacy has no server validation and replaces every empty value with `-`,
+`0` or `01-JAN-00`. "Edit after save" means legacy `prf_uplines.php`. Its `UPDATE` persists
+**only** `TOTAL_RATING`, `PREPARED_BY_CMNT`, `APPROVED_BY_CMNT` and the line ratings. Every other
+header input is shown but ignored. The new form persists every field while the record is `DRAFT`.
 
 ### 2.1 Header (`XXZP.XXZP_PAF_PROBATION_HEADER`)
 
-| # | Label (legacy → new) | DB column | Legacy: type · req. · default · editable · source | New: type · req. (client/server) · default · max · editable · source | Class. |
+| # | Label (legacy → new) | DB column | Legacy | New | Class. |
 |---|---|---|---|---|---|
-| 1 | Form type → Form type | `FORM_NAME` | select, 5 values · **not required** · `''`→`-` · create only (ignored on update) | select from `GET lookups/form-types` (same 5 values) · **required / required** · `''` · editable in DRAFT | **DIFFERENT** (required) |
-| 2 | Employee Name → Employee | `EMP_NAME` | select of subordinates (hierarchy query) · not required (option value `0`) · create only | searchable picker, same hierarchy query · **required / required** · max 200 · editable in DRAFT | **DIFFERENT** (required; list lacks PAF exclusion, see D7) |
-| 3 | Employee Number | `EMP_NUMBER` | read-only, autofill · not required | read-only, autofill · required (via employee) / required · max 50 | **DIFFERENT** (required) |
-| 4 | **Joining Date** → **Form date** | `FORM_DATE` | text, autofilled with the employee's `JOINING_DATE` · optional · blank→`01-JAN-00` · create only | `date`, **defaults to today** · **required / required** · not autofilled | **DIFFERENT** (meaning, default, required) |
+| 1 | Form type | `FORM_NAME` | select, 5 values · **not required** · `''`→`-` · create only | select from `GET lookups/form-types` (same 5 values) · **required / required** · editable in DRAFT | **DIFFERENT** (required) |
+| 2 | Employee Name → Employee | `EMP_NAME` | select of subordinates (hierarchy query, minus employees with an annual appraisal this year) · not required | searchable picker, same hierarchy + exclusion (R2) · **required / required** · max 200 | **DIFFERENT** (required) |
+| 3 | Employee Number | `EMP_NUMBER` | read-only autofill · not required | read-only autofill · required (via employee) / required · max 50 | **DIFFERENT** (required) |
+| 4 | **Joining Date** (R2) | `FORM_DATE` | text input, autofilled with the employee's `JOINING_DATE` · optional · blank→`01-JAN-00` | read-only "Joining date", autofilled from `employee-details` · optional / optional · blank stored as the legacy 2000-01-01, read back as blank · `YYYY-MM-DD` | **MATCH** (meaning, autofill, optional; read-only by owner decision, legacy input was editable) |
 | 5 | Job Title | `JOB_T` | read-only autofill · optional | read-only autofill · optional · max 200 | **MATCH** |
-| 6 | Job Grade → Grade | `GRADE` | read-only, **never filled** (autofill commented out) → stored `0` | **editable** number ≥ 0 integer · optional · default 0 | **DIFFERENT** (editable, new rule) |
+| 6 | Job Grade → Grade | `GRADE` | read-only, **never filled** → stored `0` | **editable** number ≥ 0 integer · optional · default 0 | **DIFFERENT** (editable, new rule) |
 | 7 | Department | `DEPARTMENT` | read-only autofill · optional | read-only autofill · optional · max 200 | **MATCH** |
-| 8 | Evaluation Period From | `FROM_DATE` | `date` · required (HTML) · create only | `date` · required / required (real calendar date) · DRAFT | **MATCH** |
-| 9 | Evaluation Period To | `TO_DATE` | `date` · required (HTML) · create only | `date` · required / required · DRAFT | **MATCH** |
-| 10 | Prepared & Agreed by | `USER_NAME`, `USER_MAIL` | hidden, from the session user (`getRequestedBy`) | read-only display; server takes it from the session (body field rejected) | **MATCH** |
+| 8 | Evaluation Period From | `FROM_DATE` | `date` · required (HTML) | `date` · required / required (real calendar date) | **MATCH** |
+| 9 | Evaluation Period To | `TO_DATE` | `date` · required (HTML) | `date` · required / required | **MATCH** |
+| 10 | Prepared & Agreed by | `USER_NAME`, `USER_MAIL` | hidden, from the session user | read-only display; server takes it from the session (body field rejected) | **MATCH** |
 | 11 | Total | `TOTAL_RATING` | hidden, computed by `prf-new.js` (source missing) | computed live (sum of ratings); server sums lines when absent; 0–100 | **MATCH** (assumed sum, see §8) |
-| 12 | Comments (Prepared by) → Comment | `PREPARED_BY_CMNT` | textarea · **read-only on create**, **required on edit** | textarea · optional · max 4000 · DRAFT | **DIFFERENT** (required on edit) |
-| 13 | Suggestion (Approved by) → Additional comments | `APPROVED_BY_CMNT` | textarea under "Approved by" · read-only on create, **required on edit** (used by approvers during workflow) | textarea "Additional comments" · optional · max 4000 · DRAFT only | **DIFFERENT** (label, required, stage) |
-| 14 | Evaluation Result (Acceptable 71–100 / Not acceptable 0–70) | derived from `TOTAL_RATING` | coloured band on edit view; also in report and e-mail | **not shown** on the live page (`resultFor` exists only in the demo model) | **MISSING IN NEW** |
+| 12 | Comments (Prepared by) (R2) | `PREPARED_BY_CMNT` | textarea · read-only on create, **required on edit save** | textarea "Comments" · optional on draft save · **required on submit** (`validateForSubmit` / `submitProblems`, ready, not wired) | **DIFFERENT** (stage: submit instead of edit save, by owner decision) |
+| 13 | Suggestion (Approved by) (R2) | `APPROVED_BY_CMNT` | textarea · read-only on create, **required on edit save**; used by approvers during the workflow | textarea "Suggestion" · optional on draft save · **required on submit** (ready, not wired) · DRAFT only | **DIFFERENT** (stage; approver editing needs the workflow) |
+| 14 | Evaluation Result (R2) | derived from `TOTAL_RATING` | Acceptable 71–100 / Not acceptable 0–70 on edit view, report, e-mail | Acceptable / Not acceptable on the ratings step, the review step, the ticket, the side card and the Records list (list value from the API's `evaluationResult`) | **MATCH** |
 | 15 | Approved by: "HR SUPERVISOR" | derived from `REQUEST_STATUS` | shown when `APPROVED` | not shown (no workflow) | **MISSING IN NEW** |
-| 16 | Request number | `HEADER_ID` | URL segment; header ID | "Evaluation no." = `HEADER_ID` (identity column) | **MATCH** |
-| 17 | Evaluation period (free text) | `EVALUATION_PERIOD` | input exists only in a commented-out block → always `-` | optional text, max 200 | **NEW ONLY** (optional ✔) |
-| 18 | (hidden) Employee person ID | `EMP_ID` | no input (`e_id` never posted) → always `-` | filled from `PERSON_ID` on employee selection · server optional · **client required → made optional** | **NEW ONLY** (made optional, §7) |
+| 16 | Request number | `HEADER_ID` | URL segment | "Evaluation no." = `HEADER_ID` | **MATCH** |
+| 17 | Evaluation period (free text) | `EVALUATION_PERIOD` | input only in a commented-out block → always `-` | optional text, max 200 | **NEW ONLY** (optional ✔) |
+| 18 | (hidden) Employee person ID | `EMP_ID` | no input → always `-` | filled from `PERSON_ID` · optional (made optional in R1) | **NEW ONLY** (optional ✔) |
+| 19 | Created date (R2) | `CREATED_AT` | report "Date" column | ticket "Created" and Records "Created" column, `YYYY-MM-DD` | **MATCH** |
 
 ### 2.2 Lines (`XXZP.XXZP_PAF_PROBATION_LINES`)
 
 | # | Label | DB column | Legacy | New | Class. |
 |---|---|---|---|---|---|
-| 19 | Evaluation criterion | `PARAM_NAME` | **predefined per form type** (`showDropInfo()`), hidden input, not editable | **free text typed by the user** · required / required · max 500 (client) | **DIFFERENT** |
-| 20 | Criterion (Arabic) | `PARAMA_NAME_AR` | predefined, hidden, not editable | optional free text, max 500 | **DIFFERENT** |
-| 21 | Points / Rating | `RATING_LINE` | select 1–5; **required on edit view**; blank → 0 | select 1–5 · optional (blank stored as 0) · server rejects 0 or >5 if sent | **DIFFERENT** (required on edit) |
-| 22 | Allocated points per criterion | — (display) | constant "5" per line, total 100 | label "Rating (1–5)", total `/100` | **MATCH** |
-| 23 | Number of criteria | — | always **20 lines** inserted (`for $i < 20`) | 1–20, user adds/removes (remove only before first save) | **DIFFERENT** |
+| 20 | Evaluation criterion | `PARAM_NAME` | **predefined per form type** (`showDropInfo()`), not editable | free text typed by the user · required / required · max 500 | **DIFFERENT** (design in §9) |
+| 21 | Criterion (Arabic) | `PARAMA_NAME_AR` | predefined, not editable | optional free text, max 500 | **DIFFERENT** (design in §9) |
+| 22 | Points / Rating (R2) | `RATING_LINE` | select 1–5; **required on edit save**; blank → 0 | select 1–5 · optional on draft save · **required on submit** (ready, not wired) | **DIFFERENT** (stage, by owner decision) |
+| 23 | Allocated points per criterion | — (display) | constant "5", total 100 | "Rating (1–5)", total `/100` | **MATCH** |
+| 24 | Number of criteria | — | always **20 lines** | 1–20, user-defined | **DIFFERENT** (design in §9) |
 
 ### 2.3 Demo-only redesign fields (`probationModel.js`, contract, demo adapter; not on the live page)
 
-| Field | Before this task | Now | Class. |
-|---|---|---|---|
-| Recommendation (Confirm / Extend / End) | required on submit | optional | **NEW ONLY** (made optional) |
-| Extend by (1–3 months) | required when Extend | optional | **NEW ONLY** (made optional) |
-| Justification | required when recommendation contradicts result | optional | **NEW ONLY** (made optional) |
-| Evaluator signature | required on submit | optional | **NEW ONLY** (made optional) |
-| Employee signature | optional | optional | **NEW ONLY** ✔ |
-| Key strengths / Areas for improvement / Training needs | optional | optional | **NEW ONLY** ✔ |
-| Evidence note per criterion | optional | optional | **NEW ONLY** ✔ |
-| Probation end date (joining + 3 months + extension) | derived, display | unchanged | **NEW ONLY** (derived) |
-| Allocated points per criterion + quick picks, rating scale bands | from demo lookups | unchanged | **NEW ONLY** (demo data) |
+| Field | Status | Class. |
+|---|---|---|
+| Recommendation (Confirm / Extend / End), Extend by, Justification, Evaluator signature | made optional in R1 | **NEW ONLY** |
+| Employee signature; Key strengths / Areas for improvement / Training needs; evidence note per criterion | optional | **NEW ONLY** |
+| Probation end date; allocated points per criterion and quick picks; rating scale bands | derived / demo data | **NEW ONLY** |
 
 ### 2.4 Counts
 
-| Classification | Live form | Demo-only | Total |
+| Classification | Round 1 | Now (R2) | Rows now |
 |---|---|---|---|
-| MATCH | 8 (#5, 7, 8, 9, 10, 11, 16, 22) | — | **8** |
-| DIFFERENT | 11 (#1, 2, 3, 4, 6, 12, 13, 19, 20, 21, 23) | — | **11** |
-| MISSING IN NEW | 2 (#14, 15) | — | **2** |
-| NEW ONLY | 2 (#17, 18) | 9 | **11** |
+| MATCH | 8 | **11** | #4, 5, 7, 8, 9, 10, 11, 14, 16, 19, 23 |
+| DIFFERENT | 11 | **10** | #1, 2, 3, 6, 12, 13, 20, 21, 22, 24 |
+| MISSING IN NEW | 2 | **1** | #15 |
+| NEW ONLY | 11 | **11** | #17, 18 + 9 demo-only |
+
+Round 2 added row 19 (created date, now shown) and renumbered the line rows.
 
 ---
 
 ## 3. Dependency matrix
 
-| # | Legacy dependency (source) | New client | New server | Class. |
-|---|---|---|---|---|
-| D1 | Employee select → AJAX `getEmpDetails` fills employee number, job title, department, **joining date → `prf_date`**, person ID (`probation.php` l.341–386) | fills number, job title, department, person ID; fetches `startDate` but **does not use it** | `GET lookups/employee-details` returns the same data | **DIFFERENT** (joining date not filled) |
-| D2 | Form type change → `showDropInfo()` renders that type's criteria (EN/AR) into the table (`prf-new.js`, **not in repo**) | form type has no effect on lines; user types criteria | form types only, no criteria | **MISSING** |
-| D3 | Rating change → total recalculated (`.cal-rating`, `prf-new.js`) | total recomputed live | sums lines when `totalRating` absent; **trusts a client total** otherwise | **MATCH** (client) / note: server trusts client, as legacy did |
-| D4 | Total → result band: ≤70 Not acceptable, ≥71 Acceptable (`prf_uplines.php` l.380–400; report; e-mail "Status") | not shown | none | **MISSING** |
-| D5 | `REQUEST_STATUS = APPROVED` → "Approved by: HR SUPERVISOR" | — | — | **MISSING** (needs workflow) |
-| D6 | Employee list = logged-in user's reporting hierarchy (`CONNECT BY PRIOR full_name = supervisor_name`, `LEVEL != 1`, active employees) | same | same query | **MATCH** |
-| D7 | Employee list **excludes** employees with a non-rejected annual PAF this year (`NOT EXISTS … XXZPI_HR_PAF_HEADER_TAB`) | — | condition absent in `listEmployees` | **DIFFERENT** (see open question Q4) |
-| D8 | Prepared by = session user (`getRequestedBy`) | display from `lookups/requestor` | from session on create | **MATCH** |
-| D9 | Submit button only after first save (`flag_update == 1`); confirm dialog; refused if `INPROCESS`/`APPROVED` | no Submit | no submit endpoint | **MISSING** |
-| D10 | Edit view: Comments & Suggestion `required`; each rating `required` | optional | optional | **DIFFERENT** |
-| D11 | Cross-field date order | none in legacy | `toDate ≥ fromDate` | `toDate ≥ fromDate` | **NEW ONLY** rule (kept; see Q6) |
-| D12 | Grade | read-only, never filled | integer ≥ 0 when entered | integer ≥ 0, default 0 | **NEW ONLY** rule (optional field) |
-| D13 | Years in company / years in position computed in `getEmpDetails`, written to non-existent elements (no visible effect) | not shown | `yearsInCompanay` returned, unused | **MATCH** (unused in both) |
-| D14 | "Already Rating Given" alert on an `exist` response; reset of `#rating-block`, `#rate20` | — | — | N/A: dead code in legacy (server never returns `exist`; elements do not exist) |
-| D15 | Joining date month parsing (`jdt`) | — | — | N/A: computed but unused in legacy |
-| D16 | Demo-only: recommendation suggested from score (≥71 Confirm, 51–70 Extend, <51 End); probation end = joining + 3 (+ extension) months; form type change clears scores | demo model only | — | **NEW ONLY** |
+| # | Legacy dependency (source) | New (client / server) | Class. |
+|---|---|---|---|
+| D1 (R2) | Employee select → AJAX `getEmpDetails` fills employee number, job title, department, **joining date → `prf_date`**, person ID | fills number, job title, department, person ID **and the joining date** (`formDate` ← `startDate`, cleared while loading) | **MATCH** |
+| D2 | Form type change → `showDropInfo()` renders that type's criteria (`prf-new.js`, **not in repo**) | form type has no effect on lines | **MISSING** (design in §9) |
+| D3 | Rating change → total recalculated | total recomputed live; server sums lines when absent but **trusts a client total** | **MATCH** (client) / server note M14 |
+| D4 (R2) | Total → result band: ≤70 Not acceptable, ≥71 Acceptable | `formResult(lines)` on the page (shown once a criterion is rated); server `evaluationResult(total)` in list rows | **MATCH** |
+| D5 | `REQUEST_STATUS = APPROVED` → "Approved by: HR SUPERVISOR" | — | **MISSING** (needs workflow) |
+| D6 | Employee list = the user's reporting hierarchy | same query | **MATCH** |
+| D7 (R2) | Employee list excludes employees with a non-rejected annual PAF this year (`XXZPI_HR_PAF_HEADER_TAB`) | `NOT EXISTS` on `XXZP.XXZPI_HR_PA_HEADER_TAB`, current year (`TO_CHAR(SYSDATE,'YYYY')`), status not `REJECTED` (case-insensitive) | **MATCH — pending HR confirmation** (see Q4 / Q10 on the table name) |
+| D8 | Prepared by = session user | from session on create | **MATCH** |
+| D9 | Submit button only after first save; refused if `INPROCESS`/`APPROVED` | no Submit (workflow not started) | **MISSING** |
+| D10 (R2) | Edit view: Comments, Suggestion and each rating `required` on save | required on **submit** (`validateForSubmit`, `submitProblems`), lenient on draft save | **DIFFERENT** (owner decision) |
+| D11 | Cross-field date order | `toDate ≥ fromDate` client + server | **NEW ONLY** rule |
+| D12 | Grade | integer ≥ 0 when entered | **NEW ONLY** rule |
+| D13 | Years in company / in position computed, not displayed | returned, unused | **MATCH** |
+| D14–D15 | "Already Rating Given" alert, rating-block resets, joining-date month parsing | — | N/A: dead code in legacy |
+| D16 | Demo-only: recommendation suggestion, probation end, form-type reset | demo model only | **NEW ONLY** |
 
-Counts: MATCH 4 (D3, D6, D8, D13) · DIFFERENT 3 (D1, D7, D10) · MISSING 4 (D2, D4, D5, D9) · NEW ONLY 3 (D11, D12, D16) · N/A 2.
+Counts now: MATCH 7 (D1, D3, D4, D6, D7, D8, D13) · DIFFERENT 1 (D10) · MISSING 3 (D2, D5, D9) ·
+NEW ONLY 3 · N/A 2. (Round 1: 4 · 3 · 4 · 3.)
 
 ---
 
 ## 4. Flow comparison
 
-| # | Step | Legacy (who · editable · buttons · status) | New | Class. |
+| # | Step | Legacy | New | Class. |
 |---|---|---|---|---|
-| F1 | Open new form | any logged-in session (`FormsSession`); toolbar Save, Report, Request Form, Print, Home | `HR.PROBATION_EVALUATIONS:VIEW` to open, `CREATE` to save; Save draft, Print, Records, New form | **DIFFERENT** (RBAC, intended) |
-| F2 | First save | inserts header `DRAFT` + exactly 20 lines; redirects to the edit view | `POST` header + 1–20 lines in one transaction, `DRAFT`; IDs from identity columns | **DIFFERENT** (line count) |
-| F3 | Edit / save again | Save at **any** status, by anyone with the URL; only ratings, Comments, Suggestion persist | `PUT` only while `DRAFT` (409 otherwise); owner, HR (`XXZP_HR`) or same-department user with VIEW; `UPDATE` permission; every field persists | **DIFFERENT** |
-| F4 | Submit | Submit (after first save) → e-mail to the preparer's direct manager (with delegation), `XXPHP_WORKFLOW` row, status `INPROCESS` | none | **MISSING** |
-| F5 | Approval step 1 (direct manager) | e-mail links: Approve, Reject, Forward, Reassign, Request Information; approve → next approver from lookup `XX_PROBATION_WF` step 2 (delegation honoured); reject → `REJECTED`, e-mail to preparer | none | **MISSING** |
-| F6 | Approval step 2 (final) | approve → `APPROVED`, e-mail to preparer; reject → `REJECTED` | none | **MISSING** |
-| F7 | Return / request information | no "return for correction"; Request Information (RFI) blocks actions until answered; Forward / Reassign via shared `Zmailer` | none | **MISSING** |
-| F8 | Approver adds Suggestion during workflow | approver opens the form link and saves (no status check) | not possible (DRAFT only) | **MISSING** |
-| F9 | Final status | `APPROVED` / `REJECTED` | only `DRAFT` exists | **MISSING** |
-| F10 | Notifications | HTML e-mail at submit and each action, incl. history table | none | **MISSING** |
-| F11 | List / search | Report: HR (`XXZP_HR`) sees all, others their own; columns #, Emp. #, Name, Job Title, Department, Total Rating, Evaluation, Status, Date, Pending At; client-side DataTables search | same scoping; server paging, search, filters (status, form type, emp no., department, dates), sort; dialog columns: number, Employee, Form type, Total rating, Status | **DIFFERENT** (missing columns; status filter bug, see M13) |
-| F12 | View a record | any header ID by URL, no access check | record-level authorization (404 unknown, 403 others) | **DIFFERENT** (intended hardening) |
-| F13 | Print | link does nothing (`javascript:void(0)`) | browser print | **DIFFERENT** (new works) |
-| F14 | Delete | not available | `DELETE` while `DRAFT` (`DELETE` permission) | **NEW ONLY** |
+| F1 | Open new form | any logged-in session | `HR.PROBATION_EVALUATIONS:VIEW` / `CREATE` | **DIFFERENT** (RBAC, intended) |
+| F2 | First save | header `DRAFT` + exactly 20 lines | `POST` header + 1–20 lines, `DRAFT` | **DIFFERENT** (line count) |
+| F3 | Edit / save again | at **any** status, by anyone with the URL; only ratings and comments persist | `PUT` only while `DRAFT`; record-level access; every field persists | **DIFFERENT** |
+| F4 | Submit | e-mail to the preparer's direct manager, `XXPHP_WORKFLOW`, `INPROCESS` | none; submit rules ready (`validateForSubmit` / `submitProblems`) | **MISSING** |
+| F5 | Approval step 1 (direct manager) | Approve / Reject / Forward / Reassign / Request Information | none | **MISSING** |
+| F6 | Approval step 2 (final, `XX_PROBATION_WF`) | `APPROVED` / `REJECTED` | none | **MISSING** |
+| F7 | Request information / forward / reassign | shared `Zmailer` | none | **MISSING** |
+| F8 | Approver adds Suggestion during workflow | yes (no status check) | no (DRAFT only) | **MISSING** |
+| F9 | Final status | `APPROVED` / `REJECTED` | only `DRAFT` is written | **MISSING** |
+| F10 | Notifications | HTML e-mail at each step | none | **MISSING** |
+| F11 (R2) | List / search | HR sees all, others their own; Emp. #, Name, Job Title, Department, Total, Evaluation, Status, Date, Pending At | same scoping; server paging/search/filters; Records: number, Employee, Emp. no., Department, Form type, Total, Evaluation, Pending at (blank until the workflow exists), Status, Created. Status filter uses the stored uppercase values | **DIFFERENT** (Job Title not in the dialog; pending-at blank until the workflow) |
+| F12 | View a record | any header ID, no access check | record-level authorization | **DIFFERENT** (intended) |
+| F13 | Print | link does nothing | browser print | **DIFFERENT** (new works) |
+| F14 | Delete | not available | `DELETE` while `DRAFT` | **NEW ONLY** |
 | F15 | New form | "Request Form" link | "New form" with unsaved-changes confirmation | **MATCH** |
 
-Counts: MATCH 1 · DIFFERENT 6 · MISSING 7 · NEW ONLY 1.
+Counts: MATCH 1 · DIFFERENT 6 · MISSING 7 · NEW ONLY 1 (unchanged; the workflow was not started by
+instruction). The workflow is explicitly out of scope in `docs/specs/README_probation_evaluation_form.md` §11.
 
-Note: the spec `docs/specs/README_probation_evaluation_form.md` §11 marks the whole workflow
-(F4–F10) as **explicitly out of scope** for the current module. These rows are missing by design, not by
-oversight. They still need an owner decision.
+**Status values (R2).** Legacy writes exactly four `REQUEST_STATUS` values, all uppercase:
+- `DRAFT`, on insert (`Probation_Model::add_form_data`).
+- `INPROCESS`, `APPROVED` and `REJECTED`, all through `Probation_Model::updateRequestStatus`
+  (called from `ProbationFlow`).
+
+No other legacy code writes the column. The legacy report's colour check compares against
+`Inprocess` / `Rejected`; that is a legacy display bug, not stored data. The new code now uses
+`REQUEST_STATUSES = ['DRAFT','INPROCESS','APPROVED','REJECTED']` (validation and OpenAPI). The
+probation spec doc is corrected to match.
 
 ---
 
 ## 5. Test results
 
-All tests are mocked (fake repository / fake HTTP client / page source). No Oracle connection, no
-database writes, no browser, no screenshots. Executed on 2026-11-02.
+All tests are mocked (fake repository / fake HTTP client / fake connection / page source). No
+Oracle connection, no database writes, no browser, no screenshots. Executed on 2026-11-02.
 
 | Command | Result |
 |---|---|
-| Baseline before changes: `server> node --import ./tests/setup.js --test tests/probation-evaluations.test.js` | 14 pass, 0 fail |
-| Baseline: `client> node --test --test-name-pattern="[Pp]robation" tests/hrOnboarding.test.mjs tests/hrRecruitmentAudit.test.mjs` | 12 pass, 0 fail |
-| `server> node --import ./tests/setup.js --test tests/probation-evaluations.test.js tests/probation-legacy-parity.test.js` | **30 tests: 26 pass, 0 fail, 4 todo** |
-| `client> node --test tests/probationLegacyParity.test.mjs` | **20 tests: 14 pass, 0 fail, 6 todo** |
-| `client> node --test tests/hrOnboarding.test.mjs tests/hrRecruitmentAudit.test.mjs` (contain the probation model/demo/service tests; whole files run because the demo adapter is shared) | **48 pass, 0 fail** |
-| `eslint` on all changed/new files (client `src/features/hr-recruitment`, both new test files) | clean |
+| `server> node --import ./tests/setup.js --test tests/probation-legacy-parity.test.js` | **24 tests: 22 pass, 0 fail, 2 todo** |
+| `server> npm test` (full suite, includes `probation-evaluations`, `hr-date-only`, `api-docs`) | 756 tests: 754 pass, 0 fail, 2 todo |
+| `server> npm run lint` · `npm run format:check` | clean · clean |
+| `client> node --test tests/probationLegacyParity.test.mjs` | **23 tests: 21 pass, 0 fail, 2 todo** |
+| `client> npm test` (full suite; `ReportDialog` is shared) | 396 tests: 394 pass, 0 fail, 2 todo |
+| `client> npm run lint` · `npm run build` · `node scripts/verify-production.mjs` | clean · built · "Release checks: PASS" |
 
-`todo` tests encode a legacy behaviour the new form does not have. Each one was run and fails, which
-confirms the gap. They do not fail the suite.
+Round 1 todos that became real tests in round 2:
 
-### 5.1 What the new parity tests cover
+| Was todo | Now |
+|---|---|
+| Server: FORM_DATE optional as joining date | pass, plus blank-date storage and `YYYY-MM-DD` SQL tests |
+| Server: list filter by stored `REJECTED` | pass, all four statuses accepted; mixed-case values rejected |
+| Client: result band shown on the page | pass (form, ticket, side card) + result computation tests |
+| Client: joining date fills from the employee | pass (read-only field, autofill, cleared while loading, omitted when blank) |
+| Client: Comments/Suggestion required on edit | replaced by the owner's rule: required on **submit**, lenient on draft (pass) |
+| Client: report columns | pass (Emp. no., Department, Evaluation, Pending at, Created; API-only values) |
 
-**Server (`server/tests/probation-legacy-parity.test.js`)**: required set (employee name/number,
-form type, from/to); exactly the 5 legacy form types; all other header fields optional, grade
-default 0; legacy placeholders (`-`, `01-JAN-00`, `DD-Mon-YYYY`) stored; prepared-by taken from
-the session (body field rejected); max 20 lines, rating 1–5, missing rating → 0; criterion text and
-LINE_ID on update; TOTAL_RATING = sum of lines when absent, capped at 100; date order; employee
-details autofill and years-in-company; DRAFT update of header + line ratings.
-**Todo (gaps confirmed):** FORM_DATE optional as joining date · server derives total even when the
-client sends one · approver can save Suggestion while INPROCESS · list filter by stored `REJECTED`.
+New tests in round 2:
+- Server: employee-list exclusion SQL; list `evaluationResult` / `pendingAt`; `submitProblems`.
+- Client: list mapping from the API (unknown result ignored); `validateForSubmit`; created date on the record.
 
-**Client (`client/tests/probationLegacyParity.test.mjs`)**: `-`/0 placeholders read back as empty;
-legacy date formats → ISO; header fields map to legacy columns; prepared-by not sent; line payload
-(blank rating omitted); LINE_IDs on update; total = sum (20 × 5 = 100); employee autofill fields
-(grade not filled, as legacy); result threshold 70/71 (model); page required/optional set, date
-order, 20-line cap, 1–5 options; the 5 form types from the lookup; new-only fields optional
-(recommendation, extension, justification, signatures, EMP_ID incl. saving a legacy record with
-`EMP_ID '-'`); DRAFT list mapping; Save draft, Print, Records present.
-**Todo (gaps confirmed):** result band on the page · criteria loaded by form type · joining date
-autofill · Comments/Suggestion required on edit · Submit/workflow · report columns.
+**Remaining todos (4).** They fail as expected and do not fail the run:
+- Server: the server derives the total even when the client sends one (M14).
+- Server: an approver saves the Suggestion while `INPROCESS` (workflow).
+- Client: criteria load by form type (§9).
+- Client: Submit / workflow.
 
 ---
 
-## 6. Missing items — proposed implementation (awaiting approval; nothing implemented)
+## 6. Missing items — status and proposals
 
 Effort: XS < 2 h · S ≤ 1 day · M 2–4 days · L ≥ 1 week. Gates per `docs/FEATURE-DELIVERY-WORKFLOW.md`.
 
-| ID | Item | Priority | UI | API | DB | Effort / gate |
-|---|---|---|---|---|---|---|
-| M1 | **Predefined criteria per form type** (D2, #19–20, #23) | **P1** | On form-type change, load that type's criteria (EN/AR, read-only labels) and show a rating per line; confirm before replacing rated lines | `GET lookups/form-types` returns `{ code, name, criteria: [{ param, paramAr }] }`; create/update validate that the params match the type | none if the catalogue is a server constant; seeding `XX_DIGI_LOOKUP_VALUES` would need **G1** | M after the criteria are supplied. **Blocked:** `assets/prf-new.js` is not in the repository |
-| M2 | **Evaluation result** Acceptable / Not acceptable (#14, D4) | **P1** | Show the band next to the total (≥71 Acceptable, ≤70 Not acceptable) and in Records | optional `evaluation` field in list rows (derived) | none | XS–S |
-| M3 | **Joining date / FORM_DATE meaning** (#4, D1) | **P1 (decision)** | A: relabel "Joining date", autofill from employee `startDate`, optional (legacy). B: keep "Form date" and show joining date read-only | A: make `formDate` optional server-side | none (same column) | S |
-| M4 | **Submit + 2-step approval** (F4–F9, D9) | P1 if CI3 is to be retired for 1064, else P3 | Submit button after first save; status pill; approver inbox / action screen with Approve / Reject (+ comment) | `POST /:id/submit`, `POST /:id/approve`, `POST /:id/reject`; statuses `INPROCESS` / `APPROVED` / `REJECTED` in existing `REQUEST_STATUS`; approver = preparer's supervisor, then `XX_PROBATION_WF` step 2; delegation | existing columns; writing `XXPHP_WORKFLOW` for CI3 coexistence | L · **G2, G3, G4** (out of scope in the spec §11) |
-| M5 | **E-mail notifications** (F10) | P2 (with M4) | — | notification service | — | M · needs SMTP configuration (secrets) and **G2** |
-| M6 | **Approver Suggestion during workflow** (#13, F8) | P2 (with M4) | Suggestion editable by the current approver only | allow `comments` update when `INPROCESS` and the actor is the pending approver | none | S (after M4) |
-| M7 | **Report columns** Emp. #, Job title, Department, Evaluation, Date (+ Pending at) (F11) | P2 | add columns to the Records dialog | data already returned except Pending at; Pending at = read-only subquery on `XXPHP_WORKFLOW` | none | XS without Pending at; S with it (**G4**, excluded by spec §7) |
-| M8 | **Approved by: "HR SUPERVISOR"** display (#15, D5) | P3 (with M4) | show when `APPROVED` | none | none | XS |
-| M9 | **Employee list exclusion** of employees with an active annual PAF this year (D7) | P3 (decision, Q4) | — | add the legacy `NOT EXISTS` to `listEmployees` | read-only | XS |
-| M10 | **Comments, Suggestion and each rating required when editing a saved form** (#12, #13, #21, D10) | P3 (decision) | required markers on update | conditional `required` in `updateBodySchema` | none | S |
-| M11 | Always 20 lines (#23) | P3 (falls out of M1) | — | — | — | — |
-
-Defects found during the comparison (not legacy features; also awaiting approval):
-
-| ID | Defect | Priority | Fix | Effort |
+| ID | Item | Priority | Status | Notes / proposal |
 |---|---|---|---|---|
-| M12 | **Hard-coded SMTP credential** of the legacy workflow mailbox appears in two **tracked** docs (`docs/specs/README_probation_evaluation_form.md` §11 and `docs/specs/README_orientation_training_form.md`). The repository is public | **P0** | Redact both docs, ask the mailbox owner to rotate the password, and consider history clean-up (owner decision, history rewrite not done) | XS + owner action |
-| M13 | List filter `requestStatus` accepts `Rejected`, but the legacy workflow stores `REJECTED` (`Probation_Model::updateRequestStatus`) — filtering rejected records returns nothing | P2 | `valid('DRAFT','INPROCESS','APPROVED','REJECTED')` (optionally also accept the old casing) | XS |
-| M14 | Server trusts a client-sent `totalRating` (legacy did the same) | P3 | always compute from lines on the server | XS |
+| M1 | Predefined criteria per form type (D2, #20–21, #24) | **P1** | **Design only** (§9) | Blocked on `prf-new.js`; needs G1 for the table |
+| M2 | Evaluation result (#14, D4) | P1 | **Done (R2)** | Form, side card, ticket, list |
+| M3 | Joining date / FORM_DATE (#4, D1) | P1 | **Done (R2)** | Owner option A: legacy meaning, read-only |
+| M4 | Submit + 2-step approval (F4–F9, D9) | P1/P3 | **Not started** (by instruction) | `POST /:id/submit`, `/approve`, `/reject`; statuses in `REQUEST_STATUS`; supervisor then `XX_PROBATION_WF` step 2; G2, G3, G4. Submit rules are ready to plug in |
+| M5 | E-mail notifications (F10) | P2 | Not started | With M4; needs SMTP config and G2 |
+| M6 | Approver Suggestion during workflow (#13, F8) | P2 | Not started | With M4 |
+| M7 | Report columns (F11) | P2 | **Done (R2)** | Pending at is `null` from the API until M4; Job Title not added (not requested) |
+| M8 | "Approved by: HR SUPERVISOR" (#15, D5) | P3 | Not started | With M4 |
+| M9 | Employee list exclusion (D7) | P3 | **Done (R2) — pending HR confirmation** | Uses `XXZPI_HR_PA_HEADER_TAB` (see Q10) |
+| M10 | Comments / Suggestion / ratings required (D10) | P3 | **Done (R2) as submit rules** | `validateForSubmit` (client), `submitProblems` (server); not wired until M4 |
+| M11 | Always 20 lines (#24) | P3 | Falls out of M1 | — |
+| M12 | Hard-coded SMTP credential in tracked docs | **P0** | **Done (R2)** | Redacted in commit "chore(security): redact legacy credentials from docs"; history not rewritten; rotation by the owner |
+| M13 | Status filter `Rejected` vs stored `REJECTED` | P2 | **Done (R2)** | Validation, OpenAPI, spec doc |
+| M14 | Server trusts a client-sent `totalRating` | P3 | Open | Always compute from the lines on the server (XS) |
+
+### 6.1 Credential sweep (R2)
+
+I searched all tracked files for SMTP, database, wallet and API-key credentials, private keys and
+access tokens. Only values were inspected; none are reproduced here.
+
+| File | Finding | Action |
+|---|---|---|
+| `docs/specs/README_probation_evaluation_form.md` | legacy SMTP mailbox + password | **[REDACTED]** |
+| `docs/specs/README_orientation_training_form.md` | same legacy SMTP mailbox + password | **[REDACTED]** |
+| `server/.env.example` | password / key variables | empty placeholders — no action |
+| `server/tests/*.test.js`, `client/tests/*.mjs` | short fictional fixture values (e.g. lowercase "x-secret" style) | test fixtures, not credentials — no action |
+| `server/src/config/index.js`, `server/src/database/oracle.js` | variable names / `process.env` reads | no values — no action |
+
+The legacy folder `php-ci3-old-app/` is git-ignored and was not modified. Git history still contains
+the old values; it was not rewritten, by instruction.
 
 ---
 
-## 7. Changes made (new-only fields made optional)
+## 7. Changes made
+
+### 7.1 Round 1 (new-only fields made optional)
 
 | File | Change |
 |---|---|
-| `client/src/features/hr-recruitment/probation/ProbationPage.jsx` | Save no longer requires `employee.employeeId` (EMP_ID = person ID, new-only; legacy always stored `-`). This also fixes saving any legacy-created record, which read back with an empty EMP_ID and was blocked with "Select an employee with complete employee details". Employee name and number stay required. |
-| `client/src/features/hr-recruitment/probation/probationModel.js` | `validateProbation` no longer requires, on submit: recommendation, extension period (when Extend), justification (when contradicting the result), evaluator signature. Removed the `submit` option. The comment on `contradictsResult` now says a justification is useful, not required. |
-| `client/src/features/hr-recruitment/demo/demoClient.js` | Demo "backend" checks call `validateProbation` without `submit`, so the demo server also treats these fields as optional. |
-| `client/src/features/hr-recruitment/hrRecruitmentText.js` | Justification label: "(required when …)" → "(optional; when …)". The now-unused error strings for those fields are left in place. |
-| `client/tests/hrOnboarding.test.mjs` | Submit assertions updated to the optional rule (formatted with Prettier). |
-| `server/tests/probation-legacy-parity.test.js`, `client/tests/probationLegacyParity.test.mjs` | New parity tests (§5). |
+| `client/.../probation/ProbationPage.jsx` | Save no longer requires `EMP_ID` (new-only; legacy stores `-`). Fixes saving legacy-created records |
+| `client/.../probation/probationModel.js`, `demo/demoClient.js`, `hrRecruitmentText.js` | Demo model: recommendation, extension, justification, evaluator signature optional |
+| `client/tests/hrOnboarding.test.mjs`, new parity tests | Tests |
 
-Server: no change needed. The API has no recommendation, signature or similar fields. `evaluationPeriod`,
-`empId` and `grade` were already optional.
-Not changed (not new-only, so out of the allowed change): `formDate` (repurposed legacy column, see
-M3), the `toDate ≥ fromDate` rule and the grade integer rule (rules, not fields).
-Nothing in `php-ci3-old-app` was modified. No dependency was added. Nothing was committed.
+### 7.2 Round 2 (owner-approved)
+
+| Item | Server | Client | Docs |
+|---|---|---|---|
+| 1 Credentials | — | — | Two spec docs redacted (separate commit) |
+| 2 Status filter | `validation.js`: `REQUEST_STATUSES` uppercase | — | OpenAPI enum; spec doc |
+| 3 Joining date | `formDate` optional. Every probation date bound with `TO_DATE(:x,'YYYY-MM-DD')` and selected with `TO_CHAR(…,'YYYY-MM-DD')`, including `CREATED_AT` (was `DD-Mon-YY`). A blank joining date is stored as the legacy 2000-01-01 and read back as `null` (`rules.js`) | Read-only "Joining date" filled from `employee-details`, not required. Ticket shows "Created". Blank joining date omitted from the payload | OpenAPI; spec; README |
+| 4 Evaluation result | `evaluationResult(total)` in list rows | `probationRules.js`: `formResult`, shown on the ratings step, review step, ticket, side card; list column | OpenAPI; README |
+| 5 List view | `pendingAt: null`, `employeeNumber`, `department` already returned | Records columns Emp. no., Department, Evaluation, Pending at, Created (`ReportDialog` gets an optional `dateColumn`; default unchanged for other forms) | — |
+| 6 Submit rules | `submitProblems()` in `rules.js` (not wired) | `validateForSubmit()` in `probationRules.js` (not wired); labels "Comments" / "Suggestion" | — |
+| 7 Employee list | `listEmployees` adds the annual-appraisal `NOT EXISTS` | — | Marked pending HR confirmation |
+| 8 Criteria | — | — | Design in §9 |
+
+Not done, by instruction: workflow (submit / approve / reject / notifications), criteria code.
+No new dependency, no DDL, no database writes, no change in `php-ci3-old-app`.
 
 ---
 
 ## 8. Assumptions and open questions
 
 **Assumptions**
-1. `prf-new.js` (missing) sums the 20 line ratings into `total` and renders the criteria for the
-   selected type with 1–5 selects, consistent with the edit view (20 lines × max 5 = 100, "Allocated 5").
-2. Classification uses the effective required-ness (client or server). Adding server validation
-   to a field that legacy required only in HTML counts as MATCH.
-3. The demo-only model (`probationModel.js`) holds "new requirements", so its extra fields count as NEW ONLY.
-4. The legacy edit view's header inputs (employee, type, dates) look editable but are not persisted. The
-   new form making them editable in DRAFT is treated as an intended improvement.
+1. `prf-new.js` (missing) sums the line ratings into `total` and renders the criteria for the
+   selected type with 1–5 selects (20 lines × max 5 = 100).
+2. Classification uses the effective required-ness (client or server).
+3. The demo-only model holds "new requirements", so its extra fields count as NEW ONLY.
+4. Legacy header inputs on the edit view look editable but are not persisted. Making them editable in
+   DRAFT is treated as an intended improvement.
+5. (R2) The legacy blank date `'01-JAN-00'` was stored as 2000-01-01 (RR/YY year rules). The new code
+   writes the same value for a blank joining date, so it does not depend on whether `FORM_DATE` is
+   nullable (not verified in the dictionary). An employee who really joined on 2000-01-01 would
+   show a blank joining date.
+6. (R2) Records created by the new form before this change hold a *form date* (default today) in
+   FORM_DATE. They show it as the joining date until the employee is re-selected and saved.
 
-**Open questions for the owner**
-- Q1 Can you supply the per-form-type criteria (EN/AR) from production `assets/prf-new.js`? M1 is blocked without them.
-- Q2 `FORM_DATE`: joining date (legacy) or form date (new)? (M3)
-- Q3 Is the approval workflow (M4–M6) in scope now, given the spec §11 exclusion? If yes: coexist with CI3 `XXPHP_WORKFLOW`, or a new engine?
-- Q4 The legacy employee list excludes employees with an active **annual** PAF (`XXZPI_HR_PAF_HEADER_TAB`). Is that intended for probation, or copied from the annual form? (M9)
-- Q5 Should Comments / Suggestion / ratings become required at a later stage (edit or submit), as on the legacy edit view? (M10)
-- Q6 Keep the new `toDate ≥ fromDate` and grade-integer rules? They are stricter than legacy.
-- Q7 May I redact the credential from the two spec docs (M12)? Rotation must be done by the mailbox owner.
-- Q8 The demo-only redesign (recommendation, signatures, allocated points) is not reachable from the live page. Keep it, or remove it?
-- Q9 These changes sit uncommitted on `main`. Should I create a `fix/` or `test/` branch for them?
+**Open questions**
+- Q1 Please supply `assets/prf-new.js` from production (M1, §9).
+- Q3 Approval workflow (M4–M6): when, and coexisting with CI3 `XXPHP_WORKFLOW` or a new engine?
+- Q4 **Pending HR confirmation:** should probation exclude employees who already have an annual
+  appraisal this year? It is implemented as in legacy for now.
+- Q6 Keep the new `toDate ≥ fromDate` and grade-integer rules?
+- Q8 Keep or remove the unreachable demo-only redesign (recommendation, signatures, allocated points)?
+- Q10 (R2) Legacy reads `XXZPI_HR_PAF_HEADER_TAB` for the exclusion. The new code uses
+  `XXZPI_HR_PA_HEADER_TAB`, the annual appraisal table the performance-appraisal module already
+  reads and writes, with the same predicate. The appraisal spec flags the `PAF` name as possibly
+  stale. Confirm in the dictionary which table holds this year's appraisals.
+- Q11 (R2) Should Job Title also be a Records column (legacy report had it)?
+
+Answered in round 2: Q2 (joining date), Q5 (required on submit), Q7 (redact), Q9 (branch).
+
+---
+
+## 9. Criteria per form type — design (no code)
+
+**Goal.** Choosing a form type fills that type's criteria (English + Arabic, ordered) as legacy
+`showDropInfo()` did. The evaluator only rates. Evaluation lines keep copying the text into
+`XXZP_PAF_PROBATION_LINES.PARAM_NAME` / `PARAMA_NAME_AR`, as today. Past evaluations therefore never
+change when the catalogue changes.
+
+### 9.1 Oracle lookup table (proposed; DDL needs G1 approval)
+
+`XXZP.XXZP_PAF_PROBATION_CRITERIA`
+
+| Column | Type | Rule |
+|---|---|---|
+| `CRITERION_ID` | `NUMBER GENERATED ALWAYS AS IDENTITY` | primary key |
+| `FORM_TYPE` | `VARCHAR2(50)` NOT NULL | `CHECK` in the five legacy codes (`Workers_Technicians`, `Trainee`, `Engineers_Staff`, `Department_Managers`, `Supervisors_and_Foremens`) |
+| `SEQ_NO` | `NUMBER(3)` NOT NULL | `CHECK (SEQ_NO BETWEEN 1 AND 20)`: display order and line number |
+| `PARAM_NAME` | `VARCHAR2(n)` NOT NULL | English text; `n` = the deployed length of `LINES.PARAM_NAME` (verify in the dictionary) |
+| `PARAM_NAME_AR` | `VARCHAR2(n)` | Arabic text; `n` = deployed length of `LINES.PARAMA_NAME_AR` |
+| `ACTIVE_FLAG` | `CHAR(1)` NOT NULL DEFAULT `'Y'` | `CHECK IN ('Y','N')` |
+| `CREATED_AT`, `CREATED_BY`, `UPDATED_AT`, `UPDATED_BY` | `TIMESTAMP` (UTC) / user ID | audit, project UTC convention |
+
+- Unique active order: a function-based unique index on
+  `(FORM_TYPE, CASE WHEN ACTIVE_FLAG = 'Y' THEN SEQ_NO END)`. Inactive history may repeat a sequence.
+- Alternative without DDL: rows in the existing `XX_DIGI_LOOKUP_VALUES`
+  (`LOOKUP_TYPE = 'XX_PROBATION_CRITERIA_<FORM_TYPE>'`, `LOOKUP_CODE` = order,
+  `MEANING` = English, `DESCRIPTION` = Arabic). This avoids DDL but still seeds rows (needs
+  authorization), mixes concerns, has no active flag per row unless an existing column fits, and
+  depends on `MEANING` / `DESCRIPTION` lengths. **The dedicated table is recommended.**
+
+### 9.2 API
+
+`GET /api/v1/hr/probation-evaluations/lookups/form-types/:formType/criteria`
+- Permission `HR.PROBATION_EVALUATIONS:VIEW`. `formType` is validated with Joi against the five
+  codes. `Cache-Control: no-store`, as the module does.
+- `200`: `{ formType, criteria: [{ seqNo, param, paramAr }] }`, active rows ordered by `SEQ_NO`
+  (LOW pool, bind variables).
+- An empty list means the type has no catalogue yet; the page then keeps today's free-text entry.
+- Create/update validation: when the type has active criteria, the lines must match them by
+  `seqNo` + `param` (text is not taken from the client for catalogued types). Ratings stay 1–5 /
+  blank on draft and are required on submit (`submitProblems`).
+- OpenAPI + `api-docs.test.js` entry; Supertest tests with a fake repository.
+
+**UI.** On a new record, choosing a form type loads its criteria into read-only rows (English, Arabic,
+rating select). Changing the type after rating asks for confirmation before replacing the lines.
+Saved records keep their stored lines.
+
+### 9.3 Seed script (after `prf-new.js` is provided)
+
+`server/scripts/seed-probation-criteria.js <path-to-prf-new.js> [--apply --confirm]`
+- **Treat the file as untrusted data:** read it as text and never `eval`, `import` or `vm`-run it.
+  Extract the per-type criteria by static parsing: locate the `showDropInfo()` branches per
+  `dropSelect` value, then the English/Arabic cell texts or array literals. The exact parser is
+  written once the file's shape is known.
+- Validate: exactly the five form types, 1–20 rows each, non-empty English, lengths within the
+  columns, no control characters. Any surprise aborts with a count-only message.
+- **Dry run (default):** prints counts per type and writes a JSON preview (scratch location,
+  not committed) for the owner to review. No database connection.
+- **`--apply --confirm`:** only after G1 approval and explicit authorization for that run.
+  `withTransaction` + `MERGE` on `(FORM_TYPE, SEQ_NO)` for active rows (idempotent re-runs).
+  Logs counts only, never secrets.
+- Tests: parser on a fictional fixture file; `MERGE` SQL shape with a fake connection.
+- CI3 coexistence (G4): CI3 keeps rendering from `prf-new.js` until it is retired, so the two
+  sources must stay in sync. The seed script is the one-way sync.
+
+**Effort:** table + endpoint + UI M (2–4 days); seed script S–M once the file is available.
+**Gates:** G1 (DDL, seed rows), G4 (CI3 coexistence).

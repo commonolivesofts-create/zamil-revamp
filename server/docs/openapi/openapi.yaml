@@ -2880,8 +2880,9 @@ paths:
         Returns filtered, paginated PAF records. HR membership is checked server-side
         against XX_DIGI_LOOKUP_VALUES (LOOKUP_TYPE 'XXZP_HR', MEANING equal to the
         authenticated employee number); other actors are scoped to their own CREATED_BY.
-        Does not return workflow-derived columns. Requires
-        `HR.PROBATION_EVALUATIONS:VIEW` (default-deny catalogue authorization).
+        Each row carries the derived evaluationResult (TOTAL_RATING 71–100 ACCEPTABLE,
+        0–70 NOT_ACCEPTABLE) and pendingAt, which stays null until the approval workflow
+        exists. Requires `HR.PROBATION_EVALUATIONS:VIEW` (default-deny catalogue authorization).
       security:
         - sessionCookie: []
       parameters:
@@ -2899,7 +2900,7 @@ paths:
         - {
             name: requestStatus,
             in: query,
-            schema: { type: string, enum: [DRAFT, INPROCESS, APPROVED, Rejected] },
+            schema: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] },
           }
         - {
             name: formType,
@@ -9752,7 +9753,12 @@ components:
     ProbationEvaluationWriteFields:
       type: object
       properties:
-        formDate: { type: string, format: date }
+        formDate:
+          type: string
+          format: date
+          description: >-
+            FORM_DATE: the employee's joining date (legacy meaning), optional. A blank value is
+            stored as the legacy 2000-01-01 and read back as null.
         evaluationPeriod: { type: string, maxLength: 200 }
         formType:
           type: string
@@ -9779,7 +9785,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
         - type: object
-          required: [formDate, formType, employeeName, employeeNumber, fromDate, toDate, lines]
+          required: [formType, employeeName, employeeNumber, fromDate, toDate, lines]
           properties:
             lines:
               type: array
@@ -9791,7 +9797,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
         - type: object
-          required: [formDate, formType, employeeName, employeeNumber, fromDate, toDate, lines]
+          required: [formType, employeeName, employeeNumber, fromDate, toDate, lines]
           properties:
             lines:
               type: array
@@ -9811,21 +9817,27 @@ components:
           department,
           formType,
           totalRating,
+          evaluationResult,
           requestStatus,
+          pendingAt,
           createdAt,
           createdBy,
         ]
       properties:
         headerId: { $ref: '#/components/schemas/Id' }
-        formDate: { type: string, format: date }
+        formDate: { type: [string, 'null'], format: date, description: Joining date. }
         employeeName: { type: string }
         employeeNumber: { type: string }
         jobTitle: { type: string }
         department: { type: string }
         formType: { type: string }
         totalRating: { type: integer }
-        requestStatus: { type: string }
-        createdAt: { type: string }
+        evaluationResult: { type: string, enum: [ACCEPTABLE, NOT_ACCEPTABLE] }
+        requestStatus: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] }
+        pendingAt:
+          type: 'null'
+          description: The pending approver; always null until the approval workflow exists.
+        createdAt: { type: string, format: date }
         createdBy: { $ref: '#/components/schemas/Id' }
     ProbationEvaluation:
       type: object
@@ -9833,7 +9845,7 @@ components:
       properties:
         headerId: { $ref: '#/components/schemas/Id' }
         uuid: { type: string, format: uuid }
-        formDate: { type: string, format: date }
+        formDate: { type: [string, 'null'], format: date, description: Joining date. }
         employeeName: { type: string }
         employeeNumber: { type: string }
         empId: { type: string }
@@ -9847,8 +9859,8 @@ components:
         department: { type: string }
         fromDate: { type: string, format: date }
         toDate: { type: string, format: date }
-        requestStatus: { type: string }
-        createdAt: { type: string }
+        requestStatus: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] }
+        createdAt: { type: string, format: date }
         lines:
           type: array
           items: { $ref: '#/components/schemas/ProbationEvaluationLine' }

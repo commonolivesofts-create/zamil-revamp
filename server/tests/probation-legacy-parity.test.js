@@ -3,12 +3,15 @@
 // Known gaps against the legacy behaviour are `todo` tests: they report, they do not fail the run.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import * as probationRepository from '../src/modules/hr/probation-evaluations/probationEvaluation.repository.js';
 import {
-  createProbationEvaluationService,
-  toLegacyDate,
-} from '../src/modules/hr/probation-evaluations/probationEvaluation.service.js';
+  evaluationResult,
+  submitProblems,
+} from '../src/modules/hr/probation-evaluations/probationEvaluation.rules.js';
+import { createProbationEvaluationService } from '../src/modules/hr/probation-evaluations/probationEvaluation.service.js';
 import {
   FORM_TYPES,
+  REQUEST_STATUSES,
   createBodySchema,
   listQuerySchema,
   updateBodySchema,
@@ -31,7 +34,19 @@ const valueOf = (schema, body) => schema.validate(body).value;
 const without = (field) =>
   Object.fromEntries(Object.entries(BODY).filter(([key]) => key !== field));
 
-function fakeService({ requestStatus = 'DRAFT' } = {}) {
+// Records SQL and binds; returns `rowsFor(sql)` as the result rows.
+function fakeConnection(rowsFor = () => []) {
+  const statements = [];
+  return {
+    statements,
+    async execute(sql, binds) {
+      statements.push({ sql, binds });
+      return { rows: rowsFor(sql), rowsAffected: 1, outBinds: { headerId: ['7'] } };
+    },
+  };
+}
+
+function fakeService({ requestStatus = 'DRAFT', header = {}, listItems = [] } = {}) {
   const writes = { headers: [], lines: [], headerUpdates: [], lineUpdates: [] };
   const repository = {
     findRequestor: async () => ({
@@ -44,6 +59,9 @@ function fakeService({ requestStatus = 'DRAFT' } = {}) {
     isHrUser: async () => false,
     updateHeader: async (_connection, header) => (writes.headerUpdates.push(header), true),
     updateLine: async (_connection, line) => (writes.lineUpdates.push(line), true),
+    findHeader: async () => ({ headerId: '7', formDate: '2026-08-05', ...header }),
+    listLines: async () => [],
+    listEvaluations: async () => ({ total: listItems.length, items: listItems }),
     findEmployeeDetails: async () => ({
       ids: { personId: '5001', employeeNumber: 'E-0001' },
       hire: { startDate: '2020-01-15' },
@@ -110,8 +128,7 @@ describe('probation parity: fields', () => {
       ],
       ['-', '-', '-', '-', '-', '-'],
     );
-    assert.equal(toLegacyDate(''), '01-JAN-00', 'legacy blank date');
-    assert.equal(header.fromDate, '05-Aug-2026', 'DD-Mon-YYYY, as legacy date(d-M-Y)');
+    assert.equal(header.fromDate, '2026-08-05', 'dates are bound as YYYY-MM-DD');
     assert.equal(writes.lines[0].paramAr, '-', 'PARAMA_NAME_AR placeholder');
   });
 
@@ -143,16 +160,49 @@ describe('probation parity: fields', () => {
     assert.deepEqual(errorsOf(updateBodySchema, BODY), ['lines.0.lineId']);
   });
 
-  it(
-    'keeps FORM_DATE optional, as the legacy joining-date field',
-    {
-      todo: 'DIFFERENT: new formDate is required (form date); legacy prf_date was optional (joining date)',
-    },
-    () => {
-      const body = without('formDate');
-      assert.deepEqual(errorsOf(createBodySchema, body), []);
-    },
-  );
+  it('keeps FORM_DATE optional, as the legacy joining-date field', () => {
+    assert.deepEqual(errorsOf(createBodySchema, without('formDate')), []);
+    assert.deepEqual(errorsOf(createBodySchema, { ...BODY, formDate: '2026-02-30' }), ['formDate']);
+  });
+
+  it('stores a blank joining date as the legacy value (2000-01-01) and reads it back as null', async () => {
+    const { service, writes } = fakeService({ header: { formDate: '2000-01-01' } });
+    await service.create(ACTOR, valueOf(createBodySchema, without('formDate')));
+    assert.equal(writes.headers[0].formDate, '2000-01-01');
+    assert.equal((await service.get(ACTOR, '7')).formDate, null);
+    await service.create(ACTOR, valueOf(createBodySchema, BODY));
+    assert.equal(writes.headers[1].formDate, BODY.formDate, 'a joining date is stored as is');
+  });
+
+  it('binds and selects every probation date as YYYY-MM-DD (no month names, no two-digit years)', async () => {
+    const connection = fakeConnection(() => [
+      { HEADER_ID: '7', FORM_DATE: '2026-08-05', TOTAL: 0 },
+    ]);
+    const header = {
+      uuid: 'u',
+      formDate: '2026-08-05',
+      fromDate: '2026-08-05',
+      toDate: '2026-11-04',
+    };
+    await probationRepository.insertHeader(connection, header);
+    await probationRepository.updateHeader(connection, { ...header, headerId: '7' });
+    await probationRepository.findHeader(connection, '7');
+    await probationRepository.listEvaluations(connection, {
+      limit: 20,
+      offset: 0,
+      sortBy: 'HEADER_ID',
+      sortDir: 'desc',
+    });
+    for (const { sql } of connection.statements) {
+      assert.doesNotMatch(sql, /DD-Mon|'DD-MON-YY'|, 'YY'\)/, sql);
+    }
+    const [insert, update, select, , list] = connection.statements;
+    assert.match(insert.sql, /TO_DATE\(:formDate, 'YYYY-MM-DD'\)/);
+    assert.match(update.sql, /FORM_DATE = TO_DATE\(:formDate, 'YYYY-MM-DD'\)/);
+    assert.match(select.sql, /TO_CHAR\(FORM_DATE, 'YYYY-MM-DD'\) AS FORM_DATE/);
+    assert.match(select.sql, /TO_CHAR\(CREATED_AT, 'YYYY-MM-DD'\) AS CREATED_AT/);
+    assert.match(list.sql, /TO_CHAR\(H\.CREATED_AT, 'YYYY-MM-DD'\) AS CREATED_AT/);
+  });
 });
 
 describe('probation parity: dependencies', () => {
@@ -200,6 +250,96 @@ describe('probation parity: dependencies', () => {
   });
 });
 
+describe('probation parity: evaluation result and list', () => {
+  it('derives Acceptable from 71 and Not acceptable at 70 and below', () => {
+    assert.deepEqual([0, 70, 71, 100, '71'].map(evaluationResult), [
+      'NOT_ACCEPTABLE',
+      'NOT_ACCEPTABLE',
+      'ACCEPTABLE',
+      'ACCEPTABLE',
+      'ACCEPTABLE',
+    ]);
+  });
+
+  it('returns employee number, department, the evaluation result and pending-at in list rows', async () => {
+    const row = (headerId, totalRating) => ({
+      headerId,
+      formDate: '2000-01-01',
+      employeeName: 'Sample Employee 001',
+      employeeNumber: 'E-0001',
+      department: 'Sample Department',
+      totalRating,
+      requestStatus: 'DRAFT',
+      createdAt: '2026-11-02',
+    });
+    const { service } = fakeService({ listItems: [row('7', 71), row('8', 70)] });
+    const { items } = await service.list(ACTOR, { page: 1, pageSize: 20 });
+    assert.deepEqual(
+      items.map((item) => [
+        item.employeeNumber,
+        item.department,
+        item.evaluationResult,
+        item.pendingAt,
+        item.formDate,
+      ]),
+      [
+        ['E-0001', 'Sample Department', 'ACCEPTABLE', null, null],
+        ['E-0001', 'Sample Department', 'NOT_ACCEPTABLE', null, null],
+      ],
+    );
+  });
+
+  it('filters the list by the four statuses the legacy form stores', () => {
+    assert.deepEqual(REQUEST_STATUSES, ['DRAFT', 'INPROCESS', 'APPROVED', 'REJECTED']);
+    for (const status of REQUEST_STATUSES) {
+      assert.equal(listQuerySchema.validate({ requestStatus: status }).error, undefined, status);
+    }
+    for (const status of ['Rejected', 'Inprocess', 'Approved', 'SUBMITTED']) {
+      assert.ok(listQuerySchema.validate({ requestStatus: status }).error, status);
+    }
+  });
+
+  it('lists the hierarchy without employees who have a non-rejected annual appraisal this year', async () => {
+    const connection = fakeConnection(() => []);
+    await probationRepository.listEmployees(connection, '100');
+    const [{ sql, binds }] = connection.statements;
+    assert.match(sql, /CONNECT BY PRIOR FULL_NAME = SUPERVISOR_NAME/);
+    assert.match(sql, /NOT EXISTS \(\s*SELECT 1 FROM XXZP\.XXZPI_HR_PA_HEADER_TAB HD/);
+    assert.match(sql, /HD\.EMPLOYEE_NUMBER = OT\.EMPLOYEE_NUMBER/);
+    assert.match(sql, /HD\.YEAR = TO_CHAR\(SYSDATE, 'YYYY'\)/);
+    assert.match(sql, /NVL\(UPPER\(HD\.STATUS\), '-'\) <> 'REJECTED'/);
+    assert.deepEqual(binds, { userId: '100' });
+  });
+});
+
+describe('probation parity: submit rules (ready for the workflow)', () => {
+  const complete = {
+    comment: 'Prepared comment',
+    comments: 'Suggestion',
+    lines: [{ rating: 4 }, { rating: 5 }],
+  };
+
+  it('accepts a complete evaluation', () => {
+    assert.deepEqual(submitProblems(complete), []);
+  });
+
+  it('requires Comments, Suggestion and a 1–5 rating on every criterion, as the legacy edit form', () => {
+    const fields = (input) => submitProblems(input).map((problem) => problem.field);
+    assert.deepEqual(
+      fields({ comment: ' ', comments: '-', lines: [{ rating: 0 }, { rating: 3 }, {}] }),
+      ['comment', 'comments', 'lines.0.rating', 'lines.2.rating'],
+    );
+    assert.deepEqual(fields({ ...complete, lines: [] }), ['lines']);
+  });
+
+  it('leaves draft saves lenient: comments and ratings stay optional on save', () => {
+    assert.deepEqual(
+      errorsOf(createBodySchema, { ...BODY, comment: '', comments: '', lines: [{ param: 'A' }] }),
+      [],
+    );
+  });
+});
+
 describe('probation parity: flow', () => {
   it('updates header and line ratings of a DRAFT', async () => {
     const { service, writes } = fakeService();
@@ -235,14 +375,6 @@ describe('probation parity: flow', () => {
           lines: [{ lineId: '11', param: 'A' }],
         }),
       );
-    },
-  );
-
-  it(
-    'filters the list by the stored legacy status REJECTED',
-    { todo: 'BUG: listQuerySchema allows "Rejected" but the legacy workflow stores "REJECTED"' },
-    () => {
-      assert.equal(listQuerySchema.validate({ requestStatus: 'REJECTED' }).error, undefined);
     },
   );
 });

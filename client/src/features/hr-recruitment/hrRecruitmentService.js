@@ -1400,6 +1400,8 @@ export function createEmployeeReportService({ client }) {
   });
 }
 
+const PROBATION_RESULTS = Object.freeze(["ACCEPTABLE", "NOT_ACCEPTABLE"]);
+
 export function createProbationService({ client }) {
   const fromLegacyDate = (value) => {
     if (typeof value !== "string") return "";
@@ -1443,7 +1445,9 @@ export function createProbationService({ client }) {
       evaluationId: String(data.headerId),
       evaluationNumber: String(data.headerId),
       status: String(data.requestStatus ?? "DRAFT"),
+      // FORM_DATE is the employee's joining date (legacy meaning); null when blank.
       formDate: fromLegacyDate(data.formDate),
+      createdAt: fromLegacyDate(data.createdAt),
       evaluationPeriod: textValue(data.evaluationPeriod),
       formType: textValue(data.formType),
       employee: Object.freeze({
@@ -1453,7 +1457,7 @@ export function createProbationService({ client }) {
         position: textValue(data.jobTitle),
         grade: textValue(data.grade),
         departmentName: textValue(data.department),
-        startDate: "",
+        startDate: fromLegacyDate(data.formDate),
       }),
       fromDate: fromLegacyDate(data.fromDate),
       toDate: fromLegacyDate(data.toDate),
@@ -1479,9 +1483,17 @@ export function createProbationService({ client }) {
       evaluationNumber: String(data.headerId),
       status: String(data.requestStatus ?? "DRAFT"),
       employeeName: String(data.employeeName ?? ""),
+      employeeNumber: textValue(data.employeeNumber),
+      department: textValue(data.department),
       formType: String(data.formType ?? ""),
       totalRating: Number(data.totalRating ?? 0),
-      updatedAt: data.createdAt ?? null,
+      // Derived by the server from TOTAL_RATING (71+ ACCEPTABLE).
+      evaluationResult: PROBATION_RESULTS.includes(data.evaluationResult)
+        ? data.evaluationResult
+        : "",
+      // The pending approver; null until the approval workflow exists.
+      pendingAt: textValue(data.pendingAt),
+      createdAt: fromLegacyDate(data.createdAt),
     });
   const getById = async (id, { signal } = {}) =>
     readRecord(
@@ -1598,7 +1610,8 @@ export function createProbationService({ client }) {
     getById,
     async save(id, body) {
       const payload = {
-        formDate: body.formDate,
+        // The joining date is optional; a blank one is omitted (the server stores the legacy blank).
+        ...(body.formDate ? { formDate: body.formDate } : {}),
         evaluationPeriod: body.evaluationPeriod,
         formType: body.formType,
         employeeName: body.employee.name,
