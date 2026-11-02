@@ -8370,15 +8370,23 @@ paths:
       summary: List current employees for the letter form
       description: >-
         Requires an authenticated session and
-        `HR.BUSINESS_VISA_LETTERS:VIEW`. Returns current employees with a non-null
+        `HR.BUSINESS_VISA_LETTERS:VIEW`. Requires `q` (2 to 100 characters) and searches
+        current employee numbers and names. Returns matching employees with a non-null
         employee number, ordered by full name.
       security: [{ sessionCookie: [] }]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search term for employee number or full name.
+          schema: { type: string, minLength: 2, maxLength: 100 }
       responses:
         '200':
           description: Current employee numbers and names.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/BusinessVisaLetterEmployeesResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '500': { $ref: '#/components/responses/InternalError' }
