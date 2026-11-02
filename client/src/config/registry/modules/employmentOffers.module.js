@@ -10,8 +10,8 @@ export default defineModule({
     name: 'Employment Offers',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
-      { id: 'hr-offer', path: '/hr/recruitment/offer', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', order: 30 },
-      { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', order: 31, hidden: true },
+      { id: 'hr-offer', path: '/hr/recruitment/offer', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', subgroup: 'hr-recruitment', order: 30 },
+      { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', subgroup: 'hr-recruitment', order: 31, hidden: true },
     ],
   }],
 })

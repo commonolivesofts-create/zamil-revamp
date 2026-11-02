@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import ExternalNavigationLink from '@/components/navigation/ExternalNavigationLink.jsx'
+import { SidebarFlyout, SidebarSubgroupButton } from './SidebarFlyout.jsx'
 import { appConfig } from '@/config/appConfig.js'
 import { authorizedNavigation, findAppRoute } from '@/config/appNavigation.js'
 import { templateDemosAvailable } from '@/config/authRouting.js'
@@ -96,6 +97,34 @@ function CollapsibleSection({ section, isOpen, isActive, onToggle, children }) {
   )
 }
 
+// The links of one section: entries without a sub-group first, then one button
+// per sub-group that has a page the user may open (its pages are in the flyout).
+function SectionItems({ section, currentRoute, flyout, onFlyout, onNavigate }) {
+  const direct = section.items.filter((item) => !item.subgroup)
+  const groups = (section.subgroups ?? [])
+    .map((subgroup) => ({ subgroup, items: section.items.filter((item) => item.subgroup === subgroup.id) }))
+    .filter((group) => group.items.length)
+  return (
+    <>
+      {direct.map((item) => item.type === 'external' ? (
+        <ExternalSidebarLink key={item.id} item={item} onNavigate={onNavigate} />
+      ) : (
+        <SidebarLink key={item.id} to={item.path} icon={item.icon} label={item.label} end={false} onNavigate={onNavigate} />
+      ))}
+      {groups.map(({ subgroup, items }) => (
+        <SidebarSubgroupButton
+          key={subgroup.id}
+          subgroup={subgroup}
+          items={items}
+          current={currentRoute?.subgroup === subgroup.id ? items.find((item) => item.id === currentRoute.id) ?? currentRoute : null}
+          open={flyout?.subgroupId === subgroup.id}
+          onToggle={(anchor) => onFlyout(flyout?.subgroupId === subgroup.id ? null : { subgroupId: subgroup.id, anchor })}
+        />
+      ))}
+    </>
+  )
+}
+
 // Only implemented pages the signed-in user may open are listed, from the same
 // configuration the route guard and command palette use. Template demo domains
 // appear only in the development preview, below the application navigation.
@@ -116,7 +145,28 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
   const demoSections = templateDemosAvailable(status) ? orvexaNavigation.filter((section) => section.items?.length) : []
 
   const { pathname } = useLocation()
-  const activeDomain = findAppRoute(pathname)?.section || (demoSections.length ? getOrvexaSection(pathname) : null)
+  const currentRoute = findAppRoute(pathname)
+  const activeDomain = currentRoute?.section || (demoSections.length ? getOrvexaSection(pathname) : null)
+  // The open sub-group flyout belongs to the route where it was opened.
+  const [flyoutState, setFlyoutState] = useState(null)
+  const flyout = flyoutState?.pathname === pathname && (!isMobile || mobileOpen) ? flyoutState : null
+  const flyoutSection = flyout && sections.find((section) => section.subgroups?.some((item) => item.id === flyout.subgroupId))
+  const flyoutItems = flyoutSection?.items.filter((item) => item.subgroup === flyout.subgroupId) ?? []
+  const flyoutAnchor = useRef(null)
+  const openFlyout = (value) => {
+    flyoutAnchor.current = value?.anchor ?? null
+    setFlyoutState(value && { ...value, pathname })
+  }
+  // Escape and Back return focus to the sub-group button.
+  const closeFlyout = useCallback((refocus) => {
+    const anchor = flyoutAnchor.current
+    setFlyoutState(null)
+    if (refocus && anchor) requestAnimationFrame(() => anchor.focus())
+  }, [])
+  const navigate = () => {
+    setFlyoutState(null)
+    onMobileClose?.()
+  }
   // A menu selection only applies to the route where it was made. Navigating
   // with browser history automatically expands the newly active menu group.
   const [selection, setSelection] = useState({ pathname: '', domain: null })
@@ -124,6 +174,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
   const toggleDomain = (sectionId) => {
     setSelection({ pathname, domain: openDomain === sectionId ? '' : sectionId })
+    setFlyoutState(null)
   }
 
   return (
@@ -176,11 +227,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                 isActive={activeDomain === section.id}
                 onToggle={() => toggleDomain(section.id)}
               >
-                {section.items.map((item) => item.type === 'external' ? (
-                  <ExternalSidebarLink key={item.id} item={item} onNavigate={onMobileClose} />
-                ) : (
-                  <SidebarLink key={item.id} to={item.path} icon={item.icon} label={item.label} end={false} onNavigate={onMobileClose} />
-                ))}
+                <SectionItems section={section} currentRoute={currentRoute} flyout={flyout} onFlyout={openFlyout} onNavigate={navigate} />
               </CollapsibleSection>
             ))}
             {access.status === 'loading' && (
@@ -210,6 +257,17 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             </nav>
           )}
         </div>
+        {flyoutItems.length > 0 && (
+          <SidebarFlyout
+            key={flyout.subgroupId}
+            subgroup={flyoutSection.subgroups.find((item) => item.id === flyout.subgroupId)}
+            items={flyoutItems}
+            anchor={flyout.anchor}
+            mobile={isMobile}
+            onClose={closeFlyout}
+            onNavigate={navigate}
+          />
+        )}
         {/* Release label: low-emphasis footer text, not a navigation item. */}
         <p className="zrv-sidebar-version" title="Application version">{appConfig.displayVersion}</p>
       </aside>

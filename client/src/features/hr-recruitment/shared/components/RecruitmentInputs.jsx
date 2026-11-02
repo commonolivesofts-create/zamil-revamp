@@ -315,15 +315,16 @@ export function TagInput({
 }
 
 // Job-description attachments. Only file name and size are kept (in memory).
+// `text` replaces the requisition wording (title, hint, uploadNote, remove, size).
 export function FileDrop({
   files,
   onChange,
   onRemove,
   canRemoveSaved = false,
   disabled = false,
+  text = REQUISITION_TEXT.files,
 }) {
   const [over, setOver] = useState(false);
-  const text = REQUISITION_TEXT.files;
   const add = (list) =>
     onChange([
       ...files,

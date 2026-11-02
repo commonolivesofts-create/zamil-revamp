@@ -1812,12 +1812,19 @@ test("HR visibility switch: true, false, unset in development and unset in produ
     HR_SWITCHED_IDS,
     "HR workflow pages use the shared feature switch",
   );
-  // The only other switch is the employee services one (hrEmployeeServices.test.mjs).
+  // The other switches: employee services (hrEmployeeServices.test.mjs) and one per
+  // batch-1 form (hrEmployeeServicesForms.test.mjs).
   assert.ok(
     registry.entries
       .filter((entry) => entry.enabledBy)
       .every((entry) =>
-        [SWITCH, "VITE_FEATURE_HR_EMPLOYEE_SERVICES"].includes(
+        [
+          SWITCH,
+          "VITE_FEATURE_HR_EMPLOYEE_SERVICES",
+          "VITE_FEATURE_HR_SICK_LEAVE",
+          "VITE_FEATURE_HR_REWARD_NOMINATION",
+          "VITE_FEATURE_HR_IDEAS",
+        ].includes(
           entry.enabledBy.env,
         ),
       ),
