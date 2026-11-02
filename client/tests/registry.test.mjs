@@ -49,6 +49,8 @@ const PROBATION = 'HR.PROBATION_EVALUATIONS'
 const CONTRACTOR_EMPLOYEES = 'HR.CONTRACTOR_EMPLOYEES'
 const PERSONNEL_RECORD_CHANGES = 'HR.PERSONNEL_RECORD_CHANGES'
 const TRANSFER_REQUESTS = 'HR.TRANSFER_REQUESTS'
+const ARABIC_SALARY_CERTIFICATES = 'HR.SALARY_CERTIFICATES_AR'
+const ENGLISH_SALARY_CERTIFICATES = 'HR.SALARY_CERTIFICATES'
 const HR_SWITCH = { env: 'VITE_FEATURE_HR_RECRUITMENT' }
 const ES_SWITCH = { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' }
 const HR_RECRUITMENT_ROUTES = [
@@ -146,6 +148,24 @@ test('Security Administration equals the complete backend catalogue: 8 resources
       `${code}.${code}:VIEW`, `${code}.${code}:CREATE`, `${code}.${code}:UPDATE`, `${code}.${code}:DELETE`,
     ])
   }
+  assert.deepEqual(
+    registry.permissions.filter((permission) => permission.key.startsWith(`${ARABIC_SALARY_CERTIFICATES}:`)).map((permission) => permission.key),
+    [
+      `${ARABIC_SALARY_CERTIFICATES}:VIEW`,
+      `${ARABIC_SALARY_CERTIFICATES}:CREATE`,
+      `${ARABIC_SALARY_CERTIFICATES}:UPDATE`,
+      `${ARABIC_SALARY_CERTIFICATES}:DELETE`,
+    ],
+  )
+  assert.deepEqual(
+    registry.permissions.filter((permission) => permission.key.startsWith(`${ENGLISH_SALARY_CERTIFICATES}:`)).map((permission) => permission.key),
+    [
+      `${ENGLISH_SALARY_CERTIFICATES}:VIEW`,
+      `${ENGLISH_SALARY_CERTIFICATES}:CREATE`,
+      `${ENGLISH_SALARY_CERTIFICATES}:UPDATE`,
+      `${ENGLISH_SALARY_CERTIFICATES}:DELETE`,
+    ],
+  )
   for (const key of Object.values(SECURITY_ACTIONS)) assert.ok(registered.includes(key), `${key} is registered`)
   for (const key of new Set(navigationEntries.flatMap((e) => [e.permission, ...(e.alsoRequires || [])]).filter(Boolean))) {
     assert.ok(registry.permissions.some((permission) => permission.key === key), `navigation uses only registered permissions: ${key}`)

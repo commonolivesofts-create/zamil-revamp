@@ -52,5 +52,17 @@ export default defineModule({
       { id: 'hr-orientation', path: '/hr/recruitment/orientation', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', order: 40, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
       { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', order: 41, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
     ],
+  }, {
+    code: 'SALARY_CERTIFICATES_AR',
+    name: 'Arabic Salary Certificates',
+    description: 'View and manage Arabic salary certificates.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
+  }, {
+    code: 'SALARY_CERTIFICATES',
+    name: 'English Salary Certificates',
+    description: 'View and manage English salary certificates.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
   }],
 })
