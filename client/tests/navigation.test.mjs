@@ -116,8 +116,20 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "/account/authenticator",
     ],
   );
-  assert.ok(implementedRoutes.filter((route) => route.section === "workspace" || route.section === "account").every((route) => !route.permission), "common pages need only authentication");
-  assert.ok(implementedRoutes.filter((route) => route.section === "human-resources").every((route) => route.permission && !route.requiresMfa), "HR pages use backend resource permissions");
+  assert.ok(
+    implementedRoutes
+      .filter(
+        (route) => route.section === "workspace" || route.section === "account",
+      )
+      .every((route) => !route.permission),
+    "common pages need only authentication",
+  );
+  assert.ok(
+    implementedRoutes
+      .filter((route) => route.section === "human-resources")
+      .every((route) => route.permission && !route.requiresMfa),
+    "HR pages use backend resource permissions",
+  );
   assert.ok(
     implementedRoutes
       .filter((route) => route.section === "security")
@@ -132,6 +144,7 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "hr-probation",
       "hr-probation-record",
       "hr-employee-report",
+      "hr-periodwise-report",
       "hr-record-change",
       "hr-record-change-requests",
       "hr-record-change-record",
@@ -146,7 +159,12 @@ test("only pages backed by a working backend contract are implemented; no placeh
   assert.ok(
     appRoutes
       .filter((item) => !item.implemented && item.id !== "security-audit")
-      .every((route) => ["VITE_FEATURE_HR_RECRUITMENT", "VITE_FEATURE_HR_EMPLOYEE_SERVICES"].includes(route.enabledBy?.env)),
+      .every((route) =>
+        [
+          "VITE_FEATURE_HR_RECRUITMENT",
+          "VITE_FEATURE_HR_EMPLOYEE_SERVICES",
+        ].includes(route.enabledBy?.env),
+      ),
     "the HR onboarding and employee services pages are unavailable only because their switch is off",
   );
   for (const route of appRoutes.filter((item) => !item.implemented)) {
@@ -246,11 +264,7 @@ test("sidebar: current production navigation for administrators, employees and e
     const sections = authorizedNavigation(access);
     assert.deepEqual(
       ids(sections),
-      [
-        "dashboard",
-        "account-password",
-        "account-authenticator",
-      ],
+      ["dashboard", "account-password", "account-authenticator"],
       access.status,
     );
     assert.ok(
@@ -263,7 +277,10 @@ test("sidebar: current production navigation for administrators, employees and e
     "INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW",
     "EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW",
   ]);
-  assert.deepEqual(ids(authorizedNavigation(hrAccess)).filter((id) => id.startsWith("hr-")), ["hr-requisition", "hr-interview", "hr-offer"]);
+  assert.deepEqual(
+    ids(authorizedNavigation(hrAccess)).filter((id) => id.startsWith("hr-")),
+    ["hr-requisition", "hr-interview", "hr-offer"],
+  );
   assert.deepEqual(ids(authorizedNavigation(ADMIN)), [
     "dashboard",
     "user-accounts",
@@ -436,7 +453,10 @@ test("Ctrl+J no longer opens the demo console", async () => {
 
 test("application routes are guarded by the shared configuration; demos stay preview-only", async () => {
   const router = await read("../src/app/router.jsx");
-  assert.match(router, /element: <AppRouteAccess \/>,\s*children: implementedOnly\(\[/);
+  assert.match(
+    router,
+    /element: <AppRouteAccess \/>,\s*children: implementedOnly\(\[/,
+  );
   assert.match(
     router,
     /const implementedOnly = \(routes\) => routes\.filter\(\(route\) => implementedRouteIds\.has\(route\.handle\.routeId\)\)/,
@@ -452,7 +472,9 @@ test("application routes are guarded by the shared configuration; demos stay pre
   }
   // Pages switched off by `enabledBy` keep their router line but are filtered out
   // above (see hrOnboarding.test.mjs); every other unimplemented page has none.
-  for (const route of appRoutes.filter((item) => !item.implemented && !item.enabledBy)) {
+  for (const route of appRoutes.filter(
+    (item) => !item.implemented && !item.enabledBy,
+  )) {
     assert.equal(
       router.includes(`'${route.path.slice(1)}'`),
       false,
@@ -518,20 +540,15 @@ test("the workspace dashboard uses real identity data and labels its demo conten
     dashboard,
     /<HomeView[\s\S]*pages=\{pages\}[\s\S]*accessStatus=\{access\.status\}[\s\S]*onOpenPage=\{openPage\}/,
   );
-  assert.match(home, /Workspace · Preview/);
-  assert.match(home, /onClick=\{onOpenProfile\}/);
+  assert.match(home, /PREVIEW ACCOUNT/);
   assert.match(home, /hero-profile/);
   assert.match(home, /ProfileAvatar/);
   assert.match(home, /profile\?\.jobTitle/);
   assert.match(home, /profile\?\.department/);
-  assert.match(home, /Employee \{profile\.employeeNumber\}/);
-  assert.match(home, /profile\?\.email/);
-  assert.match(
-    dashboard,
-    /<ProfileAvatar profile=\{profile\} className="zrv-ws-profile-avatar"/,
-  );
+  assert.match(home, /profile\.employeeNumber/);
+  assert.match(home, /profile\?\.department/);
   assert.match(avatar, /profileAvatarUrl\(profile\)/);
-  assert.match(avatar, /onError=\{\(\) => setFailedSource\(source\)\}/);
+  assert.match(avatar, /onError=\{markFailed\}/);
   assert.match(avatar, /initialsOf\(displayName\(profile\)\)/);
   assert.match(home, /AUTHORIZED PAGES/);
   assert.match(home, /onOpenPage\(page\)/);
@@ -552,7 +569,7 @@ test("the workspace dashboard uses real identity data and labels its demo conten
     ),
     false,
   );
-  assert.match(dashboard, /Illustrative preview identity/);
+  assert.match(dashboard, /resolveProfile\(user, status\)/);
 
   // Only the dashboard canvas and the Module Atlas remain. Deferred workflow
   // screens and their modals are removed until they are rebuilt.

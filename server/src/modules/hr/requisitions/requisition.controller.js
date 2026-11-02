@@ -52,6 +52,9 @@ export function createRequisitionController({ requisitionService }) {
     async jobTitles(req, res) {
       sendSuccess(res, await requisitionService.jobTitles());
     },
+    async capabilities(req, res) {
+      sendSuccess(res, await requisitionService.capabilities(req.auth));
+    },
     async requestor(req, res) {
       sendSuccess(res, await requisitionService.requestor(req.auth));
     },
@@ -59,7 +62,7 @@ export function createRequisitionController({ requisitionService }) {
       sendSuccess(res, await requisitionService.departments());
     },
     async replacementFor(req, res) {
-      sendSuccess(res, await requisitionService.replacementFor(req.auth));
+      sendSuccess(res, await requisitionService.replacementFor(req.auth, req.query.search));
     },
     async budget(req, res) {
       sendSuccess(res, await requisitionService.budget(req.query.fullName));

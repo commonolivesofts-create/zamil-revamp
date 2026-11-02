@@ -27,6 +27,9 @@ export function createInterviewAssessmentController({ interviewAssessmentService
     async remove(req, res) {
       sendSuccess(res, await interviewAssessmentService.remove(req.auth, req.params.headerId));
     },
+    async payrollUnits(_req, res) {
+      sendSuccess(res, interviewAssessmentService.payrollUnits());
+    },
     async nationalities(req, res) {
       sendSuccess(res, await interviewAssessmentService.nationalities());
     },

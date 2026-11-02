@@ -32,7 +32,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run lint && npm run format:check && npm test"
+    "check": "npm run lint && npm run format:check && npm test",
+    "hr:live-crud": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/hr-live-crud.js"
   },
   "dependencies": {
     "express": "^5.3.0",

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { extractToken, preflightProblems, runScenario } from '../scripts/setup-test-flow.js';
-import { APPROVED_TEST_RECIPIENT } from '../src/config/index.js';
+import { APPROVED_TEST_RECIPIENT, USER_CREATION_TEST_RECIPIENT } from '../src/config/index.js';
 import { createAuthStore, createTestApp } from './helpers/authFakes.js';
 import { installRbac, signIn } from './helpers/rbacFakes.js';
 import { createRecordingDelivery, installRecovery } from './helpers/recoveryFakes.js';
@@ -11,7 +11,11 @@ import { installUsers } from './helpers/usersFakes.js';
 // over real HTTP; the "inbox" is the recording delivery. Synthetic values only.
 
 const TOKEN = 'b'.repeat(43);
-const SMTP = { testRecipientOverride: APPROVED_TEST_RECIPIENT, privilegedDeliveryEnabled: false };
+const SMTP = {
+  testRecipientOverride: APPROVED_TEST_RECIPIENT,
+  userCreationTestRecipientOverride: USER_CREATION_TEST_RECIPIENT,
+  privilegedDeliveryEnabled: false,
+};
 
 describe('setup operator helpers', () => {
   const safe = {
@@ -19,6 +23,7 @@ describe('setup operator helpers', () => {
     smtp: {
       enabled: true,
       testRecipientOverride: APPROVED_TEST_RECIPIENT,
+      userCreationTestRecipientOverride: USER_CREATION_TEST_RECIPIENT,
       privilegedDeliveryEnabled: false,
       testDatabaseName: 'X_ZPADWTEST',
     },
@@ -67,6 +72,7 @@ describe('setup operator scenario (in-memory dry run)', () => {
     installRecovery(store);
     delivery = createRecordingDelivery({
       testRecipientOverride: APPROVED_TEST_RECIPIENT,
+      userCreationTestRecipientOverride: USER_CREATION_TEST_RECIPIENT,
       privilegedDeliveryEnabled: false,
     });
     store.delivery = delivery;
@@ -133,7 +139,7 @@ describe('setup operator scenario (in-memory dry run)', () => {
     });
     assert.equal(failures, 0, lines.filter((l) => /^(FAIL|STOP)/.test(l)).join('\n'));
     assert.equal(delivery.messages.length, 1);
-    assert.equal(delivery.messages[0].recipient.address, APPROVED_TEST_RECIPIENT);
+    assert.equal(delivery.messages[0].recipient.address, USER_CREATION_TEST_RECIPIENT);
     assert.equal(
       lines.some((l) => l.includes(delivery.messages[0].token)),
       false,
@@ -185,7 +191,11 @@ describe('setup operator scenario (in-memory dry run)', () => {
       signedIn: { csrf: session.csrf },
       employee: '2502',
       expectUsername: 'MUBEEN.GURMANI',
-      smtp: { testRecipientOverride: null, privilegedDeliveryEnabled: false },
+      smtp: {
+        testRecipientOverride: APPROVED_TEST_RECIPIENT,
+        userCreationTestRecipientOverride: null,
+        privilegedDeliveryEnabled: false,
+      },
     });
     assert.ok(failures > 0);
     assert.ok(lines.some((l) => l.startsWith('FAIL  effective recipient')));

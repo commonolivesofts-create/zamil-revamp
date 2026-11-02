@@ -6,7 +6,7 @@ import { SUPER_ADMINISTRATOR_RECOVERY_EMAIL } from '../access-control/securityCa
  *
  * A delivery channel exposes:
  *   - `configured`: whether messages can be sent at all;
- *   - `resolveRecipient(account)`: the approved recipient `{ channel, address, source }` or null;
+ *   - `resolveRecipient(account, purpose)`: the approved recipient `{ channel, address, source }` or null;
  *   - `deliver(message)`: resolves only after the provider accepted the message, rejects otherwise.
  * `message` is { purpose: 'PASSWORD_SETUP' | 'PASSWORD_RESET' | 'MFA_RECOVERY', recipient, userId,
  * employeeNumber, token, expiresAt }. `token` is the raw single-use token: it is handed only to the
@@ -49,17 +49,35 @@ const isPrivileged = (account) =>
  */
 export function createRecipientResolver({
   testRecipientOverride = null,
+  userCreationTestRecipientOverride = null,
   privilegedDeliveryEnabled = false,
 }) {
-  return function resolveRecipient(account) {
+  return function resolveRecipient(account, purpose) {
     if (isPrivileged(account)) {
-      if (testRecipientOverride || !privilegedDeliveryEnabled) return null;
+      if (
+        testRecipientOverride ||
+        (purpose === 'PASSWORD_SETUP' && userCreationTestRecipientOverride) ||
+        !privilegedDeliveryEnabled
+      )
+        return null;
       if (isSuperAdministrator(account)) {
         return { channel: 'EMAIL', address: SUPER_ADMINISTRATOR_RECOVERY_EMAIL, source: 'PINNED' };
       }
     }
     const address = account.employee?.email?.trim().toLowerCase();
     if (!address) return null;
+    if (purpose === 'PASSWORD_SETUP') {
+      if (userCreationTestRecipientOverride) {
+        return {
+          channel: 'EMAIL',
+          address: userCreationTestRecipientOverride,
+          source: 'USER_CREATION_TEST_OVERRIDE',
+        };
+      }
+      // The account-creation switch controls this flow: off means the new user's
+      // authoritative employee-master address, even if other recovery mail is redirected.
+      return { channel: 'EMAIL', address, source: 'EMPLOYEE_MASTER' };
+    }
     if (testRecipientOverride) {
       return { channel: 'EMAIL', address: testRecipientOverride, source: 'TEST_OVERRIDE' };
     }

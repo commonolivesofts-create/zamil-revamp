@@ -5,8 +5,6 @@ const rows = async (connection, sql, binds = {}, fetchInfo) =>
   (await connection.execute(sql, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo })).rows;
 const HEADER_FETCH = Object.freeze({ HEADER_ID: ID, CREATED_BY: ID, ATTRIBUTE2: ID });
 const LINE_FETCH = Object.freeze({ DEP_LINE_ID: ID, HEADER_ID: ID, CREATED_BY: ID });
-const ID_FETCH = Object.freeze({ ID });
-const HEADER_ID_FETCH = Object.freeze({ HEADER_ID: ID });
 
 export const TABLES = Object.freeze({
   Y: Object.freeze({
@@ -60,14 +58,14 @@ const mapLine = (row) => ({
 export async function resolveFlag(connection, empNo) {
   const [row] = await rows(
     connection,
-    `SELECT (SELECT DECODE(UPPER(ATTRIBUTE1), 'SHARED SERVICE', 'Y', 'N')
-              FROM XX_DIGI_ORG_INFO
-             WHERE ORGANIZATION_ID = paaf.ORGANIZATION_ID) AS SHARED_SERVICE
-       FROM XX_DIGI_ASSIGNMENT_INFO paaf
-      WHERE PRIMARY_FLAG = 'Y'
-        AND ASSIGNMENT_TYPE = 'E'
-        AND PERSON_ID = (SELECT DISTINCT PERSON_ID FROM XX_DIGI_EMP_DETAILS WHERE EMPLOYEE_NUMBER = :empNo)
-        AND TRUNC(SYSDATE) BETWEEN TRUNC(EFFECTIVE_START_DATE) AND TRUNC(EFFECTIVE_END_DATE)
+    `SELECT DECODE(UPPER(oi.ATTRIBUTE1), 'SHARED SERVICE', 'Y', 'N') AS SHARED_SERVICE
+       FROM XX_DIGI_EMP_MASTER paaf
+       LEFT JOIN APPS.HR_ALL_ORGANIZATION_UNITS oi ON oi.ORGANIZATION_ID = paaf.ORGANIZATION_ID
+      WHERE paaf.PRIMARY_FLAG = 'Y'
+        AND paaf.ASSIGNMENT_TYPE = 'E'
+        AND paaf.EMPLOYEE_NUMBER = :empNo
+        AND TRUNC(SYSDATE) BETWEEN TRUNC(paaf.PAAF_EFFECTIVE_START_DATE)
+                               AND TRUNC(paaf.PAAF_EFFECTIVE_END_DATE)
       FETCH FIRST 1 ROWS ONLY`,
     { empNo },
   );
@@ -79,7 +77,7 @@ export async function findEmployeeDetails(connection, empNo) {
     connection,
     `SELECT PERSON_ID, DIVISION AS DIV, FULL_NAME, EMPLOYEE_NUMBER, JOB_TITLE, JOB_ID,
             DEPARTMENT, ORGANIZATION_ID AS DEPARTMENT_ID, SUPERVISOR_NAME AS DIRECT_MANAGER,
-            COST_CENTER AS SECTION, JOINING_DATE AS START_DATE, POSITION_NAME AS EMP_POSITION,
+            COST_CENTER AS SECTION, TO_CHAR(JOINING_DATE, 'YYYY-MM-DD') AS START_DATE, POSITION_NAME AS EMP_POSITION,
             CASE WHEN WORKER_CATEGORY = 'Supervisor' THEN 'Supervisor'
                  WHEN WORKER_CATEGORY IN ('Management', 'GM', 'VP') THEN 'Manager'
                  ELSE 'Employee' END AS EMPLOYEE_TYPE
@@ -107,39 +105,25 @@ export async function findEmployeeDetails(connection, empNo) {
     : null;
 }
 
-export async function generateHeaderId(connection, table) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(HEADER_ID + 1), 1) AS ID FROM ${table.header}`,
-    {},
-    ID_FETCH,
-  );
-  return row?.ID;
-}
-
+/**
+ * Inserts the header and returns the HEADER_ID assigned by the table's identity column, as a
+ * decimal string.
+ */
 export async function insertHeader(connection, table, header) {
-  await connection.execute(
+  const result = await connection.execute(
     `INSERT INTO ${table.header}
        (UUID, EMPLOYEE_NUMBER, DIVISION, EMPLOYEE_NAME, ORIENTATION_DURATION_FROM,
         ORIENTATION_DURATION_TO, STARTING_DATE, ORIENTATION_SCHEDULE_BY, STATUS,
         CREATED_BY, CREATION_DATE, ATTRIBUTE2, ATTRIBUTE4, EMP_POSITION, EMP_TYPE, REQ_TYPE)
      VALUES
-       (:uuid, :empNo, :section, :empname, TO_DATE(:fromOrient, 'DD-Mon-YY'),
-        TO_DATE(:toOrient, 'DD-Mon-YY'), TO_DATE(:startDate, 'DD-Mon-YY'),
+       (:uuid, :empNo, :section, :empname, TO_DATE(:fromOrient, 'YYYY-MM-DD'),
+        TO_DATE(:toOrient, 'YYYY-MM-DD'), TO_DATE(:startDate, 'YYYY-MM-DD'),
         :orientationBy, 'Draft', :createdBy, SYSDATE, :personId, :division,
-        :position, :empType, 'new')`,
-    header,
+        :position, :empType, 'new')
+     RETURNING HEADER_ID INTO :headerId`,
+    { ...header, headerId: { dir: oracledb.BIND_OUT, type: oracledb.STRING } },
   );
-}
-
-export async function findHeaderIdByUuid(connection, table, uuid) {
-  const [row] = await rows(
-    connection,
-    `SELECT HEADER_ID FROM ${table.header} WHERE UUID = :uuid`,
-    { uuid },
-    HEADER_ID_FETCH,
-  );
-  return row?.HEADER_ID;
+  return result.outBinds?.headerId?.[0] ?? null;
 }
 
 export async function setReference(connection, table, headerId, division) {
@@ -157,32 +141,24 @@ export async function setReference(connection, table, headerId, division) {
   return row?.ATTRIBUTE5;
 }
 
+// The registry's HEADER_ID is an identity column (BY DEFAULT) with a primary key.
 export async function registerFlag(connection, headerId, tableName) {
   await connection.execute(
-    `INSERT INTO XXZP.XXZP_NHT_MASTER_FLAG (HEADER_ID, FORM_HEADER_ID, TABLE_NAME)
-     VALUES (NVL((SELECT MAX(HEADER_ID) FROM XXZP.XXZP_NHT_MASTER_FLAG), 1) + 1, :headerId, :tableName)`,
+    `INSERT INTO XXZP.XXZP_NHT_MASTER_FLAG (FORM_HEADER_ID, TABLE_NAME)
+     VALUES (:headerId, :tableName)`,
     { headerId, tableName },
   );
 }
 
-export async function generateLineId(connection, table, headerId) {
-  const [row] = await rows(
-    connection,
-    `SELECT NVL(MAX(DEP_LINE_ID + 1), 1) AS ID FROM ${table.line} WHERE HEADER_ID = :headerId`,
-    { headerId },
-    ID_FETCH,
-  );
-  return row?.ID;
-}
-
+/** Inserts one line; DEP_LINE_ID is assigned by the line table's identity column. */
 export async function insertLine(connection, table, line) {
   await connection.execute(
     `INSERT INTO ${table.line}
-       (DEP_LINE_ID, HEADER_ID, DEPARTMENT, DEPARTMENT_HEAD, ORIENTATION_PERIOD,
+       (HEADER_ID, DEPARTMENT, DEPARTMENT_HEAD, ORIENTATION_PERIOD,
         TIME_FROM, TIME_TO, REMARKS, CREATED_BY, CREATION_DATE, FROM_DATE, TO_DATE, ORIENTATION_DAYS)
-     VALUES (:lineId, :headerId, :department, :departmentHead, :orientationPeriod,
+     VALUES (:headerId, :department, :departmentHead, :orientationPeriod,
              :timeFrom, :timeTo, :remarks, :createdBy, SYSDATE,
-             TO_DATE(:fromDate, 'DD-Mon-YY'), TO_DATE(:toDate, 'DD-Mon-YY'), :orientationDays)`,
+             TO_DATE(:fromDate, 'YYYY-MM-DD'), TO_DATE(:toDate, 'YYYY-MM-DD'), :orientationDays)`,
     line,
   );
 }
@@ -228,22 +204,13 @@ export async function listLines(connection, table, headerId) {
   return result.map(mapLine);
 }
 
-export async function findStatus(connection, table, headerId) {
-  const [row] = await rows(
-    connection,
-    `SELECT STATUS FROM ${table.header} WHERE HEADER_ID = :headerId`,
-    { headerId },
-  );
-  return row?.STATUS ?? null;
-}
-
 export async function updateHeader(connection, table, header) {
   const result = await connection.execute(
     `UPDATE ${table.header}
         SET EMPLOYEE_NUMBER = :empNo, DIVISION = :section, EMPLOYEE_NAME = :empname,
-            ORIENTATION_DURATION_FROM = TO_DATE(:fromOrient, 'DD-Mon-YY'),
-            ORIENTATION_DURATION_TO = TO_DATE(:toOrient, 'DD-Mon-YY'),
-            STARTING_DATE = TO_DATE(:startDate, 'DD-Mon-YY'),
+            ORIENTATION_DURATION_FROM = TO_DATE(:fromOrient, 'YYYY-MM-DD'),
+            ORIENTATION_DURATION_TO = TO_DATE(:toOrient, 'YYYY-MM-DD'),
+            STARTING_DATE = TO_DATE(:startDate, 'YYYY-MM-DD'),
             ORIENTATION_SCHEDULE_BY = :orientationBy, ATTRIBUTE2 = :personId,
             ATTRIBUTE4 = :division, EMP_POSITION = :position, EMP_TYPE = :empType,
             LAST_UPDATED_BY = :updatedBy, LAST_UPDATE_LOGIN = :updatedBy, LAST_UPDATE_DATE = SYSDATE
@@ -365,23 +332,26 @@ export async function isHrUser(connection, userId) {
   return result.length > 0;
 }
 
-export async function listEmployees(connection, { userId, isHr }) {
-  const scope = isHr
-    ? ''
-    : `AND (e.USER_ID = :userId OR e.SUPERVISOR_NAME =
-          (SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId FETCH FIRST 1 ROWS ONLY))`;
+export async function listEmployees(connection, { search = '' }) {
   const result = await rows(
     connection,
-    `SELECT e.PERSON_ID, e.EMPLOYEE_NUMBER, e.FULL_NAME, e.JOINING_DATE AS START_DATE, e.JOB_ID,
+    `SELECT e.PERSON_ID, e.EMPLOYEE_NUMBER, e.FULL_NAME, TO_CHAR(e.JOINING_DATE, 'YYYY-MM-DD') AS START_DATE, e.JOB_ID,
             e.JOB_TITLE AS NAME, e.COST_CENTER AS SECTION, e.DIVISION AS DIV, e.ORGANIZATION_ID,
             e.POSITION_NAME AS EMP_POSITION,
             CASE WHEN e.WORKER_CATEGORY = 'Supervisor' THEN 'Supervisor'
                  WHEN e.WORKER_CATEGORY IN ('Management', 'GM', 'VP') THEN 'Manager'
                  ELSE 'Employee' END AS EMPLOYEE_TYPE
        FROM XX_DIGI_EMP_MASTER e
-      WHERE e.CURRENT_EMP_FLAG = 'Y' ${scope}
-      ORDER BY e.FULL_NAME`,
-    isHr ? {} : { userId },
+      WHERE e.EMPLOYEE_NUMBER IN (
+            SELECT DISTINCT eligible.EMPLOYEE_NUMBER
+              FROM XX_DIGI_EMP_MASTER eligible
+             WHERE eligible.ASSIGNMENT_STATUS_TYPE_ID = 1
+               AND eligible.EMPLOYMENT_CATEGORY NOT IN ('MANAGEMENT', 'GM', 'TOP MANAGEMENT', 'VP'))
+        AND e.CURRENT_EMP_FLAG = 'Y'
+        AND (:search IS NULL OR INSTR(UPPER(e.FULL_NAME), UPPER(:search)) > 0
+             OR INSTR(TO_CHAR(e.EMPLOYEE_NUMBER), :search) > 0)
+      ORDER BY e.EMPLOYEE_NUMBER`,
+    { search: search || null },
     { PERSON_ID: ID, EMPLOYEE_NUMBER: ID, JOB_ID: ID, ORGANIZATION_ID: ID },
   );
   return result.map((row) => ({
@@ -423,6 +393,22 @@ export async function listManagers(connection) {
 
 export async function findEmployee(connection, empNo) {
   return findEmployeeDetails(connection, empNo);
+}
+
+/** Whether the actor's current department (ORGANIZATION_ID) is the trained employee's. */
+export async function isSameDepartment(connection, { actorEmployeeNumber, subjectEmployeeNumber }) {
+  const result = await rows(
+    connection,
+    `SELECT 1 AS SAME
+       FROM XX_DIGI_EMP_MASTER a
+       JOIN XX_DIGI_EMP_MASTER s ON s.ORGANIZATION_ID = a.ORGANIZATION_ID
+      WHERE a.EMPLOYEE_NUMBER = :actorEmployeeNumber
+        AND a.CURRENT_EMP_FLAG = 'Y'
+        AND s.EMPLOYEE_NUMBER = :subjectEmployeeNumber
+      FETCH FIRST 1 ROWS ONLY`,
+    { actorEmployeeNumber, subjectEmployeeNumber },
+  );
+  return result.length > 0;
 }
 
 export async function findActorName(connection, userId) {

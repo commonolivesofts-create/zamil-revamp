@@ -32,7 +32,7 @@ export function createUsersController({ usersService, recoveryService }) {
       sendSuccess(res, await usersService.getUser(req.params.userId));
     },
     async provision(req, res) {
-      sendSuccess(res, await usersService.provision(req.auth, req.body, ctx(req)), 201);
+      sendSuccess(res, await usersService.provision(req.auth, req.body, ctx(req), req.file), 201);
     },
     async activate(req, res) {
       sendSuccess(res, await usersService.activate(req.auth, req.params.userId, ctx(req)));

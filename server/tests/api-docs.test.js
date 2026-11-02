@@ -133,6 +133,7 @@ describe('API documentation', () => {
     const expected = [
       ['get', ''],
       ['post', ''],
+      ['get', '/lookups/payroll-units'],
       ['get', '/lookups/nationalities'],
       ['get', '/lookups/requisitions'],
       ['get', '/lookups/employees'],
@@ -293,6 +294,7 @@ describe('API documentation', () => {
       ['post', ''],
       ['get', '/lookups/job-titles'],
       ['get', '/lookups/requestor'],
+      ['get', '/lookups/capabilities'],
       ['get', '/lookups/departments'],
       ['get', '/lookups/replacement-for'],
       ['get', '/lookups/budget'],
@@ -628,12 +630,14 @@ describe('API documentation', () => {
     await request(disabledApp).get('/api/openapi.json').expect(404);
   });
 
-  it('mounts protected Employee Clearance, Survey Report, Project Charter, and Salary Certificate routers', async () => {
+  it('mounts protected Employee Clearance, Survey Report, Project Charter, and HR form routers', async () => {
     const responses = await Promise.all([
       request(app).get('/api/v1/hr/employee-clearance'),
       request(app).get('/api/v1/survey/reports/questions'),
       request(app).get('/api/v1/projects/charters'),
       request(app).get('/api/v1/salary-certificates-ar'),
+      request(app).get('/api/v1/salary-certificates'),
+      request(app).get('/api/v1/hr/business-visa-letters'),
     ]);
 
     for (const response of responses) {

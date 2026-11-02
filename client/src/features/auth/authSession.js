@@ -15,117 +15,145 @@
 // 'mfa_invalid', 'mfa_replaced', 'password_changed' or 'signout_unconfirmed'
 // (local state cleared but the backend did not confirm).
 // MFA setup secrets are returned to the calling page and never kept here.
-import { ApiError } from '../../services/api/apiClient.js'
-import { LINK_TOKEN_PATTERN, MFA_CODE_PATTERN } from './authContract.js'
+import { ApiError } from "../../services/api/apiClient.js";
+import { LINK_TOKEN_PATTERN, MFA_CODE_PATTERN } from "./authContract.js";
 
-const RECOVERY_PURPOSES = new Set(['PASSWORD_RESET', 'MFA_RECOVERY'])
+const RECOVERY_PURPOSES = new Set(["PASSWORD_RESET", "MFA_RECOVERY"]);
 
 function authState(status, fields = {}) {
-  return Object.freeze({ status, user: null, session: null, password: null, mfa: null, notice: null, ...fields })
+  return Object.freeze({
+    status,
+    user: null,
+    session: null,
+    password: null,
+    mfa: null,
+    notice: null,
+    ...fields,
+  });
 }
 
-const previewError = () => new ApiError('This action is unavailable in development preview.', { code: 'PREVIEW_MODE' })
-const supersededError = () => new ApiError('The request was superseded.', { code: 'ABORTED' })
-const inProgressError = () => new ApiError('Verification is already in progress.', { code: 'IN_PROGRESS' })
+const previewError = () =>
+  new ApiError("This action is unavailable in development preview.", {
+    code: "PREVIEW_MODE",
+  });
+const supersededError = () =>
+  new ApiError("The request was superseded.", { code: "ABORTED" });
+const inProgressError = () =>
+  new ApiError("Verification is already in progress.", { code: "IN_PROGRESS" });
 
 function assertCode(code) {
-  if (typeof code !== 'string' || !MFA_CODE_PATTERN.test(code)) {
-    throw new ApiError('Enter the 6-digit code from your authenticator app.', { code: 'VALIDATION_ERROR' })
+  if (typeof code !== "string" || !MFA_CODE_PATTERN.test(code)) {
+    throw new ApiError("Enter the 6-digit code from your authenticator app.", {
+      code: "VALIDATION_ERROR",
+    });
   }
 }
 
 // Bounded recovery for session restoration (GET only): the initial request plus
 // one retry per delay. Never used for sign-in or any other state-changing request.
-export const RESTORE_RETRY_DELAYS_MS = Object.freeze([1000, 2000])
+export const RESTORE_RETRY_DELAYS_MS = Object.freeze([1000, 2000]);
 
 // The backend or proxy was not reached or not ready: no response (network),
 // or a gateway/unavailable status. Timeouts are not retried (each already took
 // the full API timeout), nor is any other status.
 export function isTransientRestoreError(error) {
-  return error?.code === 'NETWORK_ERROR' || [502, 503, 504].includes(error?.status)
+  return (
+    error?.code === "NETWORK_ERROR" || [502, 503, 504].includes(error?.status)
+  );
 }
 
 // Resolves true after `ms`, or false as soon as `signal` aborts.
 function delay(ms, signal) {
   return new Promise((resolve) => {
-    if (signal.aborted) return resolve(false)
+    if (signal.aborted) return resolve(false);
     const timer = setTimeout(() => {
-      signal.removeEventListener('abort', onAbort)
-      resolve(true)
-    }, ms)
+      signal.removeEventListener("abort", onAbort);
+      resolve(true);
+    }, ms);
     function onAbort() {
-      clearTimeout(timer)
-      resolve(false)
+      clearTimeout(timer);
+      resolve(false);
     }
-    signal.addEventListener('abort', onAbort, { once: true })
-  })
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 export function createAuthSession({
-  service, csrfStore, subscribeUnauthorized, preview = false, restoreRetryDelaysMs = RESTORE_RETRY_DELAYS_MS,
+  service,
+  csrfStore,
+  subscribeUnauthorized,
+  preview = false,
+  restoreRetryDelaysMs = RESTORE_RETRY_DELAYS_MS,
 }) {
-  let snapshot = authState(preview ? 'preview' : 'loading')
-  const listeners = new Set()
+  let snapshot = authState(preview ? "preview" : "loading");
+  const listeners = new Set();
   // A late response must never apply after logout, an API 401, or a newer
   // operation. Aborting also handles React Strict Mode effect cleanup.
-  let revision = 0
-  let active = null
-  let unsubscribeUnauthorized = null
-  let challengeTimer = null
-  let challengeSequence = 0
-  let challengeId = 0 // 0 while no challenge is pending.
-  let codeSubmission = false
-  let passwordSubmission = false
+  let revision = 0;
+  let active = null;
+  let unsubscribeUnauthorized = null;
+  let challengeTimer = null;
+  let challengeSequence = 0;
+  let challengeId = 0; // 0 while no challenge is pending.
+  let codeSubmission = false;
+  let passwordSubmission = false;
 
   function clearChallengeTimer() {
-    if (challengeTimer !== null) clearTimeout(challengeTimer)
-    challengeTimer = null
+    if (challengeTimer !== null) clearTimeout(challengeTimer);
+    challengeTimer = null;
   }
 
   // Leaving mfa_required always ends the challenge and its expiry timer.
   function set(next) {
-    if (next.status !== 'mfa_required') {
-      challengeId = 0
-      clearChallengeTimer()
+    if (next.status !== "mfa_required") {
+      challengeId = 0;
+      clearChallengeTimer();
     }
-    snapshot = next
-    for (const listener of listeners) listener()
+    snapshot = next;
+    for (const listener of listeners) listener();
   }
 
   function beginChallenge(mfa, challengeCsrfToken) {
-    clearChallengeTimer()
-    const id = ++challengeSequence
-    csrfStore.setChallengeToken(challengeCsrfToken)
-    set(authState('mfa_required', { mfa }))
-    challengeId = id
-    challengeTimer = setTimeout(() => {
-      challengeTimer = null
-      if (challengeId === id) endChallenge('mfa_expired')
-    }, Math.max(0, Date.parse(mfa.expiresAt) - Date.now()))
+    clearChallengeTimer();
+    const id = ++challengeSequence;
+    csrfStore.setChallengeToken(challengeCsrfToken);
+    set(authState("mfa_required", { mfa }));
+    challengeId = id;
+    challengeTimer = setTimeout(
+      () => {
+        challengeTimer = null;
+        if (challengeId === id) endChallenge("mfa_expired");
+      },
+      Math.max(0, Date.parse(mfa.expiresAt) - Date.now()),
+    );
   }
 
   function endChallenge(notice) {
-    invalidate()
-    csrfStore.clear()
-    set(authState('guest', { notice }))
+    invalidate();
+    csrfStore.clear();
+    set(authState("guest", { notice }));
   }
 
   function invalidate() {
-    revision += 1
-    active?.abort()
-    active = null
-    return revision
+    revision += 1;
+    active?.abort();
+    active = null;
+    return revision;
   }
 
   function begin() {
-    const current = invalidate()
-    const controller = new AbortController()
-    active = controller
-    return { current, controller, isCurrent: () => current === revision && !controller.signal.aborted }
+    const current = invalidate();
+    const controller = new AbortController();
+    active = controller;
+    return {
+      current,
+      controller,
+      isCurrent: () => current === revision && !controller.signal.aborted,
+    };
   }
 
   function finish(controller) {
-    if (active === controller) active = null
+    if (active === controller) active = null;
   }
 
   // Session restoration is read-only, so a transient connectivity failure (the
@@ -133,33 +161,44 @@ export function createAuthSession({
   // restoreRetryDelaysMs, one request at a time. A newer operation, an API 401
   // or stop() aborts the controller, which also ends any pending delay.
   async function restore() {
-    if (preview) return
-    const { controller, isCurrent } = begin()
-    csrfStore.clear()
-    if (snapshot.status !== 'loading') set(authState('loading'))
+    if (preview) return;
+    const { controller, isCurrent } = begin();
+    csrfStore.clear();
+    if (snapshot.status !== "loading") set(authState("loading"));
     try {
       for (let attempt = 0; ; attempt += 1) {
         try {
-          const current = await service.getCurrentUser({ signal: controller.signal })
-          if (!isCurrent()) return
-          const token = await service.getCsrfToken({ signal: controller.signal })
-          if (!isCurrent()) return
-          csrfStore.setSessionToken(token)
-          set(authState('authenticated', current))
-          return
+          const current = await service.getCurrentUser({
+            signal: controller.signal,
+          });
+          if (!isCurrent()) return;
+          const token = await service.getCsrfToken({
+            signal: controller.signal,
+          });
+          if (!isCurrent()) return;
+          csrfStore.setSessionToken(token);
+          set(authState("authenticated", current));
+          return;
         } catch (error) {
-          if (!isCurrent()) return
-          csrfStore.clear()
+          if (!isCurrent()) return;
+          csrfStore.clear();
           // 401 means no valid session; anything else is an unverified state.
-          if (error?.status === 401) return set(authState('guest'))
-          if (!isTransientRestoreError(error) || attempt >= restoreRetryDelaysMs.length) {
-            return set(authState('error'))
+          if (error?.status === 401) return set(authState("guest"));
+          if (
+            !isTransientRestoreError(error) ||
+            attempt >= restoreRetryDelaysMs.length
+          ) {
+            return set(authState("error"));
           }
-          if (!(await delay(restoreRetryDelaysMs[attempt], controller.signal)) || !isCurrent()) return
+          if (
+            !(await delay(restoreRetryDelaysMs[attempt], controller.signal)) ||
+            !isCurrent()
+          )
+            return;
         }
       }
     } finally {
-      finish(controller)
+      finish(controller);
     }
   }
 
@@ -167,28 +206,42 @@ export function createAuthSession({
   // loading meanwhile, so the guest-only login route stays mounted.
   async function signIn({ username, password }) {
     if (preview) {
-      throw new ApiError('Sign-in is unavailable in development preview.', { code: 'PREVIEW_MODE' })
+      throw new ApiError("Sign-in is unavailable in development preview.", {
+        code: "PREVIEW_MODE",
+      });
     }
-    const { controller, isCurrent } = begin()
-    csrfStore.clear()
-    if (snapshot.notice || snapshot.status === 'mfa_required') set(authState('guest'))
+    const { controller, isCurrent } = begin();
+    csrfStore.clear();
+    if (snapshot.notice || snapshot.status === "mfa_required")
+      set(authState("guest"));
     try {
-      const result = await service.login({ username, password }, { signal: controller.signal })
+      const result = await service.login(
+        { username, password },
+        { signal: controller.signal },
+      );
       if (!isCurrent()) {
-        throw new ApiError('The sign-in request was superseded.', { code: 'ABORTED' })
+        throw new ApiError("The sign-in request was superseded.", {
+          code: "ABORTED",
+        });
       }
       if (result.authenticated === true) {
-        csrfStore.setSessionToken(result.csrfToken)
-        set(authState('authenticated', { user: result.user, session: result.session, password: result.password }))
-        return 'authenticated'
+        csrfStore.setSessionToken(result.csrfToken);
+        set(
+          authState("authenticated", {
+            user: result.user,
+            session: result.session,
+            password: result.password,
+          }),
+        );
+        return "authenticated";
       }
-      beginChallenge(result.mfa, result.challengeCsrfToken)
-      return 'mfa_required'
+      beginChallenge(result.mfa, result.challengeCsrfToken);
+      return "mfa_required";
     } catch (error) {
-      if (isCurrent() && snapshot.status !== 'guest') set(authState('guest'))
-      throw error
+      if (isCurrent() && snapshot.status !== "guest") set(authState("guest"));
+      throw error;
     } finally {
-      finish(controller)
+      finish(controller);
     }
   }
 
@@ -196,121 +249,176 @@ export function createAuthSession({
   // is true only when the backend ended the session (204) or reported that no
   // valid session remained (401).
   async function signOut() {
-    const current = invalidate()
-    let outcome
+    const current = invalidate();
+    let outcome;
     try {
-      await service.logout()
-      outcome = Object.freeze({ serverConfirmed: true, error: null })
+      await service.logout();
+      outcome = Object.freeze({ serverConfirmed: true, error: null });
     } catch (error) {
-      outcome = Object.freeze({ serverConfirmed: error?.status === 401, error: error?.status === 401 ? null : error })
+      outcome = Object.freeze({
+        serverConfirmed: error?.status === 401,
+        error: error?.status === 401 ? null : error,
+      });
     }
     if (current === revision) {
-      csrfStore.clear()
-      set(authState('guest', { notice: outcome.serverConfirmed ? null : 'signout_unconfirmed' }))
+      csrfStore.clear();
+      set(
+        authState("guest", {
+          notice: outcome.serverConfirmed ? null : "signout_unconfirmed",
+        }),
+      );
     }
-    return outcome
+    return outcome;
   }
 
   function cancelMfa() {
-    if (snapshot.status !== 'mfa_required') return
-    endChallenge(null)
+    if (snapshot.status !== "mfa_required") return;
+    endChallenge(null);
   }
 
   function requireChallenge() {
-    if (preview) throw previewError()
-    if (snapshot.status !== 'mfa_required') {
-      throw new ApiError('There is no sign-in waiting for verification. Sign in again.', { code: 'MFA_CHALLENGE_INVALID' })
+    if (preview) throw previewError();
+    if (snapshot.status !== "mfa_required") {
+      throw new ApiError(
+        "There is no sign-in waiting for verification. Sign in again.",
+        { code: "MFA_CHALLENGE_INVALID" },
+      );
     }
-    return challengeId
+    return challengeId;
   }
 
   // Backend responses that end or redirect the pending challenge.
   function applyChallengeError(error) {
-    const { mfa } = snapshot
-    if (error?.code === 'MFA_CHALLENGE_INVALID') {
-      endChallenge('mfa_invalid')
-    } else if (error?.code === 'MFA_ENROLLMENT_REQUIRED' && !mfa.enrollmentRequired) {
-      set(authState('mfa_required', { mfa: Object.freeze({ ...mfa, enrollmentRequired: true }) }))
-    } else if (error?.code === 'MFA_ALREADY_ENROLLED' && mfa.enrollmentRequired) {
-      set(authState('mfa_required', { mfa: Object.freeze({ ...mfa, enrollmentRequired: false }) }))
+    const { mfa } = snapshot;
+    if (error?.code === "MFA_CHALLENGE_INVALID") {
+      endChallenge("mfa_invalid");
+    } else if (
+      error?.code === "MFA_ENROLLMENT_REQUIRED" &&
+      !mfa.enrollmentRequired
+    ) {
+      set(
+        authState("mfa_required", {
+          mfa: Object.freeze({ ...mfa, enrollmentRequired: true }),
+        }),
+      );
+    } else if (
+      error?.code === "MFA_ALREADY_ENROLLED" &&
+      mfa.enrollmentRequired
+    ) {
+      set(
+        authState("mfa_required", {
+          mfa: Object.freeze({ ...mfa, enrollmentRequired: false }),
+        }),
+      );
     }
   }
 
   // One code submission at a time: a duplicate would spend the same TOTP step
   // and be refused as a replay. Success is applied only to the same challenge.
   async function submitChallengeCode(operation, code) {
-    const id = requireChallenge()
-    assertCode(code)
-    if (codeSubmission) throw inProgressError()
-    codeSubmission = true
-    const { controller, isCurrent } = begin()
+    const id = requireChallenge();
+    assertCode(code);
+    if (codeSubmission) throw inProgressError();
+    codeSubmission = true;
+    const { controller, isCurrent } = begin();
     try {
-      const result = await service[operation](code, { signal: controller.signal })
-      if (!isCurrent() || challengeId !== id) throw supersededError()
-      csrfStore.setSessionToken(result.csrfToken)
-      set(authState('authenticated', { user: result.user, session: result.session, password: result.password }))
-      return 'authenticated'
+      const result = await service[operation](code, {
+        signal: controller.signal,
+      });
+      if (!isCurrent() || challengeId !== id) throw supersededError();
+      csrfStore.setSessionToken(result.csrfToken);
+      set(
+        authState("authenticated", {
+          user: result.user,
+          session: result.session,
+          password: result.password,
+        }),
+      );
+      return "authenticated";
     } catch (error) {
-      if (isCurrent() && challengeId === id) applyChallengeError(error)
-      throw error
+      if (isCurrent() && challengeId === id) applyChallengeError(error);
+      throw error;
     } finally {
-      codeSubmission = false
-      finish(controller)
+      codeSubmission = false;
+      finish(controller);
     }
   }
 
-  const verifyMfa = (code) => submitChallengeCode('verifyMfa', code)
-  const confirmMfaEnrollment = (code) => submitChallengeCode('confirmMfaEnrollment', code)
+  const verifyMfa = (code) => submitChallengeCode("verifyMfa", code);
+  const confirmMfaEnrollment = (code) =>
+    submitChallengeCode("confirmMfaEnrollment", code);
 
   // Returns the setup material to the caller only while the same challenge is pending.
   async function startMfaEnrollment({ signal } = {}) {
-    const id = requireChallenge()
+    const id = requireChallenge();
     try {
-      const material = await service.startMfaEnrollment({ signal })
-      if (challengeId !== id) throw supersededError()
-      return material
+      const material = await service.startMfaEnrollment({ signal });
+      if (challengeId !== id) throw supersededError();
+      return material;
     } catch (error) {
-      if (challengeId === id) applyChallengeError(error)
-      throw error
+      if (challengeId === id) applyChallengeError(error);
+      throw error;
     }
   }
 
   function requireSession() {
-    if (preview) throw previewError()
-    if (snapshot.status !== 'authenticated') {
-      throw new ApiError('Sign in to manage your account security.', { code: 'UNAUTHENTICATED', status: 401 })
+    if (preview) throw previewError();
+    if (snapshot.status !== "authenticated") {
+      throw new ApiError("Sign in to manage your account security.", {
+        code: "UNAUTHENTICATED",
+        status: 401,
+      });
     }
-    return snapshot
+    return snapshot;
+  }
+
+  async function updateProfileImage(file) {
+    const current = requireSession();
+    const avatarUrl = await service.updateProfileImage(file);
+    if (snapshot !== current) throw supersededError();
+    const user = Object.freeze({ ...current.user, avatarUrl });
+    set(authState("authenticated", { ...current, user }));
+    return avatarUrl;
+  }
+
+  async function removeProfileImage() {
+    const current = requireSession();
+    const avatarUrl = await service.removeProfileImage();
+    if (snapshot !== current) throw supersededError();
+    const user = Object.freeze({ ...current.user, avatarUrl });
+    set(authState("authenticated", { ...current, user }));
+    return avatarUrl;
   }
 
   async function startMfaReplacement({ signal } = {}) {
-    const current = requireSession()
-    const material = await service.startMfaReplacement({ signal })
-    if (snapshot !== current) throw supersededError()
-    return material
+    const current = requireSession();
+    const material = await service.startMfaReplacement({ signal });
+    if (snapshot !== current) throw supersededError();
+    return material;
   }
 
   // The backend revokes every session (including this one) after a replacement,
   // so success always ends the local session and requires a new sign-in.
   async function confirmMfaReplacement(code) {
-    const current = requireSession()
-    assertCode(code)
-    if (codeSubmission) throw inProgressError()
-    codeSubmission = true
+    const current = requireSession();
+    assertCode(code);
+    if (codeSubmission) throw inProgressError();
+    codeSubmission = true;
     try {
-      const result = await service.confirmMfaReplacement(code)
+      const result = await service.confirmMfaReplacement(code);
       if (snapshot === current) {
-        invalidate()
-        csrfStore.clear()
-        set(authState('guest', { notice: 'mfa_replaced' }))
+        invalidate();
+        csrfStore.clear();
+        set(authState("guest", { notice: "mfa_replaced" }));
       }
-      return result
+      return result;
     } catch (error) {
       // MFA_VERIFICATION_FAILED is a wrong code; any other 401 means the session ended.
-      if (error?.status === 401 && error.code !== 'MFA_VERIFICATION_FAILED') handleUnauthorized()
-      throw error
+      if (error?.status === 401 && error.code !== "MFA_VERIFICATION_FAILED")
+        handleUnauthorized();
+      throw error;
     } finally {
-      codeSubmission = false
+      codeSubmission = false;
     }
   }
 
@@ -319,38 +427,49 @@ export function createAuthSession({
   // Re-checks the session without a loading state; ends it locally only when the
   // backend reports it gone (revoked by a lockout, a reset or an MFA recovery).
   async function verifySessionQuietly() {
-    if (snapshot.status !== 'authenticated') return
-    const current = snapshot
+    if (snapshot.status !== "authenticated") return;
+    const current = snapshot;
     try {
-      await service.getCurrentUser()
+      await service.getCurrentUser();
     } catch (error) {
-      if (error?.status === 401 && snapshot === current) handleUnauthorized()
+      if (error?.status === 401 && snapshot === current) handleUnauthorized();
     }
   }
 
   // Confirmed success ends this browser's session (the backend revoked every
   // session). A failure or unknown outcome (network, timeout) leaves it as is.
   async function changePassword({ currentPassword, newPassword }) {
-    const current = requireSession()
-    if (typeof currentPassword !== 'string' || !currentPassword || typeof newPassword !== 'string' || !newPassword) {
-      throw new ApiError('Enter your current and new password.', { code: 'VALIDATION_ERROR' })
+    const current = requireSession();
+    if (
+      typeof currentPassword !== "string" ||
+      !currentPassword ||
+      typeof newPassword !== "string" ||
+      !newPassword
+    ) {
+      throw new ApiError("Enter your current and new password.", {
+        code: "VALIDATION_ERROR",
+      });
     }
-    if (passwordSubmission) throw inProgressError()
-    passwordSubmission = true
+    if (passwordSubmission) throw inProgressError();
+    passwordSubmission = true;
     try {
-      const result = await service.changePassword({ currentPassword, newPassword })
+      const result = await service.changePassword({
+        currentPassword,
+        newPassword,
+      });
       if (snapshot === current) {
-        invalidate()
-        csrfStore.clear()
-        set(authState('guest', { notice: 'password_changed' }))
+        invalidate();
+        csrfStore.clear();
+        set(authState("guest", { notice: "password_changed" }));
       }
-      return result
+      return result;
     } catch (error) {
       // A wrong current password counts toward the lockout, which revokes every session.
-      if (error?.code === 'CURRENT_PASSWORD_INVALID') void verifySessionQuietly()
-      throw error
+      if (error?.code === "CURRENT_PASSWORD_INVALID")
+        void verifySessionQuietly();
+      throw error;
     } finally {
-      passwordSubmission = false
+      passwordSubmission = false;
     }
   }
 
@@ -358,90 +477,121 @@ export function createAuthSession({
   // browser's session state, except that a completed reset or MFA recovery
   // re-checks a signed-in session (the backend revoked that account's sessions).
   function requirePublic() {
-    if (preview) throw previewError()
+    if (preview) throw previewError();
   }
 
   function assertLinkToken(token) {
-    if (typeof token !== 'string' || !LINK_TOKEN_PATTERN.test(token)) {
-      throw new ApiError('This link is invalid or has expired. Request a new one.', { code: 'TOKEN_INVALID' })
+    if (typeof token !== "string" || !LINK_TOKEN_PATTERN.test(token)) {
+      throw new ApiError(
+        "This link is invalid or has expired. Request a new one.",
+        { code: "TOKEN_INVALID" },
+      );
     }
   }
 
   async function getPasswordPolicy({ signal } = {}) {
-    requirePublic()
-    return service.getPasswordPolicy({ signal })
+    requirePublic();
+    return service.getPasswordPolicy({ signal });
   }
 
   async function requestRecovery({ username, purpose }, { signal } = {}) {
-    requirePublic()
-    if (typeof username !== 'string' || !username.trim() || !RECOVERY_PURPOSES.has(purpose)) {
-      throw new ApiError('Enter your username.', { code: 'VALIDATION_ERROR' })
+    requirePublic();
+    if (
+      typeof username !== "string" ||
+      !username.trim() ||
+      !RECOVERY_PURPOSES.has(purpose)
+    ) {
+      throw new ApiError("Enter your username.", { code: "VALIDATION_ERROR" });
     }
-    return service.requestRecovery({ username: username.trim(), purpose }, { signal })
+    return service.requestRecovery(
+      { username: username.trim(), purpose },
+      { signal },
+    );
   }
 
-  async function completePasswordSetup({ token, newPassword }, { signal } = {}) {
-    requirePublic()
-    assertLinkToken(token)
-    return service.completePasswordSetup({ token, newPassword }, { signal })
+  async function completePasswordSetup(
+    { token, newPassword },
+    { signal } = {},
+  ) {
+    requirePublic();
+    assertLinkToken(token);
+    return service.completePasswordSetup({ token, newPassword }, { signal });
   }
 
-  async function completePasswordReset({ token, newPassword }, { signal } = {}) {
-    requirePublic()
-    assertLinkToken(token)
-    const result = await service.completePasswordReset({ token, newPassword }, { signal })
-    void verifySessionQuietly()
-    return result
+  async function completePasswordReset(
+    { token, newPassword },
+    { signal } = {},
+  ) {
+    requirePublic();
+    assertLinkToken(token);
+    const result = await service.completePasswordReset(
+      { token, newPassword },
+      { signal },
+    );
+    void verifySessionQuietly();
+    return result;
   }
 
   async function startMfaRecovery({ token, password }, { signal } = {}) {
-    requirePublic()
-    assertLinkToken(token)
-    return service.startMfaRecovery({ token, password }, { signal })
+    requirePublic();
+    assertLinkToken(token);
+    return service.startMfaRecovery({ token, password }, { signal });
   }
 
-  async function confirmMfaRecovery({ token, password, code }, { signal } = {}) {
-    requirePublic()
-    assertLinkToken(token)
-    assertCode(code)
-    const result = await service.confirmMfaRecovery({ token, password, code }, { signal })
-    void verifySessionQuietly()
-    return result
+  async function confirmMfaRecovery(
+    { token, password, code },
+    { signal } = {},
+  ) {
+    requirePublic();
+    assertLinkToken(token);
+    assertCode(code);
+    const result = await service.confirmMfaRecovery(
+      { token, password, code },
+      { signal },
+    );
+    void verifySessionQuietly();
+    return result;
   }
 
   // Only a 401 from a session-authenticated request reaches this handler, and it
   // only ends an authenticated (or restoring) session. A guest's in-flight login
   // or a pending MFA challenge is unaffected.
   function handleUnauthorized() {
-    const { status } = snapshot
-    if (status !== 'authenticated' && status !== 'loading') return
-    invalidate()
-    csrfStore.clear()
-    set(authState('guest', { notice: status === 'authenticated' ? 'session_expired' : null }))
+    const { status } = snapshot;
+    if (status !== "authenticated" && status !== "loading") return;
+    invalidate();
+    csrfStore.clear();
+    set(
+      authState("guest", {
+        notice: status === "authenticated" ? "session_expired" : null,
+      }),
+    );
   }
 
   function stop() {
-    invalidate()
-    clearChallengeTimer()
-    unsubscribeUnauthorized?.()
-    unsubscribeUnauthorized = null
+    invalidate();
+    clearChallengeTimer();
+    unsubscribeUnauthorized?.();
+    unsubscribeUnauthorized = null;
   }
 
   function start() {
-    unsubscribeUnauthorized ??= subscribeUnauthorized(handleUnauthorized)
-    void restore()
-    return stop
+    unsubscribeUnauthorized ??= subscribeUnauthorized(handleUnauthorized);
+    void restore();
+    return stop;
   }
 
   return Object.freeze({
     getSnapshot: () => snapshot,
     subscribe(listener) {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
     start,
     stop,
     restore,
+    updateProfileImage,
+    removeProfileImage,
     signIn,
     signOut,
     cancelMfa,
@@ -457,5 +607,5 @@ export function createAuthSession({
     completePasswordReset,
     startMfaRecovery,
     confirmMfaRecovery,
-  })
+  });
 }

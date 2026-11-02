@@ -25,6 +25,7 @@ export const emptyBodySchema = Joi.object({});
 export const headerIdParams = Joi.object({ headerId: id.required() });
 export const lineIdParams = Joi.object({ headerId: id.required(), lineId: id.required() });
 export const flagQuerySchema = Joi.object({ empNo: requiredText(50) });
+export const employeesQuerySchema = Joi.object({ search: requiredText(100).optional() });
 export const employeeDetailsQuerySchema = Joi.object({ empNo: requiredText(50) });
 export const skillsQuerySchema = Joi.object({ empType: requiredText(50) });
 

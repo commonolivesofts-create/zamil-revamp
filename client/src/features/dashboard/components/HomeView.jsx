@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
 import ProfileAvatar from "@/components/profile/ProfileAvatar.jsx";
+import useAuth from "@/features/auth/useAuth.js";
 import { appConfig } from "@/config/appConfig.js";
 import DashboardMeta from "@/features/dashboard/components/DashboardMeta.jsx";
 import FolioBook from "@/features/dashboard/components/FolioBook.jsx";
@@ -84,24 +85,247 @@ function QuickPanel({ category }) {
   );
 }
 
+const SOCIAL_NETWORKS = [
+  {
+    name: "LinkedIn",
+    className: "linkedin",
+    href: (url) =>
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+  },
+  {
+    name: "Facebook",
+    className: "facebook",
+    href: (url) =>
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+  },
+  {
+    name: "X",
+    className: "x-network",
+    href: (url) =>
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent("Explore the Zamil workspace")}`,
+  },
+];
+
+function SocialMark({ network }) {
+  if (network === "LinkedIn") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5.2 8.6H2.1V22h3.1V8.6ZM3.7 2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6ZM22 14.3c0-4-2.1-5.9-4.9-5.9a4.2 4.2 0 0 0-3.8 2.1V8.6h-3V22h3.1v-6.6c0-1.8.3-3.6 2.6-3.6s2.3 2.1 2.3 3.7V22h3.1l.6-7.7Z" />
+      </svg>
+    );
+  }
+  if (network === "Facebook") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.1 22v-9h3l.5-3.5h-3.5V7.2c0-1 .3-1.7 1.8-1.7h1.9V2.4c-.3 0-1.5-.1-2.9-.1-2.9 0-4.9 1.8-4.9 5v2.2H6.8V13H10v9h4.1Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3L12 14.6 5.6 22H2.4l7.3-8.4L1.8 2h6.5l4.5 6.8L18.9 2Zm-1.1 17.8h1.7L7.3 4.1H5.5l12.3 15.7Z" />
+    </svg>
+  );
+}
+
+function SocialFan() {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const toggleRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function dismiss(event) {
+      if (event.type === "keydown") {
+        if (event.key !== "Escape") return;
+        setOpen(false);
+        toggleRef.current?.focus();
+        return;
+      }
+      if (
+        event.type === "pointerdown" &&
+        rootRef.current?.contains(event.target)
+      )
+        return;
+      setOpen(false);
+    }
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", dismiss);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", dismiss);
+    };
+  }, [open]);
+
+  const shareUrl = typeof window === "undefined" ? "" : window.location.origin;
+
+  return (
+    <div className={`hero-social-fan${open ? " is-open" : ""}`} ref={rootRef}>
+      <div
+        className="hero-social-fan-menu"
+        id="hero-social-fan-menu"
+        aria-hidden={!open}
+      >
+        {SOCIAL_NETWORKS.map((network, index) => (
+          <a
+            className={`hero-social-link ${network.className}`}
+            href={network.href(shareUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Share on ${network.name}`}
+            tabIndex={open ? 0 : -1}
+            key={network.name}
+            style={{ "--social-order": index }}
+          >
+            <span className="hero-social-icon">
+              <SocialMark network={network.name} />
+            </span>
+            <span className="hero-social-label">{network.name}</span>
+          </a>
+        ))}
+      </div>
+      <button
+        ref={toggleRef}
+        className="hero-social-toggle"
+        type="button"
+        aria-expanded={open}
+        aria-controls="hero-social-fan-menu"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="hero-social-toggle-mark">
+          <OrvexaIcon name={open ? "x" : "share-2"} />
+        </span>
+        <span className="hero-social-toggle-copy">
+          <strong>{open ? "Close" : "Share"}</strong>
+          <small>{open ? "YOUR NETWORK" : "PASS IT ON"}</small>
+        </span>
+        <OrvexaIcon
+          className="hero-social-toggle-chevron"
+          name="arrow-up-right"
+        />
+      </button>
+    </div>
+  );
+}
+
+async function optimizeProfileImage(file) {
+  if (typeof createImageBitmap !== "function") return file;
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+    const maxDimension = 512;
+    const scale = Math.min(
+      1,
+      maxDimension / Math.max(bitmap.width, bitmap.height),
+    );
+    if (scale === 1 && file.size <= 250 * 1024) return file;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) return file;
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const optimized = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/webp", 0.82),
+    );
+    if (!optimized || optimized.size >= file.size) return file;
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "profile";
+    return new File([optimized], `${baseName}.webp`, {
+      type: "image/webp",
+      lastModified: Date.now(),
+    });
+  } catch {
+    return file;
+  } finally {
+    bitmap?.close();
+  }
+}
+
 export default function HomeView({
   profile,
   pages = [],
   accessStatus,
   onNavigate,
   onOpenPage,
-  onOpenProfile,
 }) {
   const [quickCategory, setQuickCategory] = useState("HR");
   const [quickPanelChanged, setQuickPanelChanged] = useState(false);
+  const { updateProfileImage, removeProfileImage } = useAuth();
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageFeedback, setImageFeedback] = useState("");
+  const [imageTarget, setImageTarget] = useState("");
+  const imageTargetRef = useRef("");
+  const loadedImageRef = useRef("");
+  const failedImageRef = useRef("");
   const name = displayName(profile);
-  const roleLine = profile?.isPreview
-    ? "Illustrative preview identity"
-    : [profile?.jobTitle, profile?.department].filter(Boolean).join(" · ") ||
-      "Signed-in employee";
-  const hasLiveFacts = Boolean(profile?.employeeNumber || profile?.email);
+  const heroProfile = profile;
   const visiblePages = pages.slice(0, 4);
   const accessLoading = accessStatus === "loading";
+
+  function waitForImage(source) {
+    if (loadedImageRef.current === source) {
+      imageTargetRef.current = "";
+      setImageTarget("");
+      return;
+    }
+    if (failedImageRef.current === source) {
+      imageTargetRef.current = "";
+      setImageTarget("");
+      setImageFeedback("Photo saved, but its preview could not be loaded.");
+      return;
+    }
+    imageTargetRef.current = source;
+    setImageTarget(source);
+  }
+
+  function handleAvatarLoad(source) {
+    loadedImageRef.current = source;
+    failedImageRef.current = "";
+    if (imageTargetRef.current === source) {
+      imageTargetRef.current = "";
+      setImageTarget("");
+    }
+  }
+
+  function handleAvatarError(source) {
+    failedImageRef.current = source;
+    if (imageTargetRef.current !== source) return;
+    imageTargetRef.current = "";
+    setImageTarget("");
+    setImageFeedback("Photo saved, but its preview could not be loaded.");
+  }
+
+  async function changeProfileImage(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setImageBusy(true);
+    setImageFeedback("");
+    try {
+      const source = await updateProfileImage(await optimizeProfileImage(file));
+      waitForImage(source);
+      setImageFeedback("Profile photo updated");
+    } catch (error) {
+      setImageFeedback(error.message || "Could not update the profile photo");
+    } finally {
+      setImageBusy(false);
+    }
+  }
+
+  async function resetProfileImage() {
+    setImageBusy(true);
+    setImageFeedback("");
+    try {
+      const source = await removeProfileImage();
+      waitForImage(source);
+      setImageFeedback("Default photo restored");
+    } catch (error) {
+      setImageFeedback(error.message || "Could not restore the default photo");
+    } finally {
+      setImageBusy(false);
+    }
+  }
 
   const openQuick = (category) => {
     setQuickCategory(category);
@@ -124,53 +348,96 @@ export default function HomeView({
             <span className="line-mark" />
             <span>GOOD WORK STARTS WITH ONE MOVE</span>
           </div>
-          <h1
-            className="kinetic-heading gateway-heading"
-            data-zrv-view-title
-            tabIndex={-1}
-          >
-            <span className="sr-only">{name}</span>
-            <span className="kinetic-line kinetic-v5">
-              <NameTyping name={name} />
-            </span>
-            <span className="kinetic-tagline">
-              Your next move.
-              <br />
-              <em>Made effortless.</em>
-            </span>
-          </h1>
+          <SocialFan />
           <div className="hero-profile">
-            <ProfileAvatar profile={profile} className="hero-profile-avatar" />
-            <div className="hero-profile-copy">
-              <span className="hero-profile-role">{roleLine}</span>
-              <span className="hero-profile-facts">
-                {profile?.isPreview ? (
-                  <span className="hero-profile-preview">
-                    Workspace · Preview
-                  </span>
-                ) : hasLiveFacts ? (
-                  <>
-                    {profile?.employeeNumber && (
-                      <span>Employee {profile.employeeNumber}</span>
-                    )}
-                    {profile?.email && <span>{profile.email}</span>}
-                  </>
-                ) : (
-                  <span>Signed-in workspace</span>
-                )}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="hero-profile-open"
-              onClick={onOpenProfile}
-              aria-label={`Open profile for ${name}`}
-              aria-haspopup="dialog"
-              title="View employee profile"
+            <div
+              className={`hero-profile-photo-wrap${imageBusy || imageTarget ? " is-uploading" : ""}`}
+              aria-busy={imageBusy || Boolean(imageTarget)}
             >
-              View profile <OrvexaIcon name="arrow-right" className="icon-sm" />
-            </button>
+              <ProfileAvatar
+                profile={heroProfile}
+                className="hero-profile-avatar"
+                onImageLoad={handleAvatarLoad}
+                onImageError={handleAvatarError}
+              />
+              {(imageBusy || imageTarget) && (
+                <span className="hero-profile-photo-loading" aria-hidden="true">
+                  <span />
+                </span>
+              )}
+              {!profile?.isPreview && (
+                <label
+                  className="hero-profile-photo-edit"
+                  title="Change profile photo"
+                >
+                  <span className="sr-only">Change profile photo</span>
+                  <OrvexaIcon name="pencil" />
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={changeProfileImage}
+                    disabled={imageBusy}
+                  />
+                </label>
+              )}
+            </div>
+            <div className="hero-profile-copy">
+              {/* <span className="hero-profile-kicker">
+                {profile?.isPreview ? "PREVIEW ACCOUNT" : "SIGNED IN AS"}
+              </span> */}
+              <h1
+                className="kinetic-heading gateway-heading hero-profile-name"
+                aria-label={name}
+                data-zrv-view-title
+                tabIndex={-1}
+              >
+                <span className="kinetic-line kinetic-v5">
+                  <NameTyping name={name} />
+                </span>
+              </h1>
+              <div className="hero-profile-details">
+                <div className="hero-profile-detail">
+                  <span>ROLE</span>
+                  <strong>{profile?.jobTitle || "Not listed"}</strong>
+                </div>
+                <div className="hero-profile-detail">
+                  <span>TEAM</span>
+                  <strong>{profile?.department || "Not listed"}</strong>
+                </div>
+                {profile?.employeeNumber && (
+                  <div className="hero-profile-detail hero-profile-employee">
+                    <span>EMPLOYEE ID</span>
+                    <strong>{profile.employeeNumber}</strong>
+                  </div>
+                )}
+              </div>
+              {!profile?.isPreview && (
+                <div className="hero-profile-photo-actions">
+                  <span className="hero-profile-photo-hint">Make it yours</span>
+                  <button
+                    className="hero-profile-reset"
+                    type="button"
+                    onClick={resetProfileImage}
+                    disabled={imageBusy}
+                  >
+                    Reset photo
+                  </button>
+                  {imageBusy && <span role="status">Saving photo...</span>}
+                  {imageFeedback && <span role="status">{imageFeedback}</span>}
+                </div>
+              )}
+            </div>
           </div>
+          {/* Temporarily hidden while the hero row alignment is tuned.
+          <h2 className="kinetic-heading gateway-heading hero-tagline">
+            <span className="kinetic-tagline">
+              Make room for
+              <br />
+              <em>great work.</em>
+            </span>
+          </h2>
+          <p className="hero-tagline-note">Your people, tools, and priorities—ready in one place.</p>
+          */}
 
           <div
             className="gateway-actions"

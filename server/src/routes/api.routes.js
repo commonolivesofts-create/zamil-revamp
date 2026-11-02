@@ -9,6 +9,7 @@ import { createOriginCheck } from '../middleware/csrf.js';
 import { createSecurityAuditService } from '../modules/audit/securityAudit.service.js';
 import { createAuthRouter } from '../modules/auth/auth.routes.js';
 import { createAuthService } from '../modules/auth/auth.service.js';
+import { createProfileImageService } from '../modules/users/profileImage.service.js';
 import { createMfaService } from '../modules/auth/mfa.service.js';
 import { createRecoveryService } from '../modules/auth/recovery.service.js';
 import { findDatabaseName } from '../modules/notifications/databaseIdentity.repository.js';
@@ -24,6 +25,8 @@ import { createProbationEvaluationRouter } from '../modules/hr/probation-evaluat
 import { createProbationEvaluationService } from '../modules/hr/probation-evaluations/probationEvaluation.service.js';
 import { createOrientationTrainingRouter } from '../modules/hr/orientation-trainings/orientationTraining.routes.js';
 import { createOrientationTrainingService } from '../modules/hr/orientation-trainings/orientationTraining.service.js';
+import { createPeriodwiseEmployeeRouter } from '../modules/hr/periodwise-employees/periodwiseEmployee.routes.js';
+import { createPeriodwiseEmployeeService } from '../modules/hr/periodwise-employees/periodwiseEmployee.service.js';
 import { createContractorEmployeeRouter } from '../modules/hr/contractor-employees/contractorEmployee.routes.js';
 import { createContractorEmployeeService } from '../modules/hr/contractor-employees/contractorEmployee.service.js';
 import { createRequisitionRouter } from '../modules/hr/requisitions/requisition.routes.js';
@@ -64,7 +67,6 @@ import { createSurveyReportService } from '../modules/hr/surveyReport/surveyRepo
 import { createProjectCharterRouter } from '../modules/hr/project-charter/projectCharter.routes.js';
 
 import { createProjectCharterService } from '../modules/hr/project-charter/projectCharter.service.js';
-
 
 import {
   createSalaryCertificateRoutes,
@@ -175,6 +177,7 @@ export function createApiRouter(appConfig, deps = {}) {
     withTransaction: db.withTransaction,
   });
   const authenticate = createAuthenticate({ sessionService, cookieConfig: appConfig.auth.cookie });
+  const profileImageService = createProfileImageService({ db });
   const authorizationService = createAuthorizationService({
     repository: deps.authorizationRepository,
     auditService,
@@ -209,12 +212,20 @@ export function createApiRouter(appConfig, deps = {}) {
     repository: deps.probationEvaluationRepository,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
+    holds: (userId, permission) => authorizationService.holds(userId, permission),
   });
 
   const orientationTrainingService = createOrientationTrainingService({
     repository: deps.orientationTrainingRepository,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
+    holds: (userId, permission) => authorizationService.holds(userId, permission),
+  });
+
+  const periodwiseEmployeeService = createPeriodwiseEmployeeService({
+    repository: deps.periodwiseEmployeeRepository,
+    withConnection: db.withConnection,
+    ...(deps.periodwiseToday ? { today: deps.periodwiseToday } : {}),
   });
 
   const contractorEmployeeService = createContractorEmployeeService({
@@ -268,6 +279,7 @@ export function createApiRouter(appConfig, deps = {}) {
       mfaService,
       auditService,
       recoveryService,
+      profileImageService,
       authenticate,
       authConfig: appConfig.auth,
     }),
@@ -345,6 +357,11 @@ export function createApiRouter(appConfig, deps = {}) {
       authenticate,
       auditService,
     }),
+  );
+
+  router.use(
+    '/hr/reports/periodwise-employees',
+    createPeriodwiseEmployeeRouter({ periodwiseEmployeeService, authorize, authenticate }),
   );
 
   router.use(
@@ -477,7 +494,7 @@ export function createApiRouter(appConfig, deps = {}) {
     }),
   );
 
-  
+
 router.use(
   '/salary-certificates-ar',
 

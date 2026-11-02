@@ -64,7 +64,13 @@ export const listQuerySchema = Joi.object({
 const rating = Joi.string().valid('1', '2', '3', '4', '5', 'N/A').allow('').optional();
 const amount = Joi.number().min(0).optional();
 const count = Joi.number().integer().min(0).optional();
-const BU_VALUES = ['300000003618177', '300000003618190']; // APP_BU_INFO payroll BUs (README §1.1)
+// APP_BU_INFO payroll BUs and their labels (README §1.1). APP_BU_INFO does not exist in the ADW
+// schema, so the spec's fixed values are served from here by GET /lookups/payroll-units.
+export const PAYROLL_UNITS = Object.freeze([
+  Object.freeze({ code: '300000003618177', name: 'IPP' }),
+  Object.freeze({ code: '300000003618190', name: 'FPP' }),
+]);
+const BU_VALUES = PAYROLL_UNITS.map((unit) => unit.code);
 
 const personalSpecSchema = Joi.object({
   rate1: rating,

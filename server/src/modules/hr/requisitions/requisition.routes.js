@@ -14,6 +14,7 @@ import {
   MAX_ATTACHMENT_BYTES,
   MAX_ATTACHMENT_FILES,
   requisitionIdParams,
+  replacementForQuerySchema,
   updateBodySchema,
 } from './requisition.validation.js';
 
@@ -81,8 +82,13 @@ export function createRequisitionRouter({
   router.get('/', ...read('VIEW', { query: listQuerySchema }), controller.list);
   router.get('/lookups/job-titles', ...read('VIEW'), controller.jobTitles);
   router.get('/lookups/requestor', ...read('VIEW'), controller.requestor);
+  router.get('/lookups/capabilities', ...read('VIEW'), controller.capabilities);
   router.get('/lookups/departments', ...read('VIEW'), controller.departments);
-  router.get('/lookups/replacement-for', ...read('VIEW'), controller.replacementFor);
+  router.get(
+    '/lookups/replacement-for',
+    ...read('VIEW', { query: replacementForQuerySchema }),
+    controller.replacementFor,
+  );
   router.get('/lookups/budget', ...read('VIEW', { query: budgetQuerySchema }), controller.budget);
   router.get('/lookups/filter-options', ...read('VIEW'), controller.filterOptions);
 

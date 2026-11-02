@@ -722,6 +722,16 @@ describe('requisition API', () => {
       ]);
     });
 
+    it('reports canManageTicket from the same HR probe that refuses non-HR ticket changes', async () => {
+      assert.deepEqual((await get('/lookups/capabilities', hr)).body.data, {
+        canManageTicket: true,
+      });
+      const staffCapabilities = await get('/lookups/capabilities', staff);
+      assert.equal(staffCapabilities.status, 200);
+      assert.deepEqual(staffCapabilities.body.data, { canManageTicket: false });
+      assert.equal((await request(f.app).get(`${BASE}/lookups/capabilities`)).status, 401);
+    });
+
     it('returns the session requestor and their supervised replacement candidates', async () => {
       const requestor = await get('/lookups/requestor', staff);
       assert.deepEqual(requestor.body.data, {
