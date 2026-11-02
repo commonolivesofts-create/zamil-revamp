@@ -5,7 +5,7 @@ import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
-import { NewFormDialog, ReportDialog } from '../shared/components/RecruitmentDialogs.jsx'
+import { NewFormDialog } from '../shared/components/RecruitmentDialogs.jsx'
 import { PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
 import { HrField } from '../shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '../shared/components/EmployeePicker.jsx'
@@ -91,12 +91,13 @@ function ProbationEditor({ lookups, record }) {
       return result
     }, { success: (result) => `Probation evaluation ${result.evaluationNumber} saved.` })
   }
-  const startNew = () => navigate(BASE)
+  // Leaving with unsaved answers asks first (New form and Report).
+  const leave = (path) => (editor.dirty ? setDialog({ path }) : navigate(path))
   const tools = [
     { icon: 'save', label: 'Save draft', onClick: save, disabled: editor.pending },
     { icon: 'printer', label: 'Print', onClick: () => window.print() },
-    { icon: 'chart-column', label: 'Records', onClick: () => setDialog('report') },
-    { icon: 'file-plus', label: 'New form', onClick: () => (editor.dirty ? setDialog('new') : startNew()) },
+    { icon: 'chart-column', label: 'Records', onClick: () => leave(`${BASE}/report`) },
+    { icon: 'file-plus', label: 'New form', onClick: () => leave(BASE) },
   ]
   const readOnly = (id, label, value) => <HrField id={id} label={label}><input id={id} className="ux-input zrv-hr-input" readOnly value={value ?? ''} /></HrField>
 
@@ -151,12 +152,6 @@ function ProbationEditor({ lookups, record }) {
         <p>Total rating: <b>{total}</b> · Criteria: {form.lines.length} · Evaluation: {resultPill}</p>
       </>}
       </RecruitmentShell>
-    {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
-    {dialog === 'report' && <ReportDialog title="Probation evaluation records" resourceKey="hr-probation-report" load={service.list} onClose={() => setDialog(null)}
-      numberOf={(item) => item.evaluationNumber} statusOf={(item) => item.status} pathOf={(item) => `${BASE}/${item.evaluationId}`}
-      columns={[["Employee", (item) => item.employeeName], ["Emp. no.", (item) => item.employeeNumber], ["Job title", (item) => item.jobTitle], ["Department", (item) => item.department],
-        ["Form type", (item) => item.formType], ["Total rating", (item) => item.totalRating], ["Evaluation", (item) => RESULT_TEXT[item.evaluationResult]],
-        ["Pending at", (item) => item.pendingAt]]}
-      dateColumn={['Created', (item) => item.createdAt]} />}
+    {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
   </>
 }

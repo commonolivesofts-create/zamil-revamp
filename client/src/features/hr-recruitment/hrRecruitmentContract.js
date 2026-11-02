@@ -201,6 +201,9 @@ export function readInterviewListItem(data) {
     candidateName: text(data.candidateName, 200),
     positionTitle: nullableText(data.positionTitle, 200),
     outcome: oneOf(data.outcome, OUTCOMES, { nullable: true }),
+    // Report columns; absent from older list sources.
+    requisitionNo: nullableText(data.requisitionNo || null, 100),
+    interviewDate: date(data.interviewDate || null),
     updatedAt: instant(data.updatedAt),
   })
 }
@@ -240,6 +243,9 @@ export function readOfferListItem(data) {
     status: oneOf(data.status, OFFER_STATUSES),
     position: text(data.position, 200),
     candidateNameEn: text(data.candidateNameEn, 200),
+    // Report columns; absent from older list sources.
+    requisitionNo: nullableText(data.requisitionNo || null, 100),
+    offerDate: date(data.offerDate || null),
     updatedAt: instant(data.updatedAt),
   })
 }

@@ -1,3 +1,5 @@
+// Orientation Training (New Hire Training, NHTF) API over a mocked repository (no Oracle). The
+// legacy CI3 behaviours are listed in docs/testing/orientation-legacy-comparison.md.
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import request from 'supertest';
@@ -5,29 +7,42 @@ import { createApp } from '../src/app.js';
 import { createAuthStore, testAuthConfig } from './helpers/authFakes.js';
 import { installRbac, signIn } from './helpers/rbacFakes.js';
 import { installOrientationTrainings } from './helpers/orientationTrainingFakes.js';
+import {
+  divisionName,
+  employeeType,
+  fromStoredDate,
+  isEditable,
+  legacyTime,
+  orientationDays,
+  orientationPeriod,
+  statusLabel,
+  submitProblems,
+} from '../src/modules/hr/orientation-trainings/orientationTraining.rules.js';
 
 const BASE = '/api/v1/hr/orientation-trainings';
 const BODY = {
   empNo: 'E-100Y',
   fromOrient: '2026-10-25',
+  // Values an older client still sends; the server ignores them (legacy read-only fields).
   toOrient: '2026-10-30',
   startDate: '2026-10-01',
-  section: 'Manufacturing',
-  empname: 'Employee E-100Y',
-  personId: '7001',
-  division: 'Production',
-  type: 'Employee',
-  position: 'Technician',
-  flag: 'N', // Deliberately conflicts with the current org mapping in the fake repository.
+  section: 'Forged section',
+  empname: 'Forged name',
+  personId: '1',
+  division: 'Forged division',
+  type: 'Manager',
+  position: 'Forged position',
+  flag: 'Y',
   lines: [
     {
-      department: 'Safety',
+      department: 'Training with safety Dept',
       departmentHead: 'Manager Example',
       fromDate: '2026-10-25',
       toDate: '2026-10-25',
-      orientationDays: 1,
+      orientationDays: 99,
       timeFrom: '09:00',
       timeTo: '17:00',
+      orientationPeriod: 'forged',
       remarks: 'Induction',
     },
   ],
@@ -104,6 +119,7 @@ describe('orientation training API', () => {
     assert.equal(response.status, 403, JSON.stringify(response.body));
     assert.equal(f.store.auditEvents('ACCESS_DENIED').at(-1).reasonCode, reason);
   };
+  const state = () => f.store.state.orientationTrainings;
 
   it('denies unauthenticated and ungranted access by default', async () => {
     assert.equal((await request(f.app).get(BASE)).status, 401);
@@ -117,125 +133,201 @@ describe('orientation training API', () => {
     assert.equal(noCsrf.body.error.code, 'CSRF_REJECTED');
     f.rbac.override(f.hrUser, f.permissions.CREATE, 'DENY');
     forbidden(await send('post', '', hr, BODY), 'EXPLICIT_DENY');
-    assert.equal(f.store.state.orientationTrainings.headers.Y.length, 0);
+    assert.equal(state().headers.N.length, 0);
   });
 
-  it('creates with the server-resolved table flag, reference, header and lines', async () => {
+  it('create (legacy newaddtrainee): PRODUCTION tables, Draft, server-filled header, To = From, Scheduled By', async () => {
     const created = await send('post', '', hr, BODY);
     assert.equal(created.status, 201, JSON.stringify(created.body));
     assert.equal(created.body.data.headerId, '1');
-    assert.equal(created.body.data.flag, 'Y');
+    assert.equal(created.body.data.flag, 'N', 'legacy saves every new request as PRODUCTION');
     assert.equal(created.body.data.reference, 'Production/26/001');
-    const state = f.store.state.orientationTrainings;
-    assert.equal(state.headers.Y[0].status, 'Draft');
-    assert.equal(state.headers.N.length, 0);
-    assert.equal(state.flags[0].tableName, 'SHARED');
-    assert.equal(state.lines.Y[0].orientationPeriod, '8.00 Hrs');
-  });
-
-  it('reads, replaces all lines on update, and deletes a single line', async () => {
-    f.store.seedOrientationTraining({ lines: [{ lineId: '1' }, { lineId: '2' }] });
-    const detail = await get('/1');
-    assert.equal(detail.status, 200);
-    assert.deepEqual(
-      detail.body.data.lines.map((line) => line.lineId),
-      ['1', '2'],
-    );
-    const updated = await send('put', '/1', hr, {
-      ...BODY,
-      flag: 'N',
-      lines: [{ ...BODY.lines[0], lineId: '3', department: 'Quality' }],
-    });
-    assert.equal(updated.status, 200, JSON.stringify(updated.body));
-    assert.deepEqual(
-      f.store.state.orientationTrainings.lines.Y.map((line) => line.lineId),
-      ['1'],
-    );
-    const deleted = await send('delete', '/1/lines/1');
-    assert.equal(deleted.status, 200);
-    assert.equal(f.store.state.orientationTrainings.lines.Y.length, 0);
-    assert.equal((await send('delete', '/1/lines/9')).status, 404);
-  });
-
-  it('validates date ranges, IDs, required flag filter, and unknown fields', async () => {
-    assert.equal((await send('post', '', hr, { ...BODY, extra: true })).status, 400);
-    assert.equal((await send('post', '', hr, { ...BODY, toOrient: '2026-10-20' })).status, 400);
+    assert.equal(state().headers.Y.length, 0);
+    const [header] = state().headers.N;
+    assert.equal(header.status, 'Draft');
+    // Read-only legacy fields come from the employee master, never from the body.
+    assert.equal(header.empname, 'Employee E-100Y');
+    assert.equal(header.section, 'Manufacturing');
+    assert.equal(header.division, 'Production');
+    assert.equal(header.position, 'Technician');
+    assert.equal(header.empType, 'Employee');
+    assert.equal(header.startDate, '2026-01-01');
+    assert.equal(header.toOrient, header.fromOrient, 'legacy copies From into the read-only To');
     assert.equal(
-      (
-        await send('post', '', hr, {
-          ...BODY,
-          lines: [{ ...BODY.lines[0], fromDate: '2026-10-31' }],
-        })
-      ).status,
+      header.orientationBy,
+      'Test Actor',
+      'Scheduled By = the signed-in user (findActorName)',
+    );
+    assert.equal(state().flags[0].tableName, 'PRODUCTION');
+    const [line] = state().lines.N;
+    assert.equal(line.orientationPeriod, '8.00 Hrs');
+    assert.equal(line.orientationDays, '0', 'legacy days are to - from: the same day is 0');
+    assert.equal(line.timeFrom, '09:00:00', 'time inputs use step="1"');
+    assert.equal(line.department, 'Training with safety Dept');
+  });
+
+  it('lines: every legacy row field is optional; days and time follow the legacy formulas', async () => {
+    const created = await send('post', '', hr, {
+      empNo: 'E-100Y',
+      fromOrient: '2026-10-25',
+      lines: [
+        { department: 'Training with HR Dept' },
+        {
+          department: 'Tour around factory',
+          fromDate: '2026-10-25',
+          toDate: '2026-10-27',
+          timeFrom: '08:00:00',
+          timeTo: '09:30:00',
+        },
+      ],
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    const [blank, full] = state().lines.N;
+    for (const key of ['departmentHead', 'fromDate', 'toDate', 'timeFrom', 'timeTo', 'remarks']) {
+      assert.equal(blank[key], null, key);
+    }
+    assert.equal(blank.orientationDays, null);
+    assert.equal(blank.orientationPeriod, null);
+    assert.equal(full.orientationDays, '2');
+    assert.equal(full.orientationPeriod, '1.30 Hrs', 'hours.minutes, not decimal hours');
+  });
+
+  it('validates: required employee and From, reversed line ranges, IDs, list bounds, unknown fields', async () => {
+    const bad = async (body) => (await send('post', '', hr, body)).status;
+    assert.equal(await bad({ ...BODY, extra: true }), 400);
+    assert.equal(await bad({ ...BODY, fromOrient: undefined }), 400);
+    assert.equal(await bad({ ...BODY, empNo: '' }), 400);
+    assert.equal(await bad({ ...BODY, lines: [] }), 400);
+    assert.equal(await bad({ ...BODY, lines: [{ ...BODY.lines[0], toDate: '2026-10-24' }] }), 400);
+    assert.equal(await bad({ ...BODY, lines: [{ ...BODY.lines[0], timeTo: '08:00' }] }), 400);
+    assert.equal(
+      await bad({ ...BODY, lines: [{ ...BODY.lines[0], remarks: 'x'.repeat(1001) }] }),
       400,
     );
     assert.equal((await get('/01')).status, 400);
+    assert.equal((await get('/1?flag=X')).status, 400);
     assert.equal((await get('')).status, 400);
     assert.equal((await get('?flag=Y&pageSize=101')).status, 400);
   });
 
-  it('returns 404 for missing headers, employees, and assignments', async () => {
-    assert.equal((await get('/999')).status, 404);
-    const missing = await send('post', '', hr, { ...BODY, empNo: 'MISSING' });
-    assert.equal(missing.status, 404);
+  it('employee scope (legacy getEmpNum): HR any current employee, others only themselves', async () => {
+    assert.equal((await get('/lookups/employees')).body.data.length, 2);
+    assert.deepEqual(
+      (await get('/lookups/employees', staff)).body.data.map((item) => item.empNo),
+      ['E-STAFF'],
+    );
+    assert.equal((await get('/lookups/employee-details?empNo=E-100Y', staff)).status, 403);
+    assert.equal((await get('/lookups/employee-details?empNo=E-STAFF', staff)).status, 200);
+    assert.equal((await send('post', '', staff, BODY)).status, 403);
+    assert.equal((await send('post', '', staff, { ...BODY, empNo: 'E-STAFF' })).status, 201);
+  });
+
+  it('opens legacy shared-service records with no registry row, and by explicit flag', async () => {
+    const id = f.store.seedOrientationTraining({ lines: [{ lineId: '1' }] });
+    state().flags = [];
+    const detail = await get(`/${id}`);
+    assert.equal(detail.status, 200, JSON.stringify(detail.body));
+    assert.equal(detail.body.data.flag, 'Y');
+    assert.equal((await get(`/${id}?flag=Y`)).body.data.flag, 'Y');
+    assert.equal((await get(`/${id}?flag=N`)).status, 404);
+  });
+
+  it('update: draft and rejected requests; saving sets Draft (legacy); in-process and approved are 409', async () => {
+    const id = f.store.seedOrientationTraining({
+      header: { status: 'REJECTED', orientationBy: 'Original Scheduler' },
+      lines: [{ lineId: '1' }, { lineId: '2' }],
+    });
+    const updated = await send('put', `/${id}?flag=Y`, hr, {
+      ...BODY,
+      lines: [{ ...BODY.lines[0], department: 'Tour around factory' }],
+    });
+    assert.equal(updated.status, 200, JSON.stringify(updated.body));
+    const [header] = state().headers.Y;
+    assert.equal(header.status, 'Draft');
+    assert.equal(header.orientationBy, 'Original Scheduler', 'Scheduled By keeps its value');
+    assert.equal(header.empname, 'Employee E-100Y');
+    assert.deepEqual(
+      state().lines.Y.map((line) => line.department),
+      ['Tour around factory'],
+    );
+    for (const status of ['INPROCESS', 'Approved']) {
+      header.status = status;
+      const blocked = await send('put', `/${id}`, hr, BODY);
+      assert.equal(blocked.status, 409, status);
+      assert.equal(blocked.body.error.code, 'ORIENTATION_TRAINING_NOT_DRAFT');
+      assert.equal((await send('delete', `/${id}/lines/1`)).status, 409);
+    }
   });
 
   it('deletes draft records only', async () => {
     f.store.seedOrientationTraining({ lines: [{ lineId: '1' }] });
     assert.equal((await send('delete', '/1')).status, 200);
-    assert.equal(f.store.state.orientationTrainings.flags.length, 0);
-    f.store.seedOrientationTraining({ header: { status: 'Approved' }, lines: [{ lineId: '1' }] });
-    const blocked = await send('delete', '/1');
-    assert.equal(blocked.status, 409);
+    assert.equal(state().flags.length, 0);
+    f.store.seedOrientationTraining({ header: { status: 'Rejected' }, lines: [{ lineId: '1' }] });
+    assert.equal((await send('delete', '/1')).status, 409);
   });
 
-  it('filters and paginates a flag-specific listing with actor scoping', async () => {
-    f.store.seedOrientationTraining({ header: { headerId: '10', createdBy: f.hrUser.userId } });
-    f.store.seedOrientationTraining({ header: { headerId: '11', createdBy: f.staffUser.userId } });
-    const hrPage = await get('?flag=Y&page=1&pageSize=1&sortBy=HEADER_ID&sortDir=asc');
-    assert.equal(hrPage.status, 200);
-    assert.equal(hrPage.body.pagination.total, 2);
-    assert.deepEqual(
-      hrPage.body.data.map((row) => row.headerId),
-      ['10'],
-    );
-    const staffPage = await get('?flag=Y&empNo=E-100Y', staff);
-    assert.equal(staffPage.body.pagination.total, 1);
-    const production = await get('?flag=N');
-    assert.equal(production.body.pagination.total, 0);
+  it('list (legacy newhiretrain_list): per variant, HR all / others own, mixed-case statuses as legacy labels', async () => {
+    f.store.seedOrientationTraining({
+      header: {
+        headerId: '10',
+        createdBy: f.hrUser.userId,
+        status: 'INPROCESS',
+        pendingAt: 'Approver Example',
+      },
+    });
+    f.store.seedOrientationTraining({
+      header: { headerId: '11', createdBy: f.staffUser.userId, status: 'Rejected' },
+    });
+    f.store.seedOrientationTraining({
+      header: { headerId: '12', createdBy: f.staffUser.userId, status: 'REJECTED' },
+    });
+    const all = await get('?flag=Y&page=1&pageSize=1&sortBy=HEADER_ID&sortDir=asc');
+    assert.equal(all.status, 200);
+    assert.equal(all.body.pagination.total, 3);
+    assert.equal(all.body.data[0].status, 'Inprocess');
+    assert.equal(all.body.data[0].rawStatus, 'INPROCESS');
+    assert.equal(all.body.data[0].pendingAt, 'Approver Example');
+    assert.equal((await get('?flag=Y&status=inprocess')).body.pagination.total, 1);
+    assert.equal((await get('?flag=Y&status=Rejected')).body.pagination.total, 2);
+    assert.equal((await get('?flag=Y&status=Pending')).status, 400);
+    assert.equal((await get('?flag=Y', staff)).body.pagination.total, 2, 'own requests only');
+    assert.equal((await get('?flag=N')).body.pagination.total, 0);
   });
 
-  it('serves the five lookup endpoints', async () => {
-    assert.equal((await get('/lookups/flag?empNo=E-100Y')).body.data.flag, 'Y');
-    assert.equal((await get('/lookups/employees')).status, 200);
+  it('lookups: flag, managers, employee details and the training rows of the employee type', async () => {
+    assert.equal((await get('/lookups/flag?empNo=E-100Y')).body.data.flag, 'N');
+    assert.equal((await get('/lookups/flag?empNo=MISSING')).status, 404);
     assert.equal((await get('/lookups/managers')).body.data[0].empNo, 'M-100');
     assert.equal((await get('/lookups/employee-details?empNo=E-100Y')).status, 200);
+    assert.equal((await get('/lookups/employee-details?empNo=MISSING')).status, 404);
     assert.equal((await get('/lookups/skills?empType=Employee')).body.data.skills.length, 5);
+    assert.equal((await get('/lookups/skills?empType=Manager')).body.data.skills.length, 7);
+    const other = (await get('/lookups/skills?empType=Contractor')).body.data;
+    assert.equal(other.empType, 'Employee', 'legacy CASE: any other category is Employee');
+    assert.equal(other.skills.length, 5);
   });
 
   it('rolls back partial insert, update, and delete transactions', async () => {
     f.store.failures.orientation.insertLine = true;
     assert.equal((await send('post', '', hr, BODY)).status, 500);
-    assert.equal(f.store.state.orientationTrainings.headers.Y.length, 0);
+    assert.equal(state().headers.N.length, 0);
     f.store.failures.orientation.insertLine = false;
     f.store.seedOrientationTraining({ lines: [{ lineId: '1' }] });
     f.store.failures.orientation.insertLine = true;
-    assert.equal(
-      (await send('put', '/1', hr, { ...BODY, empname: 'Partial update', lines: BODY.lines }))
-        .status,
-      500,
-    );
-    assert.equal(f.store.state.orientationTrainings.headers.Y[0].empname, 'Employee E-100Y');
-    assert.equal(f.store.state.orientationTrainings.lines.Y[0].lineId, '1');
+    assert.equal((await send('put', '/1', hr, BODY)).status, 500);
+    assert.equal(state().headers.Y[0].empname, 'Employee E-100Y');
+    assert.equal(state().headers.Y[0].status, 'Draft');
+    assert.equal(state().lines.Y[0].lineId, '1');
     f.store.failures.orientation.insertLine = false;
     f.store.failures.orientation.deleteHeader = true;
     assert.equal((await send('delete', '/1')).status, 500);
-    assert.equal(f.store.state.orientationTrainings.lines.Y.length, 1);
-    assert.equal(f.store.state.orientationTrainings.flags.length, 1);
+    assert.equal(state().lines.Y.length, 1);
+    assert.equal(state().flags.length, 1);
   });
 });
 
-describe('orientation training record access and draft guard', () => {
+describe('orientation training record access', () => {
   let f;
   let hr;
   let staff;
@@ -251,7 +343,6 @@ describe('orientation training record access and draft guard', () => {
   };
   const isForbidden = (response) => {
     assert.equal(response.status, 403, JSON.stringify(response.body));
-    assert.equal(response.body.success, false);
     assert.equal(response.body.error.code, 'FORBIDDEN');
   };
 
@@ -261,7 +352,6 @@ describe('orientation training record access and draft guard', () => {
     isForbidden(await call('put', `/${id}`, staff, BODY));
     isForbidden(await call('delete', `/${id}`, staff));
     isForbidden(await call('delete', `/${id}/lines/1`, staff));
-    assert.equal(f.store.state.orientationTrainings.headers.Y[0].empname, 'Employee E-100Y');
     assert.equal(f.store.state.orientationTrainings.lines.Y.length, 1);
     assert.equal((await call('get', `/${id}`, hr)).status, 200, 'HR users keep access');
     assert.equal((await call('get', '/999', staff)).status, 404, 'unknown IDs stay 404');
@@ -276,26 +366,12 @@ describe('orientation training record access and draft guard', () => {
     f.rbac.override(f.staffUser, f.permissions.VIEW, 'DENY');
     isForbidden(await call('put', `/${other}`, staff, BODY));
   });
-
-  it('blocks updates and line deletes of non-draft records with 409', async () => {
-    const id = f.store.seedOrientationTraining({ header: { status: 'Scheduled' }, lines: [{}] });
-    for (const response of [
-      await call('put', `/${id}`, hr, BODY),
-      await call('delete', `/${id}/lines/1`, hr),
-    ]) {
-      assert.equal(response.status, 409, JSON.stringify(response.body));
-      assert.equal(response.body.error.code, 'ORIENTATION_TRAINING_NOT_DRAFT');
-    }
-    assert.equal(f.store.state.orientationTrainings.headers.Y[0].empname, 'Employee E-100Y');
-    assert.equal(f.store.state.orientationTrainings.lines.Y.length, 1);
-  });
 });
 
 describe('orientation training IDs come from the identity columns', () => {
-  it('creates a shared-service record when the identity is far above MAX(HEADER_ID) (no 409)', async () => {
-    // TEST had MAX(HEADER_ID) = 38 with the shared-service identity above 1080.
+  it('creates when the identity is far above MAX(HEADER_ID)', async () => {
     const f = setup({ identityStart: 1081 });
-    f.store.seedOrientationTraining({ header: { headerId: '38' } });
+    f.store.seedOrientationTraining({ header: { headerId: '38' }, flag: 'N' });
     const hr = await signIn(f.store, f.hrUser);
     const created = await request(f.app)
       .post(BASE)
@@ -304,12 +380,60 @@ describe('orientation training IDs come from the identity columns', () => {
       .send(BODY);
     assert.equal(created.status, 201, JSON.stringify(created.body));
     assert.equal(created.body.data.headerId, '1081');
-    assert.equal(created.body.data.flag, 'Y');
-    const { lines, flags } = f.store.state.orientationTrainings;
-    assert.deepEqual(
-      lines.Y.filter((line) => line.headerId === '1081').map((line) => line.lineId),
-      ['1081'],
-    );
-    assert.ok(flags.some((item) => item.headerId === '1081' && item.tableName === 'SHARED'));
+    assert.equal(created.body.data.reference, 'Production/26/1081', 'IDs above 999 are not cut');
+    const { flags } = f.store.state.orientationTrainings;
+    assert.ok(flags.some((item) => item.headerId === '1081' && item.tableName === 'PRODUCTION'));
   });
+});
+
+describe('orientation training legacy rules', () => {
+  it('days, time, status, division and dates follow the legacy formulas', () => {
+    assert.equal(orientationDays('2026-10-25', '2026-10-25'), 0);
+    assert.equal(orientationDays('2026-10-25', '2026-10-28'), 3);
+    assert.equal(orientationDays('2026-10-25', '2026-10-24'), null);
+    assert.equal(orientationDays('', '2026-10-24'), null);
+    assert.equal(orientationPeriod('08:00:00', '09:30:00'), '1.30 Hrs');
+    assert.equal(orientationPeriod('08:15:00', '08:20:00'), '0.05 Hrs');
+    assert.equal(orientationPeriod('09:00:00', '08:00:00'), null);
+    assert.equal(legacyTime('08:00'), '08:00:00');
+    assert.equal(legacyTime('08:00:30'), '08:00:30');
+    assert.deepEqual(
+      ['Draft', 'INPROCESS', 'InProcess', 'Approved', 'REJECTED', 'Rejected', null].map(
+        statusLabel,
+      ),
+      ['Draft', 'Inprocess', 'Inprocess', 'Approved', 'Rejected', 'Rejected', 'Draft'],
+    );
+    assert.deepEqual(['Draft', 'Rejected', 'REJECTED', 'INPROCESS', 'Approved'].map(isEditable), [
+      true,
+      true,
+      true,
+      false,
+      false,
+    ]);
+    assert.equal(divisionName('300000003618177'), 'IPP BU');
+    assert.equal(divisionName('300000000000001'), 'FPP BU');
+    assert.equal(divisionName(null), null);
+    assert.equal(employeeType('GM'), 'Employee', 'the SQL already maps GM to Manager');
+    assert.equal(fromStoredDate('1970-01-01'), null, 'legacy blank date');
+    assert.equal(fromStoredDate('2000-01-01'), null);
+    assert.equal(fromStoredDate('2026-10-25'), '2026-10-25');
+  });
+
+  it('validate-for-submit follows legacy submitWorkflow', () => {
+    assert.deepEqual(submitProblems({ headerId: '1', rawStatus: 'Draft' }), []);
+    assert.deepEqual(submitProblems({ headerId: '1', rawStatus: 'Rejected' }), []);
+    assert.deepEqual(submitProblems({ headerId: '1', rawStatus: 'REJECTED' }), []);
+    for (const status of ['INPROCESS', 'Inprocess', 'Approved', 'APPROVED', 'Accepted']) {
+      assert.match(
+        submitProblems({ headerId: '1', rawStatus: status })[0].message,
+        /Cannot Re-initialize Workflow/,
+      );
+    }
+    assert.equal(submitProblems({}).at(0).field, 'headerId');
+  });
+
+  it.todo('submit route: mail the creator’s direct manager, XXPHP_WORKFLOW NHTF row, INPROCESS');
+  it.todo(
+    'step 1 / step 2 approve and reject, FYI mail to department heads, final Approved/Rejected',
+  );
 });

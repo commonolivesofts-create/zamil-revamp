@@ -13,10 +13,7 @@ import {
 import { businessToday, enDate } from "../shared/hrFormat.js";
 import { useRecruitmentForm } from "../shared/useRecruitmentForm.js";
 import { RecruitmentLoader } from "../shared/components/RecruitmentLoader.jsx";
-import {
-  NewFormDialog,
-  ReportDialog,
-} from "../shared/components/RecruitmentDialogs.jsx";
+import { NewFormDialog } from "../shared/components/RecruitmentDialogs.jsx";
 import {
   Orbit,
   PanelHead,
@@ -220,7 +217,9 @@ function RequisitionEditor({
       .then((outcome) => {
         if (outcome.status === "success") navigate(BASE, { replace: true });
       });
-  const startNew = () => navigate(BASE);
+  // Leaving with unsaved answers asks first (New form and Report).
+  const leave = (path) =>
+    editor.dirty ? setDialog({ path }) : navigate(path);
 
   const tools = [
     {
@@ -237,7 +236,7 @@ function RequisitionEditor({
     {
       icon: "chart-column",
       label: COMMON_TEXT.report,
-      onClick: () => setDialog("report"),
+      onClick: () => leave(`${BASE}/report`),
     },
     ...(canDelete
       ? [
@@ -252,7 +251,7 @@ function RequisitionEditor({
     {
       icon: "file-plus",
       label: COMMON_TEXT.requestForm,
-      onClick: () => (editor.dirty ? setDialog("new") : startNew()),
+      onClick: () => leave(BASE),
     },
     {
       icon: "house",
@@ -843,11 +842,12 @@ function RequisitionEditor({
         )}
       </RecruitmentShell>
 
-      {dialog === "new" && (
+      {dialog?.path && (
         <NewFormDialog
           onConfirm={() => {
+            const { path } = dialog;
             setDialog(null);
-            startNew();
+            navigate(path);
           }}
           onClose={() => setDialog(null)}
         />
@@ -861,21 +861,6 @@ function RequisitionEditor({
           feedback={editor.feedback}
           onConfirm={deleteDraft}
           onClose={() => setDialog(null)}
-        />
-      )}
-      {dialog === "report" && (
-        <ReportDialog
-          title={T.reportTitle}
-          resourceKey="hr-requisition-report"
-          load={service.list}
-          onClose={() => setDialog(null)}
-          numberOf={(item) => item.requisitionNumber}
-          statusOf={(item) => T.status[item.status]}
-          pathOf={(item) => `${BASE}/${item.requisitionId}`}
-          columns={[
-            [T.reportColumns.title, (item) => item.jobTitle],
-            [T.reportColumns.department, (item) => item.departmentName],
-          ]}
         />
       )}
     </>

@@ -1,20 +1,16 @@
-import { useNavigate } from 'react-router'
-import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
-import usePermissions from '@/features/access/usePermissions.js'
 import { enDate } from '@/features/hr-recruitment/shared/hrFormat.js'
-import { Pill, RecruitmentHeader } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
-import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { Pill } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
-import { RECORD_STATUSES, STATUS_TEXT, STATUS_TONE } from '../shared/formRecords.js'
+import { STATUS_FILTER, STATUS_TEXT, STATUS_TONE } from '../shared/formRecords.js'
+import { ReportPage } from '../shared/ReportPage.jsx'
 import { ServerRecordList } from '../shared/ServerRecordList.jsx'
-import '@/styles/hr-employee-services.css'
-import '@/styles/hr-employee-services-forms.css'
 import { sickLeaveDemo, sickLeaveService } from './sickLeaveService.js'
 
+const CREATE = Object.freeze({ permission: 'HR.SICK_LEAVE:CREATE', path: FORM_PATHS.sickLeave, tool: 'Form', label: 'New request' })
 const FILTERS = [
+  STATUS_FILTER,
   { key: 'empName', label: 'Employee name', type: 'search' },
   { key: 'empId', label: 'Employee number', type: 'search' },
-  { key: 'status', label: 'Status', type: 'select', options: RECORD_STATUSES.map((value) => ({ value, label: STATUS_TEXT[value] })) },
   { key: 'from', label: 'Leave from', type: 'date' },
   { key: 'to', label: 'Leave to', type: 'date' },
   { key: 'mine', label: 'Show', type: 'select', options: [{ value: 'true', label: 'My requests only' }] },
@@ -34,19 +30,10 @@ const COLUMNS = [
 // requests and those they filed; the HR permission adds every request and the
 // employee's total leave days in the period. The API has no sort parameter.
 export default function SickLeaveReportPage() {
-  const navigate = useNavigate()
-  const canCreate = usePermissions().can('HR.SICK_LEAVE:CREATE')
   return (
-    <div className="zrv-hr zrv-hr--sick-leave-report zrv-hr--compact">
-      <RecruitmentHeader title="Sick leave report" subtitle="Sick leave requests and their status." breadcrumb={C.breadcrumb} demo={sickLeaveDemo} />
-      <div className="zrv-hr-toolbar" role="toolbar" aria-label="Sick leave report">
-        <div className="zrv-hr-tools">
-          {canCreate && <button type="button" onClick={() => navigate(FORM_PATHS.sickLeave)}><OrvexaIcon name="file-plus" size={17} /><span>New request</span></button>}
-          <button type="button" onClick={() => window.print()}><OrvexaIcon name="printer" size={17} /><span>{C.print}</span></button>
-        </div>
-      </div>
+    <ReportPage variant="sick-leave-report" title="Sick leave report" subtitle="Sick leave requests and their status." demo={sickLeaveDemo} create={CREATE}>
       <ServerRecordList heading="Requests" resourceKey="hr-sick-leave-report" load={({ mine, ...query }, options) => sickLeaveService.list({ ...query, mine: mine === 'true' }, options)}
         filters={FILTERS} columns={COLUMNS} numberOf={(row) => row.leaveId} pathOf={(row) => `${FORM_PATHS.sickLeave}/${row.leaveId}`} />
-    </div>
+    </ReportPage>
   )
 }

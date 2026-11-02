@@ -7,7 +7,7 @@ import { useResource } from '@/features/security-administration/useAdminData.js'
 import { businessToday, enDate, initials } from '@/features/hr-recruitment/shared/hrFormat.js'
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
-import { NewFormDialog, ReportDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
+import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { HrField } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
@@ -157,7 +157,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
 
   const tools = [
     { icon: 'house', label: C.home, onClick: () => leave('/dashboard') },
-    { icon: 'chart-column', label: T.tools.report, onClick: () => setDialog('report') },
+    { icon: 'chart-column', label: T.tools.report, onClick: () => leave(ES_PATHS.appraisalReport) },
     { icon: 'send', label: T.submit, onClick: requestSubmit, disabled: locked || editor.pending },
     { icon: 'save', label: C.save, onClick: save, disabled: locked || editor.pending },
     { icon: 'file-plus', label: T.tools.newAppraisal, onClick: () => leave(BASE) },
@@ -356,12 +356,6 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
     {dialog === 'submit' && (
       <ConfirmDialog title={T.confirm.title} confirmLabel={T.confirm.action} pending={editor.pending} onClose={() => setDialog(null)} onConfirm={submit}
         description={T.confirm.body(employee.name, period.label, average, result.band.grade, band.title, goals.length)} />
-    )}
-    {dialog === 'report' && (
-      <ReportDialog title={T.report.title} resourceKey="hr-appraisal-report" load={(params, options) => service.list(options)} onClose={() => setDialog(null)}
-        numberOf={(item) => item.appraisalNumber} statusOf={(item) => C.status[item.status]} pathOf={(item) => `${BASE}/${item.appraisalId}`}
-        columns={[[T.report.columns.employee, (item) => item.employeeName], [T.report.columns.period, (item) => item.periodCode],
-          [T.report.columns.rating, (item) => (item.rating === null ? '' : item.rating.toFixed(2))], [T.report.columns.grade, (item) => item.grade ?? '']]} />
     )}
     {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
   </>

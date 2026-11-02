@@ -33,10 +33,15 @@ export const PermissionOverridesPage = lazy(() => import('@/features/security-ad
 export const UserOverridesPage = lazy(() => import('@/features/security-administration/pages/UserOverridesPage.jsx'))
 // HR recruitment forms and employee reports.
 export const RequisitionPage = lazy(() => import('@/features/hr-recruitment/requisition/RequisitionPage.jsx'))
+export const RequisitionReportPage = lazy(() => import('@/features/hr-recruitment/requisition/RequisitionReportPage.jsx'))
 export const InterviewPage = lazy(() => import('@/features/hr-recruitment/interview/InterviewPage.jsx'))
+export const InterviewReportPage = lazy(() => import('@/features/hr-recruitment/interview/InterviewReportPage.jsx'))
 export const OfferPage = lazy(() => import('@/features/hr-recruitment/offer/OfferPage.jsx'))
+export const OfferReportPage = lazy(() => import('@/features/hr-recruitment/offer/OfferReportPage.jsx'))
 export const OrientationPage = lazy(() => import('@/features/hr-recruitment/orientation/OrientationPage.jsx'))
+export const OrientationReportPage = lazy(() => import('@/features/hr-recruitment/orientation/OrientationReportPage.jsx'))
 export const ProbationPage = lazy(() => import('@/features/hr-recruitment/probation/ProbationPage.jsx'))
+export const ProbationReportPage = lazy(() => import('@/features/hr-recruitment/probation/ProbationReportPage.jsx'))
 export const EmployeeReportPage = lazy(() => import('@/features/hr-recruitment/report/EmployeeReportPage.jsx'))
 export const PeriodwiseEmployeesPage = lazy(() => import('@/features/hr-recruitment/report/PeriodwiseEmployeesPage.jsx'))
 
@@ -46,6 +51,7 @@ export const RecordChangeRequestsPage = lazy(() => import('@/features/hr-employe
 export const TransferPage = lazy(() => import('@/features/hr-employee-services/transfer/TransferPage.jsx'))
 export const TransferReportPage = lazy(() => import('@/features/hr-employee-services/transfer/TransferReportPage.jsx'))
 export const AppraisalPage = lazy(() => import('@/features/hr-employee-services/performance/AppraisalPage.jsx'))
+export const AppraisalReportPage = lazy(() => import('@/features/hr-employee-services/performance/AppraisalReportPage.jsx'))
 export const SickLeavePage = lazy(() => import('@/features/hr-employee-services/sickLeave/SickLeavePage.jsx'))
 export const SickLeaveReportPage = lazy(() => import('@/features/hr-employee-services/sickLeave/SickLeaveReportPage.jsx'))
 export const RewardPage = lazy(() => import('@/features/hr-employee-services/reward/RewardPage.jsx'))

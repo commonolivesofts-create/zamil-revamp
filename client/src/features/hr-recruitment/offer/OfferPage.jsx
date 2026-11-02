@@ -9,7 +9,7 @@ import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { arDate, businessToday, enDate, formatAmount, initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
-import { NewFormDialog, ReportDialog } from '../shared/components/RecruitmentDialogs.jsx'
+import { NewFormDialog } from '../shared/components/RecruitmentDialogs.jsx'
 import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket } from '../shared/components/RecruitmentShell.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { HrField } from '../shared/components/RecruitmentInputs.jsx'
@@ -150,7 +150,8 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
   }, { success: T.deleted }).then((outcome) => {
     if (outcome.status === 'success') navigate(BASE, { replace: true })
   })
-  const startNew = () => navigate(BASE)
+  // Leaving with unsaved answers asks first (New form and Report).
+  const leave = (path) => (editor.dirty ? setDialog({ path }) : navigate(path))
 
   const benefit = (key, index) => {
     const text = T.benefits[key]
@@ -199,8 +200,8 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
     { icon: 'save', label: COMMON_TEXT.save, onClick: save, disabled: locked || editor.pending },
     ...(canDelete ? [{ icon: 'trash-2', label: T.deleteAction, onClick: () => setDialog('delete'), disabled: editor.pending }] : []),
     { icon: 'printer', label: COMMON_TEXT.print, onClick: () => window.print() },
-    { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => setDialog('report') },
-    { icon: 'file-plus', label: COMMON_TEXT.requestForm, onClick: () => (editor.dirty ? setDialog('new') : startNew()) },
+    { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => leave(`${BASE}/report`) },
+    { icon: 'file-plus', label: COMMON_TEXT.requestForm, onClick: () => leave(BASE) },
     { icon: 'house', label: COMMON_TEXT.home, onClick: () => navigate('/dashboard') },
   ]
 
@@ -349,12 +350,7 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
 
       {dialog === 'delete' && <ConfirmDialog title={T.deleteTitle} description={T.deleteBody} confirmLabel={T.deleteAction} pending={editor.pending}
         feedback={editor.feedback} onConfirm={deleteRecord} onClose={() => setDialog(null)} />}
-      {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
-      {dialog === 'report' && (
-        <ReportDialog title={T.reportTitle} resourceKey="hr-offer-report" load={service.list} onClose={() => setDialog(null)}
-          numberOf={(item) => item.offerId} statusOf={(item) => T.status[item.status]} pathOf={(item) => `${BASE}/${item.offerId}`}
-          columns={[[T.reportColumns.position, (item) => item.position], [T.reportColumns.candidate, (item) => item.candidateNameEn]]} />
-      )}
+      {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
     </>
   )
 }
