@@ -1,5 +1,13 @@
 # Personal Status Change Form — Backend API README (React + Node.js Revamp)
 
+> **Update 2026-11-02 (legacy parity, branch `test/status-change-legacy-parity`).** Some decisions
+> below are superseded; see `docs/testing/status-change-legacy-comparison.md`: `HEADER_ID` uses the
+> identity column (not `MAX+1`); the employee snapshot, `FORM_DATE` and `ARB_DATE` are server values;
+> `START_DATE` and the `*_SIGN` columns are VARCHAR2 `DD-MON-YY` text; `OLD_TOTAL` is `TOTAL_SALARY`;
+> update and delete are draft-only (409); read, update, delete and the listing apply record access
+> (creator, HR, or same department with VIEW), replacing the unscoped listing of §3.1 (pending owner
+> confirmation); the listing returns the legacy `PENDING_AT` column (read only).
+
 > **Scope of this document:** Only the CRUD APIs for the **Personal Status Change Form** (also
 > printed as *PERSONNEL RECORD CHANGE FORM* / *Personnel Status Request Change*; form code `RCF`) —
 > **Insert, Read, Update, Delete, and Listing with filters**, plus the lookup (dropdown / auto-fill)
@@ -207,7 +215,7 @@ single subquery. **Do not** reproduce the legacy `PENDING_AT` subquery — it re
     "rows": [
       {
         "headerId": 142, "refNo": "0142-Production", "formDate": "2026-10-29",
-        "effectiveDate": "2026-11-01", "empNo": 1234, "empName": "AL ESSA, SAAD",
+        "effectiveDate": "2026-11-01", "empNo": 1234, "empName": "EMPLOYEE, EXAMPLE",
         "position": "Supervisor", "section": "Production", "department": "Injection",
         "oldTotal": 8500.00, "newTotal": 9250.50,
         "remarks": "...", "status": "DRAFT", "requestor": "JOHN, DOE"
@@ -286,7 +294,7 @@ Field names are the form's names (the React client posts the same keys):
   "formDate": "2026-10-29",        // optional; server defaults to today
   "arbDate": "الخميس ٦ / ربيع الآخر / ١٤٤٨",
   "effectiveDate": "2026-11-01",   // required
-  "empName": "AL ESSA, SAAD", "nationality": "Saudi",
+  "empName": "EMPLOYEE, EXAMPLE", "nationality": "Saudi",
   "section": "Production", "department": "Injection", "startDate": "2019-03-17",
   "old": { "position": "...", "basicSal": 5000, "houseAll": 1000, "transAll": 500,
             "communAll": 300, "carAll": 200, "otherAll": 0, "total": 7000,
