@@ -150,6 +150,21 @@ tags:
       Routes require the corresponding `HR.SALARY_CERTIFICATES:VIEW / CREATE / UPDATE /
       DELETE` permission. Employee identity, employment, and salary snapshot values are
       loaded from the employee master; only DRAFT certificates can be updated or deleted.
+  - name: HR Warning Letters
+    description: >-
+      Warning Letter CRUD, employee lookups, and bilingual print data. Routes require an
+      authenticated session and the matching `HR.WARNING_LETTERS:VIEW / CREATE / UPDATE /
+      DELETE` permission. State-changing requests also require the session-bound CSRF token.
+      Employee details, warning number, reference number, status, and audit fields are
+      server-managed.
+  - name: HR Tourist Visa Letters
+    description: >-
+      Tourist Visa Letter CRUD, employee/country/approver lookups, and bilingual print data.
+      Routes require an authenticated session and the matching
+      `HR.TOURIST_VISA_LETTERS:VIEW / CREATE / UPDATE / DELETE` permission. State-changing
+      requests also require the session-bound CSRF token. Employee identity and salary are
+      loaded from the employee master at creation; UUID, reference number, and audit fields
+      are handled by the server.
 paths:
   /api/v1/auth/password/policy:
     get:
@@ -9269,6 +9284,660 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/warning-letters/lookups/employees:
+    get:
+      operationId: searchWarningLetterEmployees
+      tags: [HR Warning Letters]
+      summary: Search employees for warning letters
+      description: >-
+        Requires `HR.WARNING_LETTERS:VIEW` and an authenticated session. Searches employee
+        number and name; queries shorter than two trimmed characters return an empty array.
+        At most 20 matches are returned. The response has `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 150
+            default: ''
+      responses:
+        '200':
+          description: Matching employees.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarningLetterEmployeesResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/warning-letters/lookups/employee/{empNo}:
+    get:
+      operationId: getWarningLetterEmployee
+      tags: [HR Warning Letters]
+      summary: Get employee details and next warning number
+      description: >-
+        Requires `HR.WARNING_LETTERS:VIEW` and an authenticated session. The employee name,
+        division, and job title are loaded from the employee master. `warning_no` is the
+        current count of warning letters for the employee plus one. The response has
+        `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: empNo
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/WarningLetterEmployeeNumber' }
+      responses:
+        '200':
+          description: Employee details and the next warning number.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarningLetterEmployeeResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Employee not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/warning-letters:
+    get:
+      operationId: listWarningLetters
+      tags: [HR Warning Letters]
+      summary: List warning letters
+      description: >-
+        Requires `HR.WARNING_LETTERS:VIEW` and an authenticated session. Results are ordered
+        by the requested sort and order, with ID descending as a tie-breaker except when
+        sorting by ID. Set `limit=0` to return all matching rows. The response has
+        `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 1000, default: 25 }
+        - name: search
+          in: query
+          schema: { type: [string, 'null'], maxLength: 150 }
+        - name: reference_no
+          in: query
+          schema: { type: [string, 'null'], maxLength: 50 }
+        - name: warning_no
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: emp_no
+          in: query
+          schema: { type: [string, 'null'], maxLength: 80 }
+        - name: division
+          in: query
+          schema: { type: [string, 'null'], maxLength: 150 }
+        - name: status
+          in: query
+          schema: { type: [string, 'null'], maxLength: 30 }
+        - name: flag
+          in: query
+          schema:
+            type: string
+            enum: [irregular, absent, eating, delaying, make_problems, warning_letter, other_letter]
+        - name: date_from
+          in: query
+          schema: { $ref: '#/components/schemas/WarningLetterDate' }
+        - name: date_to
+          in: query
+          schema: { $ref: '#/components/schemas/WarningLetterDate' }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [id, reference_no, warning_no, emp_no, emp_name, war_date, created_at]
+            default: created_at
+        - name: order
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
+      responses:
+        '200':
+          description: Paginated warning-letter records.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarningLetterListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createWarningLetter
+      tags: [HR Warning Letters]
+      summary: Create a warning letter
+      description: >-
+        Requires `HR.WARNING_LETTERS:CREATE`, an authenticated session, and `X-CSRF-Token`.
+        Employee snapshot fields, warning number, reference number, DRAFT status, and
+        creation audit fields are assigned by the server. At least one reason is required;
+        warning-letter comments are required when their corresponding flag is `Y`. The
+        response has `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WarningLetterCreate' }
+      responses:
+        '201':
+          description: Warning letter created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarningLetterDetailResponse' }
+        '400':
+          description: Request validation failed or employee was not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '409':
+          description: A unique warning-letter reference number could not be generated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/warning-letters/{id}/print:
+    get:
+      operationId: getWarningLetterPrintData
+      tags: [HR Warning Letters]
+      summary: Get bilingual warning-letter print data
+      description: >-
+        Requires `HR.WARNING_LETTERS:VIEW` and an authenticated session. Returns the warning
+        letter record with English and Arabic print labels as JSON; it does not render a PDF
+        or HTML document. The response has `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/WarningLetterId' }
+      responses:
+        '200':
+          description: Warning-letter data and bilingual labels.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarningLetterPrintResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Warning letter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/warning-letters/{id}:
+    get:
+      operationId: getWarningLetter
+      tags: [HR Warning Letters]
+      summary: Get a warning letter
+      description: >-
+        Requires `HR.WARNING_LETTERS:VIEW` and an authenticated session. The response has
+        `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/WarningLetterId' }
+      responses:
+        '200':
+          description: Warning-letter record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarningLetterDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Warning letter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: updateWarningLetter
+      tags: [HR Warning Letters]
+      summary: Update a warning letter
+      description: >-
+        Requires `HR.WARNING_LETTERS:UPDATE`, an authenticated session, and `X-CSRF-Token`.
+        Only writable warning-letter fields are persisted; employee snapshots, reference and
+        warning numbers, status, and audit fields are server-managed. At least one reason is
+        required after applying the update, and comments are required when their corresponding
+        flags are `Y`. The response has `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/WarningLetterId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WarningLetterUpdate' }
+      responses:
+        '200':
+          description: Updated warning-letter record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarningLetterDetailResponse' }
+        '400':
+          description: Request validation failed or the resulting record has invalid reasons or comments.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Warning letter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteWarningLetter
+      tags: [HR Warning Letters]
+      summary: Delete a warning letter
+      description: >-
+        Requires `HR.WARNING_LETTERS:DELETE`, an authenticated session, and `X-CSRF-Token`.
+        The response has `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/WarningLetterId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200':
+          description: Warning letter deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarningLetterDeleteResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Warning letter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/tourist-visa-letters:
+    get:
+      operationId: listTouristVisaLetters
+      tags: [HR Tourist Visa Letters]
+      summary: List tourist visa letters
+      description: >-
+        Requires `HR.TOURIST_VISA_LETTERS:VIEW` and an authenticated session. Set `limit=0` to
+        return all matches. Results use the requested sort and order with ID descending as a
+        tie-breaker. The response has `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 10000, default: 25 }
+        - name: search
+          in: query
+          schema: { type: [string, 'null'], maxLength: 200 }
+        - name: ref_no
+          in: query
+          schema: { type: [string, 'null'], maxLength: 100 }
+        - name: division
+          in: query
+          schema: { type: string, enum: [ZPIL, Z3P] }
+        - name: country
+          in: query
+          schema: { type: [string, 'null'], maxLength: 150 }
+        - name: employee_no
+          in: query
+          schema: { type: [string, 'null'], maxLength: 80 }
+        - name: approval_name
+          in: query
+          schema: { type: [string, 'null'], maxLength: 200 }
+        - name: date_from
+          in: query
+          schema: { $ref: '#/components/schemas/TouristVisaDate' }
+        - name: date_to
+          in: query
+          schema: { $ref: '#/components/schemas/TouristVisaDate' }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [id, ref_no, employee_no, employee_name, country, division, cur_date, created_at]
+            default: id
+        - name: order
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
+      responses:
+        '200':
+          description: Paginated tourist visa letters.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '503':
+          description: Tourist visa table metadata could not be verified.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createTouristVisaLetter
+      tags: [HR Tourist Visa Letters]
+      summary: Create a tourist visa letter
+      description: >-
+        Requires `HR.TOURIST_VISA_LETTERS:CREATE`, an authenticated session, and `X-CSRF-Token`.
+        Employee identity and salary are loaded from the employee master at creation; UUID,
+        reference number, and creation audit fields are assigned by the server. Country and
+        approver values are checked against lookup data. The response has `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TouristVisaCreate' }
+      responses:
+        '201':
+          description: Tourist visa letter created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaLetterResponse' }
+        '400':
+          description: Request data is invalid, employee data is incomplete, or a country or approver is unknown.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '409':
+          description: Employee lookup is ambiguous or a unique reference number could not be generated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Tourist visa table metadata could not be verified.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/tourist-visa-letters/lookups/countries:
+    get:
+      operationId: listTouristVisaCountries
+      tags: [HR Tourist Visa Letters]
+      summary: List countries for tourist visa letters
+      description: Requires `HR.TOURIST_VISA_LETTERS:VIEW` and an authenticated session.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Country names.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaCountriesResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/tourist-visa-letters/lookups/countries/{country}/arabic:
+    get:
+      operationId: getTouristVisaCountryArabicName
+      tags: [HR Tourist Visa Letters]
+      summary: Get the Arabic country name
+      description: Requires `HR.TOURIST_VISA_LETTERS:VIEW` and an authenticated session.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: country
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 150 }
+      responses:
+        '200':
+          description: Country name in English and Arabic.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaCountryResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Country not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/tourist-visa-letters/lookups/employees:
+    get:
+      operationId: searchTouristVisaEmployees
+      tags: [HR Tourist Visa Letters]
+      summary: Search employees for tourist visa letters
+      description: Requires `HR.TOURIST_VISA_LETTERS:VIEW` and an authenticated session.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 100 }
+      responses:
+        '200':
+          description: Up to 100 matching employees.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaEmployeesResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/tourist-visa-letters/lookups/employees/{empNo}:
+    get:
+      operationId: getTouristVisaEmployee
+      tags: [HR Tourist Visa Letters]
+      summary: Get an employee for a tourist visa letter
+      description: Requires `HR.TOURIST_VISA_LETTERS:VIEW` and an authenticated session.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: empNo
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 80 }
+      responses:
+        '200':
+          description: Employee details used to prepare a tourist visa letter.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaEmployeeResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Employee not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Employee lookup is ambiguous.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/tourist-visa-letters/lookups/approvers:
+    get:
+      operationId: listTouristVisaApprovers
+      tags: [HR Tourist Visa Letters]
+      summary: List eligible approvers
+      description: Requires `HR.TOURIST_VISA_LETTERS:VIEW` and an authenticated session.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Eligible approver names and position titles.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaApproversResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/tourist-visa-letters/{uuid}/print:
+    get:
+      operationId: getTouristVisaLetterPrintData
+      tags: [HR Tourist Visa Letters]
+      summary: Get bilingual tourist visa letter print data
+      description: >-
+        Requires `HR.TOURIST_VISA_LETTERS:VIEW` and an authenticated session. Returns JSON
+        print data; it does not render a PDF or HTML document.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TouristVisaUUID' }
+      responses:
+        '200':
+          description: Bilingual print data.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaPrintResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Tourist visa letter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Tourist visa table metadata could not be verified.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/tourist-visa-letters/{uuid}:
+    get:
+      operationId: getTouristVisaLetter
+      tags: [HR Tourist Visa Letters]
+      summary: Get a tourist visa letter
+      description: Requires `HR.TOURIST_VISA_LETTERS:VIEW` and an authenticated session.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TouristVisaUUID' }
+      responses:
+        '200':
+          description: Tourist visa letter record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaLetterResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Tourist visa letter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Tourist visa table metadata could not be verified.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: updateTouristVisaLetter
+      tags: [HR Tourist Visa Letters]
+      summary: Update a tourist visa letter
+      description: >-
+        Requires `HR.TOURIST_VISA_LETTERS:UPDATE`, an authenticated session, and `X-CSRF-Token`.
+        The employee cannot be reassigned. UUID, reference number, and audit fields are
+        server-managed. The response has `Cache-Control: no-store`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TouristVisaUUID' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TouristVisaUpdate' }
+      responses:
+        '200':
+          description: Updated tourist visa letter.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaLetterResponse' }
+        '400':
+          description: Request data is invalid, employee data is incomplete, or a country or approver is unknown.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Tourist visa letter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Employee reassignment is forbidden or employee lookup is ambiguous.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Tourist visa table metadata could not be verified.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteTouristVisaLetter
+      tags: [HR Tourist Visa Letters]
+      summary: Delete a tourist visa letter
+      description: >-
+        Requires `HR.TOURIST_VISA_LETTERS:DELETE`, an authenticated session, and
+        `X-CSRF-Token`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TouristVisaUUID' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '200':
+          description: Tourist visa letter deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TouristVisaDeleteResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404':
+          description: Tourist visa letter not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
 components:
   securitySchemes:
     sessionCookie:
@@ -14464,6 +15133,525 @@ components:
           properties:
             id: { $ref: '#/components/schemas/EnglishSalaryCertificateId' }
             deleted: { const: true }
+    TouristVisaUUID:
+      type: string
+      format: uuid
+      pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+    TouristVisaDate:
+      type: string
+      format: date
+      pattern: '^\d{4}-\d{2}-\d{2}$'
+      description: Valid calendar date in YYYY-MM-DD format.
+    TouristVisaText:
+      type: [string, 'null']
+      maxLength: 500
+    TouristVisaWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        cur_date: { $ref: '#/components/schemas/TouristVisaDate' }
+        cur_date_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        division: { $ref: '#/components/schemas/TouristVisaText' }
+        country: { $ref: '#/components/schemas/TouristVisaText' }
+        country_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        employee_no: { $ref: '#/components/schemas/TouristVisaText' }
+        employee_no_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        employee_name: { $ref: '#/components/schemas/TouristVisaText' }
+        employee_name_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        nationality: { $ref: '#/components/schemas/TouristVisaText' }
+        nationality_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        passport_no: { $ref: '#/components/schemas/TouristVisaText' }
+        passport_no_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        pass_issue_date: { $ref: '#/components/schemas/TouristVisaDate' }
+        pass_issue_date_ar: { $ref: '#/components/schemas/TouristVisaDate' }
+        national_id: { $ref: '#/components/schemas/TouristVisaText' }
+        national_id_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        nati_issue_date: { $ref: '#/components/schemas/TouristVisaDate' }
+        nati_issue_date_ar: { $ref: '#/components/schemas/TouristVisaDate' }
+        position: { $ref: '#/components/schemas/TouristVisaText' }
+        position_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        position_start_date: { $ref: '#/components/schemas/TouristVisaDate' }
+        position_start_date_ar: { $ref: '#/components/schemas/TouristVisaDate' }
+        contract_expired: { $ref: '#/components/schemas/TouristVisaDate' }
+        contract_expired_ar: { $ref: '#/components/schemas/TouristVisaDate' }
+        contract: { $ref: '#/components/schemas/TouristVisaText' }
+        contract_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        salary:
+          anyOf:
+            - type: number
+              minimum: 0
+            - type: [string, 'null']
+              maxLength: 60
+        salary_ar:
+          anyOf:
+            - type: number
+              minimum: 0
+            - type: [string, 'null']
+              maxLength: 60
+        salary_word: { type: [string, 'null'], maxLength: 2000 }
+        salary_word_ar: { type: [string, 'null'], maxLength: 2000 }
+        employee_nationality: { $ref: '#/components/schemas/TouristVisaText' }
+        employee_nationality_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        manager_passport: { $ref: '#/components/schemas/TouristVisaText' }
+        manager_passport_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        tourism_to: { $ref: '#/components/schemas/TouristVisaText' }
+        tourism_to_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        tourism_from: { $ref: '#/components/schemas/TouristVisaText' }
+        tourism_from_ar: { $ref: '#/components/schemas/TouristVisaText' }
+        approval_name: { $ref: '#/components/schemas/TouristVisaText' }
+        position_name: { $ref: '#/components/schemas/TouristVisaText' }
+        id: { description: Accepted but stripped by the server. }
+        uuid: { description: Accepted but stripped by the server. }
+        ref_no: { description: Accepted but stripped by the server. }
+        created_by: { description: Accepted but stripped by the server. }
+        created_at: { description: Accepted but stripped by the server. }
+        updated_by: { description: Accepted but stripped by the server. }
+        updated_at: { description: Accepted but stripped by the server. }
+    TouristVisaCreate:
+      allOf:
+        - $ref: '#/components/schemas/TouristVisaWrite'
+        - type: object
+          required:
+            [
+              cur_date,
+              division,
+              country,
+              employee_no,
+              tourism_to,
+              tourism_from,
+              approval_name,
+              position_name,
+            ]
+      description: >-
+        Employee identity and salary are loaded from the employee master when the letter is
+        created. UUID, reference number, and audit fields are server-managed.
+    TouristVisaUpdate:
+      $ref: '#/components/schemas/TouristVisaWrite'
+    TouristVisaLetter:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: [integer, 'null'] }
+        uuid: { $ref: '#/components/schemas/TouristVisaUUID' }
+        ref_no: { type: [string, 'null'] }
+        cur_date: { type: [string, 'null'], format: date }
+        cur_date_ar: { type: [string, 'null'] }
+        division: { type: [string, 'null'] }
+        country: { type: [string, 'null'] }
+        country_ar: { type: [string, 'null'] }
+        employee_no: { type: [string, integer, 'null'] }
+        employee_no_ar: { type: [string, 'null'] }
+        employee_name: { type: [string, 'null'] }
+        employee_name_ar: { type: [string, 'null'] }
+        nationality: { type: [string, 'null'] }
+        nationality_ar: { type: [string, 'null'] }
+        passport_no: { type: [string, 'null'] }
+        passport_no_ar: { type: [string, 'null'] }
+        pass_issue_date: { type: [string, 'null'], format: date }
+        pass_issue_date_ar: { type: [string, 'null'], format: date }
+        national_id: { type: [string, 'null'] }
+        national_id_ar: { type: [string, 'null'] }
+        nati_issue_date: { type: [string, 'null'], format: date }
+        nati_issue_date_ar: { type: [string, 'null'], format: date }
+        position: { type: [string, 'null'] }
+        position_ar: { type: [string, 'null'] }
+        position_start_date: { type: [string, 'null'], format: date }
+        position_start_date_ar: { type: [string, 'null'], format: date }
+        contract_expired: { type: [string, 'null'], format: date }
+        contract_expired_ar: { type: [string, 'null'], format: date }
+        contract: { type: [string, 'null'] }
+        contract_ar: { type: [string, 'null'] }
+        salary: { type: [number, 'null'] }
+        salary_ar: { type: [number, 'null'] }
+        salary_word: { type: [string, 'null'] }
+        salary_word_ar: { type: [string, 'null'] }
+        employee_nationality: { type: [string, 'null'] }
+        employee_nationality_ar: { type: [string, 'null'] }
+        manager_passport: { type: [string, 'null'] }
+        manager_passport_ar: { type: [string, 'null'] }
+        tourism_to: { type: [string, 'null'] }
+        tourism_to_ar: { type: [string, 'null'] }
+        tourism_from: { type: [string, 'null'] }
+        tourism_from_ar: { type: [string, 'null'] }
+        approval_name: { type: [string, 'null'] }
+        position_name: { type: [string, 'null'] }
+        created_by: { type: [string, integer, 'null'] }
+        created_at: { type: [string, 'null'] }
+        updated_by: { type: [string, integer, 'null'] }
+        updated_at: { type: [string, 'null'] }
+    TouristVisaListData:
+      type: object
+      required: [rows, pagination]
+      properties:
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/TouristVisaLetter' }
+        pagination:
+          type: object
+          required: [total_records, total_pages, current_page, limit]
+          properties:
+            total_records: { type: integer, minimum: 0 }
+            total_pages: { type: integer, minimum: 0 }
+            current_page: { type: integer, minimum: 1 }
+            limit: { type: integer, minimum: 0, maximum: 10000 }
+    TouristVisaCountry:
+      type: object
+      properties:
+        country: { type: [string, 'null'] }
+        country_ar: { type: [string, 'null'] }
+    TouristVisaEmployee:
+      type: object
+      additionalProperties: true
+      properties:
+        employee_no: { type: [string, integer, 'null'] }
+        employee_name: { type: [string, 'null'] }
+        employee_name_ar: { type: [string, 'null'] }
+        nationality: { type: [string, 'null'] }
+        nationality_ar: { type: [string, 'null'] }
+        passport_no: { type: [string, 'null'] }
+        national_id: { type: [string, 'null'] }
+        position: { type: [string, 'null'] }
+        position_ar: { type: [string, 'null'] }
+        salary: { type: [number, 'null'] }
+        country: { type: [string, 'null'] }
+        country_ar: { type: [string, 'null'] }
+        employee_no_ar: { type: [string, 'null'] }
+        passport_no_ar: { type: [string, 'null'] }
+        national_id_ar: { type: [string, 'null'] }
+    TouristVisaApprover:
+      type: object
+      properties:
+        approval_name: { type: [string, 'null'] }
+        position_name: { type: [string, 'null'] }
+    TouristVisaPrintData:
+      type: object
+      required: [title, record, labels, direction]
+      properties:
+        title: { type: string }
+        record: { $ref: '#/components/schemas/TouristVisaLetter' }
+        labels:
+          type: object
+          properties:
+            to: { type: string }
+            to_ar: { type: string }
+            salutation: { type: string }
+            salutation_ar: { type: string }
+            greeting: { type: string }
+            greeting_ar: { type: string }
+            closing: { type: string }
+            closing_ar: { type: string }
+        direction:
+          type: object
+          properties:
+            tourism_to: { const: destination }
+            tourism_from: { const: origin }
+    TouristVisaCountriesResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              country: { type: [string, 'null'] }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    TouristVisaCountryResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/TouristVisaCountry' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    TouristVisaEmployeesResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/TouristVisaEmployee' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    TouristVisaEmployeeResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/TouristVisaEmployee' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    TouristVisaApproversResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/TouristVisaApprover' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    TouristVisaListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/TouristVisaListData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    TouristVisaLetterResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/TouristVisaLetter' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    TouristVisaPrintResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/TouristVisaPrintData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    TouristVisaDeleteResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [uuid]
+          properties:
+            uuid: { $ref: '#/components/schemas/TouristVisaUUID' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    WarningLetterId:
+      type: integer
+      minimum: 1
+    WarningLetterEmployeeNumber:
+      type: string
+      minLength: 1
+      maxLength: 80
+    WarningLetterDate:
+      type: string
+      format: date
+      pattern: '^\d{4}-\d{2}-\d{2}$'
+      description: Valid calendar date in YYYY-MM-DD format.
+    WarningLetterFlagInput:
+      anyOf:
+        - type: boolean
+        - type: string
+          enum: [Y, N, y, n, on, off, 'true', 'false', '1', '0', '']
+    WarningLetterTextInput:
+      type: [string, 'null']
+      maxLength: 2000
+    WarningLetterWrite:
+      type: object
+      additionalProperties: false
+      description: >-
+        Writable warning-letter fields. The listed reference, warning, employee snapshot,
+        status, and audit properties are accepted for compatibility but ignored; the server
+        does not use them as write values.
+      properties:
+        emp_no:
+          description: Employee selected on create; updates ignore this property.
+        war_date: { $ref: '#/components/schemas/WarningLetterDate' }
+        irregular_flag: { $ref: '#/components/schemas/WarningLetterFlagInput' }
+        absent_flag: { $ref: '#/components/schemas/WarningLetterFlagInput' }
+        eating_flag: { $ref: '#/components/schemas/WarningLetterFlagInput' }
+        delaying_flag: { $ref: '#/components/schemas/WarningLetterFlagInput' }
+        make_problems_flag: { $ref: '#/components/schemas/WarningLetterFlagInput' }
+        warning_letter_flag: { $ref: '#/components/schemas/WarningLetterFlagInput' }
+        other_letter_flag: { $ref: '#/components/schemas/WarningLetterFlagInput' }
+        others_text: { $ref: '#/components/schemas/WarningLetterTextInput' }
+        others_text_ar: { $ref: '#/components/schemas/WarningLetterTextInput' }
+        action_text: { $ref: '#/components/schemas/WarningLetterTextInput' }
+        action_text_ar: { $ref: '#/components/schemas/WarningLetterTextInput' }
+        warning_letter_comment: { $ref: '#/components/schemas/WarningLetterTextInput' }
+        other_letter_comment: { $ref: '#/components/schemas/WarningLetterTextInput' }
+        reference_no: { description: Accepted but ignored by the server. }
+        warning_no: { description: Accepted but ignored by the server. }
+        emp_name: { description: Accepted but ignored by the server. }
+        emp_div: { description: Accepted but ignored by the server. }
+        emp_job: { description: Accepted but ignored by the server. }
+        status: { description: Accepted but ignored by the server. }
+        created_by: { description: Accepted but ignored by the server. }
+        created_at: { description: Accepted but ignored by the server. }
+        updated_by: { description: Accepted but ignored by the server. }
+        updated_at: { description: Accepted but ignored by the server. }
+        id: { description: Accepted but ignored by the server. }
+    WarningLetterCreate:
+      allOf:
+        - $ref: '#/components/schemas/WarningLetterWrite'
+        - type: object
+          required: [emp_no]
+          properties:
+            emp_no: { $ref: '#/components/schemas/WarningLetterEmployeeNumber' }
+      description: >-
+        At least one of the five reason flags must be Y, or an English or Arabic Other reason
+        must be supplied. A selected written-warning/other-letter flag requires its matching
+        comment.
+    WarningLetterUpdate:
+      allOf:
+        - $ref: '#/components/schemas/WarningLetterWrite'
+      description: >-
+        Fields are optional and applied to the existing record. The resulting record must
+        still have at least one reason, and selected warning-letter flags require comments.
+    WarningLetterEmployee:
+      type: object
+      required: [emp_no, emp_name]
+      properties:
+        emp_no: { type: [string, integer] }
+        emp_name: { type: [string, 'null'] }
+    WarningLetterEmployeeDetail:
+      type: object
+      required: [emp_no, emp_name, emp_div, emp_job, warning_no]
+      properties:
+        emp_no: { type: [string, integer] }
+        emp_name: { type: [string, 'null'] }
+        emp_div: { type: [string, 'null'] }
+        emp_job: { type: [string, 'null'] }
+        warning_no: { type: integer, minimum: 1 }
+    WarningLetter:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/WarningLetterId' }
+        reference_no: { type: [string, 'null'] }
+        warning_no: { type: [integer, 'null'] }
+        emp_no: { type: [string, integer, 'null'] }
+        emp_name: { type: [string, 'null'] }
+        emp_div: { type: [string, 'null'] }
+        emp_job: { type: [string, 'null'] }
+        war_date: { type: [string, 'null'], format: date }
+        war_date_display: { type: [string, 'null'] }
+        irregular_flag: { type: [string, 'null'], enum: [Y, N, null] }
+        absent_flag: { type: [string, 'null'], enum: [Y, N, null] }
+        eating_flag: { type: [string, 'null'], enum: [Y, N, null] }
+        delaying_flag: { type: [string, 'null'], enum: [Y, N, null] }
+        make_problems_flag: { type: [string, 'null'], enum: [Y, N, null] }
+        others_text: { type: [string, 'null'] }
+        others_text_ar: { type: [string, 'null'] }
+        action_text: { type: [string, 'null'] }
+        action_text_ar: { type: [string, 'null'] }
+        warning_letter_flag: { type: [string, 'null'], enum: [Y, N, null] }
+        warning_letter_comment: { type: [string, 'null'] }
+        other_letter_flag: { type: [string, 'null'], enum: [Y, N, null] }
+        other_letter_comment: { type: [string, 'null'] }
+        status: { type: [string, 'null'] }
+        created_by: { type: [string, integer, 'null'] }
+        updated_by: { type: [string, integer, 'null'] }
+        created_at: { type: [string, 'null'] }
+        updated_at: { type: [string, 'null'] }
+    WarningLetterListData:
+      type: object
+      required: [pagination, rows]
+      properties:
+        pagination:
+          type: object
+          required: [total_records, total_pages, current_page, limit]
+          properties:
+            total_records: { type: integer, minimum: 0 }
+            total_pages: { type: integer, minimum: 0 }
+            current_page: { type: integer, minimum: 1 }
+            limit: { type: integer, minimum: 0, maximum: 1000 }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/WarningLetter' }
+    WarningLetterBilingualText:
+      type: object
+      required: [en, ar]
+      properties:
+        en: { type: string }
+        ar: { type: string }
+    WarningLetterPrintLabels:
+      type: object
+      required:
+        [
+          title,
+          reference,
+          date,
+          warning_no,
+          written,
+          employee_name,
+          job_title,
+          employee_no,
+          policy,
+          reasons,
+          action,
+          others,
+        ]
+      properties:
+        title: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        reference: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        date: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        warning_no: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        written: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        employee_name: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        job_title: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        employee_no: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        policy: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        reasons:
+          type: object
+          required: [irregular_flag, absent_flag, eating_flag, delaying_flag, make_problems_flag]
+          properties:
+            irregular_flag: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+            absent_flag: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+            eating_flag: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+            delaying_flag: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+            make_problems_flag: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        action: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+        others: { $ref: '#/components/schemas/WarningLetterBilingualText' }
+    WarningLetterPrintData:
+      allOf:
+        - $ref: '#/components/schemas/WarningLetter'
+        - type: object
+          required: [labels]
+          properties:
+            labels: { $ref: '#/components/schemas/WarningLetterPrintLabels' }
+    WarningLetterEmployeesResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/WarningLetterEmployee' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    WarningLetterEmployeeResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/WarningLetterEmployeeDetail' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    WarningLetterListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/WarningLetterListData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    WarningLetterDetailResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/WarningLetter' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    WarningLetterPrintResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/WarningLetterPrintData' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
+    WarningLetterDeleteResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [id]
+          properties:
+            id: { $ref: '#/components/schemas/WarningLetterId' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
   responses:
     MfaSignedIn:
       description: >-

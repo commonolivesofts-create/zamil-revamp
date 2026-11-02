@@ -78,6 +78,8 @@ import { createSalaryCertificateEnglishService } from '../modules/hr/salary-cert
 
 import { createVisitingVisaRouter as createBusinessVisaLetterRouter } from '../modules/hr/business-visa-letter/business-visiting-visa-letter.routes.js';
 import { createVisitingVisaService as createBusinessVisaLetterService } from '../modules/hr/business-visa-letter/business-visiting-visa-letter.service.js';
+import { createTouristVisaRoutes } from '../modules/hr/tourist-visa-letters/tourist-visa-letter.routes.js';
+import { createTouristVisaService } from '../modules/hr/tourist-visa-letters/tourist-visa-letter.service.js';
 
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
@@ -517,6 +519,22 @@ export function createApiRouter(appConfig, deps = {}) {
         withConnection: db.withConnection,
         withTransaction: db.withTransaction,
       }),
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/tourist-visa-letters',
+    createTouristVisaRoutes({
+      service:
+        deps.touristVisaService ??
+        createTouristVisaService({
+          repository: deps.touristVisaRepository,
+          withConnection: db.withConnection,
+          withTransaction: db.withTransaction,
+        }),
       authorize,
       authenticate,
       auditService,

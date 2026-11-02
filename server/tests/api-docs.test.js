@@ -658,6 +658,45 @@ describe('API documentation', () => {
     assert.equal(query.schema.maxLength, 100);
   });
 
+  it('documents every Tourist Visa Letter route with session security and CSRF on changes', () => {
+    const { paths } = loadOpenApiSpec();
+    const base = '/api/v1/hr/tourist-visa-letters';
+    const expected = [
+      ['get', '', 'VIEW'],
+      ['post', '', 'CREATE'],
+      ['get', '/lookups/countries', 'VIEW'],
+      ['get', '/lookups/countries/{country}/arabic', 'VIEW'],
+      ['get', '/lookups/employees', 'VIEW'],
+      ['get', '/lookups/employees/{empNo}', 'VIEW'],
+      ['get', '/lookups/approvers', 'VIEW'],
+      ['get', '/{uuid}/print', 'VIEW'],
+      ['get', '/{uuid}', 'VIEW'],
+      ['put', '/{uuid}', 'UPDATE'],
+      ['delete', '/{uuid}', 'DELETE'],
+    ];
+    const documented = Object.entries(paths)
+      .filter(([path]) => path === base || path.startsWith(`${base}/`))
+      .flatMap(([path, item]) =>
+        Object.keys(item)
+          .filter((method) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
+          .map((method) => `${method} ${path.slice(base.length)}`),
+      );
+    assert.deepEqual(
+      documented.sort(),
+      expected.map(([method, path]) => `${method} ${path}`).sort(),
+    );
+
+    for (const [method, suffix, action] of expected) {
+      const operation = paths[`${base}${suffix}`][method];
+      assert.ok(operation.security?.length, `${method.toUpperCase()} ${suffix} session security`);
+      assert.match(operation.description, new RegExp(`HR\\.TOURIST_VISA_LETTERS:${action}\\b`));
+      const csrf = (operation.parameters ?? []).some(
+        (parameter) => parameter.$ref === '#/components/parameters/CsrfToken',
+      );
+      assert.equal(csrf, method !== 'get', `${method.toUpperCase()} ${suffix} CSRF`);
+    }
+  });
+
   it('serves the specification at /api/openapi.json', async () => {
     const res = await request(app).get('/api/openapi.json').expect(200);
 
@@ -685,6 +724,7 @@ describe('API documentation', () => {
       request(app).get('/api/v1/salary-certificates-ar'),
       request(app).get('/api/v1/salary-certificates'),
       request(app).get('/api/v1/hr/business-visa-letters'),
+      request(app).get('/api/v1/hr/tourist-visa-letters'),
     ]);
 
     for (const response of responses) {

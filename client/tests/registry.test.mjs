@@ -52,6 +52,7 @@ const TRANSFER_REQUESTS = 'HR.TRANSFER_REQUESTS'
 const ARABIC_SALARY_CERTIFICATES = 'HR.SALARY_CERTIFICATES_AR'
 const ENGLISH_SALARY_CERTIFICATES = 'HR.SALARY_CERTIFICATES'
 const BUSINESS_VISA_LETTERS = 'HR.BUSINESS_VISA_LETTERS'
+const TOURIST_VISA_LETTERS = 'HR.TOURIST_VISA_LETTERS'
 const HR_SWITCH = { env: 'VITE_FEATURE_HR_RECRUITMENT' }
 const ES_SWITCH = { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' }
 const HR_RECRUITMENT_ROUTES = [
@@ -175,6 +176,15 @@ test('Security Administration equals the complete backend catalogue: 8 resources
       `${BUSINESS_VISA_LETTERS}:CREATE`,
       `${BUSINESS_VISA_LETTERS}:UPDATE`,
       `${BUSINESS_VISA_LETTERS}:DELETE`,
+    ],
+  )
+  assert.deepEqual(
+    registry.permissions.filter((permission) => permission.key.startsWith(`${TOURIST_VISA_LETTERS}:`)).map((permission) => permission.key),
+    [
+      `${TOURIST_VISA_LETTERS}:VIEW`,
+      `${TOURIST_VISA_LETTERS}:CREATE`,
+      `${TOURIST_VISA_LETTERS}:UPDATE`,
+      `${TOURIST_VISA_LETTERS}:DELETE`,
     ],
   )
   for (const key of Object.values(SECURITY_ACTIONS)) assert.ok(registered.includes(key), `${key} is registered`)

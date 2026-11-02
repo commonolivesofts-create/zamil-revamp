@@ -73,5 +73,11 @@ export default defineModule({
     description: 'View and manage business visiting visa letters.',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [],
+  }, {
+    code: 'TOURIST_VISA_LETTERS',
+    name: 'Tourist Visa Letters',
+    description: 'View and manage tourist visa letters.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
   }],
 })
