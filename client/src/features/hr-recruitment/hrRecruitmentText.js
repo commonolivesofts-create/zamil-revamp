@@ -289,7 +289,7 @@ export const PROBATION_TEXT = Object.freeze({
     comments: "Comments · الملاحظات",
     suggestion: "Suggestion · الاقتراحات",
     justification:
-      "Justification (required when the recommendation differs from the result)",
+      "Justification (optional; when the recommendation differs from the result)",
     points: (name, allocated) => `${name}: points out of ${allocated}`,
     evidence: (name) => `${name}: evidence or example`,
     quick: (percent, points, allocated) =>

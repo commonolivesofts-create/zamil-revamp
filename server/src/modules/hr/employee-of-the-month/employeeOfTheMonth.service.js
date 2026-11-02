@@ -137,7 +137,7 @@ export function createEmployeeOfTheMonthService({
       fail(400, 'EMPLOYEE_DATA_MISMATCH', 'Employee details do not match the master');
     }
 
-    const requester = await repository.requestor(c, actor.userId);
+    const requester = await repository.requestor(c, actor.employeeNumber);
 
     if (!requester) {
       fail(404, 'RESOURCE_NOT_FOUND', 'Requestor not found');
@@ -320,7 +320,7 @@ export function createEmployeeOfTheMonthService({
 
     async requestor(actor) {
       return read(async (c) => {
-        const x = await repository.requestor(c, actor.userId);
+        const x = await repository.requestor(c, actor.employeeNumber);
 
         if (!x) {
           fail(404, 'RESOURCE_NOT_FOUND', 'Requestor not found');

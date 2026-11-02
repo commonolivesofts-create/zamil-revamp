@@ -553,7 +553,7 @@ export async function findEmployee(connection, empNo) {
   };
 }
 
-export async function findActorProfile(connection, userId) {
+export async function findActorProfile(connection, employeeNumber) {
   const [row] = await fetchRows(
     connection,
     `
@@ -561,9 +561,10 @@ export async function findActorProfile(connection, userId) {
         FULL_NAME,
         EMAIL_ADDRESS
       FROM XX_DIGI_EMP_MASTER
-      WHERE USER_ID = :userId
+      WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
+      FETCH FIRST 1 ROWS ONLY
     `,
-    { userId },
+    { employeeNumber },
   );
 
   if (!row) {

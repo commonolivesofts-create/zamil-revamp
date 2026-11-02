@@ -30,7 +30,10 @@ export function createProbationEvaluationController({ probationEvaluationService
       sendSuccess(res, probationEvaluationService.formTypes());
     },
     async employees(req, res) {
-      sendSuccess(res, await probationEvaluationService.employees(req.auth));
+      sendSuccess(
+        res,
+        await probationEvaluationService.employees(req.auth, { search: req.query.search }),
+      );
     },
     async requestor(req, res) {
       sendSuccess(res, await probationEvaluationService.requestor(req.auth));

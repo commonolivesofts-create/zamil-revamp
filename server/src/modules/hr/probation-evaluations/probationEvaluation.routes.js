@@ -7,6 +7,7 @@ import {
   emptyBodySchema,
   emptyQuerySchema,
   employeeDetailsQuerySchema,
+  employeesQuerySchema,
   headerIdParams,
   listQuerySchema,
   updateBodySchema,
@@ -42,7 +43,7 @@ export function createProbationEvaluationRouter({
 
   router.get('/', ...read({ query: listQuerySchema }), controller.list);
   router.get('/lookups/form-types', ...read(), controller.formTypes);
-  router.get('/lookups/employees', ...read(), controller.employees);
+  router.get('/lookups/employees', ...read({ query: employeesQuerySchema }), controller.employees);
   router.get('/lookups/requestor', ...read(), controller.requestor);
   router.get(
     '/lookups/employee-details',

@@ -75,7 +75,7 @@ export function createTransferRequestService({
     ) {
       throw fail('SALARY_FLAG_INVALID', 'transfer.changeSalary', 'Salary flags must be Yes or No');
     }
-    const requestors = await repository.findRequestor(connection, actor.userId);
+    const requestors = await repository.findRequestor(connection, actor.employeeNumber);
     const requestor = requestors[0] ?? {};
     const mgrDate =
       required(body.mgrDate) && dateValid(body.mgrDate)
@@ -205,6 +205,6 @@ export function createTransferRequestService({
     departments: async () => DEPARTMENTS,
     directors: () => read((c) => repository.listDirectors(c)),
     bloodTypes: () => read((c) => repository.listBloodTypes(c)),
-    requestor: (actor) => read((c) => repository.findRequestor(c, actor.userId)),
+    requestor: (actor) => read((c) => repository.findRequestor(c, actor.employeeNumber)),
   };
 }

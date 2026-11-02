@@ -237,7 +237,25 @@ describe('probation evaluation API', () => {
 
   it('serves the PAF lookup endpoints', async () => {
     assert.deepEqual((await get('/lookups/form-types')).body.data.formTypes.length, 5);
-    assert.equal((await get('/lookups/employees')).status, 200);
+    // The hierarchy starts at the signed-in user's employee number (not the app user ID).
+    const employees = await get('/lookups/employees');
+    assert.equal(employees.status, 200);
+    assert.deepEqual(employees.body.data.map((item) => item.fullName).sort(), [
+      'Nora Example',
+      'Sam Example',
+    ]);
+    assert.ok(employees.body.data.every((item) => item.employeeNumber));
+    const searched = await get('/lookups/employees?search=sam');
+    assert.deepEqual(
+      searched.body.data.map((item) => item.employeeNumber),
+      [f.staffUser.employeeNumber],
+    );
+    assert.deepEqual(f.store.state.probationEmployeeQueries.at(-1), {
+      employeeNumber: f.hrUser.employeeNumber,
+      search: 'sam',
+    });
+    assert.equal((await get('/lookups/employees?other=1')).status, 400);
+    assert.equal((await get(`/lookups/employees?search=${'x'.repeat(101)}`)).status, 400);
     assert.equal(
       (await get('/lookups/requestor')).body.data.employeeNumber,
       f.hrUser.employeeNumber,
