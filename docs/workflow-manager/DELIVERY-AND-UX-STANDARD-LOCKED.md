@@ -1,0 +1,43 @@
+# Zamil Digitalization — Workflow Manager Delivery & UX Standard
+
+**Owner decision:** 02 November 2026. **Status:** LOCKED PROCESS AND QUALITY EXPECTATIONS; not an amendment to existing business permissions, Oracle DDL or deployed features.
+
+## Authority, boundaries and scope
+
+- Governing functional scope: original approved v3.0 **plus** `REQUIREMENTS-v3.1-LOCKED.md` **plus** `REQUIREMENTS-v3.2-LOCKED.md`. Do not remove, weaken or silently defer anything. v3.2 clarifies RFI distinct from Return for Correction, comments on actions, FYI and the shared action portal. Original v3.0 text is not independently on `main`; retain its authority and obtain a verified source if exact reconciliation is required.
+- Exactly two **functional phases**: Phase 1 Workflow Management and Phase 2 Workflow Execution. Seven small delivery packages per phase (M1–M7, E1–E7) are work packages, not extra phases. Phase 1 includes working My Delegations and all RFI/FYI/portal policy configuration; no live execution. Phase 2 implements real tasks, approvals, forwarding, reassignment, RFI, FYI, comments, email, SLA, reporting and history.
+- TEST Oracle ADW: owner-supplied structural verification PASSED for **21 tables, 50 FKs, 48 valid explicitly named indexes, 16 enabled triggers and required RFI open index**. This is **not runtime certification or production approval**. Record the real TEST deployment repairs (JSON-check syntax, indexes, exception CREATED_AT) and reconcile migration scripts before reuse. No DDL, DML, seed, business-table changes or CI3 cutover without G1/G4 as applicable.
+- Preserve existing Node.js/Express Oracle LOW pool architecture, React/Vite frontend, backend RBAC and auth/MFA/CSRF, standardized API envelopes, action vocabulary, Oracle precision, CI3 coexistence, OpenAPI and central navigation registry. No second auth, router, HTTP client, permission store, mail framework, or uncontrolled dynamic SQL.
+
+## ITSAZZ + Orvexa UI — mandatory quality bar
+
+Visual reference: https://orvexa-lime.vercel.app/ (reference, not permission to copy unrelated AI dashboard data). Reuse the **existing repository Orvexa UI assets/layout conventions** under `client/public/orvexa/` and approved shared components. Adapt the navigation, clean operator interface, compact table density, disciplined typography and responsive detail layouts to Zamil's Workflow Manager rather than reproducing Orvexa's AI-specific dashboards. The inspected reference offers sidebar modes (icon rail/full), a command/search palette, dense data tables and layout settings. Do not force those elements into the workflow when they harm usability or clash with existing app conventions.
+
+**ITSAZZ** means distinctive, premium, enterprise-grade **working** screens: coherent hierarchy, compact spacing, readable forms, purposeful status/priority colors, keyboard access, visible focus, accessible dialogs, mobile responsiveness, skeleton/loading/error/empty/403/409/uncertain-outcome states, efficient bulk/line tables where supported, accurate timestamps, and no decorative fake controls or mock metrics. No UI framework replacement, global theme rewrite, extra dependencies or unrelated layout changes without G3 authorization. Existing product branding and shared navigation behavior must be respected.
+
+## Vertical-slice implementation rule
+
+For **every M/E work package**: (1) inspect code and verified Oracle objects; (2) fix the API shape, authorization, transaction/idempotency and test criteria; (3) implement the service/repository/controller/routes, tests and OpenAPI; (4) integrate real React UI and response-contract tests in **the same package**; (5) provide a fully verified guide for every screen and meaningful action delivered; (6) security, a11y, mobile and regression checks; (7) small reviewed GitHub PR. Backend contract first **within** each package, then UI immediately; not all backend first and not UI on invented endpoints.
+
+A package is **not done** if the UI is missing, has false controls, lacks real API data, lacks its screen guide, fails permissions/tests, or the original workflow requirements are unverified. Phase 1 may be delivered in staged small PRs, but screen-facing PRs must be functional slices.
+
+## Screen-by-screen and form-by-form documentation lock
+
+- Maintain `docs/workflow-manager/USER-GUIDE-INDEX.md` with one entry for **every actual Workflow Manager screen** and distinct functional operation; link to a dedicated human-readable guide under `docs/workflow-manager/user-guides/`.
+- Maintain the complete expected coverage in `SCREEN-GUIDE-MATRIX.md`. If two operations share one page, guides may be distinct for different user roles (such as RFI requester vs answerer) when their steps differ.
+- Each **implemented** guide MUST document: exact navigation and URL (verified), permissions/role, purpose, preconditions, clear click-by-click procedure, every button/action and when disabled, field meanings and validations, what happens to stage/task/form state, emails/recipients and comment visibility, failed/expired/stale behavior, screenshots with no sensitive data, worked example using fictional data, troubleshooting and related screens. Verify against the running **real UI and API**, not anticipated labels.
+- In this documentation-only PR, planned guides are an explicit inventory, **not** pretend-live how-to instructions. Convert each item to `Verified/Live` only in the PR that actually ships the working feature, and link its final guide. Do not publish fabricated routes, screenshots, statuses, table names or permissions.
+- For **each integrated business form**, require `docs/workflow-manager/forms/<verified-code>.md` with the verified source header/lines/PK/FK/statuses/org scope, owner/manager/field mapping, actual UI navigation, routing rules, levels, RFI/FYI and email examples, and end-to-end checks. No guessing source table/column names. The guide is part of that form's onboarding acceptance.
+- Document and test the user's distinction: approval task vs FYI vs RFI answer-only; one globally open RFI per workflow instance; RFI blocks approve/reject (parallel included), returns to same level; actions include comments and correct recipient mail; forwarding and reassignment transfer authority without rewriting original hierarchy; rejected resubmission creates a new linked cycle. Never imply an FYI or RFI responder can approve.
+
+## Git/GitHub delegated execution — using the owner's configured identity
+
+The owner delegates routine **local Git operations** to Claude Code, operating in the owner's local authenticated project shell: read/status, `fetch`, `pull --ff-only`, branch creation, selective staging, commit, push, create PR, check PR and cleanup merged task branches. PR merge may be performed on the user's behalf **only after repository-mandated review and CI are satisfied and the applicable owner approval exists**. This delegation does not waive G1–G4 or the existing `CONTRIBUTING.md` safeguards.
+
+Before any write: verify exact repository remote, `git status -sb`, clean tree, `git config --get user.name`, `git config --get user.email`, `gh auth status` (if `gh` available), current branch and `main` update. Use existing account credentials; **never** create a Claude identity, change Git config, ask for tokens in chat, expose secrets or impersonate users. If authentication is absent, ask the owner to authenticate interactively on their machine. If there are uncommitted changes, divergent branches, unexpected commits/conflicts, unapproved review gates or unrelated staged files, **stop rather than stash/reset/force-push/delete**. No direct commit/push to `main`.
+
+Use task-scoped branch, conventional commit, targeted `git add`, staged diff inspection, `git diff --cached --check`, relevant tests, PR against `main`; inspect PR diff and checks. After approved merge, confirm merge SHA/PR state, `git pull --ff-only` and only then delete the **confirmed merged task branch** locally/remotely. Never delete unmerged/unowned branches. Do not promise zero conflicts: detect and report conflicts safely.
+
+## Documentation checkpoint first
+
+Update the repository `docs/workflow-manager/` with final v3.2 requirements, current handoff, development roadmap, this standard, guide index/matrix, existing setup guide and form-onboarding template; link from `docs/README.md`. Keep historical v3.1 intact. Capture TEST schema facts as **owner-reported** with pending runtime testing and migration-reconciliation items. No code, Oracle operations, RBAC catalogue writes or migration application in the docs PR. Then proceed to M1 under its actual scoped authorization and approval gates; do not start all 14 packages in one branch or PR.
