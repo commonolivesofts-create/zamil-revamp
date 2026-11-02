@@ -279,6 +279,9 @@ test('sidebar: every HR entry belongs to a sub-group of its section; the flyout 
   assert.match(flyout, /event\.key === 'Escape'/)
   assert.match(flyout, /ArrowDown/)
   assert.match(flyout, /<NavLink to=\{item\.path\}/, 'flyout entries are real links to their own page')
+  // sidebar.css clips #sidebar on desktop; an open flyout lifts the clip.
+  assert.match(sidebar, /has-flyout/)
+  assert.match(await read('../src/styles/workspace.css'), /#sidebar\.has-flyout \{ overflow: visible !important; \}/)
 })
 
 // ---------- source rules ----------

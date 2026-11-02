@@ -187,7 +187,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
       />
       <aside
         id="sidebar"
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r transition-[width,transform] duration-300 lg:translate-x-0 ${mobileOpen ? 'mobile-open' : ''}`}
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r transition-[width,transform] duration-300 lg:translate-x-0 ${mobileOpen ? 'mobile-open' : ''}${flyoutItems.length ? ' has-flyout' : ''}`}
         aria-label="Primary navigation"
         aria-hidden={isMobile && !mobileOpen}
         role={isMobile && mobileOpen ? 'dialog' : undefined}

@@ -510,6 +510,12 @@
 [dir="rtl"] .zrv-sidebar-subgroup__arrow { transform: scaleX(-1); }
 [dir="rtl"] .zrv-sidebar-subgroup.is-open .zrv-sidebar-subgroup__arrow { transform: scaleX(-1) translateX(3px); }
 
+/* The theme clips #sidebar (sidebar.css: overflow hidden) for its width
+   animation; while a flyout is open it must show beside the sidebar. The
+   scrolling list keeps its own clipping. */
+@media (min-width: 1024px) {
+  #sidebar.has-flyout { overflow: visible !important; }
+}
 .zrv-sidebar-flyout {
   position: absolute;
   inset-inline-start: calc(100% + 10px);
