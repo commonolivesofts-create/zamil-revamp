@@ -9,13 +9,11 @@ import { AppError } from '../../../shared/errors/AppError.js';
      XXZP.XXZP_SICK_LEAVE
      XXZP.XXZP_ALL_ATTACHMENTS
      XX_DIGI_EMP_MASTER
-     XX_DIGI_LOOKUP_VALUES
      XX_ZRV_USERS
 
    Responsibilities:
      - Oracle queries
      - Employee lookups
-     - Leave-type validation
      - CRUD operations
      - Attachment database operations
      - Pagination and filtering
@@ -320,41 +318,7 @@ export async function employees(connection, self, { q = '', pageSize = 25 } = {}
 }
 
 /* ============================================================
-   5. LEAVE-TYPE LOOKUP VALIDATION
-   ============================================================ */
-
-/**
- * Lookup code comes from an existing verified configuration.
- * The repository never invents an Oracle LOOKUP_TYPE.
- */
-
-export async function leaveTypeExists(connection, leaveType) {
-  const lookupType = process.env.SICK_LEAVE_LOOKUP_TYPE;
-
-  if (!lookupType) {
-    throw schemaError('SICK_LEAVE_LOOKUP_TYPE is not configured');
-  }
-
-  const rows = await executeRows(
-    connection,
-    `
-      SELECT LOOKUP_CODE
-      FROM XX_DIGI_LOOKUP_VALUES
-      WHERE LOOKUP_TYPE = :lookupType
-        AND LOOKUP_CODE = :leaveType
-      FETCH FIRST 1 ROW ONLY
-    `,
-    {
-      lookupType,
-      leaveType,
-    },
-  );
-
-  return rows.length > 0;
-}
-
-/* ============================================================
-   6. GET SICK LEAVE HEADER
+   5. GET SICK LEAVE HEADER
    ============================================================ */
 
 /**
@@ -413,7 +377,7 @@ export async function header(connection, headerId, lock = false, withDayTypes = 
 }
 
 /* ============================================================
-   7. GET ALL ATTACHMENTS
+   6. GET ALL ATTACHMENTS
    ============================================================ */
 
 export async function attachments(connection, headerId) {
@@ -440,7 +404,7 @@ export async function attachments(connection, headerId) {
 }
 
 /* ============================================================
-   8. GET SINGLE ATTACHMENT
+   7. GET SINGLE ATTACHMENT
    ============================================================ */
 
 export async function attachment(connection, headerId, attachmentId) {
@@ -469,7 +433,7 @@ export async function attachment(connection, headerId, attachmentId) {
 }
 
 /* ============================================================
-   9. INSERT SICK LEAVE
+   8. INSERT SICK LEAVE
    ============================================================ */
 
 /**
@@ -553,7 +517,7 @@ export async function insert(connection, data) {
 }
 
 /* ============================================================
-   10. UPDATE SICK LEAVE
+   9. UPDATE SICK LEAVE
    ============================================================ */
 
 /**
@@ -608,7 +572,7 @@ export async function update(connection, data) {
 }
 
 /* ============================================================
-   11. INSERT ATTACHMENT
+   10. INSERT ATTACHMENT
    ============================================================ */
 
 /**
@@ -665,7 +629,7 @@ export async function addAttachment(connection, { headerId, uuid, fileName }) {
 }
 
 /* ============================================================
-   12. DELETE SINGLE ATTACHMENT
+   11. DELETE SINGLE ATTACHMENT
    ============================================================ */
 
 export async function deleteAttachment(connection, headerId, attachmentId) {
@@ -690,7 +654,7 @@ export async function deleteAttachment(connection, headerId, attachmentId) {
 }
 
 /* ============================================================
-   13. DELETE SICK LEAVE + ATTACHMENT RECORDS
+   12. DELETE SICK LEAVE + ATTACHMENT RECORDS
    ============================================================ */
 
 /**
@@ -735,7 +699,7 @@ export async function deleteHeader(connection, headerId) {
 }
 
 /* ============================================================
-   14. LIST SICK LEAVES
+   13. LIST SICK LEAVES
    ============================================================ */
 
 /**

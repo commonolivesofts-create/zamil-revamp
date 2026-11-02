@@ -1,5 +1,7 @@
 import Joi from 'joi';
 
+export const SICK_LEAVE_TYPE = 'Sick Leave';
+
 const date = Joi.string()
   .pattern(/^\d{4}-\d{2}-\d{2}$/)
   .custom((v, h) => {
@@ -58,7 +60,8 @@ export const listQuery = Joi.object({
 export const writeBody = Joi.object({
   empNumber: Joi.string().trim().max(40).required(),
 
-  leaveType: Joi.string().trim().max(100).required(),
+  // Legacy form 1076 has one fixed leave type (no lookup).
+  leaveType: Joi.string().trim().valid(SICK_LEAVE_TYPE).default(SICK_LEAVE_TYPE),
 
   fromDate: date.required(),
   toDate: date.required(),
