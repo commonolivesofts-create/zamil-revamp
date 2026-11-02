@@ -11,8 +11,8 @@ export default defineModule({
     name: 'Interview Assessments',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
-      { id: 'hr-interview', path: '/hr/recruitment/interview', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', order: 20 },
-      { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', order: 21, hidden: true },
+      { id: 'hr-interview', path: '/hr/recruitment/interview', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', subgroup: 'hr-recruitment', order: 20 },
+      { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', subgroup: 'hr-recruitment', order: 21, hidden: true },
     ],
   }],
 })

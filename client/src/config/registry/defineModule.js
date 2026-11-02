@@ -10,8 +10,10 @@
 //   session-only  { code, name, rbac: false, navigation: [entry] }  (no permissions;
 //                 never registered in Oracle)
 //   resource      { code, name, description?, actions: [standard codes], navigation?: [entry] }
-//   entry         { id, title, icon, group, order, type?, path | href, requiredAction?,
+//   entry         { id, title, icon, group, subgroup?, order, type?, path | href, requiredAction?,
 //                   alsoRequires?, requiresMfa?, hidden?, implemented?, enabledBy? }
+// `subgroup` (optional): a sub-group id of the entry's group (navigationGroups.js);
+// the sidebar lists the entry in that sub-group's flyout.
 // `type` is optional: missing or 'internal' is a React route (`path`); only
 // 'external' is an external destination (`href`); anything else is rejected.
 // `enabledBy` (internal entries only): { env: 'VITE_FEATURE_<NAME>' }, a public
@@ -115,7 +117,7 @@ function normalizeHref(where, href) {
 }
 
 const ENTRY_KEYS = [
-  'id', 'title', 'icon', 'group', 'order', 'type', 'path', 'href', 'requiredAction', 'alsoRequires',
+  'id', 'title', 'icon', 'group', 'subgroup', 'order', 'type', 'path', 'href', 'requiredAction', 'alsoRequires',
   'requiresMfa', 'hidden', 'implemented', 'enabledBy',
 ]
 
@@ -134,6 +136,9 @@ function normalizeEntry(where, entry, resource) {
   assertText(`${at} title`, entry.title, MAX.name)
   if (typeof entry.icon !== 'string' || !entry.icon.trim()) fail(at, 'icon is required')
   if (typeof entry.group !== 'string' || !entry.group) fail(at, 'group is required')
+  if (entry.subgroup !== undefined && (typeof entry.subgroup !== 'string' || !ENTRY_ID.test(entry.subgroup))) {
+    fail(at, 'subgroup must be a lower-case kebab-case sub-group id')
+  }
   if (!Number.isInteger(entry.order) || entry.order < 0) fail(at, 'order must be a non-negative integer')
   // Missing type means internal; only an explicit 'external' is external.
   const type = entry.type === undefined ? 'internal' : entry.type
@@ -141,7 +146,8 @@ function normalizeEntry(where, entry, resource) {
   for (const key of ['requiresMfa', 'hidden', 'implemented']) assertBoolean(`${at} ${key}`, entry[key])
 
   const normalized = {
-    id: entry.id, type, title: entry.title, icon: entry.icon, group: entry.group, order: entry.order,
+    id: entry.id, type, title: entry.title, icon: entry.icon, group: entry.group,
+    ...(entry.subgroup && { subgroup: entry.subgroup }), order: entry.order,
     requiresMfa: entry.requiresMfa === true, hidden: entry.hidden === true, implemented: entry.implemented !== false,
   }
   if (type === 'internal') {
@@ -240,6 +246,7 @@ export const permissionKey = (moduleCode, resourceCode, actionCode) => `${module
 export function buildRegistry(modules, groups) {
   assertArray('registry modules', modules, { nonEmpty: true })
   const groupIndex = new Map(groups.map((group, index) => [group.id, index]))
+  const subgroupsOf = new Map(groups.map((group) => [group.id, new Set((group.subgroups ?? []).map((item) => item.id))]))
   const moduleCodes = new Set()
   const permissions = []
   const permissionSet = new Set()
@@ -267,6 +274,9 @@ export function buildRegistry(modules, groups) {
     if (ids.has(entry.id)) fail(at, 'duplicate navigation id')
     ids.add(entry.id)
     if (!groupIndex.has(entry.group)) fail(at, `unknown group "${entry.group}"`)
+    if (entry.subgroup && !subgroupsOf.get(entry.group).has(entry.subgroup)) {
+      fail(at, `unknown subgroup "${entry.subgroup}" of group ${entry.group}`)
+    }
     const slot = `${entry.group}#${entry.order}`
     if (slots.has(slot)) fail(at, `order ${entry.order} is already used in group ${entry.group}`)
     slots.add(slot)
@@ -289,6 +299,7 @@ export function buildRegistry(modules, groups) {
       label: entry.title,
       icon: entry.icon,
       section: entry.group,
+      ...(entry.subgroup && { subgroup: entry.subgroup }),
       ...(permission && { permission }),
       ...(alsoRequires.length && { alsoRequires }),
       // Explicit on every permission-guarded entry; on session-only entries only when true.

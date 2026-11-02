@@ -107,16 +107,17 @@ tags:
   - name: HR Sick Leave
     description: >-
       Sick Leave requests, employee lookups and attachments. Routes require an authenticated
-      session and the corresponding action on the configured Sick Leave RBAC resource. The
-      resource key and HR-wide visibility permission must match existing catalogue entries;
-      the implementation fails closed if the route resource is not configured. Without the
-      optional verified HR visibility permission, records remain scoped to the authenticated
-      employee or their created requests. Write operations also require CSRF validation.
+      session and HR.SICK_LEAVE:VIEW / CREATE / UPDATE / DELETE / MANAGE_ATTACHMENTS. The
+      leave type is always "Sick Leave" (legacy form 1076). Without the optional HR-wide
+      visibility permission (SICK_LEAVE_HR_RESOURCE_KEY), records remain scoped to the
+      authenticated employee or their created requests. Write operations also require CSRF
+      validation.
   - name: Ideas
     description: >-
       Idea proposal listing, creation, updates, employee/division/category lookups and
-      feasibility calculation. All operations require an authenticated session. Non-HR users
-      can access only ideas they created; HR users can access all ideas. Soft deletion and
+      feasibility calculation. All operations require an authenticated session and
+      HR.IDEAS:VIEW / CREATE / UPDATE / DELETE / MANAGE_ATTACHMENTS (feasibility uses UPDATE).
+      Non-HR users can access only ideas they created; HR users can access all ideas. Soft deletion and
       attachment upload/deletion are currently unavailable and return conflicts.
   - name: Employee Survey
     description: >-
@@ -2206,7 +2207,8 @@ paths:
       tags: [HR Contractor Employees]
       summary: List contractor employees
       description: >-
-        Filters are exact-match and ANDed. The date pair means contract period inside the
+        Filters are exact-match and ANDed. date_from and date_to are required and date_to must
+        not be before date_from (400 otherwise). The date pair means contract period inside the
         supplied range: START_DATE is on/after date_from and END_DATE is on/before date_to;
         open-ended rows (END_DATE NULL) are included for date_to. Pagination uses a COUNT
         query, allowlisted sorting and EMP_ID as the stable final tie-breaker. Requires
@@ -2217,8 +2219,8 @@ paths:
         - { name: department, in: query, schema: { type: string } }
         - { name: contractor_number, in: query, schema: { type: string, pattern: '^[0-9]{1,18}$' } }
         - { name: status, in: query, schema: { type: string, enum: [Active, Inactive, ALL] } }
-        - { name: date_from, in: query, schema: { type: string, format: date } }
-        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: date_from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: date_to, in: query, required: true, schema: { type: string, format: date } }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - {
             name: limit,
@@ -6016,8 +6018,8 @@ paths:
       summary: List nominations with filters and pagination
       description: >-
         Requires HR.EMPLOYEE_OF_THE_MONTH:VIEW. Non-HR users see nominations they created;
-        HR users see all nominations. The response uses meta.page, meta.pageSize, meta.total
-        and meta.totalPages.
+        HR users see all nominations. The response uses the standard pagination object
+        (pageSize is reported as pagination.limit).
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: search, in: query, schema: { type: string, maxLength: 200 } }
@@ -6200,8 +6202,9 @@ paths:
       summary: Update an editable nomination and its criteria lines
       description: >-
         Requires HR.EMPLOYEE_OF_THE_MONTH:UPDATE. Non-HR users can update only nominations
-        they created; HR users can update all nominations. Updates are rejected while status
-        is INPROCESS; updating an APPROVED nomination returns it to DRAFT. Department cannot change.
+        they created; HR users can update all nominations. Only DRAFT and REJECTED nominations
+        can be updated (409 otherwise); the status is never changed by an update. Department
+        cannot change.
       security: [{ sessionCookie: [] }]
       parameters:
         - {
@@ -6327,6 +6330,7 @@ paths:
               schema: { $ref: '#/components/schemas/IdeaListResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
         '500': { $ref: '#/components/responses/InternalError' }
     post:
       operationId: createIdea
@@ -6350,6 +6354,7 @@ paths:
               schema: { $ref: '#/components/schemas/IdeaDetailResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
         '500': { $ref: '#/components/responses/InternalError' }
   /api/v1/ideas/lookups/employees:
     get:
@@ -6375,6 +6380,7 @@ paths:
                   meta: { $ref: '#/components/schemas/ResponseMeta' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
   /api/v1/ideas/lookups/employees/{empNo}:
     get:
       operationId: getIdeaEmployee
@@ -6397,6 +6403,7 @@ paths:
                   meta: { $ref: '#/components/schemas/ResponseMeta' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
   /api/v1/ideas/lookups/divisions:
     get:
       operationId: listIdeaDivisions
@@ -6418,6 +6425,7 @@ paths:
                     items: { $ref: '#/components/schemas/IdeaDivision' }
                   meta: { $ref: '#/components/schemas/ResponseMeta' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
   /api/v1/ideas/lookups/categories:
     get:
       operationId: getIdeaCategories
@@ -6437,6 +6445,7 @@ paths:
                   data: { $ref: '#/components/schemas/IdeaCategories' }
                   meta: { $ref: '#/components/schemas/ResponseMeta' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
   /api/v1/ideas/{headerId}:
     get:
       operationId: getIdea
@@ -6454,6 +6463,7 @@ paths:
               schema: { $ref: '#/components/schemas/IdeaDetailResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
       operationId: updateIdea
@@ -6477,6 +6487,7 @@ paths:
               schema: { $ref: '#/components/schemas/IdeaResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
     delete:
@@ -6493,6 +6504,7 @@ paths:
       responses:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: Soft deletion is unavailable for this schema.
@@ -6517,6 +6529,7 @@ paths:
               schema: { $ref: '#/components/schemas/IdeaResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/ideas/{headerId}/attachments:
@@ -6534,6 +6547,7 @@ paths:
       responses:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
         '409':
           description: Attachment upload is unavailable.
           content:
@@ -6560,6 +6574,7 @@ paths:
       responses:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
         '409':
           description: Attachment deletion is unavailable.
           content:
@@ -6774,11 +6789,6 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
-        '503':
-          description: Sick Leave RBAC resource is not configured; access fails closed.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
         '500': { $ref: '#/components/responses/InternalError' }
     post:
       operationId: createSickLeaveRequest
@@ -6816,8 +6826,8 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '503':
           description: >-
-            The Sick Leave RBAC resource, configured leave-type lookup, or required Oracle
-            schema capabilities could not be verified; the write fails closed.
+            The required Oracle schema capabilities could not be verified; the write fails
+            closed.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -6853,11 +6863,6 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
-        '503':
-          description: Sick Leave RBAC resource is not configured; access fails closed.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /api/v1/hr/sick-leave/lookups/employees/{empNumber}:
     get:
       operationId: getSickLeaveEmployee
@@ -6883,11 +6888,6 @@ paths:
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404':
           description: The employee does not exist or is outside the caller's eligible scope.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
-        '503':
-          description: Sick Leave RBAC resource is not configured; access fails closed.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -6919,7 +6919,7 @@ paths:
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
         '503':
-          description: Sick Leave RBAC resource or required day-type schema cannot be verified.
+          description: The required day-type schema cannot be verified.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -6968,7 +6968,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '503':
-          description: Sick Leave RBAC, leave-type lookup or required Oracle schema cannot be verified.
+          description: The required Oracle schema cannot be verified.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -7006,11 +7006,6 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '409':
           description: The request status does not permit deletion (STATE_CONFLICT).
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
-        '503':
-          description: Sick Leave RBAC resource is not configured; access fails closed.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -7057,7 +7052,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '503':
-          description: Sick Leave RBAC resource or required Oracle schema cannot be verified.
+          description: The required Oracle schema cannot be verified.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -7101,11 +7096,6 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '409':
           description: The request status does not permit attachment deletion (STATE_CONFLICT).
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
-        '503':
-          description: Sick Leave RBAC resource is not configured; access fails closed.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -12620,20 +12610,14 @@ components:
         createdAt: { type: string }
     EmployeeOfTheMonthListResponse:
       type: object
-      required: [success, data, meta]
+      required: [success, data, pagination, meta]
       properties:
         success: { const: true }
         data:
           type: array
           items: { $ref: '#/components/schemas/EmployeeOfTheMonthListItem' }
-        meta:
-          type: object
-          required: [page, pageSize, total, totalPages]
-          properties:
-            page: { type: integer }
-            pageSize: { type: integer }
-            total: { type: integer }
-            totalPages: { type: integer }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+        meta: { $ref: '#/components/schemas/ResponseMeta' }
     IdeaWrite:
       type: object
       additionalProperties: false
@@ -12807,13 +12791,14 @@ components:
     SickLeaveWrite:
       type: object
       additionalProperties: false
-      required: [empNumber, leaveType, fromDate, toDate, fromDayType, toDayType, comments]
+      required: [empNumber, fromDate, toDate, fromDayType, toDayType, comments]
       properties:
         empNumber: { type: string, maxLength: 40 }
         leaveType:
           type: string
-          maxLength: 100
-          description: Must match an existing lookup code from the configured leave-type lookup.
+          enum: [Sick Leave]
+          default: Sick Leave
+          description: Optional; the server always stores "Sick Leave" (legacy fixed value).
         fromDate: { type: string, format: date }
         toDate: { type: string, format: date }
         fromDayType: { type: string, enum: [FULL, HALF] }
@@ -12830,13 +12815,14 @@ components:
     SickLeaveCreateMultipart:
       type: object
       additionalProperties: false
-      required: [empNumber, leaveType, fromDate, toDate, fromDayType, toDayType, comments, files]
+      required: [empNumber, fromDate, toDate, fromDayType, toDayType, comments, files]
       properties:
         empNumber: { type: string, maxLength: 40 }
         leaveType:
           type: string
-          maxLength: 100
-          description: Must match an existing lookup code from the configured leave-type lookup.
+          enum: [Sick Leave]
+          default: Sick Leave
+          description: Optional; the server always stores "Sick Leave" (legacy fixed value).
         fromDate: { type: string, format: date }
         toDate: { type: string, format: date }
         fromDayType: { type: string, enum: [FULL, HALF] }
@@ -12924,11 +12910,11 @@ components:
               items: { $ref: '#/components/schemas/SickLeaveStoredAttachment' }
     SickLeaveStoredAttachment:
       type: object
-      required: [ATTACHMENT_ID, FILE_NAME, ATTACHED_ON]
+      required: [attachmentId, fileName, attachedOn]
       properties:
-        ATTACHMENT_ID: { type: [integer, string] }
-        FILE_NAME: { type: string }
-        ATTACHED_ON: { type: [string, 'null'] }
+        attachmentId: { type: [integer, string] }
+        fileName: { type: string }
+        attachedOn: { type: [string, 'null'], format: date, description: 'YYYY-MM-DD' }
     SickLeaveCreatedAttachment:
       type: object
       required: [attachmentId, fileName]

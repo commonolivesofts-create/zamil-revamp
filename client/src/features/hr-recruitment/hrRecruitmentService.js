@@ -1298,14 +1298,16 @@ export function createOrientationService({ client }) {
 }
 
 export function createEmployeeReportService({ client }) {
+  // Legacy XX_CON_EMPLOYEE_INFO rows may lack an id, employee number, name, contractor or
+  // status, and some have EMP_ID 0; they are listed with empty values instead of failing the
+  // whole page (the id is only a row key here). A value that is present must be well-formed.
+  const LEGACY_ID = /^[0-9]{1,19}$/;
   const readEmployee = (item) => {
     if (
       !item ||
-      !ID_PATTERN.test(String(item.emp_id ?? "")) ||
-      !String(item.employee_number ?? "") ||
-      !String(item.employee_name ?? "") ||
-      !String(item.con_number ?? "") ||
-      !["Active", "Inactive"].includes(item.status)
+      typeof item !== "object" ||
+      (item.emp_id != null && !LEGACY_ID.test(String(item.emp_id))) ||
+      (item.status != null && !["Active", "Inactive"].includes(item.status))
     ) {
       throw new ApiError(
         "The server returned an unexpected employee report row.",
@@ -1313,9 +1315,9 @@ export function createEmployeeReportService({ client }) {
       );
     }
     return Object.freeze({
-      empId: String(item.emp_id),
-      employeeNumber: String(item.employee_number),
-      name: String(item.employee_name),
+      empId: item.emp_id == null ? "" : String(item.emp_id),
+      employeeNumber: String(item.employee_number ?? ""),
+      name: String(item.employee_name ?? ""),
       division: String(item.division ?? ""),
       iqamah: Number(item.iqamah),
       department: String(item.department ?? ""),
@@ -1330,12 +1332,12 @@ export function createEmployeeReportService({ client }) {
       rate: Number(item.rate ?? 0),
       startDate: String(item.start_date ?? ""),
       endDate: String(item.end_date ?? ""),
-      status: item.status,
+      status: item.status ?? "",
       ajeer: Boolean(item.ajeer),
       sfda: Boolean(item.sfda),
       blacklist: Boolean(item.blacklist),
       remark: String(item.remark ?? ""),
-      contractorNumber: String(item.con_number),
+      contractorNumber: String(item.con_number ?? ""),
       contractorName: String(item.con_name ?? ""),
       createdAt: item.creation_date ?? null,
       updatedAt: item.updated_date ?? null,

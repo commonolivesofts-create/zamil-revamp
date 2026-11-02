@@ -685,6 +685,43 @@ test("employee report service uses the contractor employee lookup and paginated 
   );
 });
 
+test("employee report page requires both dates, in order, before running", async () => {
+  const page = await read(`${FEATURE}report/EmployeeReportPage.jsx`);
+  assert.match(page, /const found = validateDates\(draft\)[\s\S]*?if \(Object\.keys\(found\)\.length\)/);
+  for (const id of ["er-from", "er-to"]) {
+    assert.match(page, new RegExp(`<HrField id="${id}"[^>]*required error=`));
+  }
+});
+
+test("employee report service lists incomplete legacy rows and rejects malformed values", async () => {
+  const legacy = {
+    emp_id: null,
+    employee_number: null,
+    employee_name: "Sample Contractor Employee",
+    status: null,
+    con_number: 500,
+  };
+  const listWith = (row) => {
+    const { fetchImpl } = recordingFetch(() =>
+      success([row], 200, {
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false },
+      }),
+    );
+    return createHrRecruitmentServices({
+      client: createApiClient({ baseUrl: "/api/v1", fetchImpl }),
+    }).employeeReport.list({ dateFrom: "2025-02-11", dateTo: "2026-02-11", page: 1 });
+  };
+  const report = await listWith(legacy);
+  assert.deepEqual(
+    [report.items[0].empId, report.items[0].employeeNumber, report.items[0].status],
+    ["", "", ""],
+  );
+  assert.equal((await listWith({ ...legacy, emp_id: "0" })).items[0].empId, "0");
+  for (const bad of [{ emp_id: "-1" }, { emp_id: "1.5" }, { status: "Pending" }]) {
+    await assert.rejects(listWith({ ...legacy, ...bad }), (error) => error.code === "INVALID_RESPONSE");
+  }
+});
+
 // ------------------------------------------------------------ static checks
 
 test("orientation page: flow step 4 keeps the styled editor and uses backend employee skill rows", async () => {
@@ -1812,12 +1849,19 @@ test("HR visibility switch: true, false, unset in development and unset in produ
     HR_SWITCHED_IDS,
     "HR workflow pages use the shared feature switch",
   );
-  // The only other switch is the employee services one (hrEmployeeServices.test.mjs).
+  // The other switches: employee services (hrEmployeeServices.test.mjs) and one per
+  // batch-1 form (hrEmployeeServicesForms.test.mjs).
   assert.ok(
     registry.entries
       .filter((entry) => entry.enabledBy)
       .every((entry) =>
-        [SWITCH, "VITE_FEATURE_HR_EMPLOYEE_SERVICES"].includes(
+        [
+          SWITCH,
+          "VITE_FEATURE_HR_EMPLOYEE_SERVICES",
+          "VITE_FEATURE_HR_SICK_LEAVE",
+          "VITE_FEATURE_HR_REWARD_NOMINATION",
+          "VITE_FEATURE_HR_IDEAS",
+        ].includes(
           entry.enabledBy.env,
         ),
       ),

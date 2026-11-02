@@ -17,20 +17,11 @@ import {
   empty,
 } from './sickLeave.validation.js';
 
-// Must match an existing, verified RBAC resource.
-// Missing configuration fails closed.
-const RESOURCE = process.env.SICK_LEAVE_RESOURCE_KEY;
+// Registered in the client module registry (hrForms.module.js). Deny by
+// default: a user without the permission gets 403.
+const RESOURCE = 'HR.SICK_LEAVE';
 
-const missingResource = (_req, _res, next) =>
-  next(
-    new AppError(
-      503,
-      'SICK_LEAVE_RBAC_UNVERIFIED',
-      'Sick Leave permission resource is not configured',
-    ),
-  );
-
-const protect = (authorize, action) => (RESOURCE ? authorize(RESOURCE, action) : missingResource);
+const protect = (authorize, action) => authorize(RESOURCE, action);
 
 export function createSickLeaveRouter({ service, authenticate, authorize, auditService }) {
   const r = Router();

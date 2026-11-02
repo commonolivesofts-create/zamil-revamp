@@ -1,20 +1,12 @@
-import { sendSuccess } from '../../../shared/responses/apiResponse.js';
+import { sendPaginated, sendSuccess } from '../../../shared/responses/apiResponse.js';
 
 export function createEmployeeOfTheMonthController({ service }) {
   return {
+    // Standard paginated envelope (docs/02 §5.2): `pagination` plus meta.requestId.
     async list(req, res) {
       const { items, total } = await service.list(req.auth, req.query);
 
-      res.status(200).json({
-        success: true,
-        data: items,
-        meta: {
-          page: req.query.page,
-          pageSize: req.query.pageSize,
-          total,
-          totalPages: Math.ceil(total / req.query.pageSize),
-        },
-      });
+      sendPaginated(res, items, { page: req.query.page, limit: req.query.pageSize, total });
     },
 
     async get(req, res) {

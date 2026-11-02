@@ -155,3 +155,37 @@ and create/update controls use the corresponding actions. Performance Appraisal 
 2. In `hrEmployeeServicesService.js`, use `apiClient` and remove `selectEmployeeServicesClient`,
    `employeeServicesDemo` and `identifyEmployeeServicesUser` (and `shared/useEmployeeServicesUser.js`).
 3. Remove the `demo` props from the pages, and the demo tests from `tests/hrEmployeeServices.test.mjs`.
+
+## Reward Nomination (1113), Share an Idea (1097) and Sick Leave (1076)
+
+Three more screens under **Human resources → Employee services** (the sidebar sub-group flyout).
+Each uses its existing backend; handoff: `docs/handoffs/FEATURE-HR-EMPLOYEE-SERVICES-BATCH1.md`.
+
+| Screen | Form route | Report | Record | API | Permission |
+|---|---|---|---|---|---|
+| Sick Leave | `/hr/employee-services/sick-leave` | `…/sick-leave/report` | `…/sick-leave/:leaveId` | `/hr/sick-leave` | `HR.SICK_LEAVE` |
+| Reward Nomination | `/hr/employee-services/reward-nomination` | `…/reward-nomination/report` | `…/reward-nomination/:nominationId` | `/hr/employee-of-the-month` | `HR.EMPLOYEE_OF_THE_MONTH` |
+| Share an Idea | `/hr/employee-services/ideas` | `…/ideas/report` | `…/ideas/:ideaId` | `/ideas` | `HR.IDEAS` |
+
+Only the form is listed in the sidebar; the report and record pages are reached from it (`hidden`).
+
+**Switches.** Visibility: `VITE_FEATURE_HR_SICK_LEAVE`, `VITE_FEATURE_HR_REWARD_NOMINATION`,
+`VITE_FEATURE_HR_IDEAS` (`'true'` shown, `'false'` hidden, unset shown in development builds only);
+an entry also needs the form's `VIEW` permission. Data source: `VITE_HR_SICK_LEAVE_DEMO`,
+`VITE_HR_REWARD_NOMINATION_DEMO`, `VITE_HR_IDEAS_DEMO` — the API unless `'true'` in a development
+build; a production build always uses the API (`employeeServicesFormsConfig.js`).
+
+**Structure (per form, in `reward/`, `idea/`, `sickLeave/`).** `*Contract.js` (response readers
+and the request body), `*Model.js` (pure rules), `*Service.js` (API or demo adapter), `*Page.jsx`
+and `*ReportPage.jsx`. Shared: `shared/formRecords.js` (statuses, paging, guards),
+`shared/ServerRecordList.jsx` (report filtered, sorted and paged by the server),
+`shared/FormParts.jsx` (rating chips), demo adapters `demo/{reward,idea,sickLeave}DemoClient.js`
+on `demo/formsDemoKit.js` (in memory, backend response shapes, fictional people). Styles:
+`src/styles/hr-employee-services-forms.css`.
+
+**Rules.** Drafts and rejected records are editable; in-process and approved ones are read-only
+(the backends answer 409). Dates are `YYYY-MM-DD` strings. Server-computed values are shown from
+the server: the request numbers, the sick leave number of days, the idea feasibility
+(depreciation, NPV, IRR, ROI). Legacy rules win over the prototype (the reward A / AS / BS / CS
+scale, the fixed "Sick Leave" type); prototype fields with no column or API are not shown (gaps
+in the handoff). Sending a record for approval is not available: no backend has a submit endpoint.

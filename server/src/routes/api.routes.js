@@ -425,6 +425,7 @@ export function createApiRouter(appConfig, deps = {}) {
         withTransaction: db.withTransaction,
       }),
       authenticate,
+      authorize,
       auditService,
     }),
   );
