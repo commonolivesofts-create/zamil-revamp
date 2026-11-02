@@ -2,7 +2,7 @@
 ## How to configure a workflow for any Zamil Digitalization form
 
 **Guide audience:** Workflow Administrators, Workflow Publishers and approved form owners. Ordinary employees should use the action instructions near the end; they do not need to configure workflow tables.  
-**Status:** Design-stage guide. The Workflow Manager screens are **not yet implemented**; menu labels below describe the proposed user experience and must be reconciled with the real UI before publishing this document as an operational guide. The steps are intentionally written for non-developers.  
+**Status:** Design-stage guide. Only the package **M1** screens are implemented — **Workflow Manager → Overview**, **Form registry** (register, edit, activate/deactivate a form) and **Data source registry**; use their screen guides ([01](user-guides/01-workflow-manager-navigation.md), [02](user-guides/02-form-registry.md), [03](user-guides/03-form-registration.md), [04](user-guides/04-data-source-registry.md)) for exact steps. All later screens (mapping, designer, resolvers, templates, delegations, publication and execution) are **not yet implemented**; menu labels below describe the proposed user experience and must be reconciled with the real UI before publishing this document as an operational guide. The steps are intentionally written for non-developers.\
 **Scope:** All workflow-enabled forms, subject to confirmed form integrations and appropriate permission. Do not assume every existing form supports workflow submission until it is registered and verified.
 
 ## A. First understand four words

@@ -16,6 +16,8 @@ The entries below are **frontend-registry discovery candidates**, **not proof th
 | Performance appraisal | `/hr/performance/appraisal` | Not verified/onboarded; its current registry module is session-only (`rbac: false`) |
 | Salary certificates, EN/AR | HR resources with no navigation in examined registry | Not verified/onboarded; workflow suitability not assumed |
 
+**M1 status (2026-11-02):** No business form has been onboarded. M1 delivers the Form registry and Data source registry ([guides 02–04](../USER-GUIDE-INDEX.md)); `XX_ZRV_WF_FORMS` and `XX_ZRV_WF_DATA_SOURCES` on TEST held **0 rows** at implementation time and no TEST data was written. Registering a form records only its identity — its keys, statuses and organization scope are verified and mapped in package M2 — so no per-form guide exists yet and none of the candidates above changes status.
+
 Read-only reports such as periodwise employees should **not** automatically be assigned workflow setup guides. Other existing forms and CI3 flows may not yet appear in the examined frontend registry. M1/M2 shall discover and verify the complete form inventory; the owner chooses the form/event cutover, respecting G4 for legacy live workflows.
 
 ### Required checklist before a per-form guide is marked complete
