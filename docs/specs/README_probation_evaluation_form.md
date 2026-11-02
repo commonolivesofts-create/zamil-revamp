@@ -459,7 +459,7 @@ WHERE PERSON_ID = :personId AND CURRENT_EMP_FLAG = 'Y';
 ## 11. WORKFLOW — EXPLICITLY OUT OF SCOPE (verified present in legacy; do NOT implement)
 
 - `ProbationFlow::submit()` (`controllers/ProbationFlow.php:66-296`) — SMTP mail
-  (hard-coded `workflowmailer@zamilplastic.com` / `D@989955427519ud`),
+  (hard-coded SMTP mailbox `[REDACTED]` / password `[REDACTED]`),
   `callXXPHP_WORKFLOW(... 'EPRBF' ...)`, then `updateRequestStatus(id, 'INPROCESS')`.
 - `ProbationFlow::workflow()` (`controllers/ProbationFlow.php:298-754`) — approve/reject handler
   writing `REQUEST_STATUS = 'Approved' | 'Rejected'`.
