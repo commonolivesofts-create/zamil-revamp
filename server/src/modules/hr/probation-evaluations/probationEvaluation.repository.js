@@ -274,8 +274,8 @@ export async function isHrUser(connection, employeeNumber) {
 /**
  * The actor's reporting hierarchy, as the legacy form: without employees who already have a
  * non-rejected annual appraisal this year (pending HR confirmation). Legacy reads
- * XXZPI_HR_PAF_HEADER_TAB; this uses XXZPI_HR_PA_HEADER_TAB, the annual appraisal table the
- * performance-appraisal module reads and writes.
+ * XXZPI_HR_PAF_HEADER_TAB, which nothing writes any more (TEST holds years 2017–2022 only); the
+ * annual appraisal form, legacy and new, writes XXZPI_HR_PA_HEADER_TAB, so the rule reads that.
  */
 export async function listEmployees(connection, userId) {
   const result = await rows(

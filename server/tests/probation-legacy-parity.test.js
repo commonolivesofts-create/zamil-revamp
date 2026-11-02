@@ -358,12 +358,17 @@ describe('probation parity: evaluation result and list', () => {
     }
   });
 
-  it('lists the hierarchy without employees who have a non-rejected annual appraisal this year', async () => {
+  it('excludes employees with a non-rejected annual appraisal this year in XXZPI_HR_PA_HEADER_TAB (pending HR confirmation)', async () => {
     const connection = fakeConnection(() => []);
     await probationRepository.listEmployees(connection, '100');
     const [{ sql, binds }] = connection.statements;
     assert.match(sql, /CONNECT BY PRIOR FULL_NAME = SUPERVISOR_NAME/);
     assert.match(sql, /NOT EXISTS \(\s*SELECT 1 FROM XXZP\.XXZPI_HR_PA_HEADER_TAB HD/);
+    assert.doesNotMatch(
+      sql,
+      /XXZPI_HR_PAF_HEADER_TAB/,
+      'not the legacy PAF table (no longer written)',
+    );
     assert.match(sql, /HD\.EMPLOYEE_NUMBER = OT\.EMPLOYEE_NUMBER/);
     assert.match(sql, /HD\.YEAR = TO_CHAR\(SYSDATE, 'YYYY'\)/);
     assert.match(sql, /NVL\(UPPER\(HD\.STATUS\), '-'\) <> 'REJECTED'/);

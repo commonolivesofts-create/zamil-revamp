@@ -136,7 +136,7 @@ Round 2 added row 19 (created date, now shown) and renumbered the line rows.
 | D4 (R2) | Total → result band: ≤70 Not acceptable, ≥71 Acceptable | `formResult(lines)` on the page (shown once a criterion is rated); server `evaluationResult(total)` in list rows | **MATCH** |
 | D5 | `REQUEST_STATUS = APPROVED` → "Approved by: HR SUPERVISOR" | — | **MISSING** (needs workflow) |
 | D6 | Employee list = the user's reporting hierarchy | same query | **MATCH** |
-| D7 (R2) | Employee list excludes employees with a non-rejected annual PAF this year (`XXZPI_HR_PAF_HEADER_TAB`) | `NOT EXISTS` on `XXZP.XXZPI_HR_PA_HEADER_TAB`, current year (`TO_CHAR(SYSDATE,'YYYY')`), status not `REJECTED` (case-insensitive) | **DIFFERENT table — pending HR confirmation.** R3 dictionary check: legacy really reads `XXZP.XXZPI_HR_PAF_HEADER_TAB`, a separate table (§10.1); code not changed yet |
+| D7 (R2) | Employee list excludes employees with a non-rejected annual PAF this year (`XXZPI_HR_PAF_HEADER_TAB`) | `NOT EXISTS` on `XXZP.XXZPI_HR_PA_HEADER_TAB`, current year (`TO_CHAR(SYSDATE,'YYYY')`), status not `REJECTED` (case-insensitive) | **DIFFERENT table (owner decision R4) — pending HR confirmation.** Legacy reads `XXZP.XXZPI_HR_PAF_HEADER_TAB`, which holds only years 2017–2022 and is not written by any legacy code. The rule reads `XXZPI_HR_PA_HEADER_TAB`, where annual appraisals are written (§10.1, §11.1) |
 | D8 | Prepared by = session user | from session on create | **MATCH** |
 | D9 | Submit button only after first save; refused if `INPROCESS`/`APPROVED` | no Submit (workflow not started) | **MISSING** |
 | D10 (R2) | Edit view: Comments, Suggestion and each rating `required` on save | required on **submit** (`validateForSubmit`, `submitProblems`), lenient on draft save | **DIFFERENT** (owner decision) |
@@ -262,7 +262,7 @@ Effort: XS < 2 h · S ≤ 1 day · M 2–4 days · L ≥ 1 week. Gates per `docs
 | M6 | Approver Suggestion during workflow (#13, F8) | P2 | Not started | With M4 |
 | M7 | Report columns (F11) | P2 | **Done (R2)** | Pending at is `null` from the API until M4; Job Title not added (not requested) |
 | M8 | "Approved by: HR SUPERVISOR" (#15, D5) | P3 | Not started | With M4 |
-| M9 | Employee list exclusion (D7) | P3 | **Done (R2) — pending HR confirmation; table differs (R3)** | Code uses `XXZPI_HR_PA_HEADER_TAB`; legacy reads `XXZP.XXZPI_HR_PAF_HEADER_TAB` (§10.1). Not changed, by instruction |
+| M9 | Employee list exclusion (D7) | P3 | **Done — pending HR confirmation** | Reads `XXZPI_HR_PA_HEADER_TAB` by owner decision (R4); the legacy `PAF` table is stale (§11.1). A test asserts the `PAF` table is not used |
 | M10 | Comments / Suggestion / ratings required (D10) | P3 | **Done (R2) as submit rules** | `validateForSubmit` (client), `submitProblems` (server); not wired until M4 |
 | M11 | Always 20 lines (#24) | P3 | Falls out of M1 | — |
 | M12 | Hard-coded SMTP credential in tracked docs | **P0** | **Done (R2)** | Redacted in commit "chore(security): redact legacy credentials from docs"; history not rewritten; rotation by the owner |
@@ -340,13 +340,9 @@ No new dependency, no DDL, no database writes, no change in `php-ci3-old-app`.
   appraisal this year? It is implemented as in legacy for now.
 - Q6 Keep the new `toDate ≥ fromDate` and grade-integer rules?
 - Q8 Keep or remove the unreachable demo-only redesign (recommendation, signatures, allocated points)?
-- Q10 (R3, open) The dictionary shows two separate real tables (§10.1). Legacy probation excludes
-  using `XXZPI_HR_PAF_HEADER_TAB`. The legacy *annual appraisal* form writes only
-  `XXZPI_HR_PA_HEADER_TAB`, and no legacy code writes the `PAF` table. Which table should
-  probation use: the legacy `PAF` table (parity), the `PA` table (where annual appraisals are
-  actually written), or none (Q4)?
-- Q12 (R3) One TEST record has the created date in `FORM_DATE` (§10.2). Correct it (a data change
-  needing authorization), or leave it as TEST data?
+- Q10 Answered (R4): use `XXZPI_HR_PA_HEADER_TAB`. Whether probation should exclude at all stays
+  with Q4 (pending HR confirmation).
+- Q12 Answered (R4): leave the TEST record as is. It is **known test data** (§10.2).
 
 Answered in round 2: Q2 (joining date), Q5 (required on submit), Q7 (redact), Q9 (branch).
 Answered in round 3: Q11 (Job Title added).
@@ -470,8 +466,9 @@ Counts on TEST (no values read out):
 | Headers whose stored `TOTAL_RATING` ≠ sum of their line ratings | 0 (2 headers have no lines) |
 
 All five TEST headers point to employee numbers with no current `XX_DIGI_EMP_MASTER` row. A
-joining date therefore cannot be compared for any of them. One record holds its created date
-(Q12). No data was changed.
+joining date therefore cannot be compared for any of them. One record holds its created date in
+`FORM_DATE`. **It is known test data and is left as is (owner decision R4).** It will display that
+date as its joining date until the employee is re-selected and saved. No data was changed.
 
 ### 10.3 Local `main` commits not on `origin/main`
 
@@ -486,3 +483,34 @@ Notes:
   2 ahead and 1 behind.
 - This branch is based on local `main`, so a PR from it would include `1448779` and the merge.
 - Nothing was pushed.
+
+---
+
+## 11. Round 4
+
+### 11.1 Annual appraisal tables — activity on TEST (read-only aggregates)
+
+| Table | Rows | `YEAR` min–max | `CREATION_DATE` latest | `LAST_UPDATE_DATE` latest | Rows for the current year |
+|---|---|---|---|---|---|
+| `XXZP.XXZPI_HR_PAF_HEADER_TAB` | 467 | **2017–2022** | 2030-12-19 (\*) | 2030-12-19 (\*) | 0 |
+| `XXZP.XXZPI_HR_PA_HEADER_TAB` | 624 | 2020–2025 | 2025-10-10 | 2024-06-04 (10 rows filled) | 0 |
+
+(\*) A future date, most likely a two-digit-year artefact in the old data. The earliest values
+(2001 / 2002) suggest the same. The `PAF` table holds no appraisal year after 2022, and no legacy code
+writes it. It is a stale predecessor of the `PA` table.
+
+**Decision (owner, R4):** the exclusion rule reads `XXZPI_HR_PA_HEADER_TAB`. The code already
+used it since round 2. Round 4 updated the code comment and added a test asserting the `PAF` table
+is not referenced. Still **pending HR confirmation** whether probation should exclude employees with
+an annual appraisal at all (Q4). Neither table has rows for the current year on TEST, so the rule
+currently excludes no one there.
+
+### 11.2 Known test data
+
+The one TEST probation record whose `FORM_DATE` holds its created date (§10.2) is left unchanged by
+owner decision.
+
+### 11.3 Git cleanup
+
+See the summary of round 4 in the handoff (§2 there) and the branch logs given to the owner. The
+probation branch was rebased onto `origin/main`. The identity-ID commit moved to `feat/identity-ids`.
