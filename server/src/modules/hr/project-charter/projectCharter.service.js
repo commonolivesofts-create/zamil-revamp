@@ -173,7 +173,7 @@ export function createProjectCharterService({
     },
 
     async profile(actor) {
-      return read((c) => repository.findActorProfile(c, actor.userId));
+      return read((c) => repository.findActorProfile(c, actor.employeeNumber));
     },
   };
 }

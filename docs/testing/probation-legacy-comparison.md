@@ -522,3 +522,10 @@ probation branch was rebased onto `origin/main`. The identity-ID commit moved to
 - **Fix (owner's choice: legacy hierarchy scope):** the signed-in user is found by `EMPLOYEE_NUMBER`; the list is their reporting hierarchy (`LEVEL != 1`), minus employees with a non-rejected appraisal this year. `GET /hr/probation-evaluations/lookups/employees?search=` matches name or employee number and returns up to 50 rows. The picker calls it on focus and as the user types, as the Transfer form does.
 - **TEST (read-only, counts only):** the 5 TEST accounts list 1, 0, 6, 50 and 50 employees (before: 0 for all). The account with 0 has no reports, matching legacy behaviour. Requestor and appraiser found for all 5. Each call 0.2–0.5 s.
 - **Not changed:** other forms that use the same `USER_ID = :userId` pattern (owner: this form only).
+
+### 12.1 Same fix in other HR forms (owner request)
+
+- **Fixed:** the signed-in user is now resolved by `EMPLOYEE_NUMBER` (current row) instead of `XX_DIGI_EMP_MASTER.USER_ID` in: requisition requestor; performance appraisal requestor, employee list, employee details and "evaluated by"; employee of the month requestor; project charter actor profile; orientation actor name; transfer request requestor. Created-by, the HR check and grade statistics still use the application user ID, as before.
+- **Sick leave:** no change needed; it resolves the user through `XX_ZRV_USERS.USER_ID`, which is the application user ID.
+- **TEST (read-only, counts only):** every lookup finds the signed-in user for all 5 accounts (before: none). Performance appraisal employee lists: 1, 0, 6, 83 and 140 employees, 0.2–0.6 s.
+- **Not changed, for the owner:** employee clearance `actor` still matches `USER_ID = :userId`; the HR-user checks (`XX_DIGI_LOOKUP_VALUES` `XXZP_HR` `TAG = :userId`) in six modules compare the application user ID with a legacy value. The HR check is a permission decision (gate G2).
