@@ -1100,9 +1100,14 @@ test("probation service uses the backend draft and lookup contracts", async () =
   const { fetchImpl, calls } = recordingFetch((url, init) => {
     if (url.endsWith("/lookups/form-types"))
       return success({ formTypes: ["Trainee"] });
-    if (url.endsWith("/lookups/employees"))
+    if (/\/lookups\/employees(\?|$)/.test(url))
       return success([
-        { hierarchyLevel: 2, userId: "71", fullName: "Sample Employee 001" },
+        {
+          hierarchyLevel: 2,
+          userId: null,
+          employeeNumber: "30401",
+          fullName: "Sample Employee 001",
+        },
       ]);
     if (url.endsWith("/lookups/requestor"))
       return success({ fullName: "Sample Requestor", employeeNumber: "2502" });
@@ -1128,10 +1133,11 @@ test("probation service uses the backend draft and lookup contracts", async () =
     ["Trainee"],
   );
   assert.deepEqual(
-    (await services.probations.searchEmployees("sample")).items.map(
-      (item) => item.name,
-    ),
-    ["Sample Employee 001"],
+    (await services.probations.searchEmployees("sample")).items.map((item) => [
+      item.name,
+      item.employeeNumber,
+    ]),
+    [["Sample Employee 001", "30401"]],
   );
   assert.equal(
     (await services.probations.employeeDetails("Sample Employee 001"))
@@ -1164,16 +1170,15 @@ test("probation service uses the backend draft and lookup contracts", async () =
     calls.map((call) => `${call.init.method} ${call.url}`),
     [
       "GET /api/v1/hr/probation-evaluations/lookups/form-types",
-      "GET /api/v1/hr/probation-evaluations/lookups/employees",
       "GET /api/v1/hr/probation-evaluations/lookups/requestor",
-      "GET /api/v1/hr/probation-evaluations/lookups/employees",
+      "GET /api/v1/hr/probation-evaluations/lookups/employees?search=sample",
       "GET /api/v1/hr/probation-evaluations/lookups/employee-details?empName=Sample+Employee+001",
       "POST /api/v1/hr/probation-evaluations",
       "GET /api/v1/hr/probation-evaluations/8",
     ],
   );
-  assert.equal(calls[5].init.headers.get("X-CSRF-Token"), SESSION_TOKEN);
-  assert.deepEqual(JSON.parse(calls[5].init.body).lines, [
+  assert.equal(calls[4].init.headers.get("X-CSRF-Token"), SESSION_TOKEN);
+  assert.deepEqual(JSON.parse(calls[4].init.body).lines, [
     { param: "Quality", paramAr: "", rating: 4 },
   ]);
 });
@@ -1189,7 +1194,11 @@ test("probation page connects to backend supported fields", async () => {
     /loadLookups=\{\(signal\) => service\.getLookups\(\{ signal \}\)\}/,
   );
   assert.match(page, /searchService=\{searchEmployees\}/);
-  assert.match(page, /lookups\.employees\.filter/);
+  assert.match(
+    page,
+    /const searchEmployees = \(query, options\) =>\s*service\.searchEmployees\(query, options\)/,
+  );
+  assert.doesNotMatch(page, /lookups\.employees/, "no preloaded employee list");
   assert.match(page, /<EmployeePicker id="pa-emp"/);
   assert.match(page, /Rating \(1–5\)/);
   assert.match(page, /Add criterion/);

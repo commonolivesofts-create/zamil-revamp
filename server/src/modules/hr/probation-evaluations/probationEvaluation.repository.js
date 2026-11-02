@@ -276,45 +276,61 @@ export async function isHrUser(connection, employeeNumber) {
  * non-rejected annual appraisal this year (pending HR confirmation). Legacy reads
  * XXZPI_HR_PAF_HEADER_TAB, which nothing writes any more (TEST holds years 2017–2022 only); the
  * annual appraisal form, legacy and new, writes XXZPI_HR_PA_HEADER_TAB, so the rule reads that.
+ *
+ * The actor is found by EMPLOYEE_NUMBER: XX_DIGI_EMP_MASTER.USER_ID holds the legacy EBS user ID,
+ * not this application's user ID. `search` (optional) matches the name or employee number.
  */
-export async function listEmployees(connection, userId) {
+export const EMPLOYEE_SEARCH_LIMIT = 50;
+
+export async function listEmployees(connection, { employeeNumber, search = '' }) {
   const result = await rows(
     connection,
-    `SELECT LEVEL AS HIERARCHY_LEVEL, USER_ID, FULL_NAME
-       FROM XX_DIGI_EMP_MASTER OT
-      WHERE SYSTEM_PERSON_TYPE IN ('EMP', 'EMP_APL')
-        AND ASSIGNMENT_STATUS_TYPE_ID = '1'
-        AND CURRENT_EMP_FLAG = 'Y'
-        AND LEVEL != 1
-        AND NOT EXISTS (
-          SELECT 1 FROM XXZP.XXZPI_HR_PA_HEADER_TAB HD
-           WHERE HD.EMPLOYEE_NUMBER = OT.EMPLOYEE_NUMBER
-             AND HD.YEAR = TO_CHAR(SYSDATE, 'YYYY')
-             AND NVL(UPPER(HD.STATUS), '-') <> 'REJECTED'
-        )
-      START WITH FULL_NAME = (
-        SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId
-      )
-      CONNECT BY PRIOR FULL_NAME = SUPERVISOR_NAME`,
-    { userId },
-    { USER_ID: ID },
+    `SELECT MIN(HIERARCHY_LEVEL) AS HIERARCHY_LEVEL, USER_ID, EMPLOYEE_NUMBER, FULL_NAME
+       FROM (
+         SELECT LEVEL AS HIERARCHY_LEVEL, OT.USER_ID, OT.EMPLOYEE_NUMBER, OT.FULL_NAME
+           FROM XX_DIGI_EMP_MASTER OT
+          WHERE OT.SYSTEM_PERSON_TYPE IN ('EMP', 'EMP_APL')
+            AND OT.ASSIGNMENT_STATUS_TYPE_ID = '1'
+            AND OT.CURRENT_EMP_FLAG = 'Y'
+            AND LEVEL != 1
+            AND NOT EXISTS (
+              SELECT 1 FROM XXZP.XXZPI_HR_PA_HEADER_TAB HD
+               WHERE HD.EMPLOYEE_NUMBER = OT.EMPLOYEE_NUMBER
+                 AND HD.YEAR = TO_CHAR(SYSDATE, 'YYYY')
+                 AND NVL(UPPER(HD.STATUS), '-') <> 'REJECTED'
+            )
+          START WITH OT.FULL_NAME = (
+            SELECT MAX(FULL_NAME) FROM XX_DIGI_EMP_MASTER
+             WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
+          )
+          CONNECT BY NOCYCLE PRIOR OT.FULL_NAME = OT.SUPERVISOR_NAME
+       )
+      WHERE :search IS NULL
+         OR INSTR(UPPER(FULL_NAME), UPPER(:search)) > 0
+         OR INSTR(EMPLOYEE_NUMBER, :search) > 0
+      GROUP BY USER_ID, EMPLOYEE_NUMBER, FULL_NAME
+      ORDER BY FULL_NAME
+      FETCH FIRST ${EMPLOYEE_SEARCH_LIMIT} ROWS ONLY`,
+    { employeeNumber, search: search || null },
+    { USER_ID: ID, EMPLOYEE_NUMBER: ID },
   );
   return result.map((row) => ({
     hierarchyLevel: row.HIERARCHY_LEVEL,
     userId: row.USER_ID,
+    employeeNumber: row.EMPLOYEE_NUMBER,
     fullName: row.FULL_NAME,
   }));
 }
 
-export async function findRequestor(connection, userId) {
+/** The signed-in user's own record ("Prepared by"), by their employee number. */
+export async function findRequestor(connection, employeeNumber) {
   const [row] = await rows(
     connection,
     `SELECT FULL_NAME, EMAIL_ADDRESS, EMPLOYEE_NUMBER
        FROM XX_DIGI_EMP_MASTER
-      WHERE EMPLOYEE_NUMBER = (
-        SELECT EMPLOYEE_NUMBER FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId
-      )`,
-    { userId },
+      WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
+      FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber },
   );
   return row
     ? {
@@ -325,7 +341,7 @@ export async function findRequestor(connection, userId) {
     : null;
 }
 
-export async function findEmployeeDetails(connection, { empName, userId }) {
+export async function findEmployeeDetails(connection, { empName, employeeNumber }) {
   const [ids] = await rows(
     connection,
     `SELECT PERSON_ID, EMPLOYEE_NUMBER
@@ -361,12 +377,12 @@ export async function findEmployeeDetails(connection, { empName, userId }) {
   );
   const [supervisor] = await rows(
     connection,
+    // The appraiser: the signed-in user, by employee number.
     `SELECT FULL_NAME, PERSON_ID
        FROM XX_DIGI_EMP_MASTER
-      WHERE EMPLOYEE_NUMBER IN (
-        SELECT DISTINCT EMPLOYEE_NUMBER FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId
-      )`,
-    { userId },
+      WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
+      FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber },
     { PERSON_ID: ID },
   );
   const [position] = job

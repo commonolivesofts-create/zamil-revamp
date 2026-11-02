@@ -3020,8 +3020,14 @@ paths:
       operationId: listProbationEvaluationEmployees
       tags: [HR Probation Evaluations]
       summary: List employees in the actor hierarchy
-      description: Uses the approved employee hierarchy lookup SQL. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      description: >-
+        Employees reporting (directly or indirectly) to the signed-in user, as the legacy form,
+        without employees who have a non-rejected annual appraisal this year. The signed-in
+        user is found by employee number. Optional `search` matches the name or employee number;
+        at most 50 rows, ordered by name. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
       security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
       responses:
         '200':
           description: Hierarchical employee list.
@@ -3038,8 +3044,12 @@ paths:
                           type: object
                           properties:
                             hierarchyLevel: { type: integer }
-                            userId: { $ref: '#/components/schemas/Id' }
+                            userId:
+                              type: [string, 'null']
+                              description: Legacy EBS user ID (may be null).
+                            employeeNumber: { type: string }
                             fullName: { type: string }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '500': { $ref: '#/components/responses/InternalError' }

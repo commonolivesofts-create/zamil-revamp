@@ -1501,16 +1501,13 @@ export function createProbationService({ client }) {
       (await client.get(`${PROBATION_BASE}/${segment(id)}`, { signal })).data,
     );
   return Object.freeze({
+    // Employees are not preloaded: the picker searches the API as the user types.
     async getLookups({ signal } = {}) {
-      const [types, employees, requestor] = await Promise.all([
+      const [types, requestor] = await Promise.all([
         client.get(`${PROBATION_BASE}/lookups/form-types`, { signal }),
-        client.get(`${PROBATION_BASE}/lookups/employees`, { signal }),
         client.get(`${PROBATION_BASE}/lookups/requestor`, { signal }),
       ]);
-      if (
-        !Array.isArray(types.data?.formTypes) ||
-        !Array.isArray(employees.data)
-      )
+      if (!Array.isArray(types.data?.formTypes))
         throw new ApiError(
           "The server returned unexpected probation form options.",
           { code: "INVALID_RESPONSE" },
@@ -1528,19 +1525,6 @@ export function createProbationService({ client }) {
           ),
           ratingScale: Object.freeze([]),
         }),
-        employees: Object.freeze(
-          employees.data.map((item) =>
-            Object.freeze({
-              employeeId: String(item.userId),
-              employeeNumber: "",
-              name: String(item.fullName),
-              position: "",
-              grade: "",
-              departmentName: "",
-              startDate: "",
-            }),
-          ),
-        ),
         requestor: requestor.data ?? null,
       });
     },
@@ -1559,28 +1543,31 @@ export function createProbationService({ client }) {
         departmentName: String(data?.dept?.name ?? ""),
       });
     },
+    // The signed-in user's reporting hierarchy (legacy rule), filtered on the server by name or
+    // employee number; a blank search lists the first matches. Details load on selection.
     async searchEmployees(search = "", { signal } = {}) {
+      const term = String(search).trim();
       const { data } = await client.get(`${PROBATION_BASE}/lookups/employees`, {
+        ...(term ? { params: { search: term } } : {}),
         signal,
       });
       if (!Array.isArray(data))
         throw new ApiError("The server returned unexpected employees.", {
           code: "INVALID_RESPONSE",
         });
-      const value = String(search).trim().toLocaleLowerCase();
       const items = data
+        .filter((item) => typeof item?.fullName === "string" && item.fullName)
         .map((item) =>
           Object.freeze({
-            employeeId: String(item.userId),
-            employeeNumber: "",
-            name: String(item.fullName),
+            employeeId: "",
+            employeeNumber: String(item.employeeNumber ?? ""),
+            name: item.fullName,
             position: "",
             grade: "",
             departmentName: "",
             startDate: "",
           }),
-        )
-        .filter((item) => item.name.toLocaleLowerCase().includes(value));
+        );
       return Object.freeze({
         items: Object.freeze(items),
         pagination: Object.freeze({

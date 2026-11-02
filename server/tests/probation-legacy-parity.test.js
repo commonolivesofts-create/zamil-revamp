@@ -360,9 +360,9 @@ describe('probation parity: evaluation result and list', () => {
 
   it('excludes employees with a non-rejected annual appraisal this year in XXZPI_HR_PA_HEADER_TAB (pending HR confirmation)', async () => {
     const connection = fakeConnection(() => []);
-    await probationRepository.listEmployees(connection, '100');
+    await probationRepository.listEmployees(connection, { employeeNumber: 'E-0100' });
     const [{ sql, binds }] = connection.statements;
-    assert.match(sql, /CONNECT BY PRIOR FULL_NAME = SUPERVISOR_NAME/);
+    assert.match(sql, /CONNECT BY NOCYCLE PRIOR OT\.FULL_NAME = OT\.SUPERVISOR_NAME/);
     assert.match(sql, /NOT EXISTS \(\s*SELECT 1 FROM XXZP\.XXZPI_HR_PA_HEADER_TAB HD/);
     assert.doesNotMatch(
       sql,
@@ -372,7 +372,100 @@ describe('probation parity: evaluation result and list', () => {
     assert.match(sql, /HD\.EMPLOYEE_NUMBER = OT\.EMPLOYEE_NUMBER/);
     assert.match(sql, /HD\.YEAR = TO_CHAR\(SYSDATE, 'YYYY'\)/);
     assert.match(sql, /NVL\(UPPER\(HD\.STATUS\), '-'\) <> 'REJECTED'/);
-    assert.deepEqual(binds, { userId: '100' });
+    assert.deepEqual(binds, { employeeNumber: 'E-0100', search: null });
+  });
+});
+
+describe('probation employee lookups identify the signed-in user by employee number', () => {
+  // XX_DIGI_EMP_MASTER.USER_ID is the legacy EBS user ID; the session's userId is this
+  // application's user ID. Matching one against the other found nobody, so the list was empty.
+  it('starts the hierarchy at the actor found by EMPLOYEE_NUMBER, never by USER_ID', async () => {
+    const connection = fakeConnection(() => []);
+    await probationRepository.listEmployees(connection, { employeeNumber: 'E-0100' });
+    const [{ sql }] = connection.statements;
+    assert.match(
+      sql,
+      /START WITH OT\.FULL_NAME = \(\s*SELECT MAX\(FULL_NAME\) FROM XX_DIGI_EMP_MASTER\s+WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'/,
+    );
+    assert.doesNotMatch(sql, /USER_ID = :userId/);
+    assert.match(sql, /LEVEL != 1/, 'the actor is not listed');
+  });
+
+  it('filters by name or employee number on the server and caps the list', async () => {
+    const connection = fakeConnection(() => [
+      {
+        HIERARCHY_LEVEL: 2,
+        USER_ID: null,
+        EMPLOYEE_NUMBER: '1001',
+        FULL_NAME: 'Sample Employee 001',
+      },
+    ]);
+    const items = await probationRepository.listEmployees(connection, {
+      employeeNumber: 'E-0100',
+      search: 'sam',
+    });
+    const [{ sql, binds }] = connection.statements;
+    assert.deepEqual(binds, { employeeNumber: 'E-0100', search: 'sam' });
+    assert.match(sql, /INSTR\(UPPER\(FULL_NAME\), UPPER\(:search\)\) > 0/);
+    assert.match(sql, /INSTR\(EMPLOYEE_NUMBER, :search\) > 0/);
+    assert.match(
+      sql,
+      new RegExp(`FETCH FIRST ${probationRepository.EMPLOYEE_SEARCH_LIMIT} ROWS ONLY`),
+    );
+    assert.deepEqual(items, [
+      { hierarchyLevel: 2, userId: null, employeeNumber: '1001', fullName: 'Sample Employee 001' },
+    ]);
+  });
+
+  it('finds "prepared by" and the appraiser by EMPLOYEE_NUMBER', async () => {
+    const connection = fakeConnection((sql) =>
+      sql.includes('START_DATE')
+        ? [{ START_DATE: '2026-01-15' }]
+        : [{ PERSON_ID: '7', EMPLOYEE_NUMBER: 'E-1' }],
+    );
+    await probationRepository.findRequestor(connection, 'E-0100');
+    await probationRepository.findEmployeeDetails(connection, {
+      empName: 'Sample Employee 001',
+      employeeNumber: 'E-0100',
+    });
+    const requestor = connection.statements[0];
+    assert.match(
+      requestor.sql,
+      /WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'/,
+    );
+    assert.deepEqual(requestor.binds, { employeeNumber: 'E-0100' });
+    const appraiser = connection.statements.find(({ sql }) =>
+      sql.includes('SELECT FULL_NAME, PERSON_ID'),
+    );
+    assert.deepEqual(appraiser.binds, { employeeNumber: 'E-0100' });
+    for (const { sql } of connection.statements) assert.doesNotMatch(sql, /USER_ID = :userId/);
+  });
+
+  it('passes the actor employee number (not the application user ID) from the service', async () => {
+    const calls = [];
+    const repository = {
+      listEmployees: async (_c, input) => (calls.push(['list', input]), []),
+      findRequestor: async (_c, employeeNumber) => (
+        calls.push(['requestor', employeeNumber]),
+        null
+      ),
+      findEmployeeDetails: async (_c, input) => (calls.push(['details', input]), null),
+    };
+    const run = async (_pool, work) => work({});
+    const service = createProbationEvaluationService({
+      repository,
+      withConnection: run,
+      withTransaction: run,
+    });
+    const actor = { userId: '9', employeeNumber: 'E-0100' };
+    await service.employees(actor, { search: 'sam' });
+    await service.requestor(actor);
+    await service.employeeDetails(actor, 'Sample Employee 001').catch(() => {});
+    assert.deepEqual(calls, [
+      ['list', { employeeNumber: 'E-0100', search: 'sam' }],
+      ['requestor', 'E-0100'],
+      ['details', { empName: 'Sample Employee 001', employeeNumber: 'E-0100' }],
+    ]);
   });
 });
 

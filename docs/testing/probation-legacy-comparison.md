@@ -514,3 +514,11 @@ owner decision.
 
 See the summary of round 4 in the handoff (§2 there) and the branch logs given to the owner. The
 probation branch was rebased onto `origin/main`. The identity-ID commit moved to `feat/identity-ids`.
+
+## 12. Employee field fix
+
+- **Symptom:** the Employee picker showed no employees and called no API while typing.
+- **Cause:** the server matched the session's application user ID against `XX_DIGI_EMP_MASTER.USER_ID`, which holds the legacy EBS user ID, so the signed-in user was never found. "Prepared by" and the appraiser had the same fault. The page also loaded the list once and filtered it in the browser.
+- **Fix (owner's choice: legacy hierarchy scope):** the signed-in user is found by `EMPLOYEE_NUMBER`; the list is their reporting hierarchy (`LEVEL != 1`), minus employees with a non-rejected appraisal this year. `GET /hr/probation-evaluations/lookups/employees?search=` matches name or employee number and returns up to 50 rows. The picker calls it on focus and as the user types, as the Transfer form does.
+- **TEST (read-only, counts only):** the 5 TEST accounts list 1, 0, 6, 50 and 50 employees (before: 0 for all). The account with 0 has no reports, matching legacy behaviour. Requestor and appraiser found for all 5. Each call 0.2–0.5 s.
+- **Not changed:** other forms that use the same `USER_ID = :userId` pattern (owner: this form only).

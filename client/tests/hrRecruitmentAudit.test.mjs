@@ -192,26 +192,59 @@ test("probation reads a stored 0 as not rated and omits blank ratings on save", 
   );
 });
 
-test("probation lookups load form types, employees and requestor from the API", async () => {
+test("probation lookups load form types and requestor; employees are searched on the API as you type", async () => {
   const client = fakeClient({
     "GET /hr/probation-evaluations/lookups/form-types": {
       data: { formTypes: ["Staff", "Worker"] },
     },
     "GET /hr/probation-evaluations/lookups/employees": {
-      data: [{ userId: "9001", fullName: "Sample Employee 001" }],
+      data: [
+        {
+          hierarchyLevel: 2,
+          userId: null,
+          employeeNumber: "9001",
+          fullName: "Sample Employee 001",
+        },
+      ],
     },
     "GET /hr/probation-evaluations/lookups/requestor": {
       data: { fullName: "Sample HR Head A" },
     },
   });
   const signal = new AbortController().signal;
-  const lookups = await services(client).probations.getLookups({ signal });
+  const service = services(client).probations;
+  const lookups = await service.getLookups({ signal });
   assert.deepEqual(
     lookups.probation.formTypes.map((type) => type.code),
     ["Staff", "Worker"],
   );
-  assert.equal(lookups.employees[0].name, "Sample Employee 001");
+  assert.equal("employees" in lookups, false, "not preloaded");
   assert.ok(client.calls.every((call) => call.options.signal === signal));
+  assert.deepEqual(
+    client.calls.map((call) => call.path),
+    [
+      "/hr/probation-evaluations/lookups/form-types",
+      "/hr/probation-evaluations/lookups/requestor",
+    ],
+  );
+
+  const found = await service.searchEmployees("  sam ", { signal });
+  const blank = await service.searchEmployees("", { signal });
+  const [typed, opened] = client.calls.slice(2);
+  assert.deepEqual(
+    typed.options.params,
+    { search: "sam" },
+    "trimmed term sent to the API",
+  );
+  assert.equal(
+    opened.options.params,
+    undefined,
+    "blank search lists the hierarchy",
+  );
+  assert.deepEqual(
+    [found.items[0].name, found.items[0].employeeNumber, blank.items.length],
+    ["Sample Employee 001", "9001", 1],
+  );
 });
 
 const ORIENTATION_EMPLOYEE = Object.freeze({

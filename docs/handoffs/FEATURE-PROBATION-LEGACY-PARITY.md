@@ -121,6 +121,7 @@ None (not requested).
 - Round 3: a blank joining date is stored as NULL (`FORM_DATE` is nullable on TEST). NULL and the legacy 2000-01-01 both read as blank, so an employee who really joined on 2000-01-01 would show a blank joining date.
 - Round 3: the server computes `TOTAL_RATING` and the evaluation result from the ratings and discards client values. The Records list shows Job Title.
 - Records created by the new form before this change hold the form date (not the joining date) in FORM_DATE. Re-selecting the employee refills it.
+- Employee field: the picker lists the signed-in user's reporting hierarchy, searched on the server by name or employee number (max 50). The user is resolved by employee number (the application user ID is not the EBS `USER_ID`). An account with no reports sees an empty list, as in legacy. See report §12.
 
 ## 13. Follow-up work
 

@@ -15,10 +15,10 @@ export function installProbationEvaluations(
   const table = () => store.state.probationEvaluations;
   const headerOf = (headerId) => table().headers.find((header) => header.headerId === headerId);
   const linesOf = (headerId) => table().lines.filter((line) => line.headerId === headerId);
-  const requestorFor = (userId) => {
-    const user = store.state.users.find((item) => item.userId === userId);
-    const employee =
-      user && store.state.employees.find((item) => item.employeeNumber === user.employeeNumber);
+  // The repository resolves the signed-in user by EMPLOYEE_NUMBER (XX_DIGI_EMP_MASTER.USER_ID is
+  // the legacy EBS ID, not this application's user ID).
+  const requestorFor = (employeeNumber) => {
+    const employee = store.state.employees.find((item) => item.employeeNumber === employeeNumber);
     return employee
       ? {
           fullName: employee.fullName,
@@ -59,8 +59,8 @@ export function installProbationEvaluations(
   };
 
   const repository = {
-    async findRequestor(_connection, userId) {
-      return requestorFor(userId);
+    async findRequestor(_connection, employeeNumber) {
+      return requestorFor(employeeNumber);
     },
     async insertHeader(_connection, input) {
       const headerId = nextIdentity('header', table().headers, (header) => header.headerId);
@@ -185,16 +185,33 @@ export function installProbationEvaluations(
         })),
       };
     },
-    async listEmployees(_connection, userId) {
-      const user = store.state.users.find((item) => item.userId === userId);
-      const employee =
-        user && store.state.employees.find((item) => item.employeeNumber === user.employeeNumber);
-      return employee ? [{ hierarchyLevel: 2, userId, fullName: employee.fullName }] : [];
+    // Every other employee stands in for the actor's reporting hierarchy.
+    async listEmployees(_connection, { employeeNumber, search = '' }) {
+      store.state.probationEmployeeQueries = [
+        ...(store.state.probationEmployeeQueries ?? []),
+        { employeeNumber, search },
+      ];
+      if (!requestorFor(employeeNumber)) return [];
+      const term = String(search ?? '').toUpperCase();
+      return store.state.employees
+        .filter((item) => item.employeeNumber !== employeeNumber)
+        .filter(
+          (item) =>
+            !term ||
+            item.fullName.toUpperCase().includes(term) ||
+            String(item.employeeNumber).includes(term),
+        )
+        .map((item) => ({
+          hierarchyLevel: 2,
+          userId: null,
+          employeeNumber: item.employeeNumber,
+          fullName: item.fullName,
+        }));
     },
-    async findEmployeeDetails(_connection, { empName, userId }) {
+    async findEmployeeDetails(_connection, { empName, employeeNumber }) {
       const employee = store.state.employees.find((item) => item.fullName === empName);
       if (!employee) return null;
-      const requestor = requestorFor(userId);
+      const requestor = requestorFor(employeeNumber);
       return {
         ids: { personId: '7001', employeeNumber: employee.employeeNumber },
         hire: { startDate: new Date('2020-01-01T00:00:00Z') },

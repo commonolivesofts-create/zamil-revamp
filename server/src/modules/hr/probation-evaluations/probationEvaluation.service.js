@@ -120,7 +120,7 @@ export function createProbationEvaluationService({
       const common = headerBinds(body);
       return withTransaction(POOLS.LOW, async (connection) => {
         const uuid = randomUUID();
-        const requestor = await repository.findRequestor(connection, actor.userId);
+        const requestor = await repository.findRequestor(connection, actor.employeeNumber);
         // HEADER_ID and LINE_ID come from the tables' identity columns (RETURNING INTO).
         const headerId = await repository.insertHeader(connection, {
           ...common,
@@ -217,17 +217,23 @@ export function createProbationEvaluationService({
       });
     },
 
-    employees(actor) {
-      return read((connection) => repository.listEmployees(connection, actor.userId));
+    // The actor is identified by employee number: XX_DIGI_EMP_MASTER.USER_ID is the legacy EBS ID.
+    employees(actor, { search } = {}) {
+      return read((connection) =>
+        repository.listEmployees(connection, { employeeNumber: actor.employeeNumber, search }),
+      );
     },
 
     requestor(actor) {
-      return read((connection) => repository.findRequestor(connection, actor.userId));
+      return read((connection) => repository.findRequestor(connection, actor.employeeNumber));
     },
 
     async employeeDetails(actor, empName) {
       const details = await read((connection) =>
-        repository.findEmployeeDetails(connection, { empName, userId: actor.userId }),
+        repository.findEmployeeDetails(connection, {
+          empName,
+          employeeNumber: actor.employeeNumber,
+        }),
       );
       if (!details) throw notFound('Employee');
       const start = toDateTime(details.hire?.startDate);

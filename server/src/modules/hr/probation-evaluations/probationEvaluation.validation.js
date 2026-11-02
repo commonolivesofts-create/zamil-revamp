@@ -39,6 +39,7 @@ export const REQUEST_STATUSES = Object.freeze(['DRAFT', 'INPROCESS', 'APPROVED',
 export const emptyQuerySchema = Joi.object({});
 export const emptyBodySchema = Joi.object({});
 export const headerIdParams = Joi.object({ headerId: id.required() });
+export const employeesQuerySchema = Joi.object({ search: text(100) });
 export const employeeDetailsQuerySchema = Joi.object({ empName: requiredText(200) });
 
 export const listQuerySchema = Joi.object({

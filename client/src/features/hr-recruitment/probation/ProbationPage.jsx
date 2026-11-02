@@ -42,10 +42,8 @@ function ProbationEditor({ lookups, record }) {
   const total = totalRating(form.lines)
   const result = formResult(form.lines)
   const resultPill = result ? <Pill tone={RESULT_TONE[result]}>{RESULT_TEXT[result]}</Pill> : 'Not rated yet'
-  const searchEmployees = (query) => {
-    const term = query.trim().toLocaleLowerCase()
-    return Promise.resolve({ items: lookups.employees.filter((item) => item.name.toLocaleLowerCase().includes(term)) })
-  }
+  // Searches the API as the user types (the signed-in user's reporting hierarchy, as legacy).
+  const searchEmployees = (query, options) => service.searchEmployees(query, options)
   const setValue = (key) => (event) => { set(key)(event); setErrors((value) => ({ ...value, [key]: '' })) }
   const updateLine = (index, key, value) => patch((current) => ({ lines: current.lines.map((line, row) => row === index ? { ...line, [key]: value } : line) }))
   const selectEmployee = async (item) => {
