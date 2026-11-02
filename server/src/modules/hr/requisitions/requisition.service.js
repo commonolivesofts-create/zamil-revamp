@@ -310,15 +310,18 @@ export function createRequisitionService({
       return rows.map((row) => ({ deptId: row.ORGANIZATION_ID, name: row.NAME }));
     },
 
-    async replacementFor(actor) {
+    async replacementFor(actor, search = '') {
       const requestor = await read((connection) =>
         repository.findRequestor(connection, actor.userId),
       );
       if (!requestor?.employeeNumber) {
-        throw new AppError(404, 'NOT_FOUND', 'Employee record not found');
+        // The legacy lookup returned an empty result when the signed-in user
+        // had no employee-master match. Keep the optional replacement list
+        // usable without turning that case into a failed form lookup.
+        return [];
       }
       return read((connection) =>
-        repository.listReplacementCandidates(connection, requestor.employeeNumber),
+        repository.listReplacementCandidates(connection, requestor.employeeNumber, search),
       );
     },
 

@@ -228,11 +228,8 @@ export function createOrientationTrainingService({
       return { flag, tableName: repository.TABLES[flag].tableName };
     },
 
-    async employees(actor) {
-      return read(async (connection) => {
-        const isHr = await repository.isHrUser(connection, actor.userId);
-        return repository.listEmployees(connection, { userId: actor.userId, isHr });
-      });
+    async employees(search = '') {
+      return read((connection) => repository.listEmployees(connection, { search }));
     },
 
     managers() {

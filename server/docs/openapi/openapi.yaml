@@ -2699,10 +2699,17 @@ paths:
       operationId: listOrientationTrainingEmployees
       tags: [HR Orientation Trainings]
       summary: List employees eligible for orientation training
-      description: Returns current employees within the actor's allowed scope. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      description: Returns current orientation-eligible employees across the organization, optionally filtered by a case-insensitive name or employee-number substring. Eligibility follows the legacy query's active-assignment and excluded-category filters. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
       security: [{ sessionCookie: [] }]
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Case-insensitive substring of the employee name or employee number.
+          schema: { type: string, minLength: 1, maxLength: 100 }
       responses:
         '200': { description: Employee dropdown data. }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '500': { $ref: '#/components/responses/InternalError' }
@@ -4558,10 +4565,20 @@ paths:
         FULL_NAMEs of the employees supervised by the requestor (README §8.4:
         SUPERVISOR_NAME in the employee master equal to the requestor's own
         FULL_NAME) — the REPLACEMENT_FOR candidates for a 'Replacement' request.
-        404 when the session account has no employee record. Requires
-        `REQUISITIONS.REQUISITIONS:VIEW`. No query parameters are accepted.
+        With `search`, filters candidate FULL_NAME values using a case-insensitive
+        substring match. An account without an employee-master match receives an
+        empty array. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
       security:
         - sessionCookie: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Case-insensitive substring of the supervised employee's full name.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
       responses:
         '200':
           description: Success; possibly an empty array.
@@ -4585,8 +4602,6 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/AccessDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
         '503':
