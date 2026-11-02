@@ -80,6 +80,13 @@ import { createSalaryCertificateEnglishRoutes } from '../modules/hr/salary-certi
 
 import { createSalaryCertificateEnglishService } from '../modules/hr/salary-certificates-english/salary-certificate-english.service.js';
 
+import { createTouristVisaRoutes } from '../modules/hr/tourist-visa-letters/tourist-visa-letter.routes.js';
+import { createTouristVisaService } from '../modules/hr/tourist-visa-letters/tourist-visa-letter.service.js';
+
+import { createWarningLetterRoutes } from '../modules/hr/warning-letters/warning-letter.routes.js';
+
+import { createWarningLetterService } from '../modules/hr/warning-letters/warning-letter.service.js';
+
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
  * connection/transaction helpers; production uses the shared Oracle LOW pool.
@@ -510,6 +517,22 @@ export function createApiRouter(appConfig, deps = {}) {
   );
 
   router.use(
+    '/hr/tourist-visa-letters',
+    createTouristVisaRoutes({
+      service:
+        deps.touristVisaService ??
+        createTouristVisaService({
+          repository: deps.touristVisaRepository,
+          withConnection: db.withConnection,
+          withTransaction: db.withTransaction,
+        }),
+      authorize,
+      authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
     '/salary-certificates',
     createSalaryCertificateEnglishRoutes({
       service:
@@ -519,6 +542,16 @@ export function createApiRouter(appConfig, deps = {}) {
           withTransaction: db.withTransaction,
           repository: deps.salaryCertificateEnglishRepository,
         }),
+      authenticate,
+      authorize,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/warning-letters',
+    createWarningLetterRoutes({
+      service: createWarningLetterService(),
       authenticate,
       authorize,
       auditService,
