@@ -685,6 +685,14 @@ test("employee report service uses the contractor employee lookup and paginated 
   );
 });
 
+test("employee report page requires both dates, in order, before running", async () => {
+  const page = await read(`${FEATURE}report/EmployeeReportPage.jsx`);
+  assert.match(page, /const found = validateDates\(draft\)[\s\S]*?if \(Object\.keys\(found\)\.length\)/);
+  for (const id of ["er-from", "er-to"]) {
+    assert.match(page, new RegExp(`<HrField id="${id}"[^>]*required error=`));
+  }
+});
+
 test("employee report service lists incomplete legacy rows and rejects malformed values", async () => {
   const legacy = {
     emp_id: null,

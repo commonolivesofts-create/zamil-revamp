@@ -2192,7 +2192,8 @@ paths:
       tags: [HR Contractor Employees]
       summary: List contractor employees
       description: >-
-        Filters are exact-match and ANDed. The date pair means contract period inside the
+        Filters are exact-match and ANDed. date_from and date_to are required and date_to must
+        not be before date_from (400 otherwise). The date pair means contract period inside the
         supplied range: START_DATE is on/after date_from and END_DATE is on/before date_to;
         open-ended rows (END_DATE NULL) are included for date_to. Pagination uses a COUNT
         query, allowlisted sorting and EMP_ID as the stable final tie-breaker. Requires
@@ -2203,8 +2204,8 @@ paths:
         - { name: department, in: query, schema: { type: string } }
         - { name: contractor_number, in: query, schema: { type: string, pattern: '^[0-9]{1,18}$' } }
         - { name: status, in: query, schema: { type: string, enum: [Active, Inactive, ALL] } }
-        - { name: date_from, in: query, schema: { type: string, format: date } }
-        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: date_from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: date_to, in: query, required: true, schema: { type: string, format: date } }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - {
             name: limit,

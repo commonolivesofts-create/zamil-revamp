@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { Dialog, Pagination, ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
+import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT, REPORT_TEXT as T } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { businessToday, enDate } from '../shared/hrFormat.js'
 import { RecruitmentHeader } from '../shared/components/RecruitmentShell.jsx'
 import { HrField } from '../shared/components/RecruitmentInputs.jsx'
+import { validateParams } from './periodwiseModel.js'
 import '@/styles/hr-recruitment.css'
 
 const service = hrRecruitmentServices.employeeReport
@@ -15,6 +17,11 @@ const PAGE_SIZE = 50
 const today = businessToday()
 const INITIAL_FILTERS = Object.freeze({ department: 'ALL', dateFrom: '', dateTo: today })
 const formatRate = (value) => new Intl.NumberFormat('en', { maximumFractionDigits: 2 }).format(value)
+// Both dates are required (the API rejects a report without them) and must be in order.
+const validateDates = ({ dateFrom, dateTo }) => {
+  const { from, to } = validateParams({ from: dateFrom, to: dateTo })
+  return { ...(from && { dateFrom: from }), ...(to && { dateTo: to }) }
+}
 
 export default function EmployeeReportPage() {
   const lookups = useResource('hr-contractor-employee-lookups', (signal) => service.getLookups({ signal }))
@@ -41,8 +48,19 @@ function EmployeeReport({ departments }) {
   const result = useResource(query ? `hr-contractor-employees:${JSON.stringify(query)}` : null,
     (signal) => service.list(query, { signal }))
 
+  const [errors, setErrors] = useState({})
+  const setDate = (key, value) => {
+    setDraft((current) => ({ ...current, [key]: value }))
+    setErrors((current) => ({ ...current, [key]: undefined }))
+  }
   const runReport = (event) => {
     event.preventDefault()
+    const found = validateDates(draft)
+    setErrors(found)
+    if (Object.keys(found).length) {
+      document.getElementById(found.dateFrom ? 'er-from' : 'er-to')?.focus()
+      return
+    }
     setFilters({ ...draft })
     setPage(1)
     setEditing(false)
@@ -86,13 +104,13 @@ function EmployeeReport({ departments }) {
             {departments.filter((item) => item.value !== 'ALL').map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </HrField>
-        <HrField id="er-from" label={T.setup.from}>
-          <input id="er-from" type="date" max={draft.dateTo || undefined} className="ux-input zrv-hr-input" value={draft.dateFrom}
-            onChange={(event) => setDraft((current) => ({ ...current, dateFrom: event.target.value }))} />
+        <HrField id="er-from" label={T.setup.from} required error={errors.dateFrom}>
+          <input {...fieldProps('er-from', { error: errors.dateFrom })} type="date" max={draft.dateTo || undefined} className="ux-input zrv-hr-input" value={draft.dateFrom}
+            aria-required="true" onChange={(event) => setDate('dateFrom', event.target.value)} />
         </HrField>
-        <HrField id="er-to" label={T.setup.to}>
-          <input id="er-to" type="date" min={draft.dateFrom || undefined} className="ux-input zrv-hr-input" value={draft.dateTo}
-            onChange={(event) => setDraft((current) => ({ ...current, dateTo: event.target.value }))} />
+        <HrField id="er-to" label={T.setup.to} required error={errors.dateTo}>
+          <input {...fieldProps('er-to', { error: errors.dateTo })} type="date" min={draft.dateFrom || undefined} className="ux-input zrv-hr-input" value={draft.dateTo}
+            aria-required="true" onChange={(event) => setDate('dateTo', event.target.value)} />
         </HrField>
       </div>
       <div className="zrv-hr-rp-setup__f">

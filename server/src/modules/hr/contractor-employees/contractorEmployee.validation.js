@@ -51,8 +51,15 @@ export const listQuerySchema = Joi.object({
   department: text(50),
   contractor_number: Joi.string().pattern(NUMBER),
   status: Joi.string().valid('Active', 'Inactive', 'ALL'),
-  date_from: date,
-  date_to: date,
+  // The Employee report always runs for a period (both dates required, in order).
+  date_from: date.required(),
+  date_to: date
+    .required()
+    .custom((value, helpers) => {
+      const { date_from: from } = helpers.state.ancestors[0];
+      return typeof from === 'string' && value < from ? helpers.error('date.order') : value;
+    })
+    .messages({ 'date.order': '"date_to" must be on or after "date_from"' }),
   page: Joi.number().integer().min(1).max(100000).default(1),
   limit: Joi.number().integer().min(1).max(200).default(50),
   sort: Joi.string()
