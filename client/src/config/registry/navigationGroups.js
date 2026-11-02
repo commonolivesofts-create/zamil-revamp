@@ -16,6 +16,7 @@ export const NAVIGATION_GROUPS = Object.freeze([
       subgroup('hr-reports', 'Reports', 'chart-column', 'HR reports'),
     ]),
   }),
+  Object.freeze({ id: 'workflow-manager', label: 'Workflow Manager', icon: 'workflow' }),
   Object.freeze({ id: 'security', label: 'Security administration', icon: 'shield-check' }),
   Object.freeze({ id: 'account', label: 'My account', icon: 'user-round' }),
 ])
