@@ -1,13 +1,13 @@
 # Workflow Manager — Required Screen / Feature User-Guide Matrix
 
-**Status:** Planned coverage inventory. This is **not proof these screens exist**; every item becomes a verified user guide when its real API+UI implementation ships. Exact routes, permissions, buttons and screenshots must be verified from production code and the actual running application. No generic one-guide-for-everything substitution.
+**Status:** Planned coverage inventory; rows 01–04 are implemented by package M1 (see links), all others remain planned. This is **not proof these screens exist**; every item becomes a verified user guide when its real API+UI implementation ships. Exact routes, permissions, buttons and screenshots must be verified from production code and the actual running application. No generic one-guide-for-everything substitution.
 
 | ID | Package | Feature / screen | Required screen-specific guide (under `user-guides/`) | Audience |
 |---|---|---|---|---|
-| 01 | M1 | Workflow Manager entry and navigation | `01-workflow-manager-navigation.md` | Eligible users |
-| 02 | M1 | Form Registry list and lookup | `02-form-registry.md` | Configuration administrator |
-| 03 | M1 | Register/edit form and organization scope | `03-form-registration.md` | Configuration administrator |
-| 04 | M1 | Data Source Registry | `04-data-source-registry.md` | Source administrator |
+| 01 | M1 | Workflow Manager entry and navigation | [`01-workflow-manager-navigation.md`](user-guides/01-workflow-manager-navigation.md) — **Implemented (M1)**, tests verified; live check pending G1 | Eligible users |
+| 02 | M1 | Form Registry list and lookup | [`02-form-registry.md`](user-guides/02-form-registry.md) — **Implemented (M1)**, tests verified; live check pending G1 | Configuration administrator |
+| 03 | M1 | Register/edit form and organization scope | [`03-form-registration.md`](user-guides/03-form-registration.md) — **Implemented (M1)**, tests verified; live check pending G1. Organization scope is held in the M2 versioned mapping (no column on `XX_ZRV_WF_FORMS`) | Configuration administrator |
+| 04 | M1 | Data Source Registry | [`04-data-source-registry.md`](user-guides/04-data-source-registry.md) — **Implemented (M1)**, tests verified; live check pending G1 | Source administrator |
 | 05 | M2 | Data source versions and approved allowlist | `05-data-source-version.md` | Source administrator |
 | 06 | M2 | Header/detail/PK/FK field mapping | `06-form-field-mapping.md` | Form integrator |
 | 07 | M2 | Business status, submit-event and ownership mapping | `07-form-status-mapping.md` | Form integrator |

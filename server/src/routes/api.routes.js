@@ -87,6 +87,9 @@ import { createWarningLetterRoutes } from '../modules/hr/warning-letters/warning
 
 import { createWarningLetterService } from '../modules/hr/warning-letters/warning-letter.service.js';
 
+import { createWorkflowManagerRouter } from '../modules/workflow-manager/workflowManager.routes.js';
+import { createWorkflowManagerService } from '../modules/workflow-manager/workflowManager.service.js';
+
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
  * connection/transaction helpers; production uses the shared Oracle LOW pool.
@@ -552,6 +555,22 @@ export function createApiRouter(appConfig, deps = {}) {
     '/hr/warning-letters',
     createWarningLetterRoutes({
       service: createWarningLetterService(),
+      authenticate,
+      authorize,
+      auditService,
+    }),
+  );
+
+  // Workflow Manager M1: Form Registry and Data Source Registry (configuration only).
+  router.use(
+    '/workflow-manager',
+    createWorkflowManagerRouter({
+      workflowManagerService: createWorkflowManagerService({
+        repository: deps.workflowManagerRepository,
+        withConnection: db.withConnection,
+        withTransaction: db.withTransaction,
+        holds: (userId, permission) => authorizationService.holds(userId, permission),
+      }),
       authenticate,
       authorize,
       auditService,

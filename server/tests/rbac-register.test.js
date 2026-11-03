@@ -383,6 +383,7 @@ describe('RBAC catalogue registration CLI', () => {
           'INTERVIEW_ASSESSMENTS',
           'EMPLOYMENT_OFFERS',
           'HR',
+          'WORKFLOW_MANAGER',
         ],
       );
       for (const file of ['scripts/rbac-register.js', 'scripts/lib/rbacRegistration.js']) {
