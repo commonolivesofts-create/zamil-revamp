@@ -2934,8 +2934,10 @@ paths:
         against XX_DIGI_LOOKUP_VALUES (LOOKUP_TYPE 'XXZP_HR', MEANING equal to the
         authenticated employee number); other actors are scoped to their own CREATED_BY.
         Each row carries the derived evaluationResult (TOTAL_RATING 71–100 ACCEPTABLE,
-        0–70 NOT_ACCEPTABLE) and pendingAt, which stays null until the approval workflow
-        exists. Requires `HR.PROBATION_EVALUATIONS:VIEW` (default-deny catalogue authorization).
+        0–70 NOT_ACCEPTABLE) and pendingAt, the legacy report's Pending At: TO_USER of the open
+        CI3 workflow step (XXPHP_WORKFLOW, MSG_TYPE EPRBF, USER_KEY = HEADER_ID, STATUS Open,
+        TYPE_PARAM null), or null. Requires `HR.PROBATION_EVALUATIONS:VIEW` (default-deny
+        catalogue authorization).
       security:
         - sessionCookie: []
       parameters:
@@ -3010,9 +3012,15 @@ paths:
       tags: [HR Probation Evaluations]
       summary: Create a draft probation evaluation
       description: >-
-        Inserts one header and 1–20 lines atomically. REQUEST_STATUS is set to DRAFT;
-        no workflow or status transition is performed. Requires
-        `HR.PROBATION_EVALUATIONS:CREATE` and the X-CSRF-Token header.
+        The legacy create form (Probation_Model::add_form_data). Inserts one DRAFT header and
+        one line per criterion of the form type (see lookups/criteria) atomically; the ratings
+        are taken by position (blank = 0) and criterion texts never come from the client. The
+        employee must be in the signed-in user's hierarchy (lookups/employees, else 403); the
+        employee number, name, job title and department are read from the employee master.
+        Comments, Suggestion, evaluation period and person ID are stored as '-' and the grade
+        as 0, as the legacy create form leaves them empty. Prepared by is the signed-in user and
+        TOTAL_RATING is computed. 422 `PROBATION_CRITERIA_UNAVAILABLE` when the form type has no
+        criteria. Requires `HR.PROBATION_EVALUATIONS:CREATE` and the X-CSRF-Token header.
       security:
         - sessionCookie: []
       parameters:
@@ -3038,6 +3046,66 @@ paths:
                         properties:
                           headerId: { $ref: '#/components/schemas/Id' }
                           uuid: { type: string, format: uuid }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '422':
+          description: The criteria of the form type are not available (PROBATION_CRITERIA_UNAVAILABLE).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/v1/hr/probation-evaluations/lookups/criteria:
+    get:
+      operationId: listProbationEvaluationCriteria
+      tags: [HR Probation Evaluations]
+      summary: List the criteria of a form type
+      description: >-
+        The evaluation criteria of a form type, English and Arabic, in order (legacy
+        showDropInfo). Legacy rendered them from assets/prf-new.js, which is not in the
+        repository, and copied each one into every saved evaluation; they are read from the
+        latest evaluation of that type that holds all 20 named criteria. Empty when there is
+        none. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: formType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              [
+                Workers_Technicians,
+                Trainee,
+                Engineers_Staff,
+                Department_Managers,
+                Supervisors_and_Foremens,
+              ]
+      responses:
+        '200':
+          description: Criteria of the form type.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [formType, criteria]
+                        properties:
+                          formType: { type: string }
+                          criteria:
+                            type: array
+                            maxItems: 20
+                            items:
+                              type: object
+                              required: [param, paramAr]
+                              properties:
+                                param: { type: string }
+                                paramAr: { type: [string, 'null'] }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
@@ -3139,7 +3207,7 @@ paths:
       operationId: getProbationEvaluationEmployeeDetails
       tags: [HR Probation Evaluations]
       summary: Get employee details for form prefill
-      description: Uses the employee name and authenticated actor for the legacy PAF prefill data. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      description: Legacy getEmpDetails by employee name, for the employees of lookups/employees only (403 for anyone else). hire.startDate fills the joining date. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
       security: [{ sessionCookie: [] }]
       parameters:
         - {
@@ -3200,10 +3268,13 @@ paths:
       tags: [HR Probation Evaluations]
       summary: Update a probation evaluation
       description: >-
-        Updates header fields and only the supplied existing lines identified by lineId;
-        omitted lines are unchanged. Sets UPDATED_BY and UPDATED_AT; the request status is not
-        changed. Returns 409 when the record is not DRAFT and 403 outside the record access rule
-        (see GET). Requires `HR.PROBATION_EVALUATIONS:UPDATE` and the X-CSRF-Token header.
+        The legacy edit form (prf_uplines.php): Comments, Suggestion and a 1–5 rating for every
+        line of the evaluation are required, and they are all that is saved, with the computed
+        TOTAL_RATING, UPDATED_BY and UPDATED_AT. Other header fields are not changed and the
+        request status is kept. 400 unless the lines are exactly the evaluation's lines. Returns
+        409 when the record is INPROCESS or APPROVED (DRAFT and REJECTED are editable) and 403
+        outside the record access rule (see GET). Requires `HR.PROBATION_EVALUATIONS:UPDATE`
+        and the X-CSRF-Token header.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
@@ -11499,85 +11570,109 @@ components:
           default: 0
     ProbationEvaluationCreateLine:
       type: object
-      required: [param]
+      description: >-
+        The rating of the criterion at the same position (lookups/criteria). param and paramAr
+        are accepted from older clients and ignored.
       properties:
-        param: { type: string, minLength: 1 }
-        paramAr: { type: string }
         rating:
           {
             type: integer,
-            minimum: 0,
+            minimum: 1,
             maximum: 5,
-            default: 0,
-            description: Omitted ratings store the legacy default 0; a supplied rating must be 1–5.,
+            description: Optional; an omitted rating is stored as the legacy 0 (not rated).,
           }
+        param: { description: Ignored. }
+        paramAr: { description: Ignored. }
     ProbationEvaluationUpdateLine:
-      allOf:
-        - $ref: '#/components/schemas/ProbationEvaluationCreateLine'
-        - type: object
-          required: [lineId]
-          properties:
-            lineId: { $ref: '#/components/schemas/Id' }
-      unevaluatedProperties: false
-    ProbationEvaluationWriteFields:
       type: object
+      required: [lineId, rating]
       properties:
-        formDate:
-          type: string
-          format: date
-          description: >-
-            FORM_DATE: the employee's joining date (legacy meaning), optional. A blank value is
-            stored as NULL; NULL and the legacy blank 2000-01-01 both read back as null.
-        evaluationPeriod: { type: string, maxLength: 200 }
-        formType:
-          type: string
-          enum:
-            [
-              Workers_Technicians,
-              Trainee,
-              Engineers_Staff,
-              Department_Managers,
-              Supervisors_and_Foremens,
-            ]
-        employeeName: { type: string, minLength: 1, maxLength: 200 }
-        employeeNumber: { type: string, minLength: 1, maxLength: 50 }
-        empId: { type: string, maxLength: 50 }
-        grade: { type: integer, minimum: 0, default: 0 }
-        jobTitle: { type: string, maxLength: 200 }
-        department: { type: string, maxLength: 200 }
-        fromDate: { type: string, format: date }
-        toDate: { type: string, format: date, description: Must be on or after fromDate. }
-        comment: { type: string, maxLength: 4000 }
-        comments: { type: string, maxLength: 4000, description: Legacy APPROVED_BY_CMNT field. }
-        totalRating:
-          description: >-
-            Ignored. The server always computes TOTAL_RATING as the sum of the line ratings;
-            any value sent here is accepted for compatibility and discarded.
-        evaluationResult:
-          description: Ignored. The server derives the result from the computed total.
+        lineId: { $ref: '#/components/schemas/Id' }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        param: { description: Ignored. }
+        paramAr: { description: Ignored. }
+    ProbationEvaluationIgnoredFields:
+      type: object
+      description: >-
+        Accepted from older clients and discarded: the server reads them from the employee
+        master, the session or the ratings, or the legacy form never saves them.
+      properties:
+        evaluationPeriod: { description: Ignored; stored as '-'. }
+        empId: { description: Ignored; stored as '-'. }
+        grade: { description: Ignored; stored as 0. }
+        employeeName: { description: Ignored; read from the employee master. }
+        jobTitle: { description: Ignored; read from the employee master. }
+        department: { description: Ignored; read from the employee master. }
+        totalRating: { description: Ignored; computed from the line ratings. }
+        evaluationResult: { description: Ignored; derived from the computed total. }
     ProbationEvaluationWriteRequest:
       allOf:
-        - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
+        - $ref: '#/components/schemas/ProbationEvaluationIgnoredFields'
         - type: object
-          required: [formType, employeeName, employeeNumber, fromDate, toDate, lines]
+          required: [formType, employeeNumber, fromDate, toDate]
           properties:
+            formType:
+              type: string
+              enum:
+                [
+                  Workers_Technicians,
+                  Trainee,
+                  Engineers_Staff,
+                  Department_Managers,
+                  Supervisors_and_Foremens,
+                ]
+            employeeNumber:
+              type: string
+              minLength: 1
+              maxLength: 50
+              description: An employee of lookups/employees.
+            formDate:
+              type: string
+              format: date
+              description: >-
+                FORM_DATE: the joining date (legacy prf_date, filled from the employee and
+                editable), optional. A blank value is stored as NULL; NULL and the legacy blank
+                2000-01-01 both read back as null.
+            fromDate: { type: string, format: date }
+            toDate: { type: string, format: date, description: Must be on or after fromDate. }
+            comment: { description: Ignored; read only on the legacy create form. }
+            comments: { description: Ignored; read only on the legacy create form. }
             lines:
               type: array
-              minItems: 1
               maxItems: 20
+              default: []
               items: { $ref: '#/components/schemas/ProbationEvaluationCreateLine' }
       unevaluatedProperties: false
     ProbationEvaluationUpdateRequest:
       allOf:
-        - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
+        - $ref: '#/components/schemas/ProbationEvaluationIgnoredFields'
         - type: object
-          required: [formType, employeeName, employeeNumber, fromDate, toDate, lines]
+          required: [comment, comments, lines]
           properties:
+            comment:
+              {
+                type: string,
+                minLength: 1,
+                maxLength: 500,
+                description: Comments (PREPARED_BY_CMNT).,
+              }
+            comments:
+              {
+                type: string,
+                minLength: 1,
+                maxLength: 500,
+                description: Suggestion (APPROVED_BY_CMNT).,
+              }
             lines:
               type: array
-              minItems: 1
               maxItems: 20
+              description: Every line of the evaluation, each once.
               items: { $ref: '#/components/schemas/ProbationEvaluationUpdateLine' }
+            formType: { description: Ignored; not saved by the legacy edit form. }
+            employeeNumber: { description: Ignored. }
+            formDate: { description: Ignored. }
+            fromDate: { description: Ignored. }
+            toDate: { description: Ignored. }
       unevaluatedProperties: false
     ProbationEvaluationListItem:
       type: object
@@ -11609,8 +11704,8 @@ components:
         evaluationResult: { type: string, enum: [ACCEPTABLE, NOT_ACCEPTABLE] }
         requestStatus: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] }
         pendingAt:
-          type: 'null'
-          description: The pending approver; always null until the approval workflow exists.
+          type: [string, 'null']
+          description: The approver of the open CI3 workflow step (XXPHP_WORKFLOW, EPRBF), or null.
         createdAt: { type: string, format: date }
         createdBy: { $ref: '#/components/schemas/Id' }
     ProbationEvaluation:
@@ -11641,6 +11736,9 @@ components:
         toDate: { type: string, format: date }
         requestStatus: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] }
         createdAt: { type: string, format: date }
+        preparedBy:
+          type: [string, 'null']
+          description: Prepared & Agreed by (USER_NAME), the signed-in user who created it.
         lines:
           type: array
           items: { $ref: '#/components/schemas/ProbationEvaluationLine' }
@@ -17101,7 +17199,7 @@ components:
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     ProbationEvaluationUpdateConflict:
-      description: The evaluation cannot be updated because its REQUEST_STATUS is not DRAFT.
+      description: The evaluation cannot be updated because its REQUEST_STATUS is INPROCESS or APPROVED.
       headers:
         X-Request-Id:
           $ref: '#/components/headers/RequestId'
@@ -17113,7 +17211,7 @@ components:
             success: false
             error:
               code: PROBATION_EVALUATION_NOT_DRAFT
-              message: Only draft probation evaluations can be updated
+              message: Only draft or rejected probation evaluations can be updated
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     UserConflict:

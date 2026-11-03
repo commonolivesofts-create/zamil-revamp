@@ -1,4 +1,5 @@
 import oracledb from 'oracledb';
+import { CRITERIA_COUNT } from './probationEvaluation.rules.js';
 
 const ID = { type: oracledb.STRING };
 const rows = async (connection, sql, binds, fetchInfo) =>
@@ -25,6 +26,8 @@ const mapHeader = (row) => ({
   toDate: row.TO_DATE,
   requestStatus: row.REQUEST_STATUS,
   createdAt: row.CREATED_AT,
+  // "Prepared & Agreed by", saved from the signed-in user on create.
+  preparedBy: row.USER_NAME,
 });
 
 const mapLine = (row) => ({
@@ -33,6 +36,13 @@ const mapLine = (row) => ({
   rating: row.RATING_LINE,
   param: row.PARAM_NAME,
   paramAr: row.PARAMA_NAME_AR,
+});
+
+// COMMENT is an Oracle reserved word, so `:comment` is not a valid bind name (ORA-01745).
+const commentBinds = ({ comment, comments, ...rest }) => ({
+  ...rest,
+  preparedComment: comment,
+  approvedComment: comments,
 });
 
 /**
@@ -48,11 +58,11 @@ export async function insertHeader(connection, header) {
      VALUES
        (:uuid, TO_DATE(:formDate, 'YYYY-MM-DD'), :empId, NVL(:grade, 0),
         NVL(:evaluationPeriod, '-'), NVL(:formType, '-'), NVL(:totalRating, 0),
-        NVL(:comment, '-'), NVL(:comments, '-'), :employeeName, :jobTitle, :department,
-        :employeeNumber, TO_DATE(:fromDate, 'YYYY-MM-DD'), TO_DATE(:toDate, 'YYYY-MM-DD'),
-        :userName, :userMail, 'DRAFT', SYSDATE, :createdBy)
+        NVL(:preparedComment, '-'), NVL(:approvedComment, '-'), :employeeName, :jobTitle,
+        :department, :employeeNumber, TO_DATE(:fromDate, 'YYYY-MM-DD'),
+        TO_DATE(:toDate, 'YYYY-MM-DD'), :userName, :userMail, 'DRAFT', SYSDATE, :createdBy)
      RETURNING HEADER_ID INTO :headerId`,
-    { ...header, headerId: { dir: oracledb.BIND_OUT, type: oracledb.STRING } },
+    { ...commentBinds(header), headerId: { dir: oracledb.BIND_OUT, type: oracledb.STRING } },
   );
   return result.outBinds?.headerId?.[0] ?? null;
 }
@@ -73,7 +83,7 @@ const HEADER_COLUMNS = `HEADER_ID, UUID, TO_CHAR(FORM_DATE, 'YYYY-MM-DD') AS FOR
   APPROVED_BY_CMNT, EMP_NAME, JOB_T, DEPARTMENT, EMP_NUMBER,
   TO_CHAR(FROM_DATE, 'YYYY-MM-DD') AS FROM_DATE,
   TO_CHAR(TO_DATE, 'YYYY-MM-DD') AS TO_DATE, REQUEST_STATUS,
-  TO_CHAR(CREATED_AT, 'YYYY-MM-DD') AS CREATED_AT`;
+  TO_CHAR(CREATED_AT, 'YYYY-MM-DD') AS CREATED_AT, USER_NAME`;
 
 export async function findHeader(connection, headerId) {
   const [row] = await rows(
@@ -135,37 +145,26 @@ export async function isSameDepartment(connection, { actorEmployeeNumber, subjec
   return result.length > 0;
 }
 
+/** The legacy edit save: the total and both comments; every other column keeps its value. */
 export async function updateHeader(connection, header) {
   const result = await connection.execute(
     `UPDATE XXZP.XXZP_PAF_PROBATION_HEADER
-        SET FORM_DATE = TO_DATE(:formDate, 'YYYY-MM-DD'),
-            EMP_ID = :empId,
-            GRADE = NVL(:grade, 0),
-            EVALUATION_PERIOD = NVL(:evaluationPeriod, '-'),
-            FORM_NAME = NVL(:formType, '-'),
-            TOTAL_RATING = NVL(:totalRating, 0),
-            PREPARED_BY_CMNT = NVL(:comment, '-'),
-            APPROVED_BY_CMNT = NVL(:comments, '-'),
-            EMP_NAME = :employeeName,
-            JOB_T = :jobTitle,
-            DEPARTMENT = :department,
-            EMP_NUMBER = :employeeNumber,
-            FROM_DATE = TO_DATE(:fromDate, 'YYYY-MM-DD'),
-            TO_DATE = TO_DATE(:toDate, 'YYYY-MM-DD'),
+        SET TOTAL_RATING = NVL(:totalRating, 0),
+            PREPARED_BY_CMNT = NVL(:preparedComment, '-'),
+            APPROVED_BY_CMNT = NVL(:approvedComment, '-'),
             UPDATED_AT = SYSDATE,
             UPDATED_BY = :updatedBy
       WHERE HEADER_ID = :headerId`,
-    header,
+    commentBinds(header),
   );
   return result.rowsAffected === 1;
 }
 
+/** The legacy edit save of a line: its rating only. */
 export async function updateLine(connection, line) {
   const result = await connection.execute(
     `UPDATE XXZP.XXZP_PAF_PROBATION_LINES
-        SET RATING_LINE = NVL(:rating, 0),
-            PARAM_NAME = :param,
-            PARAMA_NAME_AR = NVL(:paramAr, '-')
+        SET RATING_LINE = NVL(:rating, 0)
       WHERE LINE_ID = :lineId AND HEADER_ID = :headerId`,
     line,
   );
@@ -205,7 +204,13 @@ const FILTERS = Object.freeze({
 const LIST_COLUMNS = `H.HEADER_ID, TO_CHAR(H.FORM_DATE, 'YYYY-MM-DD') AS FORM_DATE,
   H.EMP_NAME, H.EMP_NUMBER, H.JOB_T, H.DEPARTMENT, H.FORM_NAME,
   H.TOTAL_RATING, H.REQUEST_STATUS, TO_CHAR(H.CREATED_AT, 'YYYY-MM-DD') AS CREATED_AT,
-  H.CREATED_BY`;
+  H.CREATED_BY,
+  (SELECT MAX(W.TO_USER)
+     FROM XXPHP_WORKFLOW W
+    WHERE W.MSG_TYPE = 'EPRBF'
+      AND W.USER_KEY = TO_CHAR(H.HEADER_ID)
+      AND W.STATUS = 'Open'
+      AND W.TYPE_PARAM IS NULL) AS PENDING_AT`;
 const mapListItem = (row) => ({
   headerId: row.HEADER_ID,
   formDate: row.FORM_DATE,
@@ -218,6 +223,8 @@ const mapListItem = (row) => ({
   requestStatus: row.REQUEST_STATUS,
   createdAt: row.CREATED_AT,
   createdBy: row.CREATED_BY,
+  // The legacy report's Pending At: the open step of the CI3 workflow (XXPHP_WORKFLOW, EPRBF).
+  pendingAt: row.PENDING_AT ?? null,
 });
 
 export async function listEvaluations(
@@ -282,11 +289,7 @@ export async function isHrUser(connection, employeeNumber) {
  */
 export const EMPLOYEE_SEARCH_LIMIT = 50;
 
-export async function listEmployees(connection, { employeeNumber, search = '' }) {
-  const result = await rows(
-    connection,
-    `SELECT MIN(HIERARCHY_LEVEL) AS HIERARCHY_LEVEL, USER_ID, EMPLOYEE_NUMBER, FULL_NAME
-       FROM (
+const HIERARCHY = `
          SELECT LEVEL AS HIERARCHY_LEVEL, OT.USER_ID, OT.EMPLOYEE_NUMBER, OT.FULL_NAME
            FROM XX_DIGI_EMP_MASTER OT
           WHERE OT.SYSTEM_PERSON_TYPE IN ('EMP', 'EMP_APL')
@@ -303,7 +306,20 @@ export async function listEmployees(connection, { employeeNumber, search = '' })
             SELECT MAX(FULL_NAME) FROM XX_DIGI_EMP_MASTER
              WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
           )
-          CONNECT BY NOCYCLE PRIOR OT.FULL_NAME = OT.SUPERVISOR_NAME
+          CONNECT BY NOCYCLE PRIOR OT.FULL_NAME = OT.SUPERVISOR_NAME`;
+
+const mapEmployee = (row) => ({
+  hierarchyLevel: row.HIERARCHY_LEVEL,
+  userId: row.USER_ID,
+  employeeNumber: row.EMPLOYEE_NUMBER,
+  fullName: row.FULL_NAME,
+});
+
+export async function listEmployees(connection, { employeeNumber, search = '' }) {
+  const result = await rows(
+    connection,
+    `SELECT MIN(HIERARCHY_LEVEL) AS HIERARCHY_LEVEL, USER_ID, EMPLOYEE_NUMBER, FULL_NAME
+       FROM (${HIERARCHY}
        )
       WHERE :search IS NULL
          OR INSTR(UPPER(FULL_NAME), UPPER(:search)) > 0
@@ -314,11 +330,61 @@ export async function listEmployees(connection, { employeeNumber, search = '' })
     { employeeNumber, search: search || null },
     { USER_ID: ID, EMPLOYEE_NUMBER: ID },
   );
+  return result.map(mapEmployee);
+}
+
+/**
+ * One employee of the actor's list above, by employee number or by full name (the legacy key of the
+ * employee select), or null: the legacy form offers no one else.
+ */
+export async function findHierarchyEmployee(
+  connection,
+  { employeeNumber, subjectNumber = null, subjectName = null },
+) {
+  const [row] = await rows(
+    connection,
+    `SELECT MIN(HIERARCHY_LEVEL) AS HIERARCHY_LEVEL, USER_ID, EMPLOYEE_NUMBER, FULL_NAME
+       FROM (${HIERARCHY}
+       )
+      WHERE (:subjectNumber IS NOT NULL AND EMPLOYEE_NUMBER = :subjectNumber)
+         OR (:subjectName IS NOT NULL AND FULL_NAME = :subjectName)
+      GROUP BY USER_ID, EMPLOYEE_NUMBER, FULL_NAME
+      ORDER BY FULL_NAME
+      FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber, subjectNumber, subjectName },
+    { USER_ID: ID, EMPLOYEE_NUMBER: ID },
+  );
+  return row ? mapEmployee(row) : null;
+}
+
+/**
+ * The criteria of a form type. Legacy rendered them from assets/prf-new.js, which is not in the
+ * repository, and copied each one into PARAM_NAME / PARAMA_NAME_AR of every saved evaluation. They
+ * are read from the latest evaluation of that type holding the full set (20 named criteria), in
+ * line order. Empty when no such evaluation exists.
+ */
+export async function findCriteria(connection, formType) {
+  const result = await rows(
+    connection,
+    `SELECT L.PARAM_NAME, L.PARAMA_NAME_AR
+       FROM XXZP.XXZP_PAF_PROBATION_LINES L
+      WHERE L.HEADER_ID = (
+              SELECT MAX(H.HEADER_ID)
+                FROM XXZP.XXZP_PAF_PROBATION_HEADER H
+               WHERE H.FORM_NAME = :formType
+                 AND (SELECT COUNT(*)
+                        FROM XXZP.XXZP_PAF_PROBATION_LINES X
+                       WHERE X.HEADER_ID = H.HEADER_ID
+                         AND NVL(TRIM(X.PARAM_NAME), '-') <> '-') = :count
+                 AND (SELECT COUNT(*)
+                        FROM XXZP.XXZP_PAF_PROBATION_LINES X
+                       WHERE X.HEADER_ID = H.HEADER_ID) = :count)
+      ORDER BY L.LINE_ID`,
+    { formType, count: CRITERIA_COUNT },
+  );
   return result.map((row) => ({
-    hierarchyLevel: row.HIERARCHY_LEVEL,
-    userId: row.USER_ID,
-    employeeNumber: row.EMPLOYEE_NUMBER,
-    fullName: row.FULL_NAME,
+    param: row.PARAM_NAME,
+    paramAr: row.PARAMA_NAME_AR === '-' ? null : row.PARAMA_NAME_AR,
   }));
 }
 

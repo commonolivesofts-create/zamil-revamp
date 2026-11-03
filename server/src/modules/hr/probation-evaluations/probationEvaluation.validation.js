@@ -41,6 +41,11 @@ export const emptyBodySchema = Joi.object({});
 export const headerIdParams = Joi.object({ headerId: id.required() });
 export const employeesQuerySchema = Joi.object({ search: text(100) });
 export const employeeDetailsQuerySchema = Joi.object({ empName: requiredText(200) });
+export const criteriaQuerySchema = Joi.object({
+  formType: Joi.string()
+    .valid(...FORM_TYPES)
+    .required(),
+});
 
 export const listQuerySchema = Joi.object({
   page,
@@ -59,60 +64,74 @@ export const listQuerySchema = Joi.object({
   sortDir: Joi.string().valid('asc', 'desc').default('desc'),
 });
 
-const lineBase = {
-  param: Joi.string().trim().min(1).pattern(NO_CONTROL_CHARACTERS).required(),
-  paramAr: Joi.string().trim().pattern(NO_CONTROL_CHARACTERS).allow('').optional(),
-  // Empty legacy ratings are stored as zero; a supplied rating must be 1–5.
-  rating: Joi.number().integer().valid(1, 2, 3, 4, 5).default(0),
-};
+// Every probation text column is VARCHAR2(500) (TEST dictionary).
+const COLUMN = 500;
+const rating = Joi.number().integer().valid(1, 2, 3, 4, 5);
+// Values the server takes from elsewhere (employee master, criteria of the form type, session, the
+// ratings) or that the legacy form never sends: accepted from older clients, then discarded.
+const ignored = Joi.any().strip();
+const IGNORED_HEADER = Object.freeze({
+  evaluationPeriod: ignored,
+  empId: ignored,
+  grade: ignored,
+  employeeName: ignored,
+  jobTitle: ignored,
+  department: ignored,
+  totalRating: ignored,
+  evaluationResult: ignored,
+});
 
-const headerBase = {
-  // FORM_DATE: the employee's joining date, filled from HR records (legacy meaning).
-  formDate: isoDate,
-  evaluationPeriod: text(200),
+/**
+ * The legacy create form (probation.php): form type, employee, joining date (prf_date, an editable
+ * input filled with the employee's joining date) and the evaluation period are entered; Comments
+ * and Suggestion are read only until the first save; each criterion of the form type takes an
+ * optional 1–5 rating (blank is stored as 0). Criterion texts come from the form type.
+ */
+export const createBodySchema = Joi.object({
+  ...IGNORED_HEADER,
   formType: Joi.string()
     .valid(...FORM_TYPES)
     .required(),
-  employeeName: requiredText(200),
   employeeNumber: requiredText(50),
-  empId: text(50),
-  grade: Joi.number().integer().min(0).default(0),
-  jobTitle: text(200),
-  department: text(200),
+  formDate: isoDate,
   fromDate: isoDate.required(),
   toDate: isoDate.required(),
-  comment: text(4000),
-  // `comments` maps to APPROVED_BY_CMNT and exists in the legacy write form.
-  comments: text(4000),
-  // Computed by the server from the line ratings: accepted for compatibility, then discarded.
-  totalRating: Joi.any().strip(),
-  evaluationResult: Joi.any().strip(),
-};
+  comment: ignored,
+  comments: ignored,
+  lines: Joi.array()
+    .items(Joi.object({ rating: rating.optional(), param: ignored, paramAr: ignored }))
+    .max(20)
+    .default([]),
+})
+  .custom((value, helpers) => {
+    if (value.toDate < value.fromDate) return helpers.error('date.order');
+    return value;
+  })
+  .messages({ 'date.order': 'toDate must be on or after fromDate' });
 
-const withDateOrder = (schema) =>
-  schema
-    .custom((value, helpers) => {
-      if (value.fromDate && value.toDate && value.toDate < value.fromDate) {
-        return helpers.error('date.order');
-      }
-      return value;
-    })
-    .messages({ 'date.order': 'toDate must be on or after fromDate' });
-
-export const createBodySchema = withDateOrder(
-  Joi.object({
-    ...headerBase,
-    lines: Joi.array().items(Joi.object(lineBase)).min(1).max(20).required(),
-  }),
-);
-
-export const updateBodySchema = withDateOrder(
-  Joi.object({
-    ...headerBase,
-    lines: Joi.array()
-      .items(Joi.object({ ...lineBase, lineId: id.required() }))
-      .min(1)
-      .max(20)
-      .required(),
-  }),
-);
+/**
+ * The legacy edit form (prf_uplines.php) saves only Comments, Suggestion and the ratings, and
+ * requires all of them; the other header fields are shown but not saved.
+ */
+export const updateBodySchema = Joi.object({
+  ...IGNORED_HEADER,
+  formType: ignored,
+  employeeNumber: ignored,
+  formDate: ignored,
+  fromDate: ignored,
+  toDate: ignored,
+  comment: requiredText(COLUMN),
+  comments: requiredText(COLUMN),
+  lines: Joi.array()
+    .items(
+      Joi.object({
+        lineId: id.required(),
+        rating: rating.required(),
+        param: ignored,
+        paramAr: ignored,
+      }),
+    )
+    .max(20)
+    .unique('lineId')
+    .required(),
+});

@@ -1244,9 +1244,15 @@ test("probation service uses the backend draft and lookup contracts", async () =
     ],
   );
   assert.equal(calls[4].init.headers.get("X-CSRF-Token"), SESSION_TOKEN);
-  assert.deepEqual(JSON.parse(calls[4].init.body).lines, [
-    { param: "Quality", paramAr: "", rating: 4 },
-  ]);
+  // Only what the legacy create form saves; the server adds criteria, employee details and total.
+  assert.deepEqual(JSON.parse(calls[4].init.body), {
+    formType: "Trainee",
+    employeeNumber: "30401",
+    formDate: "2026-10-28",
+    fromDate: "2026-10-01",
+    toDate: "2026-10-28",
+    lines: [{ rating: 4 }],
+  });
 });
 
 test("probation page connects to backend supported fields", async () => {
@@ -1266,9 +1272,10 @@ test("probation page connects to backend supported fields", async () => {
   );
   assert.doesNotMatch(page, /lookups\.employees/, "no preloaded employee list");
   assert.match(page, /<EmployeePicker id="pa-emp"/);
-  assert.match(page, /Rating \(1–5\)/);
-  assert.match(page, /Add criterion/);
-  assert.match(page, /Save draft/);
+  // Criteria come from the form type (legacy showDropInfo); the user only gives points.
+  assert.match(page, /await service\.criteria\(formType\)/);
+  assert.doesNotMatch(page, /Add criterion|Remove criterion/);
+  assert.match(page, /\{ label: 'Save', icon: 'save', onClick: save \}/);
   assert.doesNotMatch(page, /service\.submit|recommendation|signature/);
   const inputs = await read(
     `${FEATURE}shared/components/RecruitmentInputs.jsx`,

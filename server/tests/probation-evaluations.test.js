@@ -7,22 +7,21 @@ import { installRbac, signIn } from './helpers/rbacFakes.js';
 import { installProbationEvaluations } from './helpers/probationEvaluationFakes.js';
 
 const BASE = '/api/v1/hr/probation-evaluations';
+// The legacy create form: form type, employee, joining date, evaluation period, optional ratings.
 const BODY = {
-  formDate: '2026-10-01',
-  evaluationPeriod: 'Probation period',
   formType: 'Engineers_Staff',
-  employeeName: 'Taylor Example',
-  employeeNumber: 'E-2001',
-  empId: 'P-2001',
-  grade: 5,
-  jobTitle: 'Engineer',
-  department: 'Engineering',
+  employeeNumber: 'E-STAFF',
+  formDate: '2026-10-01',
   fromDate: '2026-04-01',
   toDate: '2026-09-30',
-  comment: 'Good progress',
-  totalRating: 4,
-  lines: [{ param: 'Quality of work', paramAr: 'جودة العمل', rating: 4 }],
+  lines: [{ rating: 4 }],
 };
+// The legacy edit form: Comments, Suggestion and every criterion's rating.
+const edit = (lineIds, rating = 5) => ({
+  comment: 'Good progress',
+  comments: 'Keep going',
+  lines: lineIds.map((lineId) => ({ lineId, rating })),
+});
 
 function setup({ identityStart } = {}) {
   const store = createAuthStore();
@@ -98,6 +97,8 @@ describe('probation evaluation API', () => {
     assert.equal(res.body.error.code, 'FORBIDDEN');
     assert.equal(f.store.auditEvents('ACCESS_DENIED').at(-1).reasonCode, reason);
   };
+  const headers = () => f.store.state.probationEvaluations.headers;
+  const lines = () => f.store.state.probationEvaluations.lines;
 
   it('rejects unauthenticated requests and denies missing permission by default', async () => {
     assert.equal((await request(f.app).get(BASE)).status, 401);
@@ -113,76 +114,97 @@ describe('probation evaluation API', () => {
     const noCsrfUpdate = await request(f.app)
       .put(`${BASE}/1`)
       .set('Cookie', hr.cookie)
-      .send({ ...BODY, lines: [{ ...BODY.lines[0], lineId: '1' }] });
+      .send(edit(['1']));
     assert.equal(noCsrfUpdate.status, 403);
     const noCsrfDelete = await request(f.app).delete(`${BASE}/1`).set('Cookie', hr.cookie);
     assert.equal(noCsrfDelete.status, 403);
     f.rbac.override(f.hrUser, f.permissions.CREATE, 'DENY');
     forbidden(await send('post', '', hr, BODY), 'EXPLICIT_DENY');
-    assert.equal(f.store.state.probationEvaluations.headers.length, 1);
+    assert.equal(headers().length, 1);
   });
 
-  it('creates, reads, and updates a header and its lines', async () => {
+  it('creates with the criteria of the form type, reads, and saves the legacy edit fields', async () => {
     const created = await send('post', '', hr, BODY);
     assert.equal(created.status, 201, JSON.stringify(created.body));
     assert.equal(created.body.data.headerId, '1');
     assert.ok(created.body.data.uuid);
-    assert.equal(f.store.state.probationEvaluations.headers[0].requestStatus, 'DRAFT');
-    assert.equal(
-      f.store.state.probationEvaluations.headers[0].userName,
-      f.store.state.employees.find(
-        (employee) => employee.employeeNumber === f.hrUser.employeeNumber,
-      ).fullName,
+    const [header] = headers();
+    assert.equal(header.requestStatus, 'DRAFT');
+    assert.equal(header.userName, 'Hana Example', 'prepared by: the signed-in user');
+    assert.equal(header.employeeName, 'Sam Example', 'from the employee master');
+    assert.equal(header.employeeNumber, 'E-STAFF');
+    assert.equal(header.formDate, BODY.formDate);
+    assert.equal(header.comment, '-', 'Comments are read only on the legacy create form');
+    assert.equal(header.comments, '-');
+    assert.equal(header.totalRating, 4);
+    assert.equal(lines().length, 20, 'the 20 criteria of the form type');
+    assert.equal(lines()[0].param, 'Criterion 1');
+    assert.equal(lines()[0].rating, 4);
+    assert.ok(
+      lines()
+        .slice(1)
+        .every((line) => line.rating === 0),
     );
-    assert.equal(f.store.state.probationEvaluations.lines.length, 1);
 
     const detail = await get('/1');
-    assert.ok(detail.status === 200, JSON.stringify(detail.body));
-    assert.deepEqual(
-      detail.body.data.lines.map((line) => line.lineId),
-      ['1'],
-    );
+    assert.equal(detail.status, 200, JSON.stringify(detail.body));
+    assert.equal(detail.body.data.lines.length, 20);
     assert.equal(detail.body.data.formDate, BODY.formDate);
+    assert.equal(detail.body.data.preparedBy, 'Hana Example');
+    assert.equal(detail.body.data.evaluationResult, 'NOT_ACCEPTABLE');
 
+    const ids = detail.body.data.lines.map((line) => line.lineId);
     const update = await send('put', '/1', hr, {
-      ...BODY,
-      employeeName: 'Taylor Updated',
-      lines: [{ ...BODY.lines[0], lineId: '1', rating: 5 }],
+      ...edit(ids),
+      employeeNumber: 'E-NONE',
+      formType: 'Trainee',
     });
-    assert.ok(update.status === 200, JSON.stringify(update.body));
+    assert.equal(update.status, 200, JSON.stringify(update.body));
     assert.deepEqual(update.body.data, { headerId: '1' });
-    const saved = f.store.state.probationEvaluations.headers[0];
-    assert.equal(saved.employeeName, 'Taylor Updated');
-    assert.equal(saved.requestStatus, 'DRAFT');
-    assert.equal(
-      saved.userName,
-      f.store.state.employees.find(
-        (employee) => employee.employeeNumber === f.hrUser.employeeNumber,
-      ).fullName,
-    );
-    assert.equal(f.store.state.probationEvaluations.lines[0].rating, 5);
+    assert.equal(header.comment, 'Good progress');
+    assert.equal(header.comments, 'Keep going');
+    assert.equal(header.totalRating, 100);
+    assert.equal(header.employeeNumber, 'E-STAFF', 'the edit form saves no other header field');
+    assert.equal(header.formType, 'Engineers_Staff');
+    assert.equal(header.requestStatus, 'DRAFT');
+    assert.ok(lines().every((line) => line.rating === 5 && line.param.startsWith('Criterion')));
   });
 
-  it('rejects invalid bodies, unknown fields, IDs, and reversed dates', async () => {
+  it('rejects invalid bodies, unknown fields, IDs and reversed dates', async () => {
     const invalid = await send('post', '', hr, { ...BODY, formType: 'unknown' });
     assert.equal(invalid.status, 400);
     assert.equal(invalid.body.error.code, 'VALIDATION_ERROR');
-    const unknown = await send('post', '', hr, { ...BODY, requestStatus: 'APPROVED' });
-    assert.equal(unknown.status, 400);
-    const badId = await get('/01');
-    assert.equal(badId.status, 400);
-    const reversed = await send('post', '', hr, { ...BODY, fromDate: '2026-10-01' });
-    assert.equal(reversed.status, 400);
+    assert.equal((await send('post', '', hr, { ...BODY, requestStatus: 'APPROVED' })).status, 400);
+    assert.equal((await get('/01')).status, 400);
+    assert.equal((await send('post', '', hr, { ...BODY, fromDate: '2026-10-01' })).status, 400);
+    assert.equal((await send('post', '', hr, { ...BODY, lines: [{ rating: 6 }] })).status, 400);
+    assert.equal(headers().length, 0);
   });
 
-  it('returns 404 for missing headers or lines', async () => {
+  it('accepts only an employee of the legacy select (the reporting hierarchy)', async () => {
+    const self = await send('post', '', hr, { ...BODY, employeeNumber: 'E-HR' });
+    assert.equal(self.status, 403, JSON.stringify(self.body));
+    const unknown = await send('post', '', hr, { ...BODY, employeeNumber: 'E-OTHER' });
+    assert.equal(unknown.status, 403);
+    assert.equal(headers().length, 0);
+  });
+
+  it('refuses a form type whose criteria are not available', async () => {
+    const response = await send('post', '', hr, { ...BODY, formType: 'Trainee' });
+    assert.equal(response.status, 422, JSON.stringify(response.body));
+    assert.equal(response.body.error.code, 'PROBATION_CRITERIA_UNAVAILABLE');
+    assert.equal(headers().length, 0);
+  });
+
+  it('returns 404 for missing headers and 400 unless every stored line is rated', async () => {
     assert.equal((await get('/999')).status, 404);
-    f.store.seedProbationEvaluation({}, [{ lineId: '9' }]);
-    const update = await send('put', '/1', hr, {
-      ...BODY,
-      lines: [{ ...BODY.lines[0], lineId: '99' }],
-    });
-    assert.equal(update.status, 404);
+    assert.equal((await send('put', '/999', hr, edit(['1']))).status, 404);
+    f.store.seedProbationEvaluation({}, [{}, {}]);
+    const other = await send('put', '/1', hr, edit(['1', '99']));
+    assert.equal(other.status, 400, JSON.stringify(other.body));
+    const missing = await send('put', '/1', hr, edit(['1']));
+    assert.equal(missing.status, 400);
+    assert.equal(headers()[0].comment, '-');
   });
 
   it('deletes drafts and refuses non-drafts', async () => {
@@ -193,7 +215,7 @@ describe('probation evaluation API', () => {
     f.store.seedProbationEvaluation({ requestStatus: 'APPROVED' }, [{ lineId: '1' }]);
     const conflict = await send('delete', '/1', hr);
     assert.equal(conflict.status, 409);
-    assert.equal(f.store.state.probationEvaluations.headers.length, 1);
+    assert.equal(headers().length, 1);
   });
 
   it('paginates, filters, sorts, and scopes listing by trusted actor', async () => {
@@ -206,6 +228,7 @@ describe('probation evaluation API', () => {
       headerId: '11',
       employeeName: 'Hana Two',
       createdBy: f.hrUser.userId,
+      pendingAt: 'Approver Example',
     });
     f.store.seedProbationEvaluation({
       headerId: '12',
@@ -226,17 +249,23 @@ describe('probation evaluation API', () => {
     );
     const filtered = await get('?search=two&requestStatus=DRAFT');
     assert.deepEqual(
-      filtered.body.data.map((item) => item.headerId),
-      ['11'],
+      filtered.body.data.map((item) => [item.headerId, item.pendingAt]),
+      [['11', 'Approver Example']],
     );
-    const tooLarge = await get('?pageSize=101');
-    assert.equal(tooLarge.status, 400);
-    const unknownSort = await get('?sortBy=CREATED_BY');
-    assert.equal(unknownSort.status, 400);
+    assert.equal((await get('?pageSize=101')).status, 400);
+    assert.equal((await get('?sortBy=CREATED_BY')).status, 400);
   });
 
   it('serves the PAF lookup endpoints', async () => {
     assert.deepEqual((await get('/lookups/form-types')).body.data.formTypes.length, 5);
+    const criteria = await get('/lookups/criteria?formType=Engineers_Staff');
+    assert.equal(criteria.status, 200);
+    assert.equal(criteria.body.data.formType, 'Engineers_Staff');
+    assert.equal(criteria.body.data.criteria.length, 20);
+    assert.deepEqual(criteria.body.data.criteria[0], { param: 'Criterion 1', paramAr: 'معيار 1' });
+    assert.deepEqual((await get('/lookups/criteria?formType=Trainee')).body.data.criteria, []);
+    assert.equal((await get('/lookups/criteria?formType=unknown')).status, 400);
+    assert.equal((await get('/lookups/criteria')).status, 400);
     // The hierarchy starts at the signed-in user's employee number (not the app user ID).
     const employees = await get('/lookups/employees');
     assert.equal(employees.status, 200);
@@ -260,40 +289,35 @@ describe('probation evaluation API', () => {
       (await get('/lookups/requestor')).body.data.employeeNumber,
       f.hrUser.employeeNumber,
     );
-    const details = await get('/lookups/employee-details?empName=Hana%20Example');
+    const details = await get('/lookups/employee-details?empName=Sam%20Example');
     assert.equal(details.status, 200);
-    assert.equal(details.body.data.ids.employeeNumber, f.hrUser.employeeNumber);
+    assert.equal(details.body.data.ids.employeeNumber, f.staffUser.employeeNumber);
+    // Only the employees the legacy select offers.
+    const outside = await get('/lookups/employee-details?empName=Hana%20Example');
+    assert.equal(outside.status, 403);
   });
 
   it('rolls back partial insert, update, and delete transactions', async () => {
     f.store.failures.probationInsertAfterLine = true;
     assert.equal((await send('post', '', hr, BODY)).status, 500);
-    assert.equal(f.store.state.probationEvaluations.headers.length, 0);
+    assert.equal(headers().length, 0);
     f.store.failures.probationInsertAfterLine = false;
 
     f.store.seedProbationEvaluation({}, [{ lineId: '1' }]);
     f.store.failures.probationUpdateAfterLine = true;
-    assert.equal(
-      (
-        await send('put', '/1', hr, {
-          ...BODY,
-          employeeName: 'Changed',
-          lines: [{ ...BODY.lines[0], lineId: '1' }],
-        })
-      ).status,
-      500,
-    );
-    assert.equal(f.store.state.probationEvaluations.headers[0].employeeName, 'Test Employee');
+    assert.equal((await send('put', '/1', hr, edit(['1']))).status, 500);
+    assert.equal(headers()[0].comment, '-');
+    assert.equal(lines()[0].rating, 4);
     f.store.failures.probationUpdateAfterLine = false;
 
     f.store.failures.probationDeleteAfterLines = true;
     assert.equal((await send('delete', '/1', hr)).status, 500);
-    assert.equal(f.store.state.probationEvaluations.headers.length, 1);
-    assert.equal(f.store.state.probationEvaluations.lines.length, 1);
+    assert.equal(headers().length, 1);
+    assert.equal(lines().length, 1);
   });
 });
 
-describe('probation evaluation record access, draft guard and audit', () => {
+describe('probation evaluation record access, status guard and audit', () => {
   let f;
   let hr;
   let editor;
@@ -315,7 +339,7 @@ describe('probation evaluation record access, draft guard and audit', () => {
     hr = await signIn(f.store, f.hrUser);
     editor = await signIn(f.store, editorUser);
   });
-  const update = { ...BODY, lines: [{ ...BODY.lines[0], lineId: '1' }] };
+  const update = edit(['1']);
   const call = (method, path, session, body) => {
     const req = request(f.app)[method](`${BASE}${path}`).set('Cookie', session.cookie);
     if (method !== 'get') req.set('X-CSRF-Token', session.csrf);
@@ -326,13 +350,14 @@ describe('probation evaluation record access, draft guard and audit', () => {
     assert.equal(response.body.success, false);
     assert.equal(response.body.error.code, 'FORBIDDEN');
   };
+  const header = () => f.store.state.probationEvaluations.headers[0];
 
   it("returns 403 for another user's record by ID on read, update and delete", async () => {
     const id = f.store.seedProbationEvaluation({}, [{ lineId: '1' }]);
     isForbidden(await call('get', `/${id}`, editor));
     isForbidden(await call('put', `/${id}`, editor, update));
     isForbidden(await call('delete', `/${id}`, editor));
-    assert.equal(f.store.state.probationEvaluations.headers[0].employeeName, 'Test Employee');
+    assert.equal(header().comment, '-');
     assert.equal((await call('get', `/${id}`, hr)).status, 200, 'HR users keep access');
     assert.equal((await call('get', '/999', editor)).status, 404, 'unknown IDs stay 404');
   });
@@ -344,25 +369,34 @@ describe('probation evaluation record access, draft guard and audit', () => {
     f.store.state.probationDepartments = { 'E-EDIT': '20', 'T-2002': '20' };
     assert.equal((await call('get', `/${other}`, editor)).status, 200);
     f.rbac.override(editorUser, f.permissions.VIEW, 'DENY');
-    isForbidden(await call('put', `/${other}`, editor, update));
+    isForbidden(await call('put', `/${other}`, editor, edit(['2'])));
   });
 
-  it('blocks updates of non-draft evaluations with 409', async () => {
-    const id = f.store.seedProbationEvaluation({ requestStatus: 'INPROCESS' }, [{}]);
+  for (const status of ['INPROCESS', 'APPROVED']) {
+    it(`keeps ${status} evaluations read only (409)`, async () => {
+      const id = f.store.seedProbationEvaluation({ requestStatus: status }, [{}]);
+      const response = await call('put', `/${id}`, hr, update);
+      assert.equal(response.status, 409, JSON.stringify(response.body));
+      assert.equal(response.body.error.code, 'PROBATION_EVALUATION_NOT_DRAFT');
+      assert.equal(header().comment, '-');
+      assert.equal(header().updatedBy, undefined);
+    });
+  }
+
+  it('lets the preparer correct a REJECTED evaluation without changing its status', async () => {
+    const id = f.store.seedProbationEvaluation({ requestStatus: 'REJECTED' }, [{}]);
     const response = await call('put', `/${id}`, hr, update);
-    assert.equal(response.status, 409, JSON.stringify(response.body));
-    assert.equal(response.body.error.code, 'PROBATION_EVALUATION_NOT_DRAFT');
-    assert.equal(f.store.state.probationEvaluations.headers[0].employeeName, 'Test Employee');
-    assert.equal(f.store.state.probationEvaluations.headers[0].updatedBy, undefined);
+    assert.equal(response.status, 200, JSON.stringify(response.body));
+    assert.equal(header().requestStatus, 'REJECTED');
+    assert.equal(header().comment, 'Good progress');
   });
 
   it('records UPDATED_BY and UPDATED_AT on update', async () => {
     const id = f.store.seedProbationEvaluation({}, [{}]);
     const response = await call('put', `/${id}`, hr, update);
     assert.equal(response.status, 200, JSON.stringify(response.body));
-    const header = f.store.state.probationEvaluations.headers[0];
-    assert.equal(header.updatedBy, f.hrUser.userId);
-    assert.equal(header.updatedAt, 'SYSDATE');
+    assert.equal(header().updatedBy, f.hrUser.userId);
+    assert.equal(header().updatedAt, 'SYSDATE');
   });
 });
 
@@ -375,13 +409,13 @@ describe('probation evaluation IDs come from the identity columns', () => {
       .post(BASE)
       .set('Cookie', hr.cookie)
       .set('X-CSRF-Token', hr.csrf)
-      .send({ ...BODY, lines: [BODY.lines[0], { ...BODY.lines[0], param: 'Teamwork' }] });
+      .send(BODY);
     assert.equal(created.status, 201, JSON.stringify(created.body));
     assert.equal(created.body.data.headerId, '1040');
     const lines = f.store.state.probationEvaluations.lines.filter((l) => l.headerId === '1040');
     assert.deepEqual(
       lines.map((line) => line.lineId),
-      ['1040', '1041'],
+      Array.from({ length: 20 }, (_, index) => String(1040 + index)),
     );
   });
 });
