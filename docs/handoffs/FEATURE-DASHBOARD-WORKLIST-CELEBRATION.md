@@ -16,7 +16,7 @@
 | Item | Value |
 |---|---|
 | Branch | `feature/dashboard-workspace-polish` |
-| Commit(s) | Pending |
+| Commit(s) | `d39db4a` — feature; `1eb3cc9` — merge of updated `origin/main` |
 | Pull Request | Not created |
 | Merged into `main` | Not yet |
 
@@ -26,7 +26,7 @@
 |---|---|---|---|
 | 1 | Pending Worklist is a signed-in common route and opens its report page. | Yes | `client/tests/navigation.test.mjs`, `client/tests/registry.test.mjs`, frontend build |
 | 2 | Dashboard provides a Pending Worklist entry. | Yes | Frontend tests and production build |
-| 3 | Pending count is shown when reporting data exists. | No | Reporting integration is unavailable; page explicitly displays “Not available”. |
+| 3 | The report displays a live pending count. | No | Reporting integration is unavailable; page explicitly displays “Not available”. |
 | 4 | Approved Employee of the Month recognition has a professional looping fireworks effect around its profile. | Yes | Frontend lint and production build; browser visual check not performed |
 
 ## 4. Files
@@ -93,11 +93,11 @@ OpenAPI updated: No. Listed in `server/tests/api-docs.test.js`: No.
 
 | Check | Command / method | Result | Executed by, date |
 |---|---|---|---|
-| Backend lint, format, tests | `cd server; npm run check` | Passed; 868 tests passed, 1 TODO | Codex, 2026-11-03 |
+| Backend lint, format, tests | `cd server; npm run check` | Passed; 888 tests passed, 7 TODO | Codex, 2026-11-03 |
 | Frontend lint | `cd client; npm run lint` | Passed | Codex, 2026-11-03 |
-| Frontend tests | `cd client; npm test` | Passed; 426 tests passed | Codex, 2026-11-03 |
+| Frontend tests | `cd client; npm test` | Passed; 430 tests passed, 4 TODO | Codex, 2026-11-03 |
 | Frontend build | `cd client; npm run build` | Passed | Codex, 2026-11-03 |
-| Formatting / whitespace | Prettier check on new JSX and dashboard files; `git diff --check` | New JSX passed; stylesheet requires whole-file formatting to satisfy Prettier; whitespace check passed | Codex, 2026-11-03 |
+| Formatting / whitespace | Prettier check on new JSX and `HomeView.jsx`; `git diff --check` | Prettier passed on those files; the dashboard stylesheet requires whole-file formatting to satisfy Prettier; whitespace check passed | Codex, 2026-11-03 |
 | Browser verification | Not performed | Not verified | Codex, 2026-11-03 |
 | Oracle TEST verification | Not applicable | Not performed | Codex, 2026-11-03 |
 
