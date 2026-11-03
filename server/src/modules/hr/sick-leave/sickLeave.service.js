@@ -8,6 +8,7 @@ import {
 
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as repo from './sickLeave.repository.js';
+import { SICK_LEAVE_TYPE } from './sickLeave.validation.js';
 
 const bad = (msg) =>
   new AppError(400, 'VALIDATION_ERROR', 'Validation failed', [{ field: 'dates', message: msg }]);
@@ -109,6 +110,21 @@ const toItem = (r) => ({
   pendingAt: null,
 });
 
+// A DATE column arrives as local midnight of the Node process: its local
+// calendar parts are the stored date (YYYY-MM-DD, never shifted to UTC).
+export const dateOnly = (value) => {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return value ?? null;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+};
+
+// Attachment row in the same camelCase shape as the create/upload responses.
+const toAttachment = (r) => ({
+  attachmentId: r.ATTACHMENT_ID,
+  fileName: r.FILE_NAME,
+  attachedOn: dateOnly(r.ATTACHED_ON),
+});
+
 export function createSickLeaveService({
   repository = repo,
   withConnection = defaultRead,
@@ -159,12 +175,9 @@ export function createSickLeaveService({
       throw new AppError(404, 'NOT_FOUND', 'Employee not found');
     }
 
-    if (!(await repository.leaveTypeExists(connection, body.leaveType))) {
-      throw bad('Invalid leave type');
-    }
-
     return {
       ...body,
+      leaveType: SICK_LEAVE_TYPE,
       empName: emp.empName,
       days,
       createdBy: actor.userId,
@@ -258,7 +271,7 @@ export function createSickLeaveService({
           comments: detail.COMMENTS,
           fromDayType: detail.FROM_DAY_TYPE,
           toDayType: detail.TO_DAY_TYPE,
-          attachments: await repository.attachments(connection, id),
+          attachments: (await repository.attachments(connection, id)).map(toAttachment),
         };
       });
     },

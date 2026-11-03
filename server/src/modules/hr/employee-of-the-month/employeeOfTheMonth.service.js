@@ -34,6 +34,8 @@ const scale = [
   { code: 'CS', label: 'Close to Standard' },
 ];
 
+const EDITABLE = ['DRAFT', 'REJECTED'];
+
 const fail = (status, code, message) => {
   throw new AppError(status, code, message);
 };
@@ -137,7 +139,7 @@ export function createEmployeeOfTheMonthService({
       fail(400, 'EMPLOYEE_DATA_MISMATCH', 'Employee details do not match the master');
     }
 
-    const requester = await repository.requestor(c, actor.userId);
+    const requester = await repository.requestor(c, actor.employeeNumber);
 
     if (!requester) {
       fail(404, 'RESOURCE_NOT_FOUND', 'Requestor not found');
@@ -240,9 +242,15 @@ export function createEmployeeOfTheMonthService({
           fail(409, 'CONFLICT', 'Cannot update nomination while it is In Process');
         }
 
+        // Only drafts and rejected nominations are editable; an approved one is
+        // never silently returned to draft.
+        if (!EDITABLE.includes(old.STATUS)) {
+          fail(409, 'CONFLICT', 'Cannot update nomination in its current status');
+        }
+
         const h = await validatePayload(c, actor, b, old);
 
-        await repository.update(c, id, h, old.STATUS === 'APPROVED' ? 'DRAFT' : old.STATUS);
+        await repository.update(c, id, h, old.STATUS);
 
         await repository.replaceLines(c, id, b.lines);
 
@@ -260,7 +268,7 @@ export function createEmployeeOfTheMonthService({
 
         await assertRecordScope(c, actor, old);
 
-        if (!['DRAFT', 'REJECTED'].includes(old.STATUS)) {
+        if (!EDITABLE.includes(old.STATUS)) {
           fail(409, 'CONFLICT', 'Cannot delete nomination in its current status');
         }
 
@@ -320,7 +328,7 @@ export function createEmployeeOfTheMonthService({
 
     async requestor(actor) {
       return read(async (c) => {
-        const x = await repository.requestor(c, actor.userId);
+        const x = await repository.requestor(c, actor.employeeNumber);
 
         if (!x) {
           fail(404, 'RESOURCE_NOT_FOUND', 'Requestor not found');

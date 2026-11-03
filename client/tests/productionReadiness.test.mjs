@@ -162,7 +162,14 @@ test('APP_ENV=Test exposes the frontend on the LAN and proxies to backend port 7
 test('the sample environment documents only real, public settings', async () => {
   const example = await read('../.env.example')
   const variables = [...example.matchAll(/^([A-Z_]+)=/gm)].map((match) => match[1])
-  assert.deepEqual(variables, ['VITE_APP_NAME', 'VITE_API_BASE_URL', 'VITE_AUTH_DEV_PREVIEW', 'VITE_HR_EMPLOYEE_SERVICES_DEMO'])
+  assert.deepEqual(variables, [
+    'VITE_APP_NAME', 'VITE_API_BASE_URL', 'VITE_AUTH_DEV_PREVIEW', 'VITE_HR_EMPLOYEE_SERVICES_DEMO',
+    'VITE_HR_REWARD_NOMINATION_DEMO', 'VITE_HR_IDEAS_DEMO', 'VITE_HR_SICK_LEAVE_DEMO',
+  ])
+  // Empty: these three forms use their existing APIs.
+  for (const name of ['VITE_HR_REWARD_NOMINATION_DEMO', 'VITE_HR_IDEAS_DEMO', 'VITE_HR_SICK_LEAVE_DEMO']) {
+    assert.match(example, new RegExp(`^${name}=$`, 'm'))
+  }
   // Empty (unset): demo data in development builds only; the employee services backend does not exist yet.
   assert.match(example, /^VITE_HR_EMPLOYEE_SERVICES_DEMO=$/m)
   assert.match(example, /VITE_AUTH_DEV_PREVIEW=false/)

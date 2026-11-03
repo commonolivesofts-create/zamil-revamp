@@ -6,6 +6,7 @@ import {
   createBodySchema,
   emptyBodySchema,
   emptyQuerySchema,
+  employeesQuerySchema,
   employeeDetailsQuerySchema,
   flagQuerySchema,
   headerIdParams,
@@ -45,7 +46,7 @@ export function createOrientationTrainingRouter({
 
   router.get('/', ...read({ query: listQuerySchema }), controller.list);
   router.get('/lookups/flag', ...read({ query: flagQuerySchema }), controller.flag);
-  router.get('/lookups/employees', ...read(), controller.employees);
+  router.get('/lookups/employees', ...read({ query: employeesQuerySchema }), controller.employees);
   router.get('/lookups/managers', ...read(), controller.managers);
   router.get(
     '/lookups/employee-details',

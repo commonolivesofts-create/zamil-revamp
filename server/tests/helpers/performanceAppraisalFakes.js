@@ -198,12 +198,8 @@ export function installPerformanceAppraisals(store) {
         EMPLOYEE_NUMBER: e.number,
       }));
     },
-    async findRequestor(_c, userId) {
-      const person = store.state.employees.find(
-        (e) =>
-          e.employeeNumber ===
-          store.state.users.find((u) => u.userId === String(userId))?.employeeNumber,
-      );
+    async findRequestor(_c, employeeNumber) {
+      const person = store.state.employees.find((e) => e.employeeNumber === employeeNumber);
       return person
         ? {
             fullName: person.fullName,

@@ -55,7 +55,11 @@ export async function isHrUser(connection, userId) {
   const [row] = await rows(
     connection,
     `SELECT 1 AS MATCHED FROM XX_DIGI_LOOKUP_VALUES
-      WHERE LOOKUP_TYPE = 'XXZP_HR' AND TAG = :userId FETCH FIRST 1 ROWS ONLY`,
+      WHERE LOOKUP_TYPE = 'XXZP_HR'
+        AND TAG = (SELECT TO_CHAR(MAX(E.USER_ID)) FROM XX_DIGI_EMP_MASTER E
+              JOIN XX_ZRV_USERS U ON U.EMPLOYEE_NUMBER = E.EMPLOYEE_NUMBER
+             WHERE U.USER_ID = :userId AND E.CURRENT_EMP_FLAG = 'Y'
+             HAVING COUNT(DISTINCT E.USER_ID) = 1 AND COUNT(*) = COUNT(E.USER_ID)) FETCH FIRST 1 ROWS ONLY`,
     { userId },
   );
   return Boolean(row);
@@ -334,7 +338,7 @@ export async function deleteAppraisal(connection, headerId) {
   return r.rowsAffected === 1;
 }
 
-export async function listEmployees(connection, userId, year) {
+export async function listEmployees(connection, employeeNumber, year) {
   return rows(
     connection,
     `SELECT DISTINCT LEVEL AS HIERARCHY_LEVEL, OT.USER_ID, OT.FULL_NAME, OT.EMPLOYEE_NUMBER
@@ -344,14 +348,15 @@ export async function listEmployees(connection, userId, year) {
         AND NOT EXISTS (SELECT 1 FROM XXZP.XXZPI_HR_PA_HEADER_TAB HD
           WHERE HD.EMPLOYEE_NUMBER = OT.EMPLOYEE_NUMBER AND HD.YEAR = :year
             AND NVL(UPPER(HD.STATUS), '-') <> 'REJECTED')
-      START WITH OT.FULL_NAME = (SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId)
-      CONNECT BY PRIOR OT.FULL_NAME = OT.SUPERVISOR_NAME`,
-    { userId, year },
+      START WITH OT.FULL_NAME = (SELECT MAX(FULL_NAME) FROM XX_DIGI_EMP_MASTER
+          WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y')
+      CONNECT BY NOCYCLE PRIOR OT.FULL_NAME = OT.SUPERVISOR_NAME`,
+    { employeeNumber, year },
     { USER_ID: ID, EMPLOYEE_NUMBER: ID },
   );
 }
 
-export async function findEmployee(connection, name, userId) {
+export async function findEmployee(connection, name, employeeNumber) {
   const [r] = await rows(
     connection,
     `SELECT PERSON_ID, EMPLOYEE_NUMBER, FULL_NAME, TO_CHAR(JOINING_DATE, 'YYYY-MM-DD') AS HIRE_DATE,
@@ -359,16 +364,17 @@ export async function findEmployee(connection, name, userId) {
      FROM XX_DIGI_EMP_MASTER WHERE FULL_NAME = :name AND CURRENT_EMP_FLAG = 'Y'
        AND SYSTEM_PERSON_TYPE IN ('EMP','EMP_APL') AND ASSIGNMENT_STATUS_TYPE_ID = '1'
        AND FULL_NAME IN (SELECT OT.FULL_NAME FROM XX_DIGI_EMP_MASTER OT
-         WHERE LEVEL != 1 START WITH OT.FULL_NAME = (SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId)
-         CONNECT BY PRIOR OT.FULL_NAME = OT.SUPERVISOR_NAME) FETCH FIRST 1 ROWS ONLY`,
-    { name, userId },
+         WHERE LEVEL != 1 START WITH OT.FULL_NAME = (SELECT MAX(FULL_NAME) FROM XX_DIGI_EMP_MASTER
+          WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y')
+         CONNECT BY NOCYCLE PRIOR OT.FULL_NAME = OT.SUPERVISOR_NAME) FETCH FIRST 1 ROWS ONLY`,
+    { name, employeeNumber },
     { PERSON_ID: ID, EMPLOYEE_NUMBER: ID, JOB_ID: ID, ORGANIZATION_ID: ID },
   );
   if (!r) return null;
   const [sup] = await rows(
     connection,
-    `SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId`,
-    { userId },
+    `SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y' FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber },
   );
   const [years] = await rows(
     connection,
@@ -391,13 +397,12 @@ export async function findEmployee(connection, name, userId) {
     yearsInPosition: years?.YEARS_IN_POSITION ?? null,
   };
 }
-export async function findRequestor(connection, userId) {
+export async function findRequestor(connection, employeeNumber) {
   const [r] = await rows(
     connection,
     `SELECT FULL_NAME, EMAIL_ADDRESS, EMPLOYEE_NUMBER
-    FROM XX_DIGI_EMP_MASTER WHERE EMPLOYEE_NUMBER =
-      (SELECT EMPLOYEE_NUMBER FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId)`,
-    { userId },
+    FROM XX_DIGI_EMP_MASTER WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y' FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber },
     { EMPLOYEE_NUMBER: ID },
   );
   return r

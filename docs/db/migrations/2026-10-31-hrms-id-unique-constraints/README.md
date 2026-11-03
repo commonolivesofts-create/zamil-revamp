@@ -52,6 +52,22 @@ The original notes follow.
 
 The requisition API deletes an attachment by `HEADER_ID` and `FORM_HEADER_ID`, so today a duplicate pair is deleted together.
 
+## Effect on CI3 of the requisition, interview and attachment constraints
+
+The three constraints that are commented out today are `XXZPI_PER_REQUISITIONS_ALL.REQUISITION_ID`, `XXZP_INTERVW_ASSESMNT_HEADER_T.HEADER_ID` and `XXZP_ALL_ATTACHMENTS.HEADER_ID`. They change what CI3 users see.
+
+**Why CI3 is affected:**
+- CI3 still picks these IDs with `SELECT MAX(...)` followed by an insert.
+- When two CI3 saves race, or a CI3 save lands on a value the identity column has already handed to the Node backend, the second insert **fails with `ORA-00001`**. Today it silently stores a duplicate instead.
+- The user gets a CI3 error page and has to save again.
+- The Node backend uses the identity columns (audit report §11), so it does not race with itself. It can still collide with a CI3 `MAX`-based ID; it then gets `ORA-00001` and returns an error.
+
+**Apply these three constraints only when one of these holds:**
+1. CI3 no longer writes to these tables (the screens are retired or switched to the identity), **or**
+2. HR and the CI3 users have been warned that a save can occasionally fail with a database error and must be repeated, and the support desk knows the cause.
+
+**Also:** apply them only after HRMS-DUP-CLEAN-001 has been committed and verified; with duplicates still present, the `ALTER TABLE` fails. The same effect applies to the five constraints already in `01-migration.sql` wherever CI3 still inserts into those tables with `MAX`-based IDs. I could not read the CI3 code (`php-ci3-old-app/` is empty here), so check that before applying them too.
+
 ## Related risk (not addressed by this change)
 
 `XXZP_NHT_MASTER_FLAG` maps an orientation `FORM_HEADER_ID` to its table (`SHARED` or `PRODUCTION`). Each header table has its own identity, so the same header ID can later exist in both tables and the mapping becomes ambiguous. This does not happen today. A unique key on `FORM_HEADER_ID` would block such inserts, but it would not fix the design, so it is not proposed here.

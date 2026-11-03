@@ -109,7 +109,7 @@ export function createOrientationTrainingService({
         if (!flag) throw notFound('Current employee assignment');
         const table = repository.TABLES[flag];
         const uuid = randomUUID();
-        const actorName = await repository.findActorName(connection, actor.userId);
+        const actorName = await repository.findActorName(connection, actor.employeeNumber);
         // HEADER_ID comes from the header table's identity column (RETURNING INTO).
         const headerId = await repository.insertHeader(connection, table, {
           uuid,
@@ -178,7 +178,7 @@ export function createOrientationTrainingService({
         if (header.status !== 'Draft') throw conflict('updated');
         const employee = await repository.findEmployee(connection, body.empNo);
         if (!employee) throw notFound('Current employee');
-        const actorName = await repository.findActorName(connection, actor.userId);
+        const actorName = await repository.findActorName(connection, actor.employeeNumber);
         const changed = await repository.updateHeader(connection, table, {
           headerId,
           empNo: body.empNo,
@@ -228,11 +228,8 @@ export function createOrientationTrainingService({
       return { flag, tableName: repository.TABLES[flag].tableName };
     },
 
-    async employees(actor) {
-      return read(async (connection) => {
-        const isHr = await repository.isHrUser(connection, actor.userId);
-        return repository.listEmployees(connection, { userId: actor.userId, isHr });
-      });
+    async employees(search = '') {
+      return read((connection) => repository.listEmployees(connection, { search }));
     },
 
     managers() {

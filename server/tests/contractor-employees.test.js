@@ -148,8 +148,23 @@ describe('contractor employee API', () => {
     assert.equal(response.body.data.length, 1);
     assert.equal(response.body.pagination.total, 2);
     assert.equal(response.body.pagination.page, 2);
-    assert.equal((await get('?limit=201')).status, 400);
-    assert.equal((await get('?department=%27%20OR%201%3D1%20--')).status, 200);
+    const period = 'date_from=2026-01-01&date_to=2026-12-31';
+    assert.equal((await get(`?${period}&limit=201`)).status, 400);
+    assert.equal((await get(`?${period}&department=%27%20OR%201%3D1%20--`)).status, 200);
+  });
+
+  it('requires both report dates, in order', async () => {
+    for (const query of [
+      '',
+      '?date_from=2026-01-01',
+      '?date_to=2026-12-31',
+      '?date_from=2026-12-31&date_to=2026-01-01',
+    ]) {
+      const response = await get(query);
+      assert.equal(response.status, 400, query);
+      assert.equal(response.body.error.code, 'VALIDATION_ERROR');
+    }
+    assert.equal((await get('?date_from=2026-05-01&date_to=2026-05-01')).status, 200);
   });
 
   it('updates editable fields and clears nullable values, then hard-deletes with 204', async () => {

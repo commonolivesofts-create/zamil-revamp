@@ -58,14 +58,14 @@ const mapLine = (row) => ({
 export async function resolveFlag(connection, empNo) {
   const [row] = await rows(
     connection,
-    `SELECT (SELECT DECODE(UPPER(ATTRIBUTE1), 'SHARED SERVICE', 'Y', 'N')
-              FROM XX_DIGI_ORG_INFO
-             WHERE ORGANIZATION_ID = paaf.ORGANIZATION_ID) AS SHARED_SERVICE
-       FROM XX_DIGI_ASSIGNMENT_INFO paaf
-      WHERE PRIMARY_FLAG = 'Y'
-        AND ASSIGNMENT_TYPE = 'E'
-        AND PERSON_ID = (SELECT DISTINCT PERSON_ID FROM XX_DIGI_EMP_DETAILS WHERE EMPLOYEE_NUMBER = :empNo)
-        AND TRUNC(SYSDATE) BETWEEN TRUNC(EFFECTIVE_START_DATE) AND TRUNC(EFFECTIVE_END_DATE)
+    `SELECT DECODE(UPPER(oi.ATTRIBUTE1), 'SHARED SERVICE', 'Y', 'N') AS SHARED_SERVICE
+       FROM XX_DIGI_EMP_MASTER paaf
+       LEFT JOIN APPS.HR_ALL_ORGANIZATION_UNITS oi ON oi.ORGANIZATION_ID = paaf.ORGANIZATION_ID
+      WHERE paaf.PRIMARY_FLAG = 'Y'
+        AND paaf.ASSIGNMENT_TYPE = 'E'
+        AND paaf.EMPLOYEE_NUMBER = :empNo
+        AND TRUNC(SYSDATE) BETWEEN TRUNC(paaf.PAAF_EFFECTIVE_START_DATE)
+                               AND TRUNC(paaf.PAAF_EFFECTIVE_END_DATE)
       FETCH FIRST 1 ROWS ONLY`,
     { empNo },
   );
@@ -326,17 +326,17 @@ export async function isHrUser(connection, userId) {
   const result = await rows(
     connection,
     `SELECT LOOKUP_CODE FROM XX_DIGI_LOOKUP_VALUES
-      WHERE LOOKUP_TYPE = 'XXZP_HR' AND TAG = :userId FETCH FIRST 1 ROWS ONLY`,
+      WHERE LOOKUP_TYPE = 'XXZP_HR'
+        AND TAG = (SELECT TO_CHAR(MAX(E.USER_ID)) FROM XX_DIGI_EMP_MASTER E
+              JOIN XX_ZRV_USERS U ON U.EMPLOYEE_NUMBER = E.EMPLOYEE_NUMBER
+             WHERE U.USER_ID = :userId AND E.CURRENT_EMP_FLAG = 'Y'
+             HAVING COUNT(DISTINCT E.USER_ID) = 1 AND COUNT(*) = COUNT(E.USER_ID)) FETCH FIRST 1 ROWS ONLY`,
     { userId },
   );
   return result.length > 0;
 }
 
-export async function listEmployees(connection, { userId, isHr }) {
-  const scope = isHr
-    ? ''
-    : `AND (e.USER_ID = :userId OR e.SUPERVISOR_NAME =
-          (SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId FETCH FIRST 1 ROWS ONLY))`;
+export async function listEmployees(connection, { search = '' }) {
   const result = await rows(
     connection,
     `SELECT e.PERSON_ID, e.EMPLOYEE_NUMBER, e.FULL_NAME, TO_CHAR(e.JOINING_DATE, 'YYYY-MM-DD') AS START_DATE, e.JOB_ID,
@@ -346,9 +346,16 @@ export async function listEmployees(connection, { userId, isHr }) {
                  WHEN e.WORKER_CATEGORY IN ('Management', 'GM', 'VP') THEN 'Manager'
                  ELSE 'Employee' END AS EMPLOYEE_TYPE
        FROM XX_DIGI_EMP_MASTER e
-      WHERE e.CURRENT_EMP_FLAG = 'Y' ${scope}
-      ORDER BY e.FULL_NAME`,
-    isHr ? {} : { userId },
+      WHERE e.EMPLOYEE_NUMBER IN (
+            SELECT DISTINCT eligible.EMPLOYEE_NUMBER
+              FROM XX_DIGI_EMP_MASTER eligible
+             WHERE eligible.ASSIGNMENT_STATUS_TYPE_ID = 1
+               AND eligible.EMPLOYMENT_CATEGORY NOT IN ('MANAGEMENT', 'GM', 'TOP MANAGEMENT', 'VP'))
+        AND e.CURRENT_EMP_FLAG = 'Y'
+        AND (:search IS NULL OR INSTR(UPPER(e.FULL_NAME), UPPER(:search)) > 0
+             OR INSTR(TO_CHAR(e.EMPLOYEE_NUMBER), :search) > 0)
+      ORDER BY e.EMPLOYEE_NUMBER`,
+    { search: search || null },
     { PERSON_ID: ID, EMPLOYEE_NUMBER: ID, JOB_ID: ID, ORGANIZATION_ID: ID },
   );
   return result.map((row) => ({
@@ -408,11 +415,12 @@ export async function isSameDepartment(connection, { actorEmployeeNumber, subjec
   return result.length > 0;
 }
 
-export async function findActorName(connection, userId) {
+export async function findActorName(connection, employeeNumber) {
   const [row] = await rows(
     connection,
-    `SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER WHERE USER_ID = :userId FETCH FIRST 1 ROWS ONLY`,
-    { userId },
+    `SELECT FULL_NAME FROM XX_DIGI_EMP_MASTER
+      WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y' FETCH FIRST 1 ROWS ONLY`,
+    { employeeNumber },
   );
   return row?.FULL_NAME;
 }

@@ -10,25 +10,25 @@ export default defineModule({
     name: 'Transfer Request Form',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
-      { id: 'hr-transfer', path: '/hr/employee-services/transfer', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', order: 110, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
-      { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', title: 'Transfer report', icon: 'chart-column', group: 'human-resources', order: 111, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
-      { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', order: 112, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-transfer', path: '/hr/employee-services/transfer', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', subgroup: 'hr-employee-services', order: 110, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', title: 'Transfer report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 111, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', subgroup: 'hr-employee-services', order: 112, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
     ],
   }, {
     code: 'PERSONNEL_RECORD_CHANGES',
     name: 'Personal Status Change Form',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
-      { id: 'hr-record-change', path: '/hr/employee-services/record-change', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', order: 100, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
-      { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', title: 'Personal status report', icon: 'layers', group: 'human-resources', order: 101, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
-      { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', order: 102, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-record-change', path: '/hr/employee-services/record-change', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', subgroup: 'hr-employee-services', order: 100, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', title: 'Personal status report', icon: 'layers', group: 'human-resources', subgroup: 'hr-employee-services', order: 101, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', subgroup: 'hr-employee-services', order: 102, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
     ],
   }, {
     code: 'CONTRACTOR_EMPLOYEES',
     name: 'Employee report',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
-      { id: 'hr-employee-report', path: '/hr/reports/contractor-employees', title: 'Employee report', icon: 'users', group: 'human-resources', order: 80, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-employee-report', path: '/hr/reports/contractor-employees', title: 'Employee report', icon: 'users', group: 'human-resources', subgroup: 'hr-reports', order: 80, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
     ],
   }, {
     code: 'PERIODWISE_EMPLOYEES',
@@ -36,15 +36,15 @@ export default defineModule({
     // Read-only report: GET /hr/reports/periodwise-employees (and its departments lookup).
     actions: ['VIEW'],
     navigation: [
-      { id: 'hr-periodwise-report', path: '/hr/reports/periodwise-employees', title: 'Periodwise employees', icon: 'chart-column', group: 'human-resources', order: 81, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-periodwise-report', path: '/hr/reports/periodwise-employees', title: 'Periodwise employees', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-reports', order: 81, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
     ],
   }, {
     code: 'PROBATION_EVALUATIONS',
     name: 'Probation Evaluation Form',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
-      { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', order: 50, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
-      { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', order: 51, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', subgroup: 'hr-recruitment', order: 50, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', subgroup: 'hr-recruitment', order: 51, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
     ],
   }, {
     code: 'ORIENTATION_TRAININGS',
@@ -52,8 +52,68 @@ export default defineModule({
     // MANAGE_LINES guards DELETE /hr/orientation-trainings/:id/lines/:lineId.
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_LINES'],
     navigation: [
-      { id: 'hr-orientation', path: '/hr/recruitment/orientation', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', order: 40, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
-      { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', order: 41, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-orientation', path: '/hr/recruitment/orientation', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', subgroup: 'hr-recruitment', order: 40, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', subgroup: 'hr-recruitment', order: 41, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
     ],
+  }, {
+    // Form 1076: /api/v1/hr/sick-leave (MANAGE_ATTACHMENTS guards the attachment routes).
+    code: 'SICK_LEAVE',
+    name: 'Sick Leave Form',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_ATTACHMENTS'],
+    navigation: [
+      { id: 'hr-sick-leave', path: '/hr/employee-services/sick-leave', title: 'Sick leave', icon: 'heart-pulse', group: 'human-resources', subgroup: 'hr-employee-services', order: 130, enabledBy: { env: 'VITE_FEATURE_HR_SICK_LEAVE' } },
+      { id: 'hr-sick-leave-report', path: '/hr/employee-services/sick-leave/report', title: 'Sick leave report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 131, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_SICK_LEAVE' } },
+      { id: 'hr-sick-leave-record', path: '/hr/employee-services/sick-leave/:leaveId', title: 'Sick leave', icon: 'heart-pulse', group: 'human-resources', subgroup: 'hr-employee-services', order: 132, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_SICK_LEAVE' } },
+    ],
+  }, {
+    // Form 1113 (Employee of the Month): /api/v1/hr/employee-of-the-month.
+    code: 'EMPLOYEE_OF_THE_MONTH',
+    name: 'Employee Reward Nomination Form',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [
+      { id: 'hr-reward', path: '/hr/employee-services/reward-nomination', title: 'Reward nomination', icon: 'trophy', group: 'human-resources', subgroup: 'hr-employee-services', order: 140, enabledBy: { env: 'VITE_FEATURE_HR_REWARD_NOMINATION' } },
+      { id: 'hr-reward-report', path: '/hr/employee-services/reward-nomination/report', title: 'Reward nominations', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 141, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_REWARD_NOMINATION' } },
+      { id: 'hr-reward-record', path: '/hr/employee-services/reward-nomination/:nominationId', title: 'Reward nomination', icon: 'trophy', group: 'human-resources', subgroup: 'hr-employee-services', order: 142, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_REWARD_NOMINATION' } },
+    ],
+  }, {
+    // Form 1097: /api/v1/ideas (feasibility uses UPDATE; MANAGE_ATTACHMENTS guards the attachment routes).
+    code: 'IDEAS',
+    name: 'Idea Form',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_ATTACHMENTS'],
+    navigation: [
+      { id: 'hr-idea', path: '/hr/employee-services/ideas', title: 'Share an idea', icon: 'lightbulb', group: 'human-resources', subgroup: 'hr-employee-services', order: 150, enabledBy: { env: 'VITE_FEATURE_HR_IDEAS' } },
+      { id: 'hr-idea-report', path: '/hr/employee-services/ideas/report', title: 'Idea report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 151, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_IDEAS' } },
+      { id: 'hr-idea-record', path: '/hr/employee-services/ideas/:ideaId', title: 'Share an idea', icon: 'lightbulb', group: 'human-resources', subgroup: 'hr-employee-services', order: 152, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_IDEAS' } },
+    ],
+  }, {
+    code: 'SALARY_CERTIFICATES_AR',
+    name: 'Arabic Salary Certificates',
+    description: 'View and manage Arabic salary certificates.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
+  }, {
+    code: 'SALARY_CERTIFICATES',
+    name: 'English Salary Certificates',
+    description: 'View and manage English salary certificates.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
+  }, {
+    code: 'BUSINESS_VISA_LETTERS',
+    name: 'Business Visiting Visa Letters',
+    description: 'View and manage business visiting visa letters.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
+  }, {
+    code: 'TOURIST_VISA_LETTERS',
+    name: 'Tourist Visa Letters',
+    description: 'View and manage tourist visa letters.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
+  }, {
+    code: 'WARNING_LETTERS',
+    name: 'Warning Letters',
+    description: 'View and manage warning letters.',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [],
   }],
 })

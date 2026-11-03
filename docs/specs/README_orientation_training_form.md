@@ -125,13 +125,15 @@ Auth: session (`authenticate`); `created_by` / `updated_by` from `req.auth` — 
 1. **Flag** (Shared Service Y / Production N):
 
    ```sql
-   SELECT (SELECT decode(upper(ATTRIBUTE1),'SHARED SERVICE','Y','N') FROM XX_DIGI_ORG_INFO
-           WHERE ORGANIZATION_ID = paaf.organization_id) AS SHARED_SERVICE
-   FROM XX_DIGI_ASSIGNMENT_INFO paaf
-   WHERE PRIMARY_FLAG='Y' AND ASSIGNMENT_TYPE='E'
-     AND PERSON_ID = (SELECT DISTINCT person_id FROM XX_DIGI_EMP_DETAILS
-                      WHERE EMPLOYEE_NUMBER = :empNo)
-     AND TRUNC(SYSDATE) BETWEEN TRUNC(effective_start_date) AND TRUNC(effective_end_date);
+   SELECT DECODE(UPPER(oi.ATTRIBUTE1), 'SHARED SERVICE', 'Y', 'N') AS SHARED_SERVICE
+   FROM XX_DIGI_EMP_MASTER paaf
+   LEFT JOIN APPS.HR_ALL_ORGANIZATION_UNITS oi ON oi.ORGANIZATION_ID = paaf.ORGANIZATION_ID
+   WHERE paaf.PRIMARY_FLAG = 'Y'
+     AND paaf.ASSIGNMENT_TYPE = 'E'
+     AND paaf.EMPLOYEE_NUMBER = :empNo
+     AND TRUNC(SYSDATE) BETWEEN TRUNC(paaf.PAAF_EFFECTIVE_START_DATE)
+                            AND TRUNC(paaf.PAAF_EFFECTIVE_END_DATE)
+   FETCH FIRST 1 ROWS ONLY;
    ```
 
    → pick header/lines table pair: Y → `XXZP_NEW_HIRETRAINING_SS_HDR_T` /
@@ -428,14 +430,14 @@ WHERE LOOKUP_TYPE = 'XXZP_HR' AND TAG = :userId;
 
 ### 8.1 Flag (shared service vs production) — `GET .../lookups/flag?empNo=`
 
-Same SQL as §3.1 (`XX_DIGI_ORG_INFO` / `XX_DIGI_ASSIGNMENT_INFO` / `XX_DIGI_EMP_DETAILS`);
+Same SQL as §3.1 (`XX_DIGI_EMP_MASTER` / `APPS.HR_ALL_ORGANIZATION_UNITS`);
 returns `{ flag: 'Y'|'N', tableName: 'SHARED'|'PRODUCTION' }`.
 
 ### 8.2 Employees — `GET .../lookups/employees`
 
 ```sql
--- HR sees all current employees; non-HR sees own + supervised subordinates.
--- HR branch (models/Newhiretrain_model.php:getEmpNum HR branch):
+-- All users with lookup permission see the same orientation-eligible employees.
+-- Eligibility follows models/Newhiretrain_model.php:getEmp():
 SELECT PERSON_ID, EMPLOYEE_NUMBER, FULL_NAME, JOINING_DATE AS START_DATE, JOB_ID,
        JOB_TITLE AS NAME, COST_CENTER AS SECTION, DIVISION AS DIV, ORGANIZATION_ID,
        POSITION_NAME AS EMP_POSITION,
@@ -445,8 +447,17 @@ SELECT PERSON_ID, EMPLOYEE_NUMBER, FULL_NAME, JOINING_DATE AS START_DATE, JOB_ID
              WHEN WORKER_CATEGORY='VP' THEN 'Manager'
              ELSE 'Employee' END) AS EMPLOYEE_TYPE
 FROM XX_DIGI_EMP_MASTER
-WHERE CURRENT_EMP_FLAG = 'Y'
-ORDER BY FULL_NAME;
+WHERE EMPLOYEE_NUMBER IN (
+  SELECT DISTINCT EMPLOYEE_NUMBER
+  FROM XX_DIGI_EMP_MASTER
+  WHERE ASSIGNMENT_STATUS_TYPE_ID = 1
+    AND EMPLOYMENT_CATEGORY NOT IN ('MANAGEMENT', 'GM', 'TOP MANAGEMENT', 'VP')
+)
+  AND CURRENT_EMP_FLAG = 'Y'
+  AND (:search IS NULL
+       OR INSTR(UPPER(FULL_NAME), UPPER(:search)) > 0
+       OR INSTR(TO_CHAR(EMPLOYEE_NUMBER), :search) > 0)
+ORDER BY EMPLOYEE_NUMBER;
 ```
 
 ### 8.3 Managers (department head dropdown) — `GET .../lookups/managers`
@@ -552,7 +563,7 @@ Hardcoded in legacy JS (`views/ZPIL/nht-new.php:241-244`) — return as static r
 ## 11. WORKFLOW — EXPLICITLY OUT OF SCOPE (verified present in legacy; do NOT implement)
 
 - `Newhiretrain::submitWorkflow()` (`controllers/Newhiretrain.php:131-400`) — SMTP mail
-  (hard-coded `workflowmailer@zamilplastic.com` / `D@989955427519ud`), `callXXPHP_WORKFLOW(... 'NHTF' ...)`,
+  (hard-coded SMTP mailbox `[REDACTED]` / password `[REDACTED]`), `callXXPHP_WORKFLOW(... 'NHTF' ...)`,
   then `updateRequestStatus(id, flag, 'INPROCESS')`.
 - `NHT_Flow::workflow()` / `workflow1()` (`controllers/NHT_Flow.php`) — approve/reject handlers
   writing `STATUS = 'Approved' | 'Rejected'`.
@@ -622,7 +633,7 @@ WHAT TO BUILD
 - Endpoints under /api/v1/hr/orientation-trainings:
     POST   /                     insert header + lines in ONE
                                   withTransaction(POOLS.LOW, ...); resolve flag Y/N via
-                                  XX_DIGI_ORG_INFO (§3.1); id from
+                                  APPS.HR_ALL_ORGANIZATION_UNITS (§3.1); id from
                                   SELECT NVL(MAX(HEADER_ID+1),1); read back HEADER_ID by UUID;
                                   set ATTRIBUTE5 reference (${division}/${yy}/${SEQ3});
                                   register XXZP_NHT_MASTER_FLAG; insert all lines; STATUS='Draft'

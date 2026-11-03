@@ -18,7 +18,10 @@ export async function isHrUser(c, userId) {
         `SELECT 1 AS FOUND
          FROM XX_DIGI_LOOKUP_VALUES
          WHERE LOOKUP_TYPE = 'XXZP_HR'
-           AND TAG = :userId
+           AND TAG = (SELECT TO_CHAR(MAX(E.USER_ID)) FROM XX_DIGI_EMP_MASTER E
+                 JOIN XX_ZRV_USERS U ON U.EMPLOYEE_NUMBER = E.EMPLOYEE_NUMBER
+                WHERE U.USER_ID = :userId AND E.CURRENT_EMP_FLAG = 'Y'
+                HAVING COUNT(DISTINCT E.USER_ID) = 1 AND COUNT(*) = COUNT(E.USER_ID))
          FETCH FIRST 1 ROWS ONLY`,
         { userId },
       )
@@ -26,16 +29,15 @@ export async function isHrUser(c, userId) {
   );
 }
 
-export async function requestor(c, userId) {
+export async function requestor(c, employeeNumber) {
   return (
     await rows(
       c,
       `SELECT EMPLOYEE_NUMBER, FULL_NAME, EMAIL_ADDRESS
        FROM XX_DIGI_EMP_MASTER
-       WHERE USER_ID = :userId
-         AND USER_ID <> 0
+       WHERE EMPLOYEE_NUMBER = :employeeNumber AND CURRENT_EMP_FLAG = 'Y'
          AND ROWNUM = 1`,
-      { userId },
+      { employeeNumber },
     )
   )[0];
 }

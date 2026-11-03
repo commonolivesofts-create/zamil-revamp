@@ -69,9 +69,10 @@ export function createInterviewAssessmentService({
   }
 
   /**
-   * Normalizes one full payload into the bind rows of the four tables. `meta` carries the
-   * generated headerId/uuid on insert. Header section binds for the update statements are the
-   * same values minus the insert-only and mirrored columns (README §5.1/§5.4).
+   * Normalizes one full payload into the bind rows of the four tables. `meta` carries the uuid on
+   * insert; the identity HEADER_ID is only known after the header insert (see create). Header
+   * section binds for the update statements are the same values minus the insert-only and
+   * mirrored columns (README §5.1/§5.4).
    */
   function prepareSections(body, actorUserId, meta = {}) {
     const personal = body.personalSpec ?? {};
@@ -182,8 +183,7 @@ export function createInterviewAssessmentService({
       totals: { personalSpecTotal, personalSpecResult, jobCompetencyTotal, jobCompetencyResult },
       insertHeader: {
         ...common,
-        ...meta, // { headerId, uuid }
-        intNo: `${body.attribute3}-${String(meta.headerId).padStart(3, '0')}`,
+        ...meta, // { uuid }
         attribute3: body.attribute3,
         interviewedBy: text(body.interviewedBy),
         interviewedBy2: text(body.interviewedBy2),
@@ -195,9 +195,9 @@ export function createInterviewAssessmentService({
         status: 'Incomplete',
         createdBy: actorUserId,
       },
-      insertPersonalSpec: { ...personalSpec, headerId: meta.headerId, createdBy: actorUserId },
-      insertJobCompetency: { ...jobCompetency, headerId: meta.headerId, createdBy: actorUserId },
-      insertEvaluation: { ...evaluationBinds, headerId: meta.headerId, createdBy: actorUserId },
+      insertPersonalSpec: { ...personalSpec, createdBy: actorUserId },
+      insertJobCompetency: { ...jobCompetency, createdBy: actorUserId },
+      insertEvaluation: { ...evaluationBinds, createdBy: actorUserId },
       audit: { createdBy: actorUserId, updatedBy: actorUserId },
     };
   }
@@ -238,14 +238,16 @@ export function createInterviewAssessmentService({
     async create(actor, body) {
       await assertApprovedRequisition(body.requisitionNo);
       return withTransaction(POOLS.LOW, async (c) => {
-        const headerId = await repository.generateHeaderId(c);
         const uuid = randomUUID();
-        const sections = prepareSections(body, actor.userId, { headerId, uuid });
-        await repository.insertHeader(c, sections.insertHeader);
-        await repository.insertPersonalSpec(c, sections.insertPersonalSpec);
-        await repository.insertJobCompetency(c, sections.insertJobCompetency);
-        await repository.insertEvaluation(c, sections.insertEvaluation);
-        return { headerId, intNo: sections.insertHeader.intNo, uuid };
+        const sections = prepareSections(body, actor.userId, { uuid });
+        const headerId = await repository.insertHeader(c, sections.insertHeader);
+        // Legacy INT_NO format, `${payroll}-${id padded to 3}`, from the identity ID (same transaction).
+        const intNo = `${body.attribute3}-${String(headerId).padStart(3, '0')}`;
+        await repository.setIntNo(c, { headerId, intNo });
+        await repository.insertPersonalSpec(c, { ...sections.insertPersonalSpec, headerId });
+        await repository.insertJobCompetency(c, { ...sections.insertJobCompetency, headerId });
+        await repository.insertEvaluation(c, { ...sections.insertEvaluation, headerId });
+        return { headerId, intNo, uuid };
       });
     },
 

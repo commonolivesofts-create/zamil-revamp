@@ -98,6 +98,9 @@ export const listQuerySchema = Joi.object({
 });
 
 export const budgetQuerySchema = Joi.object({ fullName: requiredText(200) });
+export const replacementForQuerySchema = Joi.object({
+  search: Joi.string().trim().min(1).max(100).pattern(NO_CONTROL_CHARACTERS),
+});
 
 // Attachment policy (README §9): legacy extension allowlist plus the owner-approved
 // size cap (10 MB per file) and per-request count cap (10 files).

@@ -721,11 +721,108 @@ Location: `docs/db/migrations/2026-10-31-hrms-duplicate-cleanup/`.
 | File | What it does |
 |---|---|
 | `00-precheck.sql` | Read-only. Expected values are in the comments. **Run on TEST today: every value matched.** |
-| `01-backup.sql` | `XXZP_DUPFIX_*` backup tables (CTAS) of every touched row, and the interview ID map |
-| `02-cleanup.sql` | One PL/SQL block, **no commit**:<br>• delete one copy of requisition 100800;<br>• move the `InProcess` interview and its 3 children (`CREATED_BY`) from 677 to a new ID from the identity sequence;<br>• keep the earliest `ATTACHED_ON` row of each agreeing attachment pair and delete the other (3,564 rows).<br>Every step checks its row count and raises if it is off. |
+| `01-backup.sql` | `XXZP_DUPFIX_REQ_BAK` and `XXZP_DUPFIX_ATT_BAK` (CTAS) with every touched row |
+| `02-cleanup.sql` | One PL/SQL block, **no commit**:<br>• delete one copy of requisition 100800;<br>• keep the earliest `ATTACHED_ON` row of each agreeing attachment pair and delete the other (3,564 rows).<br>Every step checks its row count and raises if it is off. |
 | `03-verify.sql` | Same-session checks before `COMMIT` |
 | `04-rollback.sql` | Restores from the backup tables after a commit. Drop the unique constraints first if they were added. |
 
+- **Round 4:** interview 677 moved out of `01`–`04` into its own scripts, `10`–`13` (§11.3).
 - Only `00` was executed. `01`–`04` were reviewed but not run anywhere.
 - The DBA should confirm on TEST that the owner may select `NEXTVAL` from the interview identity's `ISEQ$$_…` sequence; the README gives the fallback.
 - Production needs its own precheck first.
+
+## 11. Round 4 (2026-11-02): owner approvals
+
+**Commits on `docs/hrms-recruitment-audit`** (not pushed; the unrelated `.gitignore` change stays unstaged):
+- `aecece1` "docs(hr-recruitment): audit sections 9-10 and duplicate-ID cleanup scripts".
+- The round 4 changes below are a separate commit (§11.6).
+
+### 11.1 Live CRUD on TEST: not run again
+
+The go-ahead said `server/.env.local` now holds `LIVE_TEST_COOKIE` and `LIVE_TEST_CSRF`. Before running, I checked:
+- `server/.env.local` does not exist;
+- no file named `*env*local*` exists anywhere in the repository or one level above it;
+- `server/.env` and `client/.env` contain no `LIVE_TEST_*` key (checked by name only).
+
+The script was **not started**: no request was sent, no record was created and nothing needs cleaning up. There are no per-form results yet, so I could not check whether the RBAC grants made the Periodwise report and orientation line delete pass.
+
+The file may have been saved somewhere else, for example under another name or in another folder. It must be exactly `server/.env.local`, next to `server/.env`.
+
+### 11.2 Identity IDs for requisitions, interviews and attachments: done
+
+**Requisitions** (`requisition.repository.js`, `requisition.service.js`):
+- `insertHeader` no longer sends `REQUISITION_ID` or `REQUISITION_NUMBER`. It ends with `RETURNING REQUISITION_ID INTO :reqId` and returns the ID.
+- `setRequisitionNumber` then runs `UPDATE … SET REQUISITION_NUMBER = TO_CHAR(REQUISITION_ID)` in the same transaction, so the number keeps its format: it equals the ID.
+- **Requisition numbers now step by 1**, not 20. The TEST identity stands at 105,373, above `MAX` 105,020.
+- `generateRequisitionId` (`MAX + 20`) was removed.
+
+**Requisition attachments:**
+- `insertAttachment` no longer sends `HEADER_ID`. It returns the identity value with `RETURNING HEADER_ID INTO :attachmentId`, and the file is stored under that ID as before.
+- `generateAttachmentId` (`MAX + 1`) was removed.
+- The only other Node writer of `XXZP_ALL_ATTACHMENTS`, sick leave, already used the identity column. The ideas module only reads.
+
+**Interviews** (`interviewAssessment.repository.js`, `interviewAssessment.service.js`):
+- `insertHeader` sends neither `HEADER_ID` nor `INT_NO`. It returns the identity value with `RETURNING HEADER_ID INTO :headerId`.
+- The service then builds `INT_NO` in the unchanged format `<attribute3>-<ID padded to 3>` and writes it with `setIntNo` in the same transaction, before the three child rows are inserted with that ID.
+- `generateHeaderId` (`MAX + 1`, fallback 636) was removed.
+
+**Both nullable columns checked** on the TEST dictionary (read-only): `REQUISITION_NUMBER` and `INT_NO` are nullable, so filling them right after the insert is valid.
+
+**Docs:** the OpenAPI `createRequisition` and `createInterviewAssessment` descriptions and the feature README (requisition and interview sections, tests) describe the identity IDs and the step of 1.
+
+**Tests:**
+- `server/tests/hr-identity-ids.test.js`: three new tests.
+  - The requisition, attachment and interview inserts use `RETURNING … INTO` with an out bind, and their column lists contain no ID or number column.
+  - The number and `INT_NO` updates have the expected shape.
+  - None of the statements contains `MAX(`, and the old helpers are gone.
+- `server/tests/hr-identity-concurrency.test.js`: new; drives the **real services and repositories** through a simulated Oracle connection.
+  - Every statement yields before it runs, so the transactions interleave.
+  - Each transaction sees only committed rows plus its own (READ COMMITTED).
+  - `INSERT … RETURNING` takes identity values atomically.
+  - **Control:** under the same simulator, 12 parallel legacy `MAX + 1` inserts **do** clash, which shows the simulator can detect a clash.
+  - **Requisitions:** 12 parallel creates, each with 2 files, give 12 distinct, consecutive IDs (step 1), each number equal to its ID, and 24 distinct attachment IDs.
+  - **Interviews:** 12 parallel creates give 12 distinct IDs, each `INT_NO` built from its own ID, and exactly one child row per table for each header.
+- The fake repositories for requisitions and interviews now model identity columns: values are never reused, rollbacks do not return them, and an explicit ID is refused.
+
+### 11.3 Interview 677: dedicated scripts (not run)
+
+Interview 677 now has its own scripts in `docs/db/migrations/2026-10-31-hrms-duplicate-cleanup/`. They were taken out of `00`–`04`, so nothing runs twice.
+
+| File | What it does |
+|---|---|
+| `10-interview-677-precheck.sql` | Read-only, for HR to confirm. Lists the 2 header rows and the 9 child rows on 677 with **row IDs (`ROWID`, `UUID`), status, `INT_NO` and `CREATED_BY` only**, the owner status of each child, the per-table count owned by the `InProcess` creator (expected 1 / 1 / 1), offers referencing it (expected 0) and free backup names |
+| `11-interview-677-backup.sql` | `XXZP_DUPFIX_INT_BAK`, `_EVAL_BAK`, `_PSPEC_BAK` and `_JCOMP_BAK` with every row on 677, plus `XXZP_DUPFIX_INT_MAP` |
+| `12-interview-677-renumber.sql` | One PL/SQL block, **no commit**:<br>• checks 2 headers and 2 creators;<br>• takes `NEXTVAL` from the identity sequence;<br>• records the 4 moving rows by `ROWID` in the map;<br>• moves the `InProcess` header and its one child per table (each `SQL%ROWCOUNT` checked);<br>• ends with same-session checks. |
+| `13-interview-677-rollback.sql` | Moves the mapped rows back to 677 by their original `ROWID`, with checks |
+
+- Executed: only `10`, read-only, through a runner that prints **row counts only**: 2 header rows, 9 child rows, 3 counts, 1 offer count and 0 backup names. No ID or creator value was printed.
+- `11`–`13` were not run. The README describes the order: HR confirms → backup → renumber → `COMMIT`.
+
+### 11.4 Unique constraints and CI3
+
+The HRMS-ID-UK-001 `README.md` has a new section, "Effect on CI3 of the requisition, interview and attachment constraints", and the commented constraints in `01-migration.sql` carry the same warning:
+- **Effect:** once these constraints exist, racing CI3 saves fail with `ORA-00001` instead of storing duplicates. A Node create that collides with a CI3 `MAX`-based ID fails the same way.
+- **When to apply:** only after CI3 stops writing to those tables, or with HR and the CI3 users warned. In either case, only after the cleanup.
+- **Other five constraints:** whether the same applies to the five constraints already in `01` depends on CI3's inserts into those tables. I could not read the CI3 code, so the README says to check.
+
+### 11.5 Tests executed in round 4 (2026-11-02)
+
+- **Server:**
+  - Full `npm test`: **732/732 pass** (mocked Oracle and simulated concurrency; no real Oracle writes).
+  - `requisitions`, `interview-assessments` and `employment-offers`: 108/108.
+  - `hr-identity-ids` and `hr-identity-concurrency`: 10/10.
+  - `api-docs`: 21/21.
+- **Lint:** ESLint and Prettier clean on the changed source and test files.
+- **Oracle (read-only):**
+  - nullability of the number columns;
+  - `00-precheck.sql` and `10-interview-677-precheck.sql` executed with counts only.
+- **Not run:** the live CRUD script (no `server/.env.local`), and any write script.
+- **Client:** no client code changed, only the feature README, so client tests were not re-run.
+
+### 11.6 Waiting for you
+
+1. **Live run:** create `server/.env.local` with exactly those two keys, then tell me to run it.
+2. **HR confirmation:** run `10-interview-677-precheck.sql` (DBA) and have HR confirm which interview keeps 677.
+3. **DBA:** review and schedule HRMS-DUP-CLEAN-001 (`00`–`04`, `10`–`13`), then HRMS-ID-UK-001, following its CI3 section.
+4. **CI3:** decide whether CI3 stops writing to the requisition, interview and attachment tables, or whether HR is warned before the constraints go on.
+5. **Commit:** the round 4 changes are committed only if you say so.
