@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { promptLine } from '../bootstrap-test-rbac.js';
 import {
   APPROVED_TARGETS,
+  APPROVED_MODULE_SCOPE,
   REGISTER_SQL,
   RegistrationRefused,
   applyInserts,
@@ -14,6 +15,7 @@ import {
   parseArgs,
   registryDefinitions,
   verifyApplied,
+  SECURITY_MODULE_CODE,
 } from './rbacRegistration.js';
 
 // Statement time limit inside the write transaction; restored before the connection is released.
@@ -24,8 +26,13 @@ export const EXIT = Object.freeze({ OK: 0, REFUSED: 1, NOT_READY: 2, UNKNOWN_OUT
 const confirmationPhrase = (target, count, fingerprint) =>
   `REGISTER ${target} ${count} ${fingerprint.slice(0, 12)}`;
 
-function report(say, { identity, problems, plan, fingerprint }) {
+function report(say, { identity, problems, plan, fingerprint }, moduleCode = null) {
   say(`Target: ${identity.target} (service ${identity.serviceName})`);
+  if (moduleCode) {
+    say(
+      `Module scope: ${moduleCode} (other business modules excluded; SECURITY_ADMINISTRATION verified)`,
+    );
+  }
   say(
     `DB_NAME: ${identity.dbName ?? 'unknown'} ${identity.dbNameApproved ? '(matches the approved DB_NAME)' : '(no approved DB_NAME configured for this target: apply is disabled)'}`,
   );
@@ -69,15 +76,28 @@ export async function main({
     assertEnvironment(appConfig, target);
     // Fail closed before connecting: apply needs the complete approved identity.
     if (options.apply) assertApplyIdentityConfigured(target);
-    const definitions = registryDefinitions(registeredModules);
+    // Validate the COMPLETE registry first, including immutable SECURITY_ADMINISTRATION.
+    const allDefinitions = registryDefinitions(registeredModules);
+    const moduleCode = options.module ?? null;
+    if (moduleCode && moduleCode !== APPROVED_MODULE_SCOPE) {
+      throw new RegistrationRefused('Unapproved module scope.');
+    }
+    const definitions = moduleCode
+      ? allDefinitions.filter(
+          (module) => module.code === moduleCode || module.code === SECURITY_MODULE_CODE,
+        )
+      : allDefinitions;
+    if (moduleCode && !definitions.some((module) => module.code === moduleCode)) {
+      throw new RegistrationRefused(`Module ${moduleCode} is missing from the code registry.`);
+    }
 
     say(
       `Zamil Digitalization RBAC catalogue registration — ${options.apply ? 'APPLY' : 'PREVIEW (read-only)'}`,
     );
     const preview = await db.withConnection('LOW', (connection) =>
-      buildPlan(connection, { target, definitions, forApply: options.apply }),
+      buildPlan(connection, { target, definitions, forApply: options.apply, moduleCode }),
     );
-    report(say, preview);
+    report(say, preview, moduleCode);
 
     if (preview.problems.length) return EXIT.NOT_READY;
     if (preview.plan.counts.CONFLICT) {
@@ -96,7 +116,7 @@ export async function main({
       );
       say('To apply after owner authorization, record this preview and run:');
       say(
-        `  npm run db:rbac-register -- --target=${target.name} --apply --fingerprint=${preview.fingerprint}`,
+        `  node --env-file-if-exists=.env .\\scripts\\rbac-register.js --target=${target.name}${moduleCode ? ` --module=${moduleCode}` : ''} --apply --fingerprint=${preview.fingerprint}`,
       );
       return EXIT.OK;
     }
@@ -131,7 +151,12 @@ export async function main({
         await connection.execute(REGISTER_SQL.lock);
         // Everything is re-read under the lock: identity (SERVICE_NAME and DB_NAME), constraints,
         // catalogue and plan.
-        const fresh = await buildPlan(connection, { target, definitions, forApply: true });
+        const fresh = await buildPlan(connection, {
+          target,
+          definitions,
+          forApply: true,
+          moduleCode,
+        });
         if (fresh.problems.length)
           throw new RegistrationRefused(`Preconditions changed: ${fresh.problems.join('; ')}`);
         if (fresh.plan.counts.CONFLICT)
@@ -147,11 +172,13 @@ export async function main({
           identity: fresh.identity,
           fingerprint: fresh.fingerprint,
           correlationId,
+          moduleCode,
         });
         const problems = await verifyApplied(connection, {
           definitions,
           planned: inserted,
           correlationId,
+          moduleCode,
         });
         if (problems.length)
           throw new RegistrationRefused(`Verification failed: ${problems.join('; ')}`);

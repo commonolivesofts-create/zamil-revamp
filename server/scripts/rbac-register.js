@@ -1,10 +1,13 @@
 // Registration of developer-defined RBAC catalogue entries in Oracle (Phase 2B).
 //
-//   npm run db:rbac-register -- --target=TEST
-//       READ-ONLY preview: verifies environment, wallet, database identity and constraints, compares
-//       the active registry (client/src/config/registry/index.js) with the catalogue and prints
+//   node --env-file-if-exists=.env scripts/rbac-register.js --target=TEST
+//       READ-ONLY full-catalogue preview: verifies environment, wallet, database identity and
+//       constraints, compares the active registry (client/src/config/registry/index.js) and prints
 //       MATCH / MISSING / CONFLICT / UNREGISTERED, counts and the SHA-256 plan fingerprint.
-//   npm run db:rbac-register -- --target=TEST --apply --fingerprint=<sha256>
+//   node --env-file-if-exists=.env scripts/rbac-register.js --target=TEST --module=WORKFLOW_MANAGER
+//       READ-ONLY scoped preview: considers only WORKFLOW_MANAGER and protected
+//       SECURITY_ADMINISTRATION, allowing unrelated HR conflicts to remain untouched.
+//   node --env-file-if-exists=.env scripts/rbac-register.js --target=TEST --apply --fingerprint=<sha256>
 //       Writes only with separate owner authorization (gate G1): requires an interactive terminal,
 //       the reviewed fingerprint and a typed confirmation, then inserts the MISSING records in one
 //       LOW transaction under NOWAIT table locks, re-checking identity, preconditions and the plan,
