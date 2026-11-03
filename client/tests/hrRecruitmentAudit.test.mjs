@@ -308,9 +308,9 @@ test("orientation save omits an unknown joining date and lets the server recompu
   const body = client.calls[0].body;
   assert.equal("startDate" in body, false, "Joi rejects an empty startDate");
   assert.equal(
-    body.lines[0].orientationPeriod,
-    "",
-    "a stale period would survive the time change",
+    "orientationPeriod" in body.lines[0],
+    false,
+    "the server always computes the period from the times (legacy Orientation Time)",
   );
 });
 

@@ -99,19 +99,34 @@ The bilingual package rows map to the single `line` object. The status is always
 
 ### Orientation Training (1101)
 
+Follows the legacy CI3 form `Newhiretrain` (`views/ZPIL/nht-new.php`); details in
+`docs/testing/orientation-legacy-comparison.md`.
+
 **Lookups** (`GET /hr/orientation-trainings/lookups/…`):
-- `employees` and `managers`.
-- `employee-details?empNo=`, `flag?empNo=` (shared-service `Y` / production `N` table) and `skills?empType=` (the default sessions).
+- `employees` (HR users: every current employee; others: themselves) and `managers`.
+- `employee-details?empNo=` (non-HR users: only themselves), `flag?empNo=` (always `N`: legacy saves
+  every new request in the PRODUCTION tables) and `skills?empType=` (the training rows of the
+  employee type; any other type is Employee).
 
 **Records:**
-- `GET /?flag=Y|N` (list for one table) and `GET /:id`.
-- `POST /` and `PUT /:id`: the update replaces all lines. Header, line and flag-registry IDs come from Oracle identity columns.
-- `DELETE /:id`: Draft only.
-- `DELETE /:id/lines/:lineId`: needs `MANAGE_LINES`.
+- `GET /?flag=Y|N` (legacy report: Shared / Plant; HR all, others their own; legacy columns incl.
+  Pending At, workflow Start/End and Last Action) and `GET /:id?flag=Y|N`. The two variants number
+  their records independently, so the record URL carries `?flag=` (legacy `form/{id}/{flag}`).
+- `POST /` and `PUT /:id`: the update replaces all lines and sets the status to Draft. Draft and
+  Rejected records are editable; Inprocess and Approved are read only (409). IDs come from Oracle
+  identity columns.
+- `DELETE /:id`: Draft only. `DELETE /:id/lines/:lineId`: needs `MANAGE_LINES`.
 
-**Payload notes:**
-- `startDate` is sent only when the employee has a joining date.
-- `orientationPeriod` is sent blank so the server recomputes the hours from the session times.
+**Legacy rules** (`orientation/orientationLegacy.js`, server `orientationTraining.rules.js`):
+- Required: Name and From. **To = From** (read only). Every row field is optional; a row whose To
+  Date or Time To is before its start is refused.
+- Orientation Days = to − from (the same day is 0); Orientation Time = "H.MM Hrs"; times HH:MM:SS.
+- The payload carries only the answers (Name, From, each row's head, dates, times and remark); the
+  server fills the employee fields, To, Scheduled By (the signed-in user), the Ref # and the
+  computed row values.
+- Statuses read as the legacy labels Draft, Inprocess, Approved, Rejected (stored in mixed case).
+- Print shows the legacy PDF layout. `validateOrientationForSubmit` holds the legacy submit rule
+  (not wired yet).
 
 ### Probation Evaluation (1064)
 
@@ -140,7 +155,7 @@ An unrated criterion is omitted from the payload, and the backend stores it as 0
 - an HR user (the `XXZP_HR` lookup, which also widens the lists); or
 - a user in the employee's department (`XX_DIGI_EMP_MASTER.ORGANIZATION_ID`) who holds the resource's `VIEW` permission.
 
-Anyone else gets 403 `FORBIDDEN`. Changing a non-draft record returns 409 (`ORIENTATION_TRAINING_NOT_DRAFT` / `PROBATION_EVALUATION_NOT_DRAFT`).
+Anyone else gets 403 `FORBIDDEN`. Changing a non-draft record returns 409 (`ORIENTATION_TRAINING_NOT_DRAFT` / `PROBATION_EVALUATION_NOT_DRAFT`); orientation also lets a Rejected record be edited (legacy).
 
 **Requisitions:** records outside the caller's scope return 404. Non-HR users cannot change `Inprocess` or `Approved` records (409).
 

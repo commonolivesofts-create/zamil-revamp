@@ -1,20 +1,19 @@
-import { useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
-import usePermissions from '@/features/access/usePermissions.js'
 import { ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
-import { Pill, RecruitmentHeader } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { Pill } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { toCsv, withBom } from '@/features/hr-recruitment/report/periodwiseModel.js'
 import { ES_COMMON_TEXT as C, RECORD_CHANGE_TEXT as T } from '../hrEmployeeServicesText.js'
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { RecordList } from '../shared/RecordList.jsx'
+import { ReportPage } from '../shared/ReportPage.jsx'
 import { useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
-import '@/styles/hr-employee-services.css'
 import { LEGACY_RECORD_CHANGE_STATUSES } from './recordChangeModel.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 
 const L = T.list
 const RECORD_CHANGE_BASE = ES_PATHS.recordChange
+const CREATE = Object.freeze({ permission: 'HR.PERSONNEL_RECORD_CHANGES:CREATE', path: RECORD_CHANGE_BASE, tool: T.tools.newRequest, label: L.newRequest })
 const amount = (value) => (value === null || value === undefined ? '—' : C.money(value))
 const statusTone = (status) => (status === 'REJECTED' ? 'bad' : status === 'DRAFT' ? 'warn' : 'ok')
 // The legacy report (Rec_change/list) columns, after the Ref # that opens the request.
@@ -62,22 +61,11 @@ function exportCsv(rows) {
 // a request opens by its Ref #.
 export default function RecordChangeRequestsPage() {
   useEmployeeServicesUser()
-  const canCreate = usePermissions().can('HR.PERSONNEL_RECORD_CHANGES:CREATE')
-  const navigate = useNavigate()
   const requests = useResource('hr-record-change-requests', (signal) => hrEmployeeServices.recordChanges.list({ signal }))
   const rows = requests.data?.items ?? []
   return (
-    <div className="zrv-hr zrv-hr--record-change-list zrv-hr--compact">
-      <RecruitmentHeader title={L.title} subtitle={L.subtitle} breadcrumb={C.breadcrumb} />
-      <div className="zrv-hr-toolbar" role="toolbar" aria-label={L.title}>
-        <div className="zrv-hr-tools">
-          <button type="button" onClick={() => navigate('/dashboard')}><OrvexaIcon name="house" size={17} /><span>{C.home}</span></button>
-          <button type="button" onClick={() => navigate(RECORD_CHANGE_BASE)} disabled={!canCreate}><OrvexaIcon name="file-plus" size={17} /><span>{T.tools.newRequest}</span></button>
-          <button type="button" onClick={() => exportCsv(rows)} disabled={!rows.length}><OrvexaIcon name="download" size={17} /><span>{L.export}</span></button>
-          <button type="button" onClick={() => window.print()}><OrvexaIcon name="printer" size={17} /><span>{C.print}</span></button>
-        </div>
-        <button type="button" className="btn-primary zrv-hr-btn" onClick={() => navigate(RECORD_CHANGE_BASE)} disabled={!canCreate}><OrvexaIcon name="plus" size={16} /> {L.newRequest}</button>
-      </div>
+    <ReportPage variant="record-change-list" title={L.title} subtitle={L.subtitle} create={CREATE}
+      tools={<button type="button" onClick={() => exportCsv(rows)} disabled={!rows.length}><OrvexaIcon name="download" size={17} /><span>{L.export}</span></button>}>
       <ResourceState resource={requests} label={L.noun} empty={C.list.empty}>
         {(page) => (
           <RecordList heading={L.heading} searchLabel={L.search} searchPlaceholder={L.searchPlaceholder} statuses={LEGACY_RECORD_CHANGE_STATUSES} statusText={C.status}
@@ -87,6 +75,6 @@ export default function RecordChangeRequestsPage() {
             pathOf={(row) => `${RECORD_CHANGE_BASE}/${row.requestId}`} numberOf={(row) => row.requestNumber} />
         )}
       </ResourceState>
-    </div>
+    </ReportPage>
   )
 }

@@ -6,6 +6,7 @@ export const ES_PATHS = Object.freeze({
   transfer: '/hr/employee-services/transfer',
   transferReport: '/hr/employee-services/transfer/report',
   appraisal: '/hr/performance/appraisal',
+  appraisalReport: '/hr/performance/appraisal/report',
 })
 
 // Reward Nomination (1113), Share an Idea (1097) and Sick Leave (1076): the

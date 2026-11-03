@@ -8,7 +8,7 @@ existing backend APIs.
 |---|---|---|---|
 | Personnel Record Change (form 1110) | `/hr/employee-services/record-change` | `/hr/employee-services/record-change/:requestId` | `/hr/employee-services/record-change/requests` (Change requests) |
 | Transfer Request (ZPI.TCN.FM.01) | `/hr/employee-services/transfer` | `/hr/employee-services/transfer/:transferId` | `/hr/employee-services/transfer/report` (Transfer report) |
-| Performance Appraisal (annual) | `/hr/performance/appraisal` | `/hr/performance/appraisal/:appraisalId` | Report dialog on the page |
+| Performance Appraisal (annual) | `/hr/performance/appraisal` | `/hr/performance/appraisal/:appraisalId` | `/hr/performance/appraisal/report` |
 
 The list paths are matched before the record paths (a record id is digits only).
 

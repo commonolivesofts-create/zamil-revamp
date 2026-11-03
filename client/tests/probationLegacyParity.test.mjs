@@ -570,14 +570,15 @@ test(
 );
 
 test("parity: the records list shows employee number, job title, department, evaluation result, pending-at and the created date", async () => {
-  const page = await readFile(PAGE, "utf8");
+  // The records list is the report page (ProbationReportPage.jsx).
+  const page = await readFile(new URL("ProbationReportPage.jsx", PAGE), "utf8");
   for (const column of [
-    '\\["Emp\\. no\\.", \\(item\\) => item\\.employeeNumber\\]',
-    '\\["Job title", \\(item\\) => item\\.jobTitle\\]',
-    '\\["Department", \\(item\\) => item\\.department\\]',
-    '\\["Evaluation", \\(item\\) => RESULT_TEXT\\[item\\.evaluationResult\\]\\]',
-    '\\["Pending at", \\(item\\) => item\\.pendingAt\\]',
-    "dateColumn=\\{\\['Created', \\(item\\) => item\\.createdAt\\]\\}",
+    "row\\.employeeNumber",
+    "row\\.jobTitle",
+    "key: 'department', label: 'Department', render: \\(row\\) => row\\.department",
+    "RESULT_TEXT\\[row\\.evaluationResult\\]",
+    "key: 'pendingAt', label: 'Pending at', render: \\(row\\) => row\\.pendingAt",
+    "key: 'created', label: 'Created', sort: 'CREATED_AT', render: \\(row\\) => \\(row\\.createdAt",
   ]) {
     assert.match(page, new RegExp(column), column);
   }
