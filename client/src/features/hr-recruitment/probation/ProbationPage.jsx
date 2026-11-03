@@ -5,7 +5,7 @@ import { initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog } from '../shared/components/RecruitmentDialogs.jsx'
-import { PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
+import { Pill, RecruitmentShell, StepHead, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
 import { HrField } from '../shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '../shared/components/EmployeePicker.jsx'
 import {
@@ -20,7 +20,7 @@ const SUBTITLE = 'Performance Appraisal Form (PAF) for Probation Period'
 const service = hrRecruitmentServices.probations
 // formDate is FORM_DATE: the joining date (legacy prf_date), filled from the employee and editable.
 const blank = () => ({ formType: '', formDate: '', fromDate: '', toDate: '', comment: '', comments: '', lines: [] })
-const steps = [['Employee & period', 'Form type, employee and evaluation period'], ['Evaluation criteria', 'Points for each criterion'], ['Comments', 'Comments, suggestion and approval']]
+const STEP_NAMES = ['Employee & period', 'Evaluation criteria', 'Comments']
 const criteriaLines = (criteria) => criteria.map((item) => ({ lineId: null, param: item.param, paramAr: item.paramAr, rating: '' }))
 const STEP_OF = (key) => (key.startsWith('rating:') || key === 'lines' ? 1 : key === 'comment' || key === 'comments' ? 2 : 0)
 
@@ -52,6 +52,8 @@ function ProbationEditor({ lookups, record }) {
   const locked = saved && !isEditable(record.status)
   const total = totalRating(form.lines)
   const result = formResult(form.lines)
+  const rated = form.lines.filter((line) => line.rating !== '').length
+  const doneSteps = [Boolean(employee && form.formType && form.fromDate && form.toDate), form.lines.length > 0 && rated === form.lines.length, Boolean(form.comment && form.comments)]
   const resultPill = result ? <Pill tone={RESULT_TONE[result]}>{RESULT_TEXT[result]}</Pill> : 'Not rated yet'
   const clear = (key) => setErrors((value) => ({ ...value, [key]: '' }))
   const setValue = (key) => (event) => { set(key)(event); clear(key) }
@@ -140,21 +142,21 @@ function ProbationEditor({ lookups, record }) {
         { k: 'Evaluation Result', v: resultPill },
         { k: 'Status', v: <Pill tone="warn">{record?.status || 'Not saved'}</Pill> },
       ]} />}
-      steps={steps} step={step} onStep={setStep} doneSteps={[Boolean(employee && form.formType && form.fromDate && form.toDate), form.lines.length > 0 && form.lines.every((line) => line.rating !== ''), Boolean(form.comment && form.comments)]}
+      steps={STEP_NAMES.map((name, index) => [name, index === 1 && form.lines.length ? `${rated}/${form.lines.length} rated` : doneSteps[index] ? 'Done' : 'To do'])}
+      step={step} onStep={setStep} doneSteps={doneSteps}
       finalLabel="Save" onFinal={save} side={<>
-        <Tilt aria-label="Evaluation overview"><div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">Evaluation overview</span><span className="zrv-hr-mono">{employee?.employeeNumber || 'PAF · DRAFT'}</span></div>
+        <Tilt aria-label="Evaluation overview"><div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{employee?.employeeNumber || 'Draft'}</span></div>
           <div className="zrv-hr-dark__who"><span className="zrv-hr-dark__av">{initials(employee?.name)}</span><div><h3 className="zrv-hr-dark__title">{employee?.name || 'Select Employee'}</h3><div className="zrv-hr-dark__sub">{employee ? employee.position || '—' : 'Employee details appear here'}</div></div></div>
           <div className="zrv-hr-dark__badges"><span>{formTypeLabel(form.formType) || 'Select Form Type'}</span><span>{employee?.departmentName || 'Department'}</span></div>
         </Tilt>
-        <section className="zrv-hr-scorecard zrv-hr-card"><b>{total}</b><span> Total / 100 · {form.lines.length} criteria</span><p>Evaluation Result: {resultPill}</p><p>Not Acceptable: from 0% to 70%. Acceptable: from 71% to 100%.</p></section>
+        <section className="zrv-hr-scorecard zrv-hr-card"><b>{total}</b><span> Total / 100 · {form.lines.length} criteria</span><p>Evaluation Result: {resultPill}</p></section>
       </>}>
-      {step === 0 && <><PanelHead n={1} eyebrow="Employee and period" title="Choose the form type, the employee and the evaluation period." desc="Employee information is loaded from HR records." />
-        <div className="zrv-hr-grid zrv-hr-is-3">
+      {step === 0 && <><StepHead title="Employee & period" />
+        <div className="zrv-hr-grid zrv-hr-is-4">
           <HrField id="pa-type" label="Form Type" required error={errors.formType}><select id="pa-type" className="ux-input zrv-hr-input" value={form.formType} onChange={selectFormType} disabled={saved} aria-invalid={Boolean(errors.formType)}><option value="">Select Form Type</option>{lookups.probation.formTypes.map((item) => <option key={item.code} value={item.code}>{formTypeLabel(item.code)}</option>)}</select></HrField>
-        </div>
-        {saved ? <div className="zrv-hr-mt">{readOnly('pa-emp', 'Employee Name', employee?.name)}</div>
-          : <EmployeePicker id="pa-emp" label="Employee Name" required value={employee} onPick={selectEmployee} error={errors.employee} searchService={searchEmployees} />}
-        <div className="zrv-hr-grid zrv-hr-is-3 zrv-hr-mt">{readOnly('pa-no', 'Employee Number', employee?.employeeNumber)}
+          {saved ? <div className="zrv-hr-mt">{readOnly('pa-emp', 'Employee Name', employee?.name)}</div>
+            : <div className="zrv-hr-field zrv-hr-pa-emp"><EmployeePicker id="pa-emp" label="Employee Name" required value={employee} onPick={selectEmployee} error={errors.employee} searchService={searchEmployees} /></div>}
+          {readOnly('pa-no', 'Employee Number', employee?.employeeNumber)}
           {saved ? readOnly('pa-joining', 'Joining Date', form.formDate)
             : <HrField id="pa-joining" label="Joining Date"><input id="pa-joining" className="ux-input zrv-hr-input" type="date" value={form.formDate} onChange={setValue('formDate')} /></HrField>}
           {readOnly('pa-title', 'Job Title', employee?.position)}{readOnly('pa-grade', 'Job Grade', employee?.grade)}{readOnly('pa-dept', 'Department', employee?.departmentName)}
@@ -163,7 +165,7 @@ function ProbationEditor({ lookups, record }) {
               <HrField id="pa-to" label="Evaluation Period To" required error={errors.toDate}><input id="pa-to" className="ux-input zrv-hr-input" type="date" value={form.toDate} onChange={setValue('toDate')} aria-invalid={Boolean(errors.toDate)} /></HrField></>}
         </div>
       </>}
-      {step === 1 && <><PanelHead n={2} eyebrow="Evaluation criteria" title="Give points to each criterion." desc={`Each criterion is allocated ${ALLOCATED_POINTS} points; ${saved ? 'every criterion needs points from 1 to 5.' : 'points are optional until the first save.'}`} />
+      {step === 1 && <><StepHead title="Evaluation criteria" desc={`Each criterion is allocated ${ALLOCATED_POINTS} points; ${saved ? 'every criterion needs points from 1 to 5.' : 'points are optional until the first save.'}`} />
         {form.lines.length === 0 ? <p className={errors.formType ? 'zrv-auth-field-error' : undefined}>{saved ? 'This evaluation has no criteria.' : criteriaHint}</p>
           : <div className="zrv-hr-criteria" role="list" aria-label="Evaluation Criteria">
             <div className="zrv-hr-criteria__head" aria-hidden="true"><span>#</span><span>Evaluation Criteria · <span lang="ar" dir="rtl">معايير التقييم</span></span><span>Allocated</span><span>Points</span></div>
@@ -178,15 +180,13 @@ function ProbationEditor({ lookups, record }) {
           </div>}
         <p className="zrv-hr-mt">Total: <b>{total}</b> / 100 · Evaluation Result: {resultPill} · Not Acceptable from 0% to 70%, Acceptable from 71% to 100%.</p>
       </>}
-      {step === 2 && <><PanelHead n={3} eyebrow="Comments" title="Comments and suggestion." desc={saved ? 'Comments and Suggestion are required to save.' : 'Comments and Suggestion can be entered after the first save, as in the legacy form.'} />
+      {step === 2 && <><StepHead title="Comments" desc={saved ? 'Comments and Suggestion are required to save.' : 'Comments and Suggestion can be entered after the first save, as in the legacy form.'} />
         <div className="zrv-hr-grid zrv-hr-is-2">
           {readOnly('pa-prepared', 'Prepared & Agreed by', saved ? record.preparedBy : lookups.requestor?.fullName)}
           {readOnly('pa-approved', 'Approved by', approvedBy(record?.status))}
           <HrField id="pa-comment" label="Comments" required={saved} error={errors.comment}><textarea id="pa-comment" className="ux-textarea zrv-hr-input" value={form.comment} onChange={setValue('comment')} readOnly={!saved} maxLength={500} aria-invalid={Boolean(errors.comment)} /></HrField>
           <HrField id="pa-comments" label="Suggestion" required={saved} error={errors.comments}><textarea id="pa-comments" className="ux-textarea zrv-hr-input" value={form.comments} onChange={setValue('comments')} readOnly={!saved} maxLength={500} aria-invalid={Boolean(errors.comments)} /></HrField>
         </div>
-        <div className="zrv-hr-sep" /><p><b>{employee?.name || 'No employee selected'}</b> · {formTypeLabel(form.formType) || 'No form type'} · {form.fromDate || '—'} to {form.toDate || '—'}</p>
-        <p>Total: <b>{total}</b>/100 · Criteria: {form.lines.length} · Evaluation Result: {resultPill}</p>
       </>}
       </RecruitmentShell>
     {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}

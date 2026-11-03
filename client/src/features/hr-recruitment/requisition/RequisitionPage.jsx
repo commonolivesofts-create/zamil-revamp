@@ -16,10 +16,9 @@ import { RecruitmentLoader } from "../shared/components/RecruitmentLoader.jsx";
 import { NewFormDialog } from "../shared/components/RecruitmentDialogs.jsx";
 import {
   Orbit,
-  PanelHead,
   Pill,
   RecruitmentShell,
-  Ticket,
+  StepHead,
   Tilt,
 } from "../shared/components/RecruitmentShell.jsx";
 import { EmployeePicker } from "../shared/components/EmployeePicker.jsx";
@@ -54,7 +53,6 @@ export default function RequisitionPage() {
     <RecruitmentLoader
       current="requisition"
       title={T.title}
-      subtitle={T.subtitle}
       param="requisitionId"
       load={service.getById}
       loadLookups={(signal) => service.getLookups({ signal })}
@@ -221,13 +219,8 @@ function RequisitionEditor({
   const leave = (path) =>
     editor.dirty ? setDialog({ path }) : navigate(path);
 
+  // The primary button saves, so the toolbar has no second Save.
   const tools = [
-    {
-      icon: "save",
-      label: COMMON_TEXT.save,
-      onClick: save,
-      disabled: locked || !canSave || editor.pending,
-    },
     {
       icon: "printer",
       label: COMMON_TEXT.print,
@@ -250,7 +243,7 @@ function RequisitionEditor({
       : []),
     {
       icon: "file-plus",
-      label: COMMON_TEXT.requestForm,
+      label: T.report.newRequisition,
       onClick: () => leave(BASE),
     },
     {
@@ -278,13 +271,29 @@ function RequisitionEditor({
     level: index + 1,
   }));
   const experienceOptions = bands.map((code) => ({ code, name: code }));
+  const steps = T.tabNames.map((name, index) => {
+    if (index === T.tabNames.length - 1)
+      return [
+        name,
+        progress.missing.length
+          ? T.tabHints.open(progress.missing.length)
+          : T.tabHints.ready,
+      ];
+    const checks = progress.checks.filter((check) => check.step === index);
+    return [
+      name,
+      T.tabHints.required(
+        checks.filter((check) => check.ok).length,
+        checks.length,
+      ),
+    ];
+  });
 
   return (
     <>
       <RecruitmentShell
         current="requisition"
         title={T.title}
-        subtitle={T.subtitle}
         flowStatus={
           record
             ? [record.requisitionNumber, statusLabel]
@@ -305,38 +314,7 @@ function RequisitionEditor({
         locked={locked}
         pending={editor.pending}
         focusError={editor.focusError}
-        ticket={
-          <Ticket
-            avatar="ZP"
-            code={T.code}
-            items={[
-              {
-                k: T.ticket.number,
-                v: record?.requisitionNumber || T.ticket.numberPending,
-              },
-              {
-                k: T.ticket.requester,
-                v:
-                  record?.requesterName ||
-                  loggedInName ||
-                  T.ticket.requesterPending,
-                big: true,
-              },
-              {
-                k: T.ticket.requestDate,
-                v: form.requestDate
-                  ? enDate(form.requestDate).replace(/ /g, "-")
-                  : COMMON_TEXT.dash,
-              },
-              { k: T.ticket.status, v: statusLabel },
-              {
-                k: T.ticket.ticketStatus,
-                v: <Pill tone={locked ? "warn" : "ok"}>{ticketStatus}</Pill>,
-              },
-            ]}
-          />
-        }
-        steps={T.steps}
+        steps={steps}
         step={step}
         onStep={setStep}
         doneSteps={progress.doneSteps}
@@ -346,8 +324,10 @@ function RequisitionEditor({
           <>
             <Tilt aria-label={T.card.label}>
               <div className="zrv-hr-dark__top">
-                <span className="zrv-hr-eyebrow">{T.card.eyebrow}</span>
-                <span className="zrv-hr-mono">{T.card.brand}</span>
+                <span className="zrv-hr-mono">
+                  {record?.requisitionNumber || T.card.numberPending}
+                </span>
+                <span className="zrv-hr-dark__status">{statusLabel}</span>
               </div>
               <h3
                 className={`zrv-hr-dark__title${form.jobTitle.trim() ? "" : " zrv-hr-is-empty"}`}
@@ -380,7 +360,7 @@ function RequisitionEditor({
                       {T.card.replacementFor(form.replacementFor.trim())}
                     </span>
                   )}
-                {!form.reason && !form.budgeted && <span>{T.card.draft}</span>}
+                {record && <span>{T.ticket.status(ticketStatus)}</span>}
               </div>
               <div className="zrv-hr-dark__grid">
                 <div>
@@ -428,8 +408,8 @@ function RequisitionEditor({
       >
         {step === 0 && (
           <>
-            <PanelHead n={1} {...T.heads[0]} />
-            <div className="zrv-hr-grid">
+            <StepHead {...T.heads[0]} />
+            <div className="zrv-hr-grid zrv-hr-is-4">
               <HrField id="rq-requester" label={T.labels.requester}>
                 <input
                   id="rq-requester"
@@ -546,8 +526,9 @@ function RequisitionEditor({
 
         {step === 1 && (
           <>
-            <PanelHead n={2} {...T.heads[1]} />
+            <StepHead {...T.heads[1]} />
             <ChoiceCards
+              compact
               label={T.labels.reason}
               value={form.reason}
               onChange={(reason) =>
@@ -678,7 +659,7 @@ function RequisitionEditor({
 
         {step === 2 && (
           <>
-            <PanelHead n={3} {...T.heads[2]} />
+            <StepHead {...T.heads[2]} />
             <MultiTiles
               label={T.labels.education}
               options={educationOptions}
@@ -748,12 +729,11 @@ function RequisitionEditor({
 
         {step === 3 && (
           <>
-            <PanelHead n={4} {...T.heads[3]} />
+            <StepHead {...T.heads[3]} />
             {canSave && lookups.capabilities?.canManageTicket && (
               <HrField
                 id="rq-ticket-status"
                 label={T.labels.ticketStatus}
-                hint={T.hints.ticketStatus}
               >
                 <LookupSelect
                   id="rq-ticket-status"
