@@ -936,7 +936,6 @@ describe('RBAC catalogue registration CLI', () => {
     });
   });
 
-
   describe('WORKFLOW_MANAGER module-scoped registration', () => {
     function withUnrelatedHrConflict() {
       const data = seedSecurityCatalog();
