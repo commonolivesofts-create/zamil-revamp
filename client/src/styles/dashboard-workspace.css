@@ -3303,6 +3303,8 @@ html:not(.dark) .zrv-ws .scroll-indicator {
   min-height: 298px;
 }
 .zrv-ws .employee-spotlight {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
   gap: 14px;
@@ -3310,6 +3312,8 @@ html:not(.dark) .zrv-ws .scroll-indicator {
 }
 .zrv-ws .employee-spotlight-person,
 .zrv-ws .employee-spotlight-reason {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 24px;
@@ -3317,6 +3321,8 @@ html:not(.dark) .zrv-ws .scroll-indicator {
   padding: 24px;
 }
 .zrv-ws .employee-spotlight-person {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -3326,7 +3332,86 @@ html:not(.dark) .zrv-ws .scroll-indicator {
   width: 106px;
   height: 106px;
   position: relative;
+  z-index: 1;
   margin-bottom: 18px;
+}
+.zrv-ws .employee-spotlight-congrats {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid rgba(198, 146, 42, 0.28);
+  border-radius: 999px;
+  color: #795616;
+  background: linear-gradient(135deg, #fff8e4, #fffdf5);
+  box-shadow: 0 4px 14px rgba(119, 83, 19, 0.1);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.015em;
+}
+.zrv-ws .employee-spotlight-congrats svg {
+  color: #ba8521;
+}
+.zrv-ws .employee-spotlight-photo-wrap::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -11px;
+  border: 1px solid rgba(224, 180, 77, 0.65);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgba(224, 180, 77, 0.09), 0 0 22px rgba(224, 180, 77, 0.3);
+  opacity: 0;
+}
+.zrv-ws .employee-spotlight.is-visible .employee-spotlight-photo-wrap::before {
+  animation: employee-congrats-halo 2.4s ease-in-out infinite;
+}
+.zrv-ws .employee-spotlight-celebration {
+  position: absolute;
+  z-index: 3;
+  inset: -17px;
+  pointer-events: none;
+}
+.zrv-ws .employee-spotlight-celebration i {
+  --spark-delay: 0s;
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffd76b;
+  box-shadow: 0 0 8px 2px rgba(255, 211, 99, 0.9);
+  opacity: 0;
+}
+.zrv-ws .employee-spotlight-celebration i:nth-child(1) { left: 2%; top: 35%; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(2) { left: 14%; top: 10%; background: #fff4cb; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(3) { left: 45%; top: 0; background: #93d49a; box-shadow: 0 0 8px 2px rgba(114, 215, 134, 0.8); }
+.zrv-ws .employee-spotlight-celebration i:nth-child(4) { right: 12%; top: 12%; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(5) { right: 0; top: 49%; background: #93d49a; box-shadow: 0 0 8px 2px rgba(114, 215, 134, 0.8); }
+.zrv-ws .employee-spotlight-celebration i:nth-child(6) { right: 15%; bottom: 8%; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(7) { left: 44%; bottom: 0; background: #fff4cb; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(8) { left: 5%; bottom: 12%; background: #93d49a; box-shadow: 0 0 8px 2px rgba(114, 215, 134, 0.8); }
+.zrv-ws .employee-spotlight.is-visible .employee-spotlight-celebration i {
+  animation: employee-congrats-sparkle 2.2s ease-in-out infinite;
+  animation-delay: var(--spark-delay);
+}
+.zrv-ws .employee-spotlight-celebration i:nth-child(2) { --spark-delay: 0.28s; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(3) { --spark-delay: 0.56s; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(4) { --spark-delay: 0.84s; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(5) { --spark-delay: 1.12s; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(6) { --spark-delay: 1.4s; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(7) { --spark-delay: 1.68s; }
+.zrv-ws .employee-spotlight-celebration i:nth-child(8) { --spark-delay: 1.96s; }
+@keyframes employee-congrats-halo {
+  0%, 100% { opacity: 0.3; transform: scale(0.96); }
+  50% { opacity: 0.95; transform: scale(1.06); }
+}
+@keyframes employee-congrats-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.35); }
+  28% { opacity: 1; transform: scale(1.15); }
+  68% { opacity: 0.78; transform: translateY(-5px) scale(0.8); }
 }
 .zrv-ws .employee-spotlight-photo {
   width: 100%;
@@ -3470,6 +3555,36 @@ html:not(.dark) .zrv-ws .scroll-indicator {
   font-size: 13px;
   text-align: center;
 }
+.zrv-ws .employee-spotlight-fireworks {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 24px;
+  pointer-events: none;
+}
+html:not(.dark) .zrv-ws .employee-spotlight-congrats {
+  border-color: rgba(155, 104, 18, 0.48);
+  color: #63430b;
+  background: linear-gradient(135deg, #fff1c8, #fffaf0);
+  box-shadow: 0 4px 15px rgba(115, 77, 12, 0.17);
+}
+html:not(.dark) .zrv-ws .employee-spotlight-congrats svg { color: #93600a; }
+html:not(.dark) .zrv-ws .employee-spotlight-photo-wrap::before {
+  border-color: rgba(174, 116, 14, 0.82);
+  box-shadow: 0 0 0 5px rgba(203, 144, 33, 0.15), 0 0 24px rgba(180, 116, 11, 0.42);
+}
+html:not(.dark) .zrv-ws .employee-spotlight-celebration i {
+  filter: drop-shadow(0 0 2px rgba(100, 63, 6, 0.75)) drop-shadow(0 0 7px rgba(183, 120, 13, 0.7));
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-ws .employee-spotlight-photo-wrap::before,
+  .zrv-ws .employee-spotlight-celebration i { animation: none !important; }
+}
+html[data-motion="reduced"] .zrv-ws .employee-spotlight-photo-wrap::before,
+html[data-motion="reduced"] .zrv-ws .employee-spotlight-celebration i { animation: none !important; }
 .zrv-ws .habit-feature {
   position: relative;
   min-height: 302px;

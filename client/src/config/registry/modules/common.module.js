@@ -9,6 +9,7 @@ export default defineModule({
   rbac: false,
   navigation: [
     { id: 'dashboard', path: '/dashboard', title: 'Dashboard', icon: 'layout-dashboard', group: 'workspace', order: 10 },
+    { id: 'pending-worklist', path: '/worklist/pending', title: 'Pending Worklist', icon: 'list-checks', group: 'workspace', order: 20 },
     { id: 'account-password', path: '/account/password', title: 'Password', icon: 'key-round', group: 'account', subgroup: 'account-settings', order: 10 },
     { id: 'account-authenticator', path: '/account/authenticator', title: 'Authenticator app', icon: 'smartphone', group: 'account', subgroup: 'account-settings', order: 20 },
   ],

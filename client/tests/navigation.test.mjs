@@ -97,6 +97,7 @@ test("only pages backed by a working backend contract are implemented; no placeh
       // HR onboarding pages are switched off here (VITE_FEATURE_HR_RECRUITMENT
       // unset in a non-development build); every state: hrOnboarding.test.mjs.
       "/dashboard",
+      "/worklist/pending",
       "/hr/recruitment/requisition",
       "/hr/recruitment/requisition/:requisitionId",
       "/hr/recruitment/interview",
@@ -282,7 +283,7 @@ test("sidebar: current production navigation for administrators, employees and e
     const sections = authorizedNavigation(access);
     assert.deepEqual(
       ids(sections),
-      ["dashboard", "account-password", "account-authenticator"],
+      ["dashboard", "pending-worklist", "account-password", "account-authenticator"],
       access.status,
     );
     assert.ok(
@@ -301,6 +302,7 @@ test("sidebar: current production navigation for administrators, employees and e
   );
   assert.deepEqual(ids(authorizedNavigation(ADMIN)), [
     "dashboard",
+    "pending-worklist",
     "user-accounts",
     "roles",
     "user-roles",
@@ -568,18 +570,10 @@ test("the workspace dashboard uses real identity data and labels its demo conten
   assert.match(avatar, /profileAvatarUrl\(profile\)/);
   assert.match(avatar, /onError=\{markFailed\}/);
   assert.match(avatar, /initialsOf\(displayName\(profile\)\)/);
-  assert.match(home, /AUTHORIZED PAGES/);
-  assert.match(home, /onOpenPage\(page\)/);
-  assert.match(home, /page\.sectionLabel/);
-  assert.match(home, /page\.type === "external"/);
-  assert.equal(home.includes("Your access, in reach"), true);
-  assert.equal(
-    /HOME_STARTERS|rankPages|useDashboardUsage/.test(home + dashboard),
-    false,
-  );
-  assert.equal(/onPreviewModule|onOpenFinder/.test(home), false);
-  assert.match(home, /Demo workflow/i);
-  assert.match(home, /Illustrative workflow pulse|Demo activity/);
+  assert.match(home, /Pending Worklist/);
+  assert.match(home, /Employee of the month/);
+  assert.match(home, /<EmployeeSpotlightFireworks\s*\/>/);
+  assert.match(home, /Congratulations!/);
   assert.match(model, /isPreview/);
   assert.equal(
     /CREDIT_|HR_FORM_DEFS|ANALYTICS_|APPROVAL_|ACTIVITY_ITEMS|searchWorkspace|rankPages/.test(

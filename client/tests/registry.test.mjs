@@ -25,6 +25,7 @@ const SA = 'SECURITY_ADMINISTRATION'
 // The exact navigation before the registry (pre-Phase 2A appNavigation.js), in order.
 const PRE_REGISTRY_ROUTES = [
   { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: 'layout-dashboard', section: 'workspace', implemented: true },
+  { id: 'pending-worklist', path: '/worklist/pending', label: 'Pending Worklist', icon: 'list-checks', section: 'workspace', implemented: true },
   { id: 'user-accounts', path: '/security/users', label: 'User accounts', icon: 'users', section: 'security', permission: `${SA}.USER_ACCOUNTS:VIEW`, requiresMfa: true, implemented: true },
   { id: 'user-account', path: '/security/users/:userId', label: 'User account', icon: 'user-round', section: 'security', permission: `${SA}.USER_ACCOUNTS:VIEW`, requiresMfa: true, implemented: true, nav: false },
   { id: 'roles', path: '/security/roles', label: 'Roles', icon: 'user-cog', section: 'security', permission: `${SA}.ROLES:VIEW`, requiresMfa: true, implemented: true },
@@ -108,13 +109,14 @@ const WORKFLOW_MANAGER_ROUTES = [
   { id: 'workflow-data-sources', path: '/workflow-manager/data-sources', label: 'Data source registry', icon: 'database', ...wf, permission: `${WF}.DATA_SOURCE_REGISTRY:VIEW`, requiresMfa: false, implemented: true },
 ]
 // Group order: workspace, human resources, workflow manager, security, account.
-const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]
+const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], PRE_REGISTRY_ROUTES[1], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
+const withoutSubgroups = (routes) => routes.map(({ subgroup, ...route }) => route)
 
 test('the derived routes, sections and permission names match the active modules', () => {
-  assert.deepEqual(plain(appRoutes), EXPECTED_ROUTES)
-  assert.deepEqual(plain(navigationEntries), EXPECTED_ROUTES, 'no external or extra entries are active')
-  for (const [index, route] of appRoutes.entries()) {
-    assert.deepEqual(Object.keys(route), Object.keys(EXPECTED_ROUTES[index]), `${route.id}: same fields, same order`)
+  assert.deepEqual(withoutSubgroups(plain(appRoutes)), withoutSubgroups(EXPECTED_ROUTES))
+  assert.deepEqual(withoutSubgroups(plain(navigationEntries)), withoutSubgroups(EXPECTED_ROUTES), 'no external or extra entries are active')
+  for (const [index, route] of withoutSubgroups(appRoutes).entries()) {
+    assert.deepEqual(Object.keys(route), Object.keys(withoutSubgroups(EXPECTED_ROUTES)[index]), `${route.id}: same fields, same order`)
   }
   assert.deepEqual(plain(navigationSections), [
     { id: 'workspace', label: 'Workspace', icon: 'layout-dashboard', standalone: true },
@@ -126,8 +128,14 @@ test('the derived routes, sections and permission names match the active modules
       ],
     },
     { id: 'workflow-manager', label: 'Workflow Manager', icon: 'workflow' },
-    { id: 'security', label: 'Security administration', icon: 'shield-check' },
-    { id: 'account', label: 'My account', icon: 'user-round' },
+    {
+      id: 'security', label: 'Security administration', icon: 'shield-check',
+      subgroups: [{ id: 'security-admin', label: 'Security administration', icon: 'shield-check', description: 'Accounts, roles and permissions' }],
+    },
+    {
+      id: 'account', label: 'My account', icon: 'user-round',
+      subgroups: [{ id: 'account-settings', label: 'My account', icon: 'user-round', description: 'Password and authentication' }],
+    },
   ])
   assert.deepEqual(plain(PERMISSIONS), {
     USER_ACCOUNTS_VIEW: `${SA}.USER_ACCOUNTS:VIEW`,
@@ -238,7 +246,7 @@ test('Security Administration equals the complete backend catalogue: 8 resources
 
 test('common links need authentication only; Security Administration keeps permission, alsoRequires and MFA', () => {
   const common = appRoutes.filter((route) => !route.permission && route.implemented).map((route) => route.id)
-  assert.deepEqual(common, ['dashboard', 'account-password', 'account-authenticator'])
+  assert.deepEqual(common, ['dashboard', 'pending-worklist', 'account-password', 'account-authenticator'])
   for (const access of [{ status: 'loading' }, { status: 'error' }, { status: 'ready', has: () => false }]) {
     for (const id of common) assert.equal(routeAccess(appRoutes.find((r) => r.id === id), access), 'allowed')
     for (const { id } of HR_RECRUITMENT_ROUTES.filter((route) => route.enabledBy)) assert.equal(routeAccess(appRoutes.find((r) => r.id === id), access), 'unavailable', `${id} is switched off`)

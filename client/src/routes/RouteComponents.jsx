@@ -11,6 +11,7 @@ import useAuth from '@/features/auth/useAuth.js'
 export const AdminLayout = lazy(() => import('@/layouts/AdminLayout.jsx'))
 export const AuthLayout = lazy(() => import('@/layouts/AuthLayout.jsx'))
 export const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage.jsx'))
+export const PendingWorklistPage = lazy(() => import('@/features/worklist/PendingWorklistPage.jsx'))
 export const DemoPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.DemoUnconvertedPage })))
 export const LoginPage = lazy(() => import('@/pages/auth/LoginPage.jsx'))
 export const ForgotPage = lazy(() => import('@/pages/auth/ForgotPasswordPage.jsx'))

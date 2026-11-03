@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
 import { BOOK_PAGES } from "@/features/dashboard/dashboardExperience.js";
@@ -120,23 +120,23 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
   const [flip, setFlip] = useState(null);
   const [announcement, setAnnouncement] = useState("");
   const [favorites, setFavorites] = useState(readFavorites);
+  const [hasSavedFavorites, setHasSavedFavorites] = useState(() => window.localStorage.getItem(FAVORITES_KEY) !== null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const availableHrPages = hrPages.filter((page) => page.path && !page.external);
-  const selectedHrPages = favorites.map((id) => availableHrPages.find((page) => page.id === id)).filter(Boolean);
-  const hrPage = { ...BOOK_PAGES[0], body: { kind: "people", rows: selectedHrPages } };
-  const pages = BOOK_PAGES.map((page) => page.id === "people" ? hrPage : page);
-  useEffect(() => {
-    if (favorites.length) return;
-    const initial = availableHrPages.slice(0, 6).map((page) => page.id);
-    if (!initial.length) return;
-    setFavorites(initial);
-    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(initial));
-  }, [availableHrPages, favorites.length]);
+  const availableHrPages = useMemo(() => hrPages.filter((page) => page.path && !page.external), [hrPages]);
+  const initialFavorites = useMemo(() => availableHrPages.slice(0, 6).map((page) => page.id), [availableHrPages]);
+  const effectiveFavorites = hasSavedFavorites ? favorites : initialFavorites;
+  const selectedHrPages = useMemo(
+    () => effectiveFavorites.map((id) => availableHrPages.find((page) => page.id === id)).filter(Boolean),
+    [availableHrPages, effectiveFavorites],
+  );
+  const hrPage = useMemo(() => ({ ...BOOK_PAGES[0], body: { kind: "people", rows: selectedHrPages } }), [selectedHrPages]);
+  const pages = useMemo(() => BOOK_PAGES.map((page) => page.id === "people" ? hrPage : page), [hrPage]);
   const toggleFavorite = (page) => {
-    const next = favorites.includes(page.id)
-      ? favorites.filter((id) => id !== page.id)
-      : favorites.length < 6 ? [...favorites, page.id] : favorites;
+    const next = effectiveFavorites.includes(page.id)
+      ? effectiveFavorites.filter((id) => id !== page.id)
+      : effectiveFavorites.length < 6 ? [...effectiveFavorites, page.id] : effectiveFavorites;
     setFavorites(next);
+    setHasSavedFavorites(true);
     window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
   };
   const visualRef = useRef(null);
@@ -383,9 +383,9 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
       {pickerOpen && createPortal(<div className="folio-picker-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPickerOpen(false); }}>
         <section className="folio-picker" role="dialog" aria-modal="true" aria-labelledby="folio-picker-title">
           <header><div><span className="folio-picker-kicker">PERSONAL SHORTCUTS</span><h2 id="folio-picker-title">Choose your six HR forms</h2><p>Pick up to six forms to keep on your Folio page.</p></div><button type="button" aria-label="Close" onClick={() => setPickerOpen(false)}>×</button></header>
-          <div className="folio-picker-list">{availableHrPages.map((page) => <label key={page.id} className="folio-picker-option"><input type="checkbox" checked={favorites.includes(page.id)} disabled={!favorites.includes(page.id) && favorites.length >= 6} onChange={() => toggleFavorite(page)} /><OrvexaIcon name={page.icon || "file-text"} /><span>{page.label}</span><small>{page.group}</small></label>)}</div>
+          <div className="folio-picker-list">{availableHrPages.map((page) => <label key={page.id} className="folio-picker-option"><input type="checkbox" checked={effectiveFavorites.includes(page.id)} disabled={!effectiveFavorites.includes(page.id) && effectiveFavorites.length >= 6} onChange={() => toggleFavorite(page)} /><OrvexaIcon name={page.icon || "file-text"} /><span>{page.label}</span><small>{page.group}</small></label>)}</div>
           {!availableHrPages.length && <p className="folio-picker-empty">No HR forms are currently available to your account.</p>}
-          <footer><span>{favorites.filter((id) => availableHrPages.some((page) => page.id === id)).length} of 6 selected</span><button type="button" onClick={() => setPickerOpen(false)}>Done</button></footer>
+          <footer><span>{effectiveFavorites.filter((id) => availableHrPages.some((page) => page.id === id)).length} of 6 selected</span><button type="button" onClick={() => setPickerOpen(false)}>Done</button></footer>
         </section>
       </div>, document.body)}
     </aside>
