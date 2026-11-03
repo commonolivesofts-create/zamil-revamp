@@ -8,6 +8,7 @@ import {
   AdminLayout,
   AuthLayout,
   DashboardPage,
+  PendingWorklistPage,
   DemoPage,
   LoginPage,
   ForgotPage,
@@ -123,6 +124,7 @@ export const router = createBrowserRouter([
                 element: <AppRouteAccess />,
                 children: implementedOnly([
                   { path: 'dashboard', handle: { routeId: 'dashboard' }, element: <DashboardPage /> },
+                  { path: 'worklist/pending', handle: { routeId: 'pending-worklist' }, element: <PendingWorklistPage /> },
                   { path: 'account/authenticator', handle: { routeId: 'account-authenticator' }, element: <MfaReplacementPage /> },
                   { path: 'account/password', handle: { routeId: 'account-password' }, element: <ChangePasswordPage /> },
                   { path: 'security/users', handle: { routeId: 'user-accounts' }, element: <UserAccountsPage /> },
