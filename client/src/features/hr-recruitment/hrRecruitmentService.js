@@ -1465,6 +1465,7 @@ export function createProbationService({ client }) {
       toDate: fromLegacyDate(data.toDate),
       comment: textValue(data.comment),
       comments: textValue(data.comments),
+      preparedBy: textValue(data.preparedBy),
       totalRating: Number(data.totalRating ?? 0),
       lines: Object.freeze(
         data.lines.map((line) =>
@@ -1529,6 +1530,25 @@ export function createProbationService({ client }) {
         }),
         requestor: requestor.data ?? null,
       });
+    },
+    // The criteria of a form type, in order (legacy showDropInfo); empty when not available.
+    async criteria(formType, { signal } = {}) {
+      const { data } = await client.get(`${PROBATION_BASE}/lookups/criteria`, {
+        params: { formType },
+        signal,
+      });
+      if (!Array.isArray(data?.criteria))
+        throw new ApiError("The server returned unexpected criteria.", {
+          code: "INVALID_RESPONSE",
+        });
+      return Object.freeze(
+        data.criteria.map((item) =>
+          Object.freeze({
+            param: textValue(item?.param),
+            paramAr: textValue(item?.paramAr),
+          }),
+        ),
+      );
     },
     async employeeDetails(name, { signal } = {}) {
       const { data } = await client.get(
@@ -1598,31 +1618,30 @@ export function createProbationService({ client }) {
       });
     },
     getById,
+    // Only what the legacy forms save. A new evaluation: form type, employee, joining date (omitted
+    // when blank), period and the ratings by criterion position (blank omitted, stored as 0); the
+    // server adds the criteria, the employee details and the total. A saved one: Comments,
+    // Suggestion and each line's rating.
     async save(id, body) {
-      const payload = {
-        // The joining date is optional; a blank one is omitted (the server stores the legacy blank).
-        ...(body.formDate ? { formDate: body.formDate } : {}),
-        evaluationPeriod: body.evaluationPeriod,
-        formType: body.formType,
-        employeeName: body.employee.name,
-        employeeNumber: body.employee.employeeNumber,
-        empId: body.employee.employeeId,
-        grade: Number(body.employee.grade) || 0,
-        jobTitle: body.employee.position,
-        department: body.employee.departmentName,
-        fromDate: body.fromDate,
-        toDate: body.toDate,
-        comment: body.comment,
-        comments: body.comments,
-        // No total: the server computes TOTAL_RATING and the result from the ratings.
-        // The backend accepts only 1–5 and stores an omitted rating as 0 (not rated).
-        lines: body.lines.map((line) => ({
-          ...(id ? { lineId: line.lineId } : {}),
-          param: line.param,
-          paramAr: line.paramAr || "",
-          ...(Number(line.rating) ? { rating: Number(line.rating) } : {}),
-        })),
-      };
+      const payload = id
+        ? {
+            comment: body.comment,
+            comments: body.comments,
+            lines: body.lines.map((line) => ({
+              lineId: line.lineId,
+              rating: Number(line.rating),
+            })),
+          }
+        : {
+            formType: body.formType,
+            employeeNumber: body.employee.employeeNumber,
+            ...(body.formDate ? { formDate: body.formDate } : {}),
+            fromDate: body.fromDate,
+            toDate: body.toDate,
+            lines: body.lines.map((line) =>
+              Number(line.rating) ? { rating: Number(line.rating) } : {},
+            ),
+          };
       const result = id
         ? await client.put(`${PROBATION_BASE}/${segment(id)}`, payload)
         : await client.post(PROBATION_BASE, payload);
