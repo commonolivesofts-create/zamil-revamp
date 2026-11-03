@@ -115,23 +115,28 @@ The bilingual package rows map to the single `line` object. The status is always
 
 ### Probation Evaluation (1064)
 
+The page follows the legacy CI3 form (`docs/testing/probation-legacy-comparison.md`): `probation.php` to create an evaluation, `prf_uplines.php` to edit a saved one.
+
 **Lookups** (`GET /hr/probation-evaluations/lookups/…`):
-- `form-types` and `employees` (the caller's hierarchy).
-- `requestor` and `employee-details?empName=`.
+- `form-types`, and `criteria?formType=` (the 20 criteria of a type, English and Arabic).
+- `employees` (the caller's hierarchy) and `employee-details?empName=` (hierarchy only, else 403).
+- `requestor` ("Prepared & Agreed by").
 
-**Records:**
-- `GET /` and `GET /:id`.
-- `POST /` and `PUT /:id`: Draft only. The update records `UPDATED_BY` and `UPDATED_AT`. Header and line IDs come from Oracle identity columns.
-- `DELETE /:id`: Draft only.
+**Create** (`POST /`): the form type, the employee, the joining date, Evaluation Period From / To, and optional points.
+- Choosing a form type loads its criteria (legacy `showDropInfo`). The user only gives points (1–5, or blank, stored as 0).
+- The payload sends the ratings by position. The server writes the criterion texts, the employee details from the master and the total.
+- The joining date (`formDate`, legacy `prf_date`) is filled from the employee and can be edited; a blank one is omitted.
+- Comments and Suggestion are read only until the first save. Job Grade is shown but never filled (legacy stores 0).
 
-An unrated criterion is omitted from the payload, and the backend stores it as 0. A stored 0 is shown as "Not rated".
+**Edit** (`PUT /:id`): Comments, Suggestion and every criterion's points are required, and they are all that is saved.
+- The other header fields are shown read only. The status is kept.
+- Draft and Rejected records can be edited; Inprocess and Approved are read only (409).
 
-**Legacy rules** (see `docs/testing/probation-legacy-comparison.md`):
-- `formDate` (FORM_DATE) is the employee's **joining date**, as in the legacy form. It is read-only, filled from `employee-details`, optional, and omitted from the payload when blank. The ticket and the Records list show the record's **created** date.
-- **Evaluation:** Acceptable when the total rating is 71 or more, Not acceptable at 70 or below (`probationRules.js`; the list takes the server's `evaluationResult`).
-- **Records** columns: employee number, job title, department, evaluation, pending-at (null from the API until the approval workflow exists) and the created date.
-- **Total:** the page shows a live preview; the payload carries no total. The server computes `TOTAL_RATING` and the result from the ratings and discards any client value.
-- `validateForSubmit` (Comments, Suggestion and a 1–5 rating on every criterion) is ready for the workflow. It is not wired yet, and draft saves stay lenient.
+**Display:**
+- Evaluation Result: Acceptable at 71 or more, Not Acceptable at 70 or below.
+- "Approved by" shows HR SUPERVISOR once approved.
+- Report columns: Emp. #, Name, Job Title, Department, Total Rating, Evaluation, Status, Date and Pending At. Pending At is the open CI3 workflow step.
+- `DELETE /:id` (Draft only) exists in the API, but the page has no Delete button, as legacy.
 
 ## Record access and status rules (backend)
 
@@ -140,7 +145,7 @@ An unrated criterion is omitted from the payload, and the backend stores it as 0
 - an HR user (the `XXZP_HR` lookup, which also widens the lists); or
 - a user in the employee's department (`XX_DIGI_EMP_MASTER.ORGANIZATION_ID`) who holds the resource's `VIEW` permission.
 
-Anyone else gets 403 `FORBIDDEN`. Changing a non-draft record returns 409 (`ORIENTATION_TRAINING_NOT_DRAFT` / `PROBATION_EVALUATION_NOT_DRAFT`).
+Anyone else gets 403 `FORBIDDEN`. Changing a non-draft record returns 409 (`ORIENTATION_TRAINING_NOT_DRAFT` / `PROBATION_EVALUATION_NOT_DRAFT`); a Rejected probation evaluation can still be edited.
 
 **Requisitions:** records outside the caller's scope return 404. Non-HR users cannot change `Inprocess` or `Approved` records (409).
 
