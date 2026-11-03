@@ -88,6 +88,7 @@ export function readRewardListItem(item) {
     employeePosition: text(item.employeePosition),
     activityDate: isoDate(item.activityDate),
     overallRating: REWARD_RATING_CODES.includes(item.overallRating) ? item.overallRating : '',
+    remark: text(item.remark),
     ratings: Object.freeze(Object.fromEntries(REWARD_RATING_CODES.map((code) => [code, Number(ratings[code]) || 0]))),
     status: normalizeStatus(item.status),
     requestor: text(item.requestor),

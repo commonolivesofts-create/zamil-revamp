@@ -72,7 +72,7 @@ function ExternalSidebarLink({ item, onNavigate }) {
   )
 }
 
-function CollapsibleSection({ section, isOpen, isActive, onToggle, children }) {
+function CollapsibleSection({ section, isOpen, panelOpen = isOpen, isActive, onToggle, children }) {
   return (
     <section
       className={`sidebar-domain ${isActive ? 'is-active' : ''} ${isOpen ? 'is-open' : ''}`.trim()}
@@ -84,13 +84,13 @@ function CollapsibleSection({ section, isOpen, isActive, onToggle, children }) {
         aria-label={section.label}
         aria-expanded={isOpen}
         aria-controls={`sidebar-panel-${section.id}`}
-        onClick={onToggle}
+        onClick={(event) => onToggle(event.currentTarget)}
       >
         <span className="sidebar-domain-icon"><OrvexaIcon name={section.icon || 'circle'} /></span>
         <span className="sidebar-domain-label">{section.label}</span>
         <OrvexaIcon name="chevron-down" className="sidebar-domain-chevron" />
       </button>
-      <div id={`sidebar-panel-${section.id}`} className="sidebar-domain-panel" hidden={!isOpen}>
+      <div id={`sidebar-panel-${section.id}`} className="sidebar-domain-panel" hidden={!panelOpen}>
         {children}
       </div>
     </section>
@@ -223,9 +223,21 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
               <CollapsibleSection
                 key={section.id}
                 section={section}
-                isOpen={openDomain === section.id}
+                isOpen={section.id === 'security'
+                  ? flyout?.subgroupId === 'security-admin'
+                  : section.id === 'account'
+                    ? flyout?.subgroupId === 'account-settings'
+                    : openDomain === section.id}
+                panelOpen={!['security', 'account'].includes(section.id) && openDomain === section.id}
                 isActive={activeDomain === section.id}
-                onToggle={() => toggleDomain(section.id)}
+                onToggle={(anchor) => {
+                  if (section.id === 'security' || section.id === 'account') {
+                    const subgroupId = section.id === 'security' ? 'security-admin' : 'account-settings'
+                    openFlyout(flyout?.subgroupId === subgroupId ? null : { subgroupId, anchor })
+                    return
+                  }
+                  toggleDomain(section.id)
+                }}
               >
                 <SectionItems section={section} currentRoute={currentRoute} flyout={flyout} onFlyout={openFlyout} onNavigate={navigate} />
               </CollapsibleSection>
