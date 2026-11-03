@@ -50,6 +50,8 @@ export const APPROVED_TARGETS = Object.freeze({
 export const SOURCE = 'REGISTRY_SYNC';
 export const USER_AGENT = 'zr-rbac-register';
 export const SECURITY_MODULE_CODE = SECURITY_MODULE.code;
+// Only the Workflow Manager may use the new scoped catalogue registration path.
+export const APPROVED_MODULE_SCOPE = 'WORKFLOW_MANAGER';
 
 // Constraints the comparison and the inserts rely on; each must exist, be ENABLED and VALIDATED.
 export const REQUIRED_CONSTRAINTS = Object.freeze([
@@ -121,7 +123,7 @@ const rowsOf = async (connection, sql, binds = {}) =>
 
 const FINGERPRINT = /^[0-9a-f]{64}$/;
 
-/** `--target=<NAME>` (required), `--apply`, `--fingerprint=<sha256>` (apply only). */
+/** `--target=<NAME>` (required), optional `--module=WORKFLOW_MANAGER`, `--apply`, `--fingerprint=<sha256>`. */
 export function parseArgs(argv, targets = APPROVED_TARGETS) {
   const options = { target: null, apply: false, fingerprint: null };
   for (const argument of argv) {
@@ -133,6 +135,18 @@ export function parseArgs(argv, targets = APPROVED_TARGETS) {
       options.target === null
     ) {
       options.target = value;
+    } else if (
+      flag === '--module' &&
+      value !== undefined &&
+      extra === undefined &&
+      !Object.hasOwn(options, 'module')
+    ) {
+      if (value !== APPROVED_MODULE_SCOPE) {
+        throw new RegistrationRefused(
+          `Only --module=${APPROVED_MODULE_SCOPE} is approved for scoped registration.`,
+        );
+      }
+      options.module = value;
     } else if (argument === '--apply' && !options.apply) {
       options.apply = true;
     } else if (
@@ -144,7 +158,7 @@ export function parseArgs(argv, targets = APPROVED_TARGETS) {
       options.fingerprint = value.toLowerCase();
     } else {
       throw new RegistrationRefused(
-        'Unknown or repeated argument. Accepted: --target=<TARGET>, --apply, --fingerprint=<sha256>.',
+        'Unknown or repeated argument. Accepted: --target=<TARGET>, --module=WORKFLOW_MANAGER (optional), --apply, --fingerprint=<sha256>.',
       );
     }
   }
@@ -306,6 +320,28 @@ export async function readCatalog(connection) {
       actionCode,
       isActive: Number(isActive) === 1,
     }),
+  );
+  return { modules, resources, permissions };
+}
+
+/**
+ * Ignore unrelated business modules during a Workflow Manager scoped registration while
+ * retaining the protected Security Administration catalogue as a verify-only prerequisite.
+ * This affects both preview and the recheck under the write lock, never the full read itself.
+ */
+export function scopeCatalog(catalog, moduleCode = null) {
+  if (!moduleCode) return catalog;
+  if (moduleCode !== APPROVED_MODULE_SCOPE) {
+    throw new RegistrationRefused('Unapproved RBAC catalogue module scope.');
+  }
+  const modules = catalog.modules.filter(
+    (module) => module.code === SECURITY_MODULE_CODE || module.code === moduleCode,
+  );
+  const moduleIds = new Set(modules.map((module) => module.id));
+  const resources = catalog.resources.filter((resource) => moduleIds.has(resource.moduleId));
+  const resourceIds = new Set(resources.map((resource) => resource.id));
+  const permissions = catalog.permissions.filter((permission) =>
+    resourceIds.has(permission.resourceId),
   );
   return { modules, resources, permissions };
 }
@@ -479,7 +515,7 @@ export function comparePlan(definitions, catalog) {
  * independent). Matches, conflicts and unregistered rows are not part of it: apply refuses any
  * conflict separately.
  */
-export function planFingerprint(identity, inserts) {
+export function planFingerprint(identity, inserts, moduleCode = null) {
   const canonical = inserts
     .map((insert) =>
       JSON.stringify(
@@ -495,6 +531,7 @@ export function planFingerprint(identity, inserts) {
         target: identity.target,
         serviceName: identity.serviceName,
         dbName: identity.dbName,
+        ...(moduleCode ? { moduleCode } : {}),
         inserts: canonical,
       }),
     )
@@ -537,17 +574,31 @@ export async function runPrechecks(connection) {
 }
 
 /** Identity, preconditions, catalogue and plan in one pass (used by preview and under the lock). */
-export async function buildPlan(connection, { target, definitions, forApply = false }) {
+export async function buildPlan(
+  connection,
+  { target, definitions, forApply = false, moduleCode = null },
+) {
+  if (
+    moduleCode &&
+    (moduleCode !== APPROVED_MODULE_SCOPE ||
+      !definitions.some((module) => module.code === moduleCode) ||
+      !definitions.some((module) => module.code === SECURITY_MODULE_CODE) ||
+      definitions.some(
+        (module) => module.code !== moduleCode && module.code !== SECURITY_MODULE_CODE,
+      ))
+  ) {
+    throw new RegistrationRefused('Invalid scoped registry definitions.');
+  }
   const identity = await assertDatabaseIdentity(connection, target, { forApply });
   const problems = await runPrechecks(connection);
-  const catalog = await readCatalog(connection);
+  const catalog = scopeCatalog(await readCatalog(connection), moduleCode);
   const plan = comparePlan(definitions, catalog);
   return {
     identity,
     problems,
     catalog,
     plan,
-    fingerprint: planFingerprint(identity, plan.inserts),
+    fingerprint: planFingerprint(identity, plan.inserts, moduleCode),
   };
 }
 
@@ -565,8 +616,15 @@ async function insertReturningId(connection, sql, binds) {
  */
 export async function applyInserts(
   connection,
-  { inserts, catalog, identity, fingerprint, correlationId },
+  { inserts, catalog, identity, fingerprint, correlationId, moduleCode = null },
 ) {
+  if (
+    moduleCode &&
+    (moduleCode !== APPROVED_MODULE_SCOPE ||
+      inserts.some((item) => (item.moduleCode ?? item.code) !== moduleCode))
+  ) {
+    throw new RegistrationRefused('Scoped plan contains an unauthorized catalogue insertion.');
+  }
   const moduleIds = new Map(catalog.modules.map((m) => [m.code, m.id]));
   const resourceIds = new Map(
     catalog.resources.map((r) => [
@@ -587,6 +645,7 @@ export async function applyInserts(
           source: SOURCE,
           target: identity.target,
           planFingerprint: fingerprint,
+          ...(moduleCode ? { moduleScope: moduleCode } : {}),
           ...details,
         },
         context: { requestId: correlationId, ipAddress: null, userAgent: USER_AGENT },
@@ -641,8 +700,14 @@ export async function applyInserts(
 }
 
 /** After the inserts, before commit: every planned record now matches and is audited once. */
-export async function verifyApplied(connection, { definitions, planned, correlationId }) {
-  const after = comparePlan(definitions, await readCatalog(connection));
+export async function verifyApplied(
+  connection,
+  { definitions, planned, correlationId, moduleCode = null },
+) {
+  const after = comparePlan(
+    definitions,
+    scopeCatalog(await readCatalog(connection), moduleCode),
+  );
   const problems = [];
   if (after.counts.MISSING !== 0) problems.push(`${after.counts.MISSING} record(s) still missing`);
   if (after.counts.CONFLICT !== 0)
