@@ -4,6 +4,7 @@ import { validate } from '../../../middleware/validate.js';
 import { createProbationEvaluationController } from './probationEvaluation.controller.js';
 import {
   createBodySchema,
+  criteriaQuerySchema,
   emptyBodySchema,
   emptyQuerySchema,
   employeeDetailsQuerySchema,
@@ -43,6 +44,7 @@ export function createProbationEvaluationRouter({
 
   router.get('/', ...read({ query: listQuerySchema }), controller.list);
   router.get('/lookups/form-types', ...read(), controller.formTypes);
+  router.get('/lookups/criteria', ...read({ query: criteriaQuerySchema }), controller.criteria);
   router.get('/lookups/employees', ...read({ query: employeesQuerySchema }), controller.employees);
   router.get('/lookups/requestor', ...read(), controller.requestor);
   router.get(
