@@ -14,13 +14,13 @@ export const createPersonalStatusController = (service) => {
   return {
     create: handle((req) => service.create(req.body, req.auth), 201),
 
-    read: handle((req) => service.read(req.params.headerId)),
+    read: handle((req) => service.read(req.params.headerId, req.auth)),
 
     update: handle((req) => service.update(req.params.headerId, req.body, req.auth)),
 
-    remove: handle((req) => service.delete(req.params.headerId)),
+    remove: handle((req) => service.delete(req.params.headerId, req.auth)),
 
-    list: handle((req) => service.list(req.query)),
+    list: handle((req) => service.list(req.query, req.auth)),
 
     employees: handle(() => service.employees()),
 

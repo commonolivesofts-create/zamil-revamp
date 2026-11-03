@@ -3,6 +3,7 @@ import {
   withConnection as defaultWithConnection,
   withTransaction as defaultWithTransaction,
 } from '../../../database/oracle.js';
+import { parsePermission } from '../../access-control/authorization.service.js';
 import {
   PersonalStatusError,
   validateWrite,
@@ -11,14 +12,33 @@ import {
   employeeNumber,
 } from './personalStatusChange.validation.js';
 import { createPersonalStatusRepository } from './personalStatusChange.repository.js';
+import {
+  businessToday,
+  hijriDate,
+  maritalCode,
+  payTotal,
+  referenceNumber,
+} from './personalStatusChange.rules.js';
 
 const defaultRepository = createPersonalStatusRepository();
+
+const VIEW = parsePermission('HR.PERSONNEL_RECORD_CHANGES', 'VIEW');
 
 const notFound = () =>
   new PersonalStatusError(404, 'NOT_FOUND', 'Personnel record change not found');
 
 const noEmployee = () =>
   new PersonalStatusError(404, 'EMP_NOT_FOUND', 'No Data Available for given Employee Number');
+
+const forbidden = () =>
+  new PersonalStatusError(403, 'FORBIDDEN', 'You do not have permission for this action.');
+
+const notDraft = (action) =>
+  new PersonalStatusError(
+    409,
+    'PERSONNEL_RECORD_CHANGE_NOT_DRAFT',
+    `Only draft personnel record changes can be ${action}`,
+  );
 
 const group = (row, prefix) => ({
   position: row[`${prefix}_POSITION`] ?? null,
@@ -29,7 +49,8 @@ const group = (row, prefix) => ({
   communAll: row[`${prefix}_COMMUN_ALL`] ?? null,
   carAll: row[`${prefix}_CAR_ALL`] ?? null,
   total: row[`${prefix}_TOTAL`] ?? null,
-  maritalStatus: row[`${prefix}_MARITAL_STATUS`] ?? null,
+  // S or M; legacy rows may hold free text.
+  maritalStatus: maritalCode(row[`${prefix}_MARITAL_STATUS`]),
   grade: row[`${prefix}_GRADE`] ?? null,
   level: row[`${prefix}_LEVEL`] ?? null,
 });
@@ -91,32 +112,31 @@ const mapList = (row) => ({
 
   remarks: row.REMARKS,
   status: row.STATUS?.toUpperCase() ?? null,
-  requestor: row.REQUESTOR,
+  requestor: row.REQUESTOR ?? null,
+  pendingAt: row.PENDING_AT ?? null,
 });
 
-const oldFromMaster = (master) => {
-  const allowances = [
-    master.BASIC_SALARY,
-    master.HOUSING_ALLOWANCE,
-    master.TRANSPORTATION_ALLOWANCE,
-    master.OTHER_ALLOWANCE,
-    master.COMMUNICATION_ALLOWANCE,
-    master.CAR_ALLOWANCE,
-  ];
+// Legacy getEmpDetails, first branch: the current master row. OLD_TOTAL is TOTAL_SALARY as stored
+// (legacy shows the column, not a sum).
+const oldFromMaster = (master) => ({
+  position: master.JOB_NAME,
+  basicSal: master.BASIC_SALARY,
+  houseAll: master.HOUSING_ALLOWANCE,
+  transAll: master.TRANSPORTATION_ALLOWANCE,
+  otherAll: master.OTHER_ALLOWANCE,
+  communAll: master.COMMUNICATION_ALLOWANCE,
+  carAll: master.CAR_ALLOWANCE,
+  total: master.TOTAL_SALARY ?? null,
+  maritalStatus: maritalCode(master.MARITAL_STATUS),
+  grade: null,
+  level: null,
+});
 
-  return {
-    position: master.JOB_NAME,
-    basicSal: master.BASIC_SALARY,
-    houseAll: master.HOUSING_ALLOWANCE,
-    transAll: master.TRANSPORTATION_ALLOWANCE,
-    otherAll: master.OTHER_ALLOWANCE,
-    communAll: master.COMMUNICATION_ALLOWANCE,
-    carAll: master.CAR_ALLOWANCE,
-    total: allowances.reduce((sum, amount) => sum + Math.round(Number(amount ?? 0) * 100), 0) / 100,
-    maritalStatus: master.MARITAL_STATUS,
-    grade: null,
-    level: null,
-  };
+// The revised record of an approved request; a missing NEW_TOTAL is the sum of its six items.
+const oldFromRequest = (request) => {
+  const old = group(request, 'NEW');
+  old.total ??= payTotal(old);
+  return old;
 };
 
 const toPrefill = (source, empNo, old, branch) => ({
@@ -131,76 +151,109 @@ const toPrefill = (source, empNo, old, branch) => ({
 
   old,
 
+  // Legacy auto-fill sets only the revised position and family status; revised amounts keep
+  // what the form holds (0 on a new form).
   new: {
     position: old.position,
     maritalStatus: old.maritalStatus,
   },
 });
 
-const idFromAuth = (auth) => {
-  const id = auth?.userId ?? auth?.user?.id ?? auth?.id;
+// The session actor: application user ID and employee number.
+const actorOf = (auth) => {
+  const userId = auth?.userId ?? auth?.user?.id ?? auth?.id;
 
-  if (!/^[1-9]\d{0,18}$/.test(String(id))) {
+  if (!/^[1-9]\d{0,18}$/.test(String(userId))) {
     throw new PersonalStatusError(401, 'UNAUTHENTICATED', 'Authentication is required');
   }
 
-  return String(id);
+  const employeeNumberValue = auth?.employeeNumber ?? auth?.user?.employeeNumber ?? null;
+
+  return {
+    userId: String(userId),
+    employeeNumber: employeeNumberValue === null ? null : String(employeeNumberValue),
+  };
 };
+
+const snapshotValues = (prefill) => ({
+  empName: prefill.empName ?? null,
+  nationality: prefill.nationality ?? null,
+  section: prefill.section ?? null,
+  department: prefill.department ?? null,
+  startDate: prefill.startDate ?? null,
+
+  oldPosition: prefill.old.position ?? null,
+  oldBasicSal: prefill.old.basicSal ?? null,
+  oldHouseAll: prefill.old.houseAll ?? null,
+  oldTransAll: prefill.old.transAll ?? null,
+  oldOtherAll: prefill.old.otherAll ?? null,
+  oldCommunAll: prefill.old.communAll ?? null,
+  oldCarAll: prefill.old.carAll ?? null,
+  oldTotal: prefill.old.total ?? null,
+});
 
 export const createPersonalStatusService = ({
   repository = defaultRepository,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
+  // `authorizationService.holds`; denies by default so a missing wiring never widens access.
+  holds = async () => false,
 } = {}) => {
   const read = (work) => withConnection(POOLS.LOW, work);
   const write = (work) => withTransaction(POOLS.LOW, work);
 
+  /**
+   * Legacy getEmpDetails, with its data gaps closed:
+   * - the employee's information (name, nationality, section, department, start date) is the
+   *   current master row; the latest approved request's snapshot only when there is no current row
+   *   (legacy copied the latest request, and some were saved with a blank snapshot);
+   * - the current record (position, pay, total, family status) is the revised record of the latest
+   *   APPROVED request (legacy branch B took the latest request of any status, so a draft or
+   *   rejected proposal became the "current" salary); without one, the master row (branch A);
+   * - family status is S or M; when the request has none, the master's.
+   */
   const autoFillOnConnection = async (connection, empNo) => {
-    const latest = await repository.latest(connection, empNo);
-
-    // Branch B: Employee already has a previous request.
-    if (latest) {
-      const old = group(latest, 'NEW');
-
-      // README §6.3:
-      // Previous-request branch does not supply marital status.
-      old.maritalStatus = null;
-
-      return toPrefill(
-        {
-          FULL_NAME: latest.EMP_NAME,
-          NATIONALITY: latest.NATIONALITY,
-          DIVISION: latest.SECTION,
-          DEPARTMENT_NAME: latest.DEPT,
-          JOINING_DATE_ISO: latest.START_DATE_ISO,
-        },
-        empNo,
-        old,
-        'previousRequest',
-      );
-    }
-
-    // Branch A: No previous request.
     const master = await repository.master(connection, empNo);
+    const approved = await repository.latest(connection, empNo);
 
-    if (!master) {
+    if (!master && !approved) {
       throw noEmployee();
     }
 
-    return toPrefill(master, empNo, oldFromMaster(master), 'employeeMaster');
+    const identity = master ?? {
+      FULL_NAME: approved.EMP_NAME,
+      NATIONALITY: approved.NATIONALITY,
+      DIVISION: approved.SECTION,
+      DEPARTMENT_NAME: approved.DEPT,
+      JOINING_DATE_ISO: approved.START_DATE_ISO,
+    };
+
+    if (!approved) {
+      return toPrefill(identity, empNo, oldFromMaster(master), 'employeeMaster');
+    }
+
+    const old = oldFromRequest(approved);
+    old.maritalStatus ??= maritalCode(master?.MARITAL_STATUS);
+
+    return toPrefill(identity, empNo, old, 'previousRequest');
   };
 
-  const checkWrite = async (connection, body) => {
+  /** Validated answers plus, when `withSnapshot`, the server-computed employee snapshot. */
+  const checkWrite = async (connection, body, { withSnapshot }) => {
     const values = validateWrite(body);
 
-    try {
-      await autoFillOnConnection(connection, values.empNo);
-    } catch (error) {
-      if (error.code === 'EMP_NOT_FOUND') {
-        throw new PersonalStatusError(400, 'EMP_NOT_FOUND', 'Validation failed');
-      }
+    let prefill = null;
 
-      throw error;
+    if (withSnapshot) {
+      try {
+        prefill = await autoFillOnConnection(connection, values.empNo);
+      } catch (error) {
+        if (error.code === 'EMP_NOT_FOUND') {
+          throw new PersonalStatusError(400, 'EMP_NOT_FOUND', 'Validation failed');
+        }
+
+        throw error;
+      }
     }
 
     const positionExists = await repository.positionExists(connection, values.newPosition);
@@ -209,44 +262,93 @@ export const createPersonalStatusService = ({
       throw new PersonalStatusError(400, 'POSITION_INVALID', 'Validation failed');
     }
 
-    return values;
+    if (!prefill) return values;
+
+    return {
+      ...values,
+      ...snapshotValues(prefill),
+      // The current family status is editable; when the body leaves it out, the snapshot's.
+      oldMaritalStatus:
+        values.oldMaritalStatus === undefined
+          ? (prefill.old.maritalStatus ?? null)
+          : values.oldMaritalStatus,
+    };
+  };
+
+  /**
+   * Record-level access: the creator, an HR user (fail-closed XXZP_HR check), or a user in the
+   * employee's department who holds HR.PERSONNEL_RECORD_CHANGES:VIEW. Other records are 403.
+   */
+  const authorizeRecord = async (connection, actor, facts) => {
+    if (String(facts.CREATED_BY) === actor.userId) return;
+    if (await repository.isHrUser(connection, actor.userId)) return;
+
+    if (
+      actor.employeeNumber &&
+      facts.EMP_NO &&
+      (await repository.isSameDepartment(connection, {
+        actorEmployeeNumber: actor.employeeNumber,
+        subjectEmployeeNumber: facts.EMP_NO,
+      })) &&
+      (await holds(actor.userId, VIEW))
+    ) {
+      return;
+    }
+
+    throw forbidden();
+  };
+
+  const lockForWrite = async (connection, actor, headerId, action) => {
+    const facts = await repository.lockRow(connection, headerId);
+
+    if (!facts) {
+      throw notFound();
+    }
+
+    await authorizeRecord(connection, actor, facts);
+
+    if (String(facts.STATUS ?? '').toUpperCase() !== 'DRAFT') {
+      throw notDraft(action);
+    }
+
+    return facts;
   };
 
   return {
     // CREATE
     async create(body, auth) {
-      const createdBy = idFromAuth(auth);
+      const actor = actorOf(auth);
 
-      // Retry on Oracle ORA-00001.
-      // Each attempt uses a fresh connection and transaction.
-      for (let attempt = 0; attempt < 5; attempt++) {
-        try {
-          return await write(async (connection) => {
-            const values = await checkWrite(connection, body);
+      return write(async (connection) => {
+        const values = await checkWrite(connection, body, { withSnapshot: true });
 
-            const headerId = await repository.nextId(connection);
+        // FORM_DATE is the request date (read-only, today); ARB_DATE its Hijri date.
+        const formDate = businessToday();
 
-            const refNo = `${String(headerId).padStart(4, '0')}-${values.section ?? ''}`;
+        const headerId = await repository.insert(
+          connection,
+          { ...values, formDate, arbDate: hijriDate(formDate) },
+          actor.userId,
+        );
 
-            await repository.insert(connection, headerId, refNo, values, createdBy);
-
-            const row = await repository.read(headerId, connection);
-
-            return mapRecord(row);
-          });
-        } catch (error) {
-          if (error.errorNum === 1 && attempt < 4) {
-            continue;
-          }
-
-          throw error;
+        if (!headerId) {
+          throw new Error('The insert did not return a HEADER_ID');
         }
-      }
+
+        await repository.setReference(
+          connection,
+          headerId,
+          referenceNumber(headerId, values.section),
+        );
+
+        return mapRecord(await repository.read(headerId, connection));
+      });
     },
 
     // READ
-    async read(rawId) {
+    async read(rawId, auth) {
       const headerId = positiveId(rawId);
+      const actor = actorOf(auth);
 
       return read(async (connection) => {
         const row = await repository.read(headerId, connection);
@@ -255,46 +357,48 @@ export const createPersonalStatusService = ({
           throw notFound();
         }
 
+        await authorizeRecord(connection, actor, row);
+
         return mapRecord(row);
       });
     },
 
-    // UPDATE
+    // UPDATE (drafts only). FORM_DATE, ARB_DATE and REF_NO keep their saved values; the employee
+    // snapshot is recomputed only when the employee changes.
     async update(rawId, body, auth) {
       const headerId = positiveId(rawId);
-      const updatedBy = idFromAuth(auth);
+      const actor = actorOf(auth);
 
       return write(async (connection) => {
-        const lockedRow = await repository.lockRow(connection, headerId);
+        const facts = await lockForWrite(connection, actor, headerId, 'updated');
 
-        if (!lockedRow) {
-          throw notFound();
+        const employeeChanged = String(facts.EMP_NO ?? '') !== String(body?.empNo ?? '');
+
+        const values = await checkWrite(connection, body, { withSnapshot: employeeChanged });
+
+        if (values.oldMaritalStatus === undefined) {
+          values.oldMaritalStatus = facts.OLD_MARITAL_STATUS ?? null;
         }
 
-        const values = await checkWrite(connection, body);
-
-        const result = await repository.update(connection, headerId, values, updatedBy);
+        const result = await repository.update(connection, headerId, values, actor.userId, {
+          snapshot: employeeChanged,
+        });
 
         if (!result.rowsAffected) {
           throw notFound();
         }
 
-        const row = await repository.read(headerId, connection);
-
-        return mapRecord(row);
+        return mapRecord(await repository.read(headerId, connection));
       });
     },
 
-    // DELETE
-    async delete(rawId) {
+    // DELETE (drafts only; legacy has no record delete).
+    async delete(rawId, auth) {
       const headerId = positiveId(rawId);
+      const actor = actorOf(auth);
 
       return write(async (connection) => {
-        const row = await repository.lockRow(connection, headerId);
-
-        if (!row) {
-          throw notFound();
-        }
+        await lockForWrite(connection, actor, headerId, 'deleted');
 
         const result = await repository.delete(connection, headerId);
 
@@ -306,11 +410,19 @@ export const createPersonalStatusService = ({
       });
     },
 
-    // LISTING
-    async list(query) {
+    // LISTING: HR sees every request; others see what record access allows.
+    async list(query, auth) {
       const filters = parseListing(query);
+      const actor = actorOf(auth);
 
-      const { total, rows } = await read((connection) => repository.list(connection, filters));
+      const { total, rows } = await read(async (connection) => {
+        const isHr = await repository.isHrUser(connection, actor.userId);
+
+        return repository.list(connection, {
+          ...filters,
+          scope: isHr ? null : { userId: actor.userId, employeeNumber: actor.employeeNumber },
+        });
+      });
 
       return {
         meta: {

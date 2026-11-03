@@ -8,6 +8,7 @@ import {
   ID_PATTERN, readEmployeeServicesLookups, readPage, readRecordChange, readRecordChangeListItem, readServiceEmployee, readTransfer, readTransferListItem,
   readAppraisal, readAppraisalListItem, readAppraisalTeam, readPerformanceLookups,
 } from './hrEmployeeServicesContract.js'
+import { familyStatusCode } from './recordChange/recordChangeModel.js'
 
 export const EMPLOYEE_SERVICES_BASE = '/hr/employee-services'
 export const PERFORMANCE_BASE = '/hr/performance'
@@ -50,14 +51,19 @@ const amountValue = (value) => {
   if (!Number.isFinite(amount) || amount < 0) throw new ApiError('The server returned an invalid employee amount.', { code: 'INVALID_RESPONSE' })
   return amount
 }
-const familyCode = (value) => value === 'S' || value === 'M' ? value : ''
+// Grade and level are free text (NEW_GRADE / NEW_LEVEL); family status is read as S or M.
 const toFrontRecordValues = (source = {}) => ({
   positionCode: source.position ? positionCode(source.position) : '',
   positionName: textValue(source.position),
   basic: amountValue(source.basicSal), house: amountValue(source.houseAll), transport: amountValue(source.transAll),
   other: amountValue(source.otherAll), communication: amountValue(source.communAll), car: amountValue(source.carAll),
-  gradeCode: '', levelCode: '', familyStatusCode: familyCode(source.maritalStatus),
+  gradeCode: textValue(source.grade), levelCode: textValue(source.level), familyStatusCode: familyStatusCode(source.maritalStatus),
 })
+// Legacy signature block: HR_ADMIN / PRESIDENT hold APPROVED or REJECTED, *_SIGN the date.
+const signatureState = (value) => {
+  const state = String(value ?? '').toUpperCase()
+  return state === 'APPROVED' || state === 'REJECTED' ? state : 'DRAFT'
+}
 const fromApiStatus = (value) => String(value ?? '').toUpperCase()
 
 function personalStatusEmployee(source) {
@@ -84,13 +90,14 @@ function personalStatusRecord(source) {
   })
   const signature = source.signatures ?? {}
   const approvals = [
-    { role: 'NOTED_BY', state: signature.hrAdminSign ? 'APPROVED' : 'DRAFT' },
-    { role: 'APPROVED_BY', state: signature.presidentSign ? 'APPROVED' : 'DRAFT' },
+    { role: 'NOTED_BY', state: signatureState(signature.hrAdmin), date: signature.hrAdminSign ?? null },
+    { role: 'APPROVED_BY', state: signatureState(signature.president), date: signature.presidentSign ?? null },
   ]
   const updatedAt = source.updatedAt ?? source.createdAt ?? `${source.formDate}T00:00:00.000Z`
   return Object.freeze({
     requestId: String(source.headerId), requestNumber: textValue(source.refNo), status: fromApiStatus(source.status),
-    requestDate: textValue(source.formDate), requestedBy: Object.freeze({ name: '', employeeNumber: '' }), employee,
+    requestDate: textValue(source.formDate), arbDate: textValue(source.arbDate), requestedBy: Object.freeze({ name: '', employeeNumber: '' }), employee,
+    currentFamilyStatus: familyStatusCode(source.old?.maritalStatus),
     effectiveDate: textValue(source.effectiveDate) || null, revised: Object.freeze(toFrontRecordValues(source.new)),
     remarks: textValue(source.remarks), views: textValue(source.views), attachments: Object.freeze([]),
     approvals: Object.freeze(approvals.map((item) => Object.freeze(item))), updatedAt,
@@ -111,6 +118,9 @@ function personalStatusListItem(source) {
     requestId: String(source.headerId), requestNumber: textValue(source.refNo), status: fromApiStatus(source.status),
     employeeName: textValue(source.empName), employeeNumber: String(source.empNo), effectiveDate: source.effectiveDate ?? null,
     changeTypes: Object.freeze([]), position: textValue(source.position),
+    // Legacy report columns.
+    section: textValue(source.section), department: textValue(source.department), oldTotal, newTotal,
+    remarks: textValue(source.remarks), requestor: textValue(source.requestor), pendingAt: textValue(source.pendingAt),
     totalChange: oldTotal === null || newTotal === null ? null : Math.round((newTotal - oldTotal) * 100) / 100,
     requestDate: textValue(source.formDate),
   })
@@ -299,16 +309,17 @@ function createPersonalStatusRecordService({ client }) {
     const amounts = Object.keys(fields).map((key) => values[key] === '' || values[key] == null ? null : Number(values[key]))
     if (amounts.every((value) => value !== null && Number.isFinite(value))) result.total = Math.round(amounts.reduce((sum, value) => sum + value, 0) * 100) / 100
     if (values.familyStatusCode) result.maritalStatus = values.familyStatusCode
+    result.grade = values.gradeCode || null
+    result.level = values.levelCode || null
     return result
   }
+  // Only the requester's answers: the server computes the employee snapshot, the form date, the
+  // Hijri date, the reference number and the totals.
   const payloadForApi = (body, employee) => ({
     empNo: employee?.employeeNumber ?? body.employeeId,
-    formDate: body.requestDate,
-    ...(body.arbDate ? { arbDate: body.arbDate } : {}),
     effectiveDate: body.effectiveDate,
-    empName: employee?.name ?? '', nationality: employee?.nationality ?? '',
-    section: employee?.sectionName ?? '', department: employee?.departmentName ?? '', startDate: employee?.startDate ?? '',
-    old: valuesForApi(employee?.current), new: valuesForApi(body.revised), remarks: body.remarks ?? '', views: body.views ?? '',
+    old: { maritalStatus: body.currentFamilyStatus || null },
+    new: valuesForApi(body.revised), remarks: body.remarks ?? '', views: body.views ?? '',
   })
   const record = (response) => personalStatusRecord(response)
   return Object.freeze({

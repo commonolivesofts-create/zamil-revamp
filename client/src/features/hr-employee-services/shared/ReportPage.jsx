@@ -9,7 +9,8 @@ import '@/styles/hr-employee-services.css'
 // header, a toolbar with the form (only for users who may create), Print and
 // Home, the primary "new" button, then the report list.
 // `create`: { permission, path, tool, label } (no permission: a session-only form).
-export function ReportPage({ variant, title, subtitle, breadcrumb = C.breadcrumb, demo, create, children }) {
+// `tools`: optional extra toolbar buttons, shown after the form button.
+export function ReportPage({ variant, title, subtitle, breadcrumb = C.breadcrumb, demo, create, tools = null, children }) {
   const navigate = useNavigate()
   const permissions = usePermissions()
   const canCreate = !create.permission || permissions.can(create.permission)
@@ -20,6 +21,7 @@ export function ReportPage({ variant, title, subtitle, breadcrumb = C.breadcrumb
       <div className="zrv-hr-toolbar" role="toolbar" aria-label={title}>
         <div className="zrv-hr-tools">
           {canCreate && <button type="button" onClick={openForm}><OrvexaIcon name="file-plus" size={17} /><span>{create.tool}</span></button>}
+          {tools}
           <button type="button" onClick={() => window.print()}><OrvexaIcon name="printer" size={17} /><span>{C.print}</span></button>
           <button type="button" onClick={() => navigate('/dashboard')}><OrvexaIcon name="house" size={17} /><span>{C.home}</span></button>
         </div>
