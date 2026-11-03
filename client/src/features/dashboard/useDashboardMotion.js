@@ -28,6 +28,11 @@ export function useRevealOnScroll(rootRef, refreshKey = null) {
     // enters as it reaches the viewport, rather than animating a whole row.
     const nodes = Array.from(root.querySelectorAll([
       '.quick-shell',
+      '.section-intelligence',
+      '.employee-spotlight',
+      '.attention-announcement',
+      '.attention-section-line',
+      '.attention-queue',
       '.habit-shell',
       '.feature-grid > *',
       '.domain-grid > .domain-card',

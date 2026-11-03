@@ -5,18 +5,19 @@ import useAuth from "@/features/auth/useAuth.js";
 import { appConfig } from "@/config/appConfig.js";
 import DashboardMeta from "@/features/dashboard/components/DashboardMeta.jsx";
 import FolioBook from "@/features/dashboard/components/FolioBook.jsx";
+import usePermissions from "@/features/access/usePermissions.js";
+import { useResource } from "@/features/security-administration/useAdminData.js";
+import { rewardService } from "@/features/hr-employee-services/reward/rewardService.js";
+import { enDate } from "@/features/hr-recruitment/shared/hrFormat.js";
 import {
   ATTENTION_ITEMS,
-  BUSINESS_SPACES,
   FOOTER_COUNTS,
   MODULES,
   QUICK_CATEGORY_IDS,
   QUICK_DEFINITIONS,
-  WORKFLOW_BARS,
   displayName,
   formatDateLabel,
 } from "@/features/dashboard/dashboardExperience.js";
-import { scrollToSection } from "@/features/dashboard/useDashboardMotion.js";
 
 function NameTyping({ name }) {
   const steps = Math.max(4, name.length);
@@ -37,9 +38,53 @@ function NameTyping({ name }) {
   );
 }
 
-function QuickPanel({ category }) {
+const EMPLOYEE_SHARE_LINKS = [
+  { name: "LinkedIn", className: "linkedin", href: (url) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}` },
+  { name: "Facebook", className: "facebook", href: (url) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
+  { name: "X", className: "x-network", href: (url) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent("Explore the Zamil workspace")}` },
+];
+
+function EmployeeSocialLinks() {
+  const shareUrl = typeof window === "undefined" ? "" : window.location.origin;
+  return (
+    <div className="hero-social-fan is-persistent" aria-label="Share your workspace">
+      <span className="hero-social-toggle-mark" aria-hidden="true"><OrvexaIcon name="share-2" /></span>
+      <span className="hero-social-toggle-copy"><strong>Share your workspace</strong></span>
+      <div className="hero-social-fan-menu" aria-label="Share on social media">
+        {EMPLOYEE_SHARE_LINKS.map((network) => (
+          <a className={`hero-social-link ${network.className}`} href={network.href(shareUrl)} target="_blank" rel="noopener noreferrer" aria-label={`Share on ${network.name}`} key={network.name}>
+            <span className="hero-social-icon"><SocialMark network={network.name} /></span>
+            <span className="hero-social-label">{network.name}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SocialMark({ network }) {
+  const paths = {
+    LinkedIn: "M5.2 8.6H2.1V22h3.1V8.6ZM3.7 2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6ZM22 14.3c0-4-2.1-5.9-4.9-5.9a4.2 4.2 0 0 0-3.8 2.1V8.6h-3V22h3.1v-6.6c0-1.8.3-3.6 2.6-3.6s2.3 2.1 2.3 3.7V22h3.1l.6-7.7Z",
+    Facebook: "M14.1 22v-9h3l.5-3.5h-3.5V7.2c0-1 .3-1.7 1.8-1.7h1.9V2.4c-.3 0-1.5-.1-2.9-.1-2.9 0-4.9 1.8-4.9 5v2.2H6.8V13H10v9h4.1Z",
+    X: "M18.9 2H22l-6.8 7.8L23.2 22h-6.3L12 14.6 5.6 22H2.4l7.3-8.4L1.8 2h6.5l4.5 6.8L18.9 2Zm-1.1 17.8h1.7L7.3 4.1H5.5l12.3 15.7Z",
+  };
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d={paths[network]} /></svg>;
+}
+
+const HR_USAGE_KEY = "zrv-dashboard-hr-form-usage";
+function readHrUsage() {
+  try { return JSON.parse(window.localStorage.getItem(HR_USAGE_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function QuickPanel({ category, hrPages = [], hrUsage = {}, onOpenHrPage }) {
   const definition = QUICK_DEFINITIONS[category] ?? QUICK_DEFINITIONS.HR;
   const index = QUICK_CATEGORY_IDS.indexOf(category);
+  const forms = category === "HR"
+    ? [...hrPages].sort((a, b) => (hrUsage[b.id] || 0) - (hrUsage[a.id] || 0)).slice(0, 6).map((page) => ({
+      id: page.id, name: page.label, desc: page.subgroup || "Human resources", icon: page.icon || "file-text", page,
+    }))
+    : definition.forms;
   return (
     <>
       <div className="quick-panel-head">
@@ -54,12 +99,13 @@ function QuickPanel({ category }) {
         <span className="quick-index">0{index + 1} / 04</span>
       </div>
       <div className="quick-form-grid">
-        {definition.forms.map((form, formIndex) => (
+        {forms.map((form, formIndex) => (
           <button
             className="quick-form"
             type="button"
             key={form.name}
             style={{ "--qi": formIndex }}
+            onClick={form.page ? () => onOpenHrPage(form.page) : undefined}
           >
             <span className="quick-form-index">0{formIndex + 1}</span>
             <span className="icon-bubble">
@@ -78,133 +124,10 @@ function QuickPanel({ category }) {
           <OrvexaIcon name="zap" /> Click a card to open its workflow
         </span>
         <span>
-          {category === "HR" ? "4 form previews" : "Catalog previews"}
+          {category === "HR" ? `${forms.length} frequently used forms` : "Catalog previews"}
         </span>
       </div>
     </>
-  );
-}
-
-const SOCIAL_NETWORKS = [
-  {
-    name: "LinkedIn",
-    className: "linkedin",
-    href: (url) =>
-      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
-  },
-  {
-    name: "Facebook",
-    className: "facebook",
-    href: (url) =>
-      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-  },
-  {
-    name: "X",
-    className: "x-network",
-    href: (url) =>
-      `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent("Explore the Zamil workspace")}`,
-  },
-];
-
-function SocialMark({ network }) {
-  if (network === "LinkedIn") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5.2 8.6H2.1V22h3.1V8.6ZM3.7 2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6ZM22 14.3c0-4-2.1-5.9-4.9-5.9a4.2 4.2 0 0 0-3.8 2.1V8.6h-3V22h3.1v-6.6c0-1.8.3-3.6 2.6-3.6s2.3 2.1 2.3 3.7V22h3.1l.6-7.7Z" />
-      </svg>
-    );
-  }
-  if (network === "Facebook") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M14.1 22v-9h3l.5-3.5h-3.5V7.2c0-1 .3-1.7 1.8-1.7h1.9V2.4c-.3 0-1.5-.1-2.9-.1-2.9 0-4.9 1.8-4.9 5v2.2H6.8V13H10v9h4.1Z" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3L12 14.6 5.6 22H2.4l7.3-8.4L1.8 2h6.5l4.5 6.8L18.9 2Zm-1.1 17.8h1.7L7.3 4.1H5.5l12.3 15.7Z" />
-    </svg>
-  );
-}
-
-function SocialFan() {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef(null);
-  const toggleRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    function dismiss(event) {
-      if (event.type === "keydown") {
-        if (event.key !== "Escape") return;
-        setOpen(false);
-        toggleRef.current?.focus();
-        return;
-      }
-      if (
-        event.type === "pointerdown" &&
-        rootRef.current?.contains(event.target)
-      )
-        return;
-      setOpen(false);
-    }
-    document.addEventListener("pointerdown", dismiss);
-    document.addEventListener("keydown", dismiss);
-    return () => {
-      document.removeEventListener("pointerdown", dismiss);
-      document.removeEventListener("keydown", dismiss);
-    };
-  }, [open]);
-
-  const shareUrl = typeof window === "undefined" ? "" : window.location.origin;
-
-  return (
-    <div className={`hero-social-fan${open ? " is-open" : ""}`} ref={rootRef}>
-      <div
-        className="hero-social-fan-menu"
-        id="hero-social-fan-menu"
-        aria-hidden={!open}
-      >
-        {SOCIAL_NETWORKS.map((network, index) => (
-          <a
-            className={`hero-social-link ${network.className}`}
-            href={network.href(shareUrl)}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Share on ${network.name}`}
-            tabIndex={open ? 0 : -1}
-            key={network.name}
-            style={{ "--social-order": index }}
-          >
-            <span className="hero-social-icon">
-              <SocialMark network={network.name} />
-            </span>
-            <span className="hero-social-label">{network.name}</span>
-          </a>
-        ))}
-      </div>
-      <button
-        ref={toggleRef}
-        className="hero-social-toggle"
-        type="button"
-        aria-expanded={open}
-        aria-controls="hero-social-fan-menu"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="hero-social-toggle-mark">
-          <OrvexaIcon name={open ? "x" : "share-2"} />
-        </span>
-        <span className="hero-social-toggle-copy">
-          <strong>{open ? "Close" : "Share"}</strong>
-          <small>{open ? "YOUR NETWORK" : "PASS IT ON"}</small>
-        </span>
-        <OrvexaIcon
-          className="hero-social-toggle-chevron"
-          name="arrow-up-right"
-        />
-      </button>
-    </div>
   );
 }
 
@@ -245,13 +168,25 @@ async function optimizeProfileImage(file) {
 export default function HomeView({
   profile,
   pages = [],
-  accessStatus,
   onNavigate,
   onOpenPage,
 }) {
   const [quickCategory, setQuickCategory] = useState("HR");
   const [quickPanelChanged, setQuickPanelChanged] = useState(false);
+  const [hrUsage, setHrUsage] = useState(readHrUsage);
   const { updateProfileImage, removeProfileImage } = useAuth();
+  const permissions = usePermissions();
+  const employeeOfMonth = useResource(
+    permissions.can("HR.EMPLOYEE_OF_THE_MONTH:VIEW") ? "dashboard-employee-of-month" : null,
+    async (signal) => {
+      const result = await rewardService.list(
+        { status: "APPROVED", page: 1, pageSize: 25, sort: "activityDate", order: "desc" },
+        { signal },
+      );
+      const latest = result.items.find((item) => item.status === "APPROVED");
+      return latest ? rewardService.getById(latest.nominationId, { signal }) : null;
+    },
+  );
   const [imageBusy, setImageBusy] = useState(false);
   const [imageFeedback, setImageFeedback] = useState("");
   const [imageTarget, setImageTarget] = useState("");
@@ -260,8 +195,16 @@ export default function HomeView({
   const failedImageRef = useRef("");
   const name = displayName(profile);
   const heroProfile = profile;
-  const visiblePages = pages.slice(0, 4);
-  const accessLoading = accessStatus === "loading";
+
+  function openAttentionItem(item) {
+    const terms = item.matchTerms ?? [];
+    const target = pages.find((page) => {
+      const searchText = `${page.label} ${page.sectionLabel}`.toLowerCase();
+      return terms.some((term) => searchText.includes(term));
+    });
+    if (target) onOpenPage(target);
+    else onNavigate("atlas", { domain: item.team });
+  }
 
   function waitForImage(source) {
     if (loadedImageRef.current === source) {
@@ -327,9 +270,12 @@ export default function HomeView({
     }
   }
 
-  const openQuick = (category) => {
-    setQuickCategory(category);
-    requestAnimationFrame(() => scrollToSection("quickStart"));
+  const hrPages = pages.filter((page) => page.sectionLabel === "Human resources" || page.section === "human-resources");
+  const openHrPage = (page) => {
+    const next = { ...hrUsage, [page.id]: (hrUsage[page.id] || 0) + 1 };
+    setHrUsage(next);
+    window.localStorage.setItem(HR_USAGE_KEY, JSON.stringify(next));
+    onOpenPage(page);
   };
 
   return (
@@ -348,7 +294,6 @@ export default function HomeView({
             <span className="line-mark" />
             <span>GOOD WORK STARTS WITH ONE MOVE</span>
           </div>
-          <SocialFan />
           <div className="hero-profile">
             <div
               className={`hero-profile-photo-wrap${imageBusy || imageTarget ? " is-uploading" : ""}`}
@@ -411,6 +356,7 @@ export default function HomeView({
                   </div>
                 )}
               </div>
+              <div className="hero-profile-social-row"><EmployeeSocialLinks /></div>
               {!profile?.isPreview && (
                 <div className="hero-profile-photo-actions">
                   <span className="hero-profile-photo-hint">Make it yours</span>
@@ -444,7 +390,7 @@ export default function HomeView({
             role="group"
             aria-label="Get started"
           >
-            <button className="gateway-action gateway-main" type="button">
+            <button className="gateway-action gateway-main" type="button" onClick={() => document.getElementById("command-trigger")?.click()}>
               <span className="gateway-action-icon">
                 <OrvexaIcon name="search" />
               </span>
@@ -456,40 +402,12 @@ export default function HomeView({
                 <OrvexaIcon name="arrow-right" />
               </span>
             </button>
-            <button
-              className="gateway-action"
-              type="button"
-              onClick={() => openQuick("HR")}
-            >
-              <span className="gateway-action-icon">
-                <OrvexaIcon name="users" />
-              </span>
-              <span className="gateway-action-copy">
-                <strong>Open HR forms</strong>
-                <small>4 forms · one touch</small>
-              </span>
-              <span className="gateway-action-tail">
-                <OrvexaIcon name="arrow-right" />
-              </span>
-            </button>
-            <button className="gateway-action" type="button">
-              <span className="gateway-action-icon">
-                <OrvexaIcon name="file-text" />
-              </span>
-              <span className="gateway-action-copy">
-                <strong>Create credit note</strong>
-                <small>Finance workflow</small>
-              </span>
-              <span className="gateway-action-tail">
-                <OrvexaIcon name="arrow-right" />
-              </span>
-            </button>
           </div>
           <div className="gateway-hint">
             Start here, or use the sidebar or <kbd>Ctrl K</kbd> at any time.
           </div>
         </div>
-        <FolioBook onNavigate={onNavigate} />
+        <FolioBook onNavigate={onNavigate} hrPages={hrPages} onOpenPage={onOpenPage} />
       </section>
 
       <div className="section-line section-quick" id="quickStart">
@@ -499,7 +417,7 @@ export default function HomeView({
             Quick Links <span className="inline-accent">/ one touch away</span>
           </h2>
           <p>
-            Choose a department. Its four most useful forms appear immediately.
+            Your six most frequently used HR forms are ready on the right.
           </p>
         </div>
         <button
@@ -548,217 +466,143 @@ export default function HomeView({
           key={quickCategory}
           aria-live="polite"
         >
-          <QuickPanel category={quickCategory} />
+          <QuickPanel category={quickCategory} hrPages={hrPages} hrUsage={hrUsage} onOpenHrPage={openHrPage} />
         </div>
       </section>
 
       <div className="section-line section-intelligence">
         <div>
           <span className="eyebrow">02 / PERSONAL WORKSPACE</span>
-          <h2>Your access, in reach.</h2>
+          <h2>Employee of the month.</h2>
           <p>
-            Real pages from your signed-in permissions — no setup, no guesswork.
+            Recognising the people whose work makes a difference.
           </p>
         </div>
         <span className="privacy-chip">
-          <OrvexaIcon name="shield-check" /> Live permissions
+          <OrvexaIcon name="award" /> Team recognition
         </span>
       </div>
-      <section className="habit-shell" data-zrv-reveal>
-        <div className="habit-feature">
-          <span className="habit-kicker">
-            <OrvexaIcon name="sparkles" /> SMART ACCESS
-          </span>
-          <div className="habit-orb">
-            <span>
-              <OrvexaIcon name="zap" className="icon-xl" />
-            </span>
-          </div>
-          <h3>
-            Your access.
-            <br />
-            <em>Already mapped.</em>
-          </h3>
-          <p>
-            Every page here is one your account can open. The list follows your
-            permissions, not local browsing habits.
-          </p>
-          <button className="btn tiny ghost" type="button">
-            Search anything <OrvexaIcon name="arrow-right" />
-          </button>
-        </div>
-        <div className="habit-list">
-          <div className="habit-head">
-            <span>AUTHORIZED PAGES</span>
-            <span>
-              {accessLoading ? "CHECKING ACCESS" : `${pages.length} AVAILABLE`}
-            </span>
-          </div>
-          {visiblePages.map((page, index) => (
-            <button
-              className="habit-row"
-              type="button"
-              key={page.id}
-              style={{ "--hi": index }}
-              onClick={() => onOpenPage(page)}
-            >
-              <span className="habit-no">0{index + 1}</span>
-              <span className="habit-symbol">
-                <OrvexaIcon name={page.icon || "layout-grid"} />
-              </span>
-              <span className="habit-copy">
-                <strong>{page.label}</strong>
-                <small>
-                  {page.sectionLabel}
-                  {page.type === "external"
-                    ? " · External destination"
-                    : page.path
-                      ? ` · ${page.path}`
-                      : ""}
-                </small>
-              </span>
-              <span className="habit-open">
-                Open <OrvexaIcon name="arrow-right" className="icon-sm" />
-              </span>
-            </button>
-          ))}
-          {!visiblePages.length && (
-            <div className="habit-note" role="status">
-              {accessLoading
-                ? "Checking the pages available to this account…"
-                : "No application pages are available for this account. Sign in or ask an administrator for access."}
+      <section className="employee-spotlight" data-zrv-reveal aria-label="Employee of the month">
+        {employeeOfMonth.status === "idle" && <div className="employee-spotlight-empty">Employee recognition is available to authorised team members.</div>}
+        {employeeOfMonth.status === "loading" && <div className="employee-spotlight-empty" role="status">Loading employee recognition...</div>}
+        {employeeOfMonth.status === "error" && <div className="employee-spotlight-empty" role="status">Employee recognition is temporarily unavailable.</div>}
+        {employeeOfMonth.status === "ready" && employeeOfMonth.data && (
+          <>
+            <div className="employee-spotlight-person">
+              <div className="employee-spotlight-photo-wrap">
+                <img
+                  className="employee-spotlight-photo"
+                  src={profile.employeeNumber === employeeOfMonth.data.employee.employeeNumber ? (profile.avatarUrl || "/profile-placeholder.png") : "/profile-placeholder.png"}
+                  alt={profile.employeeNumber === employeeOfMonth.data.employee.employeeNumber && profile.avatarUrl ? `${employeeOfMonth.data.employee.name} portrait` : "Employee photo placeholder"}
+                  onError={(event) => { event.currentTarget.src = "/profile-placeholder.png"; }}
+                />
+                <span className="employee-spotlight-medal" aria-label="Approved employee recognition"><OrvexaIcon name="award" /></span>
+              </div>
+              <span className="employee-spotlight-kicker">RECOGNISED TEAM MEMBER</span>
+              <h3>{employeeOfMonth.data.employee.name}</h3>
+              <p className="employee-spotlight-role">{employeeOfMonth.data.employee.position || "Employee"}</p>
+              <dl className="employee-spotlight-details">
+                <div><dt>Employee no.</dt><dd>{employeeOfMonth.data.employee.employeeNumber}</dd></div>
+                <div><dt>Department</dt><dd>{employeeOfMonth.data.employee.departmentName || "—"}</dd></div>
+                <div><dt>Recognition date</dt><dd>{employeeOfMonth.data.activityDate ? enDate(employeeOfMonth.data.activityDate) : "—"}</dd></div>
+              </dl>
             </div>
-          )}
-          {visiblePages.length > 0 && (
-            <div className="habit-note">
-              {pages.length > visiblePages.length
-                ? `Showing ${visiblePages.length} of ${pages.length} pages. The sidebar lists every page you can open.`
-                : "Every page your account can open is listed here."}
+            <div className="employee-spotlight-reason">
+              <div className="employee-spotlight-reason-head">
+                <span className="employee-spotlight-kicker">WHY THEY WERE RECOGNISED</span>
+                <span className="employee-spotlight-rating">{employeeOfMonth.data.overallRating || "APPROVED"}</span>
+              </div>
+              <h3>A contribution worth celebrating.</h3>
+              <p className="employee-spotlight-remark">{employeeOfMonth.data.remark || "Their contribution was recognised by the team."}</p>
+              {!!employeeOfMonth.data.lines.length && (
+                <ul className="employee-spotlight-evidence">
+                  {employeeOfMonth.data.lines.map((line) => (
+                    <li key={line.lineNumber}>
+                      <span><OrvexaIcon name="check" /> {line.criterion}</span>
+                      <p>{line.remark}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
+        {employeeOfMonth.status === "ready" && !employeeOfMonth.data && (
+          <div className="employee-spotlight-empty"><OrvexaIcon name="sparkles" /> No approved employee recognition is available yet.</div>
+        )}
       </section>
 
       <div className="section-line" style={{ marginTop: 46 }}>
         <div>
-          <span className="eyebrow">03 / WHAT NEEDS YOU</span>
-          <h2>Work, moving forward.</h2>
+          <span className="eyebrow">03 / TEAM ANNOUNCEMENTS</span>
+          <h2>Stay in the loop.</h2>
           <p>
-            A clear view of your next actions and your team&apos;s momentum.
+            Updates from across your workspace, in one place.
           </p>
         </div>
-        <button className="btn tiny quiet" type="button">
-          See activity <OrvexaIcon name="arrow-right" />
-        </button>
       </div>
-      <div className="feature-grid" data-zrv-reveal>
-        <section className="surface feature-primary">
-          <div>
-            <div className="eyebrow">
-              YOUR NEXT ACTION &nbsp; · &nbsp; FINANCE
-            </div>
-            <h3>
-              Less navigating.
-              <br />
-              More doing.
-            </h3>
-            <p>
-              Continue the Credit Note flow with all required fields, dynamic
-              invoice lines, and local draft saving.
-            </p>
-          </div>
-          <div className="foot">
-            <button className="btn primary" type="button">
-              Open Credit Note <OrvexaIcon name="arrow-right" />
-            </button>
-            <span className="pill">Demo workflow</span>
-          </div>
-        </section>
-        <section className="surface feature-mini">
-          <div className="subhead">
-            <h3>Attention queue</h3>
-            <span className="icon-bubble">
-              <OrvexaIcon name="check" />
-            </span>
-          </div>
-          {ATTENTION_ITEMS.map((item) => (
-            <div className="queue-line" key={item.label}>
-              <div>
-                <strong>{item.label}</strong>
-                <small>{item.team} · Demo</small>
-              </div>
-              {item.count.includes("new") ? (
-                <span className="queue-pill">{item.count}</span>
-              ) : (
-                <b>{item.count}</b>
-              )}
-            </div>
-          ))}
-          <div className="push">
-            <button className="btn tiny ghost full" type="button">
-              Review queue <OrvexaIcon name="arrow-right" />
-            </button>
-          </div>
-        </section>
-        <section className="surface feature-mini">
-          <div className="subhead">
-            <h3>Workflow pulse</h3>
-            <span className="icon-bubble">
-              <OrvexaIcon name="chart-column" />
-            </span>
-          </div>
-          <div
-            className="horizon-bars"
-            role="img"
-            aria-label="Illustrative workflow pulse bars"
-          >
-            {WORKFLOW_BARS.map((height, index) => (
-              <i key={index} style={{ height: `${height}%` }} />
+      <div className="attention-announcement" role="region" aria-label="Attention queue announcement" tabIndex={0}>
+        <div className="attention-announcement-head">
+          <span className="attention-announcement-label"><OrvexaIcon name="sparkles" /> ANNOUNCEMENT</span>
+          <span className="attention-announcement-caption">Workspace updates <i /> Moving continuously</span>
+        </div>
+        <div className="attention-announcement-window">
+          <p className="attention-announcement-sr">{ATTENTION_ITEMS.map((item) => `${item.count} ${item.label} in ${item.team}`).join(". ")}</p>
+          <div className="attention-announcement-track" aria-hidden="true">
+            {[0, 1].map((copy) => (
+              <span className="attention-announcement-copy" key={copy}>
+                {ATTENTION_ITEMS.map((item) => (
+                  <span className="attention-announcement-item" key={`${copy}-${item.label}`}>
+                    <i /> {item.count} {item.label} <small>{item.team}</small>
+                  </span>
+                ))}
+              </span>
             ))}
           </div>
-          <div className="metric-bottom">
-            <div>
-              <small className="secondary">Demo activity</small>
-              <br />
-              <strong>86.4%</strong>
-            </div>
-            <span>↑ +12.8%</span>
-          </div>
-        </section>
+        </div>
       </div>
 
-      <div className="section-line" style={{ marginTop: 39 }}>
+      <div className="section-line attention-section-line">
         <div>
-          <h2>Business spaces</h2>
-          <p>A single, scalable doorway to the wider organization</p>
+          <span className="eyebrow">04 / WHAT NEEDS YOU</span>
+          <h2>Your next actions.</h2>
+          <p>Review the items waiting for your attention.</p>
         </div>
-        <button
-          className="btn tiny quiet"
-          type="button"
-          onClick={() => onNavigate("atlas")}
-        >
-          Explore {MODULES.length} entries <OrvexaIcon name="arrow-right" />
+        <button className="btn tiny quiet" type="button" onClick={() => document.getElementById("attentionQueueTitle")?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+          View queue <OrvexaIcon name="arrow-right" />
         </button>
       </div>
-      <div className="domain-grid" data-zrv-reveal>
-        {BUSINESS_SPACES.map((space) => (
-          <button
-            className="domain-card"
-            type="button"
-            key={space.name}
-            onClick={() => onNavigate("atlas", { domain: space.name })}
-          >
-            <span className="icon-bubble">
-              <OrvexaIcon name={space.icon} />
-            </span>
-            <div>
-              <strong>{space.name}</strong>
-              <small>{space.description}</small>
-            </div>
-            <OrvexaIcon name="arrow-right" className="ic tail" />
-          </button>
-        ))}
-      </div>
+      <section className="attention-queue surface" data-zrv-reveal aria-labelledby="attentionQueueTitle">
+        <div className="attention-queue-head">
+          <div>
+            <span className="eyebrow">YOUR WORK, AT A GLANCE</span>
+            <h3 id="attentionQueueTitle">Items to review</h3>
+            <p>Choose an item to open its workspace and continue.</p>
+          </div>
+          <span className="attention-preview-badge">PREVIEW QUEUE</span>
+        </div>
+        <div className="attention-table-wrap">
+          <table className="attention-table">
+            <thead>
+              <tr><th scope="col">Work item</th><th scope="col">Team</th><th scope="col">Waiting</th><th scope="col">Action</th></tr>
+            </thead>
+            <tbody>
+              {ATTENTION_ITEMS.map((item, index) => (
+                <tr className={`attention-row attention-row-${index + 1}`} key={item.label}>
+                  <td>
+                    <span className="attention-work-icon"><OrvexaIcon name={item.icon || "clipboard-list"} /></span>
+                    <span className="attention-work-copy"><strong>{item.label}</strong><small>Needs review</small></span>
+                  </td>
+                  <td><span className="attention-team-tag">{item.team}</span></td>
+                  <td><span className="attention-count">{item.count}</span></td>
+                  <td><button className="attention-action" type="button" onClick={() => openAttentionItem(item)}>Take action <OrvexaIcon name="arrow-right" /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <footer className="footnote">
         <span>
           <b>{appConfig.name.toUpperCase()} / DIGITAL WORKSPACE</b> &nbsp; ·

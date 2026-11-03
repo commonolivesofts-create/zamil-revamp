@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import '@/styles/command-palette.css'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { appConfig } from '@/config/appConfig.js'
 import { paletteCommands, searchCommands } from '@/config/appNavigation.js'
@@ -17,12 +18,17 @@ export default function CommandPalette({ open, onClose }) {
   const [activeIndex, setActiveIndex] = useState(0)
   const input = useRef(null)
   const dialogRef = useRef(null)
+  const activeOption = useRef(null)
   const commands = useMemo(() => paletteCommands(access, status), [access, status])
   const filtered = useMemo(() => searchCommands(commands, query), [commands, query])
 
   useEffect(() => {
     if (open) input.current?.focus()
   }, [open])
+
+  useEffect(() => {
+    if (open) activeOption.current?.scrollIntoView({ block: 'nearest' })
+  }, [activeIndex, filtered.length, open])
 
   useEffect(() => {
     if (!open) return undefined
@@ -59,41 +65,76 @@ export default function CommandPalette({ open, onClose }) {
 
   return (
     <div
-      id="command-modal" className={`fixed inset-0 z-[90] items-start justify-center overflow-y-auto bg-black/55 p-3 backdrop-blur-md ${open ? 'flex' : 'hidden'}`}
-      role="dialog" aria-modal="true" aria-labelledby="command-title" aria-hidden={!open} inert={!open}
+      id="command-modal"
+      className={`command-overlay ${open ? 'is-open' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="command-title"
+      aria-hidden={!open}
+      inert={!open}
       onMouseDown={(event) => { if (event.target === event.currentTarget) close() }}
       ref={dialogRef}
     >
-      <div className="glass-panel my-auto w-full max-w-2xl overflow-hidden rounded-3xl">
+      <div className="command-palette">
         <h2 id="command-title" className="sr-only">Search {appConfig.name}</h2>
-        <div className="flex items-center gap-3 border-b px-4 py-3.5" style={{ borderColor: 'var(--line)' }}>
-          <OrvexaIcon name="search" className="size-[18px]" style={{ color: 'var(--muted)' }} />
+        <div className="command-search-row">
+          <OrvexaIcon name="search" className="command-search-icon" />
           <input
-            id="command-input" ref={input} autoComplete="off" value={query} onChange={(event) => { setQuery(event.target.value); setActiveIndex(0) }}
+            id="command-input"
+            ref={input}
+            autoComplete="off"
+            value={query}
+            onChange={(event) => { setQuery(event.target.value); setActiveIndex(0) }}
             onKeyDown={(event) => {
-              if (event.key === 'ArrowDown') { event.preventDefault(); setActiveIndex((index) => Math.min(index + 1, filtered.length - 1)) }
-              else if (event.key === 'ArrowUp') { event.preventDefault(); setActiveIndex((index) => Math.max(index - 1, 0)) }
+              if (event.key === 'ArrowDown' && filtered.length) { event.preventDefault(); setActiveIndex((index) => (index + 1) % filtered.length) }
+              else if (event.key === 'ArrowUp' && filtered.length) { event.preventDefault(); setActiveIndex((index) => (index - 1 + filtered.length) % filtered.length) }
               else if (event.key === 'Enter' && filtered.length) { event.preventDefault(); pick(filtered[Math.min(activeIndex, filtered.length - 1)]) }
             }}
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-500"
+            className="command-search-input"
             aria-label="Search pages"
+            aria-controls="command-results"
+            aria-activedescendant={filtered[activeIndex] ? `command-option-${filtered[activeIndex].id}` : undefined}
             placeholder="Search pages..."
           />
-          <button type="button" onClick={close} className="rounded-lg border px-2 py-1 text-[12px] font-bold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>ESC</button>
+          <button type="button" onClick={close} className="command-close" aria-label="Close search">Esc</button>
         </div>
-        <div className="max-h-[62vh] overflow-y-auto p-2">
-          <div className="px-3 pb-1 pt-3 text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--muted)' }}>Navigate</div>
-          {filtered.map((item, index) => (
-            <button type="button" key={item.id} className={`command-item flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left hover:bg-black/5 dark:hover:bg-white/5 ${activeIndex === index ? 'bg-black/5 dark:bg-white/5' : ''}`} onMouseEnter={() => setActiveIndex(index)} onClick={() => pick(item)}>
-              <OrvexaIcon name={item.icon || 'circle'} className="size-4" style={{ color: 'var(--primary-text)' }} />
-              <span className="text-xs font-bold">{item.label}</span>
-              <span className="ml-auto text-[12px]" style={{ color: 'var(--muted)' }}>{item.group}</span>
-            </button>
-          ))}
-          {!filtered.length && <div className="px-4 py-10 text-center" id="command-empty"><OrvexaIcon name="search-x" className="mx-auto size-7" /><p className="mt-3 text-xs font-bold">No matching page</p><p className="mt-1 text-[12px]" style={{ color: 'var(--muted)' }}>{commands.length ? 'Try a different keyword.' : 'No pages are available to your account.'}</p></div>}
+        <div className="command-results-region">
+          <div className="command-results-heading">
+            <span>{query ? 'Matching pages' : 'Pages you can open'}</span>
+            <span>{filtered.length} {filtered.length === 1 ? 'result' : 'results'}</span>
+          </div>
+          <div id="command-results" className="command-results" role="listbox" aria-label="Search results">
+            {filtered.map((item, index) => (
+              <button
+                id={`command-option-${item.id}`}
+                role="option"
+                aria-selected={activeIndex === index}
+                type="button"
+                key={item.id}
+                ref={activeIndex === index ? activeOption : null}
+                className={`command-option ${activeIndex === index ? 'is-active' : ''}`}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => pick(item)}
+              >
+                <span className="command-option-icon"><OrvexaIcon name={item.icon || 'circle'} /></span>
+                <span className="command-option-copy"><strong>{item.label}</strong><small>{item.group}</small></span>
+                {activeIndex === index && <span className="command-option-enter"><kbd>&#8629;</kbd> Enter</span>}
+              </button>
+            ))}
+          </div>
+          {!filtered.length && (
+            <div className="command-empty" id="command-empty">
+              <OrvexaIcon name="search-x" />
+              <strong>No matching page</strong>
+              <span>{commands.length ? 'Try a different keyword.' : 'No pages are available to your account.'}</span>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-4 border-t px-4 py-2.5 text-[12px]" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
-          <span>↵ select</span><span>esc close</span><span className="ml-auto">{appConfig.name} navigation</span>
+        <div className="command-footer">
+          <span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> Navigate</span>
+          <span><kbd>&#8629;</kbd> Open page</span>
+          <span><kbd>Esc</kbd> Close</span>
+          <span className="command-footer-brand">{appConfig.name}<i />Navigation</span>
         </div>
       </div>
     </div>
