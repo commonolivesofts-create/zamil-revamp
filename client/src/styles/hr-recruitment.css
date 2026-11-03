@@ -721,6 +721,161 @@
 .zrv-hr-combo--tight > label { margin-bottom: 5px; font-weight: 700; }
 .zrv-hr-combo--tight .zrv-hr-combo__list { left: 0; }
 
+/* Recruitment forms (Requisition, Interview, Offer, Orientation, Probation): the same design, denser and
+   full width. The title and the toolbar share the first row; only sizes and spacing change. */
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 14px; width: 100%; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) > * { grid-column: 1 / -1; min-width: 0; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) > .zrv-hr-head { grid-column: 1; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) > .zrv-hr-toolbar { grid-column: 2; grid-row: 1; }
+@media (max-width: 900px) { :is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) > .zrv-hr-toolbar { grid-column: 1 / -1; grid-row: auto; } }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) > .zrv-admin-feedback, :is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) > .zrv-admin-state { margin: 0; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-head { gap: 2px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-title { font-size: clamp(22px, 2.2vw, 28px); }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-flow { gap: 4px; padding: 4px; border-radius: 14px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-flow__step { min-height: 34px; padding: 4px 10px; border-radius: 11px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-flow__n { width: 22px; height: 22px; border-radius: 7px; font-size: 11px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-flow__t b { font-size: 13px; }
+/* the flow hints and the record status repeat the form name and the summary card */
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-flow__t small { display: none; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-toolbar { padding: 4px; border-radius: 16px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-tools { gap: 2px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-tools button { gap: 6px; min-height: 34px; padding: 0 10px; border-radius: 11px; font-size: 13px; }
+/* the theme's button size is !important (global-quality.css) */
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .btn-primary.zrv-hr-btn, :is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .btn-secondary.zrv-hr-btn { gap: 6px; min-height: 34px !important; padding-inline: 14px !important; font-size: 13px !important; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-track { gap: 6px; padding: 5px; border-radius: 18px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-track__fill { top: 5px; bottom: 5px; left: 5px; width: calc((100% - 10px - (var(--n, 4) - 1) * 6px) / var(--n, 4)); border-radius: 13px; transform: translateX(calc(var(--step) * (100% + 6px))); }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-track__step { gap: 10px; min-height: 40px; padding: 4px 12px; border-radius: 13px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-track__n { width: 26px; height: 26px; border-radius: 8px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-track__t b { font-size: 13px; }
+
+/* form and side column */
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-body { gap: 14px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-side { flex-basis: 300px; gap: 12px; }
+@media (min-width: 1100px) { :is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-side { top: 72px; } }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-stage { border-radius: 22px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-locked { padding: 8px clamp(14px, 2vw, 24px); }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-panel { padding: 14px clamp(14px, 2vw, 24px) 14px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-step-head p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-stage__nav { padding: 10px clamp(14px, 2vw, 24px); }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-subh { margin: 14px 0 8px; font-size: 13px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-step-head + .zrv-hr-subh { margin-top: 0; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-grid { gap: 10px 12px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-grid.zrv-hr-is-4 { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+@media (min-width: 700px) { .zrv-hr--interview .zrv-hr-field:is(:has(#ia-pos), :has(#ia-candidateName)) { grid-column: span 2; } }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-field .field > label, :is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-label { margin-bottom: 4px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-input { min-height: 36px; height: 36px; padding: 0 11px; font-size: 13px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) textarea.zrv-hr-input { height: auto; min-height: 70px; padding: 8px 11px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) :is(.zrv-admin-hint, .zrv-auth-field-error) { margin-top: 3px; font-size: 11.5px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-note { margin-top: 10px; padding: 7px 12px; font-size: 12.5px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-mt { margin-top: 12px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-row { grid-template-columns: 26px minmax(150px, 300px) auto minmax(120px, 1fr); gap: 10px; padding: 3px 6px 3px 4px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-row__l { font-size: 13.5px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-pips span { width: 30px; height: 26px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-row__rem { height: 30px; font-size: 13px; }
+@media (max-width: 760px) { :is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-row { grid-template-columns: 22px 1fr auto; } }
+.zrv-hr--interview .zrv-hr-choices { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-choices.zrv-hr-is-compact .zrv-hr-choice { min-height: 48px; padding: 8px 12px; border-radius: 16px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-choice .zrv-hr-bubble { width: 32px; height: 32px; border-radius: 10px; }
+
+/* summary card, score card and progress ring */
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-dark { padding: 16px; border-radius: 22px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-dark__status { padding: 3px 9px; border: 1px solid color-mix(in srgb, var(--mint) 22%, transparent); border-radius: 100px; background: color-mix(in srgb, var(--mint) 10%, transparent); color: var(--zrv-hr-ink-text); font-size: 11px; font-weight: 700; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-dark__who { margin-top: 12px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-dark__av { width: 40px; height: 40px; border-radius: 12px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-dark__title { font-size: 20px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-dark__sub { font-size: 13px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-dark__badges { margin-top: 12px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-dark__grid { gap: 10px; margin-top: 14px; padding-top: 12px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-scorecard { padding: 10px 14px 12px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-gauge { width: 170px; height: 96px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-gauge__c b { font-size: 28px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-radar { max-width: 260px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-orbit { padding: 12px 14px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-orbit svg { width: 64px; height: 64px; }
+:is(.zrv-hr--interview, .zrv-hr--requisition, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-orbit b { font-size: 16px; }
+
+/* Personnel Requisition controls: reason and budget cards side by side, smaller
+   tiles, experience track, skill tags, file drop and review grid */
+.zrv-hr--requisition .zrv-hr-choices { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.zrv-hr--requisition .zrv-hr-choice small { font-size: 12px; line-height: 1.35; }
+@media (min-width: 700px) { .zrv-hr--requisition .zrv-hr-field:has(#rq-title) { grid-column: span 2; } }
+.zrv-hr--requisition .zrv-hr-sep { margin: 14px 0; }
+.zrv-hr--requisition .zrv-hr-lock svg { right: 11px; }
+.zrv-hr--requisition .zrv-hr-combo > label { margin-bottom: 4px; }
+.zrv-hr--requisition .zrv-hr-tiles { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.zrv-hr--requisition .zrv-hr-tile { gap: 8px; min-height: 64px; padding: 10px 12px; border-radius: 14px; }
+.zrv-hr--requisition .zrv-hr-tile b { font-size: 13px; }
+.zrv-hr--requisition .zrv-hr-tile[aria-pressed="true"]::after { top: 10px; right: 10px; width: 8px; height: 8px; }
+.zrv-hr--requisition .zrv-hr-exp__track { padding-top: 14px; }
+.zrv-hr--requisition .zrv-hr-exp__rail { top: 23px; }
+.zrv-hr--requisition .zrv-hr-exp__stop { gap: 6px; min-height: 48px; font-size: 12.5px; }
+.zrv-hr--requisition .zrv-hr-exp__node { width: 22px; height: 22px; }
+.zrv-hr--requisition .zrv-hr-tags { gap: 6px; min-height: 40px; padding: 4px 6px; border-radius: 12px; }
+.zrv-hr--requisition .zrv-hr-tags input { min-height: 28px; font-size: 13px; }
+.zrv-hr--requisition .zrv-hr-tag { padding: 4px 6px 4px 10px; font-size: 12.5px; }
+.zrv-hr--requisition .zrv-hr-tag button { width: 18px; height: 18px; }
+.zrv-hr--requisition .zrv-hr-drop { gap: 12px; padding: 12px 16px; border-radius: 16px; }
+.zrv-hr--requisition .zrv-hr-drop .zrv-hr-bubble { width: 34px; height: 34px; border-radius: 11px; }
+.zrv-hr--requisition .zrv-hr-file { padding: 5px 8px; }
+.zrv-hr--requisition .zrv-hr-file button { width: 28px; height: 28px; }
+.zrv-hr--requisition .zrv-hr-review { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.zrv-hr--requisition .zrv-hr-review div { padding: 8px 12px; border-radius: 12px; }
+.zrv-hr--requisition .zrv-hr-review dt { margin-bottom: 2px; font-size: 11px; }
+.zrv-hr--requisition .zrv-hr-review dd { font-size: 13px; }
+.zrv-hr--requisition .zrv-hr-dark__chips { margin-top: 10px; }
+
+/* Employment Offer: benefit cards in two columns, a wider letter column */
+.zrv-hr--offer .zrv-hr-side { flex-basis: 380px; }
+.zrv-hr-side__t { display: inline-flex; align-items: center; gap: 8px; }
+.zrv-hr--offer .zrv-hr-sentence { font-size: clamp(16px, 1.5vw, 19px); line-height: 1.5; }
+.zrv-hr--offer .zrv-hr-benefits, .zrv-hr--orientation .zrv-hr-benefits { display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 10px; }
+@media (max-width: 620px) { .zrv-hr--offer .zrv-hr-benefits, .zrv-hr--orientation .zrv-hr-benefits { grid-template-columns: minmax(0, 1fr); } }
+:is(.zrv-hr--offer, .zrv-hr--orientation) .zrv-hr-benefit { padding: 10px 12px; border-radius: 16px; }
+:is(.zrv-hr--offer, .zrv-hr--orientation) .zrv-hr-benefit__h { gap: 10px; margin-bottom: 8px; }
+:is(.zrv-hr--offer, .zrv-hr--orientation) .zrv-hr-benefit__h .zrv-hr-bubble { width: 30px; height: 30px; border-radius: 10px; }
+:is(.zrv-hr--offer, .zrv-hr--orientation) .zrv-hr-benefit__h b { font-size: 14px; }
+.zrv-hr--offer .zrv-hr-benefit__ar { font-size: 14px; }
+.zrv-hr--offer .zrv-hr-pair { gap: 8px; }
+.zrv-hr--offer .zrv-hr-picks { gap: 4px; margin-top: 8px; }
+.zrv-hr--offer .zrv-hr-picks button { min-height: 26px; padding: 0 10px; font-size: 12px; }
+.zrv-hr--offer .zrv-hr-paper { padding: 16px; font-size: 12.5px; }
+.zrv-hr--offer .zrv-hr-pkg { gap: 12px; padding: 12px; }
+.zrv-hr--offer .zrv-hr-pkg svg { width: 84px; height: 84px; }
+
+/* Orientation Training: session cards, timeline, issues and review */
+.zrv-hr--orientation .zrv-hr-session__grid { gap: 8px; }
+.zrv-hr--orientation .zrv-hr-session__f { gap: 3px; }
+.zrv-hr--orientation .zrv-hr-session__warn { margin-top: 8px; padding: 5px 10px; font-size: 12px; }
+.zrv-hr--orientation .zrv-hr-timeline { grid-auto-rows: 30px; }
+.zrv-hr--orientation .zrv-hr-issues { gap: 4px; }
+.zrv-hr--orientation .zrv-hr-sep { margin: 14px 0; }
+.zrv-hr--orientation .zrv-hr-review { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.zrv-hr--orientation .zrv-hr-review div { padding: 8px 12px; border-radius: 12px; }
+.zrv-hr--orientation .zrv-hr-review dt { margin-bottom: 2px; font-size: 11px; }
+.zrv-hr--orientation .zrv-hr-review dd { font-size: 13px; }
+
+/* Probation Evaluation: the legacy ticket strip stays, smaller; denser criteria rows */
+.zrv-hr--probation .zrv-hr-ticket { gap: 16px; padding: 9px 22px; border-radius: 18px; }
+.zrv-hr--probation .zrv-hr-avatar { width: 38px; height: 38px; border-radius: 12px; font-size: 14px; }
+.zrv-hr--probation .zrv-hr-ticket__meta { gap: 4px 22px; }
+.zrv-hr--probation .zrv-hr-ticket__meta dt { margin-bottom: 1px; }
+.zrv-hr--probation .zrv-hr-ticket__meta dd { font-size: 13px; }
+.zrv-hr--probation .zrv-hr-ticket__meta dd.zrv-hr-is-big { font-size: 15px; }
+/* the employee field (picker, or read only once saved) sits in the grid, two columns wide */
+.zrv-hr--probation .zrv-hr-grid > .zrv-hr-mt { margin-top: 0; }
+@media (min-width: 700px) { .zrv-hr--probation .zrv-hr-grid > :is(.zrv-hr-pa-emp, .zrv-hr-mt) { grid-column: span 2; } }
+:is(.zrv-hr--probation, .zrv-hr--orientation) .zrv-hr-combo > label { margin-bottom: 4px; }
+:is(.zrv-hr--probation, .zrv-hr--orientation) .zrv-hr-combo__av { width: 36px; height: 36px; border-radius: 11px; font-size: 12px; }
+:is(.zrv-hr--probation, .zrv-hr--orientation) .zrv-hr-combo__list { left: 46px; }
+.zrv-hr--probation .zrv-hr-criteria { gap: 2px; }
+.zrv-hr--probation .zrv-hr-criterion { padding-top: 3px; padding-bottom: 3px; }
+.zrv-hr--probation .zrv-hr-criterion__name b { font-size: 13.5px; }
+.zrv-hr--probation .zrv-hr-criterion__name small { font-size: 12px; }
+.zrv-hr--probation .zrv-hr-criterion__alloc { height: 28px; }
+.zrv-hr--probation .zrv-hr-criterion .zrv-hr-input { width: 80px; }
+.zrv-hr--probation .zrv-hr-scorecard { align-items: flex-start; }
+.zrv-hr--probation .zrv-hr-scorecard p { margin: 0; }
+
 /* reduced motion: no transitions or animations; signatures appear drawn */
 @media (prefers-reduced-motion: reduce) {
   .zrv-hr *, .zrv-hr *::before, .zrv-hr *::after { animation: none !important; transition: none !important; }

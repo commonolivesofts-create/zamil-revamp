@@ -11,10 +11,9 @@ import { RecruitmentLoader } from "../shared/components/RecruitmentLoader.jsx";
 import { NewFormDialog } from "../shared/components/RecruitmentDialogs.jsx";
 import {
   Orbit,
-  PanelHead,
   Pill,
   RecruitmentShell,
-  Ticket,
+  StepHead,
   Tilt,
 } from "../shared/components/RecruitmentShell.jsx";
 import { HrField } from "../shared/components/RecruitmentInputs.jsx";
@@ -107,7 +106,6 @@ export default function OrientationPage() {
     <RecruitmentLoader
       current="orientation"
       title={T.title}
-      subtitle={T.subtitle}
       param="scheduleId"
       load={(id, options) => service.getById(id, { ...options, flag })}
       loadLookups={(signal) => service.getLookups({ signal })}
@@ -140,8 +138,13 @@ function OrientationEditor({ lookups, record: savedRecord }) {
   const toDate = form.fromOrient;
   const planned = lines.filter(isPlanned).length;
   const minutes = lines.reduce((sum, line) => sum + lineMinutes(line), 0);
-  const incomplete = lines.length - planned;
   const status = orientationStatus(record?.status ?? "Draft");
+  const doneSteps = [
+    Boolean(employee && form.fromOrient),
+    planned === lines.length && lines.length > 0,
+    planned > 0,
+    Boolean(record),
+  ];
   const locked = Boolean(record) && !isOrientationEditable(record.status);
   const lastLineDate = lines.reduce(
     (latest, line) => (line.toDate && line.toDate > latest ? line.toDate : latest),
@@ -245,13 +248,8 @@ function OrientationEditor({ lookups, record: savedRecord }) {
         if (outcome.status === "success") setDialog(null);
       });
 
+  // The primary button saves, so the toolbar has no second Save.
   const tools = [
-    {
-      icon: "save",
-      label: COMMON_TEXT.save,
-      onClick: requestSave,
-      disabled: locked || editor.pending || setupLoading,
-    },
     {
       icon: "printer",
       label: COMMON_TEXT.print,
@@ -264,7 +262,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
     },
     {
       icon: "file-plus",
-      label: COMMON_TEXT.requestForm,
+      label: T.report.newSchedule,
       onClick: () => leave(BASE),
     },
     {
@@ -287,7 +285,6 @@ function OrientationEditor({ lookups, record: savedRecord }) {
       <RecruitmentShell
         current="orientation"
         title={T.title}
-        subtitle={T.subtitle}
         demo={false}
         flowStatus={
           record ? `${record.scheduleNumber} · ${T.status[status] ?? status}` : null
@@ -307,62 +304,28 @@ function OrientationEditor({ lookups, record: savedRecord }) {
             status={status}
           />
         }
-        ticket={
-          <Ticket
-            avatar={initials(employee?.name)}
-            code={T.code}
-            items={[
-              {
-                k: T.ticket.number,
-                v: record?.scheduleNumber || T.ticket.numberPending,
-              },
-              {
-                k: T.ticket.name,
-                v: employee?.name || T.ticket.notSelected,
-                big: true,
-              },
-              {
-                k: T.ticket.type,
-                v: employee?.employmentType || COMMON_TEXT.dash,
-              },
-              {
-                k: T.ticket.startDate,
-                v: employee ? enDate(employee.startDate) : COMMON_TEXT.dash,
-              },
-              {
-                k: T.ticket.scheduledBy,
-                v: record?.scheduledByName || T.ticket.pending,
-              },
-              {
-                k: T.ticket.status,
-                v: (
-                  <Pill tone={statusTone(status)}>
-                    {T.status[status] ?? status}
-                  </Pill>
-                ),
-              },
-            ]}
-          />
-        }
-        steps={T.steps}
+        steps={T.tabNames.map((name, index) => [
+          name,
+          index === 1 && lines.length
+            ? T.tabHints.planned(planned, lines.length)
+            : doneSteps[index]
+              ? T.tabHints.done
+              : T.tabHints.open,
+        ])}
         step={step}
         onStep={setStep}
-        doneSteps={[
-          Boolean(employee && form.fromOrient),
-          planned === lines.length && lines.length > 0,
-          planned > 0,
-          Boolean(record),
-        ]}
+        doneSteps={doneSteps}
         finalLabel={T.final}
         onFinal={requestSave}
         side={
           <>
             <Tilt aria-label={T.card.label}>
               <div className="zrv-hr-dark__top">
-                <span className="zrv-hr-eyebrow">{T.card.eyebrow}</span>
-                <span className="zrv-hr-mono">
-                  {record?.scheduleNumber || T.card.draft}
-                </span>
+                {/* a new schedule has no number yet; the status pill says Draft */}
+                <span className="zrv-hr-mono">{record?.scheduleNumber}</span>
+                <Pill tone={statusTone(status)}>
+                  {T.status[status] ?? status}
+                </Pill>
               </div>
               <div className="zrv-hr-dark__who">
                 <span className="zrv-hr-dark__av" aria-hidden="true">
@@ -384,7 +347,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                 </div>
               </div>
               <div className="zrv-hr-dark__badges">
-                {employee ? (
+                {employee && (
                   <>
                     <span className="zrv-hr-is-solid">
                       {employee.divisionName || employee.division}
@@ -392,8 +355,6 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                     <span>{employee.employmentType}</span>
                     <span>{T.card.joins(shortDate(employee.startDate))}</span>
                   </>
-                ) : (
-                  <span>{T.card.draftBadge}</span>
                 )}
               </div>
               <div className="zrv-hr-dark__grid">
@@ -454,7 +415,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
       >
         {step === 0 && (
           <>
-            <PanelHead n={1} {...T.heads[0]} />
+            <StepHead {...T.heads[0]} />
             <EmployeePicker
               id="ori-name"
               label={T.labels.name}
@@ -473,7 +434,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                 {setupError}
               </p>
             )}
-            <div className="zrv-hr-grid zrv-hr-is-3 zrv-hr-mt">
+            <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt">
               {employeeFields.map(([label, value]) => {
                 const id = `ori-${label.replace(/\W+/g, "-").toLowerCase()}`;
                 return (
@@ -490,7 +451,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
               })}
             </div>
             <h3 className="zrv-hr-subh">{T.window}</h3>
-            <div className="zrv-hr-grid zrv-hr-is-3">
+            <div className="zrv-hr-grid zrv-hr-is-4">
               <HrField
                 id="ori-from"
                 label={T.labels.from}
@@ -531,7 +492,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
         )}
         {step === 1 && (
           <>
-            <PanelHead n={2} {...T.heads[1]} />
+            <StepHead {...T.heads[1]} />
             {!employee && <p className="zrv-hr-note">{T.pickFirst}</p>}
             {lines.length > 0 && (
               <div className="zrv-hr-benefits">
@@ -663,7 +624,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
         )}
         {step === 2 && (
           <>
-            <PanelHead n={3} {...T.heads[2]} />
+            <StepHead {...T.heads[2]} />
             {timelineDays.length ? (
               <div
                 className="zrv-hr-timeline"
@@ -742,28 +703,8 @@ function OrientationEditor({ lookups, record: savedRecord }) {
         )}
         {step === 3 && (
           <>
-            <PanelHead n={4} {...T.heads[3]} />
-            <div className="zrv-hr-recap">
-              <div>
-                <small>{T.recap.sessions}</small>
-                <b>
-                  {planned}
-                  <em>/{lines.length}</em>
-                </b>
-                <span>{T.recap.incomplete(incomplete)}</span>
-              </div>
-              <div>
-                <small>{T.recap.time}</small>
-                <b>{hoursOf(minutes)}</b>
-                <span>{T.recap.across}</span>
-              </div>
-              <div>
-                <small>{T.recap.dates}</small>
-                <b>{form.fromOrient ? shortDate(form.fromOrient) : COMMON_TEXT.dash}</b>
-                <span>{T.recap.sameDay}</span>
-              </div>
-            </div>
-            <dl className="zrv-hr-review zrv-hr-mt zrv-hr-ori-review">
+            <StepHead {...T.heads[3]} />
+            <dl className="zrv-hr-review zrv-hr-ori-review">
               {lines.map((line) => (
                 <div
                   key={line.department}
