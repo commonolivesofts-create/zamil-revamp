@@ -106,6 +106,12 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "/hr/recruitment/offer",
       "/hr/recruitment/offer/report",
       "/hr/recruitment/offer/:offerId",
+      // Workflow Manager M1: real /api/v1/workflow-manager contract.
+      "/workflow-manager",
+      "/workflow-manager/forms",
+      "/workflow-manager/forms/new",
+      "/workflow-manager/forms/:formId",
+      "/workflow-manager/data-sources",
       "/security/users",
       "/security/users/:userId",
       "/security/roles",

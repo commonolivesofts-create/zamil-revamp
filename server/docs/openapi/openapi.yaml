@@ -166,6 +166,14 @@ tags:
       requests also require the session-bound CSRF token. Employee identity and salary are
       loaded from the employee master at creation; UUID, reference number, and audit fields
       are handled by the server.
+  - name: Workflow Manager
+    description: >-
+      Master Workflow Manager, Phase 1 package M1: Form Registry and Data Source
+      Registry over XX_ZRV_WF_FORMS and XX_ZRV_WF_DATA_SOURCES, with read-only
+      version metadata (XX_ZRV_WF_SOURCE_VERSIONS, XX_ZRV_WF_FORM_VERSIONS).
+      Configuration only: no workflow instances, tasks or notifications are created.
+      Requires WORKFLOW_MANAGER.* permissions (default deny until the catalogue is
+      registered and granted).
 paths:
   /api/v1/auth/password/policy:
     get:
@@ -9970,6 +9978,684 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/workflow-manager/overview:
+    get:
+      operationId: getWorkflowManagerOverview
+      tags: [Workflow Manager]
+      summary: Workflow Manager overview counts
+      description: >-
+        Live counts of the Form Registry (XX_ZRV_WF_FORMS) and Data Source Registry
+        (XX_ZRV_WF_DATA_SOURCES). Requires `WORKFLOW_MANAGER.OVERVIEW:VIEW`. Each
+        section is returned only when the caller also holds that registry's VIEW
+        permission; otherwise it is `null`. No workflow runtime data exists in Phase 1.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Counts for the registries the caller may view.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkflowOverview'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/lookups/modules:
+    get:
+      operationId: listWorkflowFormModules
+      tags: [Workflow Manager]
+      summary: Modules a workflow form may belong to
+      description: >-
+        Active modules of the RBAC permission catalogue (XX_ZRV_APP_MODULES, read
+        only), excluding SECURITY_ADMINISTRATION and WORKFLOW_MANAGER. Requires
+        `WORKFLOW_MANAGER.FORM_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Active business modules in catalogue display order.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkflowModuleOption'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/forms:
+    get:
+      operationId: listWorkflowForms
+      tags: [Workflow Manager]
+      summary: List registered forms
+      description: >-
+        Registered forms (XX_ZRV_WF_FORMS), paginated, with search, filters and an
+        allowlisted sort (stable FORM_ID tie-breaker). Requires
+        `WORKFLOW_MANAGER.FORM_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/WorkflowPage'
+        - $ref: '#/components/parameters/WorkflowPageSize'
+        - $ref: '#/components/parameters/WorkflowSearch'
+        - name: moduleCode
+          in: query
+          schema:
+            type: string
+            pattern: '^[A-Z][A-Z0-9_]*$'
+            maxLength: 80
+        - $ref: '#/components/parameters/WorkflowStatus'
+        - name: sortBy
+          in: query
+          schema:
+            enum: [FORM_CODE, FORM_NAME, MODULE_CODE, UPDATED_AT]
+            default: FORM_CODE
+        - $ref: '#/components/parameters/WorkflowSortDir'
+      responses:
+        '200':
+          description: One page of registered forms.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, pagination, meta]
+                properties:
+                  success:
+                    const: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowForm'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  meta:
+                    $ref: '#/components/schemas/ResponseMeta'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: registerWorkflowForm
+      tags: [Workflow Manager]
+      summary: Register a form
+      description: >-
+        Registers an existing business form as an active row of XX_ZRV_WF_FORMS.
+        `moduleCode` must be an ACTIVE module of the permission catalogue (never
+        SECURITY_ADMINISTRATION or WORKFLOW_MANAGER); `formCode` is unique and
+        immutable afterwards; `detailRoute` is an internal application route only.
+        Organization scope is not a column of XX_ZRV_WF_FORMS: it is configured in
+        the versioned form mapping (package M2). Requires
+        `WORKFLOW_MANAGER.FORM_REGISTRY:CREATE` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowFormCreate'
+      responses:
+        '201':
+          $ref: '#/components/responses/WorkflowFormResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '409':
+          $ref: '#/components/responses/WorkflowConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/forms/{formId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowFormId'
+    get:
+      operationId: getWorkflowForm
+      tags: [Workflow Manager]
+      summary: Read a registered form
+      description: >-
+        One registered form with its audit columns and the number of mapping
+        versions. Requires `WORKFLOW_MANAGER.FORM_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          $ref: '#/components/responses/WorkflowFormResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: updateWorkflowForm
+      tags: [Workflow Manager]
+      summary: Update a registered form
+      description: >-
+        Updates name, module, detail route and description with optimistic locking:
+        `rowVersion` must equal the stored ROW_VERSION (409 `STALE_RECORD`
+        otherwise). The form code cannot change. A changed module is re-verified.
+        Requires `WORKFLOW_MANAGER.FORM_REGISTRY:UPDATE` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowFormUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/WorkflowFormResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/forms/{formId}/activate:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowFormId'
+    post:
+      operationId: activateWorkflowForm
+      tags: [Workflow Manager]
+      summary: Activate a registered form
+      description: >-
+        Sets IS_ACTIVE to 'Y' with optimistic locking. Requires
+        `WORKFLOW_MANAGER.FORM_REGISTRY:ACTIVATE` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRowVersion'
+      responses:
+        '200':
+          $ref: '#/components/responses/WorkflowFormResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/forms/{formId}/deactivate:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowFormId'
+    post:
+      operationId: deactivateWorkflowForm
+      tags: [Workflow Manager]
+      summary: Deactivate a registered form
+      description: >-
+        Sets IS_ACTIVE to 'N' with optimistic locking; records are never deleted.
+        Requires `WORKFLOW_MANAGER.FORM_REGISTRY:DEACTIVATE` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRowVersion'
+      responses:
+        '200':
+          $ref: '#/components/responses/WorkflowFormResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/forms/{formId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowFormId'
+    get:
+      operationId: listWorkflowFormVersions
+      tags: [Workflow Manager]
+      summary: Form mapping versions (read only)
+      description: >-
+        Metadata of XX_ZRV_WF_FORM_VERSIONS for the form, newest first (at most
+        200), with the header source version. CONFIG_JSON is never returned. Versions
+        are created by package M2. Requires `WORKFLOW_MANAGER.FORM_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Version metadata.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkflowFormVersion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/lookups/source-policy:
+    get:
+      operationId: getWorkflowSourcePolicy
+      tags: [Workflow Manager]
+      summary: Data source allowlist policy
+      description: >-
+        The source kinds, allowlisted schema owners, protected object-name prefixes
+        and registered server-side handlers that registration enforces. Requires
+        `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: The policy.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkflowSourcePolicy'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/lookups/source-objects:
+    get:
+      operationId: listWorkflowSourceObjects
+      tags: [Workflow Manager]
+      summary: Allowlisted dictionary objects
+      description: >-
+        Names of VALID tables or views (ALL_OBJECTS) owned by an allowlisted schema,
+        excluding protected prefixes; at most 50, by name. Only names are returned;
+        no business data is read. Requires `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: objectType
+          in: query
+          required: true
+          schema:
+            enum: [TABLE, VIEW]
+        - name: search
+          in: query
+          description: Case-insensitive contains-match on the object name.
+          schema:
+            type: string
+            maxLength: 128
+            pattern: '^[A-Za-z0-9_$#]*$'
+      responses:
+        '200':
+          description: Matching object names.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkflowSourceObject'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/data-sources:
+    get:
+      operationId: listWorkflowDataSources
+      tags: [Workflow Manager]
+      summary: List registered data sources
+      description: >-
+        Registered data sources (XX_ZRV_WF_DATA_SOURCES), paginated, with search,
+        filters and an allowlisted sort (stable SOURCE_ID tie-breaker). Requires
+        `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/WorkflowPage'
+        - $ref: '#/components/parameters/WorkflowPageSize'
+        - $ref: '#/components/parameters/WorkflowSearch'
+        - name: sourceKind
+          in: query
+          schema:
+            enum: [TABLE, VIEW, HANDLER]
+        - $ref: '#/components/parameters/WorkflowStatus'
+        - name: sortBy
+          in: query
+          schema:
+            enum: [SOURCE_CODE, SOURCE_NAME, SOURCE_KIND, UPDATED_AT]
+            default: SOURCE_CODE
+        - $ref: '#/components/parameters/WorkflowSortDir'
+      responses:
+        '200':
+          description: One page of registered data sources.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, pagination, meta]
+                properties:
+                  success:
+                    const: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowDataSource'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  meta:
+                    $ref: '#/components/schemas/ResponseMeta'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: registerWorkflowDataSource
+      tags: [Workflow Manager]
+      summary: Register a data source
+      description: >-
+        Registers an approved source identity (CHECK ZWF_CK_SRC_3). TABLE/VIEW:
+        the owner must be allowlisted, the object must not use a protected prefix,
+        and it must exist in ALL_OBJECTS with the same type and status VALID
+        (400 `VALIDATION_ERROR` with detail `SOURCE_OWNER_NOT_ALLOWED`,
+        `SOURCE_OBJECT_PROTECTED`, `SOURCE_OBJECT_NOT_FOUND`,
+        `SOURCE_OBJECT_TYPE_MISMATCH` or `SOURCE_OBJECT_INVALID`). HANDLER: the
+        handler code must be registered on the server (`SOURCE_HANDLER_NOT_ALLOWED`;
+        none are registered in M1). No SQL text is ever accepted. Requires
+        `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:CREATE` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowDataSourceCreate'
+      responses:
+        '201':
+          $ref: '#/components/responses/WorkflowDataSourceResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '409':
+          $ref: '#/components/responses/WorkflowConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/data-sources/{sourceId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowSourceId'
+    get:
+      operationId: getWorkflowDataSource
+      tags: [Workflow Manager]
+      summary: Read a registered data source
+      description: Requires `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          $ref: '#/components/responses/WorkflowDataSourceResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: updateWorkflowDataSource
+      tags: [Workflow Manager]
+      summary: Update a registered data source
+      description: >-
+        Updates the name and, while no source version exists, the source identity
+        (re-verified like registration; 409 `SOURCE_IDENTITY_LOCKED` once versions
+        exist). Optimistic locking via `rowVersion` (409 `STALE_RECORD`). The
+        source code cannot change. Requires
+        `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:UPDATE` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowDataSourceUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/WorkflowDataSourceResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/data-sources/{sourceId}/activate:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowSourceId'
+    post:
+      operationId: activateWorkflowDataSource
+      tags: [Workflow Manager]
+      summary: Activate a data source
+      description: >-
+        Sets IS_ACTIVE to 'Y' with optimistic locking. Requires
+        `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:ACTIVATE` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRowVersion'
+      responses:
+        '200':
+          $ref: '#/components/responses/WorkflowDataSourceResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/data-sources/{sourceId}/deactivate:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowSourceId'
+    post:
+      operationId: deactivateWorkflowDataSource
+      tags: [Workflow Manager]
+      summary: Deactivate a data source
+      description: >-
+        Sets IS_ACTIVE to 'N' with optimistic locking; records are never deleted.
+        Requires `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:DEACTIVATE` and the
+        `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRowVersion'
+      responses:
+        '200':
+          $ref: '#/components/responses/WorkflowDataSourceResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/data-sources/{sourceId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowSourceId'
+    get:
+      operationId: listWorkflowSourceVersions
+      tags: [Workflow Manager]
+      summary: Source versions (read only)
+      description: >-
+        Metadata of XX_ZRV_WF_SOURCE_VERSIONS for the source, newest first (at most
+        200). CONFIG_JSON is never returned. Versions are created by package M2.
+        Requires `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Version metadata.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkflowSourceVersion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
     sessionCookie:
@@ -9990,6 +10676,56 @@ components:
         password when MFA is required. Valid for 5 minutes, single use, accepted
         only by the `/api/v1/auth/mfa/*` endpoints and never as a session.
   parameters:
+    WorkflowFormId:
+      name: formId
+      in: path
+      required: true
+      description: FORM_ID (NUMBER(19,0)) as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    WorkflowSourceId:
+      name: sourceId
+      in: path
+      required: true
+      description: SOURCE_ID (NUMBER(19,0)) as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    WorkflowPage:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100000
+        default: 1
+    WorkflowPageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    WorkflowSearch:
+      name: search
+      in: query
+      description: Case-insensitive contains-match on codes, names and object/handler names.
+      schema:
+        type: string
+        maxLength: 100
+    WorkflowStatus:
+      name: status
+      in: query
+      schema:
+        enum: [ACTIVE, INACTIVE]
+    WorkflowSortDir:
+      name: sortDir
+      in: query
+      schema:
+        enum: [asc, desc]
+        default: asc
     CsrfToken:
       name: X-CSRF-Token
       in: header
@@ -10084,6 +10820,310 @@ components:
       schema:
         type: string
   schemas:
+    WorkflowRowVersion:
+      type: object
+      additionalProperties: false
+      required: [rowVersion]
+      properties:
+        rowVersion:
+          type: integer
+          minimum: 1
+          description: The ROW_VERSION the caller last read (optimistic lock).
+    WorkflowAuditFields:
+      type: object
+      properties:
+        rowVersion:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          description: USER_ID of the creating application user.
+        createdByName:
+          type: [string, 'null']
+          description: Display name (detail responses only; null in lists).
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: [string, 'null']
+        updatedByName:
+          type: [string, 'null']
+    WorkflowForm:
+      allOf:
+        - $ref: '#/components/schemas/WorkflowAuditFields'
+        - type: object
+          required: [formId, formCode, formName, moduleCode, isActive, versionCount, rowVersion]
+          properties:
+            formId:
+              type: string
+            formCode:
+              type: string
+            formName:
+              type: string
+            moduleCode:
+              type: string
+            moduleName:
+              type: [string, 'null']
+            detailRoute:
+              type: [string, 'null']
+            description:
+              type: [string, 'null']
+            isActive:
+              type: boolean
+            versionCount:
+              type: integer
+    WorkflowFormCreate:
+      type: object
+      additionalProperties: false
+      required: [formCode, formName, moduleCode]
+      properties:
+        formCode:
+          type: string
+          maxLength: 80
+          pattern: '^[A-Z][A-Z0-9_]*$'
+          description: Unique, immutable after registration.
+        formName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        moduleCode:
+          type: string
+          maxLength: 80
+          pattern: '^[A-Z][A-Z0-9_]*$'
+        detailRoute:
+          type: [string, 'null']
+          maxLength: 500
+          description: Internal application route such as /hr/employee-services/sick-leave/:leaveId.
+        description:
+          type: [string, 'null']
+          maxLength: 1000
+    WorkflowFormUpdate:
+      type: object
+      additionalProperties: false
+      required: [formName, moduleCode, rowVersion]
+      properties:
+        formName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        moduleCode:
+          type: string
+          maxLength: 80
+          pattern: '^[A-Z][A-Z0-9_]*$'
+        detailRoute:
+          type: [string, 'null']
+          maxLength: 500
+        description:
+          type: [string, 'null']
+          maxLength: 1000
+        rowVersion:
+          type: integer
+          minimum: 1
+    WorkflowFormVersion:
+      type: object
+      properties:
+        formVersionId:
+          type: string
+        versionNo:
+          type: integer
+        lifecycleState:
+          enum: [DRAFT, REVIEW, APPROVED, PUBLISHED, RETIRED]
+        isDefault:
+          type: boolean
+        configSha256:
+          type: string
+        schemaVersion:
+          type: integer
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        headerSource:
+          type: object
+          properties:
+            sourceVersionId:
+              type: string
+            versionNo:
+              type: integer
+            sourceId:
+              type: string
+            sourceCode:
+              type: string
+    WorkflowDataSource:
+      allOf:
+        - $ref: '#/components/schemas/WorkflowAuditFields'
+        - type: object
+          required:
+            [sourceId, sourceCode, sourceName, sourceKind, isActive, versionCount, rowVersion]
+          properties:
+            sourceId:
+              type: string
+            sourceCode:
+              type: string
+            sourceName:
+              type: string
+            sourceKind:
+              enum: [TABLE, VIEW, HANDLER]
+            ownerName:
+              type: [string, 'null']
+            objectName:
+              type: [string, 'null']
+            handlerCode:
+              type: [string, 'null']
+            isActive:
+              type: boolean
+            versionCount:
+              type: integer
+    WorkflowDataSourceIdentity:
+      type: object
+      required: [sourceName, sourceKind]
+      properties:
+        sourceName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        sourceKind:
+          enum: [TABLE, VIEW, HANDLER]
+        ownerName:
+          type: [string, 'null']
+          maxLength: 128
+          description: Required for TABLE/VIEW, absent or null for HANDLER.
+        objectName:
+          type: [string, 'null']
+          maxLength: 128
+          description: Required for TABLE/VIEW, absent or null for HANDLER.
+        handlerCode:
+          type: [string, 'null']
+          maxLength: 128
+          description: Required for HANDLER, absent or null for TABLE/VIEW.
+    WorkflowDataSourceCreate:
+      allOf:
+        - $ref: '#/components/schemas/WorkflowDataSourceIdentity'
+        - type: object
+          required: [sourceCode]
+          properties:
+            sourceCode:
+              type: string
+              maxLength: 80
+              pattern: '^[A-Z][A-Z0-9_]*$'
+              description: Unique, immutable after registration.
+    WorkflowDataSourceUpdate:
+      allOf:
+        - $ref: '#/components/schemas/WorkflowDataSourceIdentity'
+        - type: object
+          required: [rowVersion]
+          properties:
+            rowVersion:
+              type: integer
+              minimum: 1
+    WorkflowSourceVersion:
+      type: object
+      properties:
+        sourceVersionId:
+          type: string
+        versionNo:
+          type: integer
+        lifecycleState:
+          enum: [DRAFT, REVIEW, APPROVED, PUBLISHED, RETIRED]
+        isDefault:
+          type: boolean
+        configSha256:
+          type: string
+        schemaVersion:
+          type: integer
+        validatedAt:
+          type: [string, 'null']
+          format: date-time
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WorkflowSourceObject:
+      type: object
+      properties:
+        ownerName:
+          type: string
+        objectName:
+          type: string
+        objectType:
+          enum: [TABLE, VIEW]
+    WorkflowSourcePolicy:
+      type: object
+      properties:
+        sourceKinds:
+          type: array
+          items:
+            enum: [TABLE, VIEW, HANDLER]
+        allowedOwners:
+          type: array
+          items:
+            type: string
+        protectedObjectPrefixes:
+          type: array
+          items:
+            type: string
+        handlers:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+    WorkflowModuleOption:
+      type: object
+      properties:
+        moduleCode:
+          type: string
+        moduleName:
+          type: string
+    WorkflowCount:
+      type: object
+      properties:
+        total:
+          type: integer
+        active:
+          type: integer
+    WorkflowOverview:
+      type: object
+      properties:
+        forms:
+          oneOf:
+            - $ref: '#/components/schemas/WorkflowCount'
+            - type: 'null'
+        dataSources:
+          oneOf:
+            - type: object
+              properties:
+                total:
+                  type: integer
+                active:
+                  type: integer
+                byKind:
+                  type: object
+                  properties:
+                    TABLE:
+                      $ref: '#/components/schemas/WorkflowCount'
+                    VIEW:
+                      $ref: '#/components/schemas/WorkflowCount'
+                    HANDLER:
+                      $ref: '#/components/schemas/WorkflowCount'
+            - type: 'null'
     PersonnelRecordChangeWrite:
       type: object
       required: [empNo, effectiveDate, new]
@@ -15689,6 +16729,70 @@ components:
             id: { $ref: '#/components/schemas/WarningLetterId' }
         meta: { $ref: '#/components/schemas/ResponseMeta' }
   responses:
+    WorkflowFormResult:
+      description: The registered form as stored.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WorkflowForm'
+    WorkflowDataSourceResult:
+      description: The registered data source as stored.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WorkflowDataSource'
+    WorkflowNotFound:
+      description: The form or data source does not exist.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: RESOURCE_NOT_FOUND
+              message: Form not found
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    WorkflowConflict:
+      description: >-
+        `FORM_CODE_EXISTS` / `SOURCE_CODE_EXISTS`: the code is already registered.
+        `STALE_RECORD`: the record changed since it was read (reload and retry).
+        `SOURCE_IDENTITY_LOCKED`: the source identity cannot change after source
+        versions exist. `CSRF_REJECTED` is a 403.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: STALE_RECORD
+              message: The form was changed by someone else. Reload it and apply your change again.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     MfaSignedIn:
       description: >-
         MFA verified and signed in. The session cookie is set (with

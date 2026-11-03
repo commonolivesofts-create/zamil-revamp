@@ -103,8 +103,18 @@ const HR_EMPLOYEE_SERVICES_FORM_ROUTES = [
   ...formRoutes('hr-reward', '/hr/employee-services/reward-nomination', 'Reward nomination', 'trophy', 'EMPLOYEE_OF_THE_MONTH', 'VITE_FEATURE_HR_REWARD_NOMINATION', 'nominationId'),
   ...formRoutes('hr-idea', '/hr/employee-services/ideas', 'Share an idea', 'lightbulb', 'IDEAS', 'VITE_FEATURE_HR_IDEAS', 'ideaId'),
 ]
-// Group order: workspace, human resources, security, account.
-const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]
+// Workflow Manager M1: backend WORKFLOW_MANAGER permissions, no MFA requirement, no switch.
+const WF = 'WORKFLOW_MANAGER'
+const wf = { section: 'workflow-manager' }
+const WORKFLOW_MANAGER_ROUTES = [
+  { id: 'workflow-manager', path: '/workflow-manager', label: 'Overview', icon: 'workflow', ...wf, permission: `${WF}.OVERVIEW:VIEW`, requiresMfa: false, implemented: true },
+  { id: 'workflow-forms', path: '/workflow-manager/forms', label: 'Form registry', icon: 'file-stack', ...wf, permission: `${WF}.FORM_REGISTRY:VIEW`, requiresMfa: false, implemented: true },
+  { id: 'workflow-form-new', path: '/workflow-manager/forms/new', label: 'Register form', icon: 'file-plus', ...wf, permission: `${WF}.FORM_REGISTRY:CREATE`, requiresMfa: false, implemented: true, nav: false },
+  { id: 'workflow-form', path: '/workflow-manager/forms/:formId', label: 'Registered form', icon: 'file-text', ...wf, permission: `${WF}.FORM_REGISTRY:VIEW`, requiresMfa: false, implemented: true, nav: false },
+  { id: 'workflow-data-sources', path: '/workflow-manager/data-sources', label: 'Data source registry', icon: 'database', ...wf, permission: `${WF}.DATA_SOURCE_REGISTRY:VIEW`, requiresMfa: false, implemented: true },
+]
+// Group order: workspace, human resources, workflow manager, security, account.
+const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]
 
 test('the derived routes, sections and permission names match the active modules', () => {
   assert.deepEqual(plain(appRoutes), EXPECTED_ROUTES)
@@ -121,6 +131,7 @@ test('the derived routes, sections and permission names match the active modules
         { id: 'hr-reports', label: 'Reports', icon: 'chart-column', description: 'HR reports' },
       ],
     },
+    { id: 'workflow-manager', label: 'Workflow Manager', icon: 'workflow' },
     { id: 'security', label: 'Security administration', icon: 'shield-check' },
     { id: 'account', label: 'My account', icon: 'user-round' },
   ])
@@ -134,7 +145,7 @@ test('the derived routes, sections and permission names match the active modules
     SECURITY_AUDIT_VIEW: `${SA}.SECURITY_AUDIT:VIEW`,
   })
   assert.ok(Object.isFrozen(appRoutes) && appRoutes.every(Object.isFrozen))
-  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS', 'HR', 'HR_EMPLOYEE_SERVICES'])
+  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS', 'HR', 'HR_EMPLOYEE_SERVICES', WF])
   assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === SA).map((p) => p.key), SECURITY_RESOURCES.flatMap((r) => r.actions.map((a) => `${SA}.${r.code}:${a}`)))
   assert.deepEqual(registeredModules.find((module) => module.code === 'COMMON').resources, [])
 })
