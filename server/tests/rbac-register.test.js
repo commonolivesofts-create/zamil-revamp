@@ -963,7 +963,7 @@ describe('RBAC catalogue registration CLI', () => {
 
     const scopeArgs = ['--target=TEST', '--module=WORKFLOW_MANAGER'];
 
-    it('ignores the unrelated HR name conflict but retains security-catalogue verification', async () => {
+    it('ignores HR conflicts but still verifies protected security records', async () => {
       const data = withUnrelatedHrConflict();
       const unscoped = await run(['--target=TEST'], {
         modules: registeredModules,
@@ -999,9 +999,7 @@ describe('RBAC catalogue registration CLI', () => {
 
     it('applies only 15 Workflow Manager records, preserving unrelated HR rows', async () => {
       const data = withUnrelatedHrConflict();
-      const originalHr = structuredClone(
-        data.resources.find((resource) => resource.id === '9001'),
-      );
+      const originalHr = structuredClone(data.resources.find((resource) => resource.id === '9001'));
       const preview = await run(scopeArgs, {
         modules: registeredModules,
         scenario: { data: structuredClone(data) },
@@ -1039,7 +1037,7 @@ describe('RBAC catalogue registration CLI', () => {
       assert.match(again.out, /No changes needed/);
     });
 
-    it('binds the fingerprint to scope so it cannot be replayed as a full registration', async () => {
+    it('binds the fingerprint to module scope, not just the inserts', async () => {
       const scoped = await run(scopeArgs, { modules: registeredModules });
       const unscoped = await run(['--target=TEST'], { modules: registeredModules });
       assert.notEqual(fingerprintOf(scoped.out), fingerprintOf(unscoped.out));

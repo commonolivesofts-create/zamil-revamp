@@ -578,16 +578,16 @@ export async function buildPlan(
   connection,
   { target, definitions, forApply = false, moduleCode = null },
 ) {
-  if (
-    moduleCode &&
-    (moduleCode !== APPROVED_MODULE_SCOPE ||
-      !definitions.some((module) => module.code === moduleCode) ||
-      !definitions.some((module) => module.code === SECURITY_MODULE_CODE) ||
-      definitions.some(
-        (module) => module.code !== moduleCode && module.code !== SECURITY_MODULE_CODE,
-      ))
-  ) {
-    throw new RegistrationRefused('Invalid scoped registry definitions.');
+  if (moduleCode) {
+    const codes = new Set(definitions.map((module) => module.code));
+    if (
+      moduleCode !== APPROVED_MODULE_SCOPE ||
+      !codes.has(moduleCode) ||
+      !codes.has(SECURITY_MODULE_CODE) ||
+      codes.size !== 2
+    ) {
+      throw new RegistrationRefused('Invalid scoped registry definitions.');
+    }
   }
   const identity = await assertDatabaseIdentity(connection, target, { forApply });
   const problems = await runPrechecks(connection);
@@ -618,12 +618,13 @@ export async function applyInserts(
   connection,
   { inserts, catalog, identity, fingerprint, correlationId, moduleCode = null },
 ) {
-  if (
-    moduleCode &&
-    (moduleCode !== APPROVED_MODULE_SCOPE ||
-      inserts.some((item) => (item.moduleCode ?? item.code) !== moduleCode))
-  ) {
-    throw new RegistrationRefused('Scoped plan contains an unauthorized catalogue insertion.');
+  if (moduleCode) {
+    if (
+      moduleCode !== APPROVED_MODULE_SCOPE ||
+      inserts.some((item) => (item.moduleCode ?? item.code) !== moduleCode)
+    ) {
+      throw new RegistrationRefused('Scoped plan contains an unauthorized catalogue insertion.');
+    }
   }
   const moduleIds = new Map(catalog.modules.map((m) => [m.code, m.id]));
   const resourceIds = new Map(
@@ -704,10 +705,7 @@ export async function verifyApplied(
   connection,
   { definitions, planned, correlationId, moduleCode = null },
 ) {
-  const after = comparePlan(
-    definitions,
-    scopeCatalog(await readCatalog(connection), moduleCode),
-  );
+  const after = comparePlan(definitions, scopeCatalog(await readCatalog(connection), moduleCode));
   const problems = [];
   if (after.counts.MISSING !== 0) problems.push(`${after.counts.MISSING} record(s) still missing`);
   if (after.counts.CONFLICT !== 0)
