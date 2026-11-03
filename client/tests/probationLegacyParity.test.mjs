@@ -570,20 +570,17 @@ test(
 );
 
 test("parity: the report has the legacy columns, Pending At from the API", async () => {
-  const source = await page();
-  for (const column of [
-    "\\['Emp\\. #', \\(item\\) => item\\.employeeNumber\\]",
-    "\\['Name', \\(item\\) => item\\.employeeName\\]",
-    "\\['Job Title', \\(item\\) => item\\.jobTitle\\]",
-    "\\['Department', \\(item\\) => item\\.department\\]",
-    "\\['Total Rating', \\(item\\) => item\\.totalRating\\]",
-    "\\['Evaluation', \\(item\\) => RESULT_TEXT\\[item\\.evaluationResult\\]\\]",
-    "\\['Pending At', \\(item\\) => item\\.pendingAt\\]",
-    "dateColumn=\\{\\['Date', \\(item\\) => item\\.createdAt\\]\\}",
-  ]) {
-    assert.match(source, new RegExp(column), column);
-  }
-  assert.doesNotMatch(source, /\['Form type'/, "not a legacy report column");
+  // The report is its own page (ProbationReportPage.jsx), opened by the form's Report tool.
+  assert.match(await page(), /label: 'Report', onClick: \(\) => leave\(`\$\{BASE\}\/report`\)/);
+  const source = await readFile(new URL("ProbationReportPage.jsx", PAGE), "utf8");
+  const labels = [...source.matchAll(/\{ key: '\w+', label: '([^']+)'/g)].map((match) => match[1]);
+  assert.deepEqual(
+    labels.slice(labels.indexOf("#")),
+    ["#", "Emp. #", "Name", "Job Title", "Department", "Total Rating", "Evaluation", "Status", "Date", "Pending At"],
+    "the legacy report columns, in order",
+  );
+  assert.match(source, /RESULT_TEXT\[row\.evaluationResult\]/);
+  assert.match(source, /render: \(row\) => row\.pendingAt \|\|/);
   const client = fakeClient({
     [`GET ${BASE}`]: {
       data: [

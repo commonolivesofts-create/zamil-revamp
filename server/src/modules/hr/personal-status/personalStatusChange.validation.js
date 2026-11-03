@@ -1,5 +1,12 @@
 import Joi from 'joi';
 import { AppError } from '../../../shared/errors/AppError.js';
+import {
+  AMOUNT_MAX_LENGTH,
+  MARITAL_STATUSES,
+  PAY_FIELDS,
+  STATUSES,
+  payTotal,
+} from './personalStatusChange.rules.js';
 
 export class PersonalStatusError extends AppError {
   constructor(status, code, message = 'Validation failed') {
@@ -47,35 +54,26 @@ const optionalText = (value) => {
   return String(value);
 };
 
-const optionalAmount = (value) => {
+const optionalLimitedText = (value, max) => {
   if (isMissing(value) || value === '') return null;
 
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) {
-    invalid('ALLOWANCE_INVALID');
+  if (typeof value !== 'string' || value.length > max) {
+    invalid('TEXT_TOO_LONG');
   }
 
-  return number;
+  return value;
 };
 
+// Legacy revised amounts: digits and a dot only (validateNumericInput) and maxlength="7"; money
+// keeps at most two decimals.
 const isValidAmount = (value) => {
-  if (
-    isMissing(value) ||
-    typeof value === 'boolean' ||
-    typeof value === 'object' ||
-    String(value).trim() === ''
-  ) {
+  if (isMissing(value) || typeof value === 'boolean' || typeof value === 'object') {
     return false;
   }
 
-  if (typeof value !== 'number' && !/^\d+(\.\d+)?$/.test(String(value))) {
-    return false;
-  }
+  const text = String(value).trim();
 
-  const number = Number(value);
-
-  return Number.isFinite(number) && number >= 0 && number <= 9999999;
+  return text.length <= AMOUNT_MAX_LENGTH && /^\d+(\.\d{1,2})?$/.test(text);
 };
 
 const positiveIdSchema = Joi.string()
@@ -83,6 +81,7 @@ const positiveIdSchema = Joi.string()
   .required();
 const amountInputSchema = Joi.alternatives().try(Joi.number(), Joi.string());
 const optionalTextSchema = Joi.string().allow('');
+const nullableTextSchema = optionalTextSchema.allow(null);
 
 export const emptyQuerySchema = Joi.object({});
 export const emptyBodySchema = Joi.object({});
@@ -121,9 +120,13 @@ const salaryWriteSchema = Joi.object({
   communAll: amountInputSchema,
   carAll: amountInputSchema,
   total: amountInputSchema,
-  maritalStatus: optionalTextSchema,
+  maritalStatus: nullableTextSchema,
+  grade: nullableTextSchema,
+  level: nullableTextSchema,
 });
 
+// The employee snapshot, form date and Hijri date are server values. Older clients still send
+// them, so they are accepted here and ignored by validateWrite.
 export const writeBodySchema = Joi.object({
   empNo: Joi.alternatives().try(Joi.number(), Joi.string()),
   formDate: optionalTextSchema,
@@ -168,9 +171,7 @@ const parseInteger = (value, fallback, minimum, maximum) => {
 export const parseListing = (query = {}) => {
   const status = optionalFilter(query.status)?.toUpperCase() ?? null;
 
-  const validStatuses = ['DRAFT', 'INPROCESS', 'APPROVED', 'REJECTED'];
-
-  if (status !== null && !validStatuses.includes(status)) {
+  if (status !== null && !STATUSES.includes(status)) {
     invalid('LIST_FILTER_INVALID');
   }
 
@@ -236,6 +237,11 @@ export const parseListing = (query = {}) => {
   };
 };
 
+/**
+ * The requester's answers only, checked with the legacy save rules (HTML `required`, maxlength
+ * and the numeric filter of form.php). The employee snapshot, FORM_DATE, ARB_DATE, REF_NO,
+ * NEW_TOTAL and STATUS are computed by the service.
+ */
 export const validateWrite = (body) => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     invalid('VALIDATION_FAILED');
@@ -247,33 +253,28 @@ export const validateWrite = (body) => {
     invalid('EFFECTIVE_DATE_REQUIRED');
   }
 
-  if (!isMissing(body.formDate) && !isValidDate(body.formDate)) {
-    invalid('VALIDATION_FAILED');
-  }
-
-  if (!isMissing(body.startDate) && body.startDate !== '' && !isValidDate(body.startDate)) {
-    invalid('VALIDATION_FAILED');
-  }
-
   const revised = body.new;
 
   if (!revised || typeof revised !== 'object' || Array.isArray(revised)) {
     invalid('POSITION_INVALID');
   }
 
-  if (typeof revised.position !== 'string' || revised.position.trim() === '') {
+  // NEW_POSITION is VARCHAR2(100).
+  if (
+    typeof revised.position !== 'string' ||
+    revised.position.trim() === '' ||
+    revised.position.trim().length > 100
+  ) {
     invalid('POSITION_INVALID');
   }
 
-  const allowanceFields = ['basicSal', 'houseAll', 'transAll', 'otherAll', 'communAll', 'carAll'];
-
-  for (const field of allowanceFields) {
+  for (const field of PAY_FIELDS) {
     if (!isValidAmount(revised[field])) {
       invalid('ALLOWANCE_INVALID');
     }
   }
 
-  if (!['S', 'M'].includes(revised.maritalStatus)) {
+  if (!MARITAL_STATUSES.includes(revised.maritalStatus)) {
     invalid('MARITAL_STATUS_INVALID');
   }
 
@@ -287,45 +288,40 @@ export const validateWrite = (body) => {
 
   const old = body.old && typeof body.old === 'object' && !Array.isArray(body.old) ? body.old : {};
 
-  // Use cents to avoid ordinary floating-point summation errors.
-  const totalCents = allowanceFields.reduce(
-    (total, field) => total + Math.round(Number(revised[field]) * 100),
-    0,
-  );
+  // Legacy OLD_MARITAL_STATUS is an editable, optional input. Undefined keeps the server snapshot;
+  // null or '' clears it.
+  let oldMaritalStatus;
+
+  if (old.maritalStatus === null || old.maritalStatus === '') {
+    oldMaritalStatus = null;
+  } else if (old.maritalStatus !== undefined) {
+    if (!MARITAL_STATUSES.includes(old.maritalStatus)) {
+      invalid('MARITAL_STATUS_INVALID');
+    }
+
+    oldMaritalStatus = old.maritalStatus;
+  }
+
+  const amounts = Object.fromEntries(PAY_FIELDS.map((field) => [field, Number(revised[field])]));
 
   return {
     empNo,
-
-    formDate: body.formDate ?? new Date().toISOString().slice(0, 10),
-
-    arbDate: optionalText(body.arbDate),
     effectiveDate: body.effectiveDate,
-
-    empName: optionalText(body.empName),
-    nationality: optionalText(body.nationality),
-    section: optionalText(body.section),
-    department: optionalText(body.department),
-    startDate: body.startDate || null,
-
-    oldPosition: optionalText(old.position),
-    oldBasicSal: optionalAmount(old.basicSal),
-    oldHouseAll: optionalAmount(old.houseAll),
-    oldTransAll: optionalAmount(old.transAll),
-    oldOtherAll: optionalAmount(old.otherAll),
-    oldCommunAll: optionalAmount(old.communAll),
-    oldCarAll: optionalAmount(old.carAll),
-    oldTotal: optionalAmount(old.total),
-    oldMaritalStatus: optionalText(old.maritalStatus),
+    oldMaritalStatus,
 
     newPosition: revised.position.trim(),
-    newBasicSal: Number(revised.basicSal),
-    newHouseAll: Number(revised.houseAll),
-    newTransAll: Number(revised.transAll),
-    newOtherAll: Number(revised.otherAll),
-    newCommunAll: Number(revised.communAll),
-    newCarAll: Number(revised.carAll),
-    newTotal: totalCents / 100,
+    newBasicSal: amounts.basicSal,
+    newHouseAll: amounts.houseAll,
+    newTransAll: amounts.transAll,
+    newOtherAll: amounts.otherAll,
+    newCommunAll: amounts.communAll,
+    newCarAll: amounts.carAll,
+    // Always the sum of the six items; a client total is ignored.
+    newTotal: payTotal(amounts),
     newMaritalStatus: revised.maritalStatus,
+    // NEW_GRADE / NEW_LEVEL (VARCHAR2(50)): new-only and optional; legacy shows empty labels.
+    newGrade: optionalLimitedText(revised.grade, 50),
+    newLevel: optionalLimitedText(revised.level, 50),
 
     remarks: optionalText(body.remarks),
     views: optionalText(body.views),

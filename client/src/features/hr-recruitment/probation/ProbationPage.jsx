@@ -4,7 +4,7 @@ import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
-import { NewFormDialog, ReportDialog } from '../shared/components/RecruitmentDialogs.jsx'
+import { NewFormDialog } from '../shared/components/RecruitmentDialogs.jsx'
 import { PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
 import { HrField } from '../shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '../shared/components/EmployeePicker.jsx'
@@ -113,12 +113,13 @@ function ProbationEditor({ lookups, record }) {
       return result
     }, { success: (result) => `Probation evaluation ${result.evaluationNumber} saved.` })
   }
-  const startNew = () => navigate(BASE)
+  // Leaving with unsaved answers asks first (New form and Report).
+  const leave = (path) => (editor.dirty ? setDialog({ path }) : navigate(path))
   const tools = [
     { icon: 'save', label: 'Save', onClick: save, disabled: editor.pending || locked },
     { icon: 'printer', label: 'Print', onClick: () => window.print() },
-    { icon: 'chart-column', label: 'Report', onClick: () => setDialog('report') },
-    { icon: 'file-plus', label: 'Request Form', onClick: () => (editor.dirty ? setDialog('new') : startNew()) },
+    { icon: 'chart-column', label: 'Report', onClick: () => leave(`${BASE}/report`) },
+    { icon: 'file-plus', label: 'Request Form', onClick: () => leave(BASE) },
   ]
   const readOnly = (id, label, value) => <HrField id={id} label={label}><input id={id} className="ux-input zrv-hr-input" readOnly value={value ?? ''} /></HrField>
   const criteriaHint = !form.formType ? 'Select Form name'
@@ -188,11 +189,6 @@ function ProbationEditor({ lookups, record }) {
         <p>Total: <b>{total}</b>/100 · Criteria: {form.lines.length} · Evaluation Result: {resultPill}</p>
       </>}
       </RecruitmentShell>
-    {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
-    {dialog === 'report' && <ReportDialog title="Probation Report" resourceKey="hr-probation-report" load={service.list} onClose={() => setDialog(null)}
-      numberOf={(item) => item.evaluationNumber} statusOf={(item) => item.status} pathOf={(item) => `${BASE}/${item.evaluationId}`}
-      columns={[['Emp. #', (item) => item.employeeNumber], ['Name', (item) => item.employeeName], ['Job Title', (item) => item.jobTitle], ['Department', (item) => item.department],
-        ['Total Rating', (item) => item.totalRating], ['Evaluation', (item) => RESULT_TEXT[item.evaluationResult]], ['Pending At', (item) => item.pendingAt]]}
-      dateColumn={['Date', (item) => item.createdAt]} />}
+    {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
   </>
 }

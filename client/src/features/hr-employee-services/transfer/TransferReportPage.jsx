@@ -1,19 +1,17 @@
-import { useNavigate } from 'react-router'
-import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
-import usePermissions from '@/features/access/usePermissions.js'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { enDate } from '@/features/hr-recruitment/shared/hrFormat.js'
-import { Pill, RecruitmentHeader } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { Pill } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { ES_COMMON_TEXT as C, TRANSFER_TEXT as T } from '../hrEmployeeServicesText.js'
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { RecordList } from '../shared/RecordList.jsx'
+import { ReportPage } from '../shared/ReportPage.jsx'
 import { useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
-import '@/styles/hr-employee-services.css'
 import { TRANSFER_STATUSES } from './transferModel.js'
 
 const R = T.report
+const CREATE = Object.freeze({ permission: 'HR.TRANSFER_REQUESTS:CREATE', path: ES_PATHS.transfer, tool: T.tools.newTransfer, label: R.newTransfer })
 const columns = [
   { key: 'transferNumber', label: R.columns.number, render: (row) => row.transferNumber },
   { key: 'employeeName', label: R.columns.employee, render: (row) => <>{row.employeeName}<small className="zrv-hr-es-subline">#{row.employeeNumber}</small></> },
@@ -28,20 +26,9 @@ const columns = [
 // search, status tabs and sortable columns; a transfer opens by its Ref #.
 export default function TransferReportPage() {
   useEmployeeServicesUser()
-  const navigate = useNavigate()
-  const canCreate = usePermissions().can('HR.TRANSFER_REQUESTS:CREATE')
   const transfers = useResource('hr-transfer-report', (signal) => hrEmployeeServices.transfers.list({ signal }))
   return (
-    <div className="zrv-hr zrv-hr--transfer-report zrv-hr--compact">
-      <RecruitmentHeader title={R.title} subtitle={R.subtitle} breadcrumb={C.breadcrumb} />
-      <div className="zrv-hr-toolbar" role="toolbar" aria-label={R.title}>
-        <div className="zrv-hr-tools">
-          {canCreate && <button type="button" onClick={() => navigate(ES_PATHS.transfer)}><OrvexaIcon name="file-plus" size={17} /><span>{T.tools.newTransfer}</span></button>}
-          <button type="button" onClick={() => window.print()}><OrvexaIcon name="printer" size={17} /><span>{C.print}</span></button>
-          <button type="button" onClick={() => navigate('/dashboard')}><OrvexaIcon name="house" size={17} /><span>{C.home}</span></button>
-        </div>
-        {canCreate && <button type="button" className="btn-primary zrv-hr-btn" onClick={() => navigate(ES_PATHS.transfer)}><OrvexaIcon name="plus" size={16} /> {R.newTransfer}</button>}
-      </div>
+    <ReportPage variant="transfer-report" title={R.title} subtitle={R.subtitle} create={CREATE}>
       <ResourceState resource={transfers} label={R.noun} empty={C.list.empty}>
         {(page) => (
           <RecordList heading={R.heading} searchLabel={R.search} searchPlaceholder={R.searchPlaceholder} statuses={TRANSFER_STATUSES} statusText={C.status}
@@ -50,6 +37,6 @@ export default function TransferReportPage() {
             pathOf={(row) => `${ES_PATHS.transfer}/${row.transferId}`} numberOf={(row) => row.transferNumber} />
         )}
       </ResourceState>
-    </div>
+    </ReportPage>
   )
 }

@@ -193,9 +193,12 @@ test("existing HR pages do not opt into the new options", async () => {
   ];
   for (const page of pages) {
     const source = await read(`../src/features/hr-recruitment/${page}`);
+    // Orientation uses the banner slot for its legacy printout (hidden on screen).
     assert.doesNotMatch(
       source,
-      /banner=|flow=\{false\}|\btight\b|cacheKey=/,
+      page === "orientation/OrientationPage.jsx"
+        ? /flow=\{false\}|\btight\b|cacheKey=/
+        : /banner=|flow=\{false\}|\btight\b|cacheKey=/,
       page,
     );
     const shellTags = source.match(/<RecruitmentShell\b[\s\S]*?>/g) ?? [];

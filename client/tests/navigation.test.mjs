@@ -98,10 +98,13 @@ test("only pages backed by a working backend contract are implemented; no placeh
       // unset in a non-development build); every state: hrOnboarding.test.mjs.
       "/dashboard",
       "/hr/recruitment/requisition",
+      "/hr/recruitment/requisition/report",
       "/hr/recruitment/requisition/:requisitionId",
       "/hr/recruitment/interview",
+      "/hr/recruitment/interview/report",
       "/hr/recruitment/interview/:assessmentId",
       "/hr/recruitment/offer",
+      "/hr/recruitment/offer/report",
       "/hr/recruitment/offer/:offerId",
       // Workflow Manager M1: real /api/v1/workflow-manager contract.
       "/workflow-manager",
@@ -146,8 +149,10 @@ test("only pages backed by a working backend contract are implemented; no placeh
     appRoutes.filter((item) => !item.implemented).map((route) => route.id),
     [
       "hr-orientation",
+      "hr-orientation-report",
       "hr-orientation-record",
       "hr-probation",
+      "hr-probation-report",
       "hr-probation-record",
       "hr-employee-report",
       "hr-periodwise-report",
@@ -158,6 +163,7 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "hr-transfer-report",
       "hr-transfer-record",
       "hr-appraisal",
+      "hr-appraisal-report",
       "hr-appraisal-record",
       "hr-sick-leave",
       "hr-sick-leave-report",
