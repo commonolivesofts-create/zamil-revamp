@@ -33,6 +33,7 @@ export const ES_COMMON_TEXT = Object.freeze({
     all: 'All',
     statusLabel: 'Status',
     shown: (count) => `${count} shown`,
+    found: (count) => `${count} found`,
     sortBy: (label) => `Sort by ${label}`,
     empty: 'No records match.',
     open: (number) => `Open ${number}`,
@@ -431,6 +432,13 @@ export const APPRAISAL_TEXT = Object.freeze({
   }),
   report: Object.freeze({
     title: 'Performance appraisals',
-    columns: Object.freeze({ employee: 'Employee', period: 'Period', rating: 'Rating', grade: 'Grade' }),
+    noun: 'performance appraisals',
+    subtitle: 'This year’s appraisals you can access, with their rating and grade.',
+    tool: 'Form',
+    newAppraisal: 'New appraisal',
+    heading: 'Appraisals',
+    search: 'Search appraisals',
+    searchPlaceholder: 'Search number or employee',
+    columns: Object.freeze({ number: 'Appraisal no.', employee: 'Employee', period: 'Period', rating: 'Rating', grade: 'Grade', status: 'Status' }),
   }),
 })

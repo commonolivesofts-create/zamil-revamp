@@ -322,8 +322,8 @@ test('data source: VITE_HR_EMPLOYEE_SERVICES_DEMO, separate from the recruitment
 
 // ------------------------------------------------------------ navigation and visibility
 
-const ES_IDS = ['hr-transfer', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal', 'hr-appraisal-record']
-const ES_NAV_IDS = ES_IDS.filter((id) => !id.endsWith('-record'))
+const ES_IDS = ['hr-transfer', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal', 'hr-appraisal-report', 'hr-appraisal-record']
+const ES_NAV_IDS = ES_IDS.filter((id) => !id.endsWith('-record') && !id.endsWith('-report'))
 const employeeAccess = { status: 'ready', mfaVerified: false, has: (key) => key === 'HR.TRANSFER_REQUESTS:VIEW' }
 const servicesFor = (env) => resolveNavigationEntries(registry.entries, env).filter((route) => ES_IDS.includes(route.id))
 
@@ -375,9 +375,10 @@ test('routes: transfers use HR permissions and list paths win over record ids', 
   assert.deepEqual(hr.resources.find((item) => item.code === 'TRANSFER_REQUESTS').actions, ['VIEW', 'CREATE', 'UPDATE', 'DELETE'])
   assert.deepEqual(servicesFor({ [SWITCH]: 'true' }).map((route) => [route.id, route.path, route.nav !== false, route.permission]), [
     ['hr-transfer', '/hr/employee-services/transfer', true, 'HR.TRANSFER_REQUESTS:VIEW'],
-    ['hr-transfer-report', '/hr/employee-services/transfer/report', true, 'HR.TRANSFER_REQUESTS:VIEW'],
+    ['hr-transfer-report', '/hr/employee-services/transfer/report', false, 'HR.TRANSFER_REQUESTS:VIEW'],
     ['hr-transfer-record', '/hr/employee-services/transfer/:transferId', false, 'HR.TRANSFER_REQUESTS:VIEW'],
     ['hr-appraisal', '/hr/performance/appraisal', true, undefined],
+    ['hr-appraisal-report', '/hr/performance/appraisal/report', false, undefined],
     ['hr-appraisal-record', '/hr/performance/appraisal/:appraisalId', false, undefined],
   ])
   assert.equal(findAppRoute('/hr/employee-services/record-change/requests')?.id, 'hr-record-change-requests')
@@ -403,11 +404,19 @@ test('record change page: not in the recruitment flow, services only, linked err
   const list = await read(`${FEATURE}recordChange/RecordChangeRequestsPage.jsx`)
   assert.match(list, /<RecordList /)
   const recordList = await read(`${FEATURE}shared/RecordList.jsx`)
-  assert.match(recordList, /role="tablist"/)
-  assert.match(recordList, /role="tab"/)
+  assert.match(recordList, /<StatusTabs /)
   assert.match(recordList, /role="tabpanel"/)
   assert.match(recordList, /aria-sort=\{/)
-  assert.match(recordList, /event\.key === 'ArrowRight'/)
+  const statusTabs = await read(`${FEATURE}shared/StatusTabs.jsx`)
+  assert.match(statusTabs, /role="tablist"/)
+  assert.match(statusTabs, /role="tab"/)
+  assert.match(statusTabs, /event\.key === 'ArrowRight'/)
+  // Every employee services report shares the transfer report's header and toolbar.
+  for (const report of ['transfer/TransferReportPage.jsx', 'recordChange/RecordChangeRequestsPage.jsx', 'sickLeave/SickLeaveReportPage.jsx', 'reward/RewardReportPage.jsx', 'idea/IdeaReportPage.jsx']) {
+    const source = await read(`${FEATURE}${report}`)
+    assert.match(source, /<ReportPage /, report)
+    assert.doesNotMatch(source, /zrv-hr-toolbar/, `${report}: toolbar comes from ReportPage`)
+  }
 })
 
 test('employee services sources: no browser storage, no hard-coded people, text in the string constants', async () => {
@@ -796,7 +805,7 @@ test('backend appraisal adapter uses eligible employee snapshots and creates the
   assert.equal(post[2].criteria[0].rating, 4)
 })
 
-test('appraisal page: compact frame, radio groups for ratings, development tabs, signatures and the report dialog', async () => {
+test('appraisal page: compact frame, radio groups for ratings, development tabs, signatures and the report page', async () => {
   const page = await read(`${FEATURE}performance/AppraisalPage.jsx`)
   assert.match(page, /<RecruitmentShell current="appraisal" flow=\{false\} compact /)
   assert.match(page, /breadcrumb=\{C\.performanceBreadcrumb\}/)
@@ -804,7 +813,7 @@ test('appraisal page: compact frame, radio groups for ratings, development tabs,
   assert.match(page, /role="tablist" aria-label=\{T\.resultStep\.development\}/)
   assert.match(page, /role="tabpanel" id=\{`ap-panel-\$\{tab\}`\}/)
   assert.match(page, /<table className="zrv-hr-es-dtable/, 'the distribution is a real table')
-  assert.match(page, /<ReportDialog title=\{T\.report\.title\}/)
+  assert.match(page, /label: T\.tools\.report, onClick: \(\) => leave\(ES_PATHS\.appraisalReport\)/, 'the report is its own page')
   assert.match(page, /\{ icon: 'house', label: C\.home, onClick: \(\) => leave\('\/dashboard'\) \}/)
   assert.doesNotMatch(page, /[Ll]ogout|[Ss]ign out/, 'the app header handles signing out')
   assert.match(page, /const appraiser = saved\?\.appraiser \?\? team\.appraiser/, 'the appraiser comes from the server')

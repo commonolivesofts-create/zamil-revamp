@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { statusLabel } from '../../src/modules/hr/orientation-trainings/orientationTraining.rules.js';
 
 const copy = (value) => structuredClone(value);
 
@@ -35,8 +36,8 @@ export function installOrientationTrainings(
       N: { tableName: 'PRODUCTION' },
     },
     async resolveFlag(_connection, empNo) {
-      if (empNo === 'MISSING') return null;
-      return empNo.endsWith('Y') ? 'Y' : 'N';
+      // Legacy saves every new request in the PRODUCTION tables.
+      return empNo === 'MISSING' ? null : 'N';
     },
     async findEmployee(_connection, empNo) {
       if (empNo === 'MISSING') return null;
@@ -87,7 +88,12 @@ export function installOrientationTrainings(
     async findHeader(_connection, table, headerId) {
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
       const header = headerFor(variant, headerId);
-      return header ? copy(header) : null;
+      return header
+        ? { ...copy(header), rawStatus: header.status, status: statusLabel(header.status) }
+        : null;
+    },
+    async headerExists(_connection, table, headerId) {
+      return Boolean(headerFor(table.tableName === 'SHARED' ? 'Y' : 'N', headerId));
     },
     async listLines(_connection, table, headerId) {
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
@@ -104,7 +110,7 @@ export function installOrientationTrainings(
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
       const header = headerFor(variant, input.headerId);
       if (!header) return false;
-      Object.assign(header, input);
+      Object.assign(header, input, { status: 'Draft' });
       if (store.failures.orientation.updateHeader) throw new Error('injected update failure');
       return true;
     },
@@ -141,7 +147,11 @@ export function installOrientationTrainings(
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
       const matches = state().headers[variant].filter((header) => {
         if (query.createdBy !== null && header.createdBy !== query.createdBy) return false;
-        if (query.filters.status && header.status !== query.filters.status) return false;
+        if (
+          query.filters.status &&
+          statusLabel(header.status) !== statusLabel(query.filters.status)
+        )
+          return false;
         if (query.filters.empNo && header.empNo !== query.filters.empNo) return false;
         if (query.filters.empType && header.empType !== query.filters.empType) return false;
         if (
@@ -155,11 +165,21 @@ export function installOrientationTrainings(
       });
       return {
         total: matches.length,
-        items: copy(matches.slice(query.offset, query.offset + query.limit)),
+        items: copy(matches.slice(query.offset, query.offset + query.limit)).map((header) => ({
+          ...header,
+          rawStatus: header.status,
+          status: statusLabel(header.status),
+          pendingAt: header.pendingAt ?? null,
+        })),
       };
     },
-    async listEmployees() {
-      return [];
+    async listEmployees(_connection, { employeeNumber }) {
+      const all = ['E-100Y', 'E-STAFF'].map((empNo) => ({
+        empNo,
+        fullName: `Employee ${empNo}`,
+        personId: '7001',
+      }));
+      return employeeNumber === null ? all : all.filter((item) => item.empNo === employeeNumber);
     },
     async listManagers() {
       return [{ empNo: 'M-100', fullName: 'Manager Example' }];
