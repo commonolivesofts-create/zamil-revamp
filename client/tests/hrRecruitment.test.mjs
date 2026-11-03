@@ -47,6 +47,8 @@ test("the active registry grants HR routes only through the backend form resourc
       "HR",
       // Session-only employee services behind VITE_FEATURE_HR_EMPLOYEE_SERVICES (hrEmployeeServices.test.mjs).
       "HR_EMPLOYEE_SERVICES",
+      // Workflow Manager M1 (workflowManager.test.mjs); no HR routes.
+      "WORKFLOW_MANAGER",
     ],
   );
   for (const key of Object.values(ACTIONS))

@@ -322,6 +322,12 @@ describe('RBAC catalogue registration CLI', () => {
         apply: false,
         fingerprint: null,
       });
+      assert.deepEqual(parseArgs(['--target=TEST', '--module=WORKFLOW_MANAGER']), {
+        target: 'TEST',
+        apply: false,
+        fingerprint: null,
+        module: 'WORKFLOW_MANAGER',
+      });
       const fp = 'a'.repeat(64);
       assert.deepEqual(parseArgs(['--target=TEST', '--apply', `--fingerprint=${fp}`]), {
         target: 'TEST',
@@ -334,6 +340,10 @@ describe('RBAC catalogue registration CLI', () => {
         ['--target=PRODUCTION'],
         ['--target=test'],
         ['--target=TEST', '--force'],
+        ['--target=TEST', '--module=HR'],
+        ['--target=TEST', '--module=SECURITY_ADMINISTRATION'],
+        ['--target=TEST', '--module='],
+        ['--target=TEST', '--module=WORKFLOW_MANAGER', '--module=WORKFLOW_MANAGER'],
         ['--target=TEST', '--target=TEST'],
         ['--target=TEST', '--apply'],
         ['--target=TEST', `--fingerprint=${fp}`],
@@ -383,6 +393,7 @@ describe('RBAC catalogue registration CLI', () => {
           'INTERVIEW_ASSESSMENTS',
           'EMPLOYMENT_OFFERS',
           'HR',
+          'WORKFLOW_MANAGER',
         ],
       );
       for (const file of ['scripts/rbac-register.js', 'scripts/lib/rbacRegistration.js']) {
@@ -922,6 +933,152 @@ describe('RBAC catalogue registration CLI', () => {
       assert.equal(apply.code, EXIT.OK);
       assert.match(apply.out, new RegExp(`Committed ${ACTIVE_REGISTRY_RECORDS} record\\(s\\)`));
       assert.equal(apply.fake.log.transactions, 1);
+    });
+  });
+
+  describe('WORKFLOW_MANAGER module-scoped registration', () => {
+    function withUnrelatedHrConflict() {
+      const data = seedSecurityCatalog();
+      const hr = registeredModules.find((module) => module.code === 'HR');
+      const reward = hr.resources.find((resource) => resource.code === 'EMPLOYEE_OF_THE_MONTH');
+      data.modules.push({
+        id: '9000',
+        code: hr.code,
+        name: hr.name,
+        description: hr.description ?? null,
+        displayOrder: hr.displayOrder,
+        isActive: 1,
+      });
+      data.resources.push({
+        id: '9001',
+        moduleId: '9000',
+        code: reward.code,
+        name: 'Employee of The Month Form',
+        description: reward.description ?? null,
+        isActive: 1,
+      });
+      return data;
+    }
+
+    const scopeArgs = ['--target=TEST', '--module=WORKFLOW_MANAGER'];
+
+    it('ignores HR conflicts but still verifies protected security records', async () => {
+      const data = withUnrelatedHrConflict();
+      const unscoped = await run(['--target=TEST'], {
+        modules: registeredModules,
+        scenario: { data: structuredClone(data) },
+      });
+      assert.equal(unscoped.code, EXIT.NOT_READY);
+      assert.match(unscoped.out, /CONFLICT.*HR.EMPLOYEE_OF_THE_MONTH/);
+
+      const scoped = await run(scopeArgs, {
+        modules: registeredModules,
+        scenario: { data },
+      });
+      assert.equal(scoped.code, EXIT.OK, scoped.out);
+      assert.match(scoped.out, /Module scope: WORKFLOW_MANAGER/);
+      assert.match(scoped.out, /MISSING 15, CONFLICT 0, UNREGISTERED 0/);
+      assert.doesNotMatch(scoped.out, /HR.EMPLOYEE_OF_THE_MONTH/);
+      assert.doesNotMatch(scoped.out, /\[MISSING\].*(HR|REQUISITIONS|EMPLOYMENT_OFFERS)/);
+      assert.match(scoped.out, /node --env-file-if-exists=/);
+      assert.match(scoped.out, /--module=WORKFLOW_MANAGER --apply --fingerprint=/);
+      assert.equal(scoped.fake.log.transactions, 0);
+      assert.equal(writes(scoped.fake.log).length, 0);
+
+      const brokenSecurity = seedSecurityCatalog();
+      brokenSecurity.resources[0].name = 'Unauthorized rename';
+      const refused = await run(scopeArgs, {
+        modules: registeredModules,
+        scenario: { data: brokenSecurity },
+      });
+      assert.equal(refused.code, EXIT.NOT_READY);
+      assert.match(refused.out, /CONFLICT.*SECURITY_ADMINISTRATION/);
+      assert.equal(writes(refused.fake.log).length, 0);
+    });
+
+    it('applies only 15 Workflow Manager records, preserving unrelated HR rows', async () => {
+      const data = withUnrelatedHrConflict();
+      const originalHr = structuredClone(data.resources.find((resource) => resource.id === '9001'));
+      const preview = await run(scopeArgs, {
+        modules: registeredModules,
+        scenario: { data: structuredClone(data) },
+      });
+      const fp = fingerprintOf(preview.out);
+      assert.match(fp, /^[0-9a-f]{64}$/);
+      const applied = await run([...scopeArgs, '--apply', `--fingerprint=${fp}`], {
+        modules: registeredModules,
+        scenario: { data },
+        io: fakeIo({ typed: `REGISTER TEST 15 ${fp.slice(0, 12)}` }),
+      });
+      assert.equal(applied.code, EXIT.OK, applied.out);
+      assert.match(applied.out, /Committed 15 record/);
+      assert.equal(applied.fake.log.commits, 1);
+      assert.equal(applied.fake.log.audit.length, 15);
+      assert.deepEqual(
+        applied.fake.data().resources.find((resource) => resource.id === '9001'),
+        originalHr,
+      );
+      assert.equal(
+        applied.fake.data().modules.filter((module) => module.code === 'WORKFLOW_MANAGER').length,
+        1,
+      );
+      for (const event of applied.fake.log.audit) {
+        const details = JSON.parse(event.eventDetails);
+        assert.equal(details.moduleScope, 'WORKFLOW_MANAGER');
+        assert.equal(details.planFingerprint, fp);
+      }
+      const again = await run(scopeArgs, {
+        modules: registeredModules,
+        scenario: { data: applied.fake.data() },
+      });
+      assert.equal(again.code, EXIT.OK);
+      assert.match(again.out, /MISSING 0, CONFLICT 0/);
+      assert.match(again.out, /No changes needed/);
+    });
+
+    it('binds the fingerprint to module scope, not just the inserts', async () => {
+      const scoped = await run(scopeArgs, { modules: registeredModules });
+      const unscoped = await run(['--target=TEST'], { modules: registeredModules });
+      assert.notEqual(fingerprintOf(scoped.out), fingerprintOf(unscoped.out));
+      const invalid = await run(
+        [...scopeArgs, '--apply', `--fingerprint=${fingerprintOf(unscoped.out)}`],
+        {
+          modules: registeredModules,
+          io: fakeIo({ typed: 'anything' }),
+        },
+      );
+      assert.equal(invalid.code, EXIT.REFUSED);
+      assert.match(invalid.out, /differs from the reviewed fingerprint/);
+      assert.equal(invalid.fake.log.transactions, 0);
+      assert.equal(writes(invalid.fake.log).length, 0);
+    });
+
+    it('rechecks scoped records under the NOWAIT lock and rolls back a changed plan', async () => {
+      const preview = await run(scopeArgs, { modules: registeredModules });
+      const fp = fingerprintOf(preview.out);
+      const workflow = registeredModules.find((module) => module.code === 'WORKFLOW_MANAGER');
+      const change = (data) =>
+        data.modules.push({
+          id: '9900',
+          code: workflow.code,
+          name: workflow.name,
+          description: workflow.description,
+          displayOrder: workflow.displayOrder,
+          isActive: 1,
+        });
+      const applied = await run([...scopeArgs, '--apply', `--fingerprint=${fp}`], {
+        modules: registeredModules,
+        scenario: { onLock: change },
+        io: fakeIo({ typed: `REGISTER TEST 15 ${fp.slice(0, 12)}` }),
+      });
+      assert.equal(applied.code, EXIT.REFUSED);
+      assert.match(applied.out, /plan no longer matches the reviewed fingerprint/);
+      assert.equal(applied.fake.log.commits, 0);
+      assert.equal(applied.fake.log.rollbacks, 1);
+      assert.equal(
+        applied.fake.log.executed.filter((item) => item.label.startsWith('insert-')).length,
+        0,
+      );
     });
   });
 

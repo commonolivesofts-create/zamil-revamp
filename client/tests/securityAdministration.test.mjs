@@ -468,9 +468,11 @@ test('detail pages are guarded like their list but never listed or searchable', 
   // Security detail pages; the session-only HR recruitment record pages are covered in hrRecruitment.test.mjs.
   const details = appRoutes.filter((route) => route.nav === false && route.section === 'security')
   assert.deepEqual(details.map((route) => route.path), ['/security/users/:userId', '/security/user-roles/:userId', '/security/permission-overrides/:userId'])
-  assert.deepEqual(appRoutes.filter((route) => route.nav === false && route.section !== 'security').map((route) => [route.id, route.section]),
-    ['hr-requisition-record', 'hr-interview-record', 'hr-offer-record', 'hr-orientation-record', 'hr-probation-record', 'hr-record-change-record', 'hr-transfer-record', 'hr-appraisal-record',
-      'hr-sick-leave-report', 'hr-sick-leave-record', 'hr-reward-report', 'hr-reward-record', 'hr-idea-report', 'hr-idea-record'].map((id) => [id, 'human-resources']))
+  assert.deepEqual(appRoutes.filter((route) => route.nav === false && route.section !== 'security').map((route) => [route.id, route.section]), [
+    ...['hr-requisition-record', 'hr-interview-record', 'hr-offer-record', 'hr-orientation-record', 'hr-probation-record', 'hr-record-change-record', 'hr-transfer-record', 'hr-appraisal-record',
+      'hr-sick-leave-report', 'hr-sick-leave-record', 'hr-reward-report', 'hr-reward-record', 'hr-idea-report', 'hr-idea-record'].map((id) => [id, 'human-resources']),
+    ...['workflow-form-new', 'workflow-form'].map((id) => [id, 'workflow-manager']),
+  ])
   for (const route of details) {
     assert.equal(route.implemented, true)
     assert.equal(routeAccess(route, ready([route.permission], false)), 'mfa_required')

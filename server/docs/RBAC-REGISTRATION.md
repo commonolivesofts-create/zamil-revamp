@@ -11,6 +11,41 @@ it never runs on backend start-up, deployment, login or frontend loading.
 | Writes one `RBAC_CATALOG_CHANGED` audit row per inserted record | Create or change anything in `SECURITY_ADMINISTRATION` (verify only) |
 | Reports conflicts and catalogue rows the registry does not define | Change the schema, register `COMMON` (`rbac: false`) or the example file |
 
+## Workflow Manager-only registration (M1 — optional scoped mode)
+
+Use **`--module=WORKFLOW_MANAGER`** to limit the comparison and the database insertion plan to
+Workflow Manager, while always verifying the protected `SECURITY_ADMINISTRATION` catalogue.
+Unrelated HR, Requisitions, and other business module conflicts/missing entries are intentionally
+excluded **only from this scoped operation**. The full default registration behavior remains
+unchanged. The command still reads the complete catalogue, enforces approved TEST identity and
+constraint checks, holds the same NOWAIT transaction locks, audits each insertion, rechecks the
+scoped plan under lock, and verifies all planned rows before commit.
+
+This is an explicitly restricted scope, not a general-purpose bypass: only
+`--module=WORKFLOW_MANAGER` is supported. `--module=HR`,
+`--module=SECURITY_ADMINISTRATION`, unknown modules and duplicate scope flags are refused.
+
+From `server/` in PowerShell:
+
+```powershell
+# Read-only — no database writes.
+node --env-file-if-exists=.env .\scripts\rbac-register.js --target=TEST --module=WORKFLOW_MANAGER
+
+# Only after the owner approves the actual scoped preview and fingerprint:
+node --env-file-if-exists=.env .\scripts\rbac-register.js --target=TEST --module=WORKFLOW_MANAGER --apply --fingerprint=<approved-SHA256-from-scoped-preview>
+```
+
+The scoped preview should show the 1 module, 3 resources and 11 permissions still
+missing on TEST (15 total), **0 conflicts** and only matched security-catalogue entries.
+Verify the exact live plan; do not rely on a historical count or fingerprint. The scoped
+fingerprint includes `WORKFLOW_MANAGER` and **cannot be reused for a full-catalogue apply**.
+Unscoped fingerprints likewise cannot authorize a scoped apply.
+
+Applying still requires separate owner approval under G1 and an interactive confirmation.
+The script **never grants permissions to a role**; use Security Administration after the
+authorized catalogue insert. Do not run the apply command merely because this code PR
+has been approved or merged.
+
 ## Approval (gate G1)
 
 - **Preview** is read-only, but connects to Oracle: run it only against a target you are authorized
@@ -46,7 +81,7 @@ node --env-file-if-exists=.env .\scripts\rbac-register.js --target=TEST
 
 This alternative is still an **Oracle TEST read-only connection**; do not run it without owner approval. Neither preview nor this command grants permission to run `--apply`.
 
-Arguments: `--target=<TARGET>` (required), `--apply`, `--fingerprint=<sha256>` (required with, and
+Arguments: `--target=<TARGET>` (required), optional `--module=WORKFLOW_MANAGER`, `--apply`, `--fingerprint=<sha256>` (required with, and
 only accepted with, `--apply`). Anything else is refused.
 
 ### Preview output
@@ -95,7 +130,7 @@ compared or changed. New permissions get a generated description, e.g. `APPROVE`
 | `UNKNOWN OUTCOME` | The commit failed or its answer was lost. The message prints the run's **correlation ID**: if the transaction committed, `XX_ZRV_RBAC_AUDIT_LOGS` contains `RBAC_CATALOG_CHANGED` rows with that `CORRELATION_ID`. **Do not re-run apply.** Run the preview to see the actual state and record both in the change log |
 | `Refused: The server configuration is invalid…` / `Oracle wallet validation failed…` | Configuration or wallet problem. Raw messages (paths, aliases, settings, values) are deliberately not printed; check `server/.env` and the wallet locally |
 
-The script never retries a write.
+The script never retries a write. In scoped mode, the same full lock and double-check apply, but only Workflow Manager rows are eligible for insertion and their module scope is recorded with the audit details.
 
 ## Audit and accountability
 
