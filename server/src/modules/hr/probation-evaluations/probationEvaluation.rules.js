@@ -19,13 +19,25 @@ export const LEGACY_BLANK_DATE = '2000-01-01';
 export const toStoredDate = (value) => value || null;
 export const fromStoredDate = (value) => (!value || value === LEGACY_BLANK_DATE ? null : value);
 
+/** Legacy saves every evaluation with the 20 criteria of its form type (prf-new.js). */
+export const CRITERIA_COUNT = 20;
+
+/**
+ * Statuses the legacy form lets the preparer change. Its workflow cannot be re-initialised while
+ * INPROCESS or APPROVED (ProbationFlow::submit), so those records are read only here; a REJECTED
+ * request is corrected and submitted again. The status itself is not changed by a save.
+ */
+export const EDITABLE_STATUSES = Object.freeze(['DRAFT', 'REJECTED']);
+export const isEditable = (status) =>
+  EDITABLE_STATUSES.includes(String(status ?? '').toUpperCase());
+
 const blank = (value) =>
   value === undefined || value === null || String(value).trim() === '' || value === '-';
 
 /**
- * Problems that block submitting an evaluation (draft saves stay lenient). The legacy edit form
- * required Comments (PREPARED_BY_CMNT), Suggestion (APPROVED_BY_CMNT) and a 1–5 rating on every
- * criterion. Not wired to a route yet: the submit workflow does not exist.
+ * Problems that block saving a saved evaluation again, and submitting it. The legacy edit form
+ * (prf_uplines.php) required Comments (PREPARED_BY_CMNT), Suggestion (APPROVED_BY_CMNT) and a 1–5
+ * rating on every criterion. The submit workflow itself is not built.
  */
 export function submitProblems({ comment, comments, lines = [] }) {
   const problems = [];
@@ -34,9 +46,6 @@ export function submitProblems({ comment, comments, lines = [] }) {
   }
   if (blank(comments)) {
     problems.push({ field: 'comments', message: 'Suggestion is required to submit' });
-  }
-  if (!lines.length) {
-    problems.push({ field: 'lines', message: 'At least one criterion is required' });
   }
   lines.forEach((line, index) => {
     const rating = Number(line.rating);

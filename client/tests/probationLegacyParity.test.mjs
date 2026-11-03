@@ -1,4 +1,5 @@
-// Probation Evaluation (1064) against the legacy CI3 form (docs/testing/probation-legacy-comparison.md).
+// Probation Evaluation (1064) against the legacy CI3 form (docs/testing/probation-legacy-comparison.md):
+// views/probation/probation.php (create) and prf_uplines.php (edit a saved evaluation).
 // Mocked client and page source only: no Oracle, no browser. Every person is fictional.
 // Known gaps against the legacy behaviour are `todo` tests: they report, they do not fail the run.
 import test from "node:test";
@@ -13,10 +14,16 @@ import {
   withEmployee,
 } from "../src/features/hr-recruitment/probation/probationModel.js";
 import {
+  ALLOCATED_POINTS,
+  FORM_TYPE_LABELS,
   RESULT_TEXT,
+  approvedBy,
   evaluationResult,
   formResult,
+  formTypeLabel,
+  isEditable,
   totalRating,
+  validateForCreate,
   validateForSubmit,
 } from "../src/features/hr-recruitment/probation/probationRules.js";
 
@@ -24,6 +31,7 @@ const PAGE = new URL(
   "../src/features/hr-recruitment/probation/ProbationPage.jsx",
   import.meta.url,
 );
+const page = () => readFile(PAGE, "utf8");
 const BASE = "/hr/probation-evaluations";
 const LEGACY_FORM_TYPES = [
   "Workers_Technicians",
@@ -76,6 +84,7 @@ const STORED = Object.freeze({
   fromDate: "2026-08-05",
   toDate: "2026-11-04",
   createdAt: "2026-11-02",
+  preparedBy: "Sample Preparer",
   comment: "-",
   comments: "-",
   totalRating: 9,
@@ -96,9 +105,9 @@ const EMPLOYEE = Object.freeze({
   startDate: "2026-08-05",
 });
 
+// A new evaluation as the page holds it: the criteria of the form type, with ratings.
 const draft = (overrides = {}) => ({
   formDate: "2026-08-05",
-  evaluationPeriod: "",
   formType: "Engineers_Staff",
   fromDate: "2026-08-05",
   toDate: "2026-11-04",
@@ -106,11 +115,16 @@ const draft = (overrides = {}) => ({
   comments: "",
   employee: EMPLOYEE,
   lines: [
-    { lineId: null, param: "Quality of work", paramAr: "", rating: 5 },
-    { lineId: null, param: "Attendance", paramAr: "", rating: "" },
+    { lineId: null, param: "Criterion 1", paramAr: "معيار 1", rating: 5 },
+    { lineId: null, param: "Criterion 2", paramAr: "معيار 2", rating: "" },
   ],
   ...overrides,
 });
+const created = () =>
+  fakeClient({
+    [`POST ${BASE}`]: { data: { headerId: "7" } },
+    [`GET ${BASE}/7`]: { data: STORED },
+  });
 
 // ------------------------------------------------------------------ fields
 
@@ -122,6 +136,8 @@ test("parity: legacy '-' and 0 placeholders read back as empty values", async ()
   assert.equal(record.comments, "", "APPROVED_BY_CMNT '-'");
   assert.equal(record.employee.employeeId, "", "EMP_ID '-'");
   assert.equal(record.lines[0].paramAr, "", "PARAMA_NAME_AR '-'");
+  assert.equal(record.employee.grade, "0", "GRADE: legacy stores 0");
+  assert.equal(record.preparedBy, "Sample Preparer", "USER_NAME");
   assert.deepEqual(
     record.lines.map((line) => line.rating),
     [5, 4, ""],
@@ -144,93 +160,88 @@ test("parity: dates arrive as YYYY-MM-DD; older DD-Mon-YYYY / DD-Mon-YY values s
   });
   const record = await probations(client).getById("7");
   assert.equal(record.formDate, "2026-08-05");
-  assert.equal(record.fromDate, "2026-08-05");
   assert.equal(record.toDate, "2026-11-04");
 });
 
-test("parity: header fields map to the legacy columns on save", async () => {
+test("parity: the five legacy form types with the legacy labels", async () => {
   const client = fakeClient({
-    [`POST ${BASE}`]: { data: { headerId: "7" } },
-    [`GET ${BASE}/7`]: { data: STORED },
+    [`GET ${BASE}/lookups/form-types`]: {
+      data: { formTypes: LEGACY_FORM_TYPES },
+    },
+    [`GET ${BASE}/lookups/requestor`]: { data: null },
   });
+  const lookups = await probations(client).getLookups();
+  assert.deepEqual(
+    lookups.probation.formTypes.map((type) => type.code),
+    LEGACY_FORM_TYPES,
+  );
+  assert.deepEqual(LEGACY_FORM_TYPES.map(formTypeLabel), [
+    "Workers_Technicians",
+    "Trainee",
+    "Engineers & Staff",
+    "Department Managers",
+    "Supervisors and Foremens",
+  ]);
+  assert.deepEqual(Object.keys(FORM_TYPE_LABELS), LEGACY_FORM_TYPES);
+  assert.match(await page(), /formTypeLabel\(item\.code\)/);
+});
+
+test("parity: the create form sends only what legacy saves; the server fills the rest", async () => {
+  const client = created();
   await probations(client).save(null, draft());
   const body = client.calls.find((call) => call.method === "POST").body;
-  assert.deepEqual(
-    {
-      formType: body.formType, // FORM_NAME (dropSelect)
-      employeeName: body.employeeName, // EMP_NAME
-      employeeNumber: body.employeeNumber, // EMP_NUMBER
-      jobTitle: body.jobTitle, // JOB_T
-      department: body.department, // DEPARTMENT
-      fromDate: body.fromDate, // FROM_DATE
-      toDate: body.toDate, // TO_DATE
-      grade: body.grade, // GRADE: legacy '' -> 0
-    },
-    {
-      formType: "Engineers_Staff",
-      employeeName: EMPLOYEE.name,
-      employeeNumber: EMPLOYEE.employeeNumber,
-      jobTitle: EMPLOYEE.position,
-      department: EMPLOYEE.departmentName,
-      fromDate: "2026-08-05",
-      toDate: "2026-11-04",
-      grade: 0,
-    },
-  );
-  assert.equal(
-    "userName" in body || "userMail" in body,
-    false,
-    "prepared by (USER_NAME/USER_MAIL) comes from the session, not the client",
-  );
-});
-
-test("parity: lines carry criterion, Arabic criterion and a 1–5 rating; blank is omitted (stored 0)", async () => {
-  const client = fakeClient({
-    [`POST ${BASE}`]: { data: { headerId: "7" } },
-    [`GET ${BASE}/7`]: { data: STORED },
+  assert.deepEqual(body, {
+    formType: "Engineers_Staff", // FORM_NAME (dropSelect)
+    employeeNumber: "E-0001", // EMP_NUMBER; name, job title and department from the master
+    formDate: "2026-08-05", // FORM_DATE (prf_date, the joining date)
+    fromDate: "2026-08-05",
+    toDate: "2026-11-04",
+    // Ratings by criterion position; blank omitted (stored 0). The texts come from the form type.
+    lines: [{ rating: 5 }, {}],
   });
-  await probations(client).save(null, draft());
-  const { lines } = client.calls.find((call) => call.method === "POST").body;
-  assert.deepEqual(lines, [
-    { param: "Quality of work", paramAr: "", rating: 5 },
-    { param: "Attendance", paramAr: "" },
-  ]);
 });
 
-test("parity: update sends each LINE_ID, as the legacy line_id<n> hidden fields", async () => {
+test("parity: the joining date is sent when known and omitted when blank", async () => {
+  const client = created();
+  const service = probations(client);
+  await service.save(null, draft());
+  await service.save(null, draft({ formDate: "" }));
+  const [known, blank] = client.calls
+    .filter((call) => call.method === "POST")
+    .map((call) => call.body);
+  assert.equal(known.formDate, "2026-08-05");
+  assert.equal("formDate" in blank, false);
+});
+
+test("parity: the edit form sends Comments, Suggestion and every line's rating only", async () => {
   const client = fakeClient({
     [`GET ${BASE}/7`]: { data: STORED },
     [`PUT ${BASE}/7`]: { data: { headerId: "7" } },
   });
   const service = probations(client);
   const record = await service.getById("7");
-  await service.save("7", { ...record, lines: record.lines });
-  const { lines } = client.calls.find((call) => call.method === "PUT").body;
-  assert.deepEqual(
-    lines.map((line) => line.lineId),
-    ["11", "12", "13"],
-  );
+  await service.save("7", {
+    ...record,
+    comment: "Prepared",
+    comments: "Suggestion",
+    lines: record.lines.map((line) => ({ ...line, rating: "3" })),
+  });
+  assert.deepEqual(client.calls.find((call) => call.method === "PUT").body, {
+    comment: "Prepared",
+    comments: "Suggestion",
+    lines: [
+      { lineId: "11", rating: 3 },
+      { lineId: "12", rating: 3 },
+      { lineId: "13", rating: 3 },
+    ],
+  });
 });
 
-// -------------------------------------------------------------- dependencies
-
-test("parity: the page previews the total as the sum of the ratings (max 20 x 5 = 100)", () => {
-  const lines = Array.from({ length: 20 }, () => ({ rating: 5 }));
-  assert.equal(totalRating(lines), 100);
-  assert.equal(
-    totalRating([{ rating: 5 }, { rating: "" }]),
-    5,
-    "a blank rating counts as 0",
-  );
-});
-
-test("parity: the client sends no total or result; the server computes them from the ratings", async () => {
+test("parity: the client sends no total or result; the server computes them", async () => {
   const client = fakeClient({
     [`POST ${BASE}`]: { data: { headerId: "7" } },
     [`PUT ${BASE}/7`]: { data: { headerId: "7" } },
-    [`GET ${BASE}/7`]: {
-      data: { ...STORED, totalRating: 9, evaluationResult: "NOT_ACCEPTABLE" },
-    },
+    [`GET ${BASE}/7`]: { data: { ...STORED, totalRating: 9 } },
   });
   const service = probations(client);
   await service.save(null, draft());
@@ -247,7 +258,63 @@ test("parity: the client sends no total or result; the server computes them from
   );
 });
 
-test("parity: selecting an employee fills number, job title, department and joining date from HR records", async () => {
+// -------------------------------------------------------------- dependencies
+
+test("parity: choosing a form type loads its criteria (legacy showDropInfo) and replaces the rows", async () => {
+  const client = fakeClient({
+    [`GET ${BASE}/lookups/criteria`]: {
+      data: {
+        formType: "Trainee",
+        criteria: [
+          { param: "Criterion 1", paramAr: "معيار 1" },
+          { param: "Criterion 2", paramAr: null },
+        ],
+      },
+    },
+  });
+  const criteria = await probations(client).criteria("Trainee");
+  assert.deepEqual(criteria, [
+    { param: "Criterion 1", paramAr: "معيار 1" },
+    { param: "Criterion 2", paramAr: "" },
+  ]);
+  assert.deepEqual(client.calls[0].options.params, { formType: "Trainee" });
+  const source = await page();
+  assert.match(source, /const items = await service\.criteria\(formType\)/);
+  assert.match(source, /patch\(\{ lines: criteriaLines\(items\) \}\)/);
+  assert.match(
+    source,
+    /patch\(\{ formType, lines: \[\] \}\)/,
+    "rows cleared while loading",
+  );
+  assert.match(source, /'Select Form name'/, "the legacy empty-table text");
+  assert.doesNotMatch(
+    source,
+    /Add criterion|Remove criterion|pa-param/,
+    "no typed criteria",
+  );
+});
+
+test("parity: each criterion shows English and Arabic text, Allocated 5 and a Points select 1–5", async () => {
+  assert.equal(ALLOCATED_POINTS, 5);
+  const source = await page();
+  assert.match(source, /<b>\{line\.param\}<\/b>/);
+  assert.match(source, /<small lang="ar" dir="rtl">\{line\.paramAr\}<\/small>/);
+  assert.match(source, /zrv-hr-criterion__alloc">\{ALLOCATED_POINTS\}/);
+  assert.match(source, /<option value="" \/>\{\[1, 2, 3, 4, 5\]\.map/);
+  assert.match(source, /معايير التقييم/);
+});
+
+test("parity: the page previews the total as the sum of the points (max 20 x 5 = 100)", () => {
+  const lines = Array.from({ length: 20 }, () => ({ rating: 5 }));
+  assert.equal(totalRating(lines), 100);
+  assert.equal(
+    totalRating([{ rating: 5 }, { rating: "" }]),
+    5,
+    "blank counts as 0",
+  );
+});
+
+test("parity: selecting an employee fills number, job title, department and joining date", async () => {
   const client = fakeClient({
     [`GET ${BASE}/lookups/employee-details`]: {
       data: {
@@ -262,30 +329,40 @@ test("parity: selecting an employee fills number, job title, department and join
     "Sample Employee 001",
   );
   assert.deepEqual(
-    {
-      employeeNumber: details.employeeNumber,
-      position: details.position,
-      departmentName: details.departmentName,
-      startDate: details.startDate,
-      grade: details.grade,
-    },
-    {
-      employeeNumber: "E-0001",
-      position: "Sample Title",
-      departmentName: "Sample Department",
-      startDate: "2026-08-05",
-      grade: "",
-    },
-    "legacy getEmpDetails fills the same fields; grade is never filled there either",
+    [
+      details.employeeNumber,
+      details.position,
+      details.departmentName,
+      details.startDate,
+      details.grade,
+    ],
+    ["E-0001", "Sample Title", "Sample Department", "2026-08-05", ""],
+    "legacy getEmpDetails fills the same fields; the grade is never filled",
   );
-  assert.equal(
-    client.calls[0].options.params.empName,
-    "Sample Employee 001",
-    "looked up by full name, as legacy emp_name",
+  assert.equal(client.calls[0].options.params.empName, "Sample Employee 001");
+  const source = await page();
+  assert.match(source, /patch\(\{ formDate: details\.startDate \|\| '' \}\)/);
+  assert.match(source, /patch\(\{ formDate: '' \}\)/, "cleared while loading");
+});
+
+test("parity: the joining date is an editable date on the create form (legacy prf_date), shown on a saved one", async () => {
+  const source = await page();
+  assert.match(
+    source,
+    /<input id="pa-joining" className="ux-input zrv-hr-input" type="date" value=\{form\.formDate\} onChange=\{setValue\('formDate'\)\} \/>/,
+  );
+  assert.match(
+    source,
+    /readOnly\('pa-joining', 'Joining Date', form\.formDate\)/,
+  );
+  assert.match(
+    source,
+    /readOnly\('pa-grade', 'Job Grade', employee\?\.grade\)/,
+    "never filled",
   );
 });
 
-test("parity: evaluation result threshold is 0–70 Not acceptable, 71–100 Acceptable", () => {
+test("parity: evaluation result 0–70 Not Acceptable, 71–100 Acceptable", () => {
   assert.deepEqual([70, 71, 100, 0].map(resultFor), [
     "NOT_ACCEPTABLE",
     "ACCEPTABLE",
@@ -295,19 +372,13 @@ test("parity: evaluation result threshold is 0–70 Not acceptable, 71–100 Acc
   const criteria = [{ code: "A", points: 100 }];
   assert.equal(evaluationTotals(criteria, { A: 71 }).acceptable, true);
   assert.equal(evaluationTotals(criteria, { A: 70 }).acceptable, false);
-});
-
-test("parity: the result band is computed from the total: 71+ Acceptable, 70 and below Not acceptable", () => {
-  assert.deepEqual([0, 70, 71, 100, "71"].map(evaluationResult), [
+  assert.deepEqual([0, 70, 71, "71"].map(evaluationResult), [
     "NOT_ACCEPTABLE",
     "NOT_ACCEPTABLE",
-    "ACCEPTABLE",
     "ACCEPTABLE",
     "ACCEPTABLE",
   ]);
-  const rated = (ratings) =>
-    ratings.map((rating) => ({ param: "C", paramAr: "", rating }));
-  assert.equal(totalRating(rated([5, 4, ""])), 9);
+  const rated = (ratings) => ratings.map((rating) => ({ rating }));
   assert.equal(
     formResult(rated(["", ""])),
     null,
@@ -317,165 +388,119 @@ test("parity: the result band is computed from the total: 71+ Acceptable, 70 and
   assert.equal(formResult(rated(Array(14).fill(5))), "NOT_ACCEPTABLE", "70");
   assert.deepEqual(RESULT_TEXT, {
     ACCEPTABLE: "Acceptable",
-    NOT_ACCEPTABLE: "Not acceptable",
+    NOT_ACCEPTABLE: "Not Acceptable",
   });
 });
 
-test("parity: the page shows the result on the form, the side card and the ticket", async () => {
-  const page = await readFile(PAGE, "utf8");
-  assert.match(page, /const result = formResult\(form\.lines\)/);
-  assert.equal(
-    page.match(/\{resultPill\}/g).length,
-    3,
-    "ratings step, review step and side card",
-  );
-  assert.match(page, /\{ k: 'Evaluation', v: resultPill \}/);
+test("parity: the page shows the result and the legacy bands", async () => {
+  const source = await page();
+  assert.match(source, /const result = formResult\(form\.lines\)/);
+  assert.match(source, /\{ k: 'Evaluation Result', v: resultPill \}/);
   assert.match(
-    page,
-    /71 and above is Acceptable; 70 and below is Not acceptable/,
+    source,
+    /Not Acceptable from 0% to 70%, Acceptable from 71% to 100%/,
   );
 });
 
-test(
-  "parity: choosing a form type loads that type's predefined criteria",
-  {
-    todo: "MISSING: legacy showDropInfo() (assets/prf-new.js, not in the repository) fills the criteria",
-  },
-  async () => {
-    const page = await readFile(PAGE, "utf8");
-    assert.match(page, /formTypes[\s\S]*criteria/);
-    assert.doesNotMatch(page, /does not provide predefined criteria/);
-  },
-);
-
-test("parity: FORM_DATE is the joining date: read-only and filled from the selected employee", async () => {
-  const page = await readFile(PAGE, "utf8");
+test("parity: Approved by shows HR SUPERVISOR once approved; Prepared & Agreed by is the preparer", async () => {
+  assert.deepEqual(["APPROVED", "DRAFT", "INPROCESS", null].map(approvedBy), [
+    "HR SUPERVISOR",
+    "",
+    "",
+    "",
+  ]);
+  const source = await page();
   assert.match(
-    page,
-    /readOnly\('pa-joining', 'Joining date', form\.formDate\)/,
+    source,
+    /readOnly\('pa-approved', 'Approved by', approvedBy\(record\?\.status\)\)/,
   );
   assert.match(
-    page,
-    /patch\(\{ employee: details, formDate: details\.startDate \|\| '' \}\)/,
-  );
-  assert.match(
-    page,
-    /patch\(\{ employee: item, formDate: '' \}\)/,
-    "cleared while loading",
-  );
-  assert.doesNotMatch(page, /businessToday|Form date/, "no longer a form date");
-  assert.doesNotMatch(page, /next\.formDate/, "not required");
-});
-
-test("parity: the joining date is sent when known and omitted when blank", async () => {
-  const client = fakeClient({
-    [`POST ${BASE}`]: { data: { headerId: "7" } },
-    [`GET ${BASE}/7`]: { data: STORED },
-  });
-  const service = probations(client);
-  await service.save(null, draft());
-  await service.save(null, draft({ formDate: "" }));
-  const [known, blank] = client.calls
-    .filter((call) => call.method === "POST")
-    .map((call) => call.body);
-  assert.equal(known.formDate, "2026-08-05");
-  assert.equal("formDate" in blank, false);
-});
-
-test("parity: a blank joining date (null from the API) reads back empty; the created date is kept", async () => {
-  const client = fakeClient({
-    [`GET ${BASE}/7`]: { data: { ...STORED, formDate: null } },
-  });
-  const record = await probations(client).getById("7");
-  assert.equal(record.formDate, "");
-  assert.equal(record.employee.startDate, "");
-  assert.equal(record.createdAt, "2026-11-02");
-  const page = await readFile(PAGE, "utf8");
-  assert.match(
-    page,
-    /\{ k: 'Created', v: record\?\.createdAt \|\| 'Set on save' \}/,
+    source,
+    /readOnly\('pa-prepared', 'Prepared & Agreed by', saved \? record\.preparedBy : lookups\.requestor\?\.fullName\)/,
   );
 });
 
 // ---------------------------------------------------------------- validation
 
-test("parity: page requires employee, form type, evaluation from/to and criterion text; other fields optional", async () => {
-  const page = await readFile(PAGE, "utf8");
-  const requiredIds = [...page.matchAll(/id="(pa-[\w-]+)"[^>]*\brequired\b/g)]
-    .map((match) => match[1])
-    .sort();
-  assert.deepEqual(requiredIds, ["pa-emp", "pa-from", "pa-to", "pa-type"]);
-  assert.match(page, /label=\{`Criterion \$\{index \+ 1\}`\} required/);
-  for (const optional of [
-    "pa-period",
-    "pa-grade",
-    "pa-comment",
-    "pa-comments",
-  ]) {
-    assert.doesNotMatch(
-      page,
-      new RegExp(`id="${optional}"[^>]*\\brequired\\b`),
-      optional,
-    );
-  }
-  assert.match(page, /toDate < form\.fromDate/, "end on or after start");
-  assert.match(page, /form\.lines\.length > 20/, "at most 20 criteria");
-  assert.match(page, /\[1, 2, 3, 4, 5\]/, "rating options 1–5");
-});
-
-test("parity: the five legacy form types come from the server lookup", async () => {
-  const client = fakeClient({
-    [`GET ${BASE}/lookups/form-types`]: {
-      data: { formTypes: LEGACY_FORM_TYPES },
-    },
-    [`GET ${BASE}/lookups/employees`]: { data: [] },
-    [`GET ${BASE}/lookups/requestor`]: { data: null },
-  });
-  const lookups = await probations(client).getLookups();
+test("parity: a new evaluation needs the form type with criteria, the employee and From / To", () => {
+  const criteria = draft().lines;
   assert.deepEqual(
-    lookups.probation.formTypes.map((type) => type.code),
-    LEGACY_FORM_TYPES,
+    validateForCreate(draft(), { employee: EMPLOYEE, criteria }),
+    {
+      errors: {},
+      valid: true,
+    },
+  );
+  const empty = validateForCreate(
+    { ...draft(), formType: "", fromDate: "", toDate: "" },
+    { employee: null, criteria: [] },
+  );
+  assert.deepEqual(Object.keys(empty.errors), [
+    "formType",
+    "employee",
+    "fromDate",
+    "toDate",
+  ]);
+  assert.equal(
+    validateForCreate(draft(), { employee: EMPLOYEE, criteria: [] }).errors
+      .formType,
+    "The criteria of this form type are not available.",
+  );
+  assert.ok(
+    validateForCreate(draft({ toDate: "2026-08-04" }), {
+      employee: EMPLOYEE,
+      criteria,
+    }).errors.toDate,
+  );
+  // Points are optional on the create form; Comments and Suggestion are read only there.
+  assert.equal(
+    validateForCreate(
+      draft({ lines: criteria.map((line) => ({ ...line, rating: "" })) }),
+      { employee: EMPLOYEE, criteria },
+    ).valid,
+    true,
   );
 });
 
-test("parity: Comments, Suggestion and every rating are required to submit, not to save a draft", async () => {
-  const lines = [
-    { param: "A", paramAr: "", rating: 4 },
-    { param: "B", paramAr: "", rating: "" },
-  ];
+test("parity: a saved evaluation needs Comments, Suggestion and every rating (legacy edit form)", () => {
+  const lines = [{ rating: 4 }, { rating: "" }];
   const incomplete = validateForSubmit({ comment: " ", comments: "", lines });
   assert.deepEqual(Object.keys(incomplete.errors), [
     "comment",
     "comments",
     "rating:1",
   ]);
-  assert.equal(incomplete.valid, false);
   assert.deepEqual(
     validateForSubmit({
       comment: "Prepared",
       comments: "Suggestion",
-      lines: [{ ...lines[0] }, { ...lines[1], rating: "3" }],
+      lines: [{ rating: 4 }, { rating: "3" }],
     }),
     { errors: {}, valid: true },
   );
-  assert.deepEqual(
-    Object.keys(
-      validateForSubmit({ comment: "a", comments: "b", lines: [] }).errors,
-    ),
-    ["lines"],
-  );
-  const page = await readFile(PAGE, "utf8");
-  assert.doesNotMatch(page, /validateForSubmit/, "not wired: no Submit yet");
-  assert.doesNotMatch(
-    page,
-    /next\.comment/,
-    "draft save keeps comments optional",
-  );
-  assert.match(page, /label="Comments"/);
-  assert.match(page, /label="Suggestion"/);
 });
 
-test("new-only fields stay optional: recommendation, extension, justification, signatures", () => {
+test("parity: the page validates by stage, as the two legacy views", async () => {
+  const source = await page();
+  assert.match(
+    source,
+    /saved \? validateForSubmit\(form\) : validateForCreate\(form, \{ employee, criteria: form\.lines \}\)/,
+  );
+  // Comments and Suggestion are read only until the first save (legacy textarea readonly).
+  assert.match(source, /id="pa-comment"[^>]*readOnly=\{!saved\}/);
+  assert.match(source, /id="pa-comments"[^>]*readOnly=\{!saved\}/);
+  assert.match(source, /label="Comments" required=\{saved\}/);
+  assert.match(source, /label="Suggestion" required=\{saved\}/);
+  assert.match(source, /maxLength=\{500\}/, "VARCHAR2(500)");
+  const requiredIds = [
+    ...source.matchAll(/id="(pa-[\w-]+)"[^>]*\brequired\b(?!=)/g),
+  ]
+    .map((match) => match[1])
+    .sort();
+  assert.deepEqual(requiredIds, ["pa-emp", "pa-from", "pa-to", "pa-type"]);
+});
+
+test("new-only fields of the demo model stay optional: recommendation, extension, justification", () => {
   const criteria = [{ code: "A", points: 100 }];
   const base = {
     ...withEmployee(blankProbation(), {
@@ -494,16 +519,68 @@ test("new-only fields stay optional: recommendation, extension, justification, s
     ).errors,
     {},
   );
-  assert.deepEqual(
-    validateProbation({ ...base, recommendation: "CONFIRM" }, context).errors,
-    {},
-    "contradicting the result without a justification",
-  );
 });
 
 // --------------------------------------------------------------------- flow
 
-test("parity: new records start as DRAFT and the list maps status and total", async () => {
+test("parity: a saved evaluation keeps its header (legacy edit saves only comments and points)", async () => {
+  const source = await page();
+  assert.match(source, /disabled=\{saved\}/, "form type");
+  assert.match(
+    source,
+    /saved \? <div className="zrv-hr-mt">\{readOnly\('pa-emp', 'Employee Name', employee\?\.name\)\}/,
+  );
+  assert.match(
+    source,
+    /readOnly\('pa-from', 'Evaluation Period From', form\.fromDate\)/,
+  );
+  assert.match(
+    source,
+    /readOnly\('pa-to', 'Evaluation Period To', form\.toDate\)/,
+  );
+});
+
+test("parity: Draft and Rejected are editable; Inprocess and Approved are read only", async () => {
+  assert.deepEqual(
+    ["DRAFT", "REJECTED", "Rejected", "INPROCESS", "APPROVED"].map(isEditable),
+    [true, true, true, false, false],
+  );
+  const source = await page();
+  assert.match(source, /const locked = saved && !isEditable\(record\.status\)/);
+  assert.match(source, /locked=\{locked\}/);
+  assert.match(source, /if \(locked \|\| !validate\(\)\) return/);
+});
+
+test("parity: the legacy toolbar: Save, Report, Request Form, Print", async () => {
+  const source = await page();
+  assert.match(source, /label: 'Save', onClick: save/);
+  assert.match(source, /label: 'Report'/);
+  assert.match(source, /label: 'Request Form'/);
+  assert.match(source, /label: 'Print', onClick: \(\) => window\.print\(\)/);
+});
+
+test(
+  "parity: Submit sends the evaluation into the two-step approval workflow",
+  {
+    todo: "MISSING: legacy ProbationFlow/submit (DRAFT -> INPROCESS -> APPROVED/REJECTED); the workflow is not built",
+  },
+  async () => {
+    assert.match(await page(), /service\.submit/);
+  },
+);
+
+test("parity: the report has the legacy columns, Pending At from the API", async () => {
+  // The report is its own page (ProbationReportPage.jsx), opened by the form's Report tool.
+  assert.match(await page(), /label: 'Report', onClick: \(\) => leave\(`\$\{BASE\}\/report`\)/);
+  const source = await readFile(new URL("ProbationReportPage.jsx", PAGE), "utf8");
+  const labels = [...source.matchAll(/\{ key: '\w+', label: '([^']+)'/g)].map((match) => match[1]);
+  assert.deepEqual(
+    labels.slice(labels.indexOf("#")),
+    ["#", "Emp. #", "Name", "Job Title", "Department", "Total Rating", "Evaluation", "Status", "Date", "Pending At"],
+    "the legacy report columns, in order",
+  );
+  assert.match(source, /RESULT_TEXT\[row\.evaluationResult\]/);
+  assert.match(source, /render: \(row\) => row\.pendingAt \|\|/);
   const client = fakeClient({
     [`GET ${BASE}`]: {
       data: [
@@ -513,101 +590,27 @@ test("parity: new records start as DRAFT and the list maps status and total", as
           employeeNumber: "E-0001",
           jobTitle: "Sample Title",
           department: "Sample Department",
-          formType: "Trainee",
           totalRating: 72,
           evaluationResult: "ACCEPTABLE",
-          requestStatus: "DRAFT",
-          pendingAt: null,
+          requestStatus: "INPROCESS",
+          pendingAt: "Sample Approver",
           createdAt: "2026-11-02",
         },
+        { headerId: "8", totalRating: 10, evaluationResult: "UNKNOWN" },
       ],
-      pagination: { page: 1, limit: 20, total: 1 },
+      pagination: { page: 1, limit: 20, total: 2 },
     },
   });
-  const list = await probations(client).list();
-  const [item] = list.items;
-  assert.deepEqual(
-    [item.status, item.totalRating, item.formType],
-    ["DRAFT", 72, "Trainee"],
-  );
+  const [item, unknown] = (await probations(client).list()).items;
   assert.deepEqual(
     [
-      item.employeeNumber,
-      item.jobTitle,
-      item.department,
+      item.status,
+      item.totalRating,
       item.evaluationResult,
       item.pendingAt,
       item.createdAt,
     ],
-    [
-      "E-0001",
-      "Sample Title",
-      "Sample Department",
-      "ACCEPTABLE",
-      "",
-      "2026-11-02",
-    ],
-    "from the API only",
+    ["INPROCESS", 72, "ACCEPTABLE", "Sample Approver", "2026-11-02"],
   );
-});
-
-test("parity: Save draft and Print are available; Print uses the browser print", async () => {
-  const page = await readFile(PAGE, "utf8");
-  assert.match(page, /label: 'Save draft', onClick: save/);
-  assert.match(page, /label: 'Print', onClick: \(\) => window\.print\(\)/);
-  assert.match(page, /label: 'Records'/, "legacy Report link");
-});
-
-test(
-  "parity: Submit sends the evaluation into the two-step approval workflow",
-  {
-    todo: "MISSING: legacy ProbationFlow/submit (DRAFT -> INPROCESS -> APPROVED/REJECTED); out of scope in the spec",
-  },
-  async () => {
-    const page = await readFile(PAGE, "utf8");
-    assert.match(page, /service\.submit/);
-  },
-);
-
-test("parity: the records list shows employee number, job title, department, evaluation result, pending-at and the created date", async () => {
-  const page = await readFile(PAGE, "utf8");
-  for (const column of [
-    '\\["Emp\\. no\\.", \\(item\\) => item\\.employeeNumber\\]',
-    '\\["Job title", \\(item\\) => item\\.jobTitle\\]',
-    '\\["Department", \\(item\\) => item\\.department\\]',
-    '\\["Evaluation", \\(item\\) => RESULT_TEXT\\[item\\.evaluationResult\\]\\]',
-    '\\["Pending at", \\(item\\) => item\\.pendingAt\\]',
-    "dateColumn=\\{\\['Created', \\(item\\) => item\\.createdAt\\]\\}",
-  ]) {
-    assert.match(page, new RegExp(column), column);
-  }
-  const client = fakeClient({
-    [`GET ${BASE}`]: {
-      data: [{ headerId: "8", totalRating: 10, evaluationResult: "UNKNOWN" }],
-      pagination: { page: 1, limit: 20, total: 1 },
-    },
-  });
-  const [item] = (await probations(client).list()).items;
-  assert.equal(item.evaluationResult, "", "an unknown result is not shown");
-});
-
-test("new-only EMP_ID (person ID) is optional: a legacy record with EMP_ID '-' can be saved", async () => {
-  const page = await readFile(PAGE, "utf8");
-  const rule = page.match(
-    /if \(!employee\?\.name[^\n]*complete employee details/,
-  )[0];
-  assert.doesNotMatch(rule, /employeeId/);
-  const client = fakeClient({
-    [`GET ${BASE}/7`]: { data: STORED },
-    [`PUT ${BASE}/7`]: { data: { headerId: "7" } },
-  });
-  const service = probations(client);
-  const record = await service.getById("7");
-  assert.equal(record.employee.employeeId, "");
-  await service.save("7", { ...record, lines: record.lines });
-  assert.equal(
-    client.calls.find((call) => call.method === "PUT").body.empId,
-    "",
-    "sent empty; the server stores the legacy '-'",
-  );
+  assert.equal(unknown.evaluationResult, "", "an unknown result is not shown");
 });

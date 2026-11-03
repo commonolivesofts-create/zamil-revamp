@@ -4,14 +4,28 @@ import assert from 'node:assert/strict';
 const storedDate = (value) => value;
 const readDate = (value) => value ?? null;
 
+// The 20 criteria of a form type (fictional texts), as saved by a legacy evaluation of that type.
+export const testCriteria = (prefix = 'Criterion') =>
+  Array.from({ length: 20 }, (_, index) => ({
+    param: `${prefix} ${index + 1}`,
+    paramAr: `معيار ${index + 1}`,
+  }));
+
 // `departments` maps employee numbers to an ORGANIZATION_ID for the same-department rule.
+// `criteria` maps form types to their criteria; a type without an entry has none.
 export function installProbationEvaluations(
   store,
-  { hrEmployeeNumbers = [], departments = {}, identityStart } = {},
+  {
+    hrEmployeeNumbers = [],
+    departments = {},
+    identityStart,
+    criteria = { Engineers_Staff: testCriteria() },
+  } = {},
 ) {
   store.state.probationEvaluations = { headers: [], lines: [] };
   store.state.probationHrEmployeeNumbers = [...hrEmployeeNumbers];
   store.state.probationDepartments = { ...departments };
+  store.state.probationCriteria = { ...criteria };
   const table = () => store.state.probationEvaluations;
   const headerOf = (headerId) => table().headers.find((header) => header.headerId === headerId);
   const linesOf = (headerId) => table().lines.filter((line) => line.headerId === headerId);
@@ -27,6 +41,17 @@ export function installProbationEvaluations(
         }
       : null;
   };
+  const hierarchyOf = (employeeNumber) =>
+    requestorFor(employeeNumber)
+      ? store.state.employees
+          .filter((item) => item.employeeNumber !== employeeNumber)
+          .map((item) => ({
+            hierarchyLevel: 2,
+            userId: null,
+            employeeNumber: item.employeeNumber,
+            fullName: item.fullName,
+          }))
+      : [];
   const matches = (header, filters) => {
     if (filters.search) {
       const haystack = [
@@ -102,6 +127,7 @@ export function installProbationEvaluations(
         toDate: readDate(header.toDate),
         requestStatus: header.requestStatus,
         createdAt: header.createdAt,
+        preparedBy: header.userName ?? null,
       };
     },
     async listLines(_connection, headerId) {
@@ -182,6 +208,7 @@ export function installProbationEvaluations(
           requestStatus: header.requestStatus,
           createdAt: header.createdAt,
           createdBy: header.createdBy,
+          pendingAt: header.pendingAt ?? null,
         })),
       };
     },
@@ -191,22 +218,25 @@ export function installProbationEvaluations(
         ...(store.state.probationEmployeeQueries ?? []),
         { employeeNumber, search },
       ];
-      if (!requestorFor(employeeNumber)) return [];
       const term = String(search ?? '').toUpperCase();
-      return store.state.employees
-        .filter((item) => item.employeeNumber !== employeeNumber)
-        .filter(
+      return hierarchyOf(employeeNumber).filter(
+        (item) =>
+          !term ||
+          item.fullName.toUpperCase().includes(term) ||
+          String(item.employeeNumber).includes(term),
+      );
+    },
+    async findHierarchyEmployee(_connection, { employeeNumber, subjectNumber, subjectName }) {
+      return (
+        hierarchyOf(employeeNumber).find(
           (item) =>
-            !term ||
-            item.fullName.toUpperCase().includes(term) ||
-            String(item.employeeNumber).includes(term),
-        )
-        .map((item) => ({
-          hierarchyLevel: 2,
-          userId: null,
-          employeeNumber: item.employeeNumber,
-          fullName: item.fullName,
-        }));
+            (subjectNumber && item.employeeNumber === subjectNumber) ||
+            (subjectName && item.fullName === subjectName),
+        ) ?? null
+      );
+    },
+    async findCriteria(_connection, formType) {
+      return (store.state.probationCriteria[formType] ?? []).map((item) => ({ ...item }));
     },
     async findEmployeeDetails(_connection, { empName, employeeNumber }) {
       const employee = store.state.employees.find((item) => item.fullName === empName);

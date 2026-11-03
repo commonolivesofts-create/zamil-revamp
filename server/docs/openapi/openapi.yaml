@@ -2626,9 +2626,12 @@ paths:
       tags: [HR Orientation Trainings]
       summary: List orientation training records
       description: >-
-        Lists the requested shared-service (Y) or production (N) variant with filters,
-        pagination, and server-side HR/non-HR scoping. Requires
-        `HR.ORIENTATION_TRAININGS:VIEW`.
+        Lists the requested shared-service (Y) or production (N) variant with filters and
+        pagination (legacy newhiretrain_list): HR users see every record, others their own. Rows
+        carry `status` as the legacy label (Draft, Inprocess, Approved, Rejected), the stored
+        `rawStatus` (mixed case), `divisionName` (IPP BU / FPP BU) and the legacy report
+        columns `pendingAt`, `workflowStart`, `workflowEnd` and `lastAction` read from
+        XXPHP_WORKFLOW (NHTF). Requires `HR.ORIENTATION_TRAININGS:VIEW`.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: flag, in: query, required: true, schema: { type: string, enum: [Y, N] } }
@@ -2639,7 +2642,10 @@ paths:
             schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
           }
         - { name: search, in: query, schema: { type: string, maxLength: 100 } }
-        - { name: status, in: query, schema: { type: string, enum: [Draft, Inprocess, Approved] } }
+        - name: status
+          in: query
+          description: Legacy label, case-insensitive; stored statuses are matched as legacy labels them.
+          schema: { type: string, enum: [Draft, Inprocess, Approved, Rejected] }
         - { name: empNo, in: query, schema: { type: string, maxLength: 50 } }
         - { name: empType, in: query, schema: { type: string, maxLength: 50 } }
         - { name: dateFrom, in: query, schema: { type: string, format: date } }
@@ -2675,9 +2681,12 @@ paths:
       tags: [HR Orientation Trainings]
       summary: Create an orientation training record
       description: >-
-        Resolves the employee variant from current assignment data and inserts the header,
-        registry row, and all lines atomically. The body flag is never trusted. Status is
-        initialized to Draft. HEADER_ID, DEP_LINE_ID and the registry ID come from the tables'
+        Inserts the header, registry row and all lines atomically, in the PRODUCTION tables as the
+        legacy form does (its variant flag is never set; no shared-service marker exists in this
+        schema). Status is Draft. The employee fields come from the employee master, To equals
+        From, Scheduled By is the signed-in user, Orientation Days (to - from) and Orientation Time
+        ("H.MM Hrs") are computed; body values for them are ignored. HR users may choose any
+        current employee, other users only themselves (403). HEADER_ID, DEP_LINE_ID and the registry ID come from the tables'
         identity columns. Requires `HR.ORIENTATION_TRAININGS:CREATE`.
       security: [{ sessionCookie: [] }]
       parameters:
@@ -2714,7 +2723,7 @@ paths:
       operationId: getOrientationTrainingFlag
       tags: [HR Orientation Trainings]
       summary: Resolve an employee's training table variant
-      description: Resolves Y/N from current assignment organization data. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      description: The variant a new request is saved in (always N, as the legacy form). 404 for an employee who is not current. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: empNo, in: query, required: true, schema: { type: string, maxLength: 50 } }
@@ -2743,7 +2752,7 @@ paths:
       operationId: listOrientationTrainingEmployees
       tags: [HR Orientation Trainings]
       summary: List employees eligible for orientation training
-      description: Returns current orientation-eligible employees across the organization, optionally filtered by a case-insensitive name or employee-number substring. Eligibility follows the legacy query's active-assignment and excluded-category filters. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      description: Legacy getEmpNum. HR users get every current employee, other users only themselves, optionally filtered by a case-insensitive name or employee-number substring. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: search
@@ -2774,7 +2783,7 @@ paths:
       operationId: getOrientationTrainingEmployeeDetails
       tags: [HR Orientation Trainings]
       summary: Get employee details for form prefill
-      description: Returns current employee assignment and prefill details. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      description: Returns the employee's prefill details. Non-HR users may read only their own (403). Requires `HR.ORIENTATION_TRAININGS:VIEW`.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: empNo, in: query, required: true, schema: { type: string, maxLength: 50 } }
@@ -2790,15 +2799,10 @@ paths:
       operationId: listOrientationTrainingSkills
       tags: [HR Orientation Trainings]
       summary: List default training subjects for employee type
-      description: Returns the static subjects listed in the NHT specification. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
+      description: The training rows of the employee type (legacy generateSkillTable); any other type is Employee. Requires `HR.ORIENTATION_TRAININGS:VIEW`.
       security: [{ sessionCookie: [] }]
       parameters:
-        - {
-            name: empType,
-            in: query,
-            required: true,
-            schema: { type: string, enum: [Supervisor, Manager, Employee, plant] },
-          }
+        - { name: empType, in: query, required: true, schema: { type: string, maxLength: 50 } }
       responses:
         '200': { description: Default training subjects. }
         '400': { $ref: '#/components/responses/ValidationError' }
@@ -2810,7 +2814,7 @@ paths:
       tags: [HR Orientation Trainings]
       summary: Read an orientation training record
       description: >-
-        Resolves the table pair through the flag registry and returns header with lines. Requires
+        Resolves the table pair (see the flag parameter) and returns header with lines. Requires
         `HR.ORIENTATION_TRAININGS:VIEW`. Record access (also for PUT, DELETE and line DELETE): the
         creator, an HR user (XXZP_HR lookup) or a user in the trained employee's department
         (XX_DIGI_EMP_MASTER.ORGANIZATION_ID) holding `HR.ORIENTATION_TRAININGS:VIEW`; anyone else
@@ -2818,6 +2822,12 @@ paths:
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - name: flag
+          in: query
+          schema: { type: string, enum: [Y, N] }
+          description: >-
+            Variant of the record (legacy form/{id}/{Y|N}); the two variants number their records
+            independently. Without it the registry is used, then the table that holds the ID.
       responses:
         '200':
           description: Header and ordered lines.
@@ -2838,13 +2848,20 @@ paths:
       tags: [HR Orientation Trainings]
       summary: Update an orientation training record
       description: >-
-        Updates header and replaces all lines atomically without changing status or creation audit
-        fields; sets LAST_UPDATED_BY and LAST_UPDATE_DATE. Returns 409 `ORIENTATION_TRAINING_NOT_DRAFT`
-        when the record is not Draft and 403 outside the record access rule (see GET). Requires
+        Updates the header and replaces all lines atomically; sets STATUS to Draft (legacy: a
+        rejected request is corrected and re-submitted), LAST_UPDATED_BY and LAST_UPDATE_DATE.
+        Scheduled By keeps its value. Returns 409 `ORIENTATION_TRAINING_NOT_DRAFT` when the
+        record is Inprocess or Approved and 403 outside the record access rule (see GET). Requires
         `HR.ORIENTATION_TRAININGS:UPDATE`.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - name: flag
+          in: query
+          schema: { type: string, enum: [Y, N] }
+          description: >-
+            Variant of the record (legacy form/{id}/{Y|N}); the two variants number their records
+            independently. Without it the registry is used, then the table that holds the ID.
         - { $ref: '#/components/parameters/CsrfToken' }
       requestBody:
         required: true
@@ -2867,6 +2884,12 @@ paths:
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - name: flag
+          in: query
+          schema: { type: string, enum: [Y, N] }
+          description: >-
+            Variant of the record (legacy form/{id}/{Y|N}); the two variants number their records
+            independently. Without it the registry is used, then the table that holds the ID.
         - { $ref: '#/components/parameters/CsrfToken' }
       responses:
         '200': { description: Record deleted. }
@@ -2881,11 +2904,16 @@ paths:
       tags: [HR Orientation Trainings]
       summary: Delete one orientation training line
       description: >-
-        Deletes one line from the header's registered variant. Returns 409 when the record is not
-        Draft and 403 outside the record access rule. Requires `HR.ORIENTATION_TRAININGS:MANAGE_LINES`.
+        Deletes one line. Returns 409 when the record is Inprocess or Approved and 403 outside the record access rule. Requires `HR.ORIENTATION_TRAININGS:MANAGE_LINES`.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+        - name: flag
+          in: query
+          schema: { type: string, enum: [Y, N] }
+          description: >-
+            Variant of the record (legacy form/{id}/{Y|N}); the two variants number their records
+            independently. Without it the registry is used, then the table that holds the ID.
         - { name: lineId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
         - { $ref: '#/components/parameters/CsrfToken' }
       responses:
@@ -2906,8 +2934,10 @@ paths:
         against XX_DIGI_LOOKUP_VALUES (LOOKUP_TYPE 'XXZP_HR', MEANING equal to the
         authenticated employee number); other actors are scoped to their own CREATED_BY.
         Each row carries the derived evaluationResult (TOTAL_RATING 71–100 ACCEPTABLE,
-        0–70 NOT_ACCEPTABLE) and pendingAt, which stays null until the approval workflow
-        exists. Requires `HR.PROBATION_EVALUATIONS:VIEW` (default-deny catalogue authorization).
+        0–70 NOT_ACCEPTABLE) and pendingAt, the legacy report's Pending At: TO_USER of the open
+        CI3 workflow step (XXPHP_WORKFLOW, MSG_TYPE EPRBF, USER_KEY = HEADER_ID, STATUS Open,
+        TYPE_PARAM null), or null. Requires `HR.PROBATION_EVALUATIONS:VIEW` (default-deny
+        catalogue authorization).
       security:
         - sessionCookie: []
       parameters:
@@ -2982,9 +3012,15 @@ paths:
       tags: [HR Probation Evaluations]
       summary: Create a draft probation evaluation
       description: >-
-        Inserts one header and 1–20 lines atomically. REQUEST_STATUS is set to DRAFT;
-        no workflow or status transition is performed. Requires
-        `HR.PROBATION_EVALUATIONS:CREATE` and the X-CSRF-Token header.
+        The legacy create form (Probation_Model::add_form_data). Inserts one DRAFT header and
+        one line per criterion of the form type (see lookups/criteria) atomically; the ratings
+        are taken by position (blank = 0) and criterion texts never come from the client. The
+        employee must be in the signed-in user's hierarchy (lookups/employees, else 403); the
+        employee number, name, job title and department are read from the employee master.
+        Comments, Suggestion, evaluation period and person ID are stored as '-' and the grade
+        as 0, as the legacy create form leaves them empty. Prepared by is the signed-in user and
+        TOTAL_RATING is computed. 422 `PROBATION_CRITERIA_UNAVAILABLE` when the form type has no
+        criteria. Requires `HR.PROBATION_EVALUATIONS:CREATE` and the X-CSRF-Token header.
       security:
         - sessionCookie: []
       parameters:
@@ -3010,6 +3046,66 @@ paths:
                         properties:
                           headerId: { $ref: '#/components/schemas/Id' }
                           uuid: { type: string, format: uuid }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '422':
+          description: The criteria of the form type are not available (PROBATION_CRITERIA_UNAVAILABLE).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/v1/hr/probation-evaluations/lookups/criteria:
+    get:
+      operationId: listProbationEvaluationCriteria
+      tags: [HR Probation Evaluations]
+      summary: List the criteria of a form type
+      description: >-
+        The evaluation criteria of a form type, English and Arabic, in order (legacy
+        showDropInfo). Legacy rendered them from assets/prf-new.js, which is not in the
+        repository, and copied each one into every saved evaluation; they are read from the
+        latest evaluation of that type that holds all 20 named criteria. Empty when there is
+        none. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: formType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              [
+                Workers_Technicians,
+                Trainee,
+                Engineers_Staff,
+                Department_Managers,
+                Supervisors_and_Foremens,
+              ]
+      responses:
+        '200':
+          description: Criteria of the form type.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [formType, criteria]
+                        properties:
+                          formType: { type: string }
+                          criteria:
+                            type: array
+                            maxItems: 20
+                            items:
+                              type: object
+                              required: [param, paramAr]
+                              properties:
+                                param: { type: string }
+                                paramAr: { type: [string, 'null'] }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
@@ -3111,7 +3207,7 @@ paths:
       operationId: getProbationEvaluationEmployeeDetails
       tags: [HR Probation Evaluations]
       summary: Get employee details for form prefill
-      description: Uses the employee name and authenticated actor for the legacy PAF prefill data. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
+      description: Legacy getEmpDetails by employee name, for the employees of lookups/employees only (403 for anyone else). hire.startDate fills the joining date. Requires `HR.PROBATION_EVALUATIONS:VIEW`.
       security: [{ sessionCookie: [] }]
       parameters:
         - {
@@ -3172,10 +3268,13 @@ paths:
       tags: [HR Probation Evaluations]
       summary: Update a probation evaluation
       description: >-
-        Updates header fields and only the supplied existing lines identified by lineId;
-        omitted lines are unchanged. Sets UPDATED_BY and UPDATED_AT; the request status is not
-        changed. Returns 409 when the record is not DRAFT and 403 outside the record access rule
-        (see GET). Requires `HR.PROBATION_EVALUATIONS:UPDATE` and the X-CSRF-Token header.
+        The legacy edit form (prf_uplines.php): Comments, Suggestion and a 1–5 rating for every
+        line of the evaluation are required, and they are all that is saved, with the computed
+        TOTAL_RATING, UPDATED_BY and UPDATED_AT. Other header fields are not changed and the
+        request status is kept. 400 unless the lines are exactly the evaluation's lines. Returns
+        409 when the record is INPROCESS or APPROVED (DRAFT and REJECTED are editable) and 403
+        outside the record access rule (see GET). Requires `HR.PROBATION_EVALUATIONS:UPDATE`
+        and the X-CSRF-Token header.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: headerId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
@@ -5499,8 +5598,10 @@ paths:
       tags: [HR Personnel Record Changes]
       summary: List personnel record changes with optional filters and pagination
       description: >-
-        Requires HR.PERSONNEL_RECORD_CHANGES:VIEW. Every authorized user sees all requests;
-        visibility is not scoped by creator.
+        Requires HR.PERSONNEL_RECORD_CHANGES:VIEW. HR users (fail-closed XXZP_HR check) see every
+        request; other users see the requests they created and requests for employees of their
+        own department. Rows carry the legacy report columns, including requestor and pendingAt
+        (the open RCF workflow notification's recipient, read only).
         Pagination metadata is included inside data.meta and total is a database count.
       security: [{ sessionCookie: [] }]
       parameters:
@@ -5585,9 +5686,13 @@ paths:
       tags: [HR Personnel Record Changes]
       summary: Create a personnel record change
       description: >-
-        Requires HR.PERSONNEL_RECORD_CHANGES:CREATE. HEADER_ID, REF_NO, STATUS, USER_ID,
-        signatures and creation audit values are server-owned. STATUS starts as DRAFT and
-        NEW_TOTAL is computed from the six revised allowances.
+        Requires HR.PERSONNEL_RECORD_CHANGES:CREATE. HEADER_ID (identity column), REF_NO
+        (zero-padded ID + '-' + section), STATUS (DRAFT), USER_ID, signatures and creation audit
+        values are server-owned. FORM_DATE is today (Asia/Riyadh) and ARB_DATE its Hijri date. The
+        employee snapshot (name, nationality, section, department, start date and the current
+        position, pay items and TOTAL_SALARY) comes from the employee master or the employee's
+        latest request; body values for those fields are ignored. NEW_TOTAL is the sum of the six
+        revised items.
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
       requestBody:
@@ -5636,6 +5741,11 @@ paths:
       operationId: getPersonnelRecordChangeEmployeeDetails
       tags: [HR Personnel Record Changes]
       summary: Get current employee details and previous-request values for form auto-fill
+      description: >-
+        Employee information (name, nationality, section, department, start date) from the current
+        employee master row; the current record (position, pay items, total, family status S/M) from the
+        revised record of the latest APPROVED request, otherwise from the master. 404 when the employee
+        has neither.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: empNo
@@ -5656,6 +5766,9 @@ paths:
       operationId: getPersonnelRecordChange
       tags: [HR Personnel Record Changes]
       summary: Read one personnel record change
+      description: >-
+        Record access: the creator, an HR user, or a user of the employee's department holding
+        HR.PERSONNEL_RECORD_CHANGES:VIEW. Other records return 403.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: headerId
@@ -5682,7 +5795,10 @@ paths:
       operationId: updatePersonnelRecordChange
       tags: [HR Personnel Record Changes]
       summary: Update editable personnel record change fields
-      description: STATUS, REF_NO, HEADER_ID and creation audit fields are never updated.
+      description: >-
+        Drafts only (409 PERSONNEL_RECORD_CHANGE_NOT_DRAFT otherwise), with the same record access
+        as the read. STATUS, REF_NO, HEADER_ID, FORM_DATE, ARB_DATE and creation audit fields are
+        never updated. The employee snapshot is recomputed only when empNo changes.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: headerId
@@ -5701,11 +5817,14 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
     delete:
       operationId: deletePersonnelRecordChange
       tags: [HR Personnel Record Changes]
       summary: Permanently delete a personnel record change
-      description: Allows deletion regardless of request status; only a missing record returns 404.
+      description: >-
+        Drafts only (409 PERSONNEL_RECORD_CHANGE_NOT_DRAFT otherwise), with the same record access
+        as the read. The legacy form has no record delete.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: headerId
@@ -5718,6 +5837,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/hr/transfer-requests:
     get:
       operationId: listTransferRequests
@@ -11122,7 +11242,7 @@ components:
     PersonnelRecordChangeSalary:
       type: object
       properties:
-        position: { type: [string, 'null'] }
+        position: { type: [string, 'null'], maxLength: 100 }
         basicSal: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
         houseAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
         transAll: { type: [number, string, 'null'], minimum: 0, maximum: 9999999 }
@@ -11134,8 +11254,20 @@ components:
             type: [number, string, 'null'],
             description: Ignored on writes and computed from the six revised allowances.,
           }
-        maritalStatus: { type: [string, 'null'], enum: [S, M, null] }
+        maritalStatus:
+          {
+            type: [string, 'null'],
+            enum: [S, M, '', null],
+            description: Revised family status is required. The current one (old) is editable; omitted keeps the snapshot.,
+          }
+        grade:
+          { type: [string, 'null'], maxLength: 50, description: New only; optional (NEW_GRADE). }
+        level:
+          { type: [string, 'null'], maxLength: 50, description: New only; optional (NEW_LEVEL). }
       additionalProperties: true
+      description: >-
+        Amounts are digits with up to two decimals and at most 7 characters (legacy maxlength).
+        On writes only old.maritalStatus is read from the current (old) group.
     PersonnelRecordChange:
       allOf:
         - $ref: '#/components/schemas/PersonnelRecordChangeWrite'
@@ -11177,6 +11309,8 @@ components:
         remarks: { type: [string, 'null'] }
         status: { type: [string, 'null'] }
         requestor: { type: [string, 'null'] }
+        pendingAt:
+          { type: [string, 'null'], description: Recipient of the open RCF workflow notification. }
     TransferRequestInput:
       type: object
       required: [plant, current, transfer]
@@ -11329,104 +11463,90 @@ components:
     OrientationTrainingLine:
       type: object
       additionalProperties: false
-      required:
-        [
-          lineId,
-          headerId,
-          department,
-          departmentHead,
-          orientationPeriod,
-          timeFrom,
-          timeTo,
-          fromDate,
-          toDate,
-          orientationDays,
-        ]
+      required: [lineId, headerId, department]
       properties:
         lineId: { $ref: '#/components/schemas/Id' }
         headerId: { $ref: '#/components/schemas/Id' }
-        department: { type: string, maxLength: 200 }
-        departmentHead: { type: string, minLength: 1 }
-        orientationPeriod: { type: string }
-        timeFrom: { type: string, pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
-        timeTo: { type: string, pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
-        remarks: { type: string }
+        department:
+          { type: string, maxLength: 1000, description: Training row of the employee type. }
+        departmentHead: { type: [string, 'null'] }
+        orientationPeriod:
+          { type: [string, 'null'], description: 'Legacy Orientation Time, "H.MM Hrs".' }
+        timeFrom: { type: [string, 'null'], description: 'HH:MM:SS (legacy step="1").' }
+        timeTo: { type: [string, 'null'] }
+        remarks: { type: [string, 'null'] }
         createdBy: { $ref: '#/components/schemas/Id' }
         createdAt: { type: string, format: date-time }
-        fromDate: { type: string, format: date }
-        toDate: { type: string, format: date }
-        orientationDays: { type: integer, minimum: 0 }
+        fromDate:
+          { type: [string, 'null'], format: date, description: Legacy blank dates read as null. }
+        toDate: { type: [string, 'null'], format: date }
+        orientationDays:
+          {
+            type: [string, 'null'],
+            description: Legacy Orientation Days (to - from; the same day is 0).,
+          }
     OrientationTraining:
       type: object
       additionalProperties: true
       required: [headerId, empNo, section, empname, fromOrient, toOrient, status, flag, lines]
       properties:
         headerId: { $ref: '#/components/schemas/Id' }
-        uuid: { type: string, format: uuid }
+        uuid: { type: [string, 'null'], format: uuid }
         empNo: { type: string }
-        section: { type: string }
-        empname: { type: string }
+        section: { type: [string, 'null'] }
+        empname: { type: [string, 'null'] }
         fromOrient: { type: string, format: date }
         toOrient: { type: string, format: date }
-        startDate: { type: string, format: date }
-        orientationBy: { type: string }
-        status: { type: string, enum: [Draft, Inprocess, Approved] }
+        startDate: { type: [string, 'null'], format: date }
+        orientationBy: { type: [string, 'null'] }
+        status: { type: string, enum: [Draft, Inprocess, Approved, Rejected] }
+        rawStatus:
+          { type: [string, 'null'], description: Stored value (legacy rows use mixed case). }
         createdBy: { $ref: '#/components/schemas/Id' }
         createdAt: { type: string, format: date-time }
-        personId: { type: string }
-        division: { type: string }
-        reference: { type: string }
-        position: { type: string }
-        type: { type: string }
-        reqType: { type: string }
+        personId: { type: [string, 'null'] }
+        division: { type: [string, 'null'] }
+        divisionName: { type: [string, 'null'], enum: [IPP BU, FPP BU, null] }
+        reference: { type: [string, 'null'] }
+        position: { type: [string, 'null'] }
+        type: { type: [string, 'null'] }
+        reqType: { type: [string, 'null'] }
         flag: { type: string, enum: [Y, N] }
         lines: { type: array, items: { $ref: '#/components/schemas/OrientationTrainingLine' } }
     OrientationTrainingCreate:
       type: object
       additionalProperties: false
-      required:
-        [empNo, fromOrient, toOrient, section, empname, personId, division, type, position, lines]
+      required: [empNo, fromOrient, lines]
+      description: >-
+        The legacy form's answers. toOrient, startDate, orientationBy, flag, section, empname,
+        personId, division, type and position are accepted for older clients and ignored.
       properties:
         empNo: { type: string, maxLength: 50 }
         fromOrient: { type: string, format: date }
-        toOrient: { type: string, format: date }
-        startDate: { type: string, format: date }
-        orientationBy: { type: string, maxLength: 200 }
-        flag:
-          {
-            type: string,
-            enum: [Y, N],
-            description: Accepted for compatibility; server resolves actual flag from employee assignment.,
-          }
-        section: { type: string, maxLength: 200 }
-        empname: { type: string, maxLength: 200 }
-        personId: { type: string, maxLength: 50 }
-        division: { type: string, maxLength: 200 }
-        type: { type: string, maxLength: 50 }
-        position: { type: string, maxLength: 200 }
         lines:
           type: array
           minItems: 1
           items:
             type: object
             additionalProperties: false
-            required:
-              [department, departmentHead, fromDate, toDate, orientationDays, timeFrom, timeTo]
+            required: [department]
             properties:
-              lineId:
+              lineId: { $ref: '#/components/schemas/Id' }
+              department: { type: string, minLength: 1, maxLength: 1000 }
+              departmentHead: { type: [string, 'null'], maxLength: 1000 }
+              fromDate: { type: [string, 'null'], format: date }
+              toDate: { type: [string, 'null'], format: date, description: Not before fromDate. }
+              timeFrom:
                 {
-                  $ref: '#/components/schemas/Id',
-                  description: Ignored on create; generated by the API.,
+                  type: [string, 'null'],
+                  pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$',
                 }
-              department: { type: string, minLength: 1, maxLength: 200 }
-              departmentHead: { type: string, minLength: 1 }
-              fromDate: { type: string, format: date }
-              toDate: { type: string, format: date }
-              orientationDays: { type: integer, minimum: 0 }
-              timeFrom: { type: string, pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
-              timeTo: { type: string, pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
-              orientationPeriod: { type: string, maxLength: 50 }
-              remarks: { type: string, maxLength: 2000 }
+              timeTo:
+                {
+                  type: [string, 'null'],
+                  pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$',
+                }
+              remarks: { type: [string, 'null'], maxLength: 1000 }
     OrientationTrainingUpdate:
       $ref: '#/components/schemas/OrientationTrainingCreate'
     ProbationEvaluationLine:
@@ -11450,85 +11570,109 @@ components:
           default: 0
     ProbationEvaluationCreateLine:
       type: object
-      required: [param]
+      description: >-
+        The rating of the criterion at the same position (lookups/criteria). param and paramAr
+        are accepted from older clients and ignored.
       properties:
-        param: { type: string, minLength: 1 }
-        paramAr: { type: string }
         rating:
           {
             type: integer,
-            minimum: 0,
+            minimum: 1,
             maximum: 5,
-            default: 0,
-            description: Omitted ratings store the legacy default 0; a supplied rating must be 1–5.,
+            description: Optional; an omitted rating is stored as the legacy 0 (not rated).,
           }
+        param: { description: Ignored. }
+        paramAr: { description: Ignored. }
     ProbationEvaluationUpdateLine:
-      allOf:
-        - $ref: '#/components/schemas/ProbationEvaluationCreateLine'
-        - type: object
-          required: [lineId]
-          properties:
-            lineId: { $ref: '#/components/schemas/Id' }
-      unevaluatedProperties: false
-    ProbationEvaluationWriteFields:
       type: object
+      required: [lineId, rating]
       properties:
-        formDate:
-          type: string
-          format: date
-          description: >-
-            FORM_DATE: the employee's joining date (legacy meaning), optional. A blank value is
-            stored as NULL; NULL and the legacy blank 2000-01-01 both read back as null.
-        evaluationPeriod: { type: string, maxLength: 200 }
-        formType:
-          type: string
-          enum:
-            [
-              Workers_Technicians,
-              Trainee,
-              Engineers_Staff,
-              Department_Managers,
-              Supervisors_and_Foremens,
-            ]
-        employeeName: { type: string, minLength: 1, maxLength: 200 }
-        employeeNumber: { type: string, minLength: 1, maxLength: 50 }
-        empId: { type: string, maxLength: 50 }
-        grade: { type: integer, minimum: 0, default: 0 }
-        jobTitle: { type: string, maxLength: 200 }
-        department: { type: string, maxLength: 200 }
-        fromDate: { type: string, format: date }
-        toDate: { type: string, format: date, description: Must be on or after fromDate. }
-        comment: { type: string, maxLength: 4000 }
-        comments: { type: string, maxLength: 4000, description: Legacy APPROVED_BY_CMNT field. }
-        totalRating:
-          description: >-
-            Ignored. The server always computes TOTAL_RATING as the sum of the line ratings;
-            any value sent here is accepted for compatibility and discarded.
-        evaluationResult:
-          description: Ignored. The server derives the result from the computed total.
+        lineId: { $ref: '#/components/schemas/Id' }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        param: { description: Ignored. }
+        paramAr: { description: Ignored. }
+    ProbationEvaluationIgnoredFields:
+      type: object
+      description: >-
+        Accepted from older clients and discarded: the server reads them from the employee
+        master, the session or the ratings, or the legacy form never saves them.
+      properties:
+        evaluationPeriod: { description: Ignored; stored as '-'. }
+        empId: { description: Ignored; stored as '-'. }
+        grade: { description: Ignored; stored as 0. }
+        employeeName: { description: Ignored; read from the employee master. }
+        jobTitle: { description: Ignored; read from the employee master. }
+        department: { description: Ignored; read from the employee master. }
+        totalRating: { description: Ignored; computed from the line ratings. }
+        evaluationResult: { description: Ignored; derived from the computed total. }
     ProbationEvaluationWriteRequest:
       allOf:
-        - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
+        - $ref: '#/components/schemas/ProbationEvaluationIgnoredFields'
         - type: object
-          required: [formType, employeeName, employeeNumber, fromDate, toDate, lines]
+          required: [formType, employeeNumber, fromDate, toDate]
           properties:
+            formType:
+              type: string
+              enum:
+                [
+                  Workers_Technicians,
+                  Trainee,
+                  Engineers_Staff,
+                  Department_Managers,
+                  Supervisors_and_Foremens,
+                ]
+            employeeNumber:
+              type: string
+              minLength: 1
+              maxLength: 50
+              description: An employee of lookups/employees.
+            formDate:
+              type: string
+              format: date
+              description: >-
+                FORM_DATE: the joining date (legacy prf_date, filled from the employee and
+                editable), optional. A blank value is stored as NULL; NULL and the legacy blank
+                2000-01-01 both read back as null.
+            fromDate: { type: string, format: date }
+            toDate: { type: string, format: date, description: Must be on or after fromDate. }
+            comment: { description: Ignored; read only on the legacy create form. }
+            comments: { description: Ignored; read only on the legacy create form. }
             lines:
               type: array
-              minItems: 1
               maxItems: 20
+              default: []
               items: { $ref: '#/components/schemas/ProbationEvaluationCreateLine' }
       unevaluatedProperties: false
     ProbationEvaluationUpdateRequest:
       allOf:
-        - $ref: '#/components/schemas/ProbationEvaluationWriteFields'
+        - $ref: '#/components/schemas/ProbationEvaluationIgnoredFields'
         - type: object
-          required: [formType, employeeName, employeeNumber, fromDate, toDate, lines]
+          required: [comment, comments, lines]
           properties:
+            comment:
+              {
+                type: string,
+                minLength: 1,
+                maxLength: 500,
+                description: Comments (PREPARED_BY_CMNT).,
+              }
+            comments:
+              {
+                type: string,
+                minLength: 1,
+                maxLength: 500,
+                description: Suggestion (APPROVED_BY_CMNT).,
+              }
             lines:
               type: array
-              minItems: 1
               maxItems: 20
+              description: Every line of the evaluation, each once.
               items: { $ref: '#/components/schemas/ProbationEvaluationUpdateLine' }
+            formType: { description: Ignored; not saved by the legacy edit form. }
+            employeeNumber: { description: Ignored. }
+            formDate: { description: Ignored. }
+            fromDate: { description: Ignored. }
+            toDate: { description: Ignored. }
       unevaluatedProperties: false
     ProbationEvaluationListItem:
       type: object
@@ -11560,8 +11704,8 @@ components:
         evaluationResult: { type: string, enum: [ACCEPTABLE, NOT_ACCEPTABLE] }
         requestStatus: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] }
         pendingAt:
-          type: 'null'
-          description: The pending approver; always null until the approval workflow exists.
+          type: [string, 'null']
+          description: The approver of the open CI3 workflow step (XXPHP_WORKFLOW, EPRBF), or null.
         createdAt: { type: string, format: date }
         createdBy: { $ref: '#/components/schemas/Id' }
     ProbationEvaluation:
@@ -11592,6 +11736,9 @@ components:
         toDate: { type: string, format: date }
         requestStatus: { type: string, enum: [DRAFT, INPROCESS, APPROVED, REJECTED] }
         createdAt: { type: string, format: date }
+        preparedBy:
+          type: [string, 'null']
+          description: Prepared & Agreed by (USER_NAME), the signed-in user who created it.
         lines:
           type: array
           items: { $ref: '#/components/schemas/ProbationEvaluationLine' }
@@ -17052,7 +17199,7 @@ components:
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     ProbationEvaluationUpdateConflict:
-      description: The evaluation cannot be updated because its REQUEST_STATUS is not DRAFT.
+      description: The evaluation cannot be updated because its REQUEST_STATUS is INPROCESS or APPROVED.
       headers:
         X-Request-Id:
           $ref: '#/components/headers/RequestId'
@@ -17064,7 +17211,7 @@ components:
             success: false
             error:
               code: PROBATION_EVALUATION_NOT_DRAFT
-              message: Only draft probation evaluations can be updated
+              message: Only draft or rejected probation evaluations can be updated
             meta:
               requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
     UserConflict:

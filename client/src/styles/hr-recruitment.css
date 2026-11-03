@@ -744,3 +744,17 @@
   .zrv-hr--report .zrv-hr-rp-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .zrv-hr * { animation: none !important; }
 }
+
+/* Orientation Training: legacy Rejected colour and the legacy PDF printout (hidden on screen,
+   printed instead of the open step). */
+.zrv-hr-pill.zrv-hr-is-bad { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.zrv-hr-ori-print { display: none; }
+@media print {
+  .zrv-hr--orientation :is(.zrv-hr-ticket, .zrv-hr-track, .zrv-hr-body) { display: none !important; }
+  .zrv-hr--orientation .zrv-hr-ori-print { display: block; color: #000; font-size: 10.5pt; }
+  .zrv-hr-ori-print h2 { margin: 0 0 8px; font-size: 14pt; text-align: center; }
+  .zrv-hr-ori-print table { width: 100%; margin-bottom: 8px; border-collapse: collapse; page-break-inside: avoid; }
+  .zrv-hr-ori-print :is(th, td) { padding: 3px 6px; border: 1px solid #999; text-align: left; vertical-align: top; }
+  .zrv-hr-ori-print__signs { display: flex; justify-content: space-around; gap: 16px; margin-top: 24px; }
+  .zrv-hr-ori-print__signs p { display: flex; flex-direction: column; align-items: center; min-width: 180px; margin: 0; border-top: 1px solid #000; padding-top: 4px; }
+}

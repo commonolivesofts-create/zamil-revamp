@@ -29,6 +29,9 @@ export function createProbationEvaluationController({ probationEvaluationService
     async formTypes(_req, res) {
       sendSuccess(res, probationEvaluationService.formTypes());
     },
+    async criteria(req, res) {
+      sendSuccess(res, await probationEvaluationService.criteria(req.query.formType));
+    },
     async employees(req, res) {
       sendSuccess(
         res,

@@ -171,10 +171,10 @@ const PROBATION = Object.freeze({
   ],
 });
 
-test("probation reads a stored 0 as not rated and omits blank ratings on save", async () => {
+test("probation reads a stored 0 as not rated; a new evaluation omits blank ratings (stored 0)", async () => {
   const client = fakeClient({
     "GET /hr/probation-evaluations/41": { data: PROBATION },
-    "PUT /hr/probation-evaluations/41": { data: { headerId: "41" } },
+    "POST /hr/probation-evaluations": { data: { headerId: "41" } },
   });
   const service = services(client).probations;
   const record = await service.getById("41");
@@ -182,12 +182,11 @@ test("probation reads a stored 0 as not rated and omits blank ratings on save", 
     record.lines.map((line) => line.rating),
     [4, ""],
   );
-  await service.save("41", { ...record, lines: record.lines });
-  const lines = client.calls.find((call) => call.method === "PUT").body.lines;
-  assert.equal(lines[0].rating, 4);
-  assert.equal(
-    "rating" in lines[1],
-    false,
+  await service.save(null, { ...record, lines: record.lines });
+  const lines = client.calls.find((call) => call.method === "POST").body.lines;
+  assert.deepEqual(
+    lines,
+    [{ rating: 4 }, {}],
     "the backend accepts only 1–5 and defaults an omitted rating to 0",
   );
 });
@@ -308,9 +307,9 @@ test("orientation save omits an unknown joining date and lets the server recompu
   const body = client.calls[0].body;
   assert.equal("startDate" in body, false, "Joi rejects an empty startDate");
   assert.equal(
-    body.lines[0].orientationPeriod,
-    "",
-    "a stale period would survive the time change",
+    "orientationPeriod" in body.lines[0],
+    false,
+    "the server always computes the period from the times (legacy Orientation Time)",
   );
 });
 

@@ -12,6 +12,7 @@ import {
   headerIdParams,
   lineIdParams,
   listQuerySchema,
+  recordQuerySchema,
   skillsQuerySchema,
   updateBodySchema,
 } from './orientationTraining.validation.js';
@@ -57,16 +58,28 @@ export function createOrientationTrainingRouter({
   router.post('/', ...write('CREATE', { body: createBodySchema }), controller.create);
   router.delete(
     '/:headerId/lines/:lineId',
-    ...write('MANAGE_LINES', { params: lineIdParams }),
+    ...write('MANAGE_LINES', { params: lineIdParams, query: recordQuerySchema }),
     controller.removeLine,
   );
-  router.get('/:headerId', ...read({ params: headerIdParams }), controller.get);
+  router.get(
+    '/:headerId',
+    ...read({ params: headerIdParams, query: recordQuerySchema }),
+    controller.get,
+  );
   router.put(
     '/:headerId',
-    ...write('UPDATE', { params: headerIdParams, body: updateBodySchema }),
+    ...write('UPDATE', {
+      params: headerIdParams,
+      query: recordQuerySchema,
+      body: updateBodySchema,
+    }),
     controller.update,
   );
-  router.delete('/:headerId', ...write('DELETE', { params: headerIdParams }), controller.remove);
+  router.delete(
+    '/:headerId',
+    ...write('DELETE', { params: headerIdParams, query: recordQuerySchema }),
+    controller.remove,
+  );
 
   return router;
 }

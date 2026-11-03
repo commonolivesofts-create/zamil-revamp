@@ -166,6 +166,7 @@ describe('API documentation', () => {
       ['get', ''],
       ['post', ''],
       ['get', '/lookups/form-types'],
+      ['get', '/lookups/criteria'],
       ['get', '/lookups/employees'],
       ['get', '/lookups/requestor'],
       ['get', '/lookups/employee-details'],

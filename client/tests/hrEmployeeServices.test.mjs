@@ -23,8 +23,9 @@ import { createEmployeeServicesDemoClient } from '../src/features/hr-employee-se
 import { DEMO_EMPLOYEE_SERVICES_LOOKUPS, DEMO_PERFORMANCE_LOOKUPS, DEMO_REQUESTER, DEMO_SERVICE_EMPLOYEES, DEMO_TEAM } from '../src/features/hr-employee-services/demo/employeeServicesDemoData.js'
 import { ariaSort, filterAndSort, hijriDate, nextSort, statusCounts } from '../src/features/hr-employee-services/shared/esFormat.js'
 import {
-  AMOUNT, PAY_KEYS, TEXT_MAX, amountDelta, blankRecordChange, changeTypes, changedKeys, counterState, isRecordChangeLocked, recordChangePayload,
-  recordTotal, totalGoesDown, validateRecordChange,
+  AMOUNT, AMOUNT_MAX_LENGTH, LEGACY_RECORD_CHANGE_STATUSES, PAY_KEYS, TEXT_MAX, amountDelta, amountInput, blankRecordChange, changeTypes, changedKeys,
+  counterState, effectiveBeforeStart, familyStatusCode, isRecordChangeLocked, recordChangePayload, recordTotal, revisedAfterPick, totalGoesDown,
+  validateRecordChange, validateRecordChangeForSubmit,
 } from '../src/features/hr-employee-services/recordChange/recordChangeModel.js'
 import { routeStates } from '../src/features/hr-employee-services/shared/approvals.js'
 import {
@@ -89,29 +90,78 @@ test('record change: a lower total is a reminder, not a block', () => {
   const lower = { ...editable(current), basic: '6000' }
   assert.equal(totalGoesDown(current, lower), true)
   assert.equal(totalGoesDown(current, { ...editable(current), basic: '7000' }), false)
-  const problems = validateRecordChange({ ...blankRecordChange('2026-10-29'), effectiveDate: '2026-11-01', revised: lower }, employee, { submit: true })
+  const problems = validateRecordChange({ ...blankRecordChange('2026-10-29'), effectiveDate: '2026-11-01', revised: lower }, employee)
   assert.deepEqual(problems, [], 'a decrease can be submitted')
 })
 
-test('record change: effective date is required to submit and never before the start date', () => {
+test('record change (legacy): effective date is required and valid; before the start date is only a reminder', () => {
   const form = (effectiveDate) => ({ ...blankRecordChange('2026-10-29'), effectiveDate, revised: { ...editable(current), basic: '7000' } })
-  assert.deepEqual(codesOf(validateRecordChange(form(''), employee, { submit: true })), ['effectiveDate:required'])
-  assert.deepEqual(codesOf(validateRecordChange(form(''), employee, { submit: false })), ['effectiveDate:required'], 'the API requires an effective date even for drafts')
-  assert.deepEqual(codesOf(validateRecordChange(form('2019-03-09'), employee, { submit: false })), ['effectiveDate:beforeStart'])
-  assert.deepEqual(codesOf(validateRecordChange(form('2019-03-10'), employee, { submit: true })), [], 'the start date itself is allowed')
-  assert.deepEqual(codesOf(validateRecordChange(form('01/11/2026'), employee, { submit: true })), ['effectiveDate:invalid'])
+  assert.deepEqual(codesOf(validateRecordChange(form(''), employee)), ['effectiveDate:required'], 'form.php: EFFECTIVE_DATE required')
+  assert.deepEqual(codesOf(validateRecordChange(form('2019-03-09'), employee)), [], 'legacy has no start-date rule')
+  assert.equal(effectiveBeforeStart('2019-03-09', employee), true, 'shown as a note')
+  assert.equal(effectiveBeforeStart('2019-03-10', employee), false)
+  assert.equal(effectiveBeforeStart('', employee), false)
+  assert.deepEqual(codesOf(validateRecordChange(form('01/11/2026'), employee)), ['effectiveDate:invalid'])
 })
 
-test('record change: employee, position and the six pay items are required; submitting needs a change', () => {
-  assert.deepEqual(codesOf(validateRecordChange(blankRecordChange('2026-10-29'), null, { submit: false })), ['employee:required', 'effectiveDate:required'])
-  const revised = { ...editable(current), positionCode: '', house: '', car: '1.234' }
-  const problems = validateRecordChange({ ...blankRecordChange('2026-10-29'), effectiveDate: '2026-11-01', revised }, employee, { submit: true })
-  assert.deepEqual(codesOf(problems), ['positionCode:required', 'house:required', 'car:amount', 'revised:noChange'])
+test('record change (legacy): position, family status and the six pay items are required; no change is needed', () => {
+  assert.deepEqual(codesOf(validateRecordChange(blankRecordChange('2026-10-29'), null)), ['employee:required', 'effectiveDate:required'])
+  const revised = { ...editable(current), positionCode: '', house: '', car: '1.234', familyStatusCode: '' }
+  const problems = validateRecordChange({ ...blankRecordChange('2026-10-29'), effectiveDate: '2026-11-01', revised }, employee)
+  assert.deepEqual(codesOf(problems), ['positionCode:required', 'familyStatusCode:required', 'house:required', 'car:amount'])
   assert.ok(problems.every((problem) => problem.step === 1), 'all on the revised record step')
   const unchanged = { ...blankRecordChange('2026-10-29'), effectiveDate: '2026-11-01', revised: editable(current) }
-  assert.deepEqual(codesOf(validateRecordChange(unchanged, employee, { submit: true })), ['revised:noChange'])
-  assert.deepEqual(codesOf(validateRecordChange(unchanged, employee, { submit: false })), [], 'a draft without changes can be saved')
+  assert.deepEqual(codesOf(validateRecordChange(unchanged, employee)), [], 'legacy saves and submits a request without changes')
 })
+
+test('record change (legacy): amounts keep digits and dots, at most 7 characters (maxlength="7")', () => {
+  assert.equal(AMOUNT_MAX_LENGTH, 7)
+  assert.equal(amountInput('12a,3-4.5'), '1234.5', 'validateNumericInput strips everything but digits and dots')
+  assert.equal(amountInput('123456789'), '1234567', 'maxlength')
+  const form = (basic) => ({ ...blankRecordChange('2026-10-29'), effectiveDate: '2026-11-01', revised: { ...editable(current), basic } })
+  assert.deepEqual(codesOf(validateRecordChange(form('9999999'), employee)), [])
+  assert.deepEqual(codesOf(validateRecordChange(form('1234.56'), employee)), [])
+  assert.deepEqual(codesOf(validateRecordChange(form('12345678'), employee)), ['basic:amount'])
+  assert.deepEqual(codesOf(validateRecordChange(form('1.2.3'), employee)), ['basic:amount'])
+  const longGrade = { ...blankRecordChange('2026-10-29'), effectiveDate: '2026-11-01', revised: { ...editable(current), gradeCode: 'x'.repeat(51) } }
+  assert.deepEqual(codesOf(validateRecordChange(longGrade, employee)), ['gradeCode:tooLong'], 'grade and level: optional, 50 characters')
+})
+
+test('record change (legacy): auto-fill on employee selection sets position and family status; amounts stay (0 on a new form)', () => {
+  const picked = revisedAfterPick(null, editable(current))
+  for (const key of PAY_KEYS) assert.equal(picked[key], '0', key)
+  assert.equal(picked.positionCode, current.positionCode)
+  assert.equal(picked.familyStatusCode, current.familyStatusCode)
+  const typed = { basic: '7000', house: '1700', transport: '', other: '0', communication: '0', car: '0', gradeCode: 'G7', levelCode: '', positionCode: 'X', familyStatusCode: 'S' }
+  const repicked = revisedAfterPick(typed, { ...editable(current), familyStatusCode: '' })
+  assert.equal(repicked.basic, '7000', 'typed amounts are kept')
+  assert.equal(repicked.transport, '0')
+  assert.equal(repicked.gradeCode, 'G7')
+  assert.equal(repicked.positionCode, current.positionCode, 'position is replaced')
+  assert.equal(repicked.familyStatusCode, '', 'a previous-request employee has no family status (legacy blank)')
+})
+
+test('record change (legacy): family status values of legacy rows read as S or M', () => {
+  for (const value of ['M', 'm', 'Married', 'married']) assert.equal(familyStatusCode(value), 'M', value)
+  for (const value of ['S', 'single', 'Single', 'Unmarried']) assert.equal(familyStatusCode(value), 'S', value)
+  for (const value of ['', null, 'Family Status', '11']) assert.equal(familyStatusCode(value), '', String(value))
+})
+
+test('record change (legacy): validate-for-submit follows Rec_flow::submit and the save-required fields', () => {
+  const ready = { requestId: '7', status: 'DRAFT', employee, effectiveDate: '2026-11-01', revised: { ...current, familyStatusCode: 'S' } }
+  assert.deepEqual(validateRecordChangeForSubmit(ready), [])
+  assert.deepEqual(validateRecordChangeForSubmit({ ...ready, status: 'REJECTED' }), [], 'a rejected request can be submitted again')
+  for (const status of ['INPROCESS', 'APPROVED', 'Accepted']) {
+    assert.deepEqual(codesOf(validateRecordChangeForSubmit({ ...ready, status })), ['status:notSubmittable'], status)
+  }
+  assert.deepEqual(codesOf(validateRecordChangeForSubmit({ ...ready, requestId: null })), ['requestId:notSaved'], 'Submit shows only for a saved request')
+  assert.deepEqual(codesOf(validateRecordChangeForSubmit({ ...ready, effectiveDate: null, revised: { ...current, positionCode: '', car: null, familyStatusCode: '' } })),
+    ['effectiveDate:required', 'positionCode:required', 'car:required', 'familyStatusCode:required'])
+  assert.deepEqual(LEGACY_RECORD_CHANGE_STATUSES, ['DRAFT', 'INPROCESS', 'APPROVED', 'REJECTED'], 'XX_REC_CHANGE.STATUS values (upper case)')
+})
+
+test.todo('record change: Submit button sends the request to the shared approval workflow (not built)')
+test.todo('record change: approve / reject per step and the e-mail notifications (not built)')
 
 test('record change: remarks and views allow 2000 characters each, with a live counter', () => {
   assert.equal(TEXT_MAX, 2000)
@@ -130,7 +180,7 @@ test('record change: request body carries only the answers; amounts as numbers',
   const form = { ...blankRecordChange('2026-10-29'), effectiveDate: '2026-11-01', revised: { ...editable(current), basic: '7000.5', car: '' },
     remarks: 'Promotion', views: '', attachments: [{ fileName: 'letter.pdf', sizeBytes: 2048, file: {} }] }
   const body = recordChangePayload(form, employee)
-  assert.deepEqual(Object.keys(body), ['employeeId', 'effectiveDate', 'revised', 'remarks', 'views', 'attachments'])
+  assert.deepEqual(Object.keys(body), ['employeeId', 'effectiveDate', 'revised', 'currentFamilyStatus', 'remarks', 'views', 'attachments'])
   assert.equal(body.employeeId, '101')
   assert.equal(body.revised.basic, 7000.5)
   assert.equal(body.revised.car, null)
@@ -143,8 +193,8 @@ test('record change: route Noted by HR & Admin. Manager → Approved by Presiden
   assert.deepEqual(routeStates(['NOTED_BY', 'APPROVED_BY'], 'SUBMITTED'), ['PENDING', 'WAITING'])
   assert.deepEqual(routeStates(['NOTED_BY', 'APPROVED_BY'], 'APPROVED'), ['APPROVED', 'APPROVED'])
   assert.equal(isRecordChangeLocked('DRAFT'), false)
-  assert.equal(isRecordChangeLocked('SUBMITTED'), true)
-  assert.equal(isRecordChangeLocked('APPROVED'), true)
+  assert.equal(isRecordChangeLocked(undefined), false, 'a new form')
+  for (const status of ['SUBMITTED', 'INPROCESS', 'APPROVED', 'REJECTED']) assert.equal(isRecordChangeLocked(status), true, `${status}: only drafts are editable`)
 })
 
 test('header date in Arabic on the Umm al-Qura calendar', () => {
@@ -203,7 +253,7 @@ test('personal status service uses its actual lookup, list and draft CRUD endpoi
   const apiRecord = {
     headerId: '7', refNo: '0007-Production', formDate: '2026-10-29', effectiveDate: '2026-11-01', empNo: '2558', empName: 'Employee Example',
     nationality: 'Saudi', section: 'Production', department: 'Injection', startDate: '2019-03-17', old, new: revised,
-    remarks: 'Review', views: 'Notes', status: 'DRAFT', signatures: {}, createdAt: '2026-10-29', updatedAt: '2026-10-29',
+    remarks: 'Review', views: 'Notes', status: 'DRAFT', signatures: {}, createdAt: '2026-10-29', updatedAt: '2026-10-29', arbDate: 'Hijri date',
   }
   const autoFill = { branch: 'employeeMaster', empNo: '2558', empName: 'Employee Example', nationality: 'Saudi', section: 'Production',
     department: 'Injection', startDate: '2019-03-17', old, new: { position: old.position, maritalStatus: 'M' } }
@@ -218,7 +268,8 @@ test('personal status service uses its actual lookup, list and draft CRUD endpoi
     if (url === '/api/v1/hr/personnel-record-changes/lookups/employees/2558') return success(autoFill)
     if (url === '/api/v1/hr/personnel-record-changes?page=1&pageSize=100&sort=headerId&order=desc') {
       return success({ meta: { page: 1, pageSize: 100, total: 1 }, rows: [{ headerId: '7', refNo: apiRecord.refNo, status: 'DRAFT', empNo: '2558', empName: apiRecord.empName,
-        formDate: apiRecord.formDate, effectiveDate: apiRecord.effectiveDate, position: 'Supervisor', oldTotal: 7000, newTotal: 7500 }] })
+        formDate: apiRecord.formDate, effectiveDate: apiRecord.effectiveDate, position: 'Supervisor', section: 'Production', department: 'Injection',
+        oldTotal: 7000, newTotal: 7500, remarks: 'Review', requestor: 'Requester Example', pendingAt: 'Approver Example' }] })
     }
     if (url === '/api/v1/hr/personnel-record-changes' && init.method === 'POST') return success(apiRecord, 201)
     if (url === '/api/v1/hr/personnel-record-changes/7' && init.method === 'PUT') return success(apiRecord)
@@ -242,14 +293,19 @@ test('personal status service uses its actual lookup, list and draft CRUD endpoi
   assert.equal(listed.items[0].requestNumber, '0007-Production')
   assert.equal(listed.items[0].position, 'Supervisor')
   assert.equal(listed.items[0].totalChange, 500)
+  // The legacy report columns.
+  assert.deepEqual(['section', 'department', 'oldTotal', 'newTotal', 'remarks', 'requestor', 'pendingAt'].map((key) => listed.items[0][key]),
+    ['Production', 'Injection', 7000, 7500, 'Review', 'Requester Example', 'Approver Example'])
 
   const form = { ...blankRecordChange('2026-10-29'), requestDate: '2026-10-29', effectiveDate: '2026-11-01', revised: {
     ...found.items[0].current, positionCode: lookups.positions[0].code, basic: '5500',
   } }
-  const draft = await services.recordChanges.save(null, { ...recordChangePayload(form, found.items[0]), requestDate: form.requestDate, arbDate: '06 Safar 1448' }, found.items[0])
+  const draft = await services.recordChanges.save(null, recordChangePayload({ ...form, currentFamilyStatus: 'S' }, found.items[0]), found.items[0])
   assert.equal(draft.requestId, '7')
   assert.equal(draft.employee.name, 'Employee Example')
-  const updated = await services.recordChanges.save('7', { ...recordChangePayload(form, found.items[0]), requestDate: form.requestDate }, found.items[0])
+  assert.equal(draft.arbDate, 'Hijri date', 'ARB_DATE as saved by the server')
+  assert.equal(draft.currentFamilyStatus, 'M')
+  const updated = await services.recordChanges.save('7', recordChangePayload({ ...form, revised: { ...form.revised, gradeCode: 'G7' } }, found.items[0]), found.items[0])
   assert.equal(updated.requestNumber, '0007-Production')
   assert.equal((await services.recordChanges.getById('7')).revised.basic, 5500)
   await services.recordChanges.delete('7')
@@ -257,13 +313,17 @@ test('personal status service uses its actual lookup, list and draft CRUD endpoi
   assert.equal(postCall.url, '/api/v1/hr/personnel-record-changes')
   const posted = JSON.parse(postCall.init.body)
   assert.equal(posted.empNo, '2558')
-  assert.equal(posted.formDate, '2026-10-29')
-  assert.equal(posted.arbDate, '06 Safar 1448')
   assert.equal(posted.effectiveDate, '2026-11-01')
-  assert.equal(posted.old.basicSal, 5000)
+  // The snapshot, form date and Hijri date are server values and are not sent.
+  for (const key of ['formDate', 'arbDate', 'empName', 'nationality', 'section', 'department', 'startDate']) assert.equal(key in posted, false, key)
+  assert.deepEqual(posted.old, { maritalStatus: 'S' }, 'only the editable current family status')
   assert.equal(posted.new.position, 'Operator')
   assert.equal(posted.new.basicSal, 5500)
   assert.equal(posted.new.maritalStatus, 'M')
+  assert.equal(posted.new.grade, null)
+  const putCall = calls.find((call) => call.init.method === 'PUT')
+  assert.equal(JSON.parse(putCall.init.body).new.grade, 'G7')
+  assert.equal(JSON.parse(putCall.init.body).old.maritalStatus, null)
   const writeCalls = calls.filter((call) => ['POST', 'PUT', 'DELETE'].includes(call.init.method))
   for (const call of writeCalls) assert.equal(call.init.headers.get('X-CSRF-Token'), SESSION_TOKEN, call.url)
   await assert.rejects(() => services.recordChanges.getById('../7'), /selected record is invalid/)
@@ -293,9 +353,11 @@ test('demo adapter: record change save, server values, submit locks; 404, 409 an
     await assert.rejects(() => services.recordChanges.save(draft.requestId, recordChangePayload(form, employee)), (error) => error.status === 409)
     await assert.rejects(() => services.recordChanges.submit(draft.requestId), (error) => error.status === 409)
     await assert.rejects(() => services.recordChanges.getById('999'), (error) => error.status === 404)
+    // Legacy rules: no change and an effective date before the start date are allowed.
     const unchanged = await services.recordChanges.save(null, recordChangePayload({ ...form, revised: editable(current) }, employee))
-    await assert.rejects(() => services.recordChanges.submit(unchanged.requestId), (error) => error.status === 422 && error.details.some((item) => item.field === 'revised'))
-    await assert.rejects(() => services.recordChanges.save(null, { employeeId: '101', effectiveDate: '2000-01-01', revised: current, remarks: '', views: '' }),
+    assert.equal((await services.recordChanges.submit(unchanged.requestId)).status, 'SUBMITTED')
+    assert.equal((await services.recordChanges.save(null, { employeeId: '101', effectiveDate: '2000-01-01', revised: current, remarks: '', views: '' })).status, 'DRAFT')
+    await assert.rejects(() => services.recordChanges.save(null, { employeeId: '101', effectiveDate: '', revised: current, remarks: '', views: '' }),
       (error) => error.status === 422 && error.details.some((item) => item.field === 'effectiveDate'))
   } finally {
     restore()
@@ -322,8 +384,8 @@ test('data source: VITE_HR_EMPLOYEE_SERVICES_DEMO, separate from the recruitment
 
 // ------------------------------------------------------------ navigation and visibility
 
-const ES_IDS = ['hr-transfer', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal', 'hr-appraisal-record']
-const ES_NAV_IDS = ES_IDS.filter((id) => !id.endsWith('-record'))
+const ES_IDS = ['hr-transfer', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal', 'hr-appraisal-report', 'hr-appraisal-record']
+const ES_NAV_IDS = ES_IDS.filter((id) => !id.endsWith('-record') && !id.endsWith('-report'))
 const employeeAccess = { status: 'ready', mfaVerified: false, has: (key) => key === 'HR.TRANSFER_REQUESTS:VIEW' }
 const servicesFor = (env) => resolveNavigationEntries(registry.entries, env).filter((route) => ES_IDS.includes(route.id))
 
@@ -375,9 +437,10 @@ test('routes: transfers use HR permissions and list paths win over record ids', 
   assert.deepEqual(hr.resources.find((item) => item.code === 'TRANSFER_REQUESTS').actions, ['VIEW', 'CREATE', 'UPDATE', 'DELETE'])
   assert.deepEqual(servicesFor({ [SWITCH]: 'true' }).map((route) => [route.id, route.path, route.nav !== false, route.permission]), [
     ['hr-transfer', '/hr/employee-services/transfer', true, 'HR.TRANSFER_REQUESTS:VIEW'],
-    ['hr-transfer-report', '/hr/employee-services/transfer/report', true, 'HR.TRANSFER_REQUESTS:VIEW'],
+    ['hr-transfer-report', '/hr/employee-services/transfer/report', false, 'HR.TRANSFER_REQUESTS:VIEW'],
     ['hr-transfer-record', '/hr/employee-services/transfer/:transferId', false, 'HR.TRANSFER_REQUESTS:VIEW'],
     ['hr-appraisal', '/hr/performance/appraisal', true, undefined],
+    ['hr-appraisal-report', '/hr/performance/appraisal/report', false, undefined],
     ['hr-appraisal-record', '/hr/performance/appraisal/:appraisalId', false, undefined],
   ])
   assert.equal(findAppRoute('/hr/employee-services/record-change/requests')?.id, 'hr-record-change-requests')
@@ -403,11 +466,19 @@ test('record change page: not in the recruitment flow, services only, linked err
   const list = await read(`${FEATURE}recordChange/RecordChangeRequestsPage.jsx`)
   assert.match(list, /<RecordList /)
   const recordList = await read(`${FEATURE}shared/RecordList.jsx`)
-  assert.match(recordList, /role="tablist"/)
-  assert.match(recordList, /role="tab"/)
+  assert.match(recordList, /<StatusTabs /)
   assert.match(recordList, /role="tabpanel"/)
   assert.match(recordList, /aria-sort=\{/)
-  assert.match(recordList, /event\.key === 'ArrowRight'/)
+  const statusTabs = await read(`${FEATURE}shared/StatusTabs.jsx`)
+  assert.match(statusTabs, /role="tablist"/)
+  assert.match(statusTabs, /role="tab"/)
+  assert.match(statusTabs, /event\.key === 'ArrowRight'/)
+  // Every employee services report shares the transfer report's header and toolbar.
+  for (const report of ['transfer/TransferReportPage.jsx', 'recordChange/RecordChangeRequestsPage.jsx', 'sickLeave/SickLeaveReportPage.jsx', 'reward/RewardReportPage.jsx', 'idea/IdeaReportPage.jsx']) {
+    const source = await read(`${FEATURE}${report}`)
+    assert.match(source, /<ReportPage /, report)
+    assert.doesNotMatch(source, /zrv-hr-toolbar/, `${report}: toolbar comes from ReportPage`)
+  }
 })
 
 test('employee services sources: no browser storage, no hard-coded people, text in the string constants', async () => {
@@ -796,7 +867,7 @@ test('backend appraisal adapter uses eligible employee snapshots and creates the
   assert.equal(post[2].criteria[0].rating, 4)
 })
 
-test('appraisal page: compact frame, radio groups for ratings, development tabs, signatures and the report dialog', async () => {
+test('appraisal page: compact frame, radio groups for ratings, development tabs, signatures and the report page', async () => {
   const page = await read(`${FEATURE}performance/AppraisalPage.jsx`)
   assert.match(page, /<RecruitmentShell current="appraisal" flow=\{false\} compact /)
   assert.match(page, /breadcrumb=\{C\.performanceBreadcrumb\}/)
@@ -804,7 +875,7 @@ test('appraisal page: compact frame, radio groups for ratings, development tabs,
   assert.match(page, /role="tablist" aria-label=\{T\.resultStep\.development\}/)
   assert.match(page, /role="tabpanel" id=\{`ap-panel-\$\{tab\}`\}/)
   assert.match(page, /<table className="zrv-hr-es-dtable/, 'the distribution is a real table')
-  assert.match(page, /<ReportDialog title=\{T\.report\.title\}/)
+  assert.match(page, /label: T\.tools\.report, onClick: \(\) => leave\(ES_PATHS\.appraisalReport\)/, 'the report is its own page')
   assert.match(page, /\{ icon: 'house', label: C\.home, onClick: \(\) => leave\('\/dashboard'\) \}/)
   assert.doesNotMatch(page, /[Ll]ogout|[Ss]ign out/, 'the app header handles signing out')
   assert.match(page, /const appraiser = saved\?\.appraiser \?\? team\.appraiser/, 'the appraiser comes from the server')

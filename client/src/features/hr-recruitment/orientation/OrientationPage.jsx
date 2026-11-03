@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
 import { ConfirmDialog } from "@/features/security-administration/components/AdminUi.jsx";
 import { fieldProps } from "@/features/security-administration/adminForms.js";
@@ -8,10 +8,7 @@ import { hrRecruitmentServices } from "../hrRecruitmentService.js";
 import { enDate, initials } from "../shared/hrFormat.js";
 import { useRecruitmentForm } from "../shared/useRecruitmentForm.js";
 import { RecruitmentLoader } from "../shared/components/RecruitmentLoader.jsx";
-import {
-  NewFormDialog,
-  ReportDialog,
-} from "../shared/components/RecruitmentDialogs.jsx";
+import { NewFormDialog } from "../shared/components/RecruitmentDialogs.jsx";
 import {
   Orbit,
   PanelHead,
@@ -22,6 +19,17 @@ import {
 } from "../shared/components/RecruitmentShell.jsx";
 import { HrField } from "../shared/components/RecruitmentInputs.jsx";
 import { EmployeePicker } from "../shared/components/EmployeePicker.jsx";
+import {
+  ORIENTATION_FLAGS,
+  isOrientationEditable,
+  lineMinutes,
+  orientationDays,
+  orientationPeriod,
+  orientationSaveProblems,
+  orientationStatus,
+  reversedLines,
+  statusTone,
+} from "./orientationLegacy.js";
 
 const BASE = "/hr/recruitment/orientation";
 const service = hrRecruitmentServices.orientations;
@@ -45,7 +53,7 @@ const addDays = (iso, count) => {
   date.setUTCDate(date.getUTCDate() + count);
   return date.toISOString().slice(0, 10);
 };
-const inclusiveDays = (from, to) =>
+const spanDays = (from, to) =>
   from && to && to >= from
     ? Math.floor(
         (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
@@ -60,7 +68,6 @@ const emptyLine = (department, lineId = undefined) => ({
   departmentHead: "",
   fromDate: "",
   toDate: "",
-  orientationDays: 0,
   timeFrom: "",
   timeTo: "",
   remarks: "",
@@ -69,25 +76,40 @@ const emptyForm = () => ({
   employee: null,
   flag: "",
   fromOrient: "",
-  orientationBy: "",
   lines: [],
 });
 const formFromRecord = (record) => ({
   employee: record.employee,
   flag: record.flag,
   fromOrient: record.fromDate,
-  orientationBy: record.scheduledByName,
   lines: record.lines.map((line) => ({ ...line, remarks: line.remarks ?? "" })),
 });
+// A row is planned when it has a department head, both dates and both times.
+const isPlanned = (line) =>
+  Boolean(
+    line.departmentHead &&
+      line.fromDate &&
+      line.toDate &&
+      line.timeFrom &&
+      line.timeTo,
+  );
+const hoursOf = (minutes) => `${(minutes / 60).toFixed(1)} h`;
+// The variant of the open record: ?flag=Y|N (legacy form/{id}/{flag}).
+const flagFrom = (search) => {
+  const flag = new URLSearchParams(search).get("flag");
+  return ORIENTATION_FLAGS.includes(flag) ? flag : undefined;
+};
 
 export default function OrientationPage() {
+  const { search } = useLocation();
+  const flag = flagFrom(search);
   return (
     <RecruitmentLoader
       current="orientation"
       title={T.title}
       subtitle={T.subtitle}
       param="scheduleId"
-      load={service.getById}
+      load={(id, options) => service.getById(id, { ...options, flag })}
       loadLookups={(signal) => service.getLookups({ signal })}
     >
       {({ lookups, record, editorKey }) => (
@@ -114,46 +136,25 @@ function OrientationEditor({ lookups, record: savedRecord }) {
   const setupRequest = useRef(0);
   const managers = lookups.managers ?? [];
   const lines = form.lines;
-  const toDate = lines.reduce(
-    (latest, line) =>
-      line.toDate && line.toDate > latest ? line.toDate : latest,
+  // Legacy copies From into the read-only To.
+  const toDate = form.fromOrient;
+  const planned = lines.filter(isPlanned).length;
+  const minutes = lines.reduce((sum, line) => sum + lineMinutes(line), 0);
+  const incomplete = lines.length - planned;
+  const status = orientationStatus(record?.status ?? "Draft");
+  const locked = Boolean(record) && !isOrientationEditable(record.status);
+  const lastLineDate = lines.reduce(
+    (latest, line) => (line.toDate && line.toDate > latest ? line.toDate : latest),
     "",
   );
-  const planned = lines.filter(
-    (line) =>
-      line.departmentHead &&
-      line.fromDate &&
-      line.toDate &&
-      line.timeFrom &&
-      line.timeTo,
-  ).length;
-  const hours = lines.reduce((sum, line) => {
-    if (!line.timeFrom || !line.timeTo || line.timeTo <= line.timeFrom)
-      return sum;
-    const [fromHour, fromMinute] = line.timeFrom.split(":").map(Number);
-    const [toHour, toMinute] = line.timeTo.split(":").map(Number);
-    return (
-      sum +
-      ((toHour * 60 + toMinute - fromHour * 60 - fromMinute) / 60) *
-        inclusiveDays(line.fromDate, line.toDate)
-    );
-  }, 0);
-  const days = inclusiveDays(form.fromOrient, toDate);
-  const incomplete = lines.filter(
-    (line) =>
-      !line.departmentHead ||
-      !line.fromDate ||
-      !line.toDate ||
-      !line.timeFrom ||
-      !line.timeTo,
-  ).length;
-  const status = record?.status ?? "Draft";
   const timelineStart = form.fromOrient || employee?.startDate || "";
   const timelineDays = (() => {
     if (!timelineStart) return [];
     const last =
-      toDate && toDate > timelineStart ? toDate : addDays(timelineStart, 6);
-    const count = Math.min(14, Math.max(7, inclusiveDays(timelineStart, last)));
+      lastLineDate && lastLineDate > timelineStart
+        ? lastLineDate
+        : addDays(timelineStart, 6);
+    const count = Math.min(14, Math.max(7, spanDays(timelineStart, last)));
     return Array.from({ length: count }, (_, index) =>
       addDays(timelineStart, index),
     );
@@ -165,6 +166,8 @@ function OrientationEditor({ lookups, record: savedRecord }) {
         row === index ? { ...line, ...changes } : line,
       ),
     }));
+  // Legacy getEmlpoyee(): fill the employee fields and regenerate the training rows of the
+  // employee's type.
   const pickEmployee = async (picked) => {
     const requestId = ++setupRequest.current;
     setEmployee(picked);
@@ -174,18 +177,15 @@ function OrientationEditor({ lookups, record: savedRecord }) {
       const setup = await service.employeeSetup(picked.employeeNumber);
       if (requestId !== setupRequest.current) return;
       setEmployee(setup.employee);
-      patch((current) => ({
+      patch({
         employee: setup.employee,
         flag: setup.flag,
-        fromOrient: current.fromOrient || setup.employee.startDate,
         lines: setup.departments.map((department) => emptyLine(department)),
-      }));
+      });
       setErrors({});
     } catch (error) {
       if (requestId !== setupRequest.current) return;
-      setSetupError(
-        error?.message || "Unable to load employee orientation details.",
-      );
+      setSetupError(error?.message || T.errors.setup);
       // Keep the selected employee and existing form values visible when a
       // dependent lookup fails. Saving is blocked until setup succeeds.
       setEmployee(picked);
@@ -193,73 +193,32 @@ function OrientationEditor({ lookups, record: savedRecord }) {
       if (requestId === setupRequest.current) setSetupLoading(false);
     }
   };
-  const setDate = (index, key, value) => {
-    const line = lines[index];
-    const next = { [key]: value };
-    if (key === "fromDate" && line.toDate && line.toDate < value)
-      next.toDate = value;
-    const start = key === "fromDate" ? value : line.fromDate;
-    const end = next.toDate ?? (key === "toDate" ? value : line.toDate);
-    next.orientationDays = inclusiveDays(start, end);
-    updateLine(index, next);
-  };
-  const reportLoad = (params, options) =>
-    service.list(
-      { ...params, flag: record?.flag || form.flag || "Y" },
-      options,
-    );
-  const startNew = () => navigate(BASE);
+  // Leaving with unsaved answers asks first (New form and Report); the report
+  // opens on this schedule's table (Shared or Plant).
+  const leave = (path) =>
+    editor.dirty && !locked ? setDialog({ path }) : navigate(path);
   const requestSave = () => {
+    if (locked) return;
     if (
       setupLoading ||
       setupError ||
       (employee && form.employee?.employeeNumber !== employee.employeeNumber)
     ) {
-      editor.reject(
-        0,
-        setupError ||
-          "Wait for the selected employee details to finish loading.",
-      );
+      editor.reject(0, setupError || T.errors.setupPending);
       return;
     }
+    const problems = orientationSaveProblems({
+      employee,
+      fromOrient: form.fromOrient,
+      lines,
+    });
     const nextErrors = {};
-    if (!employee) nextErrors.employee = T.errors.employee;
-    if (!form.fromOrient) nextErrors.fromOrient = T.errors.from;
-    if (!lines.length)
-      nextErrors.lines =
-        "Select an employee to load the required orientation departments.";
-    if (
-      lines.some(
-        (line) =>
-          !line.departmentHead ||
-          !line.fromDate ||
-          !line.toDate ||
-          !line.timeFrom ||
-          !line.timeTo,
-      )
-    )
-      nextErrors.lines = "Complete each department head, date, and time field.";
-    if (
-      lines.some(
-        (line) =>
-          !line.orientationDays ||
-          line.toDate < line.fromDate ||
-          line.timeTo <= line.timeFrom,
-      )
-    )
-      nextErrors.lines =
-        "Check each line’s date range and ensure the end time is after the start time.";
-    if (
-      !toDate ||
-      (form.fromOrient && toDate < form.fromOrient) ||
-      lines.some(
-        (line) => line.fromDate < form.fromOrient || line.toDate > toDate,
-      )
-    )
-      nextErrors.lines =
-        "Each department schedule must fall within the orientation window.";
+    if (problems.includes("employee")) nextErrors.employee = T.errors.employee;
+    if (problems.includes("fromOrient")) nextErrors.fromOrient = T.errors.from;
+    if (problems.includes("noLines")) nextErrors.lines = T.errors.noLines;
+    if (problems.includes("reversed")) nextErrors.lines = T.errors.reversed;
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) {
+    if (problems.length) {
       editor.reject(
         nextErrors.employee || nextErrors.fromOrient ? 0 : 1,
         `${T.errors.cannotSave} ${Object.values(nextErrors)[0]}`,
@@ -272,18 +231,11 @@ function OrientationEditor({ lookups, record: savedRecord }) {
     editor
       .perform(
         async ({ saved }) => {
-          const payload = {
-            employee,
-            flag: form.flag,
-            fromOrient: form.fromOrient,
-            toOrient: toDate,
-            orientationBy: form.orientationBy,
-            lines: lines.map((line) => ({
-              ...line,
-              orientationDays: inclusiveDays(line.fromDate, line.toDate),
-            })),
-          };
-          const result = await service.save(editor.recordId, payload);
+          const result = await service.save(
+            editor.recordId,
+            { employee, fromOrient: form.fromOrient, lines },
+            { flag: record?.flag },
+          );
           saved(result);
           return result;
         },
@@ -298,7 +250,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
       icon: "save",
       label: COMMON_TEXT.save,
       onClick: requestSave,
-      disabled: editor.pending || setupLoading,
+      disabled: locked || editor.pending || setupLoading,
     },
     {
       icon: "printer",
@@ -308,13 +260,12 @@ function OrientationEditor({ lookups, record: savedRecord }) {
     {
       icon: "chart-column",
       label: COMMON_TEXT.report,
-      onClick: () => setDialog("report"),
-      disabled: !(record?.flag || form.flag),
+      onClick: () => leave(`${BASE}/report?flag=${savedRecord?.flag || "N"}`),
     },
     {
       icon: "file-plus",
       label: COMMON_TEXT.requestForm,
-      onClick: () => (editor.dirty ? setDialog("new") : startNew()),
+      onClick: () => leave(BASE),
     },
     {
       icon: "house",
@@ -326,7 +277,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
     [T.labels.type, employee?.employmentType],
     [T.labels.startDate, employee && enDate(employee.startDate)],
     [T.labels.section, employee?.section],
-    [T.labels.division, employee?.division],
+    [T.labels.division, employee?.divisionName || employee?.division],
     [T.labels.position, employee?.position],
     [T.labels.status, T.status[status] ?? status],
   ];
@@ -339,14 +290,23 @@ function OrientationEditor({ lookups, record: savedRecord }) {
         subtitle={T.subtitle}
         demo={false}
         flowStatus={
-          record ? `${record.scheduleNumber} · ${record.status}` : null
+          record ? `${record.scheduleNumber} · ${T.status[status] ?? status}` : null
         }
         tools={tools}
         primary={{ label: T.primary, icon: "save", onClick: requestSave }}
         feedback={editor.feedback}
         onDismissFeedback={editor.dismiss}
+        locked={locked}
         pending={editor.pending || setupLoading}
         focusError={editor.focusError}
+        banner={
+          <PrintSheet
+            employee={employee}
+            record={record}
+            form={form}
+            status={status}
+          />
+        }
         ticket={
           <Ticket
             avatar={initials(employee?.name)}
@@ -376,8 +336,8 @@ function OrientationEditor({ lookups, record: savedRecord }) {
               {
                 k: T.ticket.status,
                 v: (
-                  <Pill tone={record ? "ok" : "warn"}>
-                    {record?.status ?? "Draft"}
+                  <Pill tone={statusTone(status)}>
+                    {T.status[status] ?? status}
                   </Pill>
                 ),
               },
@@ -426,7 +386,9 @@ function OrientationEditor({ lookups, record: savedRecord }) {
               <div className="zrv-hr-dark__badges">
                 {employee ? (
                   <>
-                    <span className="zrv-hr-is-solid">{employee.division}</span>
+                    <span className="zrv-hr-is-solid">
+                      {employee.divisionName || employee.division}
+                    </span>
                     <span>{employee.employmentType}</span>
                     <span>{T.card.joins(shortDate(employee.startDate))}</span>
                   </>
@@ -441,12 +403,11 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                     {form.fromOrient
                       ? shortDate(form.fromOrient)
                       : COMMON_TEXT.dash}
-                    {toDate ? ` – ${shortDate(toDate)}` : ""}
                   </b>
                 </div>
                 <div>
                   <small>{T.card.time}</small>
-                  <b>{hours.toFixed(1)} h</b>
+                  <b>{hoursOf(minutes)}</b>
                 </div>
                 <div>
                   <small>{T.card.sessions}</small>
@@ -465,13 +426,11 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                 <div>
                   <small>{T.card.issues}</small>
                   <b>
-                    {errors.lines
-                      ? "Check lines"
-                      : incomplete
-                        ? `${incomplete} incomplete`
-                        : lines.length
-                          ? T.card.none
-                          : COMMON_TEXT.dash}
+                    {reversedLines(lines).length
+                      ? T.card.check
+                      : lines.length
+                        ? T.card.none
+                        : COMMON_TEXT.dash}
                   </b>
                 </div>
               </div>
@@ -486,8 +445,8 @@ function OrientationEditor({ lookups, record: savedRecord }) {
               hint={
                 errors.lines ||
                 (lines.length
-                  ? `${planned} of ${lines.length} departments completed.`
-                  : "Choose an employee to load orientation departments.")
+                  ? T.orbit.progress(planned, lines.length)
+                  : T.orbit.pickEmployee)
               }
             />
           </>
@@ -549,12 +508,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                   }}
                 />
               </HrField>
-              <HrField
-                id="ori-to"
-                label={T.labels.to}
-                required
-                hint="Calculated from the latest department end date"
-              >
+              <HrField id="ori-to" label={T.labels.to} hint={T.hints.to}>
                 <input
                   id="ori-to"
                   className="ux-input zrv-hr-input"
@@ -575,32 +529,21 @@ function OrientationEditor({ lookups, record: savedRecord }) {
             </div>
           </>
         )}
-
         {step === 1 && (
           <>
             <PanelHead n={2} {...T.heads[1]} />
-            {!employee && (
-              <p className="zrv-hr-note">
-                Choose an employee in step 1 to load the departments from the
-                server.
-              </p>
-            )}
+            {!employee && <p className="zrv-hr-note">{T.pickFirst}</p>}
             {lines.length > 0 && (
               <div className="zrv-hr-benefits">
                 {lines.map((line, index) => {
-                  const complete = Boolean(
-                    line.departmentHead &&
-                    line.fromDate &&
-                    line.toDate &&
-                    line.timeFrom &&
-                    line.timeTo,
-                  );
                   const titleId = `ori-line-${index}-title`;
+                  const days = orientationDays(line.fromDate, line.toDate);
+                  const period = orientationPeriod(line.timeFrom, line.timeTo);
                   return (
                     <article
                       key={`${line.department}-${index}`}
                       style={{ "--i": index }}
-                      className={`zrv-hr-benefit zrv-hr-session${complete ? " zrv-hr-is-done" : ""}`}
+                      className={`zrv-hr-benefit zrv-hr-session${isPlanned(line) ? " zrv-hr-is-done" : ""}`}
                     >
                       <div className="zrv-hr-benefit__h">
                         <span className="zrv-hr-bubble">
@@ -609,12 +552,10 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                         <b id={titleId}>{line.department}</b>
                         <span className="zrv-hr-session__calc">
                           <span>
-                            {T.days(inclusiveDays(line.fromDate, line.toDate))}
+                            {T.labels.days}: {days === "" ? COMMON_TEXT.dash : days}
                           </span>
                           <span>
-                            {line.timeFrom && line.timeTo
-                              ? `${line.timeFrom}–${line.timeTo}`
-                              : "—"}
+                            {T.labels.period}: {period || COMMON_TEXT.dash}
                           </span>
                         </span>
                         <span className="zrv-hr-benefit__ok" aria-hidden="true">
@@ -654,9 +595,8 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                             type="date"
                             className="ux-input zrv-hr-input"
                             value={line.fromDate}
-                            min={form.fromOrient || undefined}
                             onChange={(event) =>
-                              setDate(index, "fromDate", event.target.value)
+                              updateLine(index, { fromDate: event.target.value })
                             }
                           />
                         </label>
@@ -666,9 +606,9 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                             type="date"
                             className="ux-input zrv-hr-input"
                             value={line.toDate}
-                            min={line.fromDate || form.fromOrient || undefined}
+                            min={line.fromDate || undefined}
                             onChange={(event) =>
-                              setDate(index, "toDate", event.target.value)
+                              updateLine(index, { toDate: event.target.value })
                             }
                           />
                         </label>
@@ -676,12 +616,11 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                           <span>{T.labels.timeFrom}</span>
                           <input
                             type="time"
+                            step="1"
                             className="ux-input zrv-hr-input"
                             value={line.timeFrom}
                             onChange={(event) =>
-                              updateLine(index, {
-                                timeFrom: event.target.value,
-                              })
+                              updateLine(index, { timeFrom: event.target.value })
                             }
                           />
                         </label>
@@ -689,9 +628,9 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                           <span>{T.labels.timeTo}</span>
                           <input
                             type="time"
+                            step="1"
                             className="ux-input zrv-hr-input"
                             value={line.timeTo}
-                            min={line.timeFrom || undefined}
                             onChange={(event) =>
                               updateLine(index, { timeTo: event.target.value })
                             }
@@ -702,7 +641,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                           <input
                             className="ux-input zrv-hr-input"
                             value={line.remarks}
-                            maxLength={500}
+                            maxLength={1000}
                             placeholder={T.placeholders.remark}
                             onChange={(event) =>
                               updateLine(index, { remarks: event.target.value })
@@ -722,7 +661,6 @@ function OrientationEditor({ lookups, record: savedRecord }) {
             )}
           </>
         )}
-
         {step === 2 && (
           <>
             <PanelHead n={3} {...T.heads[2]} />
@@ -731,7 +669,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                 className="zrv-hr-timeline"
                 style={{ "--cols": timelineDays.length }}
                 role="img"
-                aria-label="Orientation department schedule timeline"
+                aria-label={T.timeline.label}
               >
                 <span
                   className="zrv-hr-timeline__corner"
@@ -783,37 +721,25 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                 })}
               </div>
             ) : (
-              <div className="zrv-hr-timeline__empty">
-                Choose an employee to view its departments.
-              </div>
+              <div className="zrv-hr-timeline__empty">{T.timeline.empty}</div>
             )}
             <div className="zrv-hr-sep" />
             {lines.length ? (
               <ul className="zrv-hr-issues">
                 {lines
-                  .filter(
-                    (line) =>
-                      !line.departmentHead ||
-                      !line.fromDate ||
-                      !line.toDate ||
-                      !line.timeFrom ||
-                      !line.timeTo,
-                  )
+                  .filter((line) => !isPlanned(line))
                   .map((line) => (
                     <li key={line.department} className="zrv-hr-is-warn">
                       <OrvexaIcon name="clock" size={14} />
-                      {line.department}: complete all required fields.
+                      {T.notPlanned(line.department)}
                     </li>
                   ))}
               </ul>
             ) : (
-              <p className="zrv-hr-note">
-                Nothing to review until an employee is selected.
-              </p>
+              <p className="zrv-hr-note">{T.nothingYet}</p>
             )}
           </>
         )}
-
         {step === 3 && (
           <>
             <PanelHead n={4} {...T.heads[3]} />
@@ -828,44 +754,32 @@ function OrientationEditor({ lookups, record: savedRecord }) {
               </div>
               <div>
                 <small>{T.recap.time}</small>
-                <b>{hours.toFixed(1)} h</b>
+                <b>{hoursOf(minutes)}</b>
                 <span>{T.recap.across}</span>
               </div>
               <div>
-                <small>{T.recap.days}</small>
-                <b>{days || COMMON_TEXT.dash}</b>
-                <span>
-                  {form.fromOrient
-                    ? `${shortDate(form.fromOrient)} – ${toDate ? shortDate(toDate) : "…"}`
-                    : T.recap.noDates}
-                </span>
+                <small>{T.recap.dates}</small>
+                <b>{form.fromOrient ? shortDate(form.fromOrient) : COMMON_TEXT.dash}</b>
+                <span>{T.recap.sameDay}</span>
               </div>
             </div>
             <dl className="zrv-hr-review zrv-hr-mt zrv-hr-ori-review">
               {lines.map((line) => (
                 <div
                   key={line.department}
-                  className={
-                    line.departmentHead &&
-                    line.fromDate &&
-                    line.toDate &&
-                    line.timeFrom &&
-                    line.timeTo
-                      ? "zrv-hr-is-ok"
-                      : undefined
-                  }
+                  className={isPlanned(line) ? "zrv-hr-is-ok" : undefined}
                 >
                   <dt>{line.department}</dt>
                   <dd>
                     {line.fromDate
                       ? `${shortDate(line.fromDate)}${line.toDate && line.toDate !== line.fromDate ? ` – ${shortDate(line.toDate)}` : ""}`
-                      : "No dates"}
+                      : T.review.noDates}
                     {" · "}
                     {line.timeFrom
-                      ? `${line.timeFrom}–${line.timeTo}`
-                      : "no times"}
+                      ? `${line.timeFrom}–${line.timeTo} (${orientationPeriod(line.timeFrom, line.timeTo) || COMMON_TEXT.dash})`
+                      : T.review.noTimes}
                     <small>
-                      {line.departmentHead || "No department head"}
+                      {line.departmentHead || T.review.noHead}
                       {line.remarks ? ` · ${line.remarks}` : ""}
                     </small>
                   </dd>
@@ -880,11 +794,10 @@ function OrientationEditor({ lookups, record: savedRecord }) {
           </>
         )}
       </RecruitmentShell>
-
       {dialog === "save" && (
         <ConfirmDialog
           title={T.saveTitle}
-          description="Save this orientation training as a draft? It can be edited later."
+          description={T.saveBody}
           confirmLabel={T.primary}
           pending={editor.pending}
           feedback={editor.feedback}
@@ -894,36 +807,87 @@ function OrientationEditor({ lookups, record: savedRecord }) {
           <p className="zrv-admin-confirm">
             <b>{employee?.name}</b> · {employee?.position}
             <br />
-            {shortDate(form.fromOrient)} – {shortDate(toDate)} · {planned}/
-            {lines.length} departments
+            {shortDate(form.fromOrient)} · {planned}/{lines.length}{" "}
+            {T.card.sessions.toLowerCase()}
           </p>
         </ConfirmDialog>
       )}
-      {dialog === "new" && (
+      {dialog?.path && (
         <NewFormDialog
           onConfirm={() => {
+            const { path } = dialog;
             setDialog(null);
-            startNew();
+            navigate(path);
           }}
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog === "report" && (
-        <ReportDialog
-          title={T.reportTitle}
-          resourceKey="hr-orientation-report"
-          load={reportLoad}
-          onClose={() => setDialog(null)}
-          numberOf={(item) => item.scheduleNumber}
-          statusOf={(item) => item.status}
-          pathOf={(item) => `${BASE}/${item.scheduleId}`}
-          columns={[
-            [T.reportColumns.employee, (item) => item.employeeName],
-            [T.reportColumns.from, (item) => enDate(item.fromDate)],
-            [T.reportColumns.to, (item) => enDate(item.toDate)],
-          ]}
-        />
-      )}
     </>
+  );
+}
+
+// The legacy printout (Newhiretrain/pdf, nhtpdf.php): the schedule on one page whichever step is
+// open. Hidden on screen.
+function PrintSheet({ employee, record, form, status }) {
+  const P = T.print;
+  return (
+    <section className="zrv-hr-ori-print" aria-hidden="true">
+      <h2>{P.title}</h2>
+      <table>
+        <tbody>
+          <tr>
+            <th>{P.division}</th>
+            <td>{employee?.section ?? ""}</td>
+            <th>{P.name}</th>
+            <td>{employee?.name ?? ""}</td>
+          </tr>
+          <tr>
+            <th>{P.reference}</th>
+            <td>{record?.scheduleNumber ?? ""}</td>
+            <th>{P.startDate}</th>
+            <td>{employee?.startDate ? enDate(employee.startDate) : ""}</td>
+          </tr>
+          <tr>
+            <th>{P.from}</th>
+            <td>{form.fromOrient ? enDate(form.fromOrient) : ""}</td>
+            <th>{P.to}</th>
+            <td>{form.fromOrient ? enDate(form.fromOrient) : ""}</td>
+          </tr>
+        </tbody>
+      </table>
+      <table>
+        <thead>
+          <tr>
+            {P.columns.map((column) => (
+              <th key={column}>{column}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {form.lines.map((line, index) => (
+            <tr key={`${line.department}-${index}`}>
+              <td>{line.department}</td>
+              <td>{line.departmentHead}</td>
+              <td>{orientationPeriod(line.timeFrom, line.timeTo)}</td>
+              <td>{line.timeFrom}</td>
+              <td>{line.timeTo}</td>
+              <td>{line.remarks}</td>
+              <td />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p>
+        <b>{P.scheduledBy}</b> {record?.scheduledByName ?? ""}
+      </p>
+      <div className="zrv-hr-ori-print__signs">
+        {P.signs.map((sign) => (
+          <p key={sign}>
+            <span>{T.status[status] ?? status}</span>
+            <b>{sign}</b>
+          </p>
+        ))}
+      </div>
+    </section>
   );
 }

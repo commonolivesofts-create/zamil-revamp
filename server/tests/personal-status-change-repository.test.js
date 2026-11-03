@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import oracledb from 'oracledb';
 import { createPersonalStatusRepository } from '../src/modules/hr/personal-status/personalStatusChange.repository.js';
 
 function mockConnection(results = []) {
@@ -15,11 +16,11 @@ function mockConnection(results = []) {
 
 const values = {
   formDate: '2026-10-29',
-  arbDate: null,
+  arbDate: 'Hijri date',
   effectiveDate: '2026-11-01',
   empNo: '12001',
   empName: 'Test Employee',
-  nationality: 'Saudi',
+  nationality: 'Nationality A',
   section: 'Production',
   department: 'Injection',
   startDate: '2019-03-17',
@@ -41,62 +42,109 @@ const values = {
   newOtherAll: 0,
   newTotal: 7500,
   newMaritalStatus: 'S',
+  newGrade: null,
+  newLevel: null,
   remarks: null,
   views: null,
 };
 
+const LEGACY_DATE =
+  /TO_DATE\(R\.START_DATE DEFAULT NULL ON CONVERSION ERROR, 'DD-MON-RR', 'NLS_DATE_LANGUAGE=AMERICAN'\)/;
+
 describe('personal status change repository', () => {
-  it('preserves large header IDs as strings and uses an explicit read column list', async () => {
-    const connection = mockConnection([{ rows: [{ ID: '9007199254740993' }] }, { rows: [] }]);
+  it('reads the VARCHAR2 legacy dates with an explicit format and keeps IDs as strings', async () => {
+    const connection = mockConnection([{ rows: [] }]);
     const repository = createPersonalStatusRepository();
-
-    assert.equal(await repository.nextId(connection), '9007199254740993');
     await repository.read('9007199254740993', connection);
-
-    assert.match(connection.calls[0].sql, /TO_CHAR\(NVL\(MAX\(HEADER_ID\) \+ 1, 1\)\)/);
-    assert.match(connection.calls[1].sql, /TO_CHAR\(R\.HEADER_ID\) HEADER_ID/);
-    assert.doesNotMatch(connection.calls[1].sql, /R\.\*/);
-    assert.equal(connection.calls[1].binds.headerId, '9007199254740993');
+    const { sql, binds } = connection.calls[0];
+    assert.match(sql, /TO_CHAR\(R\.HEADER_ID\) HEADER_ID/);
+    assert.doesNotMatch(sql, /R\.\*/);
+    // START_DATE and *_SIGN hold DD-MON-YY text; a date TO_CHAR on them raised ORA-01722.
+    assert.match(sql, LEGACY_DATE);
+    for (const column of ['HR_ADMIN_SIGN', 'VP_SIGN', 'PRESIDENT_SIGN']) {
+      assert.match(sql, new RegExp(`TO_DATE\\(R\\.${column} DEFAULT NULL ON CONVERSION ERROR`));
+      assert.doesNotMatch(sql, new RegExp(`TO_CHAR\\(R\\.${column},`));
+    }
+    assert.doesNotMatch(sql, /TO_CHAR\(R\.START_DATE,/);
+    // A blank stored snapshot reads the employee's current master row.
+    for (const [stored, master] of [
+      ['R.EMP_NAME', 'EM.FULL_NAME'],
+      ['R.NATIONALITY', 'EM.NATIONALITY'],
+      ['R.SECTION', 'EM.DIVISION'],
+      ['R.DEPT', 'EM.DEPARTMENT'],
+    ]) {
+      assert.ok(sql.includes(`COALESCE(${stored}, (`) && sql.includes(`MAX(${master})`), stored);
+    }
+    assert.match(sql, /EM\.EMPLOYEE_NUMBER = R\.EMP_NO\s+AND EM\.CURRENT_EMP_FLAG = 'Y'/);
+    assert.equal(binds.headerId, '9007199254740993');
   });
 
-  it('uses a narrow employee snapshot query for autofill and does not require a master total column', async () => {
-    const connection = mockConnection([
-      { rows: [{ EMP_NO: '2172', NEW_POSITION: 'Operator' }] },
-      { rows: [{}] },
-    ]);
+  it('autofill: the latest APPROVED request and the current master row with TOTAL_SALARY', async () => {
+    const connection = mockConnection([{ rows: [{ EMP_NO: '2172' }] }, { rows: [{}] }]);
     const repository = createPersonalStatusRepository();
-
     await repository.latest(connection, '2172');
     await repository.master(connection, '2172');
-
     assert.equal(connection.calls[0].binds.empNo, '2172');
     assert.match(connection.calls[0].sql, /TO_CHAR\(R\.EMP_NO\) = :empNo/);
-    assert.match(connection.calls[0].sql, /R\.NEW_POSITION/);
-    assert.doesNotMatch(connection.calls[0].sql, /HR_ADMIN_SIGN|PRESIDENT_SIGN|R\.STATUS/);
-    assert.doesNotMatch(connection.calls[1].sql, /TOTAL_SALARY/);
+    assert.match(connection.calls[0].sql, LEGACY_DATE);
+    assert.match(
+      connection.calls[0].sql,
+      /UPPER\(R\.STATUS\) = 'APPROVED'\s+ORDER BY R\.HEADER_ID DESC/,
+    );
+    assert.doesNotMatch(connection.calls[0].sql, /HR_ADMIN_SIGN|PRESIDENT_SIGN/);
+    assert.match(connection.calls[1].sql, /TOTAL_SALARY/);
+    assert.match(connection.calls[1].sql, /CURRENT_EMP_FLAG = 'Y'/);
   });
 
-  it('binds all insert/update values, converts ISO dates, and leaves server-owned columns alone', async () => {
+  it('insert uses the identity column, binds every value and writes START_DATE as DD-MON-RR text', async () => {
+    const connection = mockConnection([{ rowsAffected: 1, outBinds: { headerId: ['653'] } }]);
+    const repository = createPersonalStatusRepository();
+    assert.equal(await repository.insert(connection, values, '88'), '653');
+    const { sql, binds } = connection.calls[0];
+    assert.match(sql, /RETURNING HEADER_ID INTO :headerId/);
+    assert.doesNotMatch(sql.split('VALUES')[0], /\bHEADER_ID\b/, 'no explicit HEADER_ID');
+    assert.doesNotMatch(sql, /MAX\(HEADER_ID\)/);
+    assert.deepEqual(binds.headerId, { dir: oracledb.BIND_OUT, type: oracledb.STRING });
+    assert.match(
+      sql,
+      /TO_CHAR\(TO_DATE\(:startDate, 'YYYY-MM-DD'\), 'DD-MON-RR', 'NLS_DATE_LANGUAGE=AMERICAN'\)/,
+    );
+    assert.match(sql, /TO_DATE\(:effectiveDate, 'YYYY-MM-DD'\)/);
+    assert.match(sql, /TO_DATE\(:formDate, 'YYYY-MM-DD'\)/);
+    assert.match(sql, /'DRAFT'/);
+    assert.equal(binds.createdBy, '88');
+    assert.equal(binds.startDate, '2019-03-17');
+    assert.equal(binds.arbDate, 'Hijri date');
+
+    await repository.setReference(connection, '653', '0653-Production');
+    assert.match(connection.calls[1].sql, /SET REF_NO = :refNo/);
+    assert.deepEqual(connection.calls[1].binds, { headerId: '653', refNo: '0653-Production' });
+  });
+
+  it('update writes the answers only, and the snapshot only when asked; never server-owned columns', async () => {
     const connection = mockConnection();
     const repository = createPersonalStatusRepository();
-
-    await repository.insert(connection, '142', '0142-Production', values, '88');
     await repository.update(connection, '142', values, '99');
-
-    const [insert, update] = connection.calls;
-    assert.match(insert.sql, /TO_DATE\(:startDate, 'YYYY-MM-DD'\)/);
-    assert.match(insert.sql, /TO_DATE\(:effectiveDate, 'YYYY-MM-DD'\)/);
-    assert.equal(insert.binds.headerId, '142');
-    assert.equal(insert.binds.startDate, '2019-03-17');
-    assert.match(insert.sql, /'DRAFT'/);
-    assert.match(insert.sql, /USER_ID[\s\S]*?NULL/);
-    assert.doesNotMatch(update.sql, /^\s*(STATUS|REF_NO|CREATED_BY|CREATED_AT)\s*=/m);
-    assert.doesNotMatch(update.sql.split('WHERE')[0], /HEADER_ID\s*=/);
-    assert.match(update.sql, /UPDATED_BY = :updatedBy/);
-    assert.equal(update.binds.updatedBy, '99');
+    await repository.update(connection, '142', values, '99', { snapshot: true });
+    const [plain, withSnapshot] = connection.calls;
+    for (const call of [plain, withSnapshot]) {
+      const set = call.sql.split('WHERE')[0];
+      assert.doesNotMatch(
+        set,
+        /\b(STATUS|REF_NO|CREATED_BY|CREATED_AT|FORM_DATE|ARB_DATE|HEADER_ID)\s*=/,
+      );
+      assert.match(set, /UPDATED_BY = :updatedBy/);
+      assert.match(set, /NEW_GRADE = :newGrade/);
+      assert.match(set, /OLD_MARITAL_STATUS = :oldMaritalStatus/);
+    }
+    assert.doesNotMatch(plain.sql, /EMP_NAME =|OLD_TOTAL =|START_DATE =/);
+    assert.equal('empName' in plain.binds, false);
+    assert.match(withSnapshot.sql, /EMP_NAME = :empName/);
+    assert.match(withSnapshot.sql, /OLD_TOTAL = :oldTotal/);
+    assert.equal(withSnapshot.binds.empName, 'Test Employee');
   });
 
-  it('keeps list filtering parameterized, uses allowlisted ordering and returns a real count', async () => {
+  it('list: parameterized filters, allowlisted ordering, PENDING_AT and record-access scope', async () => {
     const connection = mockConnection([{ rows: [{ TOTAL: 1 }] }, { rows: [{ HEADER_ID: '1' }] }]);
     const repository = createPersonalStatusRepository();
     const result = await repository.list(connection, {
@@ -112,16 +160,60 @@ describe('personal status change repository', () => {
       pageSize: 10,
       sort: 'headerId',
       order: 'desc',
+      scope: { userId: '7', employeeNumber: '12003' },
     });
-
     assert.equal(result.total, 1);
     assert.equal(result.rows.length, 1);
-    assert.equal(connection.calls.length, 2);
-    assert.ok(connection.calls[0].binds.search.includes('\\%'));
-    assert.match(connection.calls[1].sql, /ORDER BY\s+R\.HEADER_ID DESC/);
-    assert.equal(connection.calls[1].binds.offset, 10);
-    assert.equal(connection.calls[1].binds.pageSize, 10);
-    assert.doesNotMatch(connection.calls[1].sql, /PENDING_AT|XXPHP_WORKFLOW/);
-    assert.equal(connection.calls[0].sql.includes("%' OR 1=1 --"), false);
+    const [count, page] = connection.calls;
+    assert.ok(count.binds.search.includes('\\%'));
+    assert.equal(count.sql.includes("%' OR 1=1 --"), false);
+    assert.match(page.sql, /ORDER BY\s+R\.HEADER_ID DESC/);
+    assert.equal(page.binds.offset, 10);
+    assert.equal(page.binds.pageSize, 10);
+    // Legacy report column; read only, no workflow write.
+    assert.match(page.sql, /FROM XXPHP_WORKFLOW W[\s\S]*W\.MSG_TYPE = 'RCF'[\s\S]*PENDING_AT/);
+    assert.match(page.sql, /W\.USER_KEY = TO_CHAR\(R\.HEADER_ID\)/);
+    for (const call of [count, page]) {
+      assert.match(call.sql, /R\.CREATED_BY = :scopeUserId OR EXISTS/);
+      assert.equal(call.binds.scopeUserId, '7');
+      assert.equal(call.binds.scopeEmployeeNumber, '12003');
+    }
+
+    const hr = mockConnection([{ rows: [{ TOTAL: 0 }] }, { rows: [] }]);
+    await repository.list(hr, {
+      page: 1,
+      pageSize: 25,
+      sort: 'headerId',
+      order: 'desc',
+      scope: null,
+    });
+    assert.doesNotMatch(hr.calls[0].sql, /scopeUserId/);
+  });
+
+  it('positions accept the datalist (POSITION_NAME) or a job title (the auto-filled default)', async () => {
+    const connection = mockConnection([{ rows: [{ FOUND: 1 }] }]);
+    const repository = createPersonalStatusRepository();
+    assert.equal(await repository.positionExists(connection, 'Operator'), true);
+    assert.match(connection.calls[0].sql, /POSITION_NAME = :name OR JOB_TITLE = :name/);
+  });
+
+  it('HR check fails closed and same-department compares ORGANIZATION_ID', async () => {
+    const connection = mockConnection([{ rows: [] }, { rows: [{ SAME: 1 }] }]);
+    const repository = createPersonalStatusRepository();
+    assert.equal(await repository.isHrUser(connection, '5'), false);
+    assert.match(connection.calls[0].sql, /LOOKUP_TYPE = 'XXZP_HR'/);
+    assert.match(
+      connection.calls[0].sql,
+      /HAVING COUNT\(DISTINCT E\.USER_ID\) = 1 AND COUNT\(\*\) = COUNT\(E\.USER_ID\)/,
+    );
+    assert.equal(connection.calls[0].binds.userId, '5');
+    assert.equal(
+      await repository.isSameDepartment(connection, {
+        actorEmployeeNumber: '1',
+        subjectEmployeeNumber: '2',
+      }),
+      true,
+    );
+    assert.match(connection.calls[1].sql, /S\.ORGANIZATION_ID = A\.ORGANIZATION_ID/);
   });
 });

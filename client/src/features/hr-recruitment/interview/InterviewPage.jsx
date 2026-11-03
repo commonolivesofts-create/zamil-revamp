@@ -8,7 +8,7 @@ import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { businessToday, daysBetween, formatAmount, initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
-import { NewFormDialog, ReportDialog } from '../shared/components/RecruitmentDialogs.jsx'
+import { NewFormDialog } from '../shared/components/RecruitmentDialogs.jsx'
 import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { ChoiceCards, HrField, LookupSelect } from '../shared/components/RecruitmentInputs.jsx'
@@ -118,7 +118,8 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
   }, { success: T.deleted }).then((outcome) => {
     if (outcome.status === 'success') navigate(BASE, { replace: true })
   })
-  const startNew = () => navigate(BASE)
+  // Leaving with unsaved answers asks first (New form and Report).
+  const leave = (path) => (editor.dirty ? setDialog({ path }) : navigate(path))
 
   const input = (key) => {
     const [, type, rules] = hrField(key)
@@ -142,8 +143,8 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
     { icon: 'save', label: COMMON_TEXT.save, onClick: save, disabled: locked || editor.pending },
     ...(canDelete ? [{ icon: 'trash-2', label: T.deleteAction, onClick: () => setDialog('delete'), disabled: editor.pending }] : []),
     { icon: 'printer', label: COMMON_TEXT.print, onClick: () => window.print() },
-    { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => setDialog('report') },
-    { icon: 'file-plus', label: COMMON_TEXT.requestForm, onClick: () => (editor.dirty ? setDialog('new') : startNew()) },
+    { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => leave(`${BASE}/report`) },
+    { icon: 'file-plus', label: COMMON_TEXT.requestForm, onClick: () => leave(BASE) },
     { icon: 'house', label: COMMON_TEXT.home, onClick: () => navigate('/dashboard') },
   ]
   const scoreCards = [[T.card.spec, specTotal, SCORE_MAX.spec, BANDS.spec, specRated], [T.card.comp, compTotal, SCORE_MAX.comp, BANDS.comp, compRated]]
@@ -289,12 +290,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
 
       {dialog === 'delete' && <ConfirmDialog title={T.deleteTitle} description={T.deleteBody} confirmLabel={T.deleteAction} pending={editor.pending}
         feedback={editor.feedback} onConfirm={deleteRecord} onClose={() => setDialog(null)} />}
-      {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
-      {dialog === 'report' && (
-        <ReportDialog title={T.reportTitle} resourceKey="hr-interview-report" load={service.list} onClose={() => setDialog(null)}
-          numberOf={(item) => item.assessmentNumber} statusOf={(item) => T.status[item.status]} pathOf={(item) => `${BASE}/${item.assessmentId}`}
-          columns={[[T.reportColumns.candidate, (item) => item.candidateName], [T.reportColumns.position, (item) => item.positionTitle], [T.reportColumns.outcome, (item) => T.outcomes[item.outcome]]]} />
-      )}
+      {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
     </>
   )
 }

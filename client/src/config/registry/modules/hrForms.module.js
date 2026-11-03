@@ -11,7 +11,7 @@ export default defineModule({
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
       { id: 'hr-transfer', path: '/hr/employee-services/transfer', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', subgroup: 'hr-employee-services', order: 110, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
-      { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', title: 'Transfer report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 111, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', title: 'Transfer report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 111, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
       { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', title: 'Transfer request', icon: 'arrow-left-right', group: 'human-resources', subgroup: 'hr-employee-services', order: 112, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
     ],
   }, {
@@ -20,7 +20,7 @@ export default defineModule({
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
       { id: 'hr-record-change', path: '/hr/employee-services/record-change', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', subgroup: 'hr-employee-services', order: 100, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
-      { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', title: 'Personal status report', icon: 'layers', group: 'human-resources', subgroup: 'hr-employee-services', order: 101, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', title: 'Personal status report', icon: 'layers', group: 'human-resources', subgroup: 'hr-employee-services', order: 101, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
       { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', subgroup: 'hr-employee-services', order: 102, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
     ],
   }, {
@@ -44,7 +44,8 @@ export default defineModule({
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
       { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', subgroup: 'hr-recruitment', order: 50, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
-      { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', subgroup: 'hr-recruitment', order: 51, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-probation-report', path: '/hr/recruitment/probation-evaluation/report', title: 'Probation evaluation report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-recruitment', order: 51, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', title: 'Probation evaluation', icon: 'clipboard-check', group: 'human-resources', subgroup: 'hr-recruitment', order: 52, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
     ],
   }, {
     code: 'ORIENTATION_TRAININGS',
@@ -53,7 +54,8 @@ export default defineModule({
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_LINES'],
     navigation: [
       { id: 'hr-orientation', path: '/hr/recruitment/orientation', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', subgroup: 'hr-recruitment', order: 40, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
-      { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', subgroup: 'hr-recruitment', order: 41, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-orientation-report', path: '/hr/recruitment/orientation/report', title: 'Orientation report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-recruitment', order: 41, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', title: 'Orientation training', icon: 'calendar-clock', group: 'human-resources', subgroup: 'hr-recruitment', order: 42, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
     ],
   }, {
     // Form 1076: /api/v1/hr/sick-leave (MANAGE_ATTACHMENTS guards the attachment routes).

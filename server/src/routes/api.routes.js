@@ -246,6 +246,7 @@ export function createApiRouter(appConfig, deps = {}) {
       repository: personalStatusRepository,
       withConnection: db.withConnection,
       withTransaction: db.withTransaction,
+      holds: (userId, permission) => authorizationService.holds(userId, permission),
     });
 
   const transferRequestService = createTransferRequestService({

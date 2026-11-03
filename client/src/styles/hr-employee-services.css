@@ -185,3 +185,21 @@
   .zrv-hr-es-list .zrv-hr-rp-tablewrap { max-height: none; overflow: visible; }
   .zrv-hr-es-list .zrv-hr-rp-table th { position: static; }
 }
+
+/* Personnel Record Change: legacy status colours (REJECTED red), the rejected signature and the
+   full-form printout (hidden on screen; printed instead of the open step). */
+.zrv-hr-pill.zrv-hr-is-bad { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.zrv-hr-es-sign.zrv-hr-is-rejected .zrv-hr-sign__pad { border-style: solid; border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); color: var(--danger); font-weight: 700; }
+.zrv-hr-es-print { display: none; }
+@media print {
+  .zrv-hr--record-change :is(.zrv-hr-ticket, .zrv-hr-body) { display: none !important; }
+  .zrv-hr--record-change .zrv-hr-es-print { display: block; color: #000; font-size: 10.5pt; }
+  .zrv-hr-es-print header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .zrv-hr-es-print h2 { display: flex; flex-direction: column; margin: 0; font-size: 14pt; }
+  .zrv-hr-es-print table { width: 100%; margin-bottom: 8px; border-collapse: collapse; page-break-inside: avoid; }
+  .zrv-hr-es-print :is(th, td) { padding: 3px 6px; border: 1px solid #999; text-align: left; vertical-align: top; }
+  .zrv-hr-es-print__signs { display: flex; justify-content: space-around; gap: 16px; margin-top: 16px; }
+  .zrv-hr-es-print__signs p { display: flex; flex-direction: column; align-items: center; margin: 0; }
+  .zrv-hr-es-print__signs .zrv-hr-is-approved { color: #146c43; }
+  .zrv-hr-es-print__signs .zrv-hr-is-rejected { color: #b02a37; }
+}
