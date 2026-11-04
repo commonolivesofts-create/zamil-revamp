@@ -55,9 +55,9 @@ function setup() {
   const strangerUser = person('3001', 'Nada None');
   const nobody = person('4001', 'Noor Nobody');
 
-  // Mirrors the owner-registered Oracle catalogue (module REQUISITIONS, resource REQUISITIONS);
+  // Mirrors the owner-registered Oracle catalogue (module HR, resource REQUISITIONS);
   // in memory.
-  const requisitionsModule = rbac.addModule('REQUISITIONS');
+  const requisitionsModule = rbac.addModule('HR');
   const requisitions = rbac.addResource(requisitionsModule, 'REQUISITIONS');
   const permissions = {
     VIEW: rbac.addPermission(requisitions, 'VIEW'),
