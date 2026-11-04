@@ -3,16 +3,16 @@ import { useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
-import { enDate, initials } from '@/features/hr-recruitment/shared/hrFormat.js'
+import { enDate } from '@/features/hr-recruitment/shared/hrFormat.js'
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
 import { ChoiceCards, HrField, Review } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
-import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { Orbit, RecruitmentShell, StepHead, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
-import { STATUS_TEXT, STATUS_TONE, isEditable } from '../shared/formRecords.js'
+import { STATUS_TEXT, isEditable } from '../shared/formRecords.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import '@/styles/hr-employee-services.css'
 import '@/styles/hr-employee-services-forms.css'
@@ -20,13 +20,12 @@ import { IDEA_MAX, IDEA_MIN, TITLE_MAX, cleanAmount, formatSar, ideaProgress, st
 import { ideaDemo, ideaService } from './ideaService.js'
 
 const TITLE = 'Share an Idea'
-const SUBTITLE = 'Every improvement starts with an idea. Describe it and show its impact; the feasibility is calculated when you save.'
-const STEPS = [['Idea', 'What and why'], ['Impact', 'Investment and saving'], ['Review', 'Check and save']]
+const STEPS = ['Idea', 'Impact', 'Review']
 
 export default function IdeaPage() {
   return (
     <RecruitmentLoader current="idea" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={ideaDemo}
-      title={TITLE} subtitle={SUBTITLE} param="ideaId" load={ideaService.getById} loadLookups={(signal) => ideaService.getLookups({ signal })}>
+      title={TITLE} param="ideaId" load={ideaService.getById} loadLookups={(signal) => ideaService.getLookups({ signal })}>
       {({ lookups, record, editorKey }) => <IdeaEditor key={editorKey} lookups={lookups} initial={record} />}
     </RecruitmentLoader>
   )
@@ -111,7 +110,6 @@ function IdeaEditor({ lookups, initial }) {
   }
   const startNew = () => navigate(FORM_PATHS.idea)
   const tools = [
-    { icon: 'save', label: 'Save draft', onClick: save, disabled: editor.pending || locked },
     { icon: 'printer', label: C.print, onClick: () => window.print() },
     { icon: 'chart-column', label: 'Report', onClick: () => navigate(FORM_PATHS.ideaReport) },
     { icon: 'file-plus', label: 'New idea', onClick: () => (editor.dirty && !locked ? setDialog('new') : startNew()) },
@@ -123,20 +121,13 @@ function IdeaEditor({ lookups, initial }) {
   ]
 
   return <>
-    <RecruitmentShell current="idea" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE} subtitle={SUBTITLE} demo={ideaDemo}
+    <RecruitmentShell current="idea" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE} demo={ideaDemo}
       tools={tools} primary={{ label: 'Save draft', icon: 'save', onClick: save }} locked={locked} pending={editor.pending} focusError={editor.focusError}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss}
-      ticket={<Ticket avatar={initials(form.employee?.name)} code="IDEA · 1097" items={[
-        { k: 'Idea no.', v: record?.idNo || 'Assigned on save' },
-        { k: 'Employee', v: form.employee?.name || 'Not selected', big: true },
-        { k: 'Department', v: form.employee?.departmentName || '—' },
-        { k: 'Date', v: record?.creationDate ? enDate(record.creationDate) : 'Set on save' },
-        { k: 'Status', v: <Pill tone={STATUS_TONE[status] ?? 'warn'}>{status ? STATUS_TEXT[status] : 'Not saved'}</Pill> },
-      ]} />}
-      steps={STEPS} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel="Save draft" onFinal={save}
+      steps={STEPS.map((name, index) => [name, doneSteps[index] ? C.step.done : C.step.open])} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel="Save draft" onFinal={save}
       side={<>
         <Tilt className={`zrv-hr-esf-idea-card${level >= 1 ? ' zrv-hr-is-lit' : ''}`} aria-label="Idea card">
-          <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">Idea card</span><span className="zrv-hr-mono">{record?.idNo || 'IDEA · DRAFT'}</span></div>
+          <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{record?.idNo || 'IDEA · Draft'}</span><span className="zrv-hr-dark__status">{status ? STATUS_TEXT[status] : 'Not saved'}</span></div>
           <div className="zrv-hr-esf-idea-head"><Bulb level={level} /><div>
             <h3 className="zrv-hr-dark__title">{form.title.trim() || 'Your idea title'}</h3>
             <div className="zrv-hr-dark__sub">{form.employee ? `${form.employee.name} · ${form.employee.departmentName || '—'}` : 'Employee · department'}</div>
@@ -157,7 +148,7 @@ function IdeaEditor({ lookups, initial }) {
         <Orbit done={progress.done} total={progress.total} hint={level >= 1 ? 'Ready to save.' : !form.employee ? 'Start with the employee.' : 'Keep describing your idea.'} />
       </>}>
       {step === 0 && <>
-        <PanelHead n={1} eyebrow="Step 01 · Idea" title="What’s your idea?" />
+        <StepHead title="What’s your idea?" />
         <div className="zrv-hr-grid zrv-hr-is-2">
           <EmployeePicker id="id-employee" label="EMP #" required value={form.employee} error={errors.employee} cacheKey="hr-idea-employees"
             placeholder="Enter employee number or name…" searchService={(term, options) => ideaService.searchEmployees(term, options)}
@@ -181,7 +172,7 @@ function IdeaEditor({ lookups, initial }) {
       </>}
 
       {step === 1 && <>
-        <PanelHead n={2} eyebrow="Step 02 · Impact" title="What will it change?" desc="Depreciation, NPV (8 %), IRR and ROI are calculated by the server from these values when you save." />
+        <StepHead title="What will it change?" desc="Depreciation, NPV (8 %), IRR and ROI are calculated by the server from these values when you save." />
         <div className="zrv-hr-grid zrv-hr-is-2">
           <ChoiceCards compact label="Investment needed?" value={form.hasInvestment} error={errors.hasInvestment}
             onChange={(value) => { patch({ hasInvestment: value, ...(value === 'no' ? { investmentValue: '' } : {}) }); clear('hasInvestment', 'investmentValue') }}
@@ -204,7 +195,7 @@ function IdeaEditor({ lookups, initial }) {
       </>}
 
       {step === 2 && <>
-        <PanelHead n={3} eyebrow="Step 03 · Review" title="Check the idea and save it." />
+        <StepHead title="Check the idea and save it." />
         {record?.attachments.length > 0 && <>
           <h3 className="zrv-hr-esf-subhead">Attachments on file</h3>
           <ul className="zrv-hr-files">{record.attachments.map((item) => (

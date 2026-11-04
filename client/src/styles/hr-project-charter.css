@@ -1,0 +1,16 @@
+/* Project Charter (ZPI.IMS.FM.13): the milestone schedule. Scoped to .zrv-hr;
+   colours from the Orvexa and HR tokens (hr-recruitment.css); the Start /
+   Complete toggles reuse the chips of hr-employee-services-forms.css. */
+.zrv-hr-pc-milestones { display: grid; gap: 6px; }
+.zrv-hr-pc-milestones__head, .zrv-hr-pc-milestone { display: grid; grid-template-columns: minmax(0, 1fr) 112px 128px; align-items: center; gap: 10px; }
+.zrv-hr-pc-milestones__head { padding: 0 14px; color: var(--zrv-hr-fine); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.zrv-hr-pc-milestone { padding: 8px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--zrv-hr-glass); font-size: 13.5px; animation: zrv-hr-reveal .4s var(--zrv-hr-ease) both; animation-delay: calc(var(--i) * 35ms); }
+.zrv-hr-pc-milestone > span:first-child { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.zrv-hr-pc-milestone b { flex: none; color: var(--zrv-hr-accent-text); font: 700 12px/1 ui-monospace, Menlo, monospace; }
+.zrv-hr-pc-milestone .zrv-hr-esf-chip { min-height: 30px; padding: 0 12px; font-size: 12.5px; }
+@media (max-width: 640px) {
+  .zrv-hr-pc-milestones__head { display: none; }
+  .zrv-hr-pc-milestone { grid-template-columns: auto auto; }
+  .zrv-hr-pc-milestone > span:first-child { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .zrv-hr-pc-milestone { animation: none; } }

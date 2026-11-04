@@ -50,7 +50,7 @@ shown pages get their data. Each follows the same rule.
 |---|---|
 | Business rules (pure, tested) | `recordChange/recordChangeModel.js`, `transfer/transferModel.js`, `performance/appraisalModel.js`, `shared/approvals.js`, `shared/esFormat.js` |
 | Pages | `recordChange/RecordChangePage.jsx`, `recordChange/RecordChangeRequestsPage.jsx`, `transfer/TransferPage.jsx`, `transfer/TransferReportPage.jsx`, `performance/AppraisalPage.jsx` |
-| List view (search, status tabs, sortable columns) | `shared/RecordList.jsx` |
+| Reports (collapsible filters, overview cards, sortable table, summary drawer) | `InsightReport` of `features/hr-recruitment/shared/components/`; `shared/localList.js` serves APIs that return every row at once (transfers, appraisals, change requests) |
 | Services and response contracts | `hrEmployeeServicesService.js`, `hrEmployeeServicesContract.js` |
 | Screen text | `hrEmployeeServicesText.js` |
 | Demo adapter and data (**demo only**) | `demo/employeeServicesDemoClient.js`, `demo/employeeServicesDemoData.js` |
@@ -193,7 +193,7 @@ build; a production build always uses the API (`employeeServicesFormsConfig.js`)
 **Structure (per form, in `reward/`, `idea/`, `sickLeave/`).** `*Contract.js` (response readers
 and the request body), `*Model.js` (pure rules), `*Service.js` (API or demo adapter), `*Page.jsx`
 and `*ReportPage.jsx`. Shared: `shared/formRecords.js` (statuses, paging, guards),
-`shared/ServerRecordList.jsx` (report filtered, sorted and paged by the server),
+the reports on `InsightReport` (filtered and paged by the server; overview counts are list calls with page size 1),
 `shared/FormParts.jsx` (rating chips), demo adapters `demo/{reward,idea,sickLeave}DemoClient.js`
 on `demo/formsDemoKit.js` (in memory, backend response shapes, fictional people). Styles:
 `src/styles/hr-employee-services-forms.css`.
@@ -204,3 +204,38 @@ the server: the request numbers, the sick leave number of days, the idea feasibi
 (depreciation, NPV, IRR, ROI). Legacy rules win over the prototype (the reward A / AS / BS / CS
 scale, the fixed "Sick Leave" type); prototype fields with no column or API are not shown (gaps
 in the handoff). Sending a record for approval is not available: no backend has a submit endpoint.
+
+## Employee Clearance (1063)
+
+The legacy "Emp Clearance" form (`views/ZPIL/empclearance.php` create, `views/update/empClearance.php`
+edit) under **Human resources → Employee services**, on its existing backend
+`/api/v1/hr/employee-clearance`. Handoff: `docs/handoffs/FEATURE-EMPLOYEE-CLEARANCE.md`; legacy
+comparison: `docs/testing/employee-clearance-legacy-comparison.md`.
+
+| Screen | Route | Permission |
+|---|---|---|
+| Form | `/hr/employee-services/clearance` | `HR.EMPLOYEE_CLEARANCE:VIEW` (save: `CREATE` / `UPDATE`) |
+| Report | `/hr/employee-services/clearance/report` (hidden) | `…:VIEW` |
+| Record | `/hr/employee-services/clearance/:clearanceId` (hidden) | `…:VIEW` |
+
+Switch: `VITE_FEATURE_HR_EMPLOYEE_CLEARANCE` (`'true'` on, `'false'` off, unset = development only).
+No demo adapter. Files: `clearance/` (`clearanceModel.js` rules, `clearanceContract.js` readers and
+request body, `clearanceService.js`, `ClearancePage.jsx`, `ClearanceReportPage.jsx`) and
+`styles/hr-employee-clearance.css`. As in the legacy create screen, the five clearance tabs and every
+signature open only after the first save; drafts and rejected requests stay editable.
+
+## Project Charter (ZPI.IMS.FM.13) and Survey reports
+
+Handoff: `docs/handoffs/FEATURE-PROJECT-CHARTER-SURVEY-REPORT.md`. Both use their existing backends; no demo adapter.
+
+| Screen | Route | Permission | Switch |
+|---|---|---|---|
+| Project charter form | `/hr/employee-services/project-charter` (record: `…/:charterId`) | `HR.PROJECT_CHARTERS:VIEW` (save: `CREATE` / `UPDATE`) | `VITE_FEATURE_HR_PROJECT_CHARTER` |
+| Project charter report | `/hr/employee-services/project-charter/report` (hidden) | `…:VIEW` | same |
+| Survey report (graphical) | `/hr/reports/survey` | `HR.SURVEY_REPORTS:VIEW` | `VITE_FEATURE_HR_SURVEY_REPORT` |
+| Survey responses (textual) | `/hr/reports/survey/responses` (hidden) | `…:VIEW` | same |
+
+Files: `charter/` (model, contract, service, `CharterPage.jsx`, `CharterReportPage.jsx`),
+`survey/` (`surveyService.js`, `SurveyReportPage.jsx`, `SurveyResponsesPage.jsx`),
+`styles/hr-project-charter.css`, `styles/hr-survey-report.css`. Survey answers are drawn as 100 %
+stacked bars (no chart library). Only Pending charters are editable.

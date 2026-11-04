@@ -18,7 +18,7 @@ import {
 } from './projectCharter.validation.js';
 
 // Must exist in the Oracle RBAC permission catalog.
-const RESOURCE = 'PROJECT_CHARTERS.PROJECT_CHARTERS';
+const RESOURCE = 'HR.PROJECT_CHARTERS';
 
 export function createProjectCharterRouter({
   projectCharterService,

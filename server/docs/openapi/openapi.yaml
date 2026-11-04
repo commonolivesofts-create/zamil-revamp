@@ -92,7 +92,7 @@ tags:
     description: >-
       Employee Clearance request CRUD, paginated listing, and employee, approver, and computer
       destination lookups. Each endpoint requires the matching
-      EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW / CREATE / UPDATE / DELETE permission;
+      HR.EMPLOYEE_CLEARANCE:VIEW / CREATE / UPDATE / DELETE permission;
       VIEW_ALL separately controls all-employee scope and visibility. Ordinary employee scope
       covers the authenticated employee and verified direct reports using PERSON_ID /
       SUPERVISOR_ID. Visibility and writes are scoped to the request employee, not its creator.
@@ -122,16 +122,14 @@ tags:
   - name: Employee Survey
     description: >-
       Anonymous employee survey submission and authenticated response/report reads. The
-      protected routes use the existing survey permission resource configured by the
-      application; no permission identifier is defined by this contract. The survey router is
-      mounted at `/survey`. A missing permission key fails closed; the current error handler
-      surfaces that configuration error as `500 INTERNAL_ERROR`.
+      protected routes require `HR.SURVEY_REPORTS` (VIEW for reads, DELETE for deletion). The
+      survey router is mounted at `/survey`.
   - name: Project Charters
     description: >-
       Project Charter CRUD, approved-idea and employee lookups, and reward read/write routes.
-      Routes require the configured `PROJECT_CHARTERS.PROJECT_CHARTERS` resource and action.
-      Charter creation is unavailable until the database-generated header ID mechanism is
-      verified; reward writes remain disabled pending approved grading thresholds.
+      Routes require the configured `HR.PROJECT_CHARTERS` resource and action.
+      Charters are created with the database-generated header ID; reward writes remain disabled
+      pending approved grading thresholds.
   - name: HR Business Visiting Visa Letters
     description: >-
       Business Visiting Visa Letter CRUD, employee lookups, form options, print-preview data,
@@ -7233,10 +7231,10 @@ paths:
       tags: [HR Employee Clearance]
       summary: List Employee Clearance requests
       description: >-
-        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW` (checked on every request).
+        Requires `HR.EMPLOYEE_CLEARANCE:VIEW` (checked on every request).
         Results include requests for the caller and verified direct reports, determined by the
         employee-master PERSON_ID / SUPERVISOR_ID relationship. A caller holding
-        `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW_ALL` can see all requests. The `pendingAt`
+        `HR.EMPLOYEE_CLEARANCE:VIEW_ALL` can see all requests. The `pendingAt`
         filter is accepted for compatibility but currently returns an empty result whenever
         supplied; workflow lookup is not implemented. Results are ordered by header ID descending.
       security: [{ sessionCookie: [] }]
@@ -7324,9 +7322,9 @@ paths:
       tags: [HR Employee Clearance]
       summary: Create an Employee Clearance request
       description: >-
-        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:CREATE` and a session-bound
+        Requires `HR.EMPLOYEE_CLEARANCE:CREATE` and a session-bound
         `X-CSRF-Token`. The employee must be the caller or a direct report, unless the caller
-        holds `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW_ALL`. Employee, manager, destination,
+        holds `HR.EMPLOYEE_CLEARANCE:VIEW_ALL`. Employee, manager, destination,
         checkbox flags, matrix subjects, identifiers, reference number, and creation status are
         resolved or generated server-side. The initial status is `Draft`.
       security: [{ sessionCookie: [] }]
@@ -7387,9 +7385,9 @@ paths:
       tags: [HR Employee Clearance]
       summary: List employees for Employee Clearance
       description: >-
-        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW`. By default returns the caller
+        Requires `HR.EMPLOYEE_CLEARANCE:VIEW`. By default returns the caller
         and direct reports, filtered by name or employee number. `scope=all` widens the lookup
-        only when the caller holds `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW_ALL`; otherwise
+        only when the caller holds `HR.EMPLOYEE_CLEARANCE:VIEW_ALL`; otherwise
         the lookup remains scoped. Results include pagination inside `data`.
       security: [{ sessionCookie: [] }]
       parameters:
@@ -7435,9 +7433,9 @@ paths:
       tags: [HR Employee Clearance]
       summary: Get Employee Clearance employee details
       description: >-
-        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW`. Returns auto-fill details only
+        Requires `HR.EMPLOYEE_CLEARANCE:VIEW`. Returns auto-fill details only
         when the employee is in the caller's scope or the caller holds
-        `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW_ALL`.
+        `HR.EMPLOYEE_CLEARANCE:VIEW_ALL`.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: empNo
@@ -7478,7 +7476,7 @@ paths:
       operationId: listEmployeeClearanceApprovers
       tags: [HR Employee Clearance]
       summary: List approvers for a clearance section
-      description: Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW`.
+      description: Requires `HR.EMPLOYEE_CLEARANCE:VIEW`.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: section
@@ -7510,9 +7508,9 @@ paths:
       tags: [HR Employee Clearance]
       summary: List computer return destinations
       description: >-
-        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW`. Employee choices are restricted to
+        Requires `HR.EMPLOYEE_CLEARANCE:VIEW`. Employee choices are restricted to
         the caller and verified direct reports; callers holding
-        `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW_ALL` can see all eligible employees. The
+        `HR.EMPLOYEE_CLEARANCE:VIEW_ALL` can see all eligible employees. The
         fixed IT and No Computer options are available to all callers.
       security: [{ sessionCookie: [] }]
       responses:
@@ -7538,7 +7536,7 @@ paths:
       tags: [HR Employee Clearance]
       summary: Read one Employee Clearance request
       description: >-
-        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:VIEW`. The caller must hold `VIEW_ALL`
+        Requires `HR.EMPLOYEE_CLEARANCE:VIEW`. The caller must hold `VIEW_ALL`
         or be in scope for the employee on the request; creator status alone does not grant
         visibility. Request status does not trigger workflow processing.
       security: [{ sessionCookie: [] }]
@@ -7596,7 +7594,7 @@ paths:
       tags: [HR Employee Clearance]
       summary: Update an Employee Clearance request
       description: >-
-        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:UPDATE` and a session-bound
+        Requires `HR.EMPLOYEE_CLEARANCE:UPDATE` and a session-bound
         `X-CSRF-Token`. The caller must hold `VIEW_ALL` or be in scope for the employee on the
         request. Only Draft or Rejected requests can be updated; employee, department-manager,
         and destination values are validated and normalized server-side. Status and workflow
@@ -7642,7 +7640,7 @@ paths:
       tags: [HR Employee Clearance]
       summary: Delete an Employee Clearance request
       description: >-
-        Requires `EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE:DELETE` and a session-bound
+        Requires `HR.EMPLOYEE_CLEARANCE:DELETE` and a session-bound
         `X-CSRF-Token`. The caller must hold `VIEW_ALL` or be in scope for the employee on the
         request. Only Draft or Rejected requests can be deleted. The request's Employee Clearance
         section rows are removed in the same service transaction.
@@ -8044,7 +8042,7 @@ paths:
       tags: [Project Charters]
       summary: List Project Charters
       description: >-
-        Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`.
+        Requires an authenticated session and `HR.PROJECT_CHARTERS:VIEW`.
         Results are ordered by header ID descending. `from`/`to` filter expected project dates;
         `createdFrom`/`createdTo` filter charter creation dates. This list returns `total` and
         `items` in `data`; it does not use the shared top-level pagination object.
@@ -8105,10 +8103,10 @@ paths:
       tags: [Project Charters]
       summary: Create a Project Charter
       description: >-
-        Requires `PROJECT_CHARTERS.PROJECT_CHARTERS:CREATE`, an authenticated session, and
-        `X-CSRF-Token`. The request schema is validated, but the service currently always returns
-        `503 CHARTER_ID_GENERATOR_UNVERIFIED`; creation is blocked until the database-generated
-        `HEADER_ID` mechanism is verified. The API does not calculate an ID or use MAX+1.
+        Requires `HR.PROJECT_CHARTERS:CREATE`, an authenticated session, and
+        `X-CSRF-Token`. The idea must be approved. `HEADER_ID` is generated by the database
+        identity column and returned by the insert; the API never calculates an ID or uses MAX+1.
+        The charter starts as `Pending`; the creation date is the database date.
       security: [{ sessionCookie: [] }]
       parameters:
         - { $ref: '#/components/parameters/CsrfToken' }
@@ -8121,18 +8119,18 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
-        '503':
-          description: Project Charter creation is blocked pending verification of database-generated HEADER_ID.
+        '201':
+          description: The created Project Charter.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              schema: { $ref: '#/components/schemas/ProjectCharterDetailResponse' }
         '500': { $ref: '#/components/responses/InternalError' }
   /api/v1/projects/charters/lookups/ideas:
     get:
       operationId: listApprovedProjectCharterIdeas
       tags: [Project Charters]
       summary: List approved ideas for Project Charters
-      description: Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`.
+      description: Requires an authenticated session and `HR.PROJECT_CHARTERS:VIEW`.
       security: [{ sessionCookie: [] }]
       responses:
         '200':
@@ -8149,7 +8147,7 @@ paths:
       tags: [Project Charters]
       summary: Get an approved idea for a Project Charter
       description: >-
-        Requires `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`. The idea ID is a positive decimal
+        Requires `HR.PROJECT_CHARTERS:VIEW`. The idea ID is a positive decimal
         string. The service returns `400 VALIDATION_ERROR` if the idea is not approved.
       security: [{ sessionCookie: [] }]
       parameters:
@@ -8173,7 +8171,7 @@ paths:
       tags: [Project Charters]
       summary: Search employees for Project Charters
       description: >-
-        Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`.
+        Requires an authenticated session and `HR.PROJECT_CHARTERS:VIEW`.
         Returns an array of matching employees; `page` and `pageSize` control repository
         pagination, but the response does not include total-count metadata. `scope` is accepted
         as a string but is not used by the current repository query.
@@ -8206,7 +8204,7 @@ paths:
       operationId: getProjectCharterEmployee
       tags: [Project Charters]
       summary: Get an employee for a Project Charter
-      description: Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`.
+      description: Requires an authenticated session and `HR.PROJECT_CHARTERS:VIEW`.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: empNo
@@ -8233,7 +8231,7 @@ paths:
       operationId: getProjectCharter
       tags: [Project Charters]
       summary: Get a Project Charter
-      description: Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`.
+      description: Requires an authenticated session and `HR.PROJECT_CHARTERS:VIEW`.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: headerId
@@ -8260,7 +8258,7 @@ paths:
       tags: [Project Charters]
       summary: Update a Project Charter
       description: >-
-        Requires `PROJECT_CHARTERS.PROJECT_CHARTERS:UPDATE`, an authenticated session, and
+        Requires `HR.PROJECT_CHARTERS:UPDATE`, an authenticated session, and
         `X-CSRF-Token`. Only a `Pending` charter can be updated. The existing linked idea must
         still be approved; the request cannot reassign the charter to a different idea.
         `expectedEndDate` must be on or after `expectedStartDate`.
@@ -8301,7 +8299,7 @@ paths:
       tags: [Project Charters]
       summary: Delete a Project Charter
       description: >-
-        Requires `PROJECT_CHARTERS.PROJECT_CHARTERS:DELETE`, an authenticated session, and
+        Requires `HR.PROJECT_CHARTERS:DELETE`, an authenticated session, and
         `X-CSRF-Token`. Only a `Pending` charter can be deleted. Its reward and charter rows are
         deleted in the same transaction.
       security: [{ sessionCookie: [] }]
@@ -8337,7 +8335,7 @@ paths:
       tags: [Project Charters]
       summary: Get Project Charter reward information
       description: >-
-        Requires an authenticated session and `PROJECT_CHARTERS.PROJECT_CHARTERS:VIEW`. The
+        Requires an authenticated session and `HR.PROJECT_CHARTERS:VIEW`. The
         associated idea must be approved. `record` is null when no reward row exists, and
         `gradingEnabled` is currently false.
       security: [{ sessionCookie: [] }]
@@ -8366,7 +8364,7 @@ paths:
       tags: [Project Charters]
       summary: Update Project Charter actual savings
       description: >-
-        Requires `PROJECT_CHARTERS.PROJECT_CHARTERS:UPDATE`, an authenticated session, and
+        Requires `HR.PROJECT_CHARTERS:UPDATE`, an authenticated session, and
         `X-CSRF-Token`. The body is validated, but writes are currently disabled and return
         `409 REWARD_GRADING_UNCONFIRMED` after confirming the charter exists. Grading thresholds
         must be approved before reward updates are enabled.
@@ -14580,6 +14578,7 @@ components:
             date: { $ref: '#/components/schemas/EmployeeClearanceNullableDate' }
             signature: { type: [string, 'null'] }
         computerReceivedBy: { type: [string, 'null'] }
+        computerSignature: { type: [string, 'null'] }
         itManager:
           type: object
           required: [name, date, signature]
@@ -15508,9 +15507,11 @@ components:
         department: { type: [string, 'null'] }
     ProjectCharterListData:
       type: object
-      required: [total, items]
+      required: [total, items, page, pageSize]
       properties:
         total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
         items:
           type: array
           items: { $ref: '#/components/schemas/ProjectCharter' }

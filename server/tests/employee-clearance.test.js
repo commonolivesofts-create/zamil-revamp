@@ -330,7 +330,7 @@ function setup() {
     [manager, staff, outsider].map((user) => [user.employeeNumber, user.userId]),
   );
 
-  const module = rbac.addModule('EMPLOYEE_CLEARANCE');
+  const module = rbac.addModule('HR');
   const resource = rbac.addResource(module, 'EMPLOYEE_CLEARANCE');
   const permissions = Object.fromEntries(
     ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'VIEW_ALL'].map((action) => [
@@ -473,6 +473,14 @@ describe('employee clearance API', () => {
     assert.equal(updated.status, 200);
     assert.equal(updated.body.data.updated, true);
     assert.equal(state.headers[0].ATTRIBUTE3, 'Updated purpose');
+
+    // The computer signature round-trips, so an edit form can keep it.
+    const signed = await send('put', `/${headerId}`, sessions.staff, {
+      ...BODY,
+      computerSignature: 'Hold',
+    });
+    assert.equal(signed.status, 200);
+    assert.equal((await get(`/${headerId}`)).body.data.computerSignature, 'Hold');
 
     const removed = await send('delete', `/${headerId}`);
     assert.equal(removed.status, 200);

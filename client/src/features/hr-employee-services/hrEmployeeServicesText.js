@@ -27,6 +27,13 @@ export const ES_COMMON_TEXT = Object.freeze({
   searchingEmployees: 'Search by employee number or name',
   reviewProblems: (count) => (count === 1 ? 'One item needs attention.' : `${count} items need attention.`),
   counter: (length, max) => `${length} / ${max}`,
+  // Step hints of the compact forms: progress instead of a description.
+  step: Object.freeze({
+    done: 'Done', open: 'To do',
+    changed: (count) => `${count} changed`,
+    rated: (count, total) => `${count}/${total} rated`,
+    files: (count) => (count === 1 ? '1 file' : `${count} files`),
+  }),
   status: Object.freeze({ NEW: 'New', DRAFT: 'Draft', INPROCESS: 'In process', SUBMITTED: 'Submitted', APPROVED: 'Approved', REJECTED: 'Rejected' }),
   approval: Object.freeze({ DRAFT: 'After submit', PENDING: 'Pending', WAITING: 'Waiting', APPROVED: 'Approved', REJECTED: 'Rejected' }),
   list: Object.freeze({
@@ -196,6 +203,17 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
       previous: 'Previous salary', revised: 'Revised salary', remarks: 'Remarks', requestor: 'Requestor', pendingAt: 'Pending at', status: 'Status',
     }),
     csvFile: 'personnel_record_changes.csv',
+    open: 'Open request',
+    empty: 'No change requests match these filters.',
+    filters: Object.freeze({ search: 'Ref, employee, position, section or requester', from: 'Requested from', to: 'Requested to' }),
+    overview: Object.freeze({
+      impact: 'Salary impact', perMonth: 'SR a month, revised against previous',
+      raises: 'Raise', cuts: 'Reduction', same: 'No change',
+      status: 'Approval status', requests: (count) => `${count} requests`,
+      departments: 'Departments',
+    }),
+    breakdown: Object.freeze({ title: 'Requested', month: 'This month', quarter: 'Last 3 months', year: 'This year' }),
+    facts: Object.freeze({ change: 'Change', effective: 'Effective date', requested: 'Requested' }),
   }),
 })
 
@@ -321,6 +339,15 @@ export const TRANSFER_TEXT = Object.freeze({
     searchPlaceholder: 'Search ref, employee or department',
     columns: Object.freeze({ number: 'Ref #', employee: 'Employee', from: 'From', to: 'To', effective: 'Effective', salary: 'Salary change', status: 'Status' }),
     salary: (change, budgeted) => (change === 'YES' ? `Yes · ${budgeted === 'YES' ? 'budgeted' : 'not budgeted'}` : change === 'NO' ? 'No' : '—'),
+    open: 'Open transfer',
+    empty: 'No transfer requests match these filters.',
+    filters: Object.freeze({ search: 'Ref, employee or department', from: 'Effective from', to: 'Effective to' }),
+    overview: Object.freeze({
+      pipeline: 'Approval pipeline', rejected: (count) => `${count} rejected`,
+      moves: 'Department moves', movesOf: (moving, all) => `${moving} of ${all} move to another department`,
+      destinations: 'Top destinations',
+    }),
+    breakdown: Object.freeze({ title: 'Effective', past: 'Already effective', month: 'This month', upcoming: 'Upcoming' }),
   }),
 })
 
@@ -456,5 +483,14 @@ export const APPRAISAL_TEXT = Object.freeze({
     search: 'Search appraisals',
     searchPlaceholder: 'Search number or employee',
     columns: Object.freeze({ number: 'Appraisal no.', employee: 'Employee', period: 'Period', rating: 'Rating', grade: 'Grade', status: 'Status' }),
+    open: 'Open appraisal',
+    empty: 'No appraisals match these filters.',
+    filters: Object.freeze({ search: 'Number or employee', from: 'Created from', to: 'Created to' }),
+    overview: Object.freeze({
+      months: 'Appraisals by month', thisMonth: 'this month',
+      average: 'Average rating', averageOf: (value, rated) => `${value} of 5 across ${rated} rated`, unrated: 'No rated appraisals yet',
+      status: 'Status', appraisals: (count) => `${count} appraisals`,
+    }),
+    breakdown: Object.freeze({ title: 'Grade' }),
   }),
 })

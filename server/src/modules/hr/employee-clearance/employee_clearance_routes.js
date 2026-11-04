@@ -16,7 +16,7 @@ import {
   emptyBodySchema,
 } from './employee_clearance_validation.js';
 
-const RESOURCE = 'EMPLOYEE_CLEARANCE.EMPLOYEE_CLEARANCE';
+const RESOURCE = 'HR.EMPLOYEE_CLEARANCE';
 
 export function createEmployeeClearanceRouter({
   employeeClearanceService,

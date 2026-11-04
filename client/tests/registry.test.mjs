@@ -58,6 +58,7 @@ const WARNING_LETTERS = 'HR.WARNING_LETTERS'
 const HR_SWITCH = { env: 'VITE_FEATURE_HR_RECRUITMENT' }
 const ES_SWITCH = { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' }
 const HR_RECRUITMENT_ROUTES = [
+  { id: 'hr-recruitment-dashboard', path: '/hr/recruitment/dashboard', label: 'Recruitment dashboard', icon: 'layout-dashboard', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
   { id: 'hr-requisition', path: '/hr/recruitment/requisition', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true },
   { id: 'hr-requisition-report', path: '/hr/recruitment/requisition/report', label: 'Requisition report', icon: 'chart-column', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true, nav: false },
@@ -75,6 +76,8 @@ const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, subgroup: 'hr-recruitment', permission: `${PROBATION}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH, nav: false },
   { id: 'hr-employee-report', path: '/hr/reports/contractor-employees', label: 'Employee report', icon: 'users', section: HR, subgroup: 'hr-reports', permission: `${CONTRACTOR_EMPLOYEES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
   { id: 'hr-periodwise-report', path: '/hr/reports/periodwise-employees', label: 'Periodwise employees', icon: 'chart-column', section: HR, subgroup: 'hr-reports', permission: 'HR.PERIODWISE_EMPLOYEES:VIEW', requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-survey-report', path: '/hr/reports/survey', label: 'Survey report', icon: 'chart-bar', section: HR, subgroup: 'hr-reports', permission: 'HR.SURVEY_REPORTS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_SURVEY_REPORT' } },
+  { id: 'hr-survey-responses', path: '/hr/reports/survey/responses', label: 'Survey responses', icon: 'table', section: HR, subgroup: 'hr-reports', permission: 'HR.SURVEY_REPORTS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_SURVEY_REPORT' }, nav: false },
   { id: 'hr-record-change', path: '/hr/employee-services/record-change', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
   { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', label: 'Personal status report', icon: 'layers', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
   { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
@@ -104,6 +107,20 @@ const HR_EMPLOYEE_SERVICES_FORM_ROUTES = [
   ...formRoutes('hr-reward', '/hr/employee-services/reward-nomination', 'Reward nomination', 'trophy', 'EMPLOYEE_OF_THE_MONTH', 'VITE_FEATURE_HR_REWARD_NOMINATION', 'nominationId'),
   ...formRoutes('hr-idea', '/hr/employee-services/ideas', 'Share an idea', 'lightbulb', 'IDEAS', 'VITE_FEATURE_HR_IDEAS', 'ideaId'),
 ]
+// Employee Clearance (1063): the HR.EMPLOYEE_CLEARANCE resource, as the backend guards it.
+const CLEARANCE = { section: HR, subgroup: ES, permission: 'HR.EMPLOYEE_CLEARANCE:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_CLEARANCE' } }
+const HR_EMPLOYEE_CLEARANCE_ROUTES = [
+  { id: 'hr-clearance', path: '/hr/employee-services/clearance', label: 'Employee clearance', icon: 'door-open', ...CLEARANCE },
+  { id: 'hr-clearance-report', path: '/hr/employee-services/clearance/report', label: 'Employee clearance report', icon: 'chart-column', ...CLEARANCE, nav: false },
+  { id: 'hr-clearance-record', path: '/hr/employee-services/clearance/:clearanceId', label: 'Employee clearance', icon: 'door-open', ...CLEARANCE, nav: false },
+]
+// Project Charter (ZPI.IMS.FM.13): the HR.PROJECT_CHARTERS resource, its own switch.
+const CHARTER = { section: HR, subgroup: ES, permission: 'HR.PROJECT_CHARTERS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_PROJECT_CHARTER' } }
+const HR_CHARTER_ROUTES = [
+  { id: 'hr-charter', path: '/hr/employee-services/project-charter', label: 'Project charter', icon: 'file-text', ...CHARTER },
+  { id: 'hr-charter-report', path: '/hr/employee-services/project-charter/report', label: 'Project charter report', icon: 'chart-column', ...CHARTER, nav: false },
+  { id: 'hr-charter-record', path: '/hr/employee-services/project-charter/:charterId', label: 'Project charter', icon: 'file-text', ...CHARTER, nav: false },
+]
 // Workflow Manager M1: backend WORKFLOW_MANAGER permissions, no MFA requirement, no switch.
 const WF = 'WORKFLOW_MANAGER'
 const wf = { section: 'workflow-manager' }
@@ -115,7 +132,7 @@ const WORKFLOW_MANAGER_ROUTES = [
   { id: 'workflow-data-sources', path: '/workflow-manager/data-sources', label: 'Data source registry', icon: 'database', ...wf, permission: `${WF}.DATA_SOURCE_REGISTRY:VIEW`, requiresMfa: false, implemented: true },
 ]
 // Group order: workspace, human resources, workflow manager, security, account.
-const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], PRE_REGISTRY_ROUTES[1], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
+const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], PRE_REGISTRY_ROUTES[1], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...HR_EMPLOYEE_CLEARANCE_ROUTES, ...HR_CHARTER_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
 const withoutSubgroups = (routes) => routes.map(({ subgroup, ...route }) => route)
 
 test('the derived routes, sections and permission names match the active modules', () => {

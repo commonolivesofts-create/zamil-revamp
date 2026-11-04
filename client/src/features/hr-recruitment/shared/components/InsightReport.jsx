@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
-import { Dialog, Pagination, ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
+import { Badge, Dialog, Pagination, ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT, INSIGHT_TEXT as T } from '../../hrRecruitmentText.js'
 import { businessToday } from '../hrFormat.js'
@@ -47,10 +47,14 @@ function counter(list, signal) {
 //   cards: [{ key, load({ query, today, count, countIn, omit }), render(data, ctx) }],
 //     ctx: { query, today, pick(patch) → { active, onPick } };
 //   groups: [{ key, title, tone, items: [{ key, label, patch }] }], or a function of today returning them;
-//   summary(row, today) → { heading, pill, facts: [[label, value]], timing?: { tone, text } }.
+//   summary(row, today) → { heading, pill, facts: [[label, value]], timing?: { tone, text } };
+//   breadcrumb, demo (the demo-data badge), tools (extra header buttons),
+//   onRefresh (runs before Refresh reloads), validate(draft) → { key: message }
+//   (checked on Apply) and pathOf (without it the summary has no Open link) are optional.
 export function InsightReport({
   variant, title, subtitle, heading, resourceKey, list, create, openLabel, empty,
   initial, required = [], fields, columns, defaultSort, numberOf, rowKey, pathOf, cards, groups: groupsOf = [], summary,
+  breadcrumb = COMMON_TEXT.breadcrumb, demo = false, tools = null, onRefresh, validate,
 }) {
   const id = useId()
   const navigate = useNavigate()
@@ -58,6 +62,7 @@ export function InsightReport({
   const canCreate = create && (!create.permission || permissions.can(create.permission))
   const fieldKeys = fields.map((field) => field.key)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [errors, setErrors] = useState({})
   const [draft, setDraft] = useState(() => only(initial, fieldKeys))
   const [query, setQuery] = useState(initial)
   const [sort, setSort] = useState(defaultSort)
@@ -97,14 +102,27 @@ export function InsightReport({
   }
   const pick = (patch) => ({ active: isActive(patch), onPick: () => select(patch) })
   const ctx = { query, today, pick }
-  const refresh = () => [records, overview, breakdown].forEach((resource) => resource.reload())
-  const setDraftValue = (key) => (event) => setDraft((current) => ({ ...current, [key]: event.target.value }))
+  const refresh = () => {
+    onRefresh?.()
+    for (const resource of [records, overview, breakdown]) resource.reload()
+  }
+  const setDraftValue = (key) => (event) => {
+    setDraft((current) => ({ ...current, [key]: event.target.value }))
+    setErrors((current) => ({ ...current, [key]: undefined }))
+  }
   const apply = (event) => {
     event.preventDefault()
+    const found = Object.fromEntries(Object.entries(validate?.(draft) ?? {}).filter(([, message]) => message))
+    setErrors(found)
+    if (Object.keys(found).length) {
+      document.getElementById(`${id}-${Object.keys(found)[0]}`)?.focus()
+      return
+    }
     setQuery((current) => ({ ...current, ...draft }))
     setPage(1)
   }
   const reset = () => {
+    setErrors({})
     setDraft(only(initial, fieldKeys))
     setQuery({ ...initial, ...only(query, required) })
     setPage(1)
@@ -134,9 +152,9 @@ export function InsightReport({
     <div className={`zrv-hr zrv-hr--${variant} zrv-hr--compact zrv-ir`}>
       <header className="zrv-ir-head">
         <div className="zrv-ir-head__title">
-          <nav aria-label="Breadcrumb"><ol className="zrv-ir-crumb">{COMMON_TEXT.breadcrumb.map((item) => <li key={item}>{item}</li>)}</ol></nav>
-          <h1 className="zrv-hr-title">{title}</h1>
-          <p className="zrv-hr-sub">{subtitle}</p>
+          <nav aria-label="Breadcrumb"><ol className="zrv-ir-crumb">{breadcrumb.map((item) => <li key={item}>{item}</li>)}</ol></nav>
+          <h1 className="zrv-hr-title">{title}{demo && <span title={COMMON_TEXT.demoNote}> <Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge></span>}</h1>
+          {subtitle && <p className="zrv-hr-sub">{subtitle}</p>}
         </div>
         <div className="zrv-ir-head__actions">
           {records.data?.loadedAt && <span className="zrv-ir-stamp" role="status"><i aria-hidden="true" />{T.updated(clock(records.data.loadedAt))}</span>}
@@ -151,6 +169,7 @@ export function InsightReport({
           <button type="button" className="zrv-ir-btn" onClick={() => window.print()}>
             <OrvexaIcon name="printer" size={16} />{T.print}
           </button>
+          {tools}
           {canCreate && <button type="button" className="zrv-ir-btn zrv-ir-btn--primary" onClick={() => navigate(create.path)}>
             <OrvexaIcon name="plus" size={16} />{create.label}
           </button>}
@@ -169,13 +188,15 @@ export function InsightReport({
                     {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 ) : field.type === 'date' ? (
-                  <input id={`${id}-${field.key}`} type="date" value={draft[field.key]} onChange={setDraftValue(field.key)} />
+                  <input id={`${id}-${field.key}`} type="date" value={draft[field.key]} onChange={setDraftValue(field.key)}
+                    aria-invalid={Boolean(errors[field.key]) || undefined} aria-describedby={errors[field.key] ? `${id}-${field.key}-error` : undefined} />
                 ) : (
                   <span className="zrv-ir-search">
                     <OrvexaIcon name="search" size={16} />
                     <input id={`${id}-${field.key}`} type="search" maxLength={100} placeholder={field.placeholder} value={draft[field.key]} onChange={setDraftValue(field.key)} />
                   </span>
                 )}
+                {errors[field.key] && <small id={`${id}-${field.key}-error`} className="zrv-auth-field-error">{errors[field.key]}</small>}
               </label>
             ))}
             <div className="zrv-ir-filters__actions">
@@ -248,7 +269,7 @@ export function InsightReport({
         </section>
       </div>
 
-      {selected && <Summary row={selected} detail={summary(selected, today)} number={numberOf(selected)} path={pathOf(selected)}
+      {selected && <Summary row={selected} detail={summary(selected, today)} number={numberOf(selected)} path={pathOf?.(selected)}
         openLabel={openLabel} closing={closing} onClose={close} />}
     </div>
   )
@@ -292,7 +313,7 @@ function Summary({ row, detail, number, path, openLabel, closing, onClose }) {
           </dl>
           {detail.timing && <div className={`zrv-ir-drawer__due zrv-ir-is-${detail.timing.tone}`}><span>{T.timing}</span><b>{detail.timing.text}</b></div>}
           <div className="zrv-ir-drawer__actions">
-            <Link className="zrv-ir-btn zrv-ir-btn--primary" to={path}><OrvexaIcon name="external-link" size={16} />{openLabel}</Link>
+            {path && <Link className="zrv-ir-btn zrv-ir-btn--primary" to={path}><OrvexaIcon name="external-link" size={16} />{openLabel}</Link>}
             {canCopy && <button type="button" className="zrv-ir-btn" onClick={copy}><OrvexaIcon name={copied ? 'check' : 'copy'} size={16} />{copied ? T.copied : T.copy}</button>}
             <span className="zrv-hr-sr" role="status">{copied ? T.copied : ''}</span>
           </div>
