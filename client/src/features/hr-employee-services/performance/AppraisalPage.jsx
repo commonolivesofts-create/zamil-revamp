@@ -7,9 +7,9 @@ import { useResource } from '@/features/security-administration/useAdminData.js'
 import { businessToday, enDate, initials } from '@/features/hr-recruitment/shared/hrFormat.js'
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
-import { NewFormDialog, ReportDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
+import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
-import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { Orbit, Pill, RecruitmentShell, StepHead, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { HrField } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { APPRAISAL_TEXT as T, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
@@ -31,7 +31,7 @@ export default function AppraisalPage() {
   useEmployeeServicesUser()
   return (
     <RecruitmentLoader current="appraisal" flow={false} identify={NO_IDENTIFY} breadcrumb={C.performanceBreadcrumb} demo={false}
-      title={T.title} subtitle={T.subtitle} param="appraisalId" load={service.getById} loadLookups={loadLookups}>
+      title={T.title} param="appraisalId" load={service.getById} loadLookups={loadLookups}>
       {({ lookups, record, editorKey }) => <AppraisalEditor key={editorKey} lookups={lookups} record={record} />}
     </RecruitmentLoader>
   )
@@ -157,9 +157,8 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
 
   const tools = [
     { icon: 'house', label: C.home, onClick: () => leave('/dashboard') },
-    { icon: 'chart-column', label: T.tools.report, onClick: () => setDialog('report') },
+    { icon: 'chart-column', label: T.tools.report, onClick: () => leave(ES_PATHS.appraisalReport) },
     { icon: 'send', label: T.submit, onClick: requestSubmit, disabled: locked || editor.pending },
-    { icon: 'save', label: C.save, onClick: save, disabled: locked || editor.pending },
     { icon: 'file-plus', label: T.tools.newAppraisal, onClick: () => leave(BASE) },
     { icon: 'printer', label: C.print, onClick: () => window.print() },
   ]
@@ -191,7 +190,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   }
 
   return <>
-    <RecruitmentShell current="appraisal" flow={false} compact breadcrumb={C.performanceBreadcrumb} demo={false} title={T.title} subtitle={T.subtitle}
+    <RecruitmentShell current="appraisal" flow={false} compact breadcrumb={C.performanceBreadcrumb} demo={false} title={T.title}
       tools={tools} primary={{ label: T.save, icon: 'save', onClick: save }}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss} lookupNotice={teamNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
       ticket={<Ticket avatar={initials(employee?.name)} code={T.formCode} items={[
@@ -201,10 +200,11 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
         { k: T.ticket.appraiser, v: appraiser.name },
         { k: T.ticket.status, v: <Pill tone={status === 'DRAFT' ? 'warn' : 'ok'}>{C.status[status]}</Pill> },
       ]} />}
-      steps={T.steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.submit} onFinal={requestSubmit}
+      steps={T.steps.map(([name], index) => [name, index === 1 ? C.step.rated(rated, criteria.length) : doneSteps[index] ? C.step.done : C.step.open])}
+      step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.submit} onFinal={requestSubmit}
       side={<>
         <Tilt aria-label={T.card.label}>
-          <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">{T.card.label}</span><span className="zrv-hr-mono">{saved?.appraisalNumber || T.card.draft(form.periodCode)}</span></div>
+          <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{saved?.appraisalNumber || T.card.draft(form.periodCode)}</span></div>
           <div className="zrv-hr-dark__who"><span className="zrv-hr-dark__av">{initials(employee?.name)}</span><div>
             <h3 className="zrv-hr-dark__title">{employee?.name || T.card.employee}</h3>
             <div className="zrv-hr-dark__sub">{employee ? `${employee.jobTitle} · ${employee.grade}` : T.card.employeeHint}</div></div></div>
@@ -229,7 +229,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
       </>}
     >
       {step === 0 && <>
-        <PanelHead n={1} eyebrow={T.employeeStep.eyebrow} title={T.employeeStep.title} desc={T.employeeStep.desc} />
+        <StepHead title={T.employeeStep.title} desc={T.employeeStep.desc} />
         <div className="zrv-hr-grid zrv-hr-is-2">
           <HrField id="ap-period" label={T.employeeStep.period}>
             <select id="ap-period" className="ux-select zrv-hr-input" value={form.periodCode} onChange={choosePeriod} disabled={Boolean(saved)}>
@@ -258,7 +258,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
       </>}
 
       {step === 1 && <>
-        <PanelHead n={2} eyebrow={T.criteriaStep.eyebrow} title={T.criteriaStep.title} desc={T.criteriaStep.desc} />
+        <StepHead title={T.criteriaStep.title} desc={T.criteriaStep.desc} />
         <div className="zrv-hr-es-legend" aria-live="polite">
           <span>{T.criteriaStep.rated(rated, criteria.length)}</span><span>{T.criteriaStep.average} <b>{average}</b></span>
           {band && <span className={`zrv-hr-es-chip zrv-hr-is-g${band.grade}`}>{band.grade} · {band.title}</span>}
@@ -293,7 +293,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
       </>}
 
       {step === 2 && <>
-        <PanelHead n={3} eyebrow={T.resultStep.eyebrow} title={T.resultStep.title} desc={T.resultStep.desc} />
+        <StepHead title={T.resultStep.title} desc={T.resultStep.desc} />
         <div className="zrv-hr-es-result">
           <div className="zrv-hr-es-res"><small>{T.resultStep.rating}</small><b>{average}</b><span>{T.resultStep.criteria(rated, criteria.length)}</span></div>
           <div className={`zrv-hr-es-res zrv-hr-is-big zrv-hr-is-g${result.band?.grade ?? 'x'}`}><small>{T.resultStep.grade}</small><b>{result.band?.grade ?? '—'}</b><span>{band ? band.range : T.resultStep.notRated}</span></div>
@@ -323,7 +323,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
       </>}
 
       {step === 3 && <>
-        <PanelHead n={4} eyebrow={T.meetingStep.eyebrow} title={T.meetingStep.title} desc={T.meetingStep.desc} />
+        <StepHead title={T.meetingStep.title} desc={T.meetingStep.desc} />
         <p className="zrv-hr-es-ack">{T.meetingStep.acknowledgement}</p>
         <div className="zrv-hr-grid zrv-hr-is-2 zrv-hr-mt">
           <HrField id="ap-employee-remarks" label={T.meetingStep.employeeRemarks} error={errors.employeeRemarks}>
@@ -356,12 +356,6 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
     {dialog === 'submit' && (
       <ConfirmDialog title={T.confirm.title} confirmLabel={T.confirm.action} pending={editor.pending} onClose={() => setDialog(null)} onConfirm={submit}
         description={T.confirm.body(employee.name, period.label, average, result.band.grade, band.title, goals.length)} />
-    )}
-    {dialog === 'report' && (
-      <ReportDialog title={T.report.title} resourceKey="hr-appraisal-report" load={(params, options) => service.list(options)} onClose={() => setDialog(null)}
-        numberOf={(item) => item.appraisalNumber} statusOf={(item) => C.status[item.status]} pathOf={(item) => `${BASE}/${item.appraisalId}`}
-        columns={[[T.report.columns.employee, (item) => item.employeeName], [T.report.columns.period, (item) => item.periodCode],
-          [T.report.columns.rating, (item) => (item.rating === null ? '' : item.rating.toFixed(2))], [T.report.columns.grade, (item) => item.grade ?? '']]} />
     )}
     {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
   </>

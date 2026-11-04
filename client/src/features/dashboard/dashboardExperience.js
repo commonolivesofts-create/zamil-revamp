@@ -100,19 +100,14 @@ export function formatDateLabel(date = new Date()) {
 export const BOOK_PAGES = Object.freeze([
   {
     id: "people",
-    name: "People",
-    subtitle: "Four HR forms",
+    name: "HR forms",
+    subtitle: "Your six favorites",
     icon: "users",
-    description: "People operations · four demo form shortcuts",
-    action: "Open onboarding",
+    description: "Your favorite HR forms, ready to open",
+    action: "Browse HR forms",
     body: {
       kind: "people",
-      rows: [
-        { label: "Onboarding", icon: "users" },
-        { label: "Leave request", icon: "clock" },
-        { label: "Attendance", icon: "check" },
-        { label: "Payroll query", icon: "wallet" },
-      ],
+      rows: [],
     },
   },
   {
@@ -528,27 +523,10 @@ export function filterModules({ domain = "all", query = "" } = {}) {
 // ---------------------------------------------------------------------------
 // Home content
 
-export const BUSINESS_SPACES = Object.freeze([
-  {
-    name: "Finance",
-    icon: "wallet",
-    description: "Credit notes, budgets, treasury",
-  },
-  { name: "People", icon: "users", description: "Teams, leave, payroll" },
-  { name: "Operations", icon: "layers", description: "Daily workflows" },
-  { name: "Procurement", icon: "folder", description: "Purchase-to-pay" },
-  { name: "Sales", icon: "chart-column", description: "Revenue workflows" },
-  {
-    name: "Projects",
-    icon: "layout-grid",
-    description: "Milestones and delivery",
-  },
-]);
-
 export const ATTENTION_ITEMS = Object.freeze([
-  { label: "Credit note review", team: "Finance", count: "03" },
-  { label: "Purchase requests", team: "Procurement", count: "07" },
-  { label: "Policy sign-off", team: "Compliance", count: "2 new" },
+  { label: "Credit note review", team: "Finance", count: "03", icon: "wallet", matchTerms: ["credit note", "finance"] },
+  { label: "Purchase requests", team: "Procurement", count: "07", icon: "clipboard-list", matchTerms: ["purchase", "procurement"] },
+  { label: "Policy sign-off", team: "Compliance", count: "2 new", icon: "shield-check", matchTerms: ["policy", "compliance", "approval"] },
 ]);
 
 export const WORKFLOW_BARS = Object.freeze([

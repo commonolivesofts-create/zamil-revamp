@@ -8,7 +8,7 @@ existing backend APIs.
 |---|---|---|---|
 | Personnel Record Change (form 1110) | `/hr/employee-services/record-change` | `/hr/employee-services/record-change/:requestId` | `/hr/employee-services/record-change/requests` (Change requests) |
 | Transfer Request (ZPI.TCN.FM.01) | `/hr/employee-services/transfer` | `/hr/employee-services/transfer/:transferId` | `/hr/employee-services/transfer/report` (Transfer report) |
-| Performance Appraisal (annual) | `/hr/performance/appraisal` | `/hr/performance/appraisal/:appraisalId` | Report dialog on the page |
+| Performance Appraisal (annual) | `/hr/performance/appraisal` | `/hr/performance/appraisal/:appraisalId` | `/hr/performance/appraisal/report` |
 
 The list paths are matched before the record paths (a record id is digits only).
 
@@ -50,7 +50,7 @@ shown pages get their data. Each follows the same rule.
 |---|---|
 | Business rules (pure, tested) | `recordChange/recordChangeModel.js`, `transfer/transferModel.js`, `performance/appraisalModel.js`, `shared/approvals.js`, `shared/esFormat.js` |
 | Pages | `recordChange/RecordChangePage.jsx`, `recordChange/RecordChangeRequestsPage.jsx`, `transfer/TransferPage.jsx`, `transfer/TransferReportPage.jsx`, `performance/AppraisalPage.jsx` |
-| List view (search, status tabs, sortable columns) | `shared/RecordList.jsx` |
+| Reports (collapsible filters, overview cards, sortable table, summary drawer) | `InsightReport` of `features/hr-recruitment/shared/components/`; `shared/localList.js` serves APIs that return every row at once (transfers, appraisals, change requests) |
 | Services and response contracts | `hrEmployeeServicesService.js`, `hrEmployeeServicesContract.js` |
 | Screen text | `hrEmployeeServicesText.js` |
 | Demo adapter and data (**demo only**) | `demo/employeeServicesDemoClient.js`, `demo/employeeServicesDemoData.js` |
@@ -85,6 +85,14 @@ The options added for these screens:
 
 Paths are relative to `/api/v1`. Responses use the standard envelope; writes carry the session CSRF
 token. Personal Status Change and Transfer Request use their existing backend-specific contracts.
+
+Personal Status Change uses `/hr/personnel-record-changes` (see the OpenAPI document): lookups of
+employee numbers and positions, the employee auto-fill, the list (legacy report columns including
+requestor and pending-at), read, and draft-only create, update and delete. The request body carries
+only the answers (employee number, effective date, the editable current family status, the revised
+record, remarks and views); the server computes the employee snapshot, `FORM_DATE`, the Hijri
+`ARB_DATE`, the Ref # and the totals. The `/hr/employee-services/record-change-requests` rows below
+are the earlier proposed contract that only the demo adapter serves.
 Performance Appraisal uses its existing backend-specific contract below.
 
 | Method and path | Purpose | Reader |
@@ -119,10 +127,17 @@ The transfer endpoint returns `headerId`, which the report displays as its refer
 
 ## Business rules (where they live)
 
-- **Personnel Record Change** (`recordChangeModel.js`): Total SR = basic + house + transport +
-  other + communication + car; per-row difference (amount and percent, none from 0) with reset;
-  change types detected automatically; a lower total shows a reminder, not a block; remarks and
-  views ≤ 2000 with a live counter; route HR & Admin. Manager → President.
+- **Personnel Record Change** (`recordChangeModel.js`, legacy CI3 parity; see
+  `docs/testing/status-change-legacy-comparison.md`): required on save: employee, effective date,
+  revised position, the six revised amounts and the revised family status; amounts digits with up to
+  2 decimals and at most 7 characters; Total SR = basic + house + transport + other + communication +
+  car; choosing the employee fills the current information and record and sets the revised position
+  and family status (revised amounts stay, 0 on a new form); the current family status is editable;
+  grade and level are optional free text (new only); an effective date before the start date and a
+  lower total are reminders, not blocks; no change is required; only drafts are editable;
+  `validateRecordChangeForSubmit` holds the legacy submit rules (not wired: no workflow yet); per-row
+  difference with reset and change types are new-only aids; remarks and views ≤ 2000; route HR &
+  Admin. Manager → President. Print shows the whole form; the list exports CSV.
 - **Transfer Request** (`transferModel.js`): at least one of job title, department, section must
   differ; effective date not before D.O.J.; "Yes" to salary change reminds to raise a Personnel
   Record Change. The backend supplies a global section list without department associations and has
@@ -178,7 +193,7 @@ build; a production build always uses the API (`employeeServicesFormsConfig.js`)
 **Structure (per form, in `reward/`, `idea/`, `sickLeave/`).** `*Contract.js` (response readers
 and the request body), `*Model.js` (pure rules), `*Service.js` (API or demo adapter), `*Page.jsx`
 and `*ReportPage.jsx`. Shared: `shared/formRecords.js` (statuses, paging, guards),
-`shared/ServerRecordList.jsx` (report filtered, sorted and paged by the server),
+the reports on `InsightReport` (filtered and paged by the server; overview counts are list calls with page size 1),
 `shared/FormParts.jsx` (rating chips), demo adapters `demo/{reward,idea,sickLeave}DemoClient.js`
 on `demo/formsDemoKit.js` (in memory, backend response shapes, fictional people). Styles:
 `src/styles/hr-employee-services-forms.css`.
@@ -189,3 +204,38 @@ the server: the request numbers, the sick leave number of days, the idea feasibi
 (depreciation, NPV, IRR, ROI). Legacy rules win over the prototype (the reward A / AS / BS / CS
 scale, the fixed "Sick Leave" type); prototype fields with no column or API are not shown (gaps
 in the handoff). Sending a record for approval is not available: no backend has a submit endpoint.
+
+## Employee Clearance (1063)
+
+The legacy "Emp Clearance" form (`views/ZPIL/empclearance.php` create, `views/update/empClearance.php`
+edit) under **Human resources → Employee services**, on its existing backend
+`/api/v1/hr/employee-clearance`. Handoff: `docs/handoffs/FEATURE-EMPLOYEE-CLEARANCE.md`; legacy
+comparison: `docs/testing/employee-clearance-legacy-comparison.md`.
+
+| Screen | Route | Permission |
+|---|---|---|
+| Form | `/hr/employee-services/clearance` | `HR.EMPLOYEE_CLEARANCE:VIEW` (save: `CREATE` / `UPDATE`) |
+| Report | `/hr/employee-services/clearance/report` (hidden) | `…:VIEW` |
+| Record | `/hr/employee-services/clearance/:clearanceId` (hidden) | `…:VIEW` |
+
+Switch: `VITE_FEATURE_HR_EMPLOYEE_CLEARANCE` (`'true'` on, `'false'` off, unset = development only).
+No demo adapter. Files: `clearance/` (`clearanceModel.js` rules, `clearanceContract.js` readers and
+request body, `clearanceService.js`, `ClearancePage.jsx`, `ClearanceReportPage.jsx`) and
+`styles/hr-employee-clearance.css`. As in the legacy create screen, the five clearance tabs and every
+signature open only after the first save; drafts and rejected requests stay editable.
+
+## Project Charter (ZPI.IMS.FM.13) and Survey reports
+
+Handoff: `docs/handoffs/FEATURE-PROJECT-CHARTER-SURVEY-REPORT.md`. Both use their existing backends; no demo adapter.
+
+| Screen | Route | Permission | Switch |
+|---|---|---|---|
+| Project charter form | `/hr/employee-services/project-charter` (record: `…/:charterId`) | `HR.PROJECT_CHARTERS:VIEW` (save: `CREATE` / `UPDATE`) | `VITE_FEATURE_HR_PROJECT_CHARTER` |
+| Project charter report | `/hr/employee-services/project-charter/report` (hidden) | `…:VIEW` | same |
+| Survey report (graphical) | `/hr/reports/survey` | `HR.SURVEY_REPORTS:VIEW` | `VITE_FEATURE_HR_SURVEY_REPORT` |
+| Survey responses (textual) | `/hr/reports/survey/responses` (hidden) | `…:VIEW` | same |
+
+Files: `charter/` (model, contract, service, `CharterPage.jsx`, `CharterReportPage.jsx`),
+`survey/` (`surveyService.js`, `SurveyReportPage.jsx`, `SurveyResponsesPage.jsx`),
+`styles/hr-project-charter.css`, `styles/hr-survey-report.css`. Survey answers are drawn as 100 %
+stacked bars (no chart library). Only Pending charters are editable.

@@ -9,7 +9,7 @@
 // never routed, listed or searchable.
 import { defineModule } from '../defineModule.js'
 
-const page = (entry) => ({ group: 'security', requiresMfa: true, ...entry })
+const page = (entry) => ({ group: 'security', subgroup: 'security-admin', requiresMfa: true, ...entry })
 
 export default defineModule({
   code: 'SECURITY_ADMINISTRATION',

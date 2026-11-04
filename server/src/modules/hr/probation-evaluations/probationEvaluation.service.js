@@ -10,7 +10,9 @@ import * as defaultRepository from './probationEvaluation.repository.js';
 import {
   evaluationResult,
   fromStoredDate,
+  isEditable,
   ratingTotal,
+  submitProblems,
   toStoredDate,
 } from './probationEvaluation.rules.js';
 import { FORM_TYPES } from './probationEvaluation.validation.js';
@@ -28,10 +30,16 @@ const notDraft = (action) =>
     'PROBATION_EVALUATION_NOT_DRAFT',
     `Only draft probation evaluations can be ${action}`,
   );
-const dateOrderError = () =>
-  new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', [
-    { field: 'toDate', message: 'toDate must be on or after fromDate' },
-  ]);
+const notEditable = () =>
+  new AppError(
+    409,
+    'PROBATION_EVALUATION_NOT_DRAFT',
+    'Only draft or rejected probation evaluations can be updated',
+  );
+const invalid = (details) =>
+  new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', details);
+const notInHierarchy = () =>
+  new AppError(403, 'FORBIDDEN', 'The employee is not in your reporting hierarchy.');
 
 export function searchPattern(search) {
   if (!search) return undefined;
@@ -77,26 +85,26 @@ export function createProbationEvaluationService({
     throw forbidden();
   }
 
-  function headerBinds(body) {
-    if (body.toDate < body.fromDate) throw dateOrderError();
-    return {
-      // FORM_DATE is the employee's joining date (legacy meaning); optional.
-      formDate: toStoredDate(body.formDate),
-      empId: text(body.empId),
-      grade: body.grade ?? 0,
-      evaluationPeriod: text(body.evaluationPeriod),
-      formType: body.formType,
-      // Always computed from the ratings; the schema strips any client total or result.
-      totalRating: ratingTotal(body.lines),
-      comment: text(body.comment),
-      comments: text(body.comments),
-      employeeName: body.employeeName,
-      jobTitle: text(body.jobTitle),
-      department: text(body.department),
-      employeeNumber: body.employeeNumber,
-      fromDate: body.fromDate,
-      toDate: body.toDate,
-    };
+  /**
+   * The lines of a new evaluation: the criteria of its form type, in order, each with the rating
+   * sent at the same position (blank = 0, as legacy). Criterion texts never come from the client.
+   */
+  async function criteriaLines(connection, formType, ratings) {
+    const criteria = await repository.findCriteria(connection, formType);
+    if (!criteria.length) {
+      throw new AppError(
+        422,
+        'PROBATION_CRITERIA_UNAVAILABLE',
+        'The criteria of this form type are not available.',
+      );
+    }
+    if (ratings.length > criteria.length) {
+      throw invalid([{ field: 'lines', message: 'More ratings than criteria' }]);
+    }
+    return criteria.map((criterion, index) => ({
+      ...criterion,
+      rating: ratings[index]?.rating ?? 0,
+    }));
   }
 
   async function loadDetail(connection, headerId) {
@@ -116,14 +124,50 @@ export function createProbationEvaluationService({
   return {
     formTypes: () => ({ formTypes: [...FORM_TYPES] }),
 
+    criteria: (formType) =>
+      read(async (connection) => ({
+        formType,
+        criteria: await repository.findCriteria(connection, formType),
+      })),
+
+    /**
+     * The legacy save of a new evaluation (Probation_Model::add_form_data): DRAFT, the form type's
+     * criteria, Comments / Suggestion / evaluation period / person ID stored as '-' and the grade
+     * as 0 (none of them is filled by the legacy create form). The employee must be one the legacy
+     * select offers (the actor's hierarchy); number, name, job title and department are read from
+     * the employee master. Prepared by is the signed-in user; the total is computed.
+     */
     async create(actor, body) {
-      const common = headerBinds(body);
       return withTransaction(POOLS.LOW, async (connection) => {
+        const subject = await repository.findHierarchyEmployee(connection, {
+          employeeNumber: actor.employeeNumber,
+          subjectNumber: body.employeeNumber,
+        });
+        if (!subject) throw notInHierarchy();
+        const details = await repository.findEmployeeDetails(connection, {
+          empName: subject.fullName,
+          employeeNumber: actor.employeeNumber,
+        });
+        const lines = await criteriaLines(connection, body.formType, body.lines);
         const uuid = randomUUID();
         const requestor = await repository.findRequestor(connection, actor.employeeNumber);
         // HEADER_ID and LINE_ID come from the tables' identity columns (RETURNING INTO).
         const headerId = await repository.insertHeader(connection, {
-          ...common,
+          // FORM_DATE: the joining date, as entered (legacy prf_date); blank is NULL.
+          formDate: toStoredDate(body.formDate),
+          empId: '-',
+          grade: 0,
+          evaluationPeriod: '-',
+          formType: body.formType,
+          totalRating: ratingTotal(lines),
+          comment: '-',
+          comments: '-',
+          employeeName: subject.fullName,
+          jobTitle: text(details?.job?.name),
+          department: text(details?.dept?.name),
+          employeeNumber: subject.employeeNumber,
+          fromDate: body.fromDate,
+          toDate: body.toDate,
           uuid,
           userName: text(requestor?.fullName),
           userMail: text(requestor?.emailAddress),
@@ -136,10 +180,10 @@ export function createProbationEvaluationService({
             'Probation evaluation was not created',
           );
         }
-        for (const line of body.lines) {
+        for (const line of lines) {
           await repository.insertLine(connection, {
             headerId,
-            rating: line.rating ?? 0,
+            rating: line.rating,
             param: line.param,
             paramAr: text(line.paramAr),
           });
@@ -169,8 +213,6 @@ export function createProbationEvaluationService({
           ...item,
           formDate: fromStoredDate(item.formDate),
           evaluationResult: evaluationResult(item.totalRating),
-          // The approver a request waits for; null until the workflow exists.
-          pendingAt: null,
         })),
       };
     },
@@ -182,24 +224,39 @@ export function createProbationEvaluationService({
       });
     },
 
+    /**
+     * The legacy edit save (prf_uplines.php): Comments, Suggestion and every criterion's 1–5
+     * rating are required and are all that is saved, with the computed total. The status is kept.
+     * Inprocess and Approved evaluations are read only.
+     */
     async update(actor, headerId, body) {
-      const common = headerBinds(body);
       return withTransaction(POOLS.LOW, async (connection) => {
         const facts = await authorizeRecord(connection, actor, headerId);
-        if (facts.requestStatus !== 'DRAFT') throw notDraft('updated');
+        if (!isEditable(facts.requestStatus)) throw notEditable();
+        const stored = await repository.listLines(connection, headerId);
+        const ratings = new Map(body.lines.map((line) => [String(line.lineId), line.rating]));
+        if (
+          ratings.size !== stored.length ||
+          stored.some((line) => !ratings.has(String(line.lineId)))
+        ) {
+          throw invalid([{ field: 'lines', message: 'Rate every criterion of the evaluation' }]);
+        }
+        const lines = stored.map((line) => ({ ...line, rating: ratings.get(String(line.lineId)) }));
+        const problems = submitProblems({ comment: body.comment, comments: body.comments, lines });
+        if (problems.length) throw invalid(problems);
         const changed = await repository.updateHeader(connection, {
-          ...common,
           headerId,
+          totalRating: ratingTotal(lines),
+          comment: body.comment,
+          comments: body.comments,
           updatedBy: actor.userId,
         });
         if (!changed) throw notFound();
-        for (const line of body.lines) {
+        for (const line of lines) {
           const updated = await repository.updateLine(connection, {
             headerId,
             lineId: line.lineId,
-            rating: line.rating ?? 0,
-            param: line.param,
-            paramAr: text(line.paramAr),
+            rating: line.rating,
           });
           if (!updated) throw notFound('Probation evaluation line');
         }
@@ -228,13 +285,19 @@ export function createProbationEvaluationService({
       return read((connection) => repository.findRequestor(connection, actor.employeeNumber));
     },
 
+    // Legacy getEmpDetails, limited to the employees the select offers (the actor's hierarchy).
     async employeeDetails(actor, empName) {
-      const details = await read((connection) =>
-        repository.findEmployeeDetails(connection, {
+      const details = await read(async (connection) => {
+        const subject = await repository.findHierarchyEmployee(connection, {
+          employeeNumber: actor.employeeNumber,
+          subjectName: empName,
+        });
+        if (!subject) throw notInHierarchy();
+        return repository.findEmployeeDetails(connection, {
           empName,
           employeeNumber: actor.employeeNumber,
-        }),
-      );
+        });
+      });
       if (!details) throw notFound('Employee');
       const start = toDateTime(details.hire?.startDate);
       const yearsInCompany =

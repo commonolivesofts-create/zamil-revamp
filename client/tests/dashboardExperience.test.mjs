@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import {
   ATTENTION_ITEMS,
   BOOK_PAGES,
-  BUSINESS_SPACES,
   DOMAIN_DEFINITIONS,
   FOOTER_COUNTS,
   MODULES,
@@ -53,7 +52,7 @@ test('catalogue filtering searches names and domains', () => {
 // ------------------------------------------------------------ dashboard content
 
 test('the folio and quick links keep the approved dashboard content', () => {
-  assert.deepEqual(BOOK_PAGES.map((page) => page.name), ['People', 'Finance', 'Approvals', 'Insights', 'Explore'])
+  assert.deepEqual(BOOK_PAGES.map((page) => page.name), ['HR forms', 'Finance', 'Approvals', 'Insights', 'Explore'])
   assert.equal(BOOK_PAGES.find((page) => page.id === 'explore').view, 'atlas')
   assert.ok(BOOK_PAGES.filter((page) => page.id !== 'explore').every((page) => !('view' in page)))
   assert.deepEqual(QUICK_CATEGORY_IDS, ['HR', 'Finance', 'Supply', 'Projects'])
@@ -61,7 +60,6 @@ test('the folio and quick links keep the approved dashboard content', () => {
     assert.equal(QUICK_DEFINITIONS[id].forms.length, 4, id)
     assert.ok(QUICK_DEFINITIONS[id].forms.every((form) => !('view' in form)), id)
   }
-  assert.equal(BUSINESS_SPACES.length, 6)
   assert.equal(ATTENTION_ITEMS.length, 3)
   assert.equal(WORKFLOW_BARS.length, 9)
   assert.deepEqual(FOOTER_COUNTS, { modules: 216, views: 1 })

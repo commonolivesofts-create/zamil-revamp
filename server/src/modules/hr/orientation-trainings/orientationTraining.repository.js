@@ -1,4 +1,5 @@
 import oracledb from 'oracledb';
+import { divisionName, fromStoredDate, statusLabel } from './orientationTraining.rules.js';
 
 const ID = { type: oracledb.STRING };
 const rows = async (connection, sql, binds = {}, fetchInfo) =>
@@ -27,13 +28,16 @@ const mapHeader = (row) => ({
   empname: row.EMPLOYEE_NAME,
   fromOrient: row.ORIENTATION_DURATION_FROM,
   toOrient: row.ORIENTATION_DURATION_TO,
-  startDate: row.STARTING_DATE,
+  startDate: fromStoredDate(row.STARTING_DATE),
   orientationBy: row.ORIENTATION_SCHEDULE_BY,
-  status: row.STATUS,
+  // The legacy list label; rawStatus keeps the stored value (mixed case in legacy rows).
+  status: statusLabel(row.STATUS),
+  rawStatus: row.STATUS,
   createdBy: row.CREATED_BY,
   createdAt: row.CREATION_DATE,
   personId: row.ATTRIBUTE2,
   division: row.ATTRIBUTE4,
+  divisionName: divisionName(row.ATTRIBUTE4),
   reference: row.ATTRIBUTE5,
   position: row.EMP_POSITION,
   type: row.EMP_TYPE,
@@ -50,26 +54,26 @@ const mapLine = (row) => ({
   remarks: row.REMARKS,
   createdBy: row.CREATED_BY,
   createdAt: row.CREATION_DATE,
-  fromDate: row.FROM_DATE,
-  toDate: row.TO_DATE,
+  fromDate: fromStoredDate(row.FROM_DATE),
+  toDate: fromStoredDate(row.TO_DATE),
   orientationDays: row.ORIENTATION_DAYS,
 });
 
+/**
+ * The variant of a new request. Legacy nht-new.php sets the hidden flag to employee.FLAG, which the
+ * employee query never returns, so every request is saved in the PRODUCTION tables ('N'). The
+ * shared-service marker legacy once read (XX_DIGI_ORG_INFO.ATTRIBUTE1) does not exist in this
+ * schema. Returns null when the employee is not a current employee.
+ */
 export async function resolveFlag(connection, empNo) {
   const [row] = await rows(
     connection,
-    `SELECT DECODE(UPPER(oi.ATTRIBUTE1), 'SHARED SERVICE', 'Y', 'N') AS SHARED_SERVICE
-       FROM XX_DIGI_EMP_MASTER paaf
-       LEFT JOIN APPS.HR_ALL_ORGANIZATION_UNITS oi ON oi.ORGANIZATION_ID = paaf.ORGANIZATION_ID
-      WHERE paaf.PRIMARY_FLAG = 'Y'
-        AND paaf.ASSIGNMENT_TYPE = 'E'
-        AND paaf.EMPLOYEE_NUMBER = :empNo
-        AND TRUNC(SYSDATE) BETWEEN TRUNC(paaf.PAAF_EFFECTIVE_START_DATE)
-                               AND TRUNC(paaf.PAAF_EFFECTIVE_END_DATE)
+    `SELECT 1 AS FOUND FROM XX_DIGI_EMP_MASTER
+      WHERE EMPLOYEE_NUMBER = :empNo AND CURRENT_EMP_FLAG = 'Y'
       FETCH FIRST 1 ROWS ONLY`,
     { empNo },
   );
-  return row?.SHARED_SERVICE === 'Y' ? 'Y' : row ? 'N' : null;
+  return row ? 'N' : null;
 }
 
 export async function findEmployeeDetails(connection, empNo) {
@@ -129,7 +133,8 @@ export async function insertHeader(connection, table, header) {
 export async function setReference(connection, table, headerId, division) {
   await connection.execute(
     `UPDATE ${table.header}
-        SET ATTRIBUTE5 = :division || '/' || TO_CHAR(SYSDATE, 'YY') || '/' || LPAD(:headerId, 3, '0')
+        SET ATTRIBUTE5 = :division || '/' || TO_CHAR(SYSDATE, 'YY') || '/' ||
+                         LPAD(:headerId, GREATEST(3, LENGTH(:headerId)), '0')
       WHERE HEADER_ID = :headerId`,
     { division, headerId },
   );
@@ -163,13 +168,24 @@ export async function insertLine(connection, table, line) {
   );
 }
 
+/** The registered variant ('SHARED' / 'PRODUCTION'), or null (legacy shared rows have none). */
 export async function findTableName(connection, headerId) {
   const [row] = await rows(
     connection,
-    `SELECT TABLE_NAME FROM XXZP.XXZP_NHT_MASTER_FLAG WHERE FORM_HEADER_ID = :headerId`,
+    `SELECT MAX(TABLE_NAME) AS TABLE_NAME FROM XXZP.XXZP_NHT_MASTER_FLAG
+      WHERE FORM_HEADER_ID = :headerId`,
     { headerId },
   );
-  return row?.TABLE_NAME ?? 'PRODUCTION';
+  return row?.TABLE_NAME ?? null;
+}
+
+export async function headerExists(connection, table, headerId) {
+  const [row] = await rows(
+    connection,
+    `SELECT 1 AS FOUND FROM ${table.header} WHERE HEADER_ID = :headerId`,
+    { headerId },
+  );
+  return Boolean(row);
 }
 
 export async function findHeader(connection, table, headerId) {
@@ -211,7 +227,7 @@ export async function updateHeader(connection, table, header) {
             ORIENTATION_DURATION_FROM = TO_DATE(:fromOrient, 'YYYY-MM-DD'),
             ORIENTATION_DURATION_TO = TO_DATE(:toOrient, 'YYYY-MM-DD'),
             STARTING_DATE = TO_DATE(:startDate, 'YYYY-MM-DD'),
-            ORIENTATION_SCHEDULE_BY = :orientationBy, ATTRIBUTE2 = :personId,
+            ORIENTATION_SCHEDULE_BY = :orientationBy, STATUS = 'Draft', ATTRIBUTE2 = :personId,
             ATTRIBUTE4 = :division, EMP_POSITION = :position, EMP_TYPE = :empType,
             LAST_UPDATED_BY = :updatedBy, LAST_UPDATE_LOGIN = :updatedBy, LAST_UPDATE_DATE = SYSDATE
       WHERE HEADER_ID = :headerId`,
@@ -247,6 +263,28 @@ export async function deleteLine(connection, table, headerId, lineId) {
   return result.rowsAffected > 0;
 }
 
+// Legacy report columns over XXPHP_WORKFLOW (MSG_TYPE 'NHTF', USER_KEY = header id), read only:
+// Pending At (open notification), workflow Start Date, End Date (once nothing is open) and
+// Last Action (sender and result of the latest closed notification).
+const WORKFLOW_COLUMNS = `
+  (SELECT MAX(W.TO_USER) FROM XXPHP_WORKFLOW W
+    WHERE W.MSG_TYPE = 'NHTF' AND W.USER_KEY = TO_CHAR(H.HEADER_ID)
+      AND W.STATUS = 'Open' AND W.TYPE_PARAM IS NULL) AS PENDING_AT,
+  (SELECT TO_CHAR(MIN(W.BEGIN_DATE), 'YYYY-MM-DD') FROM XXPHP_WORKFLOW W
+    WHERE W.MSG_TYPE = 'NHTF' AND W.USER_KEY = TO_CHAR(H.HEADER_ID)) AS WF_START,
+  (SELECT TO_CHAR(MAX(W.END_DATE), 'YYYY-MM-DD') FROM XXPHP_WORKFLOW W
+    WHERE W.MSG_TYPE = 'NHTF' AND W.USER_KEY = TO_CHAR(H.HEADER_ID)
+      AND NOT EXISTS (SELECT 1 FROM XXPHP_WORKFLOW O
+                       WHERE O.MSG_TYPE = 'NHTF' AND O.USER_KEY = TO_CHAR(H.HEADER_ID)
+                         AND O.STATUS = 'Open')) AS WF_END,
+  (SELECT MAX(W.FROM_USER || ' - ' || CASE W.MAIL_STATUS WHEN 'Approved' THEN 'Approved'
+                                                         WHEN 'Reject' THEN 'Rejected' END)
+     FROM XXPHP_WORKFLOW W
+    WHERE W.MSG_TYPE = 'NHTF' AND W.USER_KEY = TO_CHAR(H.HEADER_ID)
+      AND W.NOTIFICATION_ID = (SELECT MAX(L.NOTIFICATION_ID) FROM XXPHP_WORKFLOW L
+                                WHERE L.MSG_TYPE = 'NHTF' AND L.USER_KEY = TO_CHAR(H.HEADER_ID)
+                                  AND L.STATUS = 'Close')) AS LAST_ACTION`;
+
 const sortColumns = Object.freeze({
   HEADER_ID: 'H.HEADER_ID',
   ORIENTATION_DURATION_FROM: 'H.ORIENTATION_DURATION_FROM',
@@ -270,7 +308,11 @@ export async function listTrainings(
     binds.search = filters.search;
   }
   if (filters.status) {
-    conditions.push('H.STATUS = :status');
+    // Stored in mixed case; legacy labels anything but Inprocess/Approved/Rejected as Draft.
+    conditions.push(
+      `CASE UPPER(H.STATUS) WHEN 'INPROCESS' THEN 'INPROCESS' WHEN 'APPROVED' THEN 'APPROVED'
+        WHEN 'REJECTED' THEN 'REJECTED' ELSE 'DRAFT' END = UPPER(:status)`,
+    );
     binds.status = filters.status;
   }
   if (filters.empNo) {
@@ -309,7 +351,8 @@ export async function listTrainings(
             TO_CHAR(H.STARTING_DATE, 'YYYY-MM-DD') AS STARTING_DATE,
             H.ORIENTATION_SCHEDULE_BY, H.ATTRIBUTE2, H.ATTRIBUTE4, H.ATTRIBUTE5,
             H.EMP_POSITION, H.EMP_TYPE, H.STATUS, H.CREATED_BY,
-            TO_CHAR(H.CREATION_DATE, 'YYYY-MM-DD"T"HH24:MI:SS') AS CREATION_DATE
+            TO_CHAR(H.CREATION_DATE, 'YYYY-MM-DD"T"HH24:MI:SS') AS CREATION_DATE,
+            ${WORKFLOW_COLUMNS}
        FROM ${table.header} H ${where}
       ORDER BY ${column} ${direction}, H.HEADER_ID
       OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY`,
@@ -318,7 +361,13 @@ export async function listTrainings(
   );
   return {
     total: Number(count?.TOTAL ?? 0),
-    items: result.map((row) => ({ ...mapHeader(row), status: row.STATUS })),
+    items: result.map((row) => ({
+      ...mapHeader(row),
+      pendingAt: row.PENDING_AT ?? null,
+      workflowStart: row.WF_START ?? null,
+      workflowEnd: row.WF_END ?? null,
+      lastAction: row.LAST_ACTION ?? null,
+    })),
   };
 }
 
@@ -336,7 +385,11 @@ export async function isHrUser(connection, userId) {
   return result.length > 0;
 }
 
-export async function listEmployees(connection, { search = '' }) {
+/**
+ * Legacy getEmpNum: HR users choose from every current employee; any other user only from
+ * themselves (`employeeNumber`). `search` (optional) matches the name or employee number.
+ */
+export async function listEmployees(connection, { search = '', employeeNumber = null }) {
   const result = await rows(
     connection,
     `SELECT e.PERSON_ID, e.EMPLOYEE_NUMBER, e.FULL_NAME, TO_CHAR(e.JOINING_DATE, 'YYYY-MM-DD') AS START_DATE, e.JOB_ID,
@@ -346,16 +399,12 @@ export async function listEmployees(connection, { search = '' }) {
                  WHEN e.WORKER_CATEGORY IN ('Management', 'GM', 'VP') THEN 'Manager'
                  ELSE 'Employee' END AS EMPLOYEE_TYPE
        FROM XX_DIGI_EMP_MASTER e
-      WHERE e.EMPLOYEE_NUMBER IN (
-            SELECT DISTINCT eligible.EMPLOYEE_NUMBER
-              FROM XX_DIGI_EMP_MASTER eligible
-             WHERE eligible.ASSIGNMENT_STATUS_TYPE_ID = 1
-               AND eligible.EMPLOYMENT_CATEGORY NOT IN ('MANAGEMENT', 'GM', 'TOP MANAGEMENT', 'VP'))
-        AND e.CURRENT_EMP_FLAG = 'Y'
+      WHERE e.CURRENT_EMP_FLAG = 'Y'
+        AND (:employeeNumber IS NULL OR TO_CHAR(e.EMPLOYEE_NUMBER) = :employeeNumber)
         AND (:search IS NULL OR INSTR(UPPER(e.FULL_NAME), UPPER(:search)) > 0
              OR INSTR(TO_CHAR(e.EMPLOYEE_NUMBER), :search) > 0)
       ORDER BY e.EMPLOYEE_NUMBER`,
-    { search: search || null },
+    { search: search || null, employeeNumber },
     { PERSON_ID: ID, EMPLOYEE_NUMBER: ID, JOB_ID: ID, ORGANIZATION_ID: ID },
   );
   return result.map((row) => ({
@@ -367,6 +416,7 @@ export async function listEmployees(connection, { search = '' }) {
     name: row.NAME,
     section: row.SECTION,
     division: row.DIV,
+    divisionName: divisionName(row.DIV),
     organizationId: row.ORGANIZATION_ID,
     position: row.EMP_POSITION,
     empType: row.EMPLOYEE_TYPE,

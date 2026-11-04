@@ -22,6 +22,7 @@ frontend only hides controls. Audit findings and open items are in
 | Probation Evaluation (1064) | `/hr/recruitment/probation-evaluation` (`/:evaluationId`) | `/hr/probation-evaluations` | `HR.PROBATION_EVALUATIONS` | `VITE_FEATURE_HR_RECRUITMENT` |
 | Employee report (contractor employees) | `/hr/reports/contractor-employees` | `/hr/contractor-employees` | `HR.CONTRACTOR_EMPLOYEES` | `VITE_FEATURE_HR_RECRUITMENT` |
 | Periodwise Employees report | `/hr/reports/periodwise-employees` | `/hr/reports/periodwise-employees` | `HR.PERIODWISE_EMPLOYEES` (VIEW only) | `VITE_FEATURE_HR_RECRUITMENT` |
+| Recruitment dashboard | `/hr/recruitment/dashboard` | none of its own: counts (`page=1`, one row) and the five latest rows from the list APIs above | `REQUISITIONS.REQUISITIONS:VIEW`; each panel also needs its module's report page | `VITE_FEATURE_HR_RECRUITMENT` |
 
 **Registry:**
 - The routes are registered in `config/registry/modules/requisitions.module.js`, `interviewAssessments.module.js`, `employmentOffers.module.js` and `hrForms.module.js` (module `HR`).
@@ -99,39 +100,59 @@ The bilingual package rows map to the single `line` object. The status is always
 
 ### Orientation Training (1101)
 
+Follows the legacy CI3 form `Newhiretrain` (`views/ZPIL/nht-new.php`); details in
+`docs/testing/orientation-legacy-comparison.md`.
+
 **Lookups** (`GET /hr/orientation-trainings/lookups/…`):
-- `employees` and `managers`.
-- `employee-details?empNo=`, `flag?empNo=` (shared-service `Y` / production `N` table) and `skills?empType=` (the default sessions).
+- `employees` (HR users: every current employee; others: themselves) and `managers`.
+- `employee-details?empNo=` (non-HR users: only themselves), `flag?empNo=` (always `N`: legacy saves
+  every new request in the PRODUCTION tables) and `skills?empType=` (the training rows of the
+  employee type; any other type is Employee).
 
 **Records:**
-- `GET /?flag=Y|N` (list for one table) and `GET /:id`.
-- `POST /` and `PUT /:id`: the update replaces all lines. Header, line and flag-registry IDs come from Oracle identity columns.
-- `DELETE /:id`: Draft only.
-- `DELETE /:id/lines/:lineId`: needs `MANAGE_LINES`.
+- `GET /?flag=Y|N` (legacy report: Shared / Plant; HR all, others their own; legacy columns incl.
+  Pending At, workflow Start/End and Last Action) and `GET /:id?flag=Y|N`. The two variants number
+  their records independently, so the record URL carries `?flag=` (legacy `form/{id}/{flag}`).
+- `POST /` and `PUT /:id`: the update replaces all lines and sets the status to Draft. Draft and
+  Rejected records are editable; Inprocess and Approved are read only (409). IDs come from Oracle
+  identity columns.
+- `DELETE /:id`: Draft only. `DELETE /:id/lines/:lineId`: needs `MANAGE_LINES`.
 
-**Payload notes:**
-- `startDate` is sent only when the employee has a joining date.
-- `orientationPeriod` is sent blank so the server recomputes the hours from the session times.
+**Legacy rules** (`orientation/orientationLegacy.js`, server `orientationTraining.rules.js`):
+- Required: Name and From. **To = From** (read only). Every row field is optional; a row whose To
+  Date or Time To is before its start is refused.
+- Orientation Days = to − from (the same day is 0); Orientation Time = "H.MM Hrs"; times HH:MM:SS.
+- The payload carries only the answers (Name, From, each row's head, dates, times and remark); the
+  server fills the employee fields, To, Scheduled By (the signed-in user), the Ref # and the
+  computed row values.
+- Statuses read as the legacy labels Draft, Inprocess, Approved, Rejected (stored in mixed case).
+- Print shows the legacy PDF layout. `validateOrientationForSubmit` holds the legacy submit rule
+  (not wired yet).
 
 ### Probation Evaluation (1064)
 
+The page follows the legacy CI3 form (`docs/testing/probation-legacy-comparison.md`): `probation.php` to create an evaluation, `prf_uplines.php` to edit a saved one.
+
 **Lookups** (`GET /hr/probation-evaluations/lookups/…`):
-- `form-types` and `employees` (the caller's hierarchy).
-- `requestor` and `employee-details?empName=`.
+- `form-types`, and `criteria?formType=` (the 20 criteria of a type, English and Arabic).
+- `employees` (the caller's hierarchy) and `employee-details?empName=` (hierarchy only, else 403).
+- `requestor` ("Prepared & Agreed by").
 
-**Records:**
-- `GET /` and `GET /:id`.
-- `POST /` and `PUT /:id`: Draft only. The update records `UPDATED_BY` and `UPDATED_AT`. Header and line IDs come from Oracle identity columns.
-- `DELETE /:id`: Draft only.
+**Create** (`POST /`): the form type, the employee, the joining date, Evaluation Period From / To, and optional points.
+- Choosing a form type loads its criteria (legacy `showDropInfo`). The user only gives points (1–5, or blank, stored as 0).
+- The payload sends the ratings by position. The server writes the criterion texts, the employee details from the master and the total.
+- The joining date (`formDate`, legacy `prf_date`) is filled from the employee and can be edited; a blank one is omitted.
+- Comments and Suggestion are read only until the first save. Job Grade is shown but never filled (legacy stores 0).
 
-An unrated criterion is omitted from the payload, and the backend stores it as 0. A stored 0 is shown as "Not rated".
+**Edit** (`PUT /:id`): Comments, Suggestion and every criterion's points are required, and they are all that is saved.
+- The other header fields are shown read only. The status is kept.
+- Draft and Rejected records can be edited; Inprocess and Approved are read only (409).
 
-**Legacy rules** (see `docs/testing/probation-legacy-comparison.md`):
-- `formDate` (FORM_DATE) is the employee's **joining date**, as in the legacy form. It is read-only, filled from `employee-details`, optional, and omitted from the payload when blank. The ticket and the Records list show the record's **created** date.
-- **Evaluation:** Acceptable when the total rating is 71 or more, Not acceptable at 70 or below (`probationRules.js`; the list takes the server's `evaluationResult`).
-- **Records** columns: employee number, job title, department, evaluation, pending-at (null from the API until the approval workflow exists) and the created date.
-- **Total:** the page shows a live preview; the payload carries no total. The server computes `TOTAL_RATING` and the result from the ratings and discards any client value.
-- `validateForSubmit` (Comments, Suggestion and a 1–5 rating on every criterion) is ready for the workflow. It is not wired yet, and draft saves stay lenient.
+**Display:**
+- Evaluation Result: Acceptable at 71 or more, Not Acceptable at 70 or below.
+- "Approved by" shows HR SUPERVISOR once approved.
+- Report columns: Emp. #, Name, Job Title, Department, Total Rating, Evaluation, Status, Date and Pending At. Pending At is the open CI3 workflow step.
+- `DELETE /:id` (Draft only) exists in the API, but the page has no Delete button, as legacy.
 
 ## Record access and status rules (backend)
 
@@ -140,7 +161,7 @@ An unrated criterion is omitted from the payload, and the backend stores it as 0
 - an HR user (the `XXZP_HR` lookup, which also widens the lists); or
 - a user in the employee's department (`XX_DIGI_EMP_MASTER.ORGANIZATION_ID`) who holds the resource's `VIEW` permission.
 
-Anyone else gets 403 `FORBIDDEN`. Changing a non-draft record returns 409 (`ORIENTATION_TRAINING_NOT_DRAFT` / `PROBATION_EVALUATION_NOT_DRAFT`).
+Anyone else gets 403 `FORBIDDEN`. Changing a non-draft record returns 409 (`ORIENTATION_TRAINING_NOT_DRAFT` / `PROBATION_EVALUATION_NOT_DRAFT`); orientation and probation also let a Rejected record be edited (legacy).
 
 **Requisitions:** records outside the caller's scope return 404. Non-HR users cannot change `Inprocess` or `Approved` records (409).
 
@@ -158,7 +179,7 @@ The registry's module and resource names, descriptions (none) and display orders
 
 | Variable | Decides | `'true'` | `'false'` | unset |
 |---|---|---|---|---|
-| `VITE_FEATURE_HR_RECRUITMENT` | Whether the Orientation, Probation, Employee report and Periodwise report entries exist in this build (registry `enabledBy`) | shown | hidden | shown in development, hidden in production |
+| `VITE_FEATURE_HR_RECRUITMENT` | Whether the Recruitment dashboard, Orientation, Probation, Employee report and Periodwise report entries exist in this build (registry `enabledBy`) | shown | hidden | shown in development, hidden in production |
 | `VITE_HR_RECRUITMENT_DEMO` | Data source of the Periodwise Employees report only (`onboardingClient`) | demo adapter | `apiClient` | demo in development, API in production |
 
 The three recruitment forms (1060–1062) have no switch. The demo switch changes only the Periodwise report's data source; every form always uses the API. The demo default lives in `hrRecruitmentConfig.js`, because the repository ignores `.env.*` files other than `.env.example`. To override it locally, set the variable in your own `client/.env.local`.

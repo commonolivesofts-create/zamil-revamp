@@ -28,7 +28,7 @@ export function FlowNav({ current, status }) {
   )
 }
 
-// Page header: breadcrumb, title, subtitle and, for screens that opt in while
+// Page header: breadcrumb, title, optional subtitle and, for screens that opt in while
 // they run on demo data (`demo`), the demo-data indicator.
 export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.breadcrumb, demo = false }) {
   return (
@@ -50,7 +50,7 @@ export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.br
         </h1>
         {demo && <span title={COMMON_TEXT.demoNote}><Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge></span>}
       </div>
-      <p className="zrv-hr-sub">{subtitle}</p>
+      {subtitle && <p className="zrv-hr-sub">{subtitle}</p>}
       {demo && <p className="zrv-hr-sr">{COMMON_TEXT.demoNote}</p>}
     </header>
   )
@@ -171,6 +171,17 @@ export function PanelHead({ n, eyebrow, title, desc }) {
         {desc && <p>{desc}</p>}
       </div>
       <span className="zrv-hr-panel__n" aria-hidden="true">{String(n).padStart(2, '0')}</span>
+    </div>
+  )
+}
+
+// Slim alternative to PanelHead: the heading is for screen readers and focus
+// only (the active step already shows the name); `desc` is a visible hint.
+export function StepHead({ title, desc }) {
+  return (
+    <div className="zrv-hr-step-head">
+      <h2 tabIndex={-1} className="zrv-hr-sr">{title}</h2>
+      {desc && <p>{desc}</p>}
     </div>
   )
 }

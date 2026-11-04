@@ -8,7 +8,7 @@ import { businessToday, enDate, initials } from '@/features/hr-recruitment/share
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
-import { Orbit, PanelHead, Pill, RecruitmentShell, RouteCard, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { Orbit, Pill, RecruitmentShell, StepHead, RouteCard, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { FileDrop, HrField, Review } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { ES_COMMON_TEXT as C, RECORD_CHANGE_TEXT as T } from '../hrEmployeeServicesText.js'
@@ -18,8 +18,8 @@ import { hijriDate } from '../shared/esFormat.js'
 import { ApprovalSigns, Counter } from '../shared/EmployeeServicesParts.jsx'
 import { NO_IDENTIFY, useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
 import {
-  PAY_KEYS, TEXT_MAX, amountDelta, blankRecordChange, changeTypes, changedKeys, counterState, isRecordChangeLocked, recordChangePayload, recordTotal,
-  totalGoesDown, validateRecordChange,
+  AMOUNT_MAX_LENGTH, FREE_TEXT_KEYS, GRADE_LEVEL_MAX, PAY_KEYS, TEXT_MAX, amountDelta, amountInput, blankRecordChange, changeTypes, changedKeys,
+  counterState, effectiveBeforeStart, isRecordChangeLocked, recordChangePayload, recordTotal, revisedAfterPick, totalGoesDown, validateRecordChange,
 } from './recordChangeModel.js'
 
 const RECORD_CHANGE_BASE = ES_PATHS.recordChange
@@ -33,7 +33,7 @@ export default function RecordChangePage() {
   useEmployeeServicesUser()
   return (
     <RecruitmentLoader current="record-change" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb}
-      title={T.title} subtitle={T.subtitle} param="requestId" load={service.getById} loadLookups={loadLookups}>
+      title={T.title} param="requestId" load={service.getById} loadLookups={loadLookups}>
       {({ lookups, record, editorKey }) => <RecordChangeEditor key={editorKey} lookups={lookups} record={record} />}
     </RecruitmentLoader>
   )
@@ -51,6 +51,7 @@ function RecordChangeEditor({ lookups, record }) {
     basePath: RECORD_CHANGE_BASE, idKey: 'requestId', record,
     initialForm: record ? {
       requestDate: record.requestDate, employee: record.employee, effectiveDate: record.effectiveDate ?? '', revised: editable(record.revised),
+      currentFamilyStatus: record.currentFamilyStatus ?? record.employee.current.familyStatusCode ?? '',
       remarks: record.remarks, views: record.views, attachments: record.attachments,
     } : { ...blankRecordChange(businessToday()), employee: null },
   })
@@ -60,7 +61,9 @@ function RecordChangeEditor({ lookups, record }) {
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
   const employee = form.employee
-  const current = employee?.current ?? null
+  // The current record is the server snapshot; its family status is the editable legacy
+  // OLD_MARITAL_STATUS input.
+  const current = employee?.current ? { ...employee.current, familyStatusCode: form.currentFamilyStatus ?? '' } : null
   const revised = form.revised
   const positionOptions = [...lookups.positions]
   for (const candidate of [
@@ -83,15 +86,20 @@ function RecordChangeEditor({ lookups, record }) {
     const page = await service.searchEmployees(search, options)
     return { ...page, items: page.items.map((item) => ({ ...item, position: item.current.positionName || nameOf('positions', item.current.positionCode), section: item.sectionName })) }
   }
-  const shown = (key, values) => (PAY_KEYS.includes(key) ? C.sr(values[key]) : nameOf(label[key], values[key]))
+  const shown = (key, values) => (PAY_KEYS.includes(key) ? C.sr(values[key]) : FREE_TEXT_KEYS.includes(key) ? (values[key] || '—') : nameOf(label[key], values[key]))
 
   const clear = (...keys) => setErrors((value) => Object.fromEntries(Object.entries(value).filter(([key]) => !keys.includes(key))))
   const setText = (key) => (event) => { set(key)(event); clear(key) }
   const setRevised = (key, value) => { patch((state) => ({ revised: { ...state.revised, [key]: value } })); clear(key, 'revised') }
-  const pickEmployee = (person) => { patch({ employee: person, revised: editable(person.current) }); clear('employee', 'effectiveDate', 'revised') }
+  // Legacy EMP_NO change: fills the current information and record, and the revised position and
+  // family status; the revised amounts keep their values (0 on a new form).
+  const pickEmployee = (person) => {
+    patch((state) => ({ employee: person, revised: revisedAfterPick(state.revised, editable(person.current)), currentFamilyStatus: person.current.familyStatusCode ?? '' }))
+    clear('employee', 'effectiveDate', 'revised', 'currentFamilyStatus')
+  }
 
-  const check = (submit) => {
-    const problems = validateRecordChange(form, employee, { submit })
+  const check = () => {
+    const problems = validateRecordChange(form, employee)
     setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
     if (!problems.length) return true
     // One problem: its message; several: a count with every message listed.
@@ -100,9 +108,9 @@ function RecordChangeEditor({ lookups, record }) {
     return false
   }
   const save = () => {
-    if (locked || !check(false)) return
+    if (locked || !check()) return
     editor.perform(async ({ saved: keep }) => {
-      const result = await service.save(editor.recordId, { ...recordChangePayload(form, employee), requestDate: form.requestDate, arbDate: hijriDate(form.requestDate) }, employee)
+      const result = await service.save(editor.recordId, recordChangePayload(form, employee), employee)
       keep(result)
       return result
     }, { success: (result) => T.saved(result.requestNumber) })
@@ -110,12 +118,12 @@ function RecordChangeEditor({ lookups, record }) {
   const requestSubmit = () => {
     if (locked) return
     if (step !== 3) { setStep(3); return }
-    if (check(false)) setDialog('submit')
+    if (check()) setDialog('submit')
   }
   const submit = () => {
     setDialog(null)
     editor.perform(async ({ saved: keep }) => {
-      const draft = await service.save(editor.recordId, { ...recordChangePayload(form, employee), requestDate: form.requestDate, arbDate: hijriDate(form.requestDate) }, employee)
+      const draft = await service.save(editor.recordId, recordChangePayload(form, employee), employee)
       keep(draft)
       return draft
     }, { success: (result) => T.savedForReview(result.requestNumber) })
@@ -130,8 +138,13 @@ function RecordChangeEditor({ lookups, record }) {
     { icon: 'printer', label: C.print, onClick: () => window.print() },
   ]
   const filled = [employee, form.effectiveDate, revised?.positionCode].filter(Boolean).length + (changed.length ? 1 : 0)
+  const doneSteps = [Boolean(employee && form.effectiveDate), changed.length > 0, true, locked]
   const approvals = (saved?.approvals ?? [{ role: 'NOTED_BY', state: 'DRAFT' }, { role: 'APPROVED_BY', state: 'DRAFT' }])
-    .map((item) => ({ key: item.role, name: T.approvers[item.role][0], role: T.approvers[item.role][1], state: item.state }))
+    .map((item) => ({ key: item.role, name: T.approvers[item.role][0], role: T.approvers[item.role][1], state: item.state, date: item.date ? enDate(item.date) : null }))
+  // Legacy status colours: APPROVED green, REJECTED red.
+  const statusTone = status === 'REJECTED' ? 'bad' : status === 'APPROVED' || status === 'INPROCESS' ? 'ok' : 'warn'
+  // ARB_DATE as saved (server computed); a new form shows today's.
+  const hijri = saved?.arbDate || hijriDate(form.requestDate)
 
   const row = (key, index) => {
     const money = PAY_KEYS.includes(key)
@@ -142,7 +155,7 @@ function RecordChangeEditor({ lookups, record }) {
     return (
       <div key={key} className={`zrv-hr-es-row${isChanged ? ' zrv-hr-is-changed' : ''}${errors[key] ? ' zrv-hr-is-bad' : ''}`} style={{ '--i': index }}>
         <div className="zrv-hr-es-row__l">
-          <label htmlFor={id}>{name}{key === 'positionCode' && <i className="zrv-hr-req" aria-hidden="true">*</i>}</label>
+          <label htmlFor={id}>{name}{!FREE_TEXT_KEYS.includes(key) && <i className="zrv-hr-req" aria-hidden="true">*</i>}</label>
           <small lang="ar" dir="rtl">{nameAr}{money ? ` / ${T.monthly}` : ''}</small>
         </div>
         <span className="zrv-hr-es-row__cur"><span className="zrv-hr-sr">{T.revisedStep.currentPrefix} </span>{shown(key, current)}</span>
@@ -150,10 +163,13 @@ function RecordChangeEditor({ lookups, record }) {
         <div className="zrv-hr-es-row__in">
           {money ? (
             <><input {...fieldProps(id, { error: errors[key] })} className="ux-input zrv-hr-input" inputMode="decimal" autoComplete="off" aria-required="true"
-              value={revised[key]} onChange={(event) => setRevised(key, event.target.value.replace(/[^\d.]/g, ''))} /><span className="zrv-hr-es-suffix" aria-hidden="true">SR</span></>
+              maxLength={AMOUNT_MAX_LENGTH} value={revised[key]} onChange={(event) => setRevised(key, amountInput(event.target.value))} /><span className="zrv-hr-es-suffix" aria-hidden="true">SR</span></>
+          ) : FREE_TEXT_KEYS.includes(key) ? (
+            <input {...fieldProps(id, { error: errors[key] })} className="ux-input zrv-hr-input" autoComplete="off" maxLength={GRADE_LEVEL_MAX}
+              value={revised[key] ?? ''} onChange={(event) => setRevised(key, event.target.value)} />
           ) : (
-            <select {...fieldProps(id, { error: errors[key] })} className="ux-select zrv-hr-input" aria-required={key === 'positionCode' || undefined}
-              disabled={locked || key === 'gradeCode' || key === 'levelCode'}
+            <select {...fieldProps(id, { error: errors[key] })} className="ux-select zrv-hr-input" aria-required
+              disabled={locked}
               value={revised[key]} onChange={(event) => setRevised(key, event.target.value)}>
               <option value="">{C.select}</option>
               {options[label[key]].map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
@@ -163,7 +179,7 @@ function RecordChangeEditor({ lookups, record }) {
         <span className={`zrv-hr-es-delta zrv-hr-is-${!isChanged ? 'same' : money ? (delta.amount > 0 ? 'up' : 'down') : 'changed'}`}>
           {!isChanged ? C.noChange : money ? `${C.signed(delta.amount)}${delta.percent === null ? '' : ` · ${C.signed(delta.percent)}%`}` : C.changed}
         </span>
-        <button type="button" className="zrv-hr-es-reset" onClick={() => setRevised(key, String(current[key]))} disabled={!isChanged && !errors[key]}
+        <button type="button" className="zrv-hr-es-reset" onClick={() => setRevised(key, String(current[key] ?? ''))} disabled={!isChanged && !errors[key]}
           title={C.resetTitle} aria-label={C.reset(name)}><OrvexaIcon name="rotate-ccw" size={14} /></button>
         {errors[key] && <small id={`${id}-error`} className="zrv-auth-field-error zrv-hr-es-row__err">{errors[key]}</small>}
       </div>
@@ -171,21 +187,24 @@ function RecordChangeEditor({ lookups, record }) {
   }
 
   return <>
-    <RecruitmentShell current="record-change" flow={false} breadcrumb={C.breadcrumb} title={T.title} subtitle={T.subtitle}
+    <RecruitmentShell current="record-change" flow={false} compact breadcrumb={C.breadcrumb} title={T.title}
       tools={tools} primary={{ label: T.submit, icon: 'save', onClick: requestSubmit, disabled: !canSave }}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss} locked={locked} pending={editor.pending} focusError={editor.focusError}
       ticket={<Ticket avatar={initials(employee?.name)} code={T.formCode} items={[
         { k: T.ticket.ref, v: saved?.requestNumber || C.generated },
         { k: T.ticket.date, v: enDate(form.requestDate) },
-        { k: T.ticket.hijri, v: <span lang="ar" dir="rtl">{hijriDate(form.requestDate)}</span> },
+        { k: T.ticket.hijri, v: <span lang="ar" dir="rtl">{hijri}</span> },
         { k: T.ticket.employee, v: employee?.name || C.notSelected, big: true },
-        { k: T.ticket.status, v: <Pill tone={status === 'NEW' || status === 'DRAFT' ? 'warn' : 'ok'}>{C.status[status]}</Pill> },
+        { k: T.ticket.status, v: <Pill tone={statusTone}>{C.status[status] ?? status}</Pill> },
       ]} />}
-      steps={T.steps} step={step} onStep={setStep} doneSteps={[Boolean(employee && form.effectiveDate), changed.length > 0, true, locked]}
+      banner={<PrintSheet employee={employee} current={current} revised={revised} form={form} saved={saved} status={status} hijri={hijri}
+        approvals={approvals} shown={shown} totalNow={totalNow} totalRevised={totalRevised} />}
+      steps={T.steps.map(([name], index) => [name, index === 1 && changed.length ? C.step.changed(changed.length) : doneSteps[index] ? C.step.done : C.step.open])}
+      step={step} onStep={setStep} doneSteps={doneSteps}
       finalLabel={T.submit} onFinal={requestSubmit}
       side={<>
         <Tilt aria-label={T.card.label}>
-          <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">{T.card.label}</span><span className="zrv-hr-mono">{saved?.requestNumber || T.card.draft}</span></div>
+          <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{saved?.requestNumber || T.card.draft}</span></div>
           <div className="zrv-hr-dark__who"><span className="zrv-hr-dark__av">{initials(employee?.name)}</span><div>
             <h3 className="zrv-hr-dark__title">{employee?.name || T.card.employee}</h3>
             <div className="zrv-hr-dark__sub">{employee ? `#${employee.employeeNumber} · ${employee.departmentName}` : T.card.employeeHint}</div></div></div>
@@ -205,16 +224,17 @@ function RecordChangeEditor({ lookups, record }) {
       </>}
     >
       {step === 0 && <>
-        <PanelHead n={1} eyebrow={T.employeeStep.eyebrow} title={T.employeeStep.title} desc={T.employeeStep.desc} />
+        <StepHead title={T.employeeStep.title} desc={T.employeeStep.desc} />
         <div className="zrv-hr-es-bi"><span>{T.formTitleEn}</span><span lang="ar" dir="rtl">{T.formTitleAr}</span></div>
         <div className="zrv-hr-grid zrv-hr-is-2">
           <EmployeePicker id="rc-employee" label={T.employeeStep.employee} placeholder={T.employeeStep.employeePlaceholder} required value={employee} onPick={pickEmployee} error={errors.employee}
             searchService={searchEmployees} cacheKey="hr-service-employees" />
           <HrField id="rc-effective" label={T.employeeStep.effective} required error={errors.effectiveDate} hint={form.effectiveDate ? hijriDate(form.effectiveDate) : undefined}>
             <input {...fieldProps('rc-effective', { error: errors.effectiveDate, hint: hijriDate(form.effectiveDate) || undefined })} type="date" className="ux-input zrv-hr-input"
-              aria-required="true" min={employee?.startDate} value={form.effectiveDate} onChange={setText('effectiveDate')} />
+              aria-required="true" value={form.effectiveDate} onChange={setText('effectiveDate')} />
           </HrField>
         </div>
+        {effectiveBeforeStart(form.effectiveDate, employee) && <p className="zrv-hr-note">{T.employeeStep.beforeStart}</p>}
         <h3 className="zrv-hr-subh">{T.employeeStep.currentInfo}</h3>
         <div className="zrv-hr-grid zrv-hr-is-3">
           {[['name', employee?.name], ['nationality', employee?.nationality], ['section', employee?.sectionName], ['department', employee?.departmentName],
@@ -224,6 +244,17 @@ function RecordChangeEditor({ lookups, record }) {
             </HrField>
           ))}
         </div>
+        {current && (
+          <div className="zrv-hr-grid zrv-hr-is-3">
+            <HrField id="rc-current-family" label={T.employeeStep.currentFamilyStatus} error={errors.currentFamilyStatus}>
+              <select {...fieldProps('rc-current-family', { error: errors.currentFamilyStatus })} className="ux-select zrv-hr-input"
+                value={form.currentFamilyStatus ?? ''} onChange={setText('currentFamilyStatus')}>
+                <option value="">{C.select}</option>
+                {options.familyStatuses.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+              </select>
+            </HrField>
+          </div>
+        )}
         {current && (
           <div className="zrv-hr-es-curcard">
             <div className="zrv-hr-es-curcard__h"><b>{T.employeeStep.currentRecord}</b><span lang="ar" dir="rtl">{T.employeeStep.currentRecordAr}</span></div>
@@ -239,7 +270,7 @@ function RecordChangeEditor({ lookups, record }) {
       </>}
 
       {step === 1 && <>
-        <PanelHead n={2} eyebrow={T.revisedStep.eyebrow} title={T.revisedStep.title} desc={T.revisedStep.desc} />
+        <StepHead title={T.revisedStep.title} desc={T.revisedStep.desc} />
         {!current ? (
           <button type="button" className="btn-secondary zrv-hr-btn" onClick={() => setStep(0)}><OrvexaIcon name="arrow-left" size={16} /> {C.chooseEmployeeFirst}</button>
         ) : <>
@@ -247,7 +278,7 @@ function RecordChangeEditor({ lookups, record }) {
           <div className="zrv-hr-es-rows">
             {['positionCode', ...PAY_KEYS, 'gradeCode', 'levelCode', 'familyStatusCode'].map(row)}
           </div>
-          <p className="zrv-admin-hint">{T.revisedStep.gradeLevelUnavailable}</p>
+          <p className="zrv-admin-hint">{T.revisedStep.gradeLevelOptional}</p>
           <div className="zrv-hr-es-total">
             <span>{T.revisedStep.total}</span>
             <b>{C.money(totalNow)} <em>→</em> {C.money(totalRevised)}</b>
@@ -261,7 +292,7 @@ function RecordChangeEditor({ lookups, record }) {
       </>}
 
       {step === 2 && <>
-        <PanelHead n={3} eyebrow={T.remarksStep.eyebrow} title={T.remarksStep.title} desc={T.remarksStep.desc} />
+        <StepHead title={T.remarksStep.title} desc={T.remarksStep.desc} />
         <div className="zrv-hr-grid">
           {[['remarks', T.remarksStep.remarks, T.remarksStep.remarksPlaceholder], ['views', T.remarksStep.views, T.remarksStep.viewsPlaceholder]].map(([key, text, placeholder]) => (
             <div key={key} className={`zrv-hr-field zrv-hr-is-wide${errors[key] ? ' zrv-hr-is-bad' : ''}`}>
@@ -281,7 +312,7 @@ function RecordChangeEditor({ lookups, record }) {
       </>}
 
       {step === 3 && <>
-        <PanelHead n={4} eyebrow={T.reviewStep.eyebrow} title={T.reviewStep.title} desc={T.reviewStep.desc} />
+        <StepHead title={T.reviewStep.title} desc={T.reviewStep.desc} />
         {current ? <>
           <div className="zrv-hr-recap">
             <div><small>{T.reviewStep.changes}</small><b>{changed.length}</b><span>{types.map((type) => T.changeTypes[type]).join(', ') || T.reviewStep.noneYet}</span></div>
@@ -311,4 +342,46 @@ function RecordChangeEditor({ lookups, record }) {
     )}
     {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
   </>
+}
+
+// The legacy printout (window.print of form.php): the whole form on one page, whichever step is
+// open. Hidden on screen.
+function PrintSheet({ employee, current, revised, form, saved, status, hijri, approvals, shown, totalNow, totalRevised }) {
+  const P = T.print
+  const keys = ['positionCode', ...PAY_KEYS, 'gradeCode', 'levelCode', 'familyStatusCode']
+  const value = (key, values) => (values ? (PAY_KEYS.includes(key) ? C.sr(values[key]) : shown(key, values)) : '')
+  return (
+    <section className="zrv-hr-es-print" aria-hidden="true">
+      <header>
+        <h2><span lang="ar" dir="rtl">{T.formTitleAr}</span><span>{P.title}</span></h2>
+        <span>{P.status}: {C.status[status] ?? status}</span>
+      </header>
+      <table>
+        <tbody>
+          <tr><th>{P.date}</th><td>{enDate(form.requestDate)}</td><th>{P.ref}</th><td>{saved?.requestNumber || C.generated}</td><td lang="ar" dir="rtl">{hijri}</td><th lang="ar" dir="rtl">التاريخ</th></tr>
+          <tr><th>{P.effective}</th><td colSpan={5}>{form.effectiveDate ? enDate(form.effectiveDate) : ''}</td></tr>
+          <tr><th>{P.empNo}</th><td>{employee?.employeeNumber ?? ''}</td><th>{P.name}</th><td>{employee?.name ?? ''}</td><th>{P.nationality}</th><td>{employee?.nationality ?? ''}</td></tr>
+          <tr><th>{P.section}</th><td>{employee?.sectionName ?? ''}</td><th>{P.department}</th><td>{employee?.departmentName ?? ''}</td><th>{P.startDate}</th><td>{employee?.startDate ? enDate(employee.startDate) : ''}</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead><tr><th>{P.item}</th><th>{P.current}</th><th>{P.revised}</th></tr></thead>
+        <tbody>
+          {keys.map((key) => <tr key={key}><th>{T.items[key][0]} <span lang="ar" dir="rtl">{T.items[key][1]}</span></th><td>{value(key, current)}</td><td>{value(key, revised)}</td></tr>)}
+          <tr><th>{P.total}</th><td>{current ? C.money(totalNow) : ''}</td><td>{revised ? C.money(totalRevised) : ''}</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <tbody>
+          <tr><th>{P.remarks}</th><td>{form.remarks}</td></tr>
+          <tr><th>{P.views}</th><td>{form.views}</td></tr>
+        </tbody>
+      </table>
+      <div className="zrv-hr-es-print__signs">
+        {approvals.map((item) => (
+          <p key={item.key}><b>{item.role} : {item.name}</b><span className={`zrv-hr-is-${item.state.toLowerCase()}`}>{item.state === 'DRAFT' ? '' : `${C.approval[item.state] ?? item.state} ${item.date ?? ''}`}</span></p>
+        ))}
+      </div>
+    </section>
+  )
 }

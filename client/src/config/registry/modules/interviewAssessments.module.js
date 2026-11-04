@@ -12,7 +12,8 @@ export default defineModule({
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
       { id: 'hr-interview', path: '/hr/recruitment/interview', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', subgroup: 'hr-recruitment', order: 20 },
-      { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', subgroup: 'hr-recruitment', order: 21, hidden: true },
+      { id: 'hr-interview-report', path: '/hr/recruitment/interview/report', title: 'Assessment report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-recruitment', order: 21, hidden: true },
+      { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', subgroup: 'hr-recruitment', order: 22, hidden: true },
     ],
   }],
 })

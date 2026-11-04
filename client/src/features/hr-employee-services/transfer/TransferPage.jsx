@@ -8,7 +8,7 @@ import { businessToday, daysBetween, enDate, initials } from '@/features/hr-recr
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
-import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { Orbit, Pill, RecruitmentShell, StepHead, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { HrField, RadioCards, Review } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { ES_COMMON_TEXT as C, TRANSFER_TEXT as T } from '../hrEmployeeServicesText.js'
@@ -30,7 +30,7 @@ export default function TransferPage() {
   const user = useEmployeeServicesUser()
   return (
     <RecruitmentLoader current="transfer" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb}
-      title={T.title} subtitle={T.subtitle} param="transferId" load={service.getById} loadLookups={loadLookups}>
+      title={T.title} param="transferId" load={service.getById} loadLookups={loadLookups}>
       {({ lookups, record, editorKey }) => <TransferEditor key={editorKey} lookups={lookups} record={record} user={user} />}
     </RecruitmentLoader>
   )
@@ -139,7 +139,7 @@ function TransferEditor({ lookups, record, user }) {
   )
 
   return <>
-    <RecruitmentShell current="transfer" flow={false} compact breadcrumb={C.breadcrumb} title={T.title} subtitle={T.subtitle}
+    <RecruitmentShell current="transfer" flow={false} compact breadcrumb={C.breadcrumb} title={T.title}
       tools={tools} primary={{ label: T.saveDraft, icon: 'save', onClick: requestSubmit }}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss} locked={locked} pending={editor.pending} focusError={editor.focusError}
       ticket={<Ticket avatar={initials(requester.name)} code={doc.controlNumber} items={[
@@ -159,10 +159,10 @@ function TransferEditor({ lookups, record, user }) {
           <div><dt>{T.document.company}</dt><dd>{nameIn(lookups.companies, form.companyCode) || '—'}</dd></div>
         </dl>
       )}
-      steps={T.steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.saveDraft} onFinal={requestSubmit}
+      steps={T.steps.map(([name], index) => [name, doneSteps[index] ? C.step.done : C.step.open])} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.saveDraft} onFinal={requestSubmit}
       side={<>
         <Tilt aria-label={T.card.label}>
-          <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">{T.card.label}</span><span className="zrv-hr-mono">{saved?.transferNumber || T.card.draft}</span></div>
+          <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{saved?.transferNumber || T.card.draft}</span></div>
           <div className="zrv-hr-dark__who"><span className="zrv-hr-dark__av">{initials(employee?.name)}</span><div>
             <h3 className="zrv-hr-dark__title">{employee?.name || T.card.employee}</h3>
             <div className="zrv-hr-dark__sub">{employee ? T.card.joined(employee.employeeNumber, enDate(employee.startDate)) : T.card.employeeHint}</div></div></div>
@@ -185,7 +185,7 @@ function TransferEditor({ lookups, record, user }) {
       </>}
     >
       {step === 0 && <>
-        <PanelHead n={1} eyebrow={T.moveStep.eyebrow} title={T.moveStep.title} />
+        <StepHead title={T.moveStep.title} />
         <div className="zrv-hr-grid zrv-hr-is-2">
           <EmployeePicker id="tr-employee" label={T.moveStep.employee} required tight value={employee} onPick={pickEmployee} error={errors.employee}
             searchService={searchEmployees} cacheKey="hr-service-employees" />
@@ -222,7 +222,7 @@ function TransferEditor({ lookups, record, user }) {
       </>}
 
       {step === 1 && <>
-        <PanelHead n={2} eyebrow={T.detailsStep.eyebrow} title={T.detailsStep.title} />
+        <StepHead title={T.detailsStep.title} />
         <div className="zrv-hr-grid zrv-hr-is-3">
           <HrField id="tr-effective" label={T.detailsStep.effective} required error={errors.effectiveDate}
             hint={days !== null && days >= 0 ? (days === 0 ? T.card.today : T.card.inDays(days)) : undefined}>
@@ -251,7 +251,7 @@ function TransferEditor({ lookups, record, user }) {
       </>}
 
       {step === 2 && <>
-        <PanelHead n={3} eyebrow={T.approvalsStep.eyebrow} title={T.approvalsStep.title} desc={T.approvalsStep.desc} />
+        <StepHead title={T.approvalsStep.title} desc={T.approvalsStep.desc} />
         <ol className="zrv-hr-es-chain">
           {approvals.map((item, index) => (
             <li key={item.role} className={`zrv-hr-is-${item.state.toLowerCase()}`} style={{ '--i': index }}>

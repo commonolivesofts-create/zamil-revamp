@@ -424,6 +424,8 @@ function interviewListItem(data) {
     candidateName: cleanBackendText(data.candidateName),
     positionTitle: cleanBackendText(data.positionName) || null,
     outcome: interviewOutcome(data.evaluationStatus),
+    requisitionNo: cleanBackendText(data.requisitionNo) || null,
+    interviewDate: legacyDate(data.interviewDate) || null,
     updatedAt,
   });
 }
@@ -514,6 +516,8 @@ function offerListItem(data) {
     status: backendOfferStatus(data.status),
     position: offerText(data.position),
     candidateNameEn: offerText(data.employeeName),
+    requisitionNo: offerText(data.requisitionNo) || null,
+    offerDate: legacyDate(data.offerDate) || null,
     updatedAt: data.lastUpdateDate || data.creationDate,
   });
 }
@@ -749,9 +753,12 @@ function createBackendRequisitionService({ client }) {
         : String(response.data.requisitionId);
       return getById(savedId);
     },
-    async list({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) {
+    async list(
+      { page = 1, limit = REPORT_PAGE_SIZE, ...filters } = {},
+      { signal } = {},
+    ) {
       const result = await client.get(REQUISITIONS_BASE, {
-        params: { page, pageSize: limit },
+        params: { ...listParams(filters), page, pageSize: limit },
         signal,
       });
       if (!Array.isArray(result.data) || !result.pagination)
@@ -769,6 +776,11 @@ function createBackendRequisitionService({ client }) {
               jobTitle: String(item.jobName ?? ""),
               // CREATION_DATE arrives as 'DD-Mon-YY', which Date cannot parse reliably.
               departmentName: String(item.deptName ?? ""),
+              requesterName: String(item.requesterName ?? ""),
+              requestDate: legacyDate(item.requestDate),
+              neededDate: legacyDate(item.dateNeeded),
+              reason: String(item.reasonOfReq ?? ""),
+              ticketStatus: String(item.ticketStatus ?? ""),
               updatedAt:
                 item.lastUpdateDate ?? (legacyDate(item.creationDate) || null),
             }),
@@ -778,6 +790,15 @@ function createBackendRequisitionService({ client }) {
       });
     },
   });
+}
+
+// Report filters and sort of a list call, sent as the backend's list query; blanks are left out.
+function listParams(filters) {
+  return Object.fromEntries(
+    Object.entries(filters).filter(
+      ([, value]) => value !== undefined && value !== null && value !== "",
+    ),
+  );
 }
 
 // Path identifiers are Oracle NUMBER values kept as decimal strings.
@@ -868,9 +889,9 @@ export function createInterviewService({ client }) {
         lookupErrors,
       });
     },
-    async list({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) {
+    async list({ page = 1, limit = REPORT_PAGE_SIZE, ...filters } = {}, { signal } = {}) {
       const result = await client.get(INTERVIEWS_BASE, {
-        params: { page, pageSize: limit },
+        params: { ...listParams(filters), page, pageSize: limit },
         signal,
       });
       if (!Array.isArray(result.data) || !result.pagination)
@@ -1017,9 +1038,9 @@ export function createOfferService({ client }) {
       });
       return offerText(data?.hijri);
     },
-    async list({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) {
+    async list({ page = 1, limit = REPORT_PAGE_SIZE, ...filters } = {}, { signal } = {}) {
       const result = await client.get(OFFERS_BASE, {
-        params: { page, pageSize: limit },
+        params: { ...listParams(filters), page, pageSize: limit },
         signal,
       });
       if (!Array.isArray(result.data) || !result.pagination)
@@ -1078,6 +1099,7 @@ export function createOrientationService({ client }) {
       scheduleId: String(data.headerId),
       scheduleNumber: textValue(data.reference) || String(data.headerId),
       status: String(data.status ?? ""),
+      rawStatus: textValue(data.rawStatus),
       flag: data.flag,
       employee: Object.freeze({
         employeeId: textValue(data.personId),
@@ -1087,6 +1109,7 @@ export function createOrientationService({ client }) {
         startDate: dateOnly(data.startDate),
         section: textValue(data.section),
         division: textValue(data.division),
+        divisionName: textValue(data.divisionName),
         position: textValue(data.position),
         grade: "",
         departmentName: textValue(data.section),
@@ -1102,7 +1125,7 @@ export function createOrientationService({ client }) {
             departmentHead: textValue(line.departmentHead),
             fromDate: dateOnly(line.fromDate),
             toDate: dateOnly(line.toDate),
-            orientationDays: Number(line.orientationDays ?? 0),
+            orientationDays: textValue(line.orientationDays),
             timeFrom: textValue(line.timeFrom),
             timeTo: textValue(line.timeTo),
             orientationPeriod: textValue(line.orientationPeriod),
@@ -1113,15 +1136,25 @@ export function createOrientationService({ client }) {
       updatedAt: data.createdAt ?? null,
     });
   };
+  // The legacy report columns (nht_list.php).
   const readListItem = (data, flag) =>
     Object.freeze({
       scheduleId: String(data.headerId),
       scheduleNumber: textValue(data.reference) || String(data.headerId),
       status: String(data.status ?? ""),
       flag,
+      employeeNumber: textValue(data.empNo),
       employeeName: textValue(data.empname),
+      divisionName: textValue(data.divisionName),
+      section: textValue(data.section),
       fromDate: dateOnly(data.fromOrient),
       toDate: dateOnly(data.toOrient),
+      startDate: dateOnly(data.startDate),
+      scheduledBy: textValue(data.orientationBy),
+      pendingAt: textValue(data.pendingAt),
+      workflowStart: dateOnly(data.workflowStart),
+      workflowEnd: dateOnly(data.workflowEnd),
+      lastAction: textValue(data.lastAction),
       updatedAt: data.createdAt ?? null,
     });
   const readEmployee = (item) =>
@@ -1137,9 +1170,16 @@ export function createOrientationService({ client }) {
       grade: "",
       departmentName: textValue(item.section),
     });
-  const getById = async (id, { signal } = {}) =>
+  // The two variants number their records independently: legacy opens form/{id}/{Y|N}.
+  const variant = (flag) => (["Y", "N"].includes(flag) ? { flag } : {});
+  const getById = async (id, { signal, flag } = {}) =>
     readRecord(
-      (await client.get(`${ORIENTATION_BASE}/${segment(id)}`, { signal })).data,
+      (
+        await client.get(`${ORIENTATION_BASE}/${segment(id)}`, {
+          params: variant(flag),
+          signal,
+        })
+      ).data,
     );
   return Object.freeze({
     async getLookups({ signal } = {}) {
@@ -1220,7 +1260,7 @@ export function createOrientationService({ client }) {
       });
     },
     async list(
-      { page = 1, limit = REPORT_PAGE_SIZE, flag = "Y" } = {},
+      { page = 1, limit = REPORT_PAGE_SIZE, flag = "Y", ...filters } = {},
       { signal } = {},
     ) {
       if (!["Y", "N"].includes(flag))
@@ -1228,7 +1268,7 @@ export function createOrientationService({ client }) {
           code: "INVALID_PARAMS",
         });
       const result = await client.get(ORIENTATION_BASE, {
-        params: { flag, page, pageSize: limit },
+        params: { ...listParams(filters), flag, page, pageSize: limit },
         signal,
       });
       if (!Array.isArray(result.data) || !result.pagination)
@@ -1244,39 +1284,28 @@ export function createOrientationService({ client }) {
       });
     },
     getById,
-    async save(id, body) {
+    // Only the answers of the legacy form: Name (empNo), From and each row's Department Head,
+    // dates, times and remark. The server fills the employee fields, To (= From), Scheduled By,
+    // Ref #, Orientation Days and Orientation Time.
+    async save(id, body, { flag } = {}) {
       const payload = {
-        // startDate is optional but must be a valid date when sent, so an unknown joining date is omitted.
         empNo: body.employee.employeeNumber,
         fromOrient: body.fromOrient,
-        toOrient: body.toOrient,
-        ...(body.employee.startDate
-          ? { startDate: body.employee.startDate }
-          : {}),
-        orientationBy: body.orientationBy || "",
-        flag: body.flag,
-        section: body.employee.section,
-        empname: body.employee.name,
-        personId: body.employee.employeeId,
-        division: body.employee.division,
-        type: body.employee.employmentType,
-        position: body.employee.position,
         lines: body.lines.map((line) => ({
           ...(line.lineId ? { lineId: line.lineId } : {}),
           department: line.department,
-          departmentHead: line.departmentHead,
-          fromDate: line.fromDate,
-          toDate: line.toDate,
-          orientationDays: line.orientationDays,
-          timeFrom: line.timeFrom,
-          timeTo: line.timeTo,
-          // Blank lets the server recompute the period from the (possibly edited) times.
-          orientationPeriod: "",
+          departmentHead: line.departmentHead || "",
+          fromDate: line.fromDate || "",
+          toDate: line.toDate || "",
+          timeFrom: line.timeFrom || "",
+          timeTo: line.timeTo || "",
           remarks: line.remarks || "",
         })),
       };
       const result = id
-        ? await client.put(`${ORIENTATION_BASE}/${segment(id)}`, payload)
+        ? await client.put(`${ORIENTATION_BASE}/${segment(id)}`, payload, {
+            params: variant(flag),
+          })
         : await client.post(ORIENTATION_BASE, payload);
       const savedId = String(id ?? result.data?.headerId ?? "");
       if (!ID_PATTERN.test(savedId))
@@ -1284,14 +1313,17 @@ export function createOrientationService({ client }) {
           "The server did not return an orientation training ID.",
           { code: "INVALID_RESPONSE" },
         );
-      return getById(savedId);
+      return getById(savedId, { flag: result.data?.flag ?? flag });
     },
-    async remove(id) {
-      await client.delete(`${ORIENTATION_BASE}/${segment(id)}`);
+    async remove(id, { flag } = {}) {
+      await client.delete(`${ORIENTATION_BASE}/${segment(id)}`, {
+        params: variant(flag),
+      });
     },
-    async removeLine(id, lineId) {
+    async removeLine(id, lineId, { flag } = {}) {
       await client.delete(
         `${ORIENTATION_BASE}/${segment(id)}/lines/${segment(lineId)}`,
+        { params: variant(flag) },
       );
     },
   });
@@ -1465,6 +1497,7 @@ export function createProbationService({ client }) {
       toDate: fromLegacyDate(data.toDate),
       comment: textValue(data.comment),
       comments: textValue(data.comments),
+      preparedBy: textValue(data.preparedBy),
       totalRating: Number(data.totalRating ?? 0),
       lines: Object.freeze(
         data.lines.map((line) =>
@@ -1530,6 +1563,25 @@ export function createProbationService({ client }) {
         requestor: requestor.data ?? null,
       });
     },
+    // The criteria of a form type, in order (legacy showDropInfo); empty when not available.
+    async criteria(formType, { signal } = {}) {
+      const { data } = await client.get(`${PROBATION_BASE}/lookups/criteria`, {
+        params: { formType },
+        signal,
+      });
+      if (!Array.isArray(data?.criteria))
+        throw new ApiError("The server returned unexpected criteria.", {
+          code: "INVALID_RESPONSE",
+        });
+      return Object.freeze(
+        data.criteria.map((item) =>
+          Object.freeze({
+            param: textValue(item?.param),
+            paramAr: textValue(item?.paramAr),
+          }),
+        ),
+      );
+    },
     async employeeDetails(name, { signal } = {}) {
       const { data } = await client.get(
         `${PROBATION_BASE}/lookups/employee-details`,
@@ -1582,9 +1634,9 @@ export function createProbationService({ client }) {
         }),
       });
     },
-    async list({ page = 1, limit = REPORT_PAGE_SIZE } = {}, { signal } = {}) {
+    async list({ page = 1, limit = REPORT_PAGE_SIZE, ...filters } = {}, { signal } = {}) {
       const result = await client.get(PROBATION_BASE, {
-        params: { page, pageSize: limit },
+        params: { ...listParams(filters), page, pageSize: limit },
         signal,
       });
       if (!Array.isArray(result.data) || !result.pagination)
@@ -1598,31 +1650,30 @@ export function createProbationService({ client }) {
       });
     },
     getById,
+    // Only what the legacy forms save. A new evaluation: form type, employee, joining date (omitted
+    // when blank), period and the ratings by criterion position (blank omitted, stored as 0); the
+    // server adds the criteria, the employee details and the total. A saved one: Comments,
+    // Suggestion and each line's rating.
     async save(id, body) {
-      const payload = {
-        // The joining date is optional; a blank one is omitted (the server stores the legacy blank).
-        ...(body.formDate ? { formDate: body.formDate } : {}),
-        evaluationPeriod: body.evaluationPeriod,
-        formType: body.formType,
-        employeeName: body.employee.name,
-        employeeNumber: body.employee.employeeNumber,
-        empId: body.employee.employeeId,
-        grade: Number(body.employee.grade) || 0,
-        jobTitle: body.employee.position,
-        department: body.employee.departmentName,
-        fromDate: body.fromDate,
-        toDate: body.toDate,
-        comment: body.comment,
-        comments: body.comments,
-        // No total: the server computes TOTAL_RATING and the result from the ratings.
-        // The backend accepts only 1–5 and stores an omitted rating as 0 (not rated).
-        lines: body.lines.map((line) => ({
-          ...(id ? { lineId: line.lineId } : {}),
-          param: line.param,
-          paramAr: line.paramAr || "",
-          ...(Number(line.rating) ? { rating: Number(line.rating) } : {}),
-        })),
-      };
+      const payload = id
+        ? {
+            comment: body.comment,
+            comments: body.comments,
+            lines: body.lines.map((line) => ({
+              lineId: line.lineId,
+              rating: Number(line.rating),
+            })),
+          }
+        : {
+            formType: body.formType,
+            employeeNumber: body.employee.employeeNumber,
+            ...(body.formDate ? { formDate: body.formDate } : {}),
+            fromDate: body.fromDate,
+            toDate: body.toDate,
+            lines: body.lines.map((line) =>
+              Number(line.rating) ? { rating: Number(line.rating) } : {},
+            ),
+          };
       const result = id
         ? await client.put(`${PROBATION_BASE}/${segment(id)}`, payload)
         : await client.post(PROBATION_BASE, payload);

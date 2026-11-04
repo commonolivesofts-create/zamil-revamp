@@ -17,6 +17,16 @@ export const NAVIGATION_GROUPS = Object.freeze([
     ]),
   }),
   Object.freeze({ id: 'workflow-manager', label: 'Workflow Manager', icon: 'workflow' }),
-  Object.freeze({ id: 'security', label: 'Security administration', icon: 'shield-check' }),
-  Object.freeze({ id: 'account', label: 'My account', icon: 'user-round' }),
+  Object.freeze({
+    id: 'security', label: 'Security administration', icon: 'shield-check',
+    subgroups: Object.freeze([
+      subgroup('security-admin', 'Security administration', 'shield-check', 'Accounts, roles and permissions'),
+    ]),
+  }),
+  Object.freeze({
+    id: 'account', label: 'My account', icon: 'user-round',
+    subgroups: Object.freeze([
+      subgroup('account-settings', 'My account', 'user-round', 'Password and authentication'),
+    ]),
+  }),
 ])

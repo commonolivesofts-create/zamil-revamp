@@ -8,13 +8,13 @@ import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { businessToday, daysBetween, formatAmount, initials } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
-import { NewFormDialog, ReportDialog } from '../shared/components/RecruitmentDialogs.jsx'
-import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
+import { NewFormDialog } from '../shared/components/RecruitmentDialogs.jsx'
+import { Orbit, Pill, RecruitmentShell, StepHead, Tilt } from '../shared/components/RecruitmentShell.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { ChoiceCards, HrField, LookupSelect } from '../shared/components/RecruitmentInputs.jsx'
 import { Gauge, Radar, RatingRows } from './Scores.jsx'
 import {
-  BANDS, COMP_KEYS, SCORE_MAX, SPEC_KEYS, bandLabel, blankInterview, hrField, interviewDoneSteps, interviewFormFromRecord, interviewPayload,
+  BANDS, COMP_KEYS, HR_FIELDS, SCORE_MAX, SPEC_KEYS, bandLabel, blankInterview, hrField, interviewDoneSteps, interviewFormFromRecord, interviewPayload,
   interviewProgress, interviewStatus, isInterviewLocked, linkedPosition, ratedCount, salaryDelta, sumRatings, validateInterview,
 } from './interviewModel.js'
 
@@ -24,13 +24,14 @@ const NO_MISSING = Object.freeze({ spec: [], comp: [], outcome: false })
 
 export default function InterviewPage() {
   return (
-    <RecruitmentLoader current="interview" title={T.title} subtitle={T.subtitle} param="assessmentId" load={service.getById} loadLookups={(signal) => service.getLookups({ signal })}>
+    <RecruitmentLoader current="interview" title={T.title} param="assessmentId" load={service.getById} loadLookups={(signal) => service.getLookups({ signal })}>
       {({ lookups, lookupStatus, reloadLookups, record, editorKey }) => <InterviewEditor key={editorKey} lookups={lookups} lookupStatus={lookupStatus} reloadLookups={reloadLookups} record={record} />}
     </RecruitmentLoader>
   )
 }
 
 const nameOf = (options, code) => options.find((option) => option.code === code)?.name ?? ''
+const HR_REQUIRED = HR_FIELDS.filter(([, , rules]) => rules.required).map(([key]) => key)
 
 function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord }) {
   const navigate = useNavigate()
@@ -118,7 +119,8 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
   }, { success: T.deleted }).then((outcome) => {
     if (outcome.status === 'success') navigate(BASE, { replace: true })
   })
-  const startNew = () => navigate(BASE)
+  // Leaving with unsaved answers asks first (New form and Report).
+  const leave = (path) => (editor.dirty ? setDialog({ path }) : navigate(path))
 
   const input = (key) => {
     const [, type, rules] = hrField(key)
@@ -138,34 +140,33 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
     )
   }
 
+  // The primary button saves, so the toolbar has no second Save.
   const tools = [
-    { icon: 'save', label: COMMON_TEXT.save, onClick: save, disabled: locked || editor.pending },
     ...(canDelete ? [{ icon: 'trash-2', label: T.deleteAction, onClick: () => setDialog('delete'), disabled: editor.pending }] : []),
     { icon: 'printer', label: COMMON_TEXT.print, onClick: () => window.print() },
-    { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => setDialog('report') },
-    { icon: 'file-plus', label: COMMON_TEXT.requestForm, onClick: () => (editor.dirty ? setDialog('new') : startNew()) },
+    { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => leave(`${BASE}/report`) },
+    { icon: 'file-plus', label: T.report.newAssessment, onClick: () => leave(BASE) },
     { icon: 'house', label: COMMON_TEXT.home, onClick: () => navigate('/dashboard') },
+  ]
+  const steps = [
+    [T.tabNames[0], T.tabHints.required(HR_REQUIRED.filter((key) => String(form[key] ?? '').trim()).length, HR_REQUIRED.length)],
+    [T.tabNames[1], T.tabHints.rated(specRated, SPEC_KEYS.length)],
+    [T.tabNames[2], T.tabHints.rated(compRated, COMP_KEYS.length)],
+    [T.tabNames[3], form.outcome ? T.outcomes[form.outcome] : T.tabHints.noResult],
   ]
   const scoreCards = [[T.card.spec, specTotal, SCORE_MAX.spec, BANDS.spec, specRated], [T.card.comp, compTotal, SCORE_MAX.comp, BANDS.comp, compRated]]
 
   return (
     <>
       <RecruitmentShell
-        current="interview" title={T.title} subtitle={T.subtitle}
+        current="interview" title={T.title}
         flowStatus={record ? `${record.assessmentNumber} · ${T.status[record.status]}` : null}
         tools={tools} primary={{ label: T.primary, icon: 'save', onClick: save, disabled: !canSave }}
         feedback={editor.feedback} onDismissFeedback={editor.dismiss} lookupNotice={lookupNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
-        ticket={<Ticket avatar={initials(form.candidateName)} code={T.code} items={[
-          { k: T.ticket.number, v: record?.assessmentNumber || T.ticket.numberPending },
-          { k: T.ticket.candidate, v: form.candidateName || T.ticket.newCandidate, big: true },
-          { k: T.ticket.position, v: position || COMMON_TEXT.dash },
-          { k: T.ticket.requisition, v: form.requisitionNumber || COMMON_TEXT.dash },
-          { k: T.ticket.status, v: <Pill tone={status === 'INCOMPLETE' ? 'warn' : 'ok'}>{T.status[status]}</Pill> },
-        ]} />}
-        steps={T.steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.final} onFinal={save}
+        steps={steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.final} onFinal={save}
         side={<>
           <Tilt aria-label={T.card.label}>
-            <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">{T.card.eyebrow}</span><span className="zrv-hr-mono">{record?.assessmentNumber || T.card.draft}</span></div>
+            <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{record?.assessmentNumber || T.card.draft}</span><span className="zrv-hr-dark__status">{T.status[status]}</span></div>
             <div className="zrv-hr-dark__who">
               <span className="zrv-hr-dark__av" aria-hidden="true">{initials(form.candidateName)}</span>
               <div>
@@ -193,7 +194,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
         </>}
       >
         {step === 0 && <>
-          <PanelHead n={1} {...T.heads[0]} />
+          <StepHead {...T.heads[0]} />
           <h3 className="zrv-hr-subh">{T.subheads.interview}</h3>
           <div className="zrv-hr-grid zrv-hr-is-4">
             <HrField id="ia-no" label={T.labels.assessmentNumber}>
@@ -220,7 +221,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
         </>}
 
         {step === 1 && <>
-          <PanelHead n={2} {...T.heads[1]} />
+          <StepHead {...T.heads[1]} />
           <RatingRows group="spec" keys={SPEC_KEYS} values={form.spec} onRate={rate('spec')} onRemark={remark('spec')} missing={missing.spec} />
           <div className="zrv-hr-grid zrv-hr-mt">
             <HrField id="ia-specrem" label={T.labels.specRemarks} wide>
@@ -230,9 +231,9 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
         </>}
 
         {step === 2 && <>
-          <PanelHead n={3} {...T.heads[2]} />
+          <StepHead {...T.heads[2]} />
           <RatingRows group="comp" keys={COMP_KEYS} values={form.comp} onRate={rate('comp')} onRemark={remark('comp')} missing={missing.comp} />
-          <div className="zrv-hr-grid zrv-hr-mt">
+          <div className="zrv-hr-grid zrv-hr-is-2 zrv-hr-mt">
             <HrField id="ia-comprem" label={T.labels.compRemarks} wide>
               <input id="ia-comprem" className="ux-input zrv-hr-input" value={form.compRemarks} onChange={set('compRemarks')} maxLength={500} />
             </HrField>
@@ -246,21 +247,15 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
         </>}
 
         {step === 3 && <>
-          <PanelHead n={4} {...T.heads[3]} />
-          <ChoiceCards label={T.labels.outcome} value={form.outcome} error={missing.outcome ? T.errors.outcome : ''}
+          <StepHead {...T.heads[3]} />
+          <ChoiceCards compact label={T.labels.outcome} value={form.outcome} error={missing.outcome ? T.errors.outcome : ''}
             onChange={(value) => { set('outcome')(value); setMissing((current) => ({ ...current, outcome: false })) }}
             options={[
               { value: 'PASSED', icon: 'check', title: T.outcomes.PASSED, tone: 'pass' },
               { value: 'HOLD', icon: 'clock', title: T.outcomes.HOLD, tone: 'hold' },
               { value: 'FAILED', icon: 'x', title: T.outcomes.FAILED, tone: 'fail' },
             ]} />
-          <div className="zrv-hr-recap zrv-hr-mt">
-            <div><small>{T.recap.spec}</small><b>{specTotal}<em>/{SCORE_MAX.spec}</em></b><span>{bandLabel(specTotal, BANDS.spec, specRated > 0)}</span></div>
-            <div><small>{T.recap.comp}</small><b>{compTotal}<em>/{SCORE_MAX.comp}</em></b><span>{bandLabel(compTotal, BANDS.comp, compRated > 0)}</span></div>
-            <div><small>{T.recap.salary}</small><b>{signedDelta}</b><span>{T.recap.versus}</span></div>
-          </div>
-          <div className="zrv-hr-sep" />
-          <div className="zrv-hr-grid zrv-hr-is-3">
+          <div className="zrv-hr-grid zrv-hr-is-3 zrv-hr-mt">
             <HrField id="ia-adm" label={T.labels.adminManager}>
               <input id="ia-adm" className="ux-input zrv-hr-input" readOnly value={form.adminManagerName} placeholder={T.placeholders.adminManager} />
             </HrField>
@@ -273,9 +268,6 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
                 {lookups.payrollBusinessUnits.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
               </select>
             </HrField>
-            <HrField id="ia-hrc" label={T.labels.hrComment} wide>
-              <input id="ia-hrc" className="ux-input zrv-hr-input" value={form.hrComment} onChange={set('hrComment')} maxLength={500} />
-            </HrField>
             {form.interviewers.map((name, index) => (
               <HrField key={index} id={`ia-int${index + 1}`} label={T.labels.interviewer(index)}>
                 <input id={`ia-int${index + 1}`} className="ux-input zrv-hr-input" value={name} maxLength={200} list="ia-employee-options"
@@ -283,18 +275,16 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
               </HrField>
             ))}
             <datalist id="ia-employee-options">{lookups.employees.map((name) => <option key={name} value={name} />)}</datalist>
+            <HrField id="ia-hrc" label={T.labels.hrComment} wide>
+              <input id="ia-hrc" className="ux-input zrv-hr-input" value={form.hrComment} onChange={set('hrComment')} maxLength={500} />
+            </HrField>
           </div>
         </>}
       </RecruitmentShell>
 
       {dialog === 'delete' && <ConfirmDialog title={T.deleteTitle} description={T.deleteBody} confirmLabel={T.deleteAction} pending={editor.pending}
         feedback={editor.feedback} onConfirm={deleteRecord} onClose={() => setDialog(null)} />}
-      {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
-      {dialog === 'report' && (
-        <ReportDialog title={T.reportTitle} resourceKey="hr-interview-report" load={service.list} onClose={() => setDialog(null)}
-          numberOf={(item) => item.assessmentNumber} statusOf={(item) => T.status[item.status]} pathOf={(item) => `${BASE}/${item.assessmentId}`}
-          columns={[[T.reportColumns.candidate, (item) => item.candidateName], [T.reportColumns.position, (item) => item.positionTitle], [T.reportColumns.outcome, (item) => T.outcomes[item.outcome]]]} />
-      )}
+      {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
     </>
   )
 }

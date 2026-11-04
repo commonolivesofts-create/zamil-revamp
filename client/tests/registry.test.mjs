@@ -25,6 +25,7 @@ const SA = 'SECURITY_ADMINISTRATION'
 // The exact navigation before the registry (pre-Phase 2A appNavigation.js), in order.
 const PRE_REGISTRY_ROUTES = [
   { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: 'layout-dashboard', section: 'workspace', implemented: true },
+  { id: 'pending-worklist', path: '/worklist/pending', label: 'Pending Worklist', icon: 'list-checks', section: 'workspace', implemented: true },
   { id: 'user-accounts', path: '/security/users', label: 'User accounts', icon: 'users', section: 'security', permission: `${SA}.USER_ACCOUNTS:VIEW`, requiresMfa: true, implemented: true },
   { id: 'user-account', path: '/security/users/:userId', label: 'User account', icon: 'user-round', section: 'security', permission: `${SA}.USER_ACCOUNTS:VIEW`, requiresMfa: true, implemented: true, nav: false },
   { id: 'roles', path: '/security/roles', label: 'Roles', icon: 'user-cog', section: 'security', permission: `${SA}.ROLES:VIEW`, requiresMfa: true, implemented: true },
@@ -57,28 +58,37 @@ const WARNING_LETTERS = 'HR.WARNING_LETTERS'
 const HR_SWITCH = { env: 'VITE_FEATURE_HR_RECRUITMENT' }
 const ES_SWITCH = { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' }
 const HR_RECRUITMENT_ROUTES = [
+  { id: 'hr-recruitment-dashboard', path: '/hr/recruitment/dashboard', label: 'Recruitment dashboard', icon: 'layout-dashboard', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
   { id: 'hr-requisition', path: '/hr/recruitment/requisition', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true },
+  { id: 'hr-requisition-report', path: '/hr/recruitment/requisition/report', label: 'Requisition report', icon: 'chart-column', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-interview', path: '/hr/recruitment/interview', label: 'Interview assessment', icon: 'messages-square', section: HR, subgroup: 'hr-recruitment', permission: `${INTERVIEW}:VIEW`, requiresMfa: false, implemented: true },
+  { id: 'hr-interview-report', path: '/hr/recruitment/interview/report', label: 'Assessment report', icon: 'chart-column', section: HR, subgroup: 'hr-recruitment', permission: `${INTERVIEW}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', label: 'Interview assessment', icon: 'messages-square', section: HR, subgroup: 'hr-recruitment', permission: `${INTERVIEW}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-offer', path: '/hr/recruitment/offer', label: 'Employment offer', icon: 'file-signature', section: HR, subgroup: 'hr-recruitment', permission: `${OFFER}:VIEW`, requiresMfa: false, implemented: true },
+  { id: 'hr-offer-report', path: '/hr/recruitment/offer/report', label: 'Offer report', icon: 'chart-column', section: HR, subgroup: 'hr-recruitment', permission: `${OFFER}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', label: 'Employment offer', icon: 'file-signature', section: HR, subgroup: 'hr-recruitment', permission: `${OFFER}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-orientation', path: '/hr/recruitment/orientation', label: 'Orientation training', icon: 'calendar-clock', section: HR, subgroup: 'hr-recruitment', permission: 'HR.ORIENTATION_TRAININGS:VIEW', requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-orientation-report', path: '/hr/recruitment/orientation/report', label: 'Orientation report', icon: 'chart-column', section: HR, subgroup: 'hr-recruitment', permission: 'HR.ORIENTATION_TRAININGS:VIEW', requiresMfa: false, implemented: false, enabledBy: HR_SWITCH, nav: false },
   { id: 'hr-orientation-record', path: '/hr/recruitment/orientation/:scheduleId', label: 'Orientation training', icon: 'calendar-clock', section: HR, subgroup: 'hr-recruitment', permission: 'HR.ORIENTATION_TRAININGS:VIEW', requiresMfa: false, implemented: false, enabledBy: HR_SWITCH, nav: false },
   { id: 'hr-probation', path: '/hr/recruitment/probation-evaluation', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, subgroup: 'hr-recruitment', permission: `${PROBATION}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-probation-report', path: '/hr/recruitment/probation-evaluation/report', label: 'Probation evaluation report', icon: 'chart-column', section: HR, subgroup: 'hr-recruitment', permission: `${PROBATION}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH, nav: false },
   { id: 'hr-probation-record', path: '/hr/recruitment/probation-evaluation/:evaluationId', label: 'Probation evaluation', icon: 'clipboard-check', section: HR, subgroup: 'hr-recruitment', permission: `${PROBATION}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH, nav: false },
   { id: 'hr-employee-report', path: '/hr/reports/contractor-employees', label: 'Employee report', icon: 'users', section: HR, subgroup: 'hr-reports', permission: `${CONTRACTOR_EMPLOYEES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
   { id: 'hr-periodwise-report', path: '/hr/reports/periodwise-employees', label: 'Periodwise employees', icon: 'chart-column', section: HR, subgroup: 'hr-reports', permission: 'HR.PERIODWISE_EMPLOYEES:VIEW', requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
+  { id: 'hr-survey-report', path: '/hr/reports/survey', label: 'Survey report', icon: 'chart-bar', section: HR, subgroup: 'hr-reports', permission: 'HR.SURVEY_REPORTS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_SURVEY_REPORT' } },
+  { id: 'hr-survey-responses', path: '/hr/reports/survey/responses', label: 'Survey responses', icon: 'table', section: HR, subgroup: 'hr-reports', permission: 'HR.SURVEY_REPORTS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_SURVEY_REPORT' }, nav: false },
   { id: 'hr-record-change', path: '/hr/employee-services/record-change', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', label: 'Personal status report', icon: 'layers', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', label: 'Personal status report', icon: 'layers', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
   { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
   { id: 'hr-transfer', path: '/hr/employee-services/transfer', label: 'Transfer request', icon: 'arrow-left-right', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', label: 'Transfer report', icon: 'chart-column', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', label: 'Transfer report', icon: 'chart-column', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
   { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', label: 'Transfer request', icon: 'arrow-left-right', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
 ]
 // Performance appraisal remains in the session-only HR_EMPLOYEE_SERVICES module.
 const HR_EMPLOYEE_SERVICES_ROUTES = [
   { id: 'hr-appraisal', path: '/hr/performance/appraisal', label: 'Performance appraisal', icon: 'star', section: HR, subgroup: 'hr-employee-services', implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-appraisal-report', path: '/hr/performance/appraisal/report', label: 'Appraisal report', icon: 'chart-column', section: HR, subgroup: 'hr-employee-services', implemented: false, enabledBy: ES_SWITCH, nav: false },
   { id: 'hr-appraisal-record', path: '/hr/performance/appraisal/:appraisalId', label: 'Performance appraisal', icon: 'star', section: HR, subgroup: 'hr-employee-services', implemented: false, enabledBy: ES_SWITCH, nav: false },
 ]
 // Sick Leave (1076), Reward Nomination (1113) and Share an Idea (1097): one
@@ -97,6 +107,20 @@ const HR_EMPLOYEE_SERVICES_FORM_ROUTES = [
   ...formRoutes('hr-reward', '/hr/employee-services/reward-nomination', 'Reward nomination', 'trophy', 'EMPLOYEE_OF_THE_MONTH', 'VITE_FEATURE_HR_REWARD_NOMINATION', 'nominationId'),
   ...formRoutes('hr-idea', '/hr/employee-services/ideas', 'Share an idea', 'lightbulb', 'IDEAS', 'VITE_FEATURE_HR_IDEAS', 'ideaId'),
 ]
+// Employee Clearance (1063): the HR.EMPLOYEE_CLEARANCE resource, as the backend guards it.
+const CLEARANCE = { section: HR, subgroup: ES, permission: 'HR.EMPLOYEE_CLEARANCE:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_CLEARANCE' } }
+const HR_EMPLOYEE_CLEARANCE_ROUTES = [
+  { id: 'hr-clearance', path: '/hr/employee-services/clearance', label: 'Employee clearance', icon: 'door-open', ...CLEARANCE },
+  { id: 'hr-clearance-report', path: '/hr/employee-services/clearance/report', label: 'Employee clearance report', icon: 'chart-column', ...CLEARANCE, nav: false },
+  { id: 'hr-clearance-record', path: '/hr/employee-services/clearance/:clearanceId', label: 'Employee clearance', icon: 'door-open', ...CLEARANCE, nav: false },
+]
+// Project Charter (ZPI.IMS.FM.13): the HR.PROJECT_CHARTERS resource, its own switch.
+const CHARTER = { section: HR, subgroup: ES, permission: 'HR.PROJECT_CHARTERS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_PROJECT_CHARTER' } }
+const HR_CHARTER_ROUTES = [
+  { id: 'hr-charter', path: '/hr/employee-services/project-charter', label: 'Project charter', icon: 'file-text', ...CHARTER },
+  { id: 'hr-charter-report', path: '/hr/employee-services/project-charter/report', label: 'Project charter report', icon: 'chart-column', ...CHARTER, nav: false },
+  { id: 'hr-charter-record', path: '/hr/employee-services/project-charter/:charterId', label: 'Project charter', icon: 'file-text', ...CHARTER, nav: false },
+]
 // Workflow Manager M1: backend WORKFLOW_MANAGER permissions, no MFA requirement, no switch.
 const WF = 'WORKFLOW_MANAGER'
 const wf = { section: 'workflow-manager' }
@@ -108,13 +132,14 @@ const WORKFLOW_MANAGER_ROUTES = [
   { id: 'workflow-data-sources', path: '/workflow-manager/data-sources', label: 'Data source registry', icon: 'database', ...wf, permission: `${WF}.DATA_SOURCE_REGISTRY:VIEW`, requiresMfa: false, implemented: true },
 ]
 // Group order: workspace, human resources, workflow manager, security, account.
-const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(1)]
+const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], PRE_REGISTRY_ROUTES[1], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...HR_EMPLOYEE_CLEARANCE_ROUTES, ...HR_CHARTER_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
+const withoutSubgroups = (routes) => routes.map(({ subgroup, ...route }) => route)
 
 test('the derived routes, sections and permission names match the active modules', () => {
-  assert.deepEqual(plain(appRoutes), EXPECTED_ROUTES)
-  assert.deepEqual(plain(navigationEntries), EXPECTED_ROUTES, 'no external or extra entries are active')
-  for (const [index, route] of appRoutes.entries()) {
-    assert.deepEqual(Object.keys(route), Object.keys(EXPECTED_ROUTES[index]), `${route.id}: same fields, same order`)
+  assert.deepEqual(withoutSubgroups(plain(appRoutes)), withoutSubgroups(EXPECTED_ROUTES))
+  assert.deepEqual(withoutSubgroups(plain(navigationEntries)), withoutSubgroups(EXPECTED_ROUTES), 'no external or extra entries are active')
+  for (const [index, route] of withoutSubgroups(appRoutes).entries()) {
+    assert.deepEqual(Object.keys(route), Object.keys(withoutSubgroups(EXPECTED_ROUTES)[index]), `${route.id}: same fields, same order`)
   }
   assert.deepEqual(plain(navigationSections), [
     { id: 'workspace', label: 'Workspace', icon: 'layout-dashboard', standalone: true },
@@ -126,8 +151,14 @@ test('the derived routes, sections and permission names match the active modules
       ],
     },
     { id: 'workflow-manager', label: 'Workflow Manager', icon: 'workflow' },
-    { id: 'security', label: 'Security administration', icon: 'shield-check' },
-    { id: 'account', label: 'My account', icon: 'user-round' },
+    {
+      id: 'security', label: 'Security administration', icon: 'shield-check',
+      subgroups: [{ id: 'security-admin', label: 'Security administration', icon: 'shield-check', description: 'Accounts, roles and permissions' }],
+    },
+    {
+      id: 'account', label: 'My account', icon: 'user-round',
+      subgroups: [{ id: 'account-settings', label: 'My account', icon: 'user-round', description: 'Password and authentication' }],
+    },
   ])
   assert.deepEqual(plain(PERMISSIONS), {
     USER_ACCOUNTS_VIEW: `${SA}.USER_ACCOUNTS:VIEW`,
@@ -238,7 +269,7 @@ test('Security Administration equals the complete backend catalogue: 8 resources
 
 test('common links need authentication only; Security Administration keeps permission, alsoRequires and MFA', () => {
   const common = appRoutes.filter((route) => !route.permission && route.implemented).map((route) => route.id)
-  assert.deepEqual(common, ['dashboard', 'account-password', 'account-authenticator'])
+  assert.deepEqual(common, ['dashboard', 'pending-worklist', 'account-password', 'account-authenticator'])
   for (const access of [{ status: 'loading' }, { status: 'error' }, { status: 'ready', has: () => false }]) {
     for (const id of common) assert.equal(routeAccess(appRoutes.find((r) => r.id === id), access), 'allowed')
     for (const { id } of HR_RECRUITMENT_ROUTES.filter((route) => route.enabledBy)) assert.equal(routeAccess(appRoutes.find((r) => r.id === id), access), 'unavailable', `${id} is switched off`)

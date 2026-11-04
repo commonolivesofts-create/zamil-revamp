@@ -97,11 +97,15 @@ test("only pages backed by a working backend contract are implemented; no placeh
       // HR onboarding pages are switched off here (VITE_FEATURE_HR_RECRUITMENT
       // unset in a non-development build); every state: hrOnboarding.test.mjs.
       "/dashboard",
+      "/worklist/pending",
       "/hr/recruitment/requisition",
+      "/hr/recruitment/requisition/report",
       "/hr/recruitment/requisition/:requisitionId",
       "/hr/recruitment/interview",
+      "/hr/recruitment/interview/report",
       "/hr/recruitment/interview/:assessmentId",
       "/hr/recruitment/offer",
+      "/hr/recruitment/offer/report",
       "/hr/recruitment/offer/:offerId",
       // Workflow Manager M1: real /api/v1/workflow-manager contract.
       "/workflow-manager",
@@ -145,12 +149,17 @@ test("only pages backed by a working backend contract are implemented; no placeh
   assert.deepEqual(
     appRoutes.filter((item) => !item.implemented).map((route) => route.id),
     [
+      "hr-recruitment-dashboard",
       "hr-orientation",
+      "hr-orientation-report",
       "hr-orientation-record",
       "hr-probation",
+      "hr-probation-report",
       "hr-probation-record",
       "hr-employee-report",
       "hr-periodwise-report",
+      "hr-survey-report",
+      "hr-survey-responses",
       "hr-record-change",
       "hr-record-change-requests",
       "hr-record-change-record",
@@ -158,6 +167,7 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "hr-transfer-report",
       "hr-transfer-record",
       "hr-appraisal",
+      "hr-appraisal-report",
       "hr-appraisal-record",
       "hr-sick-leave",
       "hr-sick-leave-report",
@@ -168,6 +178,12 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "hr-idea",
       "hr-idea-report",
       "hr-idea-record",
+      "hr-clearance",
+      "hr-clearance-report",
+      "hr-clearance-record",
+      "hr-charter",
+      "hr-charter-report",
+      "hr-charter-record",
       "security-audit",
     ],
   );
@@ -181,6 +197,9 @@ test("only pages backed by a working backend contract are implemented; no placeh
           "VITE_FEATURE_HR_SICK_LEAVE",
           "VITE_FEATURE_HR_REWARD_NOMINATION",
           "VITE_FEATURE_HR_IDEAS",
+          "VITE_FEATURE_HR_EMPLOYEE_CLEARANCE",
+          "VITE_FEATURE_HR_PROJECT_CHARTER",
+          "VITE_FEATURE_HR_SURVEY_REPORT",
         ].includes(route.enabledBy?.env),
       ),
     "the HR onboarding and employee services pages are unavailable only because their switch is off",
@@ -282,7 +301,7 @@ test("sidebar: current production navigation for administrators, employees and e
     const sections = authorizedNavigation(access);
     assert.deepEqual(
       ids(sections),
-      ["dashboard", "account-password", "account-authenticator"],
+      ["dashboard", "pending-worklist", "account-password", "account-authenticator"],
       access.status,
     );
     assert.ok(
@@ -301,6 +320,7 @@ test("sidebar: current production navigation for administrators, employees and e
   );
   assert.deepEqual(ids(authorizedNavigation(ADMIN)), [
     "dashboard",
+    "pending-worklist",
     "user-accounts",
     "roles",
     "user-roles",
@@ -568,18 +588,10 @@ test("the workspace dashboard uses real identity data and labels its demo conten
   assert.match(avatar, /profileAvatarUrl\(profile\)/);
   assert.match(avatar, /onError=\{markFailed\}/);
   assert.match(avatar, /initialsOf\(displayName\(profile\)\)/);
-  assert.match(home, /AUTHORIZED PAGES/);
-  assert.match(home, /onOpenPage\(page\)/);
-  assert.match(home, /page\.sectionLabel/);
-  assert.match(home, /page\.type === "external"/);
-  assert.equal(home.includes("Your access, in reach"), true);
-  assert.equal(
-    /HOME_STARTERS|rankPages|useDashboardUsage/.test(home + dashboard),
-    false,
-  );
-  assert.equal(/onPreviewModule|onOpenFinder/.test(home), false);
-  assert.match(home, /Demo workflow/i);
-  assert.match(home, /Illustrative workflow pulse|Demo activity/);
+  assert.match(home, /Pending Worklist/);
+  assert.match(home, /Employee of the month/);
+  assert.match(home, /<EmployeeSpotlightFireworks\s*\/>/);
+  assert.match(home, /Congratulations!/);
   assert.match(model, /isPreview/);
   assert.equal(
     /CREDIT_|HR_FORM_DEFS|ANALYTICS_|APPROVAL_|ACTIVITY_ITEMS|searchWorkspace|rankPages/.test(

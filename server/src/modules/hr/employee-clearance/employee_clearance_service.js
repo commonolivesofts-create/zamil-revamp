@@ -104,30 +104,33 @@ export function createEmployeeClearanceService({
   const read = (fn) => withConnection(POOLS.LOW, fn);
   const write = (fn) => withTransaction(POOLS.LOW, fn);
 
-  // Privileged access is separate from ordinary VIEW permission.
+  // Privileged access is separate from ordinary VIEW permission. It is resolved BEFORE a
+  // connection is taken: holds() needs its own pooled connection, and acquiring it while
+  // holding one deadlocks the pool when several requests arrive at once (the report's
+  // overview counts timed out with 503).
   const privileged = async (auth) =>
     holds(user(auth), {
-      moduleCode: 'EMPLOYEE_CLEARANCE',
+      moduleCode: 'HR',
       resourceCode: 'EMPLOYEE_CLEARANCE',
       actionCode: 'VIEW_ALL',
     });
 
-  const assertScope = async (c, auth, empNo) => {
-    if (!(await repository.isInScope(c, user(auth), empNo, await privileged(auth)))) {
+  const assertScope = async (c, auth, empNo, all) => {
+    if (!(await repository.isInScope(c, user(auth), empNo, all))) {
       fail(403, 'FORBIDDEN', 'Employee is outside your clearance scope');
     }
   };
 
-  const assertVisible = async (c, auth, h) => {
-    if (await privileged(auth)) return;
+  const assertVisible = async (c, auth, h, all) => {
+    if (all) return;
 
     if (!(await repository.isInScope(c, user(auth), h.EMP_NO, false))) {
       fail(404, 'RESOURCE_NOT_FOUND', 'Employee clearance request not found');
     }
   };
 
-  const normalize = async (c, auth, b) => {
-    await assertScope(c, auth, b.employee.empNo);
+  const normalize = async (c, auth, b, all) => {
+    await assertScope(c, auth, b.employee.empNo, all);
 
     const e = await repository.employee(c, b.employee.empNo);
 
@@ -149,7 +152,7 @@ export function createEmployeeClearanceService({
     if (dest === 'it' || dest === 'none') {
       receiver = dest;
     } else {
-      const allowed = await repository.computerDestinations(c, user(auth), await privileged(auth));
+      const allowed = await repository.computerDestinations(c, user(auth), all);
 
       receiver = allowed.some((x) => String(x.VALUE) === String(dest)) ? String(dest) : null;
     }
@@ -258,6 +261,7 @@ export function createEmployeeClearanceService({
       },
 
       computerReceivedBy: h.COM_REC,
+      computerSignature: h.COM_SIG ?? '',
 
       itManager: {
         name: h.IT_MGR,
@@ -280,8 +284,10 @@ export function createEmployeeClearanceService({
 
   return {
     async create(auth, body) {
+      const all = await privileged(auth);
+
       return write(async (c) => {
-        const h = await normalize(c, auth, body);
+        const h = await normalize(c, auth, body, all);
         h.uuid = randomUUID();
 
         const id = await repository.insertHeader(c, h);
@@ -312,6 +318,8 @@ export function createEmployeeClearanceService({
     },
 
     async get(auth, id) {
+      const all = await privileged(auth);
+
       return read(async (c) => {
         const r = await repository.getFull(c, id);
 
@@ -319,13 +327,15 @@ export function createEmployeeClearanceService({
           fail(404, 'RESOURCE_NOT_FOUND', 'Employee clearance request not found');
         }
 
-        await assertVisible(c, auth, r.header);
+        await assertVisible(c, auth, r.header, all);
 
         return present(r);
       });
     },
 
     async update(auth, id, body) {
+      const all = await privileged(auth);
+
       return write(async (c) => {
         const row = await repository.getHeader(c, id, true);
 
@@ -333,13 +343,13 @@ export function createEmployeeClearanceService({
           fail(404, 'RESOURCE_NOT_FOUND', 'Employee clearance request not found');
         }
 
-        await assertVisible(c, auth, row);
+        await assertVisible(c, auth, row, all);
 
         if (!canEdit(row.STATUS)) {
           fail(409, 'STATE_CONFLICT', 'Request cannot be modified in its current status');
         }
 
-        const h = await normalize(c, auth, body);
+        const h = await normalize(c, auth, body, all);
         const updated = await repository.updateHeader(c, id, h);
 
         if (!updated.rowsAffected) {
@@ -364,6 +374,8 @@ export function createEmployeeClearanceService({
     },
 
     async remove(auth, id) {
+      const all = await privileged(auth);
+
       return write(async (c) => {
         const h = await repository.getHeader(c, id, true);
 
@@ -371,7 +383,7 @@ export function createEmployeeClearanceService({
           fail(404, 'RESOURCE_NOT_FOUND', 'Employee clearance request not found');
         }
 
-        await assertVisible(c, auth, h);
+        await assertVisible(c, auth, h, all);
 
         if (!canEdit(h.STATUS)) {
           fail(409, 'STATE_CONFLICT', 'Request cannot be deleted in its current status');
@@ -385,8 +397,10 @@ export function createEmployeeClearanceService({
     },
 
     async list(auth, q) {
+      const all = await privileged(auth);
+
       return read(async (c) => {
-        const r = await repository.list(c, user(auth), await privileged(auth), q);
+        const r = await repository.list(c, user(auth), all, q);
 
         return {
           page: q.page,
@@ -422,8 +436,10 @@ export function createEmployeeClearanceService({
     },
 
     async employees(auth, q) {
+      const all = await privileged(auth);
+
       return read(async (c) => {
-        const r = await repository.employees(c, user(auth), await privileged(auth), q);
+        const r = await repository.employees(c, user(auth), all, q);
 
         return {
           page: q.page,
@@ -443,8 +459,10 @@ export function createEmployeeClearanceService({
     },
 
     async employee(auth, empNo) {
+      const all = await privileged(auth);
+
       return read(async (c) => {
-        if (!(await repository.isInScope(c, user(auth), empNo, await privileged(auth)))) {
+        if (!(await repository.isInScope(c, user(auth), empNo, all))) {
           fail(404, 'RESOURCE_NOT_FOUND', 'Employee not found');
         }
 

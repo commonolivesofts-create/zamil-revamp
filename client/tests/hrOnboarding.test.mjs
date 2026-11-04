@@ -548,7 +548,9 @@ test("orientation service uses the employee setup, skills, list and draft save e
       });
     if (init.method === "POST")
       return success({ headerId: "7", flag: "Y", reference: "ORT-7" }, 201);
-    if (url.endsWith("/7")) return success(apiRecord);
+    if (init.method === "PUT" && url.includes("/orientation-trainings/7"))
+      return success({ headerId: "7", flag: "Y" });
+    if (/\/orientation-trainings\/7(\?flag=[YN])?$/.test(url)) return success(apiRecord);
     throw new Error(`Unexpected request: ${init.method} ${url}`);
   });
   const csrfStore = createCsrfStore();
@@ -592,10 +594,31 @@ test("orientation service uses the employee setup, skills, list and draft save e
   const saveCall = calls.find((call) => call.init.method === "POST");
   assert.equal(saveCall.url, "/api/v1/hr/orientation-trainings");
   assert.equal(saveCall.init.headers.get("X-CSRF-Token"), SESSION_TOKEN);
-  assert.equal(
-    JSON.parse(saveCall.init.body).lines[0].department,
-    "Training with HR Dept",
+  const posted = JSON.parse(saveCall.init.body);
+  assert.equal(posted.lines[0].department, "Training with HR Dept");
+  // Only the legacy form's answers: the server fills the employee fields, To, Scheduled By,
+  // Orientation Days and Orientation Time.
+  assert.deepEqual(Object.keys(posted).sort(), ["empNo", "fromOrient", "lines"]);
+  assert.deepEqual(Object.keys(posted.lines[0]).sort(), [
+    "department",
+    "departmentHead",
+    "fromDate",
+    "remarks",
+    "timeFrom",
+    "timeTo",
+    "toDate",
+  ]);
+  assert.ok(
+    calls.some((call) => call.url === "/api/v1/hr/orientation-trainings/7?flag=Y"),
+    "the saved record is read back in its variant",
   );
+  // An existing record is updated and read in its variant (legacy form/{id}/{flag}).
+  await services.orientations.save("7", form, { flag: "Y" });
+  const putCall = calls.find((call) => call.init.method === "PUT");
+  assert.equal(putCall.url, "/api/v1/hr/orientation-trainings/7?flag=Y");
+  const record = await services.orientations.getById("7", { flag: "Y" });
+  assert.equal(record.rawStatus, "");
+  assert.equal(record.lines[0].orientationDays, "1");
 });
 
 test("employee report service uses the contractor employee lookup and paginated list contracts", async () => {
@@ -685,12 +708,14 @@ test("employee report service uses the contractor employee lookup and paginated 
   );
 });
 
-test("employee report page requires both dates, in order, before running", async () => {
+test("employee report page always sends both dates, in order", async () => {
   const page = await read(`${FEATURE}report/EmployeeReportPage.jsx`);
-  assert.match(page, /const found = validateDates\(draft\)[\s\S]*?if \(Object\.keys\(found\)\.length\)/);
-  for (const id of ["er-from", "er-to"]) {
-    assert.match(page, new RegExp(`<HrField id="${id}"[^>]*required error=`));
-  }
+  // Blank dates are the legacy "Since 2000" period up to today; the API requires both.
+  assert.match(page, /dateFrom: dateFrom \|\| SINCE, dateTo: dateTo \|\| businessToday\(\)/);
+  assert.match(page, /dateTo: dateFrom && dateTo && dateTo < dateFrom \? I\.dateOrder : ''/);
+  assert.match(page, /<InsightReport [^>]*validate=\{validate\}/);
+  const insight = await read(`${FEATURE}shared/components/InsightReport.jsx`);
+  assert.match(insight, /const found = Object\.fromEntries\(Object\.entries\(validate\?\.\(draft\) \?\? \{\}\)[\s\S]*?if \(Object\.keys\(found\)\.length\)/);
 });
 
 test("employee report service lists incomplete legacy rows and rejects malformed values", async () => {
@@ -764,12 +789,18 @@ test("orientation page: flow step 4 keeps the styled editor and uses backend emp
   );
   assert.match(page, /service\.employeeSetup\(picked\.employeeNumber\)/);
   assert.match(page, /const lines = form\.lines/);
-  assert.match(page, /service\.save\(editor\.recordId, payload\)/);
+  assert.match(page, /service\.save\(\s*editor\.recordId,/);
+  assert.match(page, /const toDate = form\.fromOrient;/, "legacy copies From into the read-only To");
   assert.match(
     page,
     /readOnly\s+value=\{toDate \? enDate\(toDate\) : ["']["']\}/,
-    "To is derived from line dates",
   );
+  assert.match(page, /locked=\{locked\}/, "a request in the workflow or approved is read only");
+  assert.match(page, /type="time"\s+step="1"/, "legacy time inputs use seconds");
+  // The report is its own page, opened on the schedule's table (Shared or Plant).
+  assert.match(page, /leave\(`\$\{BASE\}\/report\?flag=\$\{savedRecord\?\.flag \|\| "N"\}`\)/);
+  const report = await read(`${FEATURE}orientation/OrientationReportPage.jsx`);
+  assert.match(report, /pathOf=\{\(row\) => `\$\{BASE\}\/\$\{row\.scheduleId\}\?flag=\$\{row\.flag\}`\}/);
   const loader = await read(
     `${FEATURE}shared/components/RecruitmentLoader.jsx`,
   );
@@ -1215,9 +1246,15 @@ test("probation service uses the backend draft and lookup contracts", async () =
     ],
   );
   assert.equal(calls[4].init.headers.get("X-CSRF-Token"), SESSION_TOKEN);
-  assert.deepEqual(JSON.parse(calls[4].init.body).lines, [
-    { param: "Quality", paramAr: "", rating: 4 },
-  ]);
+  // Only what the legacy create form saves; the server adds criteria, employee details and total.
+  assert.deepEqual(JSON.parse(calls[4].init.body), {
+    formType: "Trainee",
+    employeeNumber: "30401",
+    formDate: "2026-10-28",
+    fromDate: "2026-10-01",
+    toDate: "2026-10-28",
+    lines: [{ rating: 4 }],
+  });
 });
 
 test("probation page connects to backend supported fields", async () => {
@@ -1237,9 +1274,10 @@ test("probation page connects to backend supported fields", async () => {
   );
   assert.doesNotMatch(page, /lookups\.employees/, "no preloaded employee list");
   assert.match(page, /<EmployeePicker id="pa-emp"/);
-  assert.match(page, /Rating \(1–5\)/);
-  assert.match(page, /Add criterion/);
-  assert.match(page, /Save draft/);
+  // Criteria come from the form type (legacy showDropInfo); the user only gives points.
+  assert.match(page, /await service\.criteria\(formType\)/);
+  assert.doesNotMatch(page, /Add criterion|Remove criterion/);
+  assert.match(page, /\{ label: 'Save', icon: 'save', onClick: save \}/);
   assert.doesNotMatch(page, /service\.submit|recommendation|signature/);
   const inputs = await read(
     `${FEATURE}shared/components/RecruitmentInputs.jsx`,
@@ -1799,9 +1837,12 @@ test("report page: outside the flow, server rows and summary, column chooser, si
 // each state is resolved through the same function used by the application.
 const SWITCH = "VITE_FEATURE_HR_RECRUITMENT";
 const HR_SWITCHED_IDS = [
+  "hr-recruitment-dashboard",
   "hr-orientation",
+  "hr-orientation-report",
   "hr-orientation-record",
   "hr-probation",
+  "hr-probation-report",
   "hr-probation-record",
   "hr-employee-report",
   "hr-periodwise-report",
@@ -1861,6 +1902,9 @@ test("HR visibility switch: true, false, unset in development and unset in produ
           "VITE_FEATURE_HR_SICK_LEAVE",
           "VITE_FEATURE_HR_REWARD_NOMINATION",
           "VITE_FEATURE_HR_IDEAS",
+          "VITE_FEATURE_HR_EMPLOYEE_CLEARANCE",
+          "VITE_FEATURE_HR_PROJECT_CHARTER",
+          "VITE_FEATURE_HR_SURVEY_REPORT",
         ].includes(
           entry.enabledBy.env,
         ),
@@ -1909,3 +1953,47 @@ test("orientation, probation and employee report use backend HR permissions", ()
   assert.equal(probation.permission, "HR.PROBATION_EVALUATIONS:VIEW");
   assert.equal(probation.implemented, true);
 });
+
+// ------------------------------------------------------------ orientation: legacy CI3 rules (nht-new.php)
+
+test("orientation (legacy): days, time, statuses, save and submit rules", async () => {
+  const legacy = await import("../src/features/hr-recruitment/orientation/orientationLegacy.js");
+  assert.equal(legacy.orientationDays("2026-10-25", "2026-10-25"), 0, "the same day is 0");
+  assert.equal(legacy.orientationDays("2026-10-25", "2026-10-28"), 3);
+  assert.equal(legacy.orientationDays("2026-10-25", "2026-10-24"), "");
+  assert.equal(legacy.orientationPeriod("08:00:00", "09:30:00"), "1.30 Hrs");
+  assert.equal(legacy.orientationPeriod("09:00", "17:00"), "8.00 Hrs");
+  assert.equal(legacy.orientationPeriod("09:00", "08:00"), "");
+  assert.deepEqual(
+    ["Draft", "INPROCESS", "Approved", "REJECTED", "Rejected", ""].map(legacy.orientationStatus),
+    ["Draft", "Inprocess", "Approved", "Rejected", "Rejected", "Draft"],
+  );
+  assert.deepEqual(
+    ["Draft", "Rejected", "INPROCESS", "Approved"].map(legacy.isOrientationEditable),
+    [true, true, false, false],
+  );
+  assert.deepEqual(["Rejected", "Draft", "Approved"].map(legacy.statusTone), ["bad", "warn", "ok"]);
+  const line = { department: "Training with HR Dept" };
+  assert.deepEqual(
+    legacy.orientationSaveProblems({ employee: { name: "x" }, fromOrient: "2026-10-25", lines: [line] }),
+    [],
+    "every row field is optional",
+  );
+  assert.deepEqual(
+    legacy.orientationSaveProblems({ employee: null, fromOrient: "", lines: [] }),
+    ["employee", "fromOrient", "noLines"],
+  );
+  assert.deepEqual(
+    legacy.orientationSaveProblems({
+      employee: {},
+      fromOrient: "2026-10-25",
+      lines: [{ ...line, fromDate: "2026-10-26", toDate: "2026-10-25" }],
+    }),
+    ["reversed"],
+  );
+  assert.deepEqual(legacy.validateOrientationForSubmit({ scheduleId: "1", rawStatus: "Rejected" }), []);
+  assert.deepEqual(legacy.validateOrientationForSubmit({ scheduleId: "1", rawStatus: "INPROCESS" }), ["notSubmittable"]);
+  assert.deepEqual(legacy.validateOrientationForSubmit(null), ["notSaved"]);
+});
+
+test.todo("orientation: Submit button sends the request to the shared workflow (not built)");

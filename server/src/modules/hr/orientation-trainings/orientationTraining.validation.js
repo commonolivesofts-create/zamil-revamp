@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { STATUS_LABELS } from './orientationTraining.rules.js';
 
 const id = Joi.string().pattern(/^[1-9][0-9]{0,18}$/);
 const controls = /^[^\p{Cc}]+$/u;
@@ -76,7 +77,10 @@ export const listQuerySchema = Joi.object({
   page,
   pageSize,
   search: text(100),
-  status: Joi.string().valid('Draft', 'Inprocess', 'Approved'),
+  // Legacy statuses are stored in mixed case (Draft, INPROCESS, Approved, REJECTED, Rejected).
+  status: Joi.string()
+    .valid(...STATUS_LABELS)
+    .insensitive(),
   empNo: text(50),
   empType: text(50),
   dateFrom: isoDate,
@@ -87,62 +91,73 @@ export const listQuerySchema = Joi.object({
   sortDir: Joi.string().valid('asc', 'desc').default('desc'),
 });
 
+/** Variant of a record (legacy form/{id}/{Y|N}); header IDs of the two tables can overlap. */
+export const recordQuerySchema = Joi.object({ flag: Joi.string().valid('Y', 'N') });
+
+// Legacy time inputs use step="1" (HH:MM:SS); HH:MM is accepted too.
+const time = Joi.string()
+  .pattern(/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/)
+  .allow('', null);
+const optionalDate = isoDate.allow('', null);
+
+// Legacy line inputs: Training (read only), Department Head, From/To Date, Time From/To and Remark;
+// none is required. Orientation Days and Orientation Time are computed by the server.
 const line = Joi.object({
   lineId: id,
-  department: requiredText(200),
-  departmentHead: requiredText(200),
-  fromDate: isoDate.required(),
-  toDate: isoDate.required(),
-  orientationDays: Joi.number().integer().min(0).required(),
-  timeFrom: Joi.string()
-    .pattern(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
-    .required(),
-  timeTo: Joi.string()
-    .pattern(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
-    .required(),
-  orientationPeriod: text(50),
-  remarks: text(2000),
+  department: requiredText(1000),
+  departmentHead: text(1000).allow(null),
+  fromDate: optionalDate,
+  toDate: optionalDate,
+  orientationDays: Joi.any().strip(),
+  timeFrom: time,
+  timeTo: time,
+  orientationPeriod: Joi.any().strip(),
+  remarks: text(1000).allow(null),
 });
 
+// Legacy posts Name (empno) and From; everything else is read only and filled from the employee
+// or computed (To = From, Scheduled By, Ref #). Older clients still send those: accepted, ignored.
+const ignored = Joi.any().strip();
 const header = {
   empNo: requiredText(50),
   fromOrient: isoDate.required(),
-  toOrient: isoDate.required(),
-  startDate: isoDate,
-  orientationBy: text(200),
-  // Accepted for payload compatibility only. The service always resolves the effective flag.
-  flag: Joi.string().valid('Y', 'N'),
-  section: requiredText(200),
-  empname: requiredText(200),
-  personId: requiredText(50),
-  division: requiredText(200),
-  type: requiredText(50),
-  position: requiredText(200),
+  toOrient: ignored,
+  startDate: ignored,
+  orientationBy: ignored,
+  flag: ignored,
+  section: ignored,
+  empname: ignored,
+  personId: ignored,
+  division: ignored,
+  type: ignored,
+  position: ignored,
   lines: Joi.array().items(line).min(1).required(),
 };
 
-const validateDateRanges = (value, helpers) => {
-  if (value.toOrient < value.fromOrient) return helpers.error('date.headerOrder');
-  if (
-    value.lines.some((item) => item.fromDate < value.fromOrient || item.toDate > value.toOrient)
-  ) {
-    return helpers.error('date.lineRange');
-  }
-  if (value.lines.some((item) => item.toDate < item.fromDate))
+const toMinutes = (value) => {
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+// Legacy wrote "Select To Date" as the days and "-2.-30 Hrs" as the time of a reversed range; such
+// a line is refused instead.
+const validateLines = (value, helpers) => {
+  if (value.lines.some((item) => item.fromDate && item.toDate && item.toDate < item.fromDate)) {
     return helpers.error('date.lineOrder');
+  }
+  if (
+    value.lines.some(
+      (item) => item.timeFrom && item.timeTo && toMinutes(item.timeTo) < toMinutes(item.timeFrom),
+    )
+  ) {
+    return helpers.error('time.lineOrder');
+  }
   return value;
 };
-const dates = (schema) =>
-  schema.custom(validateDateRanges).messages({
-    'date.headerOrder': 'toOrient must be on or after fromOrient',
-    'date.lineRange': 'Line dates must be within the header orientation dates',
+const withLineRules = (schema) =>
+  schema.custom(validateLines).messages({
     'date.lineOrder': 'Line toDate must be on or after fromDate',
+    'time.lineOrder': 'Line timeTo must be on or after timeFrom',
   });
 
-export const createBodySchema = dates(Joi.object(header));
-export const updateBodySchema = dates(
-  Joi.object({
-    ...header,
-    lines: Joi.array().items(line).min(1).required(),
-  }),
-);
+export const createBodySchema = withLineRules(Joi.object(header));
+export const updateBodySchema = withLineRules(Joi.object(header));

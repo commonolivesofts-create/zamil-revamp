@@ -6,11 +6,11 @@ import usePermissions from '@/features/access/usePermissions.js'
 import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { COMMON_TEXT, OFFER_TEXT as T } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
-import { arDate, businessToday, enDate, formatAmount, initials } from '../shared/hrFormat.js'
+import { arDate, businessToday, enDate, formatAmount } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
-import { NewFormDialog, ReportDialog } from '../shared/components/RecruitmentDialogs.jsx'
-import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket } from '../shared/components/RecruitmentShell.jsx'
+import { NewFormDialog } from '../shared/components/RecruitmentDialogs.jsx'
+import { Orbit, Pill, RecruitmentShell, StepHead } from '../shared/components/RecruitmentShell.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { HrField } from '../shared/components/RecruitmentInputs.jsx'
 import {
@@ -29,7 +29,7 @@ const PACKAGE_CIRCUMFERENCE = 289.03 // 2π × 46
 
 export default function OfferPage() {
   return (
-    <RecruitmentLoader current="offer" title={T.title} subtitle={T.subtitle} param="offerId" load={service.getById} loadLookups={(signal) => service.getLookups({ signal })}>
+    <RecruitmentLoader current="offer" title={T.title} param="offerId" load={service.getById} loadLookups={(signal) => service.getLookups({ signal })}>
       {({ lookups, lookupStatus, reloadLookups, record, editorKey }) => <OfferEditor key={editorKey} lookups={lookups} lookupStatus={lookupStatus} reloadLookups={reloadLookups} record={record} />}
     </RecruitmentLoader>
   )
@@ -150,7 +150,8 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
   }, { success: T.deleted }).then((outcome) => {
     if (outcome.status === 'success') navigate(BASE, { replace: true })
   })
-  const startNew = () => navigate(BASE)
+  // Leaving with unsaved answers asks first (New form and Report).
+  const leave = (path) => (editor.dirty ? setDialog({ path }) : navigate(path))
 
   const benefit = (key, index) => {
     const text = T.benefits[key]
@@ -195,33 +196,27 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
   }
 
   const placeholder = (value, fallback) => (value ? value : <span className="zrv-hr-paper__ph">{fallback}</span>)
+  // The primary button saves, so the toolbar has no second Save.
   const tools = [
-    { icon: 'save', label: COMMON_TEXT.save, onClick: save, disabled: locked || editor.pending },
     ...(canDelete ? [{ icon: 'trash-2', label: T.deleteAction, onClick: () => setDialog('delete'), disabled: editor.pending }] : []),
     { icon: 'printer', label: COMMON_TEXT.print, onClick: () => window.print() },
-    { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => setDialog('report') },
-    { icon: 'file-plus', label: COMMON_TEXT.requestForm, onClick: () => (editor.dirty ? setDialog('new') : startNew()) },
+    { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => leave(`${BASE}/report`) },
+    { icon: 'file-plus', label: T.report.newOffer, onClick: () => leave(BASE) },
     { icon: 'house', label: COMMON_TEXT.home, onClick: () => navigate('/dashboard') },
   ]
+  const steps = T.tabNames.map((name, index) => [name, doneSteps[index] ? T.tabHints.done : T.tabHints.open])
 
   return (
     <>
       <RecruitmentShell
-        current="offer" title={T.title} subtitle={T.subtitle}
+        current="offer" title={T.title}
         flowStatus={record ? [record.offerId, T.status[record.status]].filter(Boolean).join(' · ') : null}
         tools={tools} primary={{ label: T.primary, icon: 'save', onClick: save, disabled: !canSave }}
         feedback={editor.feedback} onDismissFeedback={editor.dismiss} lookupNotice={lookupNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
-        ticket={<Ticket avatar={initials(form.candidateNameEn)} code={T.code} items={[
-          { k: T.ticket.number, v: record?.offerId || T.ticket.numberPending },
-          { k: T.ticket.candidate, v: form.candidateNameEn || T.ticket.newCandidate, big: true },
-          { k: T.ticket.position, v: form.position || COMMON_TEXT.dash },
-          { k: T.ticket.package, v: monthly ? `${currency} ${formatAmount(monthly)}` : COMMON_TEXT.dash },
-          { k: T.ticket.status, v: <Pill tone="warn">{T.status[status]}</Pill> },
-        ]} />}
-        steps={T.steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.final} onFinal={save}
+        steps={steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.final} onFinal={save}
         side={<>
           <div className="zrv-hr-side__h">
-            <span className="zrv-hr-eyebrow">{T.letter.side}</span>
+            <span className="zrv-hr-side__t"><span className="zrv-hr-eyebrow">{T.letter.side}</span><Pill tone="warn">{T.status[status] ?? status}</Pill></span>
             <div className="zrv-hr-seg" role="group" aria-label={T.letter.languages} style={{ '--li': T.languages.findIndex(([value]) => value === language) }}>
               <span className="zrv-hr-seg__pill" aria-hidden="true" />
               {T.languages.map(([value, label]) => (
@@ -279,11 +274,11 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
               </div>
             </div>
           </section>
-          <Orbit done={progress.done} total={progress.total} hint={doneSteps.every(Boolean) ? T.orbitReady : COMMON_TEXT.stillOpen(T.steps.filter((_, index) => !doneSteps[index]).map(([name]) => name))} />
+          <Orbit done={progress.done} total={progress.total} hint={doneSteps.every(Boolean) ? T.orbitReady : COMMON_TEXT.stillOpen(T.tabNames.filter((_, index) => !doneSteps[index]))} />
         </>}
       >
         {step === 0 && <>
-          <PanelHead n={1} {...T.heads[0]} />
+          <StepHead {...T.heads[0]} />
           <p className="zrv-hr-sentence">
             <label htmlFor="of-position">{T.sentence.before}</label>
             <input {...fieldProps('of-position', { error: errors.position })} className="zrv-hr-sentence__pos" placeholder={T.placeholders.position}
@@ -291,7 +286,7 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
             {T.sentence.after}
           </p>
           {errors.position && <small className="zrv-auth-field-error" id="of-position-error">{errors.position}</small>}
-          <div className="zrv-hr-grid zrv-hr-is-3 zrv-hr-mt">
+          <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt">
             <HrField id="of-date" label={T.labels.date} required error={errors.offerDate}>
               <input {...fieldProps('of-date', { error: errors.offerDate })} type="date" className="ux-input zrv-hr-input" value={form.offerDate} onChange={set('offerDate')} aria-required="true" />
             </HrField>
@@ -320,15 +315,15 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
           </div>
         </>}
         {step === 1 && <>
-          <PanelHead n={2} {...T.heads[1]} />
+          <StepHead {...T.heads[1]} />
           <div className="zrv-hr-benefits">{STEP_BENEFITS[1].map(benefit)}</div>
         </>}
         {step === 2 && <>
-          <PanelHead n={3} {...T.heads[2]} />
+          <StepHead {...T.heads[2]} />
           <div className="zrv-hr-benefits">{STEP_BENEFITS[2].map(benefit)}</div>
         </>}
         {step === 3 && <>
-          <PanelHead n={4} {...T.heads[3]} />
+          <StepHead {...T.heads[3]} />
           <div className="zrv-hr-grid zrv-hr-is-3 zrv-hr-mt">
             <HrField id="of-intno" label={T.labels.intNo} required error={errors.intNo}>
               <input {...fieldProps('of-intno', { error: errors.intNo })} className="ux-input zrv-hr-input" value={form.intNo} list="of-interview-options" onChange={set('intNo')} maxLength={100} aria-required="true" />
@@ -349,12 +344,7 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
 
       {dialog === 'delete' && <ConfirmDialog title={T.deleteTitle} description={T.deleteBody} confirmLabel={T.deleteAction} pending={editor.pending}
         feedback={editor.feedback} onConfirm={deleteRecord} onClose={() => setDialog(null)} />}
-      {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
-      {dialog === 'report' && (
-        <ReportDialog title={T.reportTitle} resourceKey="hr-offer-report" load={service.list} onClose={() => setDialog(null)}
-          numberOf={(item) => item.offerId} statusOf={(item) => T.status[item.status]} pathOf={(item) => `${BASE}/${item.offerId}`}
-          columns={[[T.reportColumns.position, (item) => item.position], [T.reportColumns.candidate, (item) => item.candidateNameEn]]} />
-      )}
+      {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
     </>
   )
 }
