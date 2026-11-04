@@ -89,7 +89,7 @@ test('dashboard page: registered, route-gated panels, counts from the list APIs 
     ['rate(J.onboarded, m.onboarded, m.orientations', 'onboarding = approved / scheduled'],
     ['rate(J.success, m.confirmed, sumOf(m.confirmed, m.notConfirmed)', 'probation success'],
   ]) assert.ok(page.includes(rule), name)
-  const registry = await read('config/registry/modules/requisitions.module.js')
+  const registry = await read('config/registry/modules/hrForms.module.js')
   assert.match(registry, /id: 'hr-recruitment-dashboard', path: '\/hr\/recruitment\/dashboard'.*enabledBy: \{ env: 'VITE_FEATURE_HR_RECRUITMENT' \}/)
   const router = await read('app/router.jsx')
   assert.match(router, /path: 'hr\/recruitment\/dashboard', handle: \{ routeId: 'hr-recruitment-dashboard' \}, element: <RecruitmentDashboardPage \/>/)

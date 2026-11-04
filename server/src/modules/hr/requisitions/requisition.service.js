@@ -11,7 +11,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 /*
  * Personal Requisition Form rules (README_personal_requisition_form.md). `authorize` has already
- * checked the actor's REQUISITIONS.REQUISITIONS action; these rules apply on top:
+ * checked the actor's HR.REQUISITIONS action; these rules apply on top:
  *   - REQUISITION_STATUS is written only 'Draft' on insert and never transitioned (§11);
  *     Inprocess/Approved merely gate non-HR updates with 409 (§5.0).
  *   - Recruitment status (ATTRIBUTE1) is Open on insert and read-only in form updates.

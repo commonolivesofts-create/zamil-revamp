@@ -43,9 +43,9 @@ const PRE_REGISTRY_ROUTES = [
 // HR forms use backend-owned resource permissions; the periodwise report
 // remains session-only. All are switched by VITE_FEATURE_HR_RECRUITMENT.
 const HR = 'human-resources'
-const REQ = 'REQUISITIONS.REQUISITIONS'
-const INTERVIEW = 'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS'
-const OFFER = 'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS'
+const REQ = 'HR.REQUISITIONS'
+const INTERVIEW = 'HR.INTERVIEW_ASSESSMENTS'
+const OFFER = 'HR.EMPLOYMENT_OFFERS'
 const PROBATION = 'HR.PROBATION_EVALUATIONS'
 const CONTRACTOR_EMPLOYEES = 'HR.CONTRACTOR_EMPLOYEES'
 const PERSONNEL_RECORD_CHANGES = 'HR.PERSONNEL_RECORD_CHANGES'
@@ -170,7 +170,7 @@ test('the derived routes, sections and permission names match the active modules
     SECURITY_AUDIT_VIEW: `${SA}.SECURITY_AUDIT:VIEW`,
   })
   assert.ok(Object.isFrozen(appRoutes) && appRoutes.every(Object.isFrozen))
-  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS', 'HR', 'HR_EMPLOYEE_SERVICES', WF])
+  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'HR', 'HR_EMPLOYEE_SERVICES', WF])
   assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === SA).map((p) => p.key), SECURITY_RESOURCES.flatMap((r) => r.actions.map((a) => `${SA}.${r.code}:${a}`)))
   assert.deepEqual(registeredModules.find((module) => module.code === 'COMMON').resources, [])
 })
@@ -208,13 +208,15 @@ test('Security Administration equals the complete backend catalogue: 8 resources
   assert.deepEqual(registered, backend)
   assert.deepEqual(registered, backend)
   assert.deepEqual(registeredModules.find((item) => item.code === 'COMMON').resources, [], 'the common module adds no permissions')
-  assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === 'REQUISITIONS').map((p) => p.key), [
-    `${REQ}:VIEW`, `${REQ}:CREATE`, `${REQ}:UPDATE`, `${REQ}:DELETE`, `${REQ}:MANAGE_ATTACHMENTS`,
-  ])
-  for (const code of ['INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS']) {
-    assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === code).map((p) => p.key), [
-      `${code}.${code}:VIEW`, `${code}.${code}:CREATE`, `${code}.${code}:UPDATE`, `${code}.${code}:DELETE`,
-    ])
+  for (const [resource, actions] of [
+    [REQ, ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_ATTACHMENTS']],
+    [INTERVIEW, ['VIEW', 'CREATE', 'UPDATE', 'DELETE']],
+    [OFFER, ['VIEW', 'CREATE', 'UPDATE', 'DELETE']],
+  ]) {
+    assert.deepEqual(
+      registry.permissions.filter((permission) => permission.key.startsWith(`${resource}:`)).map((permission) => permission.key),
+      actions.map((action) => `${resource}:${action}`),
+    )
   }
   assert.deepEqual(
     registry.permissions.filter((permission) => permission.key.startsWith(`${ARABIC_SALARY_CERTIFICATES}:`)).map((permission) => permission.key),

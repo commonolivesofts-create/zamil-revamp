@@ -11,7 +11,7 @@ import { recordRecruitmentChange } from '../requisitions/recruitmentAudit.js';
 
 /*
  * Employment Offer Form rules (README_employment_offer_form.md). `authorize` has already
- * checked the actor's EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS permission; these rules apply on top:
+ * checked the actor's HR.EMPLOYMENT_OFFERS permission; these rules apply on top:
  *   - STATUS starts Incomplete. The HR-only acceptance action changes it to Accepted and
  *     records the actual acceptance date on the linked requisition in the same transaction.
  *   - Legacy insert defaults: empty applicant stores '-', empty reqNo stores 0; the line's

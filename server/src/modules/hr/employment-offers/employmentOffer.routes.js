@@ -21,7 +21,7 @@ const EMPLOYMENT_OFFERS = 'HR.EMPLOYMENT_OFFERS';
 
 /**
  * Employment Offer Form CRUD, mounted at /api/v1/hr/employment-offers. Every route requires an
- * authenticated session and the EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS action (re-evaluated in
+ * authenticated session and the HR.EMPLOYMENT_OFFERS action (re-evaluated in
  * Oracle per request);
  * changes also require the session-bound CSRF token. Validation runs after authorization. The
  * lookups are declared before /:headerId.

@@ -8,9 +8,6 @@ import { buildRegistry } from './defineModule.js'
 import { NAVIGATION_GROUPS } from './navigationGroups.js'
 import commonModule from './modules/common.module.js'
 import securityAdministrationModule from './modules/securityAdministration.module.js'
-import requisitionsModule from './modules/requisitions.module.js'
-import interviewAssessmentsModule from './modules/interviewAssessments.module.js'
-import employmentOffersModule from './modules/employmentOffers.module.js'
 import hrFormsModule from './modules/hrForms.module.js'
 import hrEmployeeServicesModule from './modules/hrEmployeeServices.module.js'
 import workflowManagerModule from './modules/workflowManager.module.js'
@@ -18,9 +15,6 @@ import workflowManagerModule from './modules/workflowManager.module.js'
 export const registeredModules = Object.freeze([
   commonModule,
   securityAdministrationModule,
-  requisitionsModule,
-  interviewAssessmentsModule,
-  employmentOffersModule,
   hrFormsModule,
   hrEmployeeServicesModule,
   workflowManagerModule,

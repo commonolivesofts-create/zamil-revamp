@@ -83,9 +83,6 @@ test("the active registry grants HR routes only through the backend form resourc
     [
       "COMMON",
       "SECURITY_ADMINISTRATION",
-      "REQUISITIONS",
-      "INTERVIEW_ASSESSMENTS",
-      "EMPLOYMENT_OFFERS",
       // Backend-owned probation, orientation and employee report permissions.
       "HR",
       // Session-only employee services behind VITE_FEATURE_HR_EMPLOYEE_SERVICES (hrEmployeeServices.test.mjs).

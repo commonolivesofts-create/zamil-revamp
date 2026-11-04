@@ -32,7 +32,7 @@ const UPLOAD_ERRORS = {
 
 /**
  * Personal Requisition Form CRUD, mounted at /api/v1/hr/requisitions. Every route requires an
- * authenticated session and the REQUISITIONS.REQUISITIONS action (re-evaluated in Oracle per request);
+ * authenticated session and the HR.REQUISITIONS action (re-evaluated in Oracle per request);
  * changes also require the session-bound CSRF token. Validation runs after authorization.
  * `POST /` and `PUT /:requisitionId` accept either JSON (header fields only) or multipart
  * (the same fields as form parts plus `files`); the attachment upload is multipart only.

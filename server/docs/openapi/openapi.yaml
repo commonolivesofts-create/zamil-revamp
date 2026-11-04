@@ -1,4 +1,4 @@
-openapi: 3.1.0
+﻿openapi: 3.1.0
 info:
   title: Zamil Digitalization API
   version: 2.1.0
@@ -57,7 +57,7 @@ tags:
       Interview Assessment Form CRUD (README_interview_assessment_form.md): insert,
       read, update, delete and filtered listing of the four-table record, plus the
       nationality, approved-requisition and interviewer-employee lookups. Requires
-      INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW / CREATE / UPDATE / DELETE
+      HR.INTERVIEW_ASSESSMENTS:VIEW / CREATE / UPDATE / DELETE
       (default deny without the catalogue grant). STATUS is plain data: written
       'Incomplete' on insert, never updated, and refused for deletion when Approved
       and Passed.
@@ -67,7 +67,7 @@ tags:
       update, delete and filtered listing of the two-table record (header + one
       line), plus the approved-candidate, title, allowance, business-unit,
       number-to-Arabic and Hijri-date lookups. Requires
-      EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW / CREATE / UPDATE / DELETE (default
+      HR.EMPLOYMENT_OFFERS:VIEW / CREATE / UPDATE / DELETE (default
       deny without the catalogue grant). STATUS is write-once 'Incomplete' on insert
       and only a list filter afterwards; PROBATIONARY_PERIOD(_AR) and the line
       salary-arabic duplicate are insert-only and never updated.
@@ -77,9 +77,9 @@ tags:
       read, update, delete and filtered listing of the single-table record plus its
       attachment rows, and the job-title, requestor, department, replacement-for,
       budget and filter-option lookups. Requires
-      REQUISITIONS.REQUISITIONS:VIEW / CREATE / UPDATE / DELETE / MANAGE_ATTACHMENTS (default
+      HR.REQUISITIONS:VIEW / CREATE / UPDATE / DELETE / MANAGE_ATTACHMENTS (default
       deny without the catalogue grant). REQUISITION_STATUS is plain data: written
-      'Draft' on insert and never transitioned — no workflow table (XXPHP_WORKFLOW,
+      'Draft' on insert and never transitioned â€” no workflow table (XXPHP_WORKFLOW,
       XX_REQ_WF_REC) is read or written. ticketStatus (ATTRIBUTE1) may only be set
       by HR users (server-side XXZP_HR probe); Inprocess/Approved merely gate
       non-HR updates, and only Draft requests can be deleted.
@@ -443,7 +443,7 @@ paths:
       tags: [Authentication]
       summary: Verify an authenticator code and sign in
       description: >-
-        Verifies a 6-digit TOTP code (SHA-1, 30-second steps, ±1 step tolerance)
+        Verifies a 6-digit TOTP code (SHA-1, 30-second steps, Â±1 step tolerance)
         for the challenge's user. Each time step is accepted only once (replays
         are refused). On success the challenge is revoked and an MFA-verified
         session is issued (15-minute idle timeout for privileged users, 30 minutes
@@ -909,7 +909,7 @@ paths:
       tags: [Access Control]
       summary: Deactivate a role
       description: >-
-        Idempotent; members lose the role’s permissions on their next request.
+        Idempotent; members lose the roleâ€™s permissions on their next request.
         Protected administrator roles cannot be deactivated. Audited as
         RBAC_ROLE_DEACTIVATED when the state changes. Requires
         `SECURITY_ADMINISTRATION.ROLES:DEACTIVATE` (re-evaluated in Oracle on every
@@ -1418,7 +1418,7 @@ paths:
     get:
       operationId: listUserRoles
       tags: [Access Control]
-      summary: List a user’s roles
+      summary: List a userâ€™s roles
       description: >-
         Memberships with their expiry and whether each is currently effective (at
         most 500). Requires `SECURITY_ADMINISTRATION.USER_ROLES:VIEW` (re-evaluated
@@ -1556,7 +1556,7 @@ paths:
     get:
       operationId: getUserEffectivePermissions
       tags: [Access Control]
-      summary: A user’s effective permissions
+      summary: A userâ€™s effective permissions
       description: >-
         Same computation as the request-time check (at most 1,000). Requires
         `SECURITY_ADMINISTRATION.USER_ROLES:VIEW` (re-evaluated in Oracle on every
@@ -1598,7 +1598,7 @@ paths:
     get:
       operationId: listUserOverrides
       tags: [Access Control]
-      summary: List a user’s direct overrides
+      summary: List a userâ€™s direct overrides
       description: >-
         Active and inactive ALLOW/DENY overrides with justification and expiry (at
         most 500). Requires `SECURITY_ADMINISTRATION.USER_PERMISSION_OVERRIDES:VIEW`
@@ -1642,7 +1642,7 @@ paths:
       tags: [Access Control]
       summary: Set a direct override
       description: >-
-        Creates or replaces the user’s single override for the permission. An
+        Creates or replaces the userâ€™s single override for the permission. An
         active, unexpired DENY wins over every grant. The Super Administrator
         account is never overridden; no self-overrides; security-administration
         permissions and protected accounts are Super Administrator only; an ALLOW
@@ -2036,7 +2036,7 @@ paths:
         has been set through the password-setup lifecycle (409
         ACTIVATION_PREREQUISITES_NOT_MET otherwise). Idempotent. Accounts of
         administrators are managed only by the Super Administrator; the Super
-        Administrator account and the actor’s own account cannot be changed here.
+        Administrator account and the actorâ€™s own account cannot be changed here.
         Audited as ACCOUNT_ACTIVATED. Requires
         `SECURITY_ADMINISTRATION.USER_ACCOUNTS:ACTIVATE` (re-evaluated in Oracle on
         every request; MFA-verified session required). Requires the `X-CSRF-Token`
@@ -2931,8 +2931,8 @@ paths:
         Returns filtered, paginated PAF records. HR membership is checked server-side
         against XX_DIGI_LOOKUP_VALUES (LOOKUP_TYPE 'XXZP_HR', MEANING equal to the
         authenticated employee number); other actors are scoped to their own CREATED_BY.
-        Each row carries the derived evaluationResult (TOTAL_RATING 71–100 ACCEPTABLE,
-        0–70 NOT_ACCEPTABLE) and pendingAt, the legacy report's Pending At: TO_USER of the open
+        Each row carries the derived evaluationResult (TOTAL_RATING 71â€“100 ACCEPTABLE,
+        0â€“70 NOT_ACCEPTABLE) and pendingAt, the legacy report's Pending At: TO_USER of the open
         CI3 workflow step (XXPHP_WORKFLOW, MSG_TYPE EPRBF, USER_KEY = HEADER_ID, STATUS Open,
         TYPE_PARAM null), or null. Requires `HR.PROBATION_EVALUATIONS:VIEW` (default-deny
         catalogue authorization).
@@ -3266,7 +3266,7 @@ paths:
       tags: [HR Probation Evaluations]
       summary: Update a probation evaluation
       description: >-
-        The legacy edit form (prf_uplines.php): Comments, Suggestion and a 1–5 rating for every
+        The legacy edit form (prf_uplines.php): Comments, Suggestion and a 1â€“5 rating for every
         line of the evaluation are required, and they are all that is saved, with the computed
         TOTAL_RATING, UPDATED_BY and UPDATED_AT. Other header fields are not changed and the
         request status is kept. 400 unless the lines are exactly the evaluation's lines. Returns
@@ -3344,10 +3344,10 @@ paths:
       description: >-
         Interview Assessment Form records (XXZP_INTERVW_ASSESMNT_HEADER_T joined to
         XXZP_INTERVIEW_EVAL_T), paginated, with filters and an allowlisted sort.
-        Row scoping is decided server-side (README §7.4): HR users (XX_DIGI_LOOKUP_VALUES
+        Row scoping is decided server-side (README Â§7.4): HR users (XX_DIGI_LOOKUP_VALUES
         LOOKUP_TYPE 'XXZP_HR') see every record and may narrow by createdBy; other users
         only see rows they created, whatever they pass in the query. Requires
-        `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW` (re-evaluated in Oracle on every request).
+        `HR.INTERVIEW_ASSESSMENTS:VIEW` (re-evaluated in Oracle on every request).
       security:
         - sessionCookie: []
       parameters:
@@ -3460,10 +3460,10 @@ paths:
         REQUISITION_STATUS 'Approved'); the totals rate9 / cRating7 are recomputed
         server-side from the numeric ratings; empty text stores '-', empty numbers
         store 0; business dates travel as 'YYYY-MM-DD' and are stored as 'DD-Mon-YY'.
-        HEADER_ID comes from the Oracle identity column (INSERT … RETURNING, no
+        HEADER_ID comes from the Oracle identity column (INSERT â€¦ RETURNING, no
         MAX-based key); INT_NO is ATTRIBUTE3 + '-' + that headerId zero-padded to 3,
         written in the same transaction. STATUS is written
-        'Incomplete' only. Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:CREATE` (re-evaluated
+        'Incomplete' only. Requires `HR.INTERVIEW_ASSESSMENTS:CREATE` (re-evaluated
         in Oracle on every request) and the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -3506,9 +3506,9 @@ paths:
       tags: [HR Interview Assessments]
       summary: Payroll business-unit lookup
       description: >-
-        The payroll business units accepted as `attribute3`, with their labels (README §1.1:
+        The payroll business units accepted as `attribute3`, with their labels (README Â§1.1:
         IPP and FPP). The legacy APP_BU_INFO table does not exist in the ADW schema, so the
-        values are server constants. Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW`.
+        values are server constants. Requires `HR.INTERVIEW_ASSESSMENTS:VIEW`.
         No query parameters are accepted.
       security:
         - sessionCookie: []
@@ -3550,7 +3550,7 @@ paths:
       summary: Nationality lookup
       description: >-
         Distinct XXZP_NATIONALITY values for the form. Requires
-        `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW`. No query parameters are accepted.
+        `HR.INTERVIEW_ASSESSMENTS:VIEW`. No query parameters are accepted.
       security:
         - sessionCookie: []
       responses:
@@ -3588,7 +3588,7 @@ paths:
       description: >-
         Requisitions with REQUISITION_STATUS 'Approved'
         (XXZPI_PER_REQUISITIONS_ALL), the only values accepted by requisitionNo on
-        write. Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW`. No query parameters are
+        write. Requires `HR.INTERVIEW_ASSESSMENTS:VIEW`. No query parameters are
         accepted.
       security:
         - sessionCookie: []
@@ -3626,7 +3626,7 @@ paths:
       summary: Interviewer-employee lookup
       description: >-
         Employee names offered for the interviewer fields. Requires
-        `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW`. No query parameters are accepted.
+        `HR.INTERVIEW_ASSESSMENTS:VIEW`. No query parameters are accepted.
       security:
         - sessionCookie: []
       responses:
@@ -3665,7 +3665,7 @@ paths:
         The header row with the position's approval authority (XX_DIGI_JOB_MASTER)
         and its three section rows; a missing section is returned as null. Business
         dates come back in the stored legacy 'DD-Mon-YY' form. Requires
-        `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW` (record-level access is permission-based).
+        `HR.INTERVIEW_ASSESSMENTS:VIEW` (record-level access is permission-based).
       security:
         - sessionCookie: []
       parameters:
@@ -3707,7 +3707,7 @@ paths:
         the totals are recomputed; the mirror columns INTERVIEWED_BY / INTERVIEWEDBY2 /
         INTERVIEWEDBY3 / ATTRIBUTE3 on the header follow the payload. STATUS is never
         changed. The same requisition, normalization and date rules as insert apply.
-        Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:UPDATE` and the `X-CSRF-Token` header.
+        Requires `HR.INTERVIEW_ASSESSMENTS:UPDATE` and the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
       parameters:
@@ -3757,8 +3757,8 @@ paths:
       description: >-
         Deletes the header and its three section rows in ONE transaction. Refused
         with 409 CANNOT_DELETE_APPROVED when STATUS is 'Approved' and the evaluation
-        is 'Passed' — the Employment Offer form consumes those records (uniform
-        guard, no bypass). Requires `INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:DELETE` and the
+        is 'Passed' â€” the Employment Offer form consumes those records (uniform
+        guard, no bypass). Requires `HR.INTERVIEW_ASSESSMENTS:DELETE` and the
         `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -3808,10 +3808,10 @@ paths:
       description: >-
         Employment Offer Form records (XXZP_EMPLOYMENT_OFFER_HEADER_T), paginated,
         with filters and an allowlisted sort. Row scoping is decided server-side
-        (README §7.4): HR users (XX_DIGI_LOOKUP_VALUES LOOKUP_TYPE 'XXZP_HR') see
+        (README Â§7.4): HR users (XX_DIGI_LOOKUP_VALUES LOOKUP_TYPE 'XXZP_HR') see
         every record and may narrow by createdBy; other users only see rows they
         created, whatever they pass in the query. STATUS is write-once 'Incomplete'
-        on insert and only a filter here. Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`
+        on insert and only a filter here. Requires `HR.EMPLOYMENT_OFFERS:VIEW`
         (re-evaluated in Oracle on every request).
       security:
         - sessionCookie: []
@@ -3855,7 +3855,7 @@ paths:
           schema:
             enum: ['300000002689294', '300000002689307']
           description: >-
-            Business-unit id. The legacy labels are contradictory (README §8.9), so
+            Business-unit id. The legacy labels are contradictory (README Â§8.9), so
             the API only ever exchanges raw ids.
         - name: status
           in: query
@@ -3924,12 +3924,12 @@ paths:
         (XXZP_EMPLOYMENT_OFFER_LINES_T) in ONE transaction: a v4 UUID is generated
         in Node, the header is inserted WITHOUT primary-key columns, the
         trigger-generated HEADER_ID is read back by UUID, then the line is inserted;
-        any failure rolls the whole transaction back (README §3.1, §3.3). STATUS is
+        any failure rolls the whole transaction back (README Â§3.1, Â§3.3). STATUS is
         written 'Incomplete' only and never updated. An empty applicant stores '-',
         an empty reqNo stores 0, absent probationary-period text takes the hardcoded
         defaults from the SQL (NVL), and a comma salary ("8,500") is stripped to a
         number server-side; business dates travel as 'YYYY-MM-DD' and are stored as
-        'DD-Mon-YYYY'. Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:CREATE` (re-evaluated in Oracle
+        'DD-Mon-YYYY'. Requires `HR.EMPLOYMENT_OFFERS:CREATE` (re-evaluated in Oracle
         on every request) and the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -3973,11 +3973,11 @@ paths:
       summary: Approved+passed candidate lookup
       description: >-
         Candidates of interviews with STATUS 'Approved' and evaluation 'Passed'
-        (README §8.1; the Interview README §8.5 contract), ordered by requisition
-        number descending — the form's datalist for employeeName / position / intNo /
+        (README Â§8.1; the Interview README Â§8.5 contract), ordered by requisition
+        number descending â€” the form's datalist for employeeName / position / intNo /
         reqNo. `excludeOffered=true` additionally excludes candidates already used by
         an existing offer (the legacy commented-out dedupe clause); default false
-        preserves legacy behaviour. Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`.
+        preserves legacy behaviour. Requires `HR.EMPLOYMENT_OFFERS:VIEW`.
       security:
         - sessionCookie: []
       parameters:
@@ -4021,7 +4021,7 @@ paths:
       summary: Mr/Mrs title lookup
       description: >-
         XXZP_TITLE lookup entries (MEANING / DESCRIPTION) for the to / toArabic
-        fields. Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`. No query parameters are
+        fields. Requires `HR.EMPLOYMENT_OFFERS:VIEW`. No query parameters are
         accepted.
       security:
         - sessionCookie: []
@@ -4058,12 +4058,12 @@ paths:
       tags: [Employment Offers]
       summary: Benefit allowance lookup
       description: >-
-        Benefit option list for one line field (README §8.3–§8.8): housing,
+        Benefit option list for one line field (README Â§8.3â€“Â§8.8): housing,
         transportation, contract-period and annual-vacation read
         XXZP_HOUSING_ALLOWANCE / XXZP_TRANSPORTATION / XXZP_CONTRACT_PERIOD /
         XXZP_ANNUAL_VACATION ordered by LOOKUP_CODE; medical and ticket keep the
         documented UNION statements verbatim (including the legacy MEANING suffixes).
-        Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`.
+        Requires `HR.EMPLOYMENT_OFFERS:VIEW`.
       security:
         - sessionCookie: []
       parameters:
@@ -4105,10 +4105,10 @@ paths:
       tags: [Employment Offers]
       summary: Business-unit id lookup
       description: >-
-        The two business-unit ids hardcoded in the legacy views (README §8.9). The
+        The two business-unit ids hardcoded in the legacy views (README Â§8.9). The
         labels are swapped between the insert and edit views, so the API returns raw
         ids only and never labels them until the owner confirms. Requires
-        `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`. No query parameters are accepted.
+        `HR.EMPLOYMENT_OFFERS:VIEW`. No query parameters are accepted.
       security:
         - sessionCookie: []
       responses:
@@ -4142,9 +4142,9 @@ paths:
       tags: [Employment Offers]
       summary: Salary number in Arabic words
       description: >-
-        CON_NUM_TO_ARABIC(:number) for the BASIC_SALARY_AR field (README §8.10,
+        CON_NUM_TO_ARABIC(:number) for the BASIC_SALARY_AR field (README Â§8.10,
         formerly a legacy AJAX helper). Read-only; requires
-        `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`.
+        `HR.EMPLOYMENT_OFFERS:VIEW`.
       security:
         - sessionCookie: []
       parameters:
@@ -4185,8 +4185,8 @@ paths:
       summary: Gregorian date to Hijri date
       description: >-
         Converts a calendar date to 'YYYY/MM/DD' in the NLS Arabic Hijrah calendar
-        for APPROXIMATE_STARTING_DATE_AR (README §8.11, formerly a legacy AJAX
-        helper). Read-only; requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`.
+        for APPROXIMATE_STARTING_DATE_AR (README Â§8.11, formerly a legacy AJAX
+        helper). Read-only; requires `HR.EMPLOYMENT_OFFERS:VIEW`.
       security:
         - sessionCookie: []
       parameters:
@@ -4286,10 +4286,10 @@ paths:
       tags: [Employment Offers]
       summary: Read one employment offer
       description: >-
-        Header (README §4.1) plus its single line (§4.2); business dates come back
+        Header (README Â§4.1) plus its single line (Â§4.2); business dates come back
         as ISO 'YYYY-MM-DD' and the audit timestamps as date-times. A header saved
         without a line returns `line: null` instead of failing; a missing header is
-        404. Requires `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW`.
+        404. Requires `HR.EMPLOYMENT_OFFERS:VIEW`.
       security:
         - sessionCookie: []
       parameters:
@@ -4326,12 +4326,12 @@ paths:
       tags: [Employment Offers]
       summary: Update an employment offer
       description: >-
-        Updates the header (README §5.1) and MERGEs the line (§5.2, creating it when
+        Updates the header (README Â§5.1) and MERGEs the line (Â§5.2, creating it when
         the header was saved without one) in ONE transaction; both row counts are
         checked and a missing header is 404. STATUS, CREATED_BY / CREATION_DATE,
         PROBATIONARY_PERIOD(_AR) and the line salary-arabic duplicate (ATTRIBUTE2)
-        are never touched — they are insert-only legacy columns. Requires
-        `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:UPDATE` (re-evaluated in Oracle on every request) and
+        are never touched â€” they are insert-only legacy columns. Requires
+        `HR.EMPLOYMENT_OFFERS:UPDATE` (re-evaluated in Oracle on every request) and
         the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -4381,9 +4381,9 @@ paths:
       summary: Delete an employment offer
       description: >-
         Deletes the line first (FK) and then the header in ONE transaction
-        (README §6 — the legacy module has no delete at all). No conflict guard is
+        (README Â§6 â€” the legacy module has no delete at all). No conflict guard is
         needed while STATUS stays write-once. Requires
-        `EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:DELETE` (re-evaluated in Oracle on every request) and
+        `HR.EMPLOYMENT_OFFERS:DELETE` (re-evaluated in Oracle on every request) and
         the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -4431,12 +4431,12 @@ paths:
       description: >-
         Personal Requisition Form records (XXZPI_PER_REQUISITIONS_ALL), paginated,
         with filters and an allowlisted sort. Row scoping is decided server-side
-        (README §7.4): HR users (XX_DIGI_LOOKUP_VALUES LOOKUP_TYPE 'XXZP_HR') see
+        (README Â§7.4): HR users (XX_DIGI_LOOKUP_VALUES LOOKUP_TYPE 'XXZP_HR') see
         every record and may narrow by createdBy; other users see their own rows plus
         those of recursively supervised employees (the XX_DIGI_EMP_MASTER
         SUPERVISOR_NAME chain), whatever they pass in the query. `ticketStatus`
         matches ATTRIBUTE1 with NULL treated as 'Open' (NVL). Requires
-        `REQUISITIONS.REQUISITIONS:VIEW` (re-evaluated in Oracle on every request).
+        `HR.REQUISITIONS:VIEW` (re-evaluated in Oracle on every request).
       security:
         - sessionCookie: []
       parameters:
@@ -4555,16 +4555,16 @@ paths:
       summary: Insert a requisition
       description: >-
         Inserts the header in ONE transaction. REQUISITION_ID comes from the
-        Oracle identity column (INSERT … RETURNING, no MAX-based key; IDs step by 1)
+        Oracle identity column (INSERT â€¦ RETURNING, no MAX-based key; IDs step by 1)
         and REQUISITION_NUMBER is set to the same value in the same transaction
-        (README §3.1). Attachment HEADER_IDs also come from the identity column. REQUISITION_STATUS is written 'Draft' only and
-        no workflow row is created (README §11). REQUESTED_BY / REQUESTER_NAME are
+        (README Â§3.1). Attachment HEADER_IDs also come from the identity column. REQUISITION_STATUS is written 'Draft' only and
+        no workflow row is created (README Â§11). REQUESTED_BY / REQUESTER_NAME are
         server-set from the employee master of the session user and rejected when
         taken from the body. Business dates travel as 'YYYY-MM-DD' and are stored as
         'DD-Mon-YY'. Multipart requests may carry attachment file parts (`files`,
-        max 10 files, 10 MB each, §9 extension allowlist): the attachment rows and
+        max 10 files, 10 MB each, Â§9 extension allowlist): the attachment rows and
         the physical files are written in the same transaction and compensated on
-        failure. Recruitment status is server-owned and Open on every insert; ticketStatus is rejected in form payloads. Requires `REQUISITIONS.REQUISITIONS:CREATE` and the
+        failure. Recruitment status is server-owned and Open on every insert; ticketStatus is rejected in form payloads. Requires `HR.REQUISITIONS:CREATE` and the
         `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -4620,7 +4620,7 @@ paths:
       summary: Job-title lookup
       description: >-
         Distinct XX_DIGI_EMP_MASTER job id / title pairs for the form datalist
-        (README §8.1), ordered by id descending. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
+        (README Â§8.1), ordered by id descending. Requires `HR.REQUISITIONS:VIEW`.
         No query parameters are accepted.
       security:
         - sessionCookie: []
@@ -4658,8 +4658,8 @@ paths:
       summary: Caller capabilities
       description: >-
         What the session user may do beyond the route permission. `canManageTicket` is true
-        for HR users (XXZP_HR lookup, README §9); the same probe refuses a non-HR ticket-status
-        change on create/update with 400. Requires `REQUISITIONS.REQUISITIONS:VIEW`. No query
+        for HR users (XXZP_HR lookup, README Â§9); the same probe refuses a non-HR ticket-status
+        change on create/update with 400. Requires `HR.REQUISITIONS:VIEW`. No query
         parameters are accepted.
       security:
         - sessionCookie: []
@@ -4697,10 +4697,10 @@ paths:
       tags: [HR Requisitions]
       summary: Requestor lookup
       description: >-
-        The session user's employee-master record (README §8.2): FULL_NAME,
+        The session user's employee-master record (README Â§8.2): FULL_NAME,
         EMAIL_ADDRESS and EMPLOYEE_NUMBER, the same values the insert uses to
         server-set REQUESTER_NAME / REQUESTED_BY. 404 when the account has no
-        employee row. Requires `REQUISITIONS.REQUISITIONS:VIEW`. No query parameters are
+        employee row. Requires `HR.REQUISITIONS:VIEW`. No query parameters are
         accepted.
       security:
         - sessionCookie: []
@@ -4738,7 +4738,7 @@ paths:
       summary: Department lookup
       description: >-
         Distinct XX_DIGI_DEPT_MASTER organization id / name pairs for the form
-        datalist (README §8.3), ordered by id. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
+        datalist (README Â§8.3), ordered by id. Requires `HR.REQUISITIONS:VIEW`.
         No query parameters are accepted.
       security:
         - sessionCookie: []
@@ -4775,12 +4775,12 @@ paths:
       tags: [HR Requisitions]
       summary: Replacement-for lookup
       description: >-
-        FULL_NAMEs of the employees supervised by the requestor (README §8.4:
+        FULL_NAMEs of the employees supervised by the requestor (README Â§8.4:
         SUPERVISOR_NAME in the employee master equal to the requestor's own
-        FULL_NAME) — the REPLACEMENT_FOR candidates for a 'Replacement' request.
+        FULL_NAME) â€” the REPLACEMENT_FOR candidates for a 'Replacement' request.
         With `search`, filters candidate FULL_NAME values using a case-insensitive
         substring match. An account without an employee-master match receives an
-        empty array. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
+        empty array. Requires `HR.REQUISITIONS:VIEW`.
       security:
         - sessionCookie: []
       parameters:
@@ -4826,8 +4826,8 @@ paths:
       summary: Budget lookup
       description: >-
         BASIC_SALARY of the employee-master row whose FULL_NAME equals the given
-        name (README §8.5) — the read-only "Basic Salary" field of the budget
-        section. 404 when no employee matches. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
+        name (README Â§8.5) â€” the read-only "Basic Salary" field of the budget
+        section. 404 when no employee matches. Requires `HR.REQUISITIONS:VIEW`.
       security:
         - sessionCookie: []
       parameters:
@@ -4871,11 +4871,11 @@ paths:
       tags: [HR Requisitions]
       summary: Filter-option lookup
       description: >-
-        Distinct dropdown values for the listing filters (README §8.6): requisition
+        Distinct dropdown values for the listing filters (README Â§8.6): requisition
         ids, requester names, job names, department names and reason codes, each
-        bounded to 500 entries and scoped exactly like the listing (README §7.4) —
+        bounded to 500 entries and scoped exactly like the listing (README Â§7.4) â€”
         non-HR callers only see values of their own rows and those of their
-        supervised employees. Requires `REQUISITIONS.REQUISITIONS:VIEW`. No query parameters
+        supervised employees. Requires `HR.REQUISITIONS:VIEW`. No query parameters
         are accepted.
       security:
         - sessionCookie: []
@@ -4969,7 +4969,7 @@ paths:
         FORM_NAME 'Requisition'); business dates come back in the stored legacy
         'DD-Mon-YY' form, ATTACHED_ON as 'DD-Mon-YYYY'. Out-of-scope rows are
         indistinguishable from missing ones: a non-HR caller who may not read a
-        record (README §7.4) receives 404. Requires `REQUISITIONS.REQUISITIONS:VIEW`.
+        record (README Â§7.4) receives 404. Requires `HR.REQUISITIONS:VIEW`.
       security:
         - sessionCookie: []
       parameters:
@@ -5008,13 +5008,13 @@ paths:
       description: >-
         Full replace of the business fields of an existing requisition in ONE
         transaction (the edit form submits the whole payload). Frozen and never
-        updated (README §5.1): REQUISITION_STATUS, REQUISITION_NUMBER, REQUEST_DATE,
-        REQUESTER_NAME, REQUESTED_BY — requestDate is therefore rejected on this
+        updated (README Â§5.1): REQUISITION_STATUS, REQUISITION_NUMBER, REQUEST_DATE,
+        REQUESTER_NAME, REQUESTED_BY â€” requestDate is therefore rejected on this
         operation as an unknown field. Non-HR callers get 409 CANNOT_UPDATE_STATUS
         while the status is Inprocess or Approved (HR users may always save).
         Recruitment status and its dates are read-only on the form. Approved requisitions use dedicated HR actions; all status changes are audited.
         Multipart requests may append attachment file parts (`files`) in the same
-        transaction. Out-of-scope rows 404. Requires `REQUISITIONS.REQUISITIONS:UPDATE` and
+        transaction. Out-of-scope rows 404. Requires `HR.REQUISITIONS:UPDATE` and
         the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -5082,7 +5082,7 @@ paths:
         409 CANNOT_DELETE_STATUS when REQUISITION_STATUS is not 'Draft', and 409
         REQUISITION_IN_USE when an interview assessment references the requisition
         number in ATTRIBUTE4. Out-of-scope rows 404. Requires
-        `REQUISITIONS.REQUISITIONS:DELETE` and the `X-CSRF-Token` header.
+        `HR.REQUISITIONS:DELETE` and the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
       parameters:
@@ -5132,9 +5132,9 @@ paths:
         Appends attachment rows (FORM_HEADER_ID = requisitionId, FORM_NAME
         'Requisition') and writes the physical files in ONE transaction, compensated
         on failure. Multipart only, at least one file part named `files`, max 10
-        files, 10 MB each, README §9 extension allowlist. Returns the full current
+        files, 10 MB each, README Â§9 extension allowlist. Returns the full current
         attachment list. Out-of-scope or missing requisitions 404. Requires
-        `REQUISITIONS.REQUISITIONS:MANAGE_ATTACHMENTS` and the `X-CSRF-Token` header.
+        `HR.REQUISITIONS:MANAGE_ATTACHMENTS` and the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
       parameters:
@@ -5197,8 +5197,8 @@ paths:
       summary: Delete a requisition attachment
       description: >-
         Deletes the attachment row scoped to its requisition and removes the physical
-        file (a missing file is a no-op — the row is authoritative). Unknown or
-        foreign attachment ids 404. Requires `REQUISITIONS.REQUISITIONS:MANAGE_ATTACHMENTS`
+        file (a missing file is a no-op â€” the row is authoritative). Unknown or
+        foreign attachment ids 404. Requires `HR.REQUISITIONS:MANAGE_ATTACHMENTS`
         and the `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -5565,7 +5565,7 @@ paths:
       tags: [User Administration]
       summary: Send a password-reset or MFA-recovery link
       description: >-
-        Administrator-assisted recovery (docs/07 §5). Requires
+        Administrator-assisted recovery (docs/07 Â§5). Requires
         `SECURITY_ADMINISTRATION.ACCOUNT_RECOVERY:ISSUE`, the X-CSRF-Token header
         and explicit confirmation. Ordinary employees: any holder of the permission.
         Main Administrators, Administrators and other security-permission holders:
@@ -11016,8 +11016,8 @@ components:
   headers:
     RequestId:
       description: >-
-        Request correlation ID. A valid incoming X-Request-Id (8–64 characters of
-        A–Z, a–z, 0–9, '.', '_' or '-') is reused; otherwise a UUID is generated.
+        Request correlation ID. A valid incoming X-Request-Id (8â€“64 characters of
+        Aâ€“Z, aâ€“z, 0â€“9, '.', '_' or '-') is reused; otherwise a UUID is generated.
       schema:
         type: string
   schemas:
@@ -12747,7 +12747,7 @@ components:
     InterviewAssessmentRating:
       type: string
       description: >-
-        Section rating '1'–'5' or 'N/A' (README §1.2). An absent rating is stored
+        Section rating '1'â€“'5' or 'N/A' (README Â§1.2). An absent rating is stored
         and returned as '-'.
       enum: ['1', '2', '3', '4', '5', 'N/A', '']
     InterviewAssessmentPersonalSpec:
@@ -12833,11 +12833,11 @@ components:
         positionName: { type: string, maxLength: 200 }
         attribute3:
           enum: ['300000003618177', '300000003618190']
-          description: APP_BU_INFO payroll business unit (README §1.1); also prefixes INT_NO.
+          description: APP_BU_INFO payroll business unit (README Â§1.1); also prefixes INT_NO.
         nationality: { type: string, maxLength: 100 }
         materialStatus:
           enum: [Single, Married, '']
-          description: Legacy column spelling of MARITAL_STATUS (README §10.8).
+          description: Legacy column spelling of MARITAL_STATUS (README Â§10.8).
         age: { type: integer, minimum: 0 }
         interviewDate:
           type: string
@@ -12981,11 +12981,11 @@ components:
         statusLabel:
           enum: [Draft, InProcess, Approved, Rejected]
           description: >-
-            Legacy display mapping (README §7.3): Inprocess becomes InProcess;
+            Legacy display mapping (README Â§7.3): Inprocess becomes InProcess;
             everything else outside Approved/Rejected is Draft.
         evaluationStatus:
           type: [string, 'null']
-          description: Only populated when headerStatus is Approved; null otherwise (README §7.3).
+          description: Only populated when headerStatus is Approved; null otherwise (README Â§7.3).
     PaginatedInterviewAssessments:
       type: object
       required: [success, data, pagination, meta]
@@ -13074,12 +13074,12 @@ components:
       additionalProperties: false
       required: [approximateStartingDate]
       description: >-
-        Single line object (README §3.2) — one line per header, never an array.
+        Single line object (README Â§3.2) â€” one line per header, never an array.
         Absent optional values bind NULL and the SQL applies its NVL defaults.
       properties:
         basicSalary:
           description: >-
-            BASIC_SALARY ≥ 0. A comma string ("8,500") is accepted and stripped to
+            BASIC_SALARY â‰¥ 0. A comma string ("8,500") is accepted and stripped to
             a number server-side; stored as 0 when absent.
           oneOf:
             - type: number
@@ -13111,13 +13111,13 @@ components:
           type: string
           maxLength: 500
           description: >-
-            Absent → the hardcoded English default of README §1.2 (NVL in the
+            Absent â†’ the hardcoded English default of README Â§1.2 (NVL in the
             insert SQL). Insert-only: never updated.
         probationaryPeriodAr:
           type: string
           maxLength: 500
           description: >-
-            Absent → the hardcoded Arabic default of README §1.2 (NVL in the insert
+            Absent â†’ the hardcoded Arabic default of README Â§1.2 (NVL in the insert
             SQL). Insert-only: never updated.
         comment:
           type: string
@@ -13139,7 +13139,7 @@ components:
           enum: ['300000002689294', '300000002689307']
           description: >-
             Business unit in ATTRIBUTE1. The legacy labels are contradictory
-            (README §8.9), so only raw ids are exchanged.
+            (README Â§8.9), so only raw ids are exchanged.
         to:
           type: string
           maxLength: 50
@@ -13156,8 +13156,8 @@ components:
           type: string
           maxLength: 100
           description: >-
-            Interview INT_NO (see the candidates lookup). Existence is not enforced —
-            README §9 asks the owner before adding an FK-like check.
+            Interview INT_NO (see the candidates lookup). Existence is not enforced â€”
+            README Â§9 asks the owner before adding an FK-like check.
         reqNo:
           description: Requisition number in ATTRIBUTE11; empty or absent stores 0.
           oneOf:
@@ -13226,7 +13226,7 @@ components:
           description: Actual acceptance date from the linked requisition.
         division:
           type: [string, 'null']
-          description: Business-unit id from ATTRIBUTE1 (raw id only, README §8.9).
+          description: Business-unit id from ATTRIBUTE1 (raw id only, README Â§8.9).
         applicant: { type: [string, 'null'] }
         to: { type: [string, 'null'] }
         toArabic: { type: [string, 'null'] }
@@ -13246,7 +13246,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/OfferLineDetail'
             - type: 'null'
-          description: Null when the header exists without a line row (README §4).
+          description: Null when the header exists without a line row (README Â§4).
     OfferListItem:
       type: object
       required: [headerId, offerDate, employeeName, position, status, createdBy, creationDate]
@@ -13306,8 +13306,8 @@ components:
           items:
             enum: ['300000002689294', '300000002689307']
           description: >-
-            Raw ids only — the legacy insert/edit labels are contradictory
-            (README §8.9), so no label is returned until the owner confirms.
+            Raw ids only â€” the legacy insert/edit labels are contradictory
+            (README Â§8.9), so no label is returned until the owner confirms.
     NumberToArabicResult:
       type: object
       required: [output]
@@ -13326,9 +13326,9 @@ components:
       type: object
       additionalProperties: false
       description: >-
-        Insert payload (README §3.2). `replacementFor` is required when reasonOfReq
+        Insert payload (README Â§3.2). `replacementFor` is required when reasonOfReq
         is 'Replacement' and `reason` when it is 'Addition'. Empty text and id
-        fields store NULL (the legacy literal 'null' quirk of §9 is deliberately not
+        fields store NULL (the legacy literal 'null' quirk of Â§9 is deliberately not
         reproduced). Recruitment status is server-owned and starts Open for every creator.
       required: [requestDate, jobName, deptName, dateNeeded, reasonOfReq]
       properties:
@@ -13403,7 +13403,7 @@ components:
       type: object
       additionalProperties: false
       description: >-
-        Full-replace update payload (README §5.1) — RequisitionWrite without
+        Full-replace update payload (README Â§5.1) â€” RequisitionWrite without
         requestDate, which is frozen after insert and rejected here as an unknown
         field. Recruitment status is read-only and rejected in form payloads.
       required: [jobName, deptName, dateNeeded, reasonOfReq]
@@ -13479,7 +13479,7 @@ components:
           $ref: '#/components/schemas/Id'
         requisitionNumber:
           type: string
-          description: Equals REQUISITION_ID (README §3.1).
+          description: Equals REQUISITION_ID (README Â§3.1).
     RequisitionAttachment:
       type: object
       required: [attachmentId, fileName, attachedOn]
@@ -17369,7 +17369,7 @@ components:
     RequisitionUpdateConflict:
       description: >-
         `CANNOT_UPDATE_STATUS`: a non-HR caller tried to update a requisition whose
-        REQUISITION_STATUS is 'Inprocess' or 'Approved' (README §5.0); HR users may
+        REQUISITION_STATUS is 'Inprocess' or 'Approved' (README Â§5.0); HR users may
         always save. Nothing was changed.
       headers:
         X-Request-Id:
@@ -17382,15 +17382,15 @@ components:
             success: false
             error:
               code: CANNOT_UPDATE_STATUS
-              message: Request is InProcess/Approved — cannot update data
+              message: Request is InProcess/Approved â€” cannot update data
             meta:
               requestId: 7c4e9a1b-2d3f-4a5b-8c6d-9e0f1a2b3c4d
     RequisitionDeleteConflict:
       description: >-
-        One of the two uniform delete guards fired (README §5.1 — no bypass, HR
+        One of the two uniform delete guards fired (README Â§5.1 â€” no bypass, HR
         included): `CANNOT_DELETE_STATUS` when REQUISITION_STATUS is not 'Draft',
         or `REQUISITION_IN_USE` when an interview assessment references the
-        requisition number in ATTRIBUTE4. Nothing was removed — the header, its
+        requisition number in ATTRIBUTE4. Nothing was removed â€” the header, its
         attachment rows and the physical files are untouched.
       headers:
         X-Request-Id:

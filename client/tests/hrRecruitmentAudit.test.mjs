@@ -585,24 +585,12 @@ test("HR registry modules and resources match the Oracle catalogue exactly", asy
     registeredModules.map((module) => [module.code, module]),
   );
   const expected = {
-    REQUISITIONS: [
-      0,
-      { REQUISITIONS: "Personal Requisitions" },
-      "Personal Requisitions",
-    ],
-    INTERVIEW_ASSESSMENTS: [
-      20,
-      { INTERVIEW_ASSESSMENTS: "Interview Assessments" },
-      "Interview Assessments",
-    ],
-    EMPLOYMENT_OFFERS: [
-      0,
-      { EMPLOYMENT_OFFERS: "Employment Offers" },
-      "Employment Offers",
-    ],
     HR: [
       0,
       {
+        REQUISITIONS: "Personal Requisitions",
+        INTERVIEW_ASSESSMENTS: "Interview Assessments",
+        EMPLOYMENT_OFFERS: "Employment Offers",
         TRANSFER_REQUESTS: "Transfer Request Form",
         PERSONNEL_RECORD_CHANGES: "Personal Status Change Form",
         CONTRACTOR_EMPLOYEES: "Employee report",
