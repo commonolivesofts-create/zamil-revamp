@@ -3,6 +3,7 @@ import { createRequireCsrfToken } from '../../../middleware/csrf.js';
 import { validate } from '../../../middleware/validate.js';
 import { createEmploymentOfferController } from './employmentOffer.controller.js';
 import {
+  acceptanceBodySchema,
   allowancesQuerySchema,
   candidatesQuerySchema,
   emptyBodySchema,
@@ -16,11 +17,11 @@ import {
 
 // Key mirrors the owner-registered Oracle catalogue: module EMPLOYMENT_OFFERS, resource
 // EMPLOYMENT_OFFERS (the UPDATE action exists there; EDIT does not).
-const EMPLOYMENT_OFFERS = 'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS';
+const EMPLOYMENT_OFFERS = 'HR.EMPLOYMENT_OFFERS';
 
 /**
  * Employment Offer Form CRUD, mounted at /api/v1/hr/employment-offers. Every route requires an
- * authenticated session and the EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS action (re-evaluated in
+ * authenticated session and the HR.EMPLOYMENT_OFFERS action (re-evaluated in
  * Oracle per request);
  * changes also require the session-bound CSRF token. Validation runs after authorization. The
  * lookups are declared before /:headerId.
@@ -76,6 +77,11 @@ export function createEmploymentOfferRouter({
   );
   router.post('/', ...write('CREATE', { body: writeBodySchema }), controller.create);
   router.get('/:headerId', ...read('VIEW', { params: headerIdParams }), controller.get);
+  router.post(
+    '/:headerId/accept',
+    ...write('UPDATE', { params: headerIdParams, body: acceptanceBodySchema }),
+    controller.accept,
+  );
   router.put(
     '/:headerId',
     ...write('UPDATE', { params: headerIdParams, body: writeBodySchema }),

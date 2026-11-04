@@ -41,6 +41,35 @@ function fakeClient(routes) {
 }
 
 const services = (client) => createHrRecruitmentServices({ client });
+
+test("recruitment actions send the current status and reason, then reload server progress", async () => {
+  const client = fakeClient({
+    "POST /hr/requisitions/42/recruitment-status": { data: { requisitionId: "42" } },
+    "GET /hr/requisitions/42": { data: {
+      requisitionId: "42", requisitionStatus: "Approved", ticketStatus: "On Hold",
+      recruitmentActions: ["reopen", "cancel"], attachments: [],
+    } },
+  });
+  const record = await services(client).requisitions.changeRecruitmentStatus("42", "hold", "Open", "Budget review");
+  assert.deepEqual(client.calls[0].body, { action: "hold", expectedStatus: "Open", reason: "Budget review" });
+  assert.equal(record.ticketStatus, "On Hold");
+  assert.equal(record.status, "Approved");
+  assert.deepEqual(record.recruitmentActions, ["reopen", "cancel"]);
+});
+
+test("offer acceptance preserves the entered candidate date across the API contract", async () => {
+  const client = fakeClient({
+    "POST /hr/employment-offers/9/accept": { data: { headerId: "9", acceptedDate: "2020-01-02" } },
+    "GET /hr/employment-offers/9": { data: {
+      headerId: "9", status: "Accepted", offerDate: "2020-01-01", acceptedDate: "2020-01-02",
+      employeeName: "Example Candidate", reqNo: "42", line: {},
+    } },
+  });
+  const record = await services(client).offers.accept("9", "2020-01-02", "Candidate signed");
+  assert.deepEqual(client.calls[0].body, { acceptedDate: "2020-01-02", reason: "Candidate signed" });
+  assert.equal(record.acceptedDate, "2020-01-02");
+  assert.equal(record.status, "ACCEPTED");
+});
 const ratingSection = (count, ratePrefix, remarkPrefix) =>
   Object.fromEntries(
     Array.from({ length: count }, (_, index) => [
@@ -489,7 +518,7 @@ test("offer lookups mark an invalid business-unit response and a failed allowanc
   );
 });
 
-test("requisition lookups expose canManageTicket and the page shows the ticket selector only when it is true", async () => {
+test("requisition capabilities come from the server and the form has no status editor", async () => {
   const routes = (canManageTicket) =>
     fakeClient({
       "GET /hr/requisitions/lookups/job-titles": { data: [] },
@@ -530,10 +559,7 @@ test("requisition lookups expose canManageTicket and the page shows the ticket s
     new URL("requisition/RequisitionPage.jsx", FEATURE),
     "utf8",
   );
-  assert.match(
-    page,
-    /canSave && lookups\.capabilities\?\.canManageTicket && \(\s*<HrField\s+id="rq-ticket-status"/,
-  );
+  assert.doesNotMatch(page, /<SegmentedStatus|ticketStatusChanged/);
 });
 
 test("the recruitment loader and employee picker have no demo-only lookup or employee-search defaults", async () => {
@@ -559,24 +585,12 @@ test("HR registry modules and resources match the Oracle catalogue exactly", asy
     registeredModules.map((module) => [module.code, module]),
   );
   const expected = {
-    REQUISITIONS: [
-      0,
-      { REQUISITIONS: "Personal Requisitions" },
-      "Personal Requisitions",
-    ],
-    INTERVIEW_ASSESSMENTS: [
-      20,
-      { INTERVIEW_ASSESSMENTS: "Interview Assessments" },
-      "Interview Assessments",
-    ],
-    EMPLOYMENT_OFFERS: [
-      0,
-      { EMPLOYMENT_OFFERS: "Employment Offers" },
-      "Employment Offers",
-    ],
     HR: [
       0,
       {
+        REQUISITIONS: "Personal Requisitions",
+        INTERVIEW_ASSESSMENTS: "Interview Assessments",
+        EMPLOYMENT_OFFERS: "Employment Offers",
         TRANSFER_REQUESTS: "Transfer Request Form",
         PERSONNEL_RECORD_CHANGES: "Personal Status Change Form",
         CONTRACTOR_EMPLOYEES: "Employee report",

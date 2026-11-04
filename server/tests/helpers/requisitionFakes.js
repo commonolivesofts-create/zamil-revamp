@@ -101,7 +101,7 @@ export function installRequisitions(
     other: h.other,
     remark: h.remark,
     totalPackage: h.totalPackage,
-    ticketStatus: h.ticketStatus ?? '',
+    ticketStatus: h.ticketStatus ?? 'Open',
     acceptedDate: h.acceptedDate,
     closedDate: h.closedDate,
     createdBy: h.createdBy,
@@ -120,15 +120,15 @@ export function installRequisitions(
     async insertHeader(_c, h) {
       if ('reqId' in h) throw new Error('REQUISITION_ID is an identity column: no explicit ID');
       const id = String(identity.requisition++);
-      const ticket = h.ticketStatus || null;
+      const ticket = h.ticketStatus || 'Open';
       table().headers.push({
         ...h,
         requisitionId: id,
         requisitionNumber: null,
         requisitionStatus: 'Draft', // README §11: the only status this API ever writes
         ticketStatus: ticket,
-        acceptedDate: ticket === 'Accepted' ? legacyDay(store.now()) : null,
-        closedDate: ticket === 'Close' ? legacyDay(store.now()) : null,
+        acceptedDate: null,
+        closedDate: null,
         createdBy: h.createdBy,
         createdAt: store.now(),
         updatedBy: null,
@@ -154,18 +154,7 @@ export function installRequisitions(
         const today = legacyDay(store.now());
         h.ticketStatus = ticket.ticketStatus || null;
         // Corrected §5.1 behaviour: the other stored date survives while its status stands.
-        h.acceptedDate =
-          ticket.ticketStatus === 'Accepted'
-            ? today
-            : ticket.ticketStatus === 'Close'
-              ? (h.acceptedDate ?? today)
-              : null;
-        h.closedDate =
-          ticket.ticketStatus === 'Close'
-            ? today
-            : ticket.ticketStatus === 'Accepted'
-              ? (h.closedDate ?? today)
-              : null;
+        if (ticket.ticketStatus === 'Close') h.closedDate ??= today;
       }
       Object.assign(h, { updatedBy, updatedAt: store.now() });
       return true;

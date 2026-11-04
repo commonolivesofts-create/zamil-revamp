@@ -1,4 +1,4 @@
-// Mirrors the HR permission resources used by the probation and orientation APIs.
+// Recruitment resources share the backend-owned HR permission module.
 import { defineModule } from '../defineModule.js'
 
 export default defineModule({
@@ -6,6 +6,34 @@ export default defineModule({
   name: 'Human Resources',
   displayOrder: 0,
   resources: [{
+    code: 'REQUISITIONS',
+    name: 'Personal Requisitions',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_ATTACHMENTS'],
+    navigation: [
+      { id: 'hr-recruitment-dashboard', path: '/hr/recruitment/dashboard', title: 'Recruitment dashboard', icon: 'layout-dashboard', group: 'human-resources', subgroup: 'hr-recruitment', order: 9, enabledBy: { env: 'VITE_FEATURE_HR_RECRUITMENT' } },
+      { id: 'hr-requisition', path: '/hr/recruitment/requisition', title: 'Personnel requisition', icon: 'clipboard-list', group: 'human-resources', subgroup: 'hr-recruitment', order: 10 },
+      { id: 'hr-requisition-report', path: '/hr/recruitment/requisition/report', title: 'Requisition report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-recruitment', order: 11, hidden: true },
+      { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', title: 'Personnel requisition', icon: 'clipboard-list', group: 'human-resources', subgroup: 'hr-recruitment', order: 12, hidden: true },
+    ],
+  }, {
+    code: 'INTERVIEW_ASSESSMENTS',
+    name: 'Interview Assessments',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [
+      { id: 'hr-interview', path: '/hr/recruitment/interview', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', subgroup: 'hr-recruitment', order: 20 },
+      { id: 'hr-interview-report', path: '/hr/recruitment/interview/report', title: 'Assessment report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-recruitment', order: 21, hidden: true },
+      { id: 'hr-interview-record', path: '/hr/recruitment/interview/:assessmentId', title: 'Interview assessment', icon: 'messages-square', group: 'human-resources', subgroup: 'hr-recruitment', order: 22, hidden: true },
+    ],
+  }, {
+    code: 'EMPLOYMENT_OFFERS',
+    name: 'Employment Offers',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [
+      { id: 'hr-offer', path: '/hr/recruitment/offer', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', subgroup: 'hr-recruitment', order: 30 },
+      { id: 'hr-offer-report', path: '/hr/recruitment/offer/report', title: 'Offer report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-recruitment', order: 31, hidden: true },
+      { id: 'hr-offer-record', path: '/hr/recruitment/offer/:offerId', title: 'Employment offer', icon: 'file-signature', group: 'human-resources', subgroup: 'hr-recruitment', order: 32, hidden: true },
+    ],
+  }, {
     code: 'TRANSFER_REQUESTS',
     name: 'Transfer Request Form',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],

@@ -58,10 +58,10 @@ describe('authorization decision (pure)', () => {
   it('rejects malformed permission declarations when the route is declared', () => {
     const authorize = createAuthorize({ authorizationService: {} });
     assert.throws(() => authorize('ROLES', 'VIEW'), /Invalid permission resource key/);
-    assert.throws(() => authorize(`${SEC}.roles`, 'VIEW'), /Invalid permission resource key/);
+    assert.throws(() => authorize(` ${SEC}.roles `, 'VIEW'), /Invalid permission resource key/);
     assert.throws(() => authorize(`${SEC}.ROLES.X`, 'VIEW'), /Invalid permission resource key/);
     assert.throws(() => authorize(`${SEC}.ROLES`, 'view'), /Invalid permission action/);
-    assert.deepEqual(parsePermission(`${SEC}.ROLES`, 'VIEW'), {
+    assert.deepEqual(parsePermission(`  ${SEC}.ROLES  `, 'VIEW'), {
       moduleCode: SEC,
       resourceCode: 'ROLES',
       actionCode: 'VIEW',

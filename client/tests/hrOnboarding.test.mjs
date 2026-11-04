@@ -715,7 +715,7 @@ test("employee report page always sends both dates, in order", async () => {
   assert.match(page, /dateTo: dateFrom && dateTo && dateTo < dateFrom \? I\.dateOrder : ''/);
   assert.match(page, /<InsightReport [^>]*validate=\{validate\}/);
   const insight = await read(`${FEATURE}shared/components/InsightReport.jsx`);
-  assert.match(insight, /const found = Object\.fromEntries\(Object\.entries\(validate\?\.\(draft\) \?\? \{\}\)[\s\S]*?if \(Object\.keys\(found\)\.length\)/);
+  assert.match(insight, /const found = Object\.fromEntries\(\s*Object\.entries\(validate\?\.\(draft\) \?\? \{\}\)[\s\S]*?if \(Object\.keys\(found\)\.length\)/);
 });
 
 test("employee report service lists incomplete legacy rows and rejects malformed values", async () => {

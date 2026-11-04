@@ -53,7 +53,7 @@ export const listQuerySchema = Joi.object({
   intNo: text(100),
   requisitionNo: text(100),
   division: Joi.string().valid(...BU_VALUES),
-  // Free bounded string: only value today is 'Incomplete' (write-once STATUS used as a filter).
+  // Offer status is Incomplete until the dedicated HR acceptance action records Accepted.
   status: text(30),
   dateFrom: isoDate,
   dateTo: isoDate,
@@ -108,8 +108,8 @@ const lineSchema = Joi.object({
 });
 
 /**
- * Full create/update payload (README §3.2, §9) for both POST and PUT. `status` is write-once
- * 'Incomplete' on insert and is never accepted on update; `line` is a single object, required.
+ * Full create/update payload (README §3.2, §9) for both POST and PUT. `status` is server-owned
+ * and never accepted from this payload; `line` is a single object, required.
  */
 export const writeBodySchema = Joi.object({
   offerDate: isoDate.required(),
@@ -126,6 +126,11 @@ export const writeBodySchema = Joi.object({
   intNo: requiredText(100),
   reqNo: requisitionNoValue.optional(),
   line: lineSchema.required(),
+});
+
+export const acceptanceBodySchema = Joi.object({
+  acceptedDate: isoDate.required(),
+  reason: text(1000),
 });
 
 // --- Lookup/helper query schemas (README §8) -----------------------------------------------------

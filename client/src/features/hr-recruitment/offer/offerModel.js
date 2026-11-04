@@ -4,7 +4,7 @@
 import { OFFER_TEXT } from '../hrRecruitmentText.js'
 import { arDate, enDate, toAmount } from '../shared/hrFormat.js'
 
-export const OFFER_STATUSES = Object.freeze(['INCOMPLETE'])
+export const OFFER_STATUSES = Object.freeze(['INCOMPLETE', 'ACCEPTED'])
 // Kept for the unused demo adapter; the live backend has no issue action.
 export const issuedStatus = (signatures) => (signatures?.applicant ? 'ACCEPTED' : 'ISSUED')
 // [key, value type]; money rows make up the monthly package.
@@ -18,7 +18,7 @@ export const PACKAGE_KEYS = Object.freeze(['basic', 'housing', 'transport'])
 export const STEP_BENEFITS = Object.freeze({ 1: PACKAGE_KEYS, 2: Object.freeze(['vacation', 'ticket', 'medical', 'contract', 'start', 'probation']) })
 
 export const benefitType = (key) => BENEFITS.find(([name]) => name === key)?.[1] ?? 'text'
-export const isOfferLocked = () => false
+export const isOfferLocked = (status) => status === 'ACCEPTED'
 
 // Quick picks for a row: the fixed pairs plus the configured probation default.
 export function benefitPicks(key, { probation } = {}) {

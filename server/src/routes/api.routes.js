@@ -231,12 +231,14 @@ export function createApiRouter(appConfig, deps = {}) {
   });
 
   const employmentOfferService = createEmploymentOfferService({
+    auditService,
     repository: deps.employmentOfferRepository,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
   });
 
   const requisitionService = createRequisitionService({
+    auditService,
     repository: deps.requisitionRepository,
     // Physical attachment files land on local disk (README §6); tests inject a memory double.
     storage: deps.requisitionStorage ?? createDiskStorage(),

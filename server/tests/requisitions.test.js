@@ -55,9 +55,9 @@ function setup() {
   const strangerUser = person('3001', 'Nada None');
   const nobody = person('4001', 'Noor Nobody');
 
-  // Mirrors the owner-registered Oracle catalogue (module REQUISITIONS, resource REQUISITIONS);
+  // Mirrors the owner-registered Oracle catalogue (module HR, resource REQUISITIONS);
   // in memory.
-  const requisitionsModule = rbac.addModule('REQUISITIONS');
+  const requisitionsModule = rbac.addModule('HR');
   const requisitions = rbac.addResource(requisitionsModule, 'REQUISITIONS');
   const permissions = {
     VIEW: rbac.addPermission(requisitions, 'VIEW'),
@@ -259,7 +259,7 @@ describe('requisition API', () => {
       assert.equal(data.budgetedSal, 0);
       assert.equal(data.gccExp, '0 - 2');
       assert.equal(data.skills, null); // the legacy literal 'null' quirk is not reproduced (§9)
-      assert.equal(data.ticketStatus, '');
+      assert.equal(data.ticketStatus, 'Open');
       assert.deepEqual(data.attachments, []);
     });
 
@@ -284,13 +284,15 @@ describe('requisition API', () => {
       );
     });
 
-    it('lets HR set ticketStatus and stamps the derived dates', async () => {
+    it('starts HR-created requisitions Open without fabricating acceptance dates', async () => {
       const res = await send('post', '/', hr, { ...BODY, ticketStatus: 'Accepted' });
-      assert.equal(res.status, 201, JSON.stringify(res.body));
-      const { body } = await get(`/${res.body.data.requisitionId}`, hr);
+      assert.equal(res.status, 400);
+      const created = await send('post', '/', hr, BODY);
+      assert.equal(created.status, 201, JSON.stringify(created.body));
+      const { body } = await get(`/${created.body.data.requisitionId}`, hr);
       const { data } = body;
-      assert.equal(data.ticketStatus, 'Accepted');
-      assert.equal(data.acceptedDate, '19-Oct-26'); // store clock: 2026-10-19
+      assert.equal(data.ticketStatus, 'Open');
+      assert.equal(data.acceptedDate, null);
       assert.equal(data.closedDate, null);
     });
 
@@ -298,8 +300,7 @@ describe('requisition API', () => {
       const res = await send('post', '/', staff, { ...BODY, ticketStatus: 'Open' });
       assert.equal(res.status, 400);
       assert.equal(res.body.error.details[0].field, 'ticketStatus');
-      // An explicitly empty value is fine and stores NULL.
-      assert.equal((await send('post', '/', staff, { ...BODY, ticketStatus: '' })).status, 201);
+      assert.equal((await send('post', '/', staff, { ...BODY, ticketStatus: '' })).status, 400);
     });
 
     it('accepts a multipart insert with files, writing rows and bytes together', async () => {
@@ -505,6 +506,123 @@ describe('requisition API', () => {
       assert.equal(body.data.requisitionNumber, id);
     });
 
+    it('allows recruitment actions only for HR on Approved requisitions and audits every change', async () => {
+      const draft = f.seedRequisition({ createdBy: f.hrUser.userId });
+      const approved = f.seedRequisition({
+        createdBy: f.hrUser.userId,
+        requisitionStatus: 'Approved',
+      });
+      const action = { action: 'hold', expectedStatus: 'Open', reason: 'Budget review' };
+      assert.equal((await send('post', `/${draft}/recruitment-status`, hr, action)).status, 409);
+      assert.equal(
+        (await send('post', `/${approved}/recruitment-status`, manager, action)).status,
+        403,
+      );
+      assert.equal(
+        (
+          await send('post', `/${approved}/recruitment-status`, hr, {
+            ...action,
+            expectedStatus: 'Accepted',
+          })
+        ).status,
+        409,
+      );
+      assert.equal((await send('post', `/${approved}/recruitment-status`, hr, action)).status, 200);
+      const event = f.store.auditEvents('RECRUITMENT_STATUS_CHANGED').at(-1);
+      const details = JSON.parse(event.eventDetails);
+      assert.equal(event.createdBy, f.hrUser.userId);
+      assert.ok(event.createdAt);
+      assert.deepEqual(
+        [details.oldValue, details.newValue, details.reason],
+        ['Open', 'On Hold', 'Budget review'],
+      );
+      assert.ok(details.changedAt);
+      assert.deepEqual((await get(`/${draft}`, hr)).body.data.recruitmentActions, []);
+      assert.deepEqual((await get(`/${approved}`, hr)).body.data.recruitmentActions, [
+        'reopen',
+        'cancel',
+      ]);
+      assert.equal(
+        (
+          await send('post', `/${approved}/recruitment-status`, hr, {
+            action: 'reopen',
+            expectedStatus: 'On Hold',
+          })
+        ).status,
+        200,
+      );
+      assert.equal((await get(`/${approved}`, hr)).body.data.ticketStatus, 'Open');
+    });
+
+    it('rolls back a recruitment action if its audit cannot be written', async () => {
+      const id = f.seedRequisition({ createdBy: f.hrUser.userId, requisitionStatus: 'Approved' });
+      const original = f.store.auditRepository.insertAuditEvent;
+      f.store.auditRepository.insertAuditEvent = async (connection, event) => {
+        if (event.eventCode === 'RECRUITMENT_STATUS_CHANGED') throw new Error('audit unavailable');
+        return original(connection, event);
+      };
+      assert.equal(
+        (
+          await send('post', `/${id}/recruitment-status`, hr, {
+            action: 'hold',
+            expectedStatus: 'Open',
+          })
+        ).status,
+        500,
+      );
+      assert.equal((await get(`/${id}`, hr)).body.data.ticketStatus, 'Open');
+    });
+
+    it('requires offer acceptance before filling and never changes approval status', async () => {
+      const id = f.seedRequisition({
+        createdBy: f.hrUser.userId,
+        requisitionStatus: 'Approved',
+        ticketStatus: 'Open',
+      });
+      for (const ticketStatus of ['Accepted', 'Close']) {
+        assert.equal((await send('put', `/${id}`, hr, { ...PUT_BODY, ticketStatus })).status, 400);
+      }
+      for (const [action, expectedStatus, ticketStatus] of [
+        ['hold', 'Open', 'On Hold'],
+        ['cancel', 'On Hold', 'Cancelled'],
+      ]) {
+        assert.equal(
+          (
+            await send('post', `/${id}/recruitment-status`, hr, {
+              action,
+              expectedStatus,
+              reason: 'Hiring plan changed',
+            })
+          ).status,
+          200,
+        );
+        assert.equal(
+          (await get(`/?ticketStatus=${encodeURIComponent(ticketStatus)}`, hr)).body.pagination
+            .total,
+          1,
+        );
+      }
+      const accepted = f.seedRequisition({
+        createdBy: f.hrUser.userId,
+        requisitionStatus: 'Approved',
+        ticketStatus: 'Accepted',
+        acceptedDate: '01-Oct-26',
+      });
+      assert.equal(
+        (
+          await send('post', `/${accepted}/recruitment-status`, hr, {
+            action: 'fill',
+            expectedStatus: 'Accepted',
+          })
+        ).status,
+        200,
+      );
+      const read = await get(`/${accepted}`, hr);
+      assert.equal(read.body.data.requisitionStatus, 'Approved');
+      assert.equal(read.body.data.acceptedDate, '01-Oct-26');
+      assert.equal(read.body.data.closedDate, '19-Oct-26');
+    });
+
     it('preserves the other ticket date while the status stands (corrected §5.1)', async () => {
       const id = f.seedRequisition({
         createdBy: f.hrUser.userId,
@@ -512,13 +630,13 @@ describe('requisition API', () => {
         acceptedDate: '01-Oct-26',
         closedDate: '05-Oct-26',
       });
-      await send('put', `/${id}`, hr, { ...PUT_BODY, ticketStatus: 'Accepted' });
+      assert.equal((await send('put', `/${id}`, hr, PUT_BODY)).status, 200);
       const { body } = await get(`/${id}`, hr);
-      assert.equal(body.data.acceptedDate, '19-Oct-26'); // re-stamped for the current status
+      assert.equal(body.data.acceptedDate, '01-Oct-26');
       assert.equal(body.data.closedDate, '05-Oct-26'); // NOT wiped (the legacy bug)
     });
 
-    it('leaves the ticket group untouched when ticketStatus is absent, clears it on ""', async () => {
+    it('preserves recruitment dates and rejects clearing the status to blank', async () => {
       const kept = f.seedRequisition({
         createdBy: f.hrUser.userId,
         ticketStatus: 'Close',
@@ -529,10 +647,13 @@ describe('requisition API', () => {
       assert.equal(keptRead.body.data.ticketStatus, 'Close');
       assert.equal(keptRead.body.data.closedDate, '10-Oct-26');
 
-      await send('put', `/${kept}`, hr, { ...PUT_BODY, ticketStatus: '' });
+      assert.equal(
+        (await send('put', `/${kept}`, hr, { ...PUT_BODY, ticketStatus: '' })).status,
+        400,
+      );
       const cleared = await get(`/${kept}`, hr);
-      assert.equal(cleared.body.data.ticketStatus, '');
-      assert.equal(cleared.body.data.closedDate, null);
+      assert.equal(cleared.body.data.ticketStatus, 'Close');
+      assert.equal(cleared.body.data.closedDate, '10-Oct-26');
     });
 
     it('refuses ticketStatus from non-HR callers and gates non-Draft rows with 409', async () => {

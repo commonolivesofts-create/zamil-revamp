@@ -10,7 +10,7 @@ import { PAYROLL_UNITS } from './interviewAssessment.validation.js';
 
 /*
  * Interview Assessment Form rules (README_interview_assessment_form.md). `authorize` has already
- * checked the actor's INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS permission; these rules apply
+ * checked the actor's HR.INTERVIEW_ASSESSMENTS permission; these rules apply
  * on top:
  *   - STATUS is a plain data column: always written 'Incomplete' on insert, never updated.
  *   - requisitionNo must exist in XXZPI_PER_REQUISITIONS_ALL as REQUISITION_STATUS='Approved' (§9).

@@ -49,8 +49,10 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
   const [focusRow, setFocusRow] = useState(null)
   const [language, setLanguage] = useState('bi')
   const [dialog, setDialog] = useState(null)
-  const canSave = record ? permissions.can(ACTIONS.OFFER_UPDATE) : permissions.can(ACTIONS.OFFER_CREATE)
-  const canDelete = Boolean(record && permissions.can(ACTIONS.OFFER_DELETE))
+  const [acceptanceDate, setAcceptanceDate] = useState('')
+  const [acceptanceReason, setAcceptanceReason] = useState('')
+  const canSave = !isOfferLocked(record?.status) && (record ? permissions.can(ACTIONS.OFFER_UPDATE) : permissions.can(ACTIONS.OFFER_CREATE))
+  const canDelete = Boolean(record && !isOfferLocked(record.status) && permissions.can(ACTIONS.OFFER_DELETE))
   const locked = isOfferLocked(record?.status) || !canSave
   const status = record?.status ?? 'INCOMPLETE'
   const { parts, monthly, yearly } = monthlyPackage(form.benefits)
@@ -143,6 +145,14 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
       return
     }
     editor.perform(saveRecord, { success: (result) => T.saved(result.offerNumber || result.offerId) })
+  }
+  const recordAcceptance = () => {
+    if (!record || !record.canRecordAcceptance || editor.dirty || !acceptanceDate) return
+    editor.perform(() => service.accept(record.offerId, acceptanceDate, acceptanceReason), {
+      success: 'Offer acceptance recorded. The linked requisition is now Offer Accepted.',
+    }).then((outcome) => {
+      if (outcome.status === 'success') editor.resetToSaved(outcome.value, offerFormFromRecord(outcome.value))
+    })
   }
   const deleteRecord = () => editor.perform(async () => {
     await service.remove(record.offerId)
@@ -339,6 +349,28 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
               <textarea id="of-com" className="ux-textarea zrv-hr-input" value={form.comments} onChange={set('comments')} placeholder={T.placeholders.comments} maxLength={4000} />
             </HrField>
           </div>
+          {record?.status === 'ACCEPTED' ? (
+            <div className="zrv-hr-offer-acceptance" role="status">
+              <b>Offer Accepted</b>
+              <p>Accepted on {enDate(record.acceptedDate)}. The linked requisition can now be marked Filled / Closed by HR.</p>
+            </div>
+          ) : record?.canRecordAcceptance && permissions.can(ACTIONS.OFFER_UPDATE) && (
+            <div className="zrv-hr-offer-acceptance">
+              <b>Record offer acceptance</b>
+              <p>Enter the date the candidate actually accepted this offer. This updates the linked requisition's recruitment status.</p>
+              <div className="zrv-hr-offer-acceptance__controls">
+                <HrField id="of-accepted-date" label="Actual acceptance date" required>
+                  <input id="of-accepted-date" type="date" className="ux-input zrv-hr-input" value={acceptanceDate} min={record.offerDate} max={today} onChange={(event) => setAcceptanceDate(event.target.value)} aria-required="true" />
+                </HrField>
+                <HrField id="of-acceptance-reason" label="Reason (optional)">
+                  <input id="of-acceptance-reason" className="ux-input zrv-hr-input" value={acceptanceReason} maxLength={1000} onChange={(event) => setAcceptanceReason(event.target.value)} />
+                </HrField>
+                <button type="button" className="btn-primary" onClick={recordAcceptance} disabled={editor.pending || editor.dirty || !record.reqNo || !acceptanceDate}>Record acceptance</button>
+              </div>
+              {editor.dirty && <small>Save your changes before recording acceptance.</small>}
+              {!record.reqNo && <small>Link this offer to a requisition and save it first.</small>}
+            </div>
+          )}
         </>}
       </RecruitmentShell>
 
