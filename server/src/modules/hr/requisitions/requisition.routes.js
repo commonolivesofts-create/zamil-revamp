@@ -18,11 +18,9 @@ import {
   updateBodySchema,
 } from './requisition.validation.js';
 
-// Key mirrors the owner-registered Oracle catalogue: module REQUISITIONS, resource REQUISITIONS
-// (actions VIEW, CREATE, UPDATE, DELETE, MANAGE_ATTACHMENTS) — aligned 2026-10-28 to the module
-// code registered in the permission catalog, as already done for EMPLOYMENT_OFFERS and
-// INTERVIEW_ASSESSMENTS.
-const REQUISITIONS = 'REQUISITIONS.REQUISITIONS';
+// Key mirrors the owner-registered Oracle permission catalogue: module HR, resource REQUISITIONS.
+// Supported actions: VIEW, CREATE, UPDATE, DELETE, MANAGE_ATTACHMENTS.
+const REQUISITIONS = 'HR.REQUISITIONS';
 
 const UPLOAD_ERRORS = {
   LIMIT_FILE_SIZE: 'File exceeds the allowed size',

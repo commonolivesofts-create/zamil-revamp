@@ -12,7 +12,7 @@ import {
 
 // Key mirrors the owner-registered Oracle catalogue: module INTERVIEW_ASSESSMENTS, resource
 // INTERVIEW_ASSESSMENTS.
-const INTERVIEW_ASSESSMENTS = 'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS';
+const INTERVIEW_ASSESSMENTS = 'HR.INTERVIEW_ASSESSMENTS';
 
 /**
  * Interview Assessment Form CRUD, mounted at /api/v1/hr/interview-assessments. Every route

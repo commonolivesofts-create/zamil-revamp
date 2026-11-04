@@ -71,9 +71,9 @@ function setup() {
   const staffUser = person('1002', 'Sam Staff');
   const nobody = person('1003', 'Nada None');
 
-  // Mirrors the owner-registered Oracle catalogue (module EMPLOYMENT_OFFERS, resource
-  // EMPLOYMENT_OFFERS, actions VIEW/CREATE/UPDATE/DELETE); seeded in memory only.
-  const offersModule = rbac.addModule('EMPLOYMENT_OFFERS');
+  // Mirrors the owner-registered Oracle catalogue (module HR, resource EMPLOYMENT_OFFERS,
+  // actions VIEW/CREATE/UPDATE/DELETE); seeded in memory only.
+  const offersModule = rbac.addModule('HR');
   const offers = rbac.addResource(offersModule, 'EMPLOYMENT_OFFERS');
   const permissions = {
     VIEW: rbac.addPermission(offers, 'VIEW'),
