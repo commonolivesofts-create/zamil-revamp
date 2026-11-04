@@ -149,6 +149,7 @@ test("only pages backed by a working backend contract are implemented; no placeh
   assert.deepEqual(
     appRoutes.filter((item) => !item.implemented).map((route) => route.id),
     [
+      "hr-recruitment-dashboard",
       "hr-orientation",
       "hr-orientation-report",
       "hr-orientation-record",

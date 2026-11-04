@@ -33,6 +33,7 @@ export const PermissionCatalogPage = lazy(() => import('@/features/security-admi
 export const PermissionOverridesPage = lazy(() => import('@/features/security-administration/pages/PermissionOverridesPage.jsx'))
 export const UserOverridesPage = lazy(() => import('@/features/security-administration/pages/UserOverridesPage.jsx'))
 // HR recruitment forms and employee reports.
+export const RecruitmentDashboardPage = lazy(() => import('@/features/hr-recruitment/dashboard/RecruitmentDashboardPage.jsx'))
 export const RequisitionPage = lazy(() => import('@/features/hr-recruitment/requisition/RequisitionPage.jsx'))
 export const RequisitionReportPage = lazy(() => import('@/features/hr-recruitment/requisition/RequisitionReportPage.jsx'))
 export const InterviewPage = lazy(() => import('@/features/hr-recruitment/interview/InterviewPage.jsx'))

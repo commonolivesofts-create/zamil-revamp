@@ -1329,3 +1329,76 @@ export const INSIGHT_TEXT = Object.freeze({
     overdue: (days) => `${days} ${days === 1 ? "day" : "days"} overdue`,
   }),
 });
+
+
+export const DASHBOARD_TEXT = Object.freeze({
+  title: "Recruitment",
+  subtitle: "What is happening across requisitions, interviews, offers and onboarding.",
+  noAccess: "You do not have access to any recruitment form yet.",
+  unavailable: "This could not be loaded.",
+  retry: "Try again",
+  period: "Period",
+  periods: Object.freeze({ "30d": "30D", "90d": "90D", year: "YTD", "12m": "12M", all: "All" }),
+  periodNames: Object.freeze({
+    "30d": "Last 30 days",
+    "90d": "Last 90 days",
+    year: "This year",
+    "12m": "Last 12 months",
+    all: "All time",
+  }),
+  viewAll: "View all",
+  newRequisition: "New requisition",
+  modules: Object.freeze({
+    requisitions: "Requisitions",
+    interviews: "Interviews",
+    offers: "Offers",
+    orientations: "Orientations",
+    probations: "Probation",
+  }),
+  kpi: Object.freeze({
+    change: (value) => `${value > 0 ? "+" : ""}${value}%`,
+    changeLabel: "vs previous period",
+    same: "0%",
+    newSince: "New",
+  }),
+  activity: Object.freeze({
+    title: "Activity",
+    hint: "Records created per month, last 12 months",
+    table: "Show as table",
+    chart: "Show as chart",
+    month: "Month",
+    total: "Last 12 months",
+    average: "Monthly average",
+    busiest: "Busiest month",
+  }),
+  funnel: Object.freeze({
+    title: "Hiring funnel",
+    stages: Object.freeze({
+      requisitions: "Requisitions",
+      interviews: "Interviews",
+      passed: "Passed",
+      offers: "Offers",
+      orientations: "Orientations",
+      confirmed: "Confirmed",
+    }),
+    ofPrevious: (value) => `${value}% of previous`,
+  }),
+  recent: Object.freeze({
+    title: "Recent activity",
+    empty: "Nothing recorded yet.",
+    columns: Object.freeze({ reference: "Ref.", subject: "Details", date: "Date", status: "Status" }),
+  }),
+  attention: Object.freeze({
+    title: "Needs attention",
+    hint: "Open items right now",
+    clear: "All clear — nothing is waiting.",
+    items: Object.freeze({
+      requisitionsDraft: "Requisition drafts",
+      requisitionsInApproval: "Requisitions in approval",
+      interviewsOnHold: "Candidates on hold",
+      orientationsSoon: "Orientations in the next 7 days",
+      orientationsInApproval: "Orientations in approval",
+      probationsInApproval: "Probations in approval",
+    }),
+  }),
+});

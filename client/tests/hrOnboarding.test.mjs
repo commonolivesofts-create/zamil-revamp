@@ -1837,6 +1837,7 @@ test("report page: outside the flow, server rows and summary, column chooser, si
 // each state is resolved through the same function used by the application.
 const SWITCH = "VITE_FEATURE_HR_RECRUITMENT";
 const HR_SWITCHED_IDS = [
+  "hr-recruitment-dashboard",
   "hr-orientation",
   "hr-orientation-report",
   "hr-orientation-record",

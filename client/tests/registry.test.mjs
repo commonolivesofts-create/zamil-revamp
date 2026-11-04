@@ -58,6 +58,7 @@ const WARNING_LETTERS = 'HR.WARNING_LETTERS'
 const HR_SWITCH = { env: 'VITE_FEATURE_HR_RECRUITMENT' }
 const ES_SWITCH = { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' }
 const HR_RECRUITMENT_ROUTES = [
+  { id: 'hr-recruitment-dashboard', path: '/hr/recruitment/dashboard', label: 'Recruitment dashboard', icon: 'layout-dashboard', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
   { id: 'hr-requisition', path: '/hr/recruitment/requisition', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true },
   { id: 'hr-requisition-report', path: '/hr/recruitment/requisition/report', label: 'Requisition report', icon: 'chart-column', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'hr-requisition-record', path: '/hr/recruitment/requisition/:requisitionId', label: 'Personnel requisition', icon: 'clipboard-list', section: HR, subgroup: 'hr-recruitment', permission: `${REQ}:VIEW`, requiresMfa: false, implemented: true, nav: false },
