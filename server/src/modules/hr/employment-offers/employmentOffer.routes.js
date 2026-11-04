@@ -16,7 +16,7 @@ import {
 
 // Key mirrors the owner-registered Oracle catalogue: module EMPLOYMENT_OFFERS, resource
 // EMPLOYMENT_OFFERS (the UPDATE action exists there; EDIT does not).
-const EMPLOYMENT_OFFERS = 'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS';
+const EMPLOYMENT_OFFERS = 'HR.EMPLOYMENT_OFFERS';
 
 /**
  * Employment Offer Form CRUD, mounted at /api/v1/hr/employment-offers. Every route requires an
