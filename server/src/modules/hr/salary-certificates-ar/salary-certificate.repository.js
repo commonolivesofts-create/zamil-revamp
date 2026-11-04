@@ -181,12 +181,12 @@ export const repository = {
       ORDER BY EMPLOYEE_NUMBER
 
       OFFSET :offset ROWS
-      FETCH NEXT :size ROWS ONLY
+      FETCH NEXT :pageSize ROWS ONLY
       `,
       {
         q: q || null,
         offset: (page - 1) * pageSize,
-        size: pageSize,
+        pageSize,
       },
       opts,
     );
@@ -215,8 +215,8 @@ export const repository = {
       employeeNo: q.employeeNo || null,
       division: q.division || null,
       status: q.status || null,
-      from: q.from || null,
-      to: q.to || null,
+      fromDate: q.from || null,
+      toDate: q.to || null,
       createdFrom: q.createdFrom || null,
       createdTo: q.createdTo || null,
     };
@@ -255,13 +255,13 @@ export const repository = {
       )
 
       AND (
-        :from IS NULL
-        OR CERT_DATE >= TO_DATE(:from, 'YYYY-MM-DD')
+        :fromDate IS NULL
+        OR CERT_DATE >= TO_DATE(:fromDate, 'YYYY-MM-DD')
       )
 
       AND (
-        :to IS NULL
-        OR CERT_DATE < TO_DATE(:to, 'YYYY-MM-DD') + 1
+        :toDate IS NULL
+        OR CERT_DATE < TO_DATE(:toDate, 'YYYY-MM-DD') + 1
       )
 
       AND (
@@ -315,12 +315,12 @@ export const repository = {
       ORDER BY ID DESC
 
       OFFSET :offset ROWS
-      FETCH NEXT :size ROWS ONLY
+      FETCH NEXT :pageSize ROWS ONLY
       `,
       {
         ...binds,
         offset: (q.page - 1) * q.pageSize,
-        size: q.pageSize,
+        pageSize: q.pageSize,
       },
       opts,
     );

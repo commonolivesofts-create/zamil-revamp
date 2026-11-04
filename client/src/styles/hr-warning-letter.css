@@ -1,0 +1,15 @@
+/* Warning Letter: bilingual labels and the reason / letter check boxes.
+   Scoped to .zrv-hr; colours from the Orvexa and HR tokens (hr-recruitment.css). */
+.zrv-hr-wl-ar { margin-inline-start: 6px; color: var(--zrv-hr-fine); font-weight: 600; font-size: .95em; }
+.zrv-hr-wl-reasons { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.zrv-hr-wl-check { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--zrv-hr-soft); color: var(--muted); font-size: 13.5px; cursor: pointer; }
+.zrv-hr-wl-check input { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--zrv-hr-accent); }
+.zrv-hr-wl-check span { display: grid; gap: 2px; min-width: 0; }
+.zrv-hr-wl-check span small { font-size: 12.5px; text-align: start; }
+.zrv-hr-wl-check.zrv-hr-is-on { border-color: var(--zrv-hr-accent); color: var(--text); font-weight: 700; }
+.zrv-hr-wl-check:has(input:disabled) { cursor: default; opacity: .75; }
+.zrv-hr-wl-check:has(input:focus-visible) { outline: 2px solid var(--zrv-hr-accent-text); outline-offset: 2px; }
+.zrv-hr-is-bad .zrv-hr-wl-check { border-color: var(--danger); }
+.zrv-hr-wl-letters { display: grid; gap: 10px; }
+.zrv-hr-wl-letter { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); align-items: start; gap: 6px 16px; }
+@media (max-width: 760px) { .zrv-hr-wl-letter { grid-template-columns: minmax(0, 1fr); } }

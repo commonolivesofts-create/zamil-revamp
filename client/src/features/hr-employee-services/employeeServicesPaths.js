@@ -38,3 +38,33 @@ export const SURVEY_PATHS = Object.freeze({
   report: '/hr/reports/survey',
   responses: '/hr/reports/survey/responses',
 })
+
+// Salary Certificate (English and Arabic in one form): the form, its report and
+// (with a language-prefixed id, e.g. "en-12") one record (hrForms.module.js).
+export const SALARY_CERTIFICATE_PATHS = Object.freeze({
+  form: '/hr/employee-services/salary-certificate',
+  report: '/hr/employee-services/salary-certificate/report',
+})
+
+export const BUSINESS_VISA_PATHS = Object.freeze({
+  form: '/hr/letters/business-visa',
+  report: '/hr/letters/business-visa/report',
+})
+
+// Sidebar: Human resources → Letters.
+export const LETTERS_BREADCRUMB = Object.freeze(['Human resources', 'Letters'])
+
+export const WARNING_LETTER_PATHS = Object.freeze({
+  form: '/hr/letters/warning-letter',
+  report: '/hr/letters/warning-letter/report',
+})
+
+export const TOURIST_VISA_PATHS = Object.freeze({
+  form: '/hr/letters/tourist-visa',
+  report: '/hr/letters/tourist-visa/report',
+})
+
+export const BUSINESS_VISA_LETTER_PATHS = Object.freeze({
+  form: '/hr/letters/business-visa-letter',
+  report: '/hr/letters/business-visa-letter/report',
+})

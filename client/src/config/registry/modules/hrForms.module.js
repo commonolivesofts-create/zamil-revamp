@@ -147,33 +147,53 @@ export default defineModule({
     ],
   }, {
     code: 'SALARY_CERTIFICATES_AR',
-    name: 'Arabic Salary Certificates',
-    description: 'View and manage Arabic salary certificates.',
+    name: 'Salary Certificate Arabic',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [],
   }, {
     code: 'SALARY_CERTIFICATES',
-    name: 'English Salary Certificates',
-    description: 'View and manage English salary certificates.',
+    name: 'Salary Certificate English',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
-    navigation: [],
+    // One form for both languages; the Arabic certificates use SALARY_CERTIFICATES_AR (checked on the page).
+    navigation: [
+      { id: 'hr-salary-certificate', path: '/hr/employee-services/salary-certificate', title: 'Salary certificate', icon: 'file-badge', group: 'human-resources', subgroup: 'hr-letters', order: 180, enabledBy: { env: 'VITE_FEATURE_HR_SALARY_CERTIFICATE' } },
+      { id: 'hr-salary-certificate-report', path: '/hr/employee-services/salary-certificate/report', title: 'Salary certificate report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-letters', order: 181, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_SALARY_CERTIFICATE' } },
+      { id: 'hr-salary-certificate-record', path: '/hr/employee-services/salary-certificate/:certificateId', title: 'Salary certificate', icon: 'file-badge', group: 'human-resources', subgroup: 'hr-letters', order: 182, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_SALARY_CERTIFICATE' } },
+    ],
   }, {
+    // Also guards the Business Visa Request form (legacy visa_request, XX_BUS_VISA_HEADER / _DOCS;
+    // /api/v1/hr/business-visa-requests): owner decision 2026-11-04. UPDATE also covers its documents.
     code: 'BUSINESS_VISA_LETTERS',
-    name: 'Business Visiting Visa Letters',
-    description: 'View and manage business visiting visa letters.',
+    name: 'Business Visa Letters',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
-    navigation: [],
+    navigation: [
+      { id: 'hr-business-visa', path: '/hr/letters/business-visa', title: 'Business visa request', icon: 'plane', group: 'human-resources', subgroup: 'hr-letters', order: 190, enabledBy: { env: 'VITE_FEATURE_HR_BUSINESS_VISA' } },
+      { id: 'hr-business-visa-report', path: '/hr/letters/business-visa/report', title: 'Business visa report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-letters', order: 191, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_BUSINESS_VISA' } },
+      { id: 'hr-business-visa-record', path: '/hr/letters/business-visa/:requestId', title: 'Business visa request', icon: 'plane', group: 'human-resources', subgroup: 'hr-letters', order: 192, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_BUSINESS_VISA' } },
+      // The letter itself (legacy Business_visa_letter): /api/v1/hr/business-visa-letters.
+      { id: 'hr-business-visa-letter', path: '/hr/letters/business-visa-letter', title: 'Business visa letter', icon: 'file-text', group: 'human-resources', subgroup: 'hr-letters', order: 193, enabledBy: { env: 'VITE_FEATURE_HR_BUSINESS_VISA_LETTER' } },
+      { id: 'hr-business-visa-letter-report', path: '/hr/letters/business-visa-letter/report', title: 'Business visa letter report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-letters', order: 194, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_BUSINESS_VISA_LETTER' } },
+      { id: 'hr-business-visa-letter-record', path: '/hr/letters/business-visa-letter/:letterId', title: 'Business visa letter', icon: 'file-text', group: 'human-resources', subgroup: 'hr-letters', order: 195, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_BUSINESS_VISA_LETTER' } },
+    ],
   }, {
+    // Legacy Tourist_visa: /api/v1/hr/tourist-visa-letters (DELETE guards removal; no page uses it).
     code: 'TOURIST_VISA_LETTERS',
     name: 'Tourist Visa Letters',
-    description: 'View and manage tourist visa letters.',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
-    navigation: [],
+    navigation: [
+      { id: 'hr-tourist-visa', path: '/hr/letters/tourist-visa', title: 'Tourist visa letter', icon: 'luggage', group: 'human-resources', subgroup: 'hr-letters', order: 196, enabledBy: { env: 'VITE_FEATURE_HR_TOURIST_VISA' } },
+      { id: 'hr-tourist-visa-report', path: '/hr/letters/tourist-visa/report', title: 'Tourist visa report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-letters', order: 197, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_TOURIST_VISA' } },
+      { id: 'hr-tourist-visa-record', path: '/hr/letters/tourist-visa/:letterId', title: 'Tourist visa letter', icon: 'luggage', group: 'human-resources', subgroup: 'hr-letters', order: 198, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_TOURIST_VISA' } },
+    ],
   }, {
+    // Legacy Warning_letter: /api/v1/hr/warning-letters (DELETE guards removal; no page uses it, as legacy).
     code: 'WARNING_LETTERS',
-    name: 'Warning Letters',
-    description: 'View and manage warning letters.',
+    name: 'Warning Letter',
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
-    navigation: [],
+    navigation: [
+      { id: 'hr-warning-letter', path: '/hr/letters/warning-letter', title: 'Warning letter', icon: 'triangle-alert', group: 'human-resources', subgroup: 'hr-letters', order: 200, enabledBy: { env: 'VITE_FEATURE_HR_WARNING_LETTER' } },
+      { id: 'hr-warning-letter-report', path: '/hr/letters/warning-letter/report', title: 'Warning letter report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-letters', order: 201, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_WARNING_LETTER' } },
+      { id: 'hr-warning-letter-record', path: '/hr/letters/warning-letter/:letterId', title: 'Warning letter', icon: 'triangle-alert', group: 'human-resources', subgroup: 'hr-letters', order: 202, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_WARNING_LETTER' } },
+    ],
   }],
 })

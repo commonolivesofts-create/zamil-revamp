@@ -471,7 +471,7 @@ test('detail pages are guarded like their list but never listed or searchable', 
   assert.deepEqual(appRoutes.filter((route) => route.nav === false && route.section !== 'security').map((route) => [route.id, route.section]), [
     ...['hr-requisition-report', 'hr-requisition-record', 'hr-interview-report', 'hr-interview-record', 'hr-offer-report', 'hr-offer-record', 'hr-orientation-report', 'hr-orientation-record', 'hr-probation-report', 'hr-probation-record', 'hr-survey-responses', 'hr-record-change-requests', 'hr-record-change-record', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal-report', 'hr-appraisal-record',
       'hr-sick-leave-report', 'hr-sick-leave-record', 'hr-reward-report', 'hr-reward-record', 'hr-idea-report', 'hr-idea-record',
-      'hr-clearance-report', 'hr-clearance-record', 'hr-charter-report', 'hr-charter-record'].map((id) => [id, 'human-resources']),
+      'hr-clearance-report', 'hr-clearance-record', 'hr-charter-report', 'hr-charter-record', 'hr-salary-certificate-report', 'hr-salary-certificate-record', 'hr-business-visa-report', 'hr-business-visa-record', 'hr-business-visa-letter-report', 'hr-business-visa-letter-record', 'hr-tourist-visa-report', 'hr-tourist-visa-record', 'hr-warning-letter-report', 'hr-warning-letter-record'].map((id) => [id, 'human-resources']),
     ...['workflow-form-new', 'workflow-form'].map((id) => [id, 'workflow-manager']),
   ])
   for (const route of details) {

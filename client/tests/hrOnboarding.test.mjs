@@ -1905,6 +1905,11 @@ test("HR visibility switch: true, false, unset in development and unset in produ
           "VITE_FEATURE_HR_EMPLOYEE_CLEARANCE",
           "VITE_FEATURE_HR_PROJECT_CHARTER",
           "VITE_FEATURE_HR_SURVEY_REPORT",
+          "VITE_FEATURE_HR_SALARY_CERTIFICATE",
+          "VITE_FEATURE_HR_BUSINESS_VISA",
+          "VITE_FEATURE_HR_WARNING_LETTER",
+          "VITE_FEATURE_HR_TOURIST_VISA",
+          "VITE_FEATURE_HR_BUSINESS_VISA_LETTER",
         ].includes(
           entry.enabledBy.env,
         ),
