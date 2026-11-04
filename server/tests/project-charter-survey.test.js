@@ -88,12 +88,19 @@ describe('Survey distribution charts', () => {
       },
       catalogueTexts: async () => [{ LINE_ID: 1, QUESTION: 'Question one' }],
     };
-    return { groups, service: createSurveyReportService({ repository, withConnection: run, withTransaction: run }) };
+    return {
+      groups,
+      service: createSurveyReportService({ repository, withConnection: run, withTransaction: run }),
+    };
   };
 
   it('charts a dimension set to "All" (legacy) and leaves an unset one empty', async () => {
     const { groups, service: s } = service();
-    const result = await s.distribution({ question_key: 'relation_1', age: '__ALL__', job_level: '' });
+    const result = await s.distribution({
+      question_key: 'relation_1',
+      age: '__ALL__',
+      job_level: '',
+    });
     assert.equal(result.charts.age.selected, true);
     assert.deepEqual(result.charts.age.data.categories, ['20-29', '30-39']);
     assert.equal(result.charts.job.selected, false);

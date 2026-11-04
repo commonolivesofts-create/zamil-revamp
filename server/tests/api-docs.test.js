@@ -552,14 +552,8 @@ describe('API documentation', () => {
     assert.match(tags.find(({ name }) => name === 'HR Employee Clearance').description, /VIEW_ALL/);
     assert.match(paths[base].get.description, /HR.EMPLOYEE_CLEARANCE:VIEW/);
     assert.match(paths[base].post.description, /HR.EMPLOYEE_CLEARANCE:CREATE/);
-    assert.match(
-      paths[`${base}/{headerId}`].put.description,
-      /HR.EMPLOYEE_CLEARANCE:UPDATE/,
-    );
-    assert.match(
-      paths[`${base}/{headerId}`].delete.description,
-      /HR.EMPLOYEE_CLEARANCE:DELETE/,
-    );
+    assert.match(paths[`${base}/{headerId}`].put.description, /HR.EMPLOYEE_CLEARANCE:UPDATE/);
+    assert.match(paths[`${base}/{headerId}`].delete.description, /HR.EMPLOYEE_CLEARANCE:DELETE/);
 
     assert.equal(
       paths[base].post.requestBody.content['application/json'].schema.$ref,
