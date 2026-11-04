@@ -550,15 +550,15 @@ describe('API documentation', () => {
     }
 
     assert.match(tags.find(({ name }) => name === 'HR Employee Clearance').description, /VIEW_ALL/);
-    assert.match(paths[base].get.description, /EMPLOYEE_CLEARANCE\.EMPLOYEE_CLEARANCE:VIEW/);
-    assert.match(paths[base].post.description, /EMPLOYEE_CLEARANCE\.EMPLOYEE_CLEARANCE:CREATE/);
+    assert.match(paths[base].get.description, /HR.EMPLOYEE_CLEARANCE:VIEW/);
+    assert.match(paths[base].post.description, /HR.EMPLOYEE_CLEARANCE:CREATE/);
     assert.match(
       paths[`${base}/{headerId}`].put.description,
-      /EMPLOYEE_CLEARANCE\.EMPLOYEE_CLEARANCE:UPDATE/,
+      /HR.EMPLOYEE_CLEARANCE:UPDATE/,
     );
     assert.match(
       paths[`${base}/{headerId}`].delete.description,
-      /EMPLOYEE_CLEARANCE\.EMPLOYEE_CLEARANCE:DELETE/,
+      /HR.EMPLOYEE_CLEARANCE:DELETE/,
     );
 
     assert.equal(

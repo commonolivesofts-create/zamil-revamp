@@ -9,10 +9,10 @@ import { NewFormDialog } from '@/features/hr-recruitment/shared/components/Recru
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
 import { FileDrop, HrField, Review } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
-import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { Orbit, RecruitmentShell, StepHead, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
-import { STATUS_TEXT, STATUS_TONE, isEditable } from '../shared/formRecords.js'
+import { STATUS_TEXT, isEditable } from '../shared/formRecords.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import '@/styles/hr-employee-services.css'
 import '@/styles/hr-employee-services-forms.css'
@@ -23,8 +23,7 @@ import {
 import { sickLeaveDemo, sickLeaveService } from './sickLeaveService.js'
 
 const TITLE = 'Sick Leave Request'
-const SUBTITLE = 'Request sick leave in three steps. The number of days and the back-to-work date work themselves out.'
-const STEPS = [['Dates', 'Who and when'], ['Certificate', 'Medical attachment'], ['Comments', 'Review and save']]
+const STEPS = ['Dates', 'Certificate', 'Comments']
 const DAY_TYPE_TEXT = Object.freeze({ FULL: 'Full day', HALF: 'Half day' })
 const FILE_TEXT = Object.freeze({
   title: 'Attach the medical certificate',
@@ -39,7 +38,7 @@ const monthEnd = (iso) => addDays(`${addDays(`${iso.slice(0, 7)}-28`, 4).slice(0
 export default function SickLeavePage() {
   return (
     <RecruitmentLoader current="sick-leave" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={sickLeaveDemo}
-      title={TITLE} subtitle={SUBTITLE} param="leaveId" load={sickLeaveService.getById} loadLookups={async () => ({})}>
+      title={TITLE} param="leaveId" load={sickLeaveService.getById} loadLookups={async () => ({})}>
       {({ record, editorKey }) => <SickLeaveEditor key={editorKey} initial={record} />}
     </RecruitmentLoader>
   )
@@ -158,7 +157,6 @@ function SickLeaveEditor({ initial }) {
 
   const startNew = () => navigate(FORM_PATHS.sickLeave)
   const tools = [
-    { icon: 'save', label: 'Save draft', onClick: save, disabled: editor.pending || locked },
     { icon: 'printer', label: C.print, onClick: () => window.print() },
     { icon: 'chart-column', label: 'Report', onClick: () => navigate(FORM_PATHS.sickLeaveReport) },
     { icon: 'file-plus', label: 'New request', onClick: () => (editor.dirty && !locked ? setDialog('new') : startNew()) },
@@ -171,20 +169,14 @@ function SickLeaveEditor({ initial }) {
   const progress = [form.employee, form.fromDate, form.toDate, hasFile, form.comments.trim()].filter(Boolean).length
 
   return <>
-    <RecruitmentShell current="sick-leave" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE} subtitle={SUBTITLE} demo={sickLeaveDemo}
+    <RecruitmentShell current="sick-leave" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE} demo={sickLeaveDemo}
       tools={tools} primary={{ label: 'Save draft', icon: 'save', onClick: save }} locked={locked} pending={editor.pending} focusError={editor.focusError}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss}
-      ticket={<Ticket avatar={initials(form.employee?.name)} code="SL · 1076" items={[
-        { k: 'Request no.', v: record?.leaveId || 'Assigned on save' },
-        { k: 'Employee', v: form.employee?.name || 'Not selected', big: true },
-        { k: 'Leave type', v: SICK_LEAVE_TYPE },
-        { k: 'No. of days', v: record && !editor.dirty ? record.days ?? '—' : days || '—' },
-        { k: 'Status', v: <Pill tone={STATUS_TONE[status] ?? 'warn'}>{status ? STATUS_TEXT[status] : 'Not saved'}</Pill> },
-      ]} />}
-      steps={STEPS} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel="Save draft" onFinal={save}
+      steps={STEPS.map((name, index) => [name, index === 1 && hasFile ? C.step.files(savedFiles.length + newFiles.length) : doneSteps[index] ? C.step.done : C.step.open])}
+      step={step} onStep={setStep} doneSteps={doneSteps} finalLabel="Save draft" onFinal={save}
       side={<>
         <Tilt aria-label="Sick leave card">
-          <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">Sick leave card</span><span className="zrv-hr-mono">{record ? `SL · ${record.leaveId}` : 'SL · DRAFT'}</span></div>
+          <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{record ? `SL · ${record.leaveId}` : 'SL · Draft'}</span><span className="zrv-hr-dark__status">{status ? STATUS_TEXT[status] : 'Not saved'}</span></div>
           <div className="zrv-hr-dark__who"><span className="zrv-hr-dark__av">{initials(form.employee?.name)}</span><div>
             <h3 className="zrv-hr-dark__title">{form.employee?.name || 'Employee'}</h3>
             <div className="zrv-hr-dark__sub">{form.employee?.departmentName || 'Department'}</div></div></div>
@@ -199,14 +191,15 @@ function SickLeaveEditor({ initial }) {
           : overlap ? 'The dates overlap another request.' : !hasFile ? 'Attach the medical certificate.' : !form.comments.trim() ? 'Add your comments.' : 'Ready to save.'} />
       </>}>
       {step === 0 && <>
-        <PanelHead n={1} eyebrow="Step 01 · Dates" title="Who is off, and when?" desc="You can request sick leave for yourself or a direct report." />
-        <div className="zrv-hr-grid zrv-hr-is-2">
-          <EmployeePicker id="sl-employee" label="Employee #" required value={form.employee} error={errors.employee} cacheKey="hr-sick-leave-employees"
+        <StepHead title="Who is off, and when?" desc="You can request sick leave for yourself or a direct report." />
+        <div className="zrv-hr-grid zrv-hr-is-3">
+          <EmployeePicker id="sl-employee" label="Employee #" required tight value={form.employee} error={errors.employee} cacheKey="hr-sick-leave-employees"
             placeholder="Type employee number or name…" searchService={(term, options) => sickLeaveService.searchEmployees(term, options)}
             onPick={selectEmployee} disabled={locked} />
           <HrField id="sl-dept" label="Department"><input id="sl-dept" className="ux-input zrv-hr-input" readOnly value={form.employee?.departmentName ?? ''} placeholder="Fills from the employee" /></HrField>
           <HrField id="sl-type" label="Leave type"><input id="sl-type" className="ux-input zrv-hr-input" readOnly value={SICK_LEAVE_TYPE} /></HrField>
-          <div />
+        </div>
+        <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt">
           <HrField id="sl-from" label="From date" required error={errors.fromDate} hint={fromHint}>
             <input {...fieldProps('sl-from', { error: errors.fromDate, hint: fromHint })} type="date" className="ux-input zrv-hr-input" value={form.fromDate}
               onChange={(event) => { const value = event.target.value; patch((current) => ({ fromDate: value, ...(current.toDate && current.toDate < value ? { toDate: value } : {}) })); clear('fromDate', 'toDate') }} />
@@ -236,7 +229,7 @@ function SickLeaveEditor({ initial }) {
       </>}
 
       {step === 1 && <>
-        <PanelHead n={2} eyebrow="Step 02 · Certificate" title="Attach the medical certificate."
+        <StepHead title="Attach the medical certificate."
           desc={record ? 'Added files are uploaded when you save; saved files can be removed while the request is a draft.' : 'At least one file is required for a new request.'} />
         <div className="zrv-hr-esf-attach-head">
           <span className="zrv-hr-label">Attachments{!record && <i className="zrv-hr-req" aria-hidden="true">*</i>}</span>
@@ -252,7 +245,7 @@ function SickLeaveEditor({ initial }) {
       </>}
 
       {step === 2 && <>
-        <PanelHead n={3} eyebrow="Step 03 · Comments" title="Add your comments and review." />
+        <StepHead title="Add your comments and review." />
         <div className="zrv-hr-grid">
           <HrField id="sl-comments" label="Comments" required wide error={errors.comments} hint={commentsHint}>
             <textarea {...fieldProps('sl-comments', { error: errors.comments, hint: commentsHint })} className="ux-textarea zrv-hr-input" rows={3} value={form.comments}

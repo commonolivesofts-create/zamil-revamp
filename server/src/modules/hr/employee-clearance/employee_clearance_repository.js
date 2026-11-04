@@ -2,8 +2,20 @@ import oracledb from 'oracledb';
 
 const T = 'XXZP.';
 
+// node-oracledb refuses binds a statement does not use (NJS-098), and the count and page
+// queries of a list share one bind object: send each statement only the names it references.
+const usedBinds = (sql, b) =>
+  Array.isArray(b)
+    ? b
+    : Object.fromEntries(Object.entries(b).filter(([k]) => new RegExp(`:${k}\\b`).test(sql)));
+
+// Department-head jobs and heads of the legacy manager list (server-owned constants).
+const DEPARTMENT_HEAD_JOBS =
+  '300000002811134, 300000002699988, 300000002811331, 300000002811350, 300000002811380';
+const DEPARTMENT_HEADS = '1153, 1770, 2387';
+
 const run = (c, sql, b = {}) =>
-  c.execute(sql, b, {
+  c.execute(sql, usedBinds(sql, b), {
     outFormat: oracledb.OUT_FORMAT_OBJECT,
   });
 
@@ -799,6 +811,10 @@ export async function employees(c, userId, privileged, f) {
 }
 
 export async function approvers(c, section) {
+  // Legacy Empclearance_model::getDepartmentManager(), all three branches: the reports of
+  // the five department-head jobs and three named heads, the holders of those jobs, and
+  // the jobs with approval authority 5-9. (Oracle TEST, 2026-11-04: only the first branch
+  // returns employees, so the authority branch alone left the list empty.)
   if (section === 'department') {
     return all(
       c,
@@ -808,10 +824,21 @@ export async function approvers(c, section) {
         M.EMPLOYEE_NUMBER AS EMP_NO,
         M.USER_ID
       FROM XX_DIGI_EMP_MASTER M
-      JOIN XX_DIGI_JOB_MASTER J
-        ON J.JOB_ID = M.JOB_ID
       WHERE M.CURRENT_EMP_FLAG = 'Y'
-        AND J.APPROVAL_AUTHORITY BETWEEN 5 AND 9
+        AND (
+          M.SUPERVISOR_NAME IN (
+            SELECT H.FULL_NAME
+            FROM XX_DIGI_EMP_MASTER H
+            WHERE H.JOB_ID IN (${DEPARTMENT_HEAD_JOBS})
+               OR H.EMPLOYEE_NUMBER IN (${DEPARTMENT_HEADS})
+          )
+          OR M.JOB_ID IN (${DEPARTMENT_HEAD_JOBS})
+          OR M.JOB_ID IN (
+            SELECT J.JOB_ID
+            FROM XX_DIGI_JOB_MASTER J
+            WHERE J.APPROVAL_AUTHORITY BETWEEN 5 AND 9
+          )
+        )
       ORDER BY NAME, EMP_NO
     `,
     );

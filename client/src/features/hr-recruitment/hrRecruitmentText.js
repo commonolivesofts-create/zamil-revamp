@@ -93,6 +93,27 @@ export const REPORT_TEXT = Object.freeze({
     LAST_12_MONTHS: "Last 12 months",
     SINCE_2000: "Since 2000",
   }),
+  // The Employee report on the insight layout.
+  insight: Object.freeze({
+    heading: "Employees",
+    empty: "No employees match these filters.",
+    filters: Object.freeze({ department: "Department", contractor: "Contractor", from: "Started from", to: "Ended by" }),
+    dateOrder: "The end date must be on or after the start date.",
+    overview: Object.freeze({
+      workforce: "Workforce", employees: "contract employees",
+      active: "Active", inactive: "Inactive", activeShare: (share) => `${share}% active`,
+      departments: "Top departments", contractors: "Top contractors", more: (count) => `+${count} more`,
+    }),
+    breakdown: "Started",
+    columns: Object.freeze({
+      number: "Employee no.", name: "Employee name", division: "Division", department: "Department", contractor: "Contractor",
+      start: "Start date", end: "End date", status: "Status",
+    }),
+    facts: Object.freeze({
+      iqamah: "Iqamah", section: "Production section", job: "Job title", boss: "Direct boss", place: "Place", replacement: "Replacement",
+      rate: "Rate", ajeer: "Ajeer", sfda: "SFDA", blacklist: "Blacklist", remark: "Remark", yes: "Yes", no: "No",
+    }),
+  }),
   loading: "report",
   kpis: Object.freeze({
     label: "Summary",

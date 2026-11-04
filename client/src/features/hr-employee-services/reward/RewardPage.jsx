@@ -3,16 +3,16 @@ import { useNavigate } from 'react-router'
 import usePermissions from '@/features/access/usePermissions.js'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { useResource } from '@/features/security-administration/useAdminData.js'
-import { businessToday, enDate, initials } from '@/features/hr-recruitment/shared/hrFormat.js'
+import { businessToday, enDate } from '@/features/hr-recruitment/shared/hrFormat.js'
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
 import { ChoiceCards, HrField, Review } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
-import { Orbit, PanelHead, Pill, RecruitmentShell, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { Orbit, RecruitmentShell, StepHead, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
-import { STATUS_TEXT, STATUS_TONE, isEditable } from '../shared/formRecords.js'
+import { STATUS_TEXT, isEditable } from '../shared/formRecords.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import { RatingChips } from '../shared/FormParts.jsx'
 import '@/styles/hr-employee-services.css'
@@ -23,14 +23,13 @@ import {
 import { rewardDemo, rewardService } from './rewardService.js'
 
 const TITLE = 'Employee Reward Nomination'
-const SUBTITLE = 'Recognise great work. Pick the section and the employee, rate each area with evidence, and recommend.'
-const STEPS = [['Nominee', 'Department and employee'], ['Ratings', 'Rate each area'], ['Recommend', 'Feedback and save']]
+const STEPS = ['Nominee', 'Ratings', 'Recommend']
 const monthName = (iso) => (monthOf(iso) ? new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`)) : '')
 
 export default function RewardPage() {
   return (
     <RecruitmentLoader current="reward" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={rewardDemo}
-      title={TITLE} subtitle={SUBTITLE} param="nominationId" load={rewardService.getById}
+      title={TITLE} param="nominationId" load={rewardService.getById}
       loadLookups={async (signal) => ({ requestor: await rewardService.requestor({ signal }) })}>
       {({ lookups, record, editorKey }) => <RewardEditor key={editorKey} requestor={lookups.requestor} initial={record} />}
     </RecruitmentLoader>
@@ -94,7 +93,6 @@ function RewardEditor({ requestor, initial }) {
 
   const startNew = () => navigate(FORM_PATHS.reward)
   const tools = [
-    { icon: 'save', label: 'Save draft', onClick: save, disabled: editor.pending || locked },
     { icon: 'printer', label: C.print, onClick: () => window.print() },
     { icon: 'chart-column', label: 'View report', onClick: () => navigate(FORM_PATHS.rewardReport) },
     { icon: 'file-plus', label: 'New nomination', onClick: () => (editor.dirty && !locked ? setDialog('new') : startNew()) },
@@ -111,20 +109,13 @@ function RewardEditor({ requestor, initial }) {
   const remarkHint = `${form.remark.length} / ${REMARK_MAX}`
 
   return <>
-    <RecruitmentShell current="reward" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE} subtitle={SUBTITLE} demo={rewardDemo}
+    <RecruitmentShell current="reward" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE} demo={rewardDemo}
       tools={tools} primary={{ label: 'Save draft', icon: 'save', onClick: save }} locked={locked} pending={editor.pending} focusError={editor.focusError}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss}
-      ticket={<Ticket avatar={initials(employee?.name)} code="RWD · 1113" items={[
-        { k: 'Request no.', v: record?.requestNo || 'Assigned on save' },
-        { k: 'Nominee', v: employee?.name || 'Not selected', big: true },
-        { k: 'Section', v: department?.name ?? '—' },
-        { k: 'Effective date', v: form.activityDate ? enDate(form.activityDate) : '—' },
-        { k: 'Status', v: <Pill tone={STATUS_TONE[status] ?? 'warn'}>{status ? STATUS_TEXT[status] : 'Not saved'}</Pill> },
-      ]} />}
-      steps={STEPS} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel="Save draft" onFinal={save}
+      steps={STEPS.map((name, index) => [name, index === 1 && summary.total ? C.step.rated(summary.rated, summary.total) : doneSteps[index] ? C.step.done : C.step.open])} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel="Save draft" onFinal={save}
       side={<>
         <Tilt className={`zrv-hr-esf-reward-card${summary.total && summary.rated === summary.total ? ' zrv-hr-is-complete' : ''}`} aria-label="Nomination card">
-          <div className="zrv-hr-dark__top"><span className="zrv-hr-eyebrow">Nomination card</span><span className="zrv-hr-mono">{record?.requestNo || 'RWD · DRAFT'}</span></div>
+          <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{record?.requestNo || 'RWD · Draft'}</span><span className="zrv-hr-dark__status">{status ? STATUS_TEXT[status] : 'Not saved'}</span></div>
           <div className="zrv-hr-esf-trophy" aria-hidden="true">
             <svg viewBox="0 0 100 100" className="zrv-hr-esf-trophy__ring"><circle cx="50" cy="50" r="40" className="zrv-hr-esf-g0" />
               <circle cx="50" cy="50" r="40" className="zrv-hr-esf-g1" strokeDasharray={`${(summary.total ? summary.rated / summary.total : 0) * ring} ${ring}`} transform="rotate(-90 50 50)" /></svg>
@@ -146,7 +137,7 @@ function RewardEditor({ requestor, initial }) {
             : !form.overallRating ? 'Choose the overall feedback.' : 'Ready to save.'} />
       </>}>
       {step === 0 && <>
-        <PanelHead n={1} eyebrow="Step 01 · Nominee" title="Who deserves recognition?" desc={record ? 'The section of a saved nomination cannot change.' : undefined} />
+        <StepHead title="Who deserves recognition?" desc={record ? 'The section of a saved nomination cannot change.' : undefined} />
         <ChoiceCards label="Choose department" value={form.department} error={errors.department} onChange={chooseDepartment}
           options={Object.entries(DEPARTMENT_TEXT).map(([value, item]) => ({ value, icon: item.icon, title: item.name, desc: item.desc }))} />
         <div className="zrv-hr-grid zrv-hr-is-2 zrv-hr-mt">
@@ -167,8 +158,8 @@ function RewardEditor({ requestor, initial }) {
       </>}
 
       {step === 1 && <>
-        <PanelHead n={2} eyebrow="Step 02 · Ratings" title={department ? `Rate ${department.name.toLowerCase()} performance.` : 'Choose a section first.'}
-          desc={department ? 'Choose a rating for each area and give a short, real example as evidence.' : undefined} />
+        <StepHead title={department ? `Rate ${department.name.toLowerCase()} performance.` : 'Choose a section first.'}
+          desc={department ? 'Choose a rating for each area and give a short, real example as evidence.' : 'Choose a section first.'} />
         {!form.department && <button type="button" className="btn-secondary zrv-hr-btn" onClick={() => setStep(0)}>Choose section</button>}
         {form.department && criteria.status === 'loading' && <p className="zrv-admin-state" role="status">Loading the criteria…</p>}
         {criteria.status === 'error' && <div className="zrv-admin-state zrv-admin-state--error" role="alert"><p>The criteria could not be loaded.</p><button type="button" className="btn-secondary" onClick={criteria.reload}>Retry</button></div>}
@@ -196,7 +187,7 @@ function RewardEditor({ requestor, initial }) {
       </>}
 
       {step === 2 && <>
-        <PanelHead n={3} eyebrow="Step 03 · Recommend" title="Your overall recommendation." />
+        <StepHead title="Your overall recommendation." />
         <span className="zrv-hr-label" id="rw-overall">Overall feedback<i className="zrv-hr-req" aria-hidden="true">*</i></span>
         {criteria.status === 'ready'
           ? <RatingChips name="rw-overall" labelledBy="rw-overall" scale={scale} value={form.overallRating} onChange={set('overallRating')} error={errors.overallRating} />

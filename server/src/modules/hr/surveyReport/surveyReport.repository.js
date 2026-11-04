@@ -180,21 +180,21 @@ export async function list(connection, filters) {
   let extra = '';
 
   if (filters.from) {
-    binds.from = filters.from;
+    binds.fromDate = filters.from;
 
     extra += `
       AND H.CREATED_AT >= TO_DATE(
-        :from, 'YYYY-MM-DD'
+        :fromDate, 'YYYY-MM-DD'
       )
     `;
   }
 
   if (filters.to) {
-    binds.to = filters.to;
+    binds.toDate = filters.to;
 
     extra += `
       AND H.CREATED_AT <
-        TO_DATE(:to, 'YYYY-MM-DD') + 1
+        TO_DATE(:toDate, 'YYYY-MM-DD') + 1
     `;
   }
 

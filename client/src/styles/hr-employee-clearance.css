@@ -1,0 +1,41 @@
+/* Employee Clearance (1063): the IT access rows, the department tabs and the
+   side summary. Scoped to .zrv-hr; colours from the Orvexa and HR tokens
+   (hr-recruitment.css), so light and dark mode follow the theme. Chips and
+   row cards reuse hr-employee-services-forms.css. */
+
+/* IT access: subject, action chips, then the access-to field */
+.zrv-hr-ecl-it { grid-template-columns: minmax(130px, 170px) minmax(0, 1fr) minmax(180px, 240px); align-items: center; column-gap: 14px; }
+.zrv-hr-ecl-it > .zrv-auth-field-error { grid-column: 1 / -1; }
+.zrv-hr-ecl-it .zrv-hr-esf-chip { min-height: 32px; padding: 0 11px; font-size: 12.5px; }
+.zrv-hr-ecl-access { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.zrv-hr-ecl-access small { color: var(--zrv-hr-fine); font-size: 11px; font-weight: 700; }
+
+/* department tabs */
+.zrv-hr-ecl-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; padding: 5px; border: 1px solid var(--line); border-radius: 16px; background: var(--zrv-hr-soft); }
+.zrv-hr-ecl-tabs button { display: inline-flex; flex: 1 1 auto; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 12px; background: none; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; transition: background .2s, color .2s; }
+.zrv-hr-ecl-tabs button span { min-width: 22px; padding: 1px 6px; border-radius: 100px; background: color-mix(in srgb, var(--mint) 16%, transparent); color: var(--text); font-size: 11px; }
+.zrv-hr-ecl-tabs button:hover { color: var(--text); }
+.zrv-hr-ecl-tabs button:focus-visible { outline: 2px solid var(--zrv-hr-accent-text); outline-offset: 2px; }
+.zrv-hr-ecl-tabs button.zrv-hr-is-on { background: var(--zrv-hr-accent); color: var(--zrv-hr-on-accent); }
+.zrv-hr-ecl-tabs button.zrv-hr-is-on span { background: color-mix(in srgb, #fff 24%, transparent); color: inherit; }
+.zrv-hr-ecl-panel { min-width: 0; margin: 0; padding: 0; border: 0; animation: zrv-hr-reveal .35s var(--zrv-hr-ease); }
+.zrv-hr-ecl-panel:disabled { opacity: .6; }
+.zrv-hr-ecl-items { gap: 8px; }
+
+/* side summary: items returned and the signature per tab */
+.zrv-hr-ecl-tabsum { padding: 16px 18px; }
+.zrv-hr-ecl-tabsum h3 { margin: 0 0 10px; font-size: 14px; }
+.zrv-hr-ecl-tabsum ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.zrv-hr-ecl-tabsum li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 12px; background: var(--zrv-hr-soft); font-size: 12.5px; }
+.zrv-hr-ecl-tabsum li span { font-weight: 800; font-variant-numeric: tabular-nums; }
+.zrv-hr-ecl-tabsum li em { color: var(--muted); font-size: 11.5px; font-style: normal; }
+.zrv-hr-ecl-tabsum li.zrv-hr-is-approved em { color: var(--zrv-hr-accent-text); font-weight: 700; }
+.zrv-hr-ecl-tabsum li.zrv-hr-is-rejected em { color: var(--danger); font-weight: 700; }
+.zrv-hr-ecl-tabsum li.zrv-hr-is-hold em { color: var(--text); font-weight: 700; }
+
+@media (max-width: 900px) {
+  .zrv-hr-ecl-it { grid-template-columns: minmax(0, 1fr); row-gap: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-hr-ecl-panel { animation: none; }
+}

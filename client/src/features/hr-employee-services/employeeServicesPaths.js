@@ -19,3 +19,22 @@ export const FORM_PATHS = Object.freeze({
   sickLeave: '/hr/employee-services/sick-leave',
   sickLeaveReport: '/hr/employee-services/sick-leave/report',
 })
+
+// Employee Clearance (1063): the form, its report and (with an id) one record
+// (hrForms.module.js).
+export const CLEARANCE_PATHS = Object.freeze({
+  form: '/hr/employee-services/clearance',
+  report: '/hr/employee-services/clearance/report',
+})
+
+// Project Charter (ZPI.IMS.FM.13): the form, its report and (with an id) one
+// record; the Survey report (graphical) and its responses (textual). Both in
+// hrForms.module.js.
+export const CHARTER_PATHS = Object.freeze({
+  form: '/hr/employee-services/project-charter',
+  report: '/hr/employee-services/project-charter/report',
+})
+export const SURVEY_PATHS = Object.freeze({
+  report: '/hr/reports/survey',
+  responses: '/hr/reports/survey/responses',
+})

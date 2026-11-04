@@ -708,12 +708,14 @@ test("employee report service uses the contractor employee lookup and paginated 
   );
 });
 
-test("employee report page requires both dates, in order, before running", async () => {
+test("employee report page always sends both dates, in order", async () => {
   const page = await read(`${FEATURE}report/EmployeeReportPage.jsx`);
-  assert.match(page, /const found = validateDates\(draft\)[\s\S]*?if \(Object\.keys\(found\)\.length\)/);
-  for (const id of ["er-from", "er-to"]) {
-    assert.match(page, new RegExp(`<HrField id="${id}"[^>]*required error=`));
-  }
+  // Blank dates are the legacy "Since 2000" period up to today; the API requires both.
+  assert.match(page, /dateFrom: dateFrom \|\| SINCE, dateTo: dateTo \|\| businessToday\(\)/);
+  assert.match(page, /dateTo: dateFrom && dateTo && dateTo < dateFrom \? I\.dateOrder : ''/);
+  assert.match(page, /<InsightReport [^>]*validate=\{validate\}/);
+  const insight = await read(`${FEATURE}shared/components/InsightReport.jsx`);
+  assert.match(insight, /const found = Object\.fromEntries\(Object\.entries\(validate\?\.\(draft\) \?\? \{\}\)[\s\S]*?if \(Object\.keys\(found\)\.length\)/);
 });
 
 test("employee report service lists incomplete legacy rows and rejects malformed values", async () => {
@@ -1899,6 +1901,9 @@ test("HR visibility switch: true, false, unset in development and unset in produ
           "VITE_FEATURE_HR_SICK_LEAVE",
           "VITE_FEATURE_HR_REWARD_NOMINATION",
           "VITE_FEATURE_HR_IDEAS",
+          "VITE_FEATURE_HR_EMPLOYEE_CLEARANCE",
+          "VITE_FEATURE_HR_PROJECT_CHARTER",
+          "VITE_FEATURE_HR_SURVEY_REPORT",
         ].includes(
           entry.enabledBy.env,
         ),

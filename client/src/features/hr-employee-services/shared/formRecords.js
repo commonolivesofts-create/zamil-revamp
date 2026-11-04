@@ -8,8 +8,6 @@ export const STATUS_TEXT = Object.freeze({
   DRAFT: 'Draft', INPROCESS: 'In process', APPROVED: 'Approved', REJECTED: 'Rejected', UNKNOWN: 'Unknown',
 })
 export const STATUS_TONE = Object.freeze({ DRAFT: 'warn', INPROCESS: 'warn', APPROVED: 'ok', REJECTED: 'bad', UNKNOWN: 'warn' })
-// The status tabs of the server-filtered reports (ServerRecordList).
-export const STATUS_FILTER = Object.freeze({ key: 'status', label: 'Status', type: 'status', options: RECORD_STATUSES.map((value) => ({ value, label: STATUS_TEXT[value] })) })
 export const ID = /^[1-9][0-9]{0,18}$/
 
 // The backends store 'Draft', 'DRAFT', 'INPROCESS', 'Inprocess'… An unknown
