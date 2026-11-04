@@ -10,6 +10,21 @@ export const EDUCATION_FIELDS = Object.freeze([
   ['degree', 'Degree'], ['masterDegree', "Master's degree"],
 ])
 export const EXPERIENCE_BANDS = Object.freeze(['0 - 2', '2 - 5', '5 - 10', '> 10'])
+// Connect server validation paths to the form control and its step.
+export const REQUISITION_VALIDATION_FIELDS = Object.freeze(Object.fromEntries([
+  ['jobId', 'jobTitle', 0, 'Job title'], ['jobName', 'jobTitle', 0, 'Job title'],
+  ['deptId', 'departmentId', 0, 'Department'], ['deptName', 'departmentId', 0, 'Department'],
+  ['dateNeeded', 'neededDate', 0, 'Needed date'], ['requestDate', 'requestDate', 0, 'Request date'],
+  ['remark', 'remark', 0, 'Remark'], ['reasonOfReq', 'reason', 1, 'Reason'],
+  ['replacementFor', 'replacementFor', 1, 'Replacement for'], ['reason', 'additionReason', 1, 'Reason for addition'],
+  ['budgeted', 'budgeted', 1, 'Budget answer'], ['budgetedSal', 'budgetedSalary', 1, 'Budgeted salary'],
+  ['totalPackage', 'totalPackage', 1, 'Basic salary'],
+  ...EDUCATION_FIELDS.map(([key]) => [key, 'educationCodes', 2, 'Education']),
+  ['gccExp', 'gccExp', 2, 'GCC experience'], ['workExp', 'workExp', 2, 'Total work experience'],
+  ['skills', 'skills', 2, 'Skills and knowledge'], ['other', 'otherRequirements', 2, 'Other requirements'],
+].map(([apiField, key, step, label]) => [apiField, { key, step, label,
+  ...(key === 'educationCodes' ? { fields: EDUCATION_FIELDS.map(([field]) => field) } : {}),
+}])))
 export const isRequisitionLocked = (status) => status === 'Inprocess' || status === 'Approved'
 
 export function blankRequisition(today = '') {
@@ -17,17 +32,17 @@ export function blankRequisition(today = '') {
     requesterName: '', requestDate: today, jobId: '', jobTitle: '', departmentId: '', departmentName: '', neededDate: today, remark: '',
     reason: '', replacementFor: '', additionReason: '', budgeted: '', budgetedSalary: '',
     highSchool: '', diploma: '', higherDiploma: '', degree: '', masterDegree: '',
-    gccExp: '', workExp: '', skills: '', otherRequirements: '', totalPackage: '', ticketStatus: '', ticketStatusChanged: false, attachments: [],
+    gccExp: '', workExp: '', skills: '', otherRequirements: '', totalPackage: '', attachments: [],
   }
 }
 
 const yesNo = (value) => (value === 'Y' ? 'yes' : value === 'N' ? 'no' : '')
 
-export function requisitionFormFromRecord(record) {
+export function requisitionFormFromRecord(record, today = '') {
   return {
     requesterName: record.requesterName ?? '', requestDate: record.requestDate ?? '',
     jobId: record.jobId ?? '', jobTitle: record.jobTitle, departmentId: record.departmentId ?? '',
-    departmentName: record.departmentName, neededDate: record.neededDate ?? '', remark: record.remark,
+    departmentName: record.departmentName, neededDate: record.neededDate || today, remark: record.remark,
     reason: record.reason, replacementFor: record.replacementFor,
     additionReason: record.additionReason, budgeted: yesNo(record.budgeted === true ? 'Y' : record.budgeted === false ? 'N' : ''),
     budgetedSalary: record.budgetedSalary, highSchool: yesNo(record.highSchool === true ? 'Y' : record.highSchool === false ? 'N' : ''),
@@ -37,7 +52,6 @@ export function requisitionFormFromRecord(record) {
     masterDegree: yesNo(record.masterDegree === true ? 'Y' : record.masterDegree === false ? 'N' : ''),
     gccExp: record.gccExp ?? '', workExp: record.workExp ?? '', skills: record.skills,
     otherRequirements: record.otherRequirements, totalPackage: record.totalPackage == null ? '' : String(record.totalPackage),
-    ticketStatus: record.ticketStatus ?? '', ticketStatusChanged: false,
     attachments: record.attachments.map((file) => ({ ...file })),
   }
 }
@@ -59,7 +73,6 @@ export function requisitionPayload(form) {
     masterDegree: form.masterDegree === 'yes' ? 'Y' : form.masterDegree === 'no' ? 'N' : '',
     gccExp: form.gccExp, workExp: form.workExp, skills: form.skills.trim(),
     other: form.otherRequirements.trim(), remark: form.remark.trim(), totalPackage: form.totalPackage,
-    ...(form.ticketStatusChanged ? { ticketStatus: form.ticketStatus } : {}),
   }
 }
 
@@ -93,7 +106,8 @@ export function requisitionProgress(form, steps = 4) {
     return own.length ? own.every((check) => check.ok) : false
   })
   return { checks, missing, doneSteps, done: checks.length - missing.length, total: checks.length,
-    firstStep: missing.length ? Math.min(...missing.map((check) => check.step)) : -1 }
+    firstStep: missing.length ? Math.min(...missing.map((check) => check.step)) : -1,
+    unlockedStep: missing.length ? Math.min(...missing.map((check) => check.step)) : steps - 1 }
 }
 
 export function leadTime(today, neededDate) {

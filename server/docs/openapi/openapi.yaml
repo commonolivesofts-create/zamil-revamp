@@ -4223,6 +4223,65 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/employment-offers/{headerId}/accept:
+    post:
+      operationId: recordEmploymentOfferAcceptance
+      tags: [Employment Offers]
+      summary: Record actual offer acceptance and update linked recruitment status
+      description: >-
+        Requires offer UPDATE permission, CSRF and server-verified HR membership.
+        Locks the offer and linked requisition and atomically stores offer status Accepted,
+        requisition ATTRIBUTE1 Accepted (Offer Accepted) and the actual acceptance date in
+        ATTRIBUTE14. Approval status is untouched. Identical retries are idempotent;
+        a different acceptance or a non-open requisition returns 409.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: headerId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [acceptedDate]
+              properties:
+                acceptedDate:
+                  type: string
+                  format: date
+                  description: Actual candidate acceptance date, from offer date through today in Asia/Riyadh.
+                reason: { type: string, maxLength: 1000 }
+      responses:
+        '200':
+          description: Offer and requisition acceptance recorded atomically.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          headerId: { type: string }
+                          requisitionId: { type: string }
+                          acceptedDate: { type: string, format: date }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          description: Offer not found.
+        '409':
+          description: Requisition link is missing or ambiguous, recruitment is not open, or acceptance is already recorded.
   /api/v1/hr/employment-offers/{headerId}:
     get:
       operationId: getEmploymentOffer
@@ -4404,7 +4463,7 @@ paths:
         - name: ticketStatus
           in: query
           schema:
-            enum: [Open, Accepted, Close]
+            enum: [Open, Accepted, Close, 'On Hold', Cancelled]
         - name: requisitionId
           in: query
           description: Exact REQUISITION_ID match.
@@ -4507,8 +4566,7 @@ paths:
         'DD-Mon-YY'. Multipart requests may carry attachment file parts (`files`,
         max 10 files, 10 MB each, §9 extension allowlist): the attachment rows and
         the physical files are written in the same transaction and compensated on
-        failure. ticketStatus (ATTRIBUTE1) is HR-only — a non-HR caller sending a
-        non-empty value gets 400. Requires `REQUISITIONS.REQUISITIONS:CREATE` and the
+        failure. Recruitment status is server-owned and Open on every insert; ticketStatus is rejected in form payloads. Requires `REQUISITIONS.REQUISITIONS:CREATE` and the
         `X-CSRF-Token` header.
       security:
         - sessionCookie: []
@@ -4848,6 +4906,61 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/{requisitionId}/recruitment-status:
+    post:
+      operationId: changeRequisitionRecruitmentStatus
+      tags: [HR Requisitions]
+      summary: Perform an audited recruitment action on an approved requisition
+      description: >-
+        Requires requisition UPDATE permission, CSRF and server-verified HR membership.
+        Locks the approved requisition and checks expectedStatus against the current value.
+        Open supports hold/cancel; Offer Accepted supports fill/hold/cancel; On Hold supports
+        reopen/cancel; Cancelled supports reopen. Reopen restores Offer Accepted when an actual
+        acceptance date exists, otherwise Open. Filled / Closed is terminal. Every successful
+        change atomically records actor, time, old/new values and optional reason in the audit log.
+        Offer Accepted is produced by the offer acceptance action, not this endpoint.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequisitionId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action, expectedStatus]
+              properties:
+                action: { type: string, enum: [hold, cancel, reopen, fill] }
+                expectedStatus:
+                  { type: string, enum: [Open, Accepted, Close, 'On Hold', Cancelled] }
+                reason: { type: string, maxLength: 1000 }
+      responses:
+        '200':
+          description: Recruitment action and audit event committed together.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          requisitionId: { type: string }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          description: Requisition not found.
+        '409':
+          description: Not approved, stale expected status or action unavailable for the current status.
   /api/v1/hr/requisitions/{requisitionId}:
     get:
       operationId: getRequisition
@@ -4901,9 +5014,7 @@ paths:
         REQUESTER_NAME, REQUESTED_BY — requestDate is therefore rejected on this
         operation as an unknown field. Non-HR callers get 409 CANNOT_UPDATE_STATUS
         while the status is Inprocess or Approved (HR users may always save).
-        ticketStatus is HR-only; when absent it preserves the stored ATTRIBUTE1/14/15
-        group, when '' it clears it, and while the status is Accepted/Close the
-        previously stored date survives a re-save (corrected §5.1 behaviour).
+        Recruitment status and its dates are read-only on the form. Approved requisitions use dedicated HR actions; all status changes are audited.
         Multipart requests may append attachment file parts (`files`) in the same
         transaction. Out-of-scope rows 404. Requires `REQUISITIONS.REQUISITIONS:UPDATE` and
         the `X-CSRF-Token` header.
@@ -12811,7 +12922,7 @@ components:
         interviewedBy: { type: string }
         interviewedBy2: { type: string }
         interviewedBy3: { type: string }
-        status: { enum: [Incomplete] }
+        status: { enum: [Incomplete, Accepted] }
         intNo: { type: string }
         approvalAuthority:
           type: [string, 'null']
@@ -13106,10 +13217,15 @@ components:
         employeeNameAr: { type: [string, 'null'] }
         position: { type: string }
         status:
-          enum: [Incomplete]
-          description: >-
-            Write-once column: written 'Incomplete' on insert, never updated, only
-            filtered on in the listing.
+          enum: [Incomplete, Accepted]
+          description: Incomplete on insert; Accepted only through the HR offer acceptance action.
+        canRecordAcceptance:
+          type: boolean
+          description: Server-verified HR capability for recording acceptance; offer UPDATE permission is also required.
+        acceptedDate:
+          type: [string, 'null']
+          format: date
+          description: Actual acceptance date from the linked requisition.
         division:
           type: [string, 'null']
           description: Business-unit id from ATTRIBUTE1 (raw id only, README §8.9).
@@ -13215,7 +13331,7 @@ components:
         Insert payload (README §3.2). `replacementFor` is required when reasonOfReq
         is 'Replacement' and `reason` when it is 'Addition'. Empty text and id
         fields store NULL (the legacy literal 'null' quirk of §9 is deliberately not
-        reproduced). `ticketStatus` may only be set by HR users.
+        reproduced). Recruitment status is server-owned and starts Open for every creator.
       required: [requestDate, jobName, deptName, dateNeeded, reasonOfReq]
       properties:
         requestDate:
@@ -13285,20 +13401,13 @@ components:
         totalPackage:
           type: [number, 'null']
           minimum: 0
-        ticketStatus:
-          type: string
-          description: >-
-            HR-only (server-side XXZP_HR probe). '' | Open | Accepted | Close;
-            absent on update means "preserve".
-          enum: ['', Open, Accepted, Close]
     RequisitionUpdate:
       type: object
       additionalProperties: false
       description: >-
         Full-replace update payload (README §5.1) — RequisitionWrite without
         requestDate, which is frozen after insert and rejected here as an unknown
-        field. Everything else behaves like insert, including the HR-only
-        ticketStatus.
+        field. Recruitment status is read-only and rejected in form payloads.
       required: [jobName, deptName, dateNeeded, reasonOfReq]
       properties:
         jobId:
@@ -13364,12 +13473,6 @@ components:
         totalPackage:
           type: [number, 'null']
           minimum: 0
-        ticketStatus:
-          type: string
-          description: >-
-            HR-only (server-side XXZP_HR probe). '' clears the ticket group,
-            an absent value preserves ATTRIBUTE1/14/15.
-          enum: ['', Open, Accepted, Close]
     RequisitionCreated:
       type: object
       required: [requisitionId, requisitionNumber]
@@ -13406,6 +13509,10 @@ components:
         - ticketStatus
         - attachments
       properties:
+        recruitmentActions:
+          type: array
+          description: Available only to server-verified HR on Approved requisitions; UPDATE permission is also required to act.
+          items: { type: string, enum: [hold, cancel, reopen, fill] }
         requisitionId:
           $ref: '#/components/schemas/Id'
         requisitionNumber:
@@ -13466,7 +13573,7 @@ components:
           type: [number, 'null']
         ticketStatus:
           type: string
-          enum: ['', Open, Accepted, Close]
+          enum: [Open, Accepted, Close, 'On Hold', Cancelled]
         acceptedDate:
           type: [string, 'null']
           description: ATTRIBUTE14 in legacy 'DD-Mon-YY' form.
@@ -13532,7 +13639,7 @@ components:
         ticketStatus:
           type: string
           description: NVL(ATTRIBUTE1, 'Open').
-          enum: [Open, Accepted, Close]
+          enum: [Open, Accepted, Close, 'On Hold', Cancelled]
         acceptedDate:
           type: [string, 'null']
         closedDate:
@@ -13566,6 +13673,9 @@ components:
           type: string
         name:
           type: string
+        departmentId:
+          type: string
+          description: Present only when all current employees with this job ID belong to one department.
     RequisitionDepartment:
       type: object
       required: [deptId, name]

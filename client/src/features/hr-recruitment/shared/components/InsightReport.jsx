@@ -50,7 +50,7 @@ function counter(list, signal) {
 //   summary(row, today) → { heading, pill, facts: [[label, value]], timing?: { tone, text } }.
 export function InsightReport({
   variant, title, subtitle, heading, resourceKey, list, create, openLabel, empty,
-  initial, required = [], fields, columns, defaultSort, numberOf, rowKey, pathOf, cards, groups: groupsOf = [], summary,
+  initial, required = [], fields, columns, defaultSort, numberOf, rowKey, pathOf, cards, groups: groupsOf = [], summary, renderDetail,
 }) {
   const id = useId()
   const navigate = useNavigate()
@@ -249,6 +249,7 @@ export function InsightReport({
       </div>
 
       {selected && <Summary row={selected} detail={summary(selected, today)} number={numberOf(selected)} path={pathOf(selected)}
+        extra={renderDetail?.(selected, { onChanged: (updated) => { setSelected((current) => current && rowKey(current) === rowKey(selected) ? { ...current, ...updated } : current); refresh() } })}
         openLabel={openLabel} closing={closing} onClose={close} />}
     </div>
   )
@@ -276,7 +277,7 @@ function Breakdown({ group, counts, isActive, onPick }) {
 
 // Side summary of one listed record (the list's own fields; the full record
 // opens on its form). It slides in and, while `closing`, slides out.
-function Summary({ row, detail, number, path, openLabel, closing, onClose }) {
+function Summary({ row, detail, number, path, openLabel, closing, onClose, extra }) {
   const [copiedOf, setCopiedOf] = useState(null)
   const copied = copiedOf === row
   const canCopy = typeof navigator !== 'undefined' && Boolean(navigator.clipboard?.writeText)
@@ -291,6 +292,7 @@ function Summary({ row, detail, number, path, openLabel, closing, onClose }) {
             {detail.facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || COMMON_TEXT.dash}</dd></div>)}
           </dl>
           {detail.timing && <div className={`zrv-ir-drawer__due zrv-ir-is-${detail.timing.tone}`}><span>{T.timing}</span><b>{detail.timing.text}</b></div>}
+          {extra}
           <div className="zrv-ir-drawer__actions">
             <Link className="zrv-ir-btn zrv-ir-btn--primary" to={path}><OrvexaIcon name="external-link" size={16} />{openLabel}</Link>
             {canCopy && <button type="button" className="zrv-ir-btn" onClick={copy}><OrvexaIcon name={copied ? 'check' : 'copy'} size={16} />{copied ? T.copied : T.copy}</button>}

@@ -8,6 +8,8 @@ import { Pill } from "../shared/components/RecruitmentShell.jsx";
 import { InsightReport } from "../shared/components/InsightReport.jsx";
 import { Card, Columns, Delta, Distribution, Foot, Hero, Hint, Ring } from "../shared/components/InsightCards.jsx";
 import { dueSignal } from "../shared/insightFormat.js";
+import { RecruitmentActions } from "./RecruitmentActions.jsx";
+import { CreateInterviewAssessment } from "./CreateInterviewAssessment.jsx";
 
 const BASE = "/hr/recruitment/requisition";
 const R = T.report;
@@ -17,11 +19,10 @@ const STATUS_TONE = Object.freeze({ Draft: "warn", Inprocess: "warn", Approved: 
 const STATUSES = Object.freeze([["Draft", "draft"], ["Inprocess", "progress"], ["Approved", "ok"], ["Rejected", "bad"]]);
 const TICKETS = Object.keys(R.ticketStatus);
 const REASONS = Object.keys(R.reasons);
-const OPEN_STATUSES = new Set(["Draft", "Inprocess"]);
 const statusLabel = (key) => T.status[key] ?? key;
 const date = (value) => (value ? enDate(value) : COMMON_TEXT.dash);
 // Days to the needed date while the requisition is still open (draft or in approval).
-const dueOf = (row, today) => (OPEN_STATUSES.has(row.status) ? dueSignal(today, row.neededDate) : null);
+const dueOf = (row, today) => (row.status !== "Rejected" && !["Close", "Cancelled"].includes(row.ticketStatus) ? dueSignal(today, row.neededDate) : null);
 
 const INITIAL = Object.freeze({ requisitionStatus: "", search: "", reasonOfReq: "", ticketStatus: "", dateFrom: "", dateTo: "" });
 const FIELDS = [
@@ -39,6 +40,7 @@ const COLUMNS = [
   { key: "needed", label: R.neededBy, sort: "dateNeeded", render: (row) => <Needed row={row} /> },
   { key: "ticket", label: R.columns.ticketStatus, render: (row) => (row.ticketStatus ? <span className={`zrv-ir-ticket zrv-ir-ticket--${row.ticketStatus.toLowerCase()}`}>{R.ticketStatus[row.ticketStatus] ?? row.ticketStatus}</span> : COMMON_TEXT.dash) },
   { key: "status", label: R.columns.status, render: (row) => <Pill tone={STATUS_TONE[row.status] ?? "warn"}>{statusLabel(row.status)}</Pill> },
+  { key: "assessment", label: "Actions", render: (row) => <CreateInterviewAssessment row={row} compact /> },
 ];
 
 // Overview: where requisitions are in approval, how many decided ones were
@@ -109,6 +111,10 @@ export default function RequisitionReportPage() {
       openLabel={R.detail.open} empty={R.empty} initial={INITIAL} fields={FIELDS} columns={COLUMNS} cards={CARDS} groups={GROUPS}
       defaultSort={{ key: "requisitionId", order: "desc" }} numberOf={(row) => row.requisitionNumber || row.requisitionId}
       rowKey={(row) => row.requisitionId} pathOf={(row) => `${BASE}/${row.requisitionId}`}
+      renderDetail={(row, { onChanged }) => <>
+        <CreateInterviewAssessment row={row} />
+        <RecruitmentActions key={row.requisitionId} requisitionId={row.requisitionId} onChanged={onChanged} />
+      </>}
       summary={(row, today) => ({
         heading: row.jobTitle,
         pill: <Pill tone={STATUS_TONE[row.status] ?? "warn"}>{statusLabel(row.status)}</Pill>,

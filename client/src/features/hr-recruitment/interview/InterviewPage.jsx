@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
+import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
@@ -35,13 +36,19 @@ const HR_REQUIRED = HR_FIELDS.filter(([, , rules]) => rules.required).map(([key]
 
 function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const permissions = usePermissions()
   const today = businessToday()
+  const requestedRequisition = searchParams.get('requisitionNumber')?.trim().toLowerCase()
+  // Only seed a new assessment from the server's current approved options.
+  const sourceRequisition = !savedRecord && requestedRequisition
+    ? lookups.requisitions.find((item) => item.requisitionNumber.toLowerCase() === requestedRequisition)
+    : null
   const editor = useRecruitmentForm({
     basePath: BASE, idKey: 'assessmentId', record: savedRecord,
     initialForm: savedRecord
       ? interviewFormFromRecord(savedRecord)
-      : blankInterview(today),
+      : { ...blankInterview(today), requisitionNumber: sourceRequisition?.requisitionNumber ?? '' },
   })
   const { form, record, step, setStep, patch } = editor
   const [errors, setErrors] = useState({})
@@ -163,6 +170,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
         flowStatus={record ? `${record.assessmentNumber} · ${T.status[record.status]}` : null}
         tools={tools} primary={{ label: T.primary, icon: 'save', onClick: save, disabled: !canSave }}
         feedback={editor.feedback} onDismissFeedback={editor.dismiss} lookupNotice={lookupNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
+        banner={!record && sourceRequisition ? <p className="zrv-hr-draft-note"><OrvexaIcon name="info" size={17} /><span>Requisition <strong>{sourceRequisition.requisitionNumber}</strong> and position have been filled from the approved requisition. Complete the candidate details and assessment below.</span></p> : null}
         steps={steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.final} onFinal={save}
         side={<>
           <Tilt aria-label={T.card.label}>

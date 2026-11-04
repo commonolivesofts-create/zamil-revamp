@@ -5,6 +5,7 @@ import {
 } from '../../../database/oracle.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as defaultRepository from './requisition.repository.js';
+import { recordRecruitmentChange } from './recruitmentAudit.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -13,9 +14,9 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
  * checked the actor's REQUISITIONS.REQUISITIONS action; these rules apply on top:
  *   - REQUISITION_STATUS is written only 'Draft' on insert and never transitioned (§11);
  *     Inprocess/Approved merely gate non-HR updates with 409 (§5.0).
- *   - ticketStatus (ATTRIBUTE1) may only be set by HR callers (server-side XXZP_HR probe, §9);
- *     on update, an absent value preserves the stored ATTRIBUTE1/14/15 group (D6, corrected
- *     §5.1 behaviour).
+ *   - Recruitment status (ATTRIBUTE1) is Open on insert and read-only in form updates.
+ *     Dedicated HR actions require Approved status and audit atomically with the change.
+ *     First offer acceptance and its actual date are owned by the offer module.
  *   - Listing/read scope (§7.4) is decided from the actor: HR users see every record and may
  *     narrow by createdBy; other users see their own rows plus those of recursively supervised
  *     employees — on every by-id route an out-of-scope row is a 404.
@@ -26,6 +27,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
  */
 export function createRequisitionService({
   repository = defaultRepository,
+  auditService,
   storage,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
@@ -34,10 +36,24 @@ export function createRequisitionService({
 
   const notFound = () => new AppError(404, 'NOT_FOUND', 'Requisition not found');
 
-  const ticketStatusRefused = () =>
-    new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', [
-      { field: 'ticketStatus', message: 'Only HR users may set the ticket status' },
-    ]);
+  const rejectFormStatus = (body) => {
+    if (body.ticketStatus !== undefined) {
+      throw new AppError(
+        400,
+        'USE_RECRUITMENT_ACTION',
+        'Recruitment status cannot be changed through the form',
+      );
+    }
+  };
+  const actionsFor = (header) => {
+    const status = header.ticketStatus || 'Open';
+    if (status === 'Open') return ['hold', 'cancel'];
+    if (status === 'Accepted')
+      return header.acceptedDate ? ['fill', 'hold', 'cancel'] : ['hold', 'cancel'];
+    if (status === 'On Hold' || status === 'Cancelled')
+      return ['reopen', ...(status === 'On Hold' ? ['cancel'] : [])];
+    return [];
+  };
 
   /** Loads a header and enforces §7.4 scope: out-of-scope rows are indistinguishable from 404. */
   const loadForActor = async (actor, requisitionId) => {
@@ -100,17 +116,75 @@ export function createRequisitionService({
     },
 
     async get(actor, requisitionId) {
-      const { header } = await loadForActor(actor, requisitionId);
+      const { header, isHr } = await loadForActor(actor, requisitionId);
       const attachments = await read((connection) =>
         repository.listAttachments(connection, requisitionId),
       );
-      return { ...header, attachments };
+      return {
+        ...header,
+        attachments,
+        recruitmentActions:
+          isHr && header.requisitionStatus === 'Approved' ? actionsFor(header) : [],
+      };
+    },
+
+    async changeRecruitmentStatus(actor, requisitionId, { action, expectedStatus, reason }) {
+      return withTransaction(POOLS.LOW, async (connection) => {
+        if (!(await repository.isHrUser(connection, actor.userId))) {
+          throw new AppError(403, 'HR_ONLY', 'Only HR users may manage recruitment status');
+        }
+        const header = await repository.findHeader(connection, requisitionId, { forUpdate: true });
+        if (!header) throw notFound();
+        if (header.requisitionStatus !== 'Approved') {
+          throw new AppError(
+            409,
+            'REQUISITION_NOT_APPROVED',
+            'Recruitment actions require an approved requisition',
+          );
+        }
+        const oldValue = header.ticketStatus || 'Open';
+        if (oldValue !== expectedStatus) {
+          throw new AppError(
+            409,
+            'STATUS_CHANGED',
+            'Recruitment status has changed. Refresh the details before acting',
+          );
+        }
+        if (!actionsFor(header).includes(action)) {
+          throw new AppError(
+            409,
+            'INVALID_RECRUITMENT_ACTION',
+            'This action is not available for the current recruitment status',
+          );
+        }
+        const newValue = {
+          hold: 'On Hold',
+          cancel: 'Cancelled',
+          reopen: header.acceptedDate ? 'Accepted' : 'Open',
+          fill: 'Close',
+        }[action];
+        const updated = await repository.updateHeader(connection, {
+          requisitionId,
+          values: {},
+          ticket: { ticketStatus: newValue },
+          updatedBy: actor.userId,
+        });
+        if (!updated) throw notFound();
+        await recordRecruitmentChange(auditService, connection, {
+          actor,
+          requisitionId,
+          oldValue,
+          newValue,
+          reason: reason || null,
+          source: 'REQUISITION_ACTION',
+        });
+        return { requisitionId };
+      });
     },
 
     async create(actor, body, files) {
       const uploaded = normalizeFiles(files);
-      const isHr = await read((connection) => repository.isHrUser(connection, actor.userId));
-      if (!isHr && body.ticketStatus) throw ticketStatusRefused();
+      rejectFormStatus(body);
 
       const { requisitionId } = await withTransaction(POOLS.LOW, async (connection) => {
         // REQUESTED_BY/REQUESTER_NAME are server-set from the employee master (§3.2), never body.
@@ -145,11 +219,18 @@ export function createRequisitionService({
           other: emptyToNull(body.other),
           remark: emptyToNull(body.remark),
           totalPackage: body.totalPackage ?? null,
-          ticketStatus: isHr ? (body.ticketStatus ?? '') : '',
+          ticketStatus: 'Open',
           createdBy: actor.userId,
         });
         await repository.setRequisitionNumber(connection, id);
         await appendAttachments(connection, id, uploaded);
+        await recordRecruitmentChange(auditService, connection, {
+          actor,
+          requisitionId: id,
+          oldValue: null,
+          newValue: 'Open',
+          source: 'REQUISITION_CREATE',
+        });
         return { requisitionId: id };
       });
 
@@ -169,7 +250,7 @@ export function createRequisitionService({
           'Request is InProcess/Approved — cannot update data',
         );
       }
-      if (!isHr && body.ticketStatus) throw ticketStatusRefused();
+      rejectFormStatus(body);
       const uploaded = normalizeFiles(files);
 
       await withTransaction(POOLS.LOW, async (connection) => {
@@ -197,18 +278,10 @@ export function createRequisitionService({
           totalPackage: body.totalPackage ?? null,
         };
         // Absent ticketStatus (any caller) leaves ATTRIBUTE1/14/15 untouched (D6).
-        const ticket =
-          isHr && body.ticketStatus !== undefined
-            ? {
-                ticketStatus: body.ticketStatus,
-                attribute14: header.acceptedDate,
-                attribute15: header.closedDate,
-              }
-            : null;
         const updated = await repository.updateHeader(connection, {
           requisitionId,
           values,
-          ticket,
+          ticket: null,
           updatedBy: actor.userId,
         });
         if (!updated) throw notFound();
@@ -291,7 +364,13 @@ export function createRequisitionService({
 
     async jobTitles() {
       const rows = await read((connection) => repository.listJobTitles(connection));
-      return rows.map((row) => ({ jobId: row.JOB_ID, name: row.NAME }));
+      return rows.map((row) => ({
+        jobId: row.JOB_ID,
+        name: row.NAME,
+        ...(row.DEPARTMENT_ID === null || row.DEPARTMENT_ID === undefined
+          ? {}
+          : { departmentId: String(row.DEPARTMENT_ID) }),
+      }));
     },
 
     async requestor(actor) {

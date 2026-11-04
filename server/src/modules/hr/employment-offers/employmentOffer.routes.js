@@ -3,6 +3,7 @@ import { createRequireCsrfToken } from '../../../middleware/csrf.js';
 import { validate } from '../../../middleware/validate.js';
 import { createEmploymentOfferController } from './employmentOffer.controller.js';
 import {
+  acceptanceBodySchema,
   allowancesQuerySchema,
   candidatesQuerySchema,
   emptyBodySchema,
@@ -76,6 +77,11 @@ export function createEmploymentOfferRouter({
   );
   router.post('/', ...write('CREATE', { body: writeBodySchema }), controller.create);
   router.get('/:headerId', ...read('VIEW', { params: headerIdParams }), controller.get);
+  router.post(
+    '/:headerId/accept',
+    ...write('UPDATE', { params: headerIdParams, body: acceptanceBodySchema }),
+    controller.accept,
+  );
   router.put(
     '/:headerId',
     ...write('UPDATE', { params: headerIdParams, body: writeBodySchema }),

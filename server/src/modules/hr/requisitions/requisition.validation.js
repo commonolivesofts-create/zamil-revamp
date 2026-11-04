@@ -61,8 +61,6 @@ const writeFields = {
   other: text(4000),
   remark: text(4000),
   totalPackage: Joi.number().min(0).allow(null).optional(),
-  // HR-only (server-side role check, README §9); absence on update means "preserve".
-  ticketStatus: Joi.string().valid('', 'Open', 'Accepted', 'Close').optional(),
 };
 
 export const createBodySchema = Joi.object({
@@ -71,6 +69,14 @@ export const createBodySchema = Joi.object({
 });
 
 export const updateBodySchema = Joi.object({ ...writeFields });
+
+export const recruitmentActionSchema = Joi.object({
+  action: Joi.string().valid('hold', 'cancel', 'reopen', 'fill').required(),
+  expectedStatus: Joi.string()
+    .valid('Open', 'Accepted', 'Close', 'On Hold', 'Cancelled')
+    .required(),
+  reason: text(1000),
+});
 
 // §7.1 query parameters (README verbatim: page/pageSize/sortBy/sortDir).
 const page = Joi.number().integer().min(1).max(100000).default(1);
@@ -81,7 +87,7 @@ export const listQuerySchema = Joi.object({
   page,
   pageSize,
   requisitionStatus: Joi.string().valid('Draft', 'Inprocess', 'Approved', 'Rejected'),
-  ticketStatus: Joi.string().valid('Open', 'Accepted', 'Close'),
+  ticketStatus: Joi.string().valid('Open', 'Accepted', 'Close', 'On Hold', 'Cancelled'),
   requisitionId: id,
   requesterName: nameFilter,
   jobName: nameFilter,

@@ -214,6 +214,8 @@ export function readOffer(data) {
     offerId: id(data.offerId),
     offerNumber: nullableText(data.offerNumber, 40),
     status: oneOf(data.status, OFFER_STATUSES),
+    canRecordAcceptance: data.canRecordAcceptance === true,
+    acceptedDate: data.acceptedDate ? date(data.acceptedDate) : null,
     position: text(data.position, 200),
     offerDate: date(data.offerDate),
     division: text(data.division, 40),

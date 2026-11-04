@@ -13,7 +13,13 @@ export function createEmploymentOfferController({ employmentOfferService }) {
       sendPaginated(res, items, { page, limit: pageSize, total });
     },
     async get(req, res) {
-      sendSuccess(res, await employmentOfferService.get(req.params.headerId));
+      sendSuccess(res, await employmentOfferService.get(req.params.headerId, req.auth));
+    },
+    async accept(req, res) {
+      sendSuccess(
+        res,
+        await employmentOfferService.accept(req.auth, req.params.headerId, req.body),
+      );
     },
     async create(req, res) {
       sendSuccess(res, await employmentOfferService.create(req.auth, req.body), 201);

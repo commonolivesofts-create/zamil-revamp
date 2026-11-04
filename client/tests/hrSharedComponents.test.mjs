@@ -77,8 +77,10 @@ test("RecruitmentShell options: flow, compact and banner default to the earlier 
   const shell = await read(`${SHARED}RecruitmentShell.jsx`);
   assert.match(
     shell,
-    /demo, flow = true, compact = false, banner = null, breadcrumb, children,/,
+    /flow = true, compact = false, banner = null, breadcrumb, lockedSteps = \[\], onContinue, feedbackMode = ['"]inline['"], children,/,
   );
+  assert.match(shell, /pending, pendingMessage/);
+  assert.match(shell, /secondaryAction/);
   assert.match(
     shell,
     /className=\{`zrv-hr zrv-hr--\$\{current\}\$\{compact \? ' zrv-hr--compact' : ''\}`\}/,
@@ -184,9 +186,8 @@ test("EmployeePicker options: tight variant and a separate cache-key prefix", as
   );
 });
 
-test("existing HR pages do not opt into the new options", async () => {
+test("unmodified HR pages do not opt into the new options", async () => {
   const pages = [
-    "interview/InterviewPage.jsx",
     "offer/OfferPage.jsx",
     "orientation/OrientationPage.jsx",
     "probation/ProbationPage.jsx",

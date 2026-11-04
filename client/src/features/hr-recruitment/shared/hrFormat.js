@@ -9,7 +9,14 @@ export const isIsoDate = (value) => typeof value === 'string' && ISO_DATE.test(v
 
 // Today's calendar date in KSA business time.
 export function businessToday(now = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now)
+  const date = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+  return `${date.year}-${date.month}-${date.day}`
 }
 
 const utc = (iso) => new Date(`${iso}T00:00:00Z`)

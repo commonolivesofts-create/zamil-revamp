@@ -14,6 +14,7 @@ import {
   MAX_ATTACHMENT_BYTES,
   MAX_ATTACHMENT_FILES,
   requisitionIdParams,
+  recruitmentActionSchema,
   replacementForQuerySchema,
   updateBodySchema,
 } from './requisition.validation.js';
@@ -100,6 +101,16 @@ export function createRequisitionRouter({
     controller.create,
   );
   router.get('/:requisitionId', ...read('VIEW', { params: requisitionIdParams }), controller.get);
+  router.post(
+    '/:requisitionId/recruitment-status',
+    ...guard('UPDATE'),
+    validate({
+      params: requisitionIdParams,
+      query: emptyQuerySchema,
+      body: recruitmentActionSchema,
+    }),
+    controller.changeRecruitmentStatus,
+  );
   router.put(
     '/:requisitionId',
     ...guard('UPDATE'),

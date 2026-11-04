@@ -29,9 +29,9 @@ import {
   ExpTrack,
   FileDrop,
   HrField,
-  LookupSelect,
   MultiTiles,
   Review,
+  SearchableLookup,
   TagInput,
 } from "../shared/components/RecruitmentInputs.jsx";
 import {
@@ -43,6 +43,7 @@ import {
   requisitionFormFromRecord,
   requisitionPayload,
   requisitionProgress,
+  REQUISITION_VALIDATION_FIELDS,
 } from "./requisitionModel.js";
 
 const BASE = "/hr/recruitment/requisition";
@@ -89,13 +90,16 @@ function RequisitionEditor({
     idKey: "requisitionId",
     record: savedRecord,
     initialForm: savedRecord
-      ? requisitionFormFromRecord(savedRecord)
+      ? requisitionFormFromRecord(savedRecord, today)
       : blankRequisition(today),
+    validationFields: REQUISITION_VALIDATION_FIELDS,
   });
   const { form, set, record, step, setStep } = editor;
   const [dialog, setDialog] = useState(null);
   const [showErrors, setShowErrors] = useState(false);
-  const locked = isRequisitionLocked(record?.status);
+  const [saving, setSaving] = useState(false);
+  const [furthestUnlocked, setFurthestUnlocked] = useState(0);
+  const locked = isRequisitionLocked(record?.status) && !lookups.capabilities?.canManageTicket;
   const canSave = record
     ? permissions.can(ACTIONS.REQUISITION_UPDATE)
     : permissions.can(ACTIONS.REQUISITION_CREATE);
@@ -114,11 +118,22 @@ function RequisitionEditor({
     (signal) => service.getBudget(budgetName, { signal }),
   );
   const progress = requisitionProgress(form);
-  const errors = showErrors
-    ? Object.fromEntries(
-        progress.missing.map((check) => [check.key, COMMON_TEXT.required]),
-      )
-    : {};
+  const unlockedStep = Math.max(furthestUnlocked, progress.unlockedStep);
+  // Keep completed steps available when an earlier answer is edited again.
+  if (unlockedStep > furthestUnlocked) setFurthestUnlocked(unlockedStep);
+  // Navigation state must not open a future step on an incomplete form.
+  if (step > unlockedStep) setStep(unlockedStep);
+  const continueStep = () => {
+    const missing = progress.missing.filter((check) => check.step === step);
+    if (!missing.length) return true;
+    setShowErrors(true);
+    editor.reject(step);
+    return false;
+  };
+  const errors = {
+    ...(showErrors ? Object.fromEntries(progress.missing.map((check) => [check.key, `Please complete ${check.label}.`])) : {}),
+    ...editor.fieldErrors,
+  };
   const lead = leadTime(today, form.neededDate);
   const department =
     form.departmentName || nameOf(lookups.departments, form.departmentId);
@@ -142,44 +157,70 @@ function RequisitionEditor({
     ) : null;
   const bands = EXPERIENCE_BANDS;
   const statusLabel = T.status[record?.status ?? "NEW"];
+  const isDraft = !record || record.status === "Draft";
+  const saveLabel = isDraft ? T.primary : "Save Changes";
   const packageValue =
     form.totalPackage !== ""
       ? form.totalPackage
       : (budget.data?.totalPackage ?? "");
   const body = () =>
     requisitionPayload({ ...form, totalPackage: packageValue });
+  const updateJobTitle = (jobTitle, selectedJob = null) => {
+    const job = selectedJob ?? lookups.jobs.find(
+      (item) => item.name.toLowerCase() === jobTitle.trim().toLowerCase(),
+    );
+    const patch = { jobTitle, jobId: job?.id ?? "" };
+    if (job?.departmentId) {
+      const dept = lookups.departments.find(
+        (item) => item.id === job.departmentId,
+      );
+      patch.departmentId = dept?.id ?? "";
+      patch.departmentName = dept?.name ?? "";
+    } else if (job && form.jobId !== job.id) {
+      patch.departmentId = "";
+      patch.departmentName = "";
+    } else if (
+      !job &&
+      form.jobId &&
+      form.jobTitle.trim().toLowerCase() !== jobTitle.trim().toLowerCase()
+    ) {
+      patch.departmentId = "";
+      patch.departmentName = "";
+    }
+    editor.patch(patch);
+  };
 
-  const save = () => {
+  const save = async () => {
+    if (saving || editor.pending) return;
     if (progress.missing.length) {
       setShowErrors(true);
-      editor.reject(
-        progress.firstStep,
-        `${COMMON_TEXT.stillNeeded} ${progress.missing.map((check) => check.label).join(", ")}`,
-      );
+      editor.reject(progress.firstStep);
       return;
     }
-    return editor.perform(
-      async ({ saved }) => {
-        const result = await service.saveDraft(
-          editor.recordId,
-          body(),
-          form.requestDate || today,
-          form.attachments,
-        );
-        saved(result);
-        return result;
-      },
-      { success: (result) => T.saved(result.requisitionNumber) },
-    );
+    setSaving(true);
+    try {
+      return await editor.perform(
+        async ({ saved }) => {
+          const result = await service.saveDraft(
+            editor.recordId,
+            body(),
+            form.requestDate || today,
+            form.attachments,
+          );
+          saved(result);
+          return result;
+        },
+        { success: (result) => T.saved(result.requisitionNumber, result.status) },
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveFromReview = () => {
     if (progress.missing.length) {
       setShowErrors(true);
-      editor.reject(
-        progress.firstStep,
-        `${COMMON_TEXT.stillNeeded} ${progress.missing.map((check) => check.label).join(", ")}`,
-      );
+      editor.reject(progress.firstStep);
       return;
     }
     save();
@@ -271,6 +312,61 @@ function RequisitionEditor({
     level: index + 1,
   }));
   const experienceOptions = bands.map((code) => ({ code, name: code }));
+  const reviewChecks = new Map(progress.checks.map((check) => [check.key, check.ok]));
+  const reviewField = (label, value, checkKey = null) => {
+    const hasValue = value !== null && value !== undefined && String(value).trim() !== "" && value !== COMMON_TEXT.dash;
+    return {
+      label,
+      value: hasValue ? value : "",
+      hasValue,
+      required: checkKey ? reviewChecks.has(checkKey) : false,
+      complete: checkKey ? Boolean(reviewChecks.get(checkKey)) : hasValue,
+    };
+  };
+  const reviewSections = [
+    {
+      title: "Position and request details",
+      rows: [
+        reviewField(T.labels.requester, form.requesterName),
+        reviewField(T.labels.requestDate, enDate(form.requestDate)),
+        reviewField(T.labels.jobTitle, form.jobTitle, "jobTitle"),
+        reviewField(T.labels.department, department, "departmentId"),
+        reviewField(T.labels.neededDate, enDate(form.neededDate), "neededDate"),
+        ...(record ? [
+          reviewField(T.labels.ticketStatus, <Pill tone={record.ticketStatus === "Close" ? "ok" : "warn"}>{T.report.ticketStatus[record.ticketStatus || "Open"]}</Pill>),
+          ...(record.acceptedDate ? [reviewField("Offer accepted date", enDate(record.acceptedDate))] : []),
+          ...(record.closedDate ? [reviewField("Filled / closed date", enDate(record.closedDate))] : []),
+        ] : []),
+      ],
+    },
+    {
+      title: "Reason and budget",
+      rows: [
+        reviewField(T.labels.reason, form.reason === "REPLACEMENT" ? "Replacement" : form.reason === "ADDITION" ? "Additional headcount" : "", "reason"),
+        reviewField(form.reason === "REPLACEMENT" ? T.labels.replacementFor : T.labels.additionReason,
+          form.reason === "REPLACEMENT" ? form.replacementFor : form.reason === "ADDITION" ? form.additionReason : "",
+          form.reason === "REPLACEMENT" ? "replacementFor" : form.reason === "ADDITION" ? "additionReason" : null),
+        reviewField(T.labels.budgeted, form.budgeted === "yes" ? "Yes" : form.budgeted === "no" ? "No" : "", "budgeted"),
+        reviewField(T.labels.budgetedSalary, form.budgeted === "yes" ? form.budgetedSalary : "", "budgetedSalary"),
+        reviewField(T.labels.basicSalary, packageValue),
+        reviewField(T.labels.remark, form.remark),
+      ],
+    },
+    {
+      title: "Candidate requirements",
+      rows: [
+        reviewField(T.labels.education, selectedEducation.join(", "), "educationCodes"),
+        reviewField(T.labels.gccExperience, form.gccExp, "gccExp"),
+        reviewField(T.labels.workExperience, form.workExp, "workExp"),
+        reviewField(T.labels.skills, form.skills, "skills"),
+        reviewField(T.labels.otherRequirements, form.otherRequirements),
+      ],
+    },
+    ...(attachmentsSupported ? [{
+      title: "Supporting documents",
+      rows: [reviewField(T.review.attachments, form.attachments.length ? T.review.files(form.attachments.length) : "")],
+    }] : []),
+  ];
   const steps = T.tabNames.map((name, index) => {
     if (index === T.tabNames.length - 1)
       return [
@@ -303,22 +399,37 @@ function RequisitionEditor({
         }
         tools={tools}
         primary={{
-          label: T.primary,
+          label: saving ? "Saving…" : saveLabel,
           icon: "save",
           onClick: () => (step === 3 ? saveFromReview() : save()),
           disabled: !canSave,
         }}
+        // The owner requested a button only; approval integration belongs to the senior developer.
+        secondaryAction={canSave && (!record || ["Draft", "Rejected"].includes(record.status))
+          ? {
+              label: "Submit for Approval",
+              icon: "send",
+              onClick: () => editor.showNotice(
+                "The approval workflow is pending setup. This requisition has not been submitted.",
+              ),
+            }
+          : null}
         feedback={editor.feedback}
+        feedbackMode="toast"
         onDismissFeedback={editor.dismiss}
         lookupNotice={lookupNotice}
         locked={locked}
         pending={editor.pending}
+        pendingMessage={saving ? "Saving personnel requisition" : null}
+        banner={isDraft ? <p className="zrv-hr-draft-note"><OrvexaIcon name="info" size={17} /><span><strong>Save Draft</strong> stores your requisition without starting the approval workflow.</span></p> : null}
         focusError={editor.focusError}
         steps={steps}
         step={step}
         onStep={setStep}
+        lockedSteps={steps.map((_, index) => index > unlockedStep)}
+        onContinue={continueStep}
         doneSteps={progress.doneSteps}
-        finalLabel={T.final}
+        finalLabel={saving ? "Saving…" : saveLabel}
         onFinal={saveFromReview}
         side={
           <>
@@ -419,9 +530,9 @@ function RequisitionEditor({
                   aria-readonly="true"
                 />
               </HrField>
-              <HrField id="rq-request-date" label={T.labels.requestDate}>
+              <HrField id="rq-request-date" label={T.labels.requestDate} error={errors.requestDate}>
                 <input
-                  id="rq-request-date"
+                  {...fieldProps("rq-request-date", { error: errors.requestDate })}
                   className="ux-input zrv-hr-input"
                   value={form.requestDate ? enDate(form.requestDate) : ""}
                   readOnly
@@ -434,30 +545,22 @@ function RequisitionEditor({
                 required
                 error={errors.jobTitle}
               >
-                <input
-                  {...fieldProps("rq-title", { error: errors.jobTitle })}
-                  className="ux-input zrv-hr-input"
-                  value={form.jobTitle}
-                  onChange={(event) => {
-                    const jobTitle = event.target.value;
-                    const job = lookups.jobs.find(
-                      (item) =>
-                        item.name.toLowerCase() ===
-                        jobTitle.trim().toLowerCase(),
-                    );
-                    editor.patch({ jobTitle, jobId: job?.id ?? "" });
-                  }}
-                  list="rq-job-title-options"
+                <SearchableLookup
+                  id="rq-title"
+                  value={form.jobId}
+                  customValue={form.jobTitle}
+                  options={lookups.jobs.map((item) => ({
+                    code: item.id,
+                    id: item.id,
+                    name: item.name,
+                    departmentId: item.departmentId,
+                  }))}
+                  onChange={(option) => updateJobTitle(option.name, option)}
+                  onInputChange={updateJobTitle}
+                  error={errors.jobTitle}
+                  required
                   placeholder={T.placeholders.jobTitle}
-                  autoComplete="off"
-                  aria-required="true"
-                  maxLength={200}
                 />
-                <datalist id="rq-job-title-options">
-                  {lookups.jobs.map((item) => (
-                    <option key={item.id} value={item.name} />
-                  ))}
-                </datalist>
               </HrField>
               <HrField
                 id="rq-dept"
@@ -465,7 +568,7 @@ function RequisitionEditor({
                 required
                 error={errors.departmentId}
               >
-                <LookupSelect
+                <SearchableLookup
                   id="rq-dept"
                   value={form.departmentId}
                   disabled={departmentsLoading}
@@ -475,10 +578,7 @@ function RequisitionEditor({
                       ? T.placeholders.loadingDepartments
                       : T.placeholders.department
                   }
-                  onChange={(event) => {
-                    const dept = lookups.departments.find(
-                      (item) => item.id === event.target.value,
-                    );
+                  onChange={(dept) => {
                     editor.patch({
                       departmentId: dept?.id ?? "",
                       departmentName: dept?.name ?? "",
@@ -486,6 +586,7 @@ function RequisitionEditor({
                   }}
                   options={lookups.departments.map((item) => ({
                     code: item.id,
+                    id: item.id,
                     name: item.name,
                   }))}
                   required
@@ -511,9 +612,9 @@ function RequisitionEditor({
                   aria-required="true"
                 />
               </HrField>
-              <HrField id="rq-remark" label={T.labels.remark} wide>
+              <HrField id="rq-remark" label={T.labels.remark} error={errors.remark} wide>
                 <textarea
-                  id="rq-remark"
+                  {...fieldProps("rq-remark", { error: errors.remark })}
                   className="ux-textarea zrv-hr-input"
                   value={form.remark}
                   onChange={set("remark")}
@@ -521,6 +622,21 @@ function RequisitionEditor({
                 />
               </HrField>
             </div>
+            {attachmentsSupported &&
+              (canSave ||
+                canRemoveAttachment ||
+                form.attachments.length > 0) && (
+                <>
+                  <div className="zrv-hr-sep" />
+                  <FileDrop
+                    files={form.attachments}
+                    onChange={set("attachments")}
+                    onRemove={removeAttachment}
+                    canRemoveSaved={canRemoveAttachment && Boolean(record)}
+                    disabled={!canSave || editor.pending}
+                  />
+                </>
+              )}
           </>
         )}
 
@@ -641,10 +757,10 @@ function RequisitionEditor({
                   </HrField>
                 </div>
               )}
-              <HrField id="rq-basic" label={T.labels.basicSalary}>
+              <HrField id="rq-basic" label={T.labels.basicSalary} error={errors.totalPackage}>
                 <div className="zrv-hr-lock">
                   <input
-                    id="rq-basic"
+                    {...fieldProps("rq-basic", { error: errors.totalPackage })}
                     className="ux-input zrv-hr-input"
                     readOnly
                     value={packageValue}
@@ -714,9 +830,9 @@ function RequisitionEditor({
                   }
                 />
               </HrField>
-              <HrField id="rq-other" label={T.labels.otherRequirements} wide>
+              <HrField id="rq-other" label={T.labels.otherRequirements} error={errors.otherRequirements} wide>
                 <textarea
-                  id="rq-other"
+                  {...fieldProps("rq-other", { error: errors.otherRequirements })}
                   className="ux-textarea zrv-hr-input"
                   value={form.otherRequirements}
                   onChange={set("otherRequirements")}
@@ -730,93 +846,12 @@ function RequisitionEditor({
         {step === 3 && (
           <>
             <StepHead {...T.heads[3]} />
-            {canSave && lookups.capabilities?.canManageTicket && (
-              <HrField
-                id="rq-ticket-status"
-                label={T.labels.ticketStatus}
-              >
-                <LookupSelect
-                  id="rq-ticket-status"
-                  value={form.ticketStatus}
-                  onChange={(event) =>
-                    editor.patch({
-                      ticketStatus: event.target.value,
-                      ticketStatusChanged: true,
-                    })
-                  }
-                  options={["Open", "Accepted", "Close"].map((code) => ({
-                    code,
-                    name: code,
-                  }))}
-                />
-              </HrField>
-            )}
-            {attachmentsSupported &&
-              (canSave ||
-                canRemoveAttachment ||
-                form.attachments.length > 0) && (
-                <>
-                  <FileDrop
-                    files={form.attachments}
-                    onChange={set("attachments")}
-                    onRemove={removeAttachment}
-                    canRemoveSaved={canRemoveAttachment && Boolean(record)}
-                    disabled={!canSave || editor.pending}
-                  />
-                  <div className="zrv-hr-sep" />
-                </>
-              )}
             <Review
-              rows={[
-                [T.review.jobTitle, form.jobTitle, !form.jobTitle.trim()],
-                [T.review.department, department, !form.departmentName.trim()],
-                [T.review.neededBy, enDate(form.neededDate), !form.neededDate],
-                [
-                  T.review.reason,
-                  !form.reason
-                    ? COMMON_TEXT.notAnswered
-                    : form.reason === "REPLACEMENT"
-                      ? T.review.replacement(form.replacementFor)
-                      : T.review.addition(form.additionReason),
-                  !form.reason,
-                ],
-                [
-                  T.review.budget,
-                  !form.budgeted
-                    ? COMMON_TEXT.notAnswered
-                    : form.budgeted === "yes"
-                      ? T.review.budgeted(form.budgetedSalary)
-                      : T.review.notBudgeted,
-                  !form.budgeted,
-                ],
-                [T.labels.basicSalary, packageValue || COMMON_TEXT.dash, false],
-                [
-                  T.review.education,
-                  selectedEducation.join(", ") || COMMON_TEXT.dash,
-                  false,
-                ],
-                [
-                  T.review.experience,
-                  `${form.gccExp || COMMON_TEXT.dash} / ${form.workExp || COMMON_TEXT.dash}`,
-                  false,
-                ],
-                [T.review.skills, form.skills || COMMON_TEXT.dash, false],
-                [
-                  T.labels.otherRequirements,
-                  form.otherRequirements || COMMON_TEXT.dash,
-                  false,
-                ],
-                [T.labels.remark, form.remark || COMMON_TEXT.dash, false],
-                ...(attachmentsSupported
-                  ? [
-                      [
-                        T.review.attachments,
-                        T.review.files(form.attachments.length),
-                        false,
-                      ],
-                    ]
-                  : []),
-              ]}
+              sections={reviewSections}
+              complete={progress.done}
+              total={progress.total}
+              reference={record?.requisitionNumber || "New requisition"}
+              approvalStatus={statusLabel}
             />
           </>
         )}

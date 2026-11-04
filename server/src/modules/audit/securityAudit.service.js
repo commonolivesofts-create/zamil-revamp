@@ -12,6 +12,7 @@ import * as defaultRepository from './securityAudit.repository.js';
  * delete operation, and tests/audit-append-only.test.js guards against adding one.
  */
 export const AUDIT_EVENTS = Object.freeze({
+  RECRUITMENT_STATUS_CHANGED: 'RECRUITMENT_STATUS_CHANGED',
   LOGIN_SUCCESS: 'LOGIN_SUCCESS',
   LOGIN_FAILED: 'LOGIN_FAILED',
   ACCOUNT_LOCKED: 'ACCOUNT_LOCKED',

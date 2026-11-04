@@ -7,11 +7,13 @@ import {
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as defaultRepository from './employmentOffer.repository.js';
 import { BU_VALUES } from './employmentOffer.validation.js';
+import { recordRecruitmentChange } from '../requisitions/recruitmentAudit.js';
 
 /*
  * Employment Offer Form rules (README_employment_offer_form.md). `authorize` has already
  * checked the actor's EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS permission; these rules apply on top:
- *   - STATUS is a plain data column: always written 'Incomplete' on insert, never updated.
+ *   - STATUS starts Incomplete. The HR-only acceptance action changes it to Accepted and
+ *     records the actual acceptance date on the linked requisition in the same transaction.
  *   - Legacy insert defaults: empty applicant stores '-', empty reqNo stores 0; the line's
  *     PROBATIONARY_PERIOD(_AR) defaults are applied by the SQL's NVL when absent (§1.2, §3.3).
  *   - Basic salary accepts a comma string ("8,500") and is stored as a number (§1.2, §9).
@@ -21,7 +23,7 @@ import { BU_VALUES } from './employmentOffer.validation.js';
  *     by UUID inside the same transaction; the stale legacy fallbacks 144/230 are never used.
  *   - Listing scope (§7.4) is decided from the actor: HR users see every record, non-HR users
  *     only rows they created — enforced server-side, never from the query string.
- *   - No workflow, no email, no status transitions: STATUS is write-once (README §11).
+ *   - Requisition approval is independent of offer acceptance and recruitment fulfillment.
  * Insert, update and delete each run in ONE transaction covering header + line.
  */
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -48,6 +50,7 @@ const notFound = () => new AppError(404, 'RESOURCE_NOT_FOUND', 'Employment offer
 
 export function createEmploymentOfferService({
   repository = defaultRepository,
+  auditService,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
 }) {
@@ -134,20 +137,119 @@ export function createEmploymentOfferService({
       );
     },
 
-    async get(headerId) {
+    async get(headerId, actor) {
       const [header, line] = await read(async (c) => [
         await repository.findHeader(c, headerId),
         await repository.findLine(c, headerId),
       ]);
       if (!header) throw notFound();
       // A header saved without a line (partial data) reads back as `line: null` (README §4).
-      return { ...header, line };
+      const canRecordAcceptance = actor
+        ? await read((c) => repository.isHrUser(c, actor.userId))
+        : false;
+      const linked =
+        header.reqNo && (canRecordAcceptance || header.status === 'Accepted')
+          ? await read((c) => repository.findRequisitionsForAcceptance(c, header.reqNo))
+          : [];
+      return {
+        ...header,
+        line,
+        canRecordAcceptance:
+          canRecordAcceptance &&
+          header.status !== 'Accepted' &&
+          linked.length === 1 &&
+          linked[0].APPROVAL_STATUS === 'Approved' &&
+          linked[0].RECRUITMENT_STATUS === 'Open',
+        acceptedDate: linked[0]?.ACCEPTED_DATE ?? null,
+      };
+    },
+
+    async accept(actor, headerId, { acceptedDate, reason }) {
+      return withTransaction(POOLS.LOW, async (c) => {
+        if (!(await repository.isHrUser(c, actor.userId))) {
+          throw new AppError(403, 'HR_ONLY', 'Only HR users may record offer acceptance');
+        }
+        const offer = await repository.findHeader(c, headerId, { forUpdate: true });
+        if (!offer) throw notFound();
+        const parts = Object.fromEntries(
+          new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Riyadh',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          })
+            .formatToParts(new Date())
+            .map(({ type, value }) => [type, value]),
+        );
+        const today = `${parts.year}-${parts.month}-${parts.day}`;
+        if (acceptedDate < offer.offerDate || acceptedDate > today) {
+          throw new AppError(
+            400,
+            'INVALID_ACCEPTANCE_DATE',
+            'Acceptance date must be on or after the offer date and cannot be in the future',
+          );
+        }
+        const linked = offer.reqNo
+          ? await repository.findRequisitionsForAcceptance(c, offer.reqNo, { forUpdate: true })
+          : [];
+        if (linked.length !== 1) {
+          throw new AppError(
+            409,
+            'REQUISITION_LINK_REQUIRED',
+            'The saved offer must link to exactly one existing requisition',
+          );
+        }
+        const requisition = linked[0];
+        const result = { headerId, requisitionId: requisition.REQUISITION_ID, acceptedDate };
+        if (offer.status === 'Accepted' && requisition.ACCEPTED_DATE === acceptedDate)
+          return result;
+        if (requisition.APPROVAL_STATUS !== 'Approved') {
+          throw new AppError(
+            409,
+            'REQUISITION_NOT_APPROVED',
+            'Offer acceptance requires an approved requisition',
+          );
+        }
+        if (
+          offer.status === 'Accepted' ||
+          requisition.ACCEPTED_DATE ||
+          requisition.RECRUITMENT_STATUS === 'Accepted'
+        ) {
+          throw new AppError(
+            409,
+            'ALREADY_ACCEPTED',
+            'An offer acceptance has already been recorded for this requisition',
+          );
+        }
+        if (requisition.RECRUITMENT_STATUS !== 'Open') {
+          throw new AppError(
+            409,
+            'REQUISITION_NOT_OPEN',
+            'Reopen this requisition before recording offer acceptance',
+          );
+        }
+        await repository.recordAcceptance(c, { ...result, updatedBy: actor.userId });
+        await recordRecruitmentChange(auditService, c, {
+          actor,
+          requisitionId: requisition.REQUISITION_ID,
+          oldValue: requisition.RECRUITMENT_STATUS,
+          newValue: 'Accepted',
+          reason: reason || null,
+          source: 'OFFER_ACCEPTANCE',
+          offerId: headerId,
+          acceptedDate,
+        });
+        return result;
+      });
     },
 
     async update(actor, headerId, body) {
       return withTransaction(POOLS.LOW, async (c) => {
-        const existing = await repository.findHeaderId(c, headerId);
+        const existing = await repository.findHeader(c, headerId, { forUpdate: true });
         if (!existing) throw notFound();
+        if (existing.status === 'Accepted') {
+          throw new AppError(409, 'OFFER_ACCEPTED', 'Accepted offers cannot be edited');
+        }
         const changed = await repository.updateHeader(c, {
           ...headerBinds(body),
           headerId,
@@ -167,8 +269,11 @@ export function createEmploymentOfferService({
 
     async remove(actor, headerId) {
       return withTransaction(POOLS.LOW, async (c) => {
-        const existing = await repository.findHeaderId(c, headerId);
+        const existing = await repository.findHeader(c, headerId, { forUpdate: true });
         if (!existing) throw notFound();
+        if (existing.status === 'Accepted') {
+          throw new AppError(409, 'OFFER_ACCEPTED', 'Accepted offers cannot be deleted');
+        }
         const deleted = await repository.deleteOffer(c, headerId);
         if (!deleted) throw notFound();
         return { headerId, deleted: true };

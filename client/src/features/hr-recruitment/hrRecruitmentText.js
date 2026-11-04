@@ -652,8 +652,8 @@ export const REQUISITION_TEXT = Object.freeze({
     open: (count) => `${count} open`,
     ready: "Ready to save",
   }),
-  primary: "Save requisition",
-  final: "Save requisition",
+  primary: "Save Draft",
+  final: "Save Draft",
   status: Object.freeze({
     Draft: "Draft",
     Inprocess: "In process",
@@ -663,7 +663,7 @@ export const REQUISITION_TEXT = Object.freeze({
   }),
   ticket: Object.freeze({
     open: "Open",
-    status: (value) => `Ticket ${value}`,
+    status: (value) => `Recruitment: ${{ Accepted: 'Offer Accepted', Close: 'Filled / Closed' }[value] ?? value}`,
   }),
   labels: Object.freeze({
     requester: "Requester",
@@ -678,7 +678,7 @@ export const REQUISITION_TEXT = Object.freeze({
     budgeted: "Budgeted?",
     budgetedSalary: "Budgeted salary",
     basicSalary: "Basic salary",
-    ticketStatus: "Ticket status (HR only)",
+    ticketStatus: "Recruitment status",
     education: "Education · choose all that apply",
     gccExperience: "GCC experience",
     workExperience: "Total work experience",
@@ -783,7 +783,12 @@ export const REQUISITION_TEXT = Object.freeze({
     removed: (name) => `${name} removed.`,
     size: (kb) => `${kb} KB`,
   }),
-  saved: (number) => (number ? `${number} saved.` : "Requisition draft saved."),
+  saved: (number, status = 'Draft') => {
+    const reference = number ? `Personnel requisition ${number}` : 'Personnel requisition';
+    return status === 'Draft'
+      ? `${reference} saved as Draft. It has not been submitted for approval.`
+      : `${reference} updated successfully.`;
+  },
   deleteAction: "Delete draft",
   deleteTitle: "Delete this draft?",
   deleteBody: "This will permanently remove the draft and its attachments.",
@@ -797,12 +802,12 @@ export const REQUISITION_TEXT = Object.freeze({
     newRequisition: "New requisition",
     filters: Object.freeze({
       search: "Search requester, job, department or number",
-      ticketStatus: "Ticket status",
+      ticketStatus: "Recruitment status",
       reason: "Reason",
       from: "Requested from",
       to: "Requested to",
     }),
-    ticketStatus: Object.freeze({ Open: "Open", Accepted: "Accepted", Close: "Closed" }),
+    ticketStatus: Object.freeze({ Open: "Open", Accepted: "Offer Accepted", Close: "Filled / Closed", 'On Hold': "On Hold", Cancelled: "Cancelled" }),
     reasons: Object.freeze({ Replacement: "Replacement", Addition: "Addition" }),
     columns: Object.freeze({
       number: "Requisition no.",
@@ -811,8 +816,8 @@ export const REQUISITION_TEXT = Object.freeze({
       requestDate: "Request date",
       neededDate: "Date needed",
       reason: "Reason",
-      ticketStatus: "Ticket",
-      status: "Status",
+      ticketStatus: "Recruitment status",
+      status: "Approval status",
     }),
     overview: Object.freeze({
       pipeline: "Approval pipeline",
@@ -827,7 +832,7 @@ export const REQUISITION_TEXT = Object.freeze({
     position: "Position",
     neededBy: "Needed by",
     empty: "No requisitions match these filters.",
-    breakdown: Object.freeze({ tickets: "Recruitment ticket", reasons: "Reason" }),
+    breakdown: Object.freeze({ tickets: "Recruitment status", reasons: "Reason" }),
     detail: Object.freeze({
       open: "Open requisition",
       requester: "Requester",
@@ -835,7 +840,7 @@ export const REQUISITION_TEXT = Object.freeze({
       requestDate: "Requested",
       neededDate: "Needed",
       reason: "Reason",
-      ticket: "Ticket",
+      ticket: "Recruitment status",
     }),
   }),
 });
@@ -1040,7 +1045,7 @@ export const OFFER_TEXT = Object.freeze({
   tabHints: Object.freeze({ done: "Done", open: "To do" }),
   primary: "Save offer",
   final: "Save offer",
-  status: Object.freeze({ INCOMPLETE: "Incomplete" }),
+  status: Object.freeze({ INCOMPLETE: "Incomplete", ACCEPTED: "Offer Accepted" }),
   labels: Object.freeze({
     position: "Position offered",
     date: "Offer date",
