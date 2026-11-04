@@ -245,7 +245,7 @@ test('sick leave: the service runs unchanged on the demo adapter (multipart crea
 
 test('sidebar: each form appears in Employee services only with its switch on AND its VIEW permission', () => {
   const hrGroup = NAVIGATION_GROUPS.find((group) => group.id === 'human-resources')
-  assert.deepEqual(hrGroup.subgroups.map((item) => item.id), ['hr-recruitment', 'hr-employee-services', 'hr-reports'])
+  assert.deepEqual(hrGroup.subgroups.map((item) => item.id), ['hr-recruitment', 'hr-employee-services', 'hr-letters', 'hr-reports'])
   const allOn = Object.fromEntries(FORMS.map((form) => [form.env, 'true']))
   const permissions = FORMS.map((form) => form.permission)
   const listed = (env, keys) => authorizedNavigation(ready(keys), resolveNavigationEntries(registry.entries, env))
@@ -269,7 +269,7 @@ test('sidebar: each form appears in Employee services only with its switch on AN
 
 test('sidebar: every HR entry belongs to a sub-group of its section; the flyout lists them', async () => {
   for (const entry of registry.entries.filter((item) => item.section === 'human-resources')) {
-    assert.ok(['hr-recruitment', 'hr-employee-services', 'hr-reports'].includes(entry.subgroup), entry.id)
+    assert.ok(['hr-recruitment', 'hr-employee-services', 'hr-letters', 'hr-reports'].includes(entry.subgroup), entry.id)
   }
   const sidebar = await read('../src/components/layout/Sidebar.jsx')
   const flyout = await read('../src/components/layout/SidebarFlyout.jsx')

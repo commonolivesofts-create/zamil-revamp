@@ -138,3 +138,43 @@ describe('Employee clearance service connection use', () => {
     assert.deepEqual(holdsWhileHeld, [0, 0, 0, 0, 0]);
   });
 });
+
+describe('Salary certificate repository SQL', () => {
+  it('lists and the employee picker bind no reserved word and only what they reference', async () => {
+    const { repository: english } =
+      await import('../src/modules/hr/salary-certificates-english/salary-certificate-english.repository.js');
+    const { repository: arabic } =
+      await import('../src/modules/hr/salary-certificates-ar/salary-certificate.repository.js');
+    for (const repo of [english, arabic]) {
+      const c = recordingConnection([{ TOTAL: 0 }]);
+      await repo.list(c, { page: 1, pageSize: 5, q: 'a', from: '2026-01-01', to: '2026-12-31' });
+      await repo.picker(c, { q: '1', page: 1, pageSize: 5 });
+      assertExactBinds(c.statements);
+    }
+  });
+});
+
+describe('Tourist visa letter repository SQL', () => {
+  it('writes and reads the physical POSI_START_DATE and EMP_NATIONALITY columns (TEST, legacy model)', async () => {
+    const { repository: tourist } =
+      await import('../src/modules/hr/tourist-visa-letters/tourist-visa.repository.js');
+    const c = recordingConnection([]);
+    const types = new Map([
+      ['POSI_START_DATE', 'DATE'],
+      ['EMP_NATIONALITY', 'VARCHAR2'],
+    ]);
+    await tourist.insert(c, {}, types);
+    await tourist.update(c, '1b4e28ba-2fa1-41d2-883f-0016d3cca427', {}, types);
+    await tourist.get(c, '1b4e28ba-2fa1-41d2-883f-0016d3cca427', types);
+    for (const { sql: raw } of c.statements) {
+      const sql = raw.replace(/ AS [A-Z_]+/g, '');
+      assert.doesNotMatch(sql, /\bPOSITION_START_DATE(_AR)?\s*(=|,|\))/, sql.slice(0, 60));
+      assert.doesNotMatch(sql, /\bEMPLOYEE_NATIONALITY(_AR)?\s*(=|,|\))/, sql.slice(0, 60));
+    }
+    const [insert, update, read] = c.statements.map(({ sql }) => sql);
+    assert.match(insert, /POSI_START_DATE,POSI_START_DATE_AR/);
+    assert.match(update, /EMP_NATIONALITY_AR = :employee_nationality_ar/);
+    assert.match(read, /TO_CHAR\(POSI_START_DATE, 'YYYY-MM-DD'\) AS POSITION_START_DATE/);
+    assert.match(read, /EMP_NATIONALITY AS EMPLOYEE_NATIONALITY\b/);
+  });
+});

@@ -1,0 +1,10 @@
+/* Salary Certificate (English and Arabic in one form): bilingual labels, the
+   saved-language line and the certificate notes. Scoped to .zrv-hr; colours
+   from the Orvexa and HR tokens (hr-recruitment.css). */
+.zrv-hr-sc-ar { margin-inline-start: 6px; color: var(--zrv-hr-fine); font-weight: 600; font-size: .95em; }
+.zrv-hr-sc-lang { margin: 0 0 4px; font-size: 13.5px; }
+.zrv-hr-sc-lang small { color: var(--muted); }
+.zrv-hr-sc-notes { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+.zrv-hr-sc-notes li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 10px 14px; border-radius: 12px; background: var(--zrv-hr-soft); color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.zrv-hr-sc-notes li span[lang='ar'] { text-align: right; }
+@media (max-width: 760px) { .zrv-hr-sc-notes li { grid-template-columns: minmax(0, 1fr); } }

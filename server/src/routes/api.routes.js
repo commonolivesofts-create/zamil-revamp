@@ -80,6 +80,11 @@ import { createSalaryCertificateEnglishRoutes } from '../modules/hr/salary-certi
 
 import { createSalaryCertificateEnglishService } from '../modules/hr/salary-certificates-english/salary-certificate-english.service.js';
 
+import { createBusinessVisaRequestRouter } from '../modules/hr/business-visa-requests/businessVisaRequest.routes.js';
+import { createBusinessVisaRequestService } from '../modules/hr/business-visa-requests/businessVisaRequest.service.js';
+import { ATTACHMENTS_DIR } from '../modules/hr/requisitions/requisition.storage.js';
+import path from 'node:path';
+
 import { createTouristVisaRoutes } from '../modules/hr/tourist-visa-letters/tourist-visa-letter.routes.js';
 import { createTouristVisaService } from '../modules/hr/tourist-visa-letters/tourist-visa-letter.service.js';
 
@@ -516,6 +521,25 @@ export function createApiRouter(appConfig, deps = {}) {
       }),
       authorize,
       authenticate,
+      auditService,
+    }),
+  );
+
+  router.use(
+    '/hr/business-visa-requests',
+    createBusinessVisaRequestRouter({
+      service:
+        deps.businessVisaRequestService ??
+        createBusinessVisaRequestService({
+          repository: deps.businessVisaRequestRepository,
+          withConnection: db.withConnection,
+          withTransaction: db.withTransaction,
+          storage:
+            deps.businessVisaRequestStorage ??
+            createDiskStorage({ dir: path.join(ATTACHMENTS_DIR, 'business-visa-requests') }),
+        }),
+      authenticate,
+      authorize,
       auditService,
     }),
   );
