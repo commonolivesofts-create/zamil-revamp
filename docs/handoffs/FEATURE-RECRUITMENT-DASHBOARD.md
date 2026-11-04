@@ -37,7 +37,7 @@
 | New / Modified / Deleted | Path | Purpose |
 |---|---|---|
 | New | `client/src/features/hr-recruitment/dashboard/RecruitmentDashboardPage.jsx` | The page and its data loads |
-| New | `client/src/features/hr-recruitment/dashboard/RecruitmentPanels.jsx` | Panel, stat cards with micro columns, column chart, funnel rows, recent table, attention list |
+| New | `client/src/features/hr-recruitment/dashboard/RecruitmentPanels.jsx` | Panel, banner, recruitment journey, module tabs, column chart, funnel, performance tiles, mix donuts, attention list |
 | New | `client/src/features/hr-recruitment/dashboard/dashboardModel.js` | Periods, change and ratio rules, request limiter and counter |
 | New | `client/src/styles/hr-recruitment-dashboard.css` | Dashboard styles (light and dark) |
 | New | `client/tests/recruitmentDashboard.test.mjs` | Unit and static tests |

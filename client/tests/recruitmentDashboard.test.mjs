@@ -70,11 +70,25 @@ test('dashboard page: registered, route-gated panels, counts from the list APIs 
   assert.match(page, /const opens = \(path\) => canAccessRoute\(findAppRoute\(path\), permissions\)/)
   assert.match(page, /const allowed = MODULES\.filter\(\(module\) => opens\(module\.report\)\)/)
   assert.ok(page.includes('const canCreate = permissions.can(ACTIONS.REQUISITION_CREATE) && opens(REQUISITION_FORM)'), 'create needs the form and CREATE')
-  assert.ok(page.includes("list({ ...query, page: 1, limit: RECENT, sortBy, sortDir: 'desc' })"), 'recent records: newest first, five rows')
+  assert.ok(page.includes("ratioTile('perRequisition', 'requisitions', 'layers', P.perRequisition, m.interviews, m.raised"), 'interviews per requisition')
+  assert.ok(page.includes("shareTile('rejection', 'interviews', 'circle-x', P.rejection, m.rejected, sumOf(m.approved, m.rejected)"), 'requisition rejection')
+  assert.doesNotMatch(page, /recent/i, 'no recent-records panel')
   for (const service of ['requisitions', 'interviews', 'offers', 'orientations', 'probations']) {
     assert.match(page, new RegExp(`services\\.${service}\\.list`), service)
   }
   assert.doesNotMatch(page, /demoData|Math\.random/, 'no invented figures')
+  // KPI definitions: open positions, technical hires and the rates.
+  assert.ok(page.includes("count('requisitions', { requisitionStatus: 'Approved', ticketStatus: 'Open' })"), 'open positions')
+  assert.ok(page.includes("const TECHNICAL_FORMS = Object.freeze(['Workers_Technicians', 'Engineers_Staff'])"), 'technical hires')
+  for (const [rule, name] of [
+    ['rate(J.approval, m.approved, sumOf(m.approved, m.rejected)', 'approval = approved / decided'],
+    ['rate(J.fill, m.filled, m.approved', 'fill = tickets closed / approved'],
+    ['rate(J.pass, m.passed, sumOf(m.passed, m.hold, m.failed)', 'pass = passed / rated'],
+    ['rate(J.offerRate, m.offers, m.passed', 'offer rate = offers / passed'],
+    ['rate(J.acceptance, m.orientations, m.offers', 'acceptance = orientations / offers'],
+    ['rate(J.onboarded, m.onboarded, m.orientations', 'onboarding = approved / scheduled'],
+    ['rate(J.success, m.confirmed, sumOf(m.confirmed, m.notConfirmed)', 'probation success'],
+  ]) assert.ok(page.includes(rule), name)
   const registry = await read('config/registry/modules/requisitions.module.js')
   assert.match(registry, /id: 'hr-recruitment-dashboard', path: '\/hr\/recruitment\/dashboard'.*enabledBy: \{ env: 'VITE_FEATURE_HR_RECRUITMENT' \}/)
   const router = await read('app/router.jsx')
