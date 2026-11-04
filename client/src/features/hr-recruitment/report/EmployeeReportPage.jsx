@@ -1,167 +1,150 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router'
-import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
-import { Dialog, Pagination, ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
-import { fieldProps } from '@/features/security-administration/adminForms.js'
+import { ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT, REPORT_TEXT as T } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { businessToday, enDate } from '../shared/hrFormat.js'
-import { RecruitmentHeader } from '../shared/components/RecruitmentShell.jsx'
-import { HrField } from '../shared/components/RecruitmentInputs.jsx'
-import { validateParams } from './periodwiseModel.js'
-import '@/styles/hr-recruitment.css'
+import { addDays } from '../shared/insightDates.js'
+import { percent } from '../shared/insightFormat.js'
+import { Pill } from '../shared/components/RecruitmentShell.jsx'
+import { InsightReport } from '../shared/components/InsightReport.jsx'
+import { Card, Hero, Hint, Rank, Twin } from '../shared/components/InsightCards.jsx'
 
 const service = hrRecruitmentServices.employeeReport
-const PAGE_SIZE = 50
-const today = businessToday()
-const INITIAL_FILTERS = Object.freeze({ department: 'ALL', dateFrom: '', dateTo: today })
-const formatRate = (value) => new Intl.NumberFormat('en', { maximumFractionDigits: 2 }).format(value)
-// Both dates are required (the API rejects a report without them) and must be in order.
-const validateDates = ({ dateFrom, dateTo }) => {
-  const { from, to } = validateParams({ from: dateFrom, to: dateTo })
-  return { ...(from && { dateFrom: from }), ...(to && { dateTo: to }) }
+const I = T.insight
+const O = I.overview
+const C = I.columns
+const F = I.facts
+// The API needs both dates; blank ones mean the legacy "Since 2000" period up to today.
+const SINCE = '2000-01-01'
+const STATUSES = Object.freeze([['Active', 'mint', 'user-check'], ['Inactive', 'amber', 'user-x']])
+const INITIAL = Object.freeze({ status: '', department: '', contractorNumber: '', dateFrom: '', dateTo: '' })
+const TOP = 5
+const realOptions = (list) => list.filter((item) => item.value !== 'ALL')
+const date = (value) => (value ? enDate(value) : COMMON_TEXT.dash)
+const yesNo = (value) => (value ? F.yes : F.no)
+const rate = (value) => new Intl.NumberFormat('en', { maximumFractionDigits: 2 }).format(value)
+const statusPill = (row) => (row.status ? <Pill tone={row.status === 'Active' ? 'ok' : 'warn'}>{row.status}</Pill> : COMMON_TEXT.dash)
+
+const list = ({ page, limit, sortBy, sortDir, dateFrom, dateTo, ...filters }, options) =>
+  service.list({ ...filters, dateFrom: dateFrom || SINCE, dateTo: dateTo || businessToday(), page, limit, sort: sortBy, order: sortDir }, options)
+// Both dates are optional here, but in order when both are set (the API rejects the reverse).
+const validate = ({ dateFrom, dateTo }) => ({ dateTo: dateFrom && dateTo && dateTo < dateFrom ? I.dateOrder : '' })
+
+const COLUMNS = [
+  { key: 'number', label: C.number, sort: 'employee_number', render: (row) => row.employeeNumber || COMMON_TEXT.dash },
+  { key: 'name', label: C.name, sort: 'employee_name', render: (row) => <b>{row.name || COMMON_TEXT.dash}</b> },
+  { key: 'division', label: C.division, render: (row) => row.division || COMMON_TEXT.dash },
+  { key: 'department', label: C.department, render: (row) => <>{row.department || COMMON_TEXT.dash}{row.productionSection && <small>{row.productionSection}</small>}</> },
+  { key: 'contractor', label: C.contractor, sort: 'con_number', render: (row) => <>{row.contractorName || COMMON_TEXT.dash}{row.contractorNumber && <small>#{row.contractorNumber}</small>}</> },
+  { key: 'start', label: C.start, sort: 'start_date', render: (row) => date(row.startDate) },
+  { key: 'end', label: C.end, sort: 'end_date', render: (row) => date(row.endDate) },
+  { key: 'status', label: C.status, sort: 'status', render: statusPill },
+]
+
+// The largest `TOP` options by count under the other filters; the picked one
+// stays listed even when it is not among them. `more`: options with employees left out.
+async function topOf(options, key, { query, omit, count }) {
+  const base = omit([key])
+  const counts = await Promise.all(options.map((item) => count({ ...base, [key]: item.value })))
+  const ranked = options.map((item, index) => ({ ...item, count: counts[index] })).filter((item) => item.count > 0).sort((a, b) => b.count - a.count)
+  const top = ranked.slice(0, TOP)
+  const picked = ranked.find((item) => item.value === query[key])
+  const items = picked && !top.includes(picked) ? [...top.slice(0, TOP - 1), picked] : top
+  return { items, more: ranked.length - items.length }
 }
 
+function TopRank({ data, filter, pick }) {
+  const items = data ? data.items : Array.from({ length: TOP }, (_, index) => ({ value: String(index), label: '' }))
+  return <Rank items={items.map((item) => ({ key: item.value, label: item.label, count: item.count, ...(data && pick({ [filter]: item.value })) }))} />
+}
+
+// Overview: active against inactive employees, and how they spread over the
+// departments and contractors (the largest ones); the breakdown picks a start period.
+function insight({ departments, contractors }) {
+  const departmentList = realOptions(departments)
+  const contractorList = realOptions(contractors)
+  const cards = [
+    {
+      key: 'workforce',
+      load: async ({ omit, count }) => {
+        const base = omit(['status'])
+        const [all, ...parts] = await Promise.all([count(base), ...STATUSES.map(([status]) => count({ ...base, status }))])
+        return { all, parts }
+      },
+      render: (data, { pick }) => (
+        <Card index={0} icon="hard-hat" label={O.workforce} theme="mint" aside={<Hint>{data && O.activeShare(percent(data.parts[0], data.all))}</Hint>}>
+          <Hero value={data?.all} unit={O.employees} />
+          <Twin items={STATUSES.map(([status, tone, icon], index) => ({ key: status, label: O[status.toLowerCase()], icon, tone, count: data?.parts[index], ...pick({ status }) }))} />
+        </Card>
+      ),
+    },
+    {
+      key: 'departments',
+      load: ({ query, omit, count }) => topOf(departmentList, 'department', { query, omit, count }),
+      render: (data, { pick }) => (
+        <Card index={1} icon="building-2" label={O.departments} theme="primary" aside={<Hint>{data?.more ? O.more(data.more) : null}</Hint>}>
+          <TopRank data={data} filter="department" pick={pick} />
+        </Card>
+      ),
+    },
+    {
+      key: 'contractors',
+      load: ({ query, omit, count }) => topOf(contractorList, 'contractorNumber', { query, omit, count }),
+      render: (data, { pick }) => (
+        <Card index={2} icon="handshake" label={O.contractors} theme="amber" aside={<Hint>{data?.more ? O.more(data.more) : null}</Hint>}>
+          <TopRank data={data} filter="contractorNumber" pick={pick} />
+        </Card>
+      ),
+    },
+  ]
+  const fields = [
+    { key: 'department', label: I.filters.department, type: 'select', options: departmentList },
+    { key: 'contractorNumber', label: I.filters.contractor, type: 'select', options: contractorList },
+    { key: 'dateFrom', label: I.filters.from, type: 'date' },
+    { key: 'dateTo', label: I.filters.to, type: 'date' },
+  ]
+  return { cards, fields }
+}
+
+// Start periods; "Since 2000" is the default (both dates blank).
+function startGroups(today) {
+  return [{
+    key: 'started', title: I.breakdown, tone: 'primary', items: [
+      { key: 'year', label: T.ranges.THIS_YEAR, patch: { dateFrom: `${today.slice(0, 4)}-01-01`, dateTo: '' } },
+      { key: 'twelve', label: T.ranges.LAST_12_MONTHS, patch: { dateFrom: addDays(today, -364), dateTo: '' } },
+      { key: 'all', label: T.ranges.SINCE_2000, patch: { dateFrom: '', dateTo: '' } },
+    ],
+  }]
+}
+
+const summary = (row) => ({
+  heading: row.name,
+  pill: statusPill(row),
+  facts: [
+    [C.number, row.employeeNumber], [F.iqamah, Number.isFinite(row.iqamah) ? String(row.iqamah) : ''], [C.division, row.division], [C.department, row.department],
+    [F.section, row.productionSection], [F.job, row.jobTitle], [F.boss, row.directBoss], [F.place, row.place], [F.replacement, row.replacement],
+    [C.contractor, row.contractorName && `${row.contractorName} · ${row.contractorNumber}`], [F.rate, rate(row.rate)],
+    [C.start, date(row.startDate)], [C.end, date(row.endDate)],
+    [F.ajeer, yesNo(row.ajeer)], [F.sfda, yesNo(row.sfda)], [F.blacklist, yesNo(row.blacklist)], [F.remark, row.remark],
+  ],
+})
+
+// Employee report (contractor employees): filtered, sorted and paged by the
+// server; a row opens its details in the summary drawer.
 export default function EmployeeReportPage() {
   const lookups = useResource('hr-contractor-employee-lookups', (signal) => service.getLookups({ signal }))
   return (
-    <div className="zrv-hr zrv-hr--report">
-      <RecruitmentHeader title={T.title} subtitle={T.subtitle} breadcrumb={T.breadcrumb} />
-      <ResourceState resource={lookups} label={COMMON_TEXT.loadingLookups} empty="Employee report filters are unavailable.">
-        {({ departments }) => <EmployeeReport departments={departments} />}
-      </ResourceState>
-    </div>
+    <ResourceState resource={lookups} label={COMMON_TEXT.loadingLookups} empty="Employee report filters are unavailable." isEmpty={() => false}>
+      {(options) => {
+        const report = insight(options)
+        return (
+          <InsightReport variant="employee-report" title={T.title} heading={I.heading} breadcrumb={T.breadcrumb}
+            resourceKey="hr-contractor-employees" list={list} validate={validate} empty={I.empty}
+            initial={INITIAL} fields={report.fields} columns={COLUMNS} cards={report.cards} groups={startGroups} summary={summary}
+            defaultSort={{ key: 'employee_number', order: 'asc' }} numberOf={(row) => row.employeeNumber || row.name || COMMON_TEXT.dash}
+            rowKey={(row) => row.empId || `${row.employeeNumber}:${row.name}:${row.contractorNumber}:${row.startDate}`} />
+        )
+      }}
+    </ResourceState>
   )
-}
-
-function EmployeeReport({ departments }) {
-  const navigate = useNavigate()
-  const [draft, setDraft] = useState({ ...INITIAL_FILTERS })
-  const [filters, setFilters] = useState(null)
-  const [editing, setEditing] = useState(true)
-  const [page, setPage] = useState(1)
-  const [sort, setSort] = useState('employee_number')
-  const [order, setOrder] = useState('asc')
-  const [selected, setSelected] = useState(null)
-  const query = filters ? { ...filters, page, limit: PAGE_SIZE, sort, order } : null
-  const result = useResource(query ? `hr-contractor-employees:${JSON.stringify(query)}` : null,
-    (signal) => service.list(query, { signal }))
-
-  const [errors, setErrors] = useState({})
-  const setDate = (key, value) => {
-    setDraft((current) => ({ ...current, [key]: value }))
-    setErrors((current) => ({ ...current, [key]: undefined }))
-  }
-  const runReport = (event) => {
-    event.preventDefault()
-    const found = validateDates(draft)
-    setErrors(found)
-    if (Object.keys(found).length) {
-      document.getElementById(found.dateFrom ? 'er-from' : 'er-to')?.focus()
-      return
-    }
-    setFilters({ ...draft })
-    setPage(1)
-    setEditing(false)
-  }
-  const changeSort = (value) => {
-    if (sort === value) setOrder((current) => current === 'asc' ? 'desc' : 'asc')
-    else { setSort(value); setOrder('asc') }
-    setPage(1)
-  }
-  const header = (name, label) => (
-    <th scope="col" aria-sort={sort === name ? (order === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button type="button" className="zrv-hr-rp-sort-button" onClick={() => changeSort(name)}>
-        {label}<span aria-hidden="true">{sort === name ? (order === 'asc' ? ' ↑' : ' ↓') : ''}</span>
-      </button>
-    </th>
-  )
-
-  return <>
-    <div className="zrv-hr-toolbar" role="toolbar" aria-label={T.tools.label}>
-      <div className="zrv-hr-tools">
-        <button type="button" onClick={() => navigate('/dashboard')} title={T.tools.home}><OrvexaIcon name="house" size={17} /><span>{T.tools.home}</span></button>
-        <button type="button" onClick={() => setEditing(true)} disabled={!filters || editing} title={T.tools.change}><OrvexaIcon name="sliders-horizontal" size={17} /><span>{T.tools.change}</span></button>
-        <button type="button" onClick={() => window.print()} disabled={result.status !== 'ready'} title={T.tools.print}><OrvexaIcon name="printer" size={17} /><span>{T.tools.print}</span></button>
-      </div>
-      {filters && !editing && <div className="zrv-hr-rp-params">
-        <span><small>{T.summary.department}</small>{filters.department === 'ALL' ? T.summary.all : departments.find((item) => item.value === filters.department)?.label ?? filters.department}</span>
-        <span><small>{T.summary.period}</small>{filters.dateFrom ? enDate(filters.dateFrom) : '—'} – {enDate(filters.dateTo)}</span>
-      </div>}
-    </div>
-
-    {editing && <form className={`zrv-hr-rp-setup${filters ? ' zrv-hr-is-inline' : ''}`} onSubmit={runReport}>
-      <div className="zrv-hr-rp-setup__h">
-        <span className="zrv-hr-bubble"><OrvexaIcon name="sliders-horizontal" size={18} /></span>
-        <div><h2>{T.setup.title}</h2><p>{T.setup.desc}</p></div>
-      </div>
-      <div className="zrv-hr-rp-setup__grid">
-        <HrField id="er-department" label={T.setup.department}>
-          <select id="er-department" className="ux-select zrv-hr-input" value={draft.department}
-            onChange={(event) => setDraft((current) => ({ ...current, department: event.target.value }))}>
-            <option value="ALL">{T.summary.all}</option>
-            {departments.filter((item) => item.value !== 'ALL').map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select>
-        </HrField>
-        <HrField id="er-from" label={T.setup.from} required error={errors.dateFrom}>
-          <input {...fieldProps('er-from', { error: errors.dateFrom })} type="date" max={draft.dateTo || undefined} className="ux-input zrv-hr-input" value={draft.dateFrom}
-            aria-required="true" onChange={(event) => setDate('dateFrom', event.target.value)} />
-        </HrField>
-        <HrField id="er-to" label={T.setup.to} required error={errors.dateTo}>
-          <input {...fieldProps('er-to', { error: errors.dateTo })} type="date" min={draft.dateFrom || undefined} className="ux-input zrv-hr-input" value={draft.dateTo}
-            aria-required="true" onChange={(event) => setDate('dateTo', event.target.value)} />
-        </HrField>
-      </div>
-      <div className="zrv-hr-rp-setup__f">
-        <div className="zrv-hr-rp-setup__act">
-          {filters && <button type="button" className="btn-secondary zrv-hr-btn" onClick={() => { setDraft({ ...filters }); setEditing(false) }}>{T.setup.cancel}</button>}
-          <button type="submit" className="btn-primary zrv-hr-btn"><OrvexaIcon name="chart-column" size={16} /> {T.setup.run}</button>
-        </div>
-      </div>
-    </form>}
-
-    {filters && <div className="zrv-hr-rp-results" aria-busy={result.status === 'loading' || undefined}>
-      <ResourceState resource={result} label={T.title} empty="No employees match the selected department and dates.">
-        {({ items, pagination }) => <>
-          <section className="zrv-hr-rp-kpis" aria-label={T.kpis.label}>
-            {[
-              ['Matching employees', pagination.total, 'Records for the selected report'],
-              ['Active on this page', items.filter((employee) => employee.status === 'Active').length, `${items.length} records shown on this page`],
-              ['Inactive on this page', items.filter((employee) => employee.status === 'Inactive').length, 'Based on live API records'],
-            ].map(([label, value, note], index) => <div key={label} className="zrv-hr-rp-kpi" style={{ '--i': index }}><small>{label}</small><b>{value}</b><span>{note}</span></div>)}
-          </section>
-          <section className="zrv-hr-rp-card zrv-hr-rp-table-card" aria-labelledby="employee-report-title">
-            <div className="zrv-hr-rp-tbar"><h3 id="employee-report-title">Employees <small>{pagination.total} records</small></h3></div>
-            <div className="zrv-hr-rp-tablewrap">
-              <table className="zrv-hr-rp-table">
-                <caption className="zrv-hr-sr">Employee report</caption>
-                <thead><tr>{header('employee_number', 'Employee no.')}{header('employee_name', 'Employee name')}<th scope="col">Division</th><th scope="col">Department</th><th scope="col">Contractor</th>{header('start_date', 'Start date')}{header('end_date', 'End date')}{header('status', 'Status')}<th scope="col">Details</th></tr></thead>
-                <tbody>{items.map((employee, index) => <tr key={employee.empId || `row-${index}`}>
-                  <td>{employee.employeeNumber || '—'}</td><td>{employee.name || '—'}</td><td>{employee.division}</td>
-                  <td>{employee.department}{employee.productionSection ? ` · ${employee.productionSection}` : ''}</td>
-                  <td>{employee.contractorName} · {employee.contractorNumber}</td><td>{enDate(employee.startDate)}</td>
-                  <td>{employee.endDate ? enDate(employee.endDate) : '—'}</td><td>{employee.status || '—'}</td>
-                  <td><button type="button" className="zrv-admin-link" onClick={() => setSelected(employee)}>View</button></td>
-                </tr>)}</tbody>
-              </table>
-            </div>
-            <Pagination pagination={pagination} onPage={setPage} disabled={result.refreshing} />
-          </section>
-        </>}
-      </ResourceState>
-    </div>}
-
-    {selected && <Dialog title={selected.name || 'Employee'} onClose={() => setSelected(null)}>
-      <dl className="zrv-hr-review zrv-hr-rp-facts">
-        {[
-          ['Employee number', selected.employeeNumber || '—'], ['Iqamah', selected.iqamah], ['Division', selected.division], ['Department', selected.department],
-          ['Production section', selected.productionSection], ['Job title', selected.jobTitle], ['Direct boss', selected.directBoss], ['Place', selected.place],
-          ['Replacement', selected.replacement], ['Contractor', `${selected.contractorName} · ${selected.contractorNumber}`], ['Rate', formatRate(selected.rate)],
-          ['Start date', enDate(selected.startDate)], ['End date', selected.endDate ? enDate(selected.endDate) : '—'], ['Status', selected.status || '—'],
-          ['Ajeer', selected.ajeer ? 'Yes' : 'No'], ['SFDA', selected.sfda ? 'Yes' : 'No'], ['Blacklist', selected.blacklist ? 'Yes' : 'No'], ['Remark', selected.remark || '—'],
-        ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-      </dl>
-    </Dialog>}
-  </>
 }

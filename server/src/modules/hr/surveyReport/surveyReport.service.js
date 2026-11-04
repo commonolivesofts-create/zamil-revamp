@@ -333,7 +333,8 @@ export function createSurveyReportService({
     ];
 
     for (const [name, field, title] of chartDefinitions) {
-      const selected = Boolean(filters[field]) && filters[field] !== '__ALL__';
+      // Legacy get_graph_report_data(): a dimension set to "All" (__ALL__) is chosen and charts every group.
+      const selected = Boolean(filters[field]);
 
       charts[name] = {
         selected,

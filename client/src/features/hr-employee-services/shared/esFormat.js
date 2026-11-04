@@ -10,10 +10,6 @@ export function hijriDate(iso) {
     .format(new Date(`${iso}T00:00:00Z`))
 }
 
-// Status tab counts: [['ALL', n], [status, n], ...].
-export function statusCounts(rows, statuses) {
-  return [['ALL', rows.length], ...statuses.map((status) => [status, rows.filter((row) => row.status === status).length])]
-}
 
 // Rows of a list view: status tab, then a case-insensitive search over
 // `searchText(row)`, then the sort ({ key, dir: 1 | -1 }, nulls last).
@@ -32,7 +28,3 @@ export function filterAndSort(rows, { status = 'ALL', search = '', searchText, s
     return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * sort.dir
   })
 }
-
-// Clicking the sorted column reverses it; another column sorts ascending.
-export const nextSort = (sort, key) => (sort?.key === key ? { key, dir: -sort.dir } : { key, dir: 1 })
-export const ariaSort = (sort, key) => (sort?.key === key ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none')

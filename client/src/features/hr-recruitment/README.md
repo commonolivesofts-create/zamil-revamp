@@ -22,6 +22,7 @@ frontend only hides controls. Audit findings and open items are in
 | Probation Evaluation (1064) | `/hr/recruitment/probation-evaluation` (`/:evaluationId`) | `/hr/probation-evaluations` | `HR.PROBATION_EVALUATIONS` | `VITE_FEATURE_HR_RECRUITMENT` |
 | Employee report (contractor employees) | `/hr/reports/contractor-employees` | `/hr/contractor-employees` | `HR.CONTRACTOR_EMPLOYEES` | `VITE_FEATURE_HR_RECRUITMENT` |
 | Periodwise Employees report | `/hr/reports/periodwise-employees` | `/hr/reports/periodwise-employees` | `HR.PERIODWISE_EMPLOYEES` (VIEW only) | `VITE_FEATURE_HR_RECRUITMENT` |
+| Recruitment dashboard | `/hr/recruitment/dashboard` | none of its own: counts (`page=1`, one row) and the five latest rows from the list APIs above | `REQUISITIONS.REQUISITIONS:VIEW`; each panel also needs its module's report page | `VITE_FEATURE_HR_RECRUITMENT` |
 
 **Registry:**
 - The routes are registered in `config/registry/modules/requisitions.module.js`, `interviewAssessments.module.js`, `employmentOffers.module.js` and `hrForms.module.js` (module `HR`).
@@ -178,7 +179,7 @@ The registry's module and resource names, descriptions (none) and display orders
 
 | Variable | Decides | `'true'` | `'false'` | unset |
 |---|---|---|---|---|
-| `VITE_FEATURE_HR_RECRUITMENT` | Whether the Orientation, Probation, Employee report and Periodwise report entries exist in this build (registry `enabledBy`) | shown | hidden | shown in development, hidden in production |
+| `VITE_FEATURE_HR_RECRUITMENT` | Whether the Recruitment dashboard, Orientation, Probation, Employee report and Periodwise report entries exist in this build (registry `enabledBy`) | shown | hidden | shown in development, hidden in production |
 | `VITE_HR_RECRUITMENT_DEMO` | Data source of the Periodwise Employees report only (`onboardingClient`) | demo adapter | `apiClient` | demo in development, API in production |
 
 The three recruitment forms (1060–1062) have no switch. The demo switch changes only the Periodwise report's data source; every form always uses the API. The demo default lives in `hrRecruitmentConfig.js`, because the repository ignores `.env.*` files other than `.env.example`. To override it locally, set the variable in your own `client/.env.local`.

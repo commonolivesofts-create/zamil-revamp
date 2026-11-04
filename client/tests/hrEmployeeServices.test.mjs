@@ -21,7 +21,8 @@ import {
 import { createEmployeeServices, identifyEmployeeServicesUser, selectEmployeeServicesClient } from '../src/features/hr-employee-services/hrEmployeeServicesService.js'
 import { createEmployeeServicesDemoClient } from '../src/features/hr-employee-services/demo/employeeServicesDemoClient.js'
 import { DEMO_EMPLOYEE_SERVICES_LOOKUPS, DEMO_PERFORMANCE_LOOKUPS, DEMO_REQUESTER, DEMO_SERVICE_EMPLOYEES, DEMO_TEAM } from '../src/features/hr-employee-services/demo/employeeServicesDemoData.js'
-import { ariaSort, filterAndSort, hijriDate, nextSort, statusCounts } from '../src/features/hr-employee-services/shared/esFormat.js'
+import { filterAndSort, hijriDate } from '../src/features/hr-employee-services/shared/esFormat.js'
+import { inRange, localList } from '../src/features/hr-employee-services/shared/localList.js'
 import {
   AMOUNT, AMOUNT_MAX_LENGTH, LEGACY_RECORD_CHANGE_STATUSES, PAY_KEYS, TEXT_MAX, amountDelta, amountInput, blankRecordChange, changeTypes, changedKeys,
   counterState, effectiveBeforeStart, familyStatusCode, isRecordChangeLocked, recordChangePayload, recordTotal, revisedAfterPick, totalGoesDown,
@@ -207,23 +208,17 @@ test('header date in Arabic on the Umm al-Qura calendar', () => {
 
 // ------------------------------------------------------------ list views
 
-test('list views: status tab counts, search, sorting with aria-sort', () => {
+test('list views: status, search and sorting', () => {
   const rows = [
     { number: 'PCR-2', status: 'DRAFT', name: 'Sample Employee 002', total: 50, date: '2026-10-02' },
     { number: 'PCR-1', status: 'SUBMITTED', name: 'Sample Employee 001', total: -20, date: '2026-10-01' },
     { number: 'PCR-3', status: 'SUBMITTED', name: 'Sample Employee 003', total: null, date: '2026-10-03' },
   ]
-  assert.deepEqual(statusCounts(rows, ['DRAFT', 'SUBMITTED', 'APPROVED']), [['ALL', 3], ['DRAFT', 1], ['SUBMITTED', 2], ['APPROVED', 0]])
   const searchText = (row) => `${row.number} ${row.name}`
   assert.deepEqual(filterAndSort(rows, { status: 'SUBMITTED', searchText }).map((row) => row.number), ['PCR-1', 'PCR-3'])
   assert.deepEqual(filterAndSort(rows, { search: 'employee 002', searchText }).map((row) => row.number), ['PCR-2'])
   assert.deepEqual(filterAndSort(rows, { searchText, sort: { key: 'date', dir: -1 } }).map((row) => row.number), ['PCR-3', 'PCR-2', 'PCR-1'])
   assert.deepEqual(filterAndSort(rows, { searchText, sort: { key: 'total', dir: 1 } }).map((row) => row.number), ['PCR-1', 'PCR-2', 'PCR-3'], 'numbers numerically, empty last')
-  assert.deepEqual(nextSort({ key: 'date', dir: -1 }, 'date'), { key: 'date', dir: 1 })
-  assert.deepEqual(nextSort({ key: 'date', dir: -1 }, 'name'), { key: 'name', dir: 1 })
-  assert.equal(ariaSort({ key: 'date', dir: 1 }, 'date'), 'ascending')
-  assert.equal(ariaSort({ key: 'date', dir: -1 }, 'date'), 'descending')
-  assert.equal(ariaSort({ key: 'date', dir: -1 }, 'name'), 'none')
 })
 
 // ------------------------------------------------------------ contracts and services
@@ -464,21 +459,40 @@ test('record change page: not in the recruitment flow, services only, linked err
   assert.match(page, /leave\(ES_PATHS\.recordChangeRequests\)/)
   assert.match(page, /editor\.reject\(problems\[0\]\.step/, 'validation opens the step with the first problem')
   const list = await read(`${FEATURE}recordChange/RecordChangeRequestsPage.jsx`)
-  assert.match(list, /<RecordList /)
-  const recordList = await read(`${FEATURE}shared/RecordList.jsx`)
-  assert.match(recordList, /<StatusTabs /)
-  assert.match(recordList, /role="tabpanel"/)
-  assert.match(recordList, /aria-sort=\{/)
-  const statusTabs = await read(`${FEATURE}shared/StatusTabs.jsx`)
-  assert.match(statusTabs, /role="tablist"/)
-  assert.match(statusTabs, /role="tab"/)
-  assert.match(statusTabs, /event\.key === 'ArrowRight'/)
-  // Every employee services report shares the transfer report's header and toolbar.
-  for (const report of ['transfer/TransferReportPage.jsx', 'recordChange/RecordChangeRequestsPage.jsx', 'sickLeave/SickLeaveReportPage.jsx', 'reward/RewardReportPage.jsx', 'idea/IdeaReportPage.jsx']) {
+  assert.match(list, /localList\(hrEmployeeServices\.recordChanges\.list,/, 'the rows load once; the report filters and counts them')
+  assert.match(list, /onClick=\{exportAll\}/, 'the legacy CSV export stays')
+  // Every employee services report is an insight report: collapsible filters, overview cards and a sortable table.
+  for (const report of ['transfer/TransferReportPage.jsx', 'recordChange/RecordChangeRequestsPage.jsx', 'performance/AppraisalReportPage.jsx',
+    'sickLeave/SickLeaveReportPage.jsx', 'reward/RewardReportPage.jsx', 'idea/IdeaReportPage.jsx']) {
     const source = await read(`${FEATURE}${report}`)
-    assert.match(source, /<ReportPage /, report)
-    assert.doesNotMatch(source, /zrv-hr-toolbar/, `${report}: toolbar comes from ReportPage`)
+    assert.match(source, /<InsightReport /, report)
+    assert.match(source, /breadcrumb=\{C\.(breadcrumb|performanceBreadcrumb)\}/, report)
+    assert.doesNotMatch(source, /zrv-hr-toolbar/, `${report}: the header actions come from InsightReport`)
   }
+  const insight = await read('../src/features/hr-recruitment/shared/components/InsightReport.jsx')
+  assert.match(insight, /aria-expanded=\{filtersOpen\}/)
+  assert.match(insight, /aria-sort=\{/)
+})
+
+test('local report list: filters, searches, sorts and pages rows loaded once', async () => {
+  let loads = 0
+  const rows = [
+    { id: '1', status: 'DRAFT', name: 'Sample Employee 001', date: '2026-01-10' },
+    { id: '2', status: 'APPROVED', name: 'Sample Employee 002', date: '2026-02-10' },
+    { id: '3', status: 'APPROVED', name: 'Sample Employee 003', date: null },
+  ]
+  const source = localList(async () => { loads += 1; return { items: rows } }, {
+    match: (row, query) => (!query.status || row.status === query.status) && inRange(row.date, query.dateFrom, query.dateTo),
+    searchText: (row) => row.name,
+  })
+  assert.equal((await source.list({ status: 'APPROVED', limit: 1 })).pagination.total, 2)
+  assert.deepEqual((await source.list({ sortBy: 'id', sortDir: 'desc', limit: 2, page: 1 })).items.map((row) => row.id), ['3', '2'])
+  assert.deepEqual((await source.list({ search: 'employee 001' })).items.map((row) => row.id), ['1'])
+  assert.deepEqual((await source.list({ dateFrom: '2026-02-01' })).items.map((row) => row.id), ['2'], 'a date filter leaves out rows without a date')
+  assert.equal(loads, 1, 'every call shares one load')
+  source.reset()
+  await source.list({})
+  assert.equal(loads, 2, 'reset loads again')
 })
 
 test('employee services sources: no browser storage, no hard-coded people, text in the string constants', async () => {
@@ -683,8 +697,9 @@ test('transfer page: compact frame with the document strip, tight pickers, radio
   assert.match(page, /\{ icon: 'house', label: C\.home, onClick: \(\) => leave\('\/dashboard'\) \}/)
   assert.match(page, /saved\?\.requestedBy \?\? \{ name: user\?\.fullName/, 'requester from the server (before the first save: the session user)')
   const report = await read(`${FEATURE}transfer/TransferReportPage.jsx`)
-  assert.match(report, /<RecordList /)
-  assert.match(report, /statuses=\{TRANSFER_STATUSES\}/)
+  assert.match(report, /<InsightReport /)
+  assert.match(report, /localList\(hrEmployeeServices\.transfers\.list,/)
+  assert.match(report, /onRefresh=\{transfers\.reset\}/, 'Refresh loads the requests again')
 })
 
 // ------------------------------------------------------------ performance appraisal

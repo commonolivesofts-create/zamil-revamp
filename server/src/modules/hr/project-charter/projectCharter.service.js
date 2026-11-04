@@ -60,7 +60,11 @@ export function createProjectCharterService({
 
   return {
     async list(_actor, query) {
-      return read((c) => repository.listCharters(c, query));
+      const page = query.page ?? 1;
+      const pageSize = query.pageSize ?? 25;
+      const result = await read((c) => repository.listCharters(c, { ...query, page, pageSize }));
+
+      return { ...result, page, pageSize };
     },
 
     async get(_actor, id) {
@@ -70,17 +74,15 @@ export function createProjectCharterService({
     async create(_actor, payload) {
       ensureDates(payload);
 
-      // No verified sequence or identity generator
-      // was found for XXZP_PRJ_CHARTER.HEADER_ID.
-      //
-      // Do not use MAX+1 or invent a sequence name.
-      // Creation remains blocked until verified.
+      // XXZP_PRJ_CHARTER.HEADER_ID is an identity column (Oracle TEST data dictionary,
+      // 2026-11-04: ALL_TAB_COLUMNS.IDENTITY_COLUMN = 'YES', no triggers), so the database
+      // generates the id and the insert returns it. Never MAX+1.
+      return tx(async (c) => {
+        const idea = await approved(c, payload.ideaId);
+        const headerId = await repository.insertCharterUsingIdentity(c, payload, idea);
 
-      throw new AppError(
-        503,
-        'CHARTER_ID_GENERATOR_UNVERIFIED',
-        'Project Charter creation is unavailable until a database-generated HEADER_ID mechanism is verified',
-      );
+        return find(c, headerId);
+      });
     },
 
     async update(_actor, id, payload) {

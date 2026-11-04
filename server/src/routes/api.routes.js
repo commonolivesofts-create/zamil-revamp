@@ -471,7 +471,7 @@ export function createApiRouter(appConfig, deps = {}) {
       authorize,
       auditService,
 
-      surveyResourceKey: deps.surveyResourceKey,
+      surveyResourceKey: deps.surveyResourceKey ?? 'HR.SURVEY_REPORTS',
     }),
   );
 

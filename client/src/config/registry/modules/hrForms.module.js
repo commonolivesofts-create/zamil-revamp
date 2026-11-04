@@ -88,6 +88,36 @@ export default defineModule({
       { id: 'hr-idea-record', path: '/hr/employee-services/ideas/:ideaId', title: 'Share an idea', icon: 'lightbulb', group: 'human-resources', subgroup: 'hr-employee-services', order: 152, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_IDEAS' } },
     ],
   }, {
+    // Form 1063: /api/v1/hr/employee-clearance. The backend's VIEW_ALL (every employee instead of
+    // self and direct reports) is checked by the server only; no page depends on it.
+    code: 'EMPLOYEE_CLEARANCE',
+    name: 'Employee Clearance Form',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [
+      { id: 'hr-clearance', path: '/hr/employee-services/clearance', title: 'Employee clearance', icon: 'door-open', group: 'human-resources', subgroup: 'hr-employee-services', order: 160, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_CLEARANCE' } },
+      { id: 'hr-clearance-report', path: '/hr/employee-services/clearance/report', title: 'Employee clearance report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 161, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_CLEARANCE' } },
+      { id: 'hr-clearance-record', path: '/hr/employee-services/clearance/:clearanceId', title: 'Employee clearance', icon: 'door-open', group: 'human-resources', subgroup: 'hr-employee-services', order: 162, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_CLEARANCE' } },
+    ],
+  }, {
+    // ZPI.IMS.FM.13: /api/v1/projects/charters.
+    code: 'PROJECT_CHARTERS',
+    name: 'Project Charter Form',
+    actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+    navigation: [
+      { id: 'hr-charter', path: '/hr/employee-services/project-charter', title: 'Project charter', icon: 'file-text', group: 'human-resources', subgroup: 'hr-employee-services', order: 170, enabledBy: { env: 'VITE_FEATURE_HR_PROJECT_CHARTER' } },
+      { id: 'hr-charter-report', path: '/hr/employee-services/project-charter/report', title: 'Project charter report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 171, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_PROJECT_CHARTER' } },
+      { id: 'hr-charter-record', path: '/hr/employee-services/project-charter/:charterId', title: 'Project charter', icon: 'file-text', group: 'human-resources', subgroup: 'hr-employee-services', order: 172, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_PROJECT_CHARTER' } },
+    ],
+  }, {
+    // Employee survey reports: /api/v1/survey (DELETE guards removing a response; no page uses it yet).
+    code: 'SURVEY_REPORTS',
+    name: 'Employee Survey Reports',
+    actions: ['VIEW', 'DELETE'],
+    navigation: [
+      { id: 'hr-survey-report', path: '/hr/reports/survey', title: 'Survey report', icon: 'chart-bar', group: 'human-resources', subgroup: 'hr-reports', order: 82, enabledBy: { env: 'VITE_FEATURE_HR_SURVEY_REPORT' } },
+      { id: 'hr-survey-responses', path: '/hr/reports/survey/responses', title: 'Survey responses', icon: 'table', group: 'human-resources', subgroup: 'hr-reports', order: 83, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_SURVEY_REPORT' } },
+    ],
+  }, {
     code: 'SALARY_CERTIFICATES_AR',
     name: 'Arabic Salary Certificates',
     description: 'View and manage Arabic salary certificates.',
