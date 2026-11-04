@@ -37,6 +37,9 @@
 .zrv-ir-btn:hover:not(:disabled) { border-color: color-mix(in srgb, var(--zrv-hr-accent) 45%, var(--line)); transform: translateY(-1px); }
 .zrv-ir-btn:disabled { opacity: .6; cursor: progress; }
 .zrv-ir-btn:disabled svg { animation: zrv-ir-spin 1s linear infinite; }
+.zrv-ir-btn--assessment-compact { gap: 6px; min-height: 36px; padding: 4px 9px; font-size: 12px; line-height: 1.1; white-space: normal; text-align: left; }
+.zrv-ir-btn--assessment-compact > span { display: block; }
+.zrv-ir-btn--assessment-compact small { display: block; margin-top: 2px; font-size: 10px; font-weight: 550; }
 @keyframes zrv-ir-spin { to { transform: rotate(360deg); } }
 .zrv-ir-btn svg { transition: transform .45s var(--ir-ease); }
 .zrv-ir-btn.zrv-ir-is-on { border-color: var(--zrv-hr-accent); background: color-mix(in srgb, var(--zrv-hr-accent) 12%, var(--surface-solid)); color: var(--zrv-hr-accent-text); }

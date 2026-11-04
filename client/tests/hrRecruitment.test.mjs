@@ -15,7 +15,9 @@ import {
   blankRequisition,
   requisitionPayload,
   requisitionProgress,
+  REQUISITION_VALIDATION_FIELDS,
 } from "../src/features/hr-recruitment/requisition/requisitionModel.js";
+import { activeRecruitmentErrors, recruitmentValidation } from "../src/features/hr-recruitment/shared/recruitmentFieldErrors.js";
 import {
   blankInterview,
   interviewPayload,
@@ -34,15 +36,53 @@ const TODAY = "2026-10-28";
 const rated = (keys) =>
   Object.fromEntries(keys.map((key) => [key, { rating: 4, remark: "" }]));
 
+test("server validation targets the relevant requisition fields and clears on edits", () => {
+  const form = { ...blankRequisition(TODAY), budgetedSalary: "-1", additionReason: "bad" };
+  const validation = recruitmentValidation({ code: "VALIDATION_ERROR", details: [
+    { field: "budgetedSal", message: '"budgetedSal" must be greater than or equal to 0' },
+    { field: "body.reason", message: '"reason" is invalid' },
+    { field: "highSchool", message: '"highSchool" is invalid' },
+  ] }, REQUISITION_VALIDATION_FIELDS, form);
+  assert.equal(validation.step, 1);
+  assert.deepEqual(activeRecruitmentErrors(validation.errors, form), {
+    budgetedSalary: "Budgeted salary must be greater than or equal to 0",
+    additionReason: "Reason for addition is invalid",
+    educationCodes: "Education is invalid",
+  });
+  const corrected = { ...form, budgetedSalary: "100", diploma: "yes" };
+  assert.deepEqual(activeRecruitmentErrors(validation.errors, corrected), { additionReason: "Reason for addition is invalid" });
+  assert.equal(recruitmentValidation({ code: "FORBIDDEN" }, REQUISITION_VALIDATION_FIELDS, form), null);
+  assert.equal(recruitmentValidation({ code: "VALIDATION_ERROR", details: [{ field: "unknown", message: "Invalid request" }] }, REQUISITION_VALIDATION_FIELDS, form), null);
+});
+
+test("requisition steps unlock in order, including conditional budget requirements", () => {
+  const form = blankRequisition(TODAY);
+  assert.equal(requisitionProgress(form).unlockedStep, 0);
+  Object.assign(form, { diploma: "yes", gccExp: "0 - 2", workExp: "2 - 5", skills: "Inspection" });
+  // Completing later fields cannot skip Position.
+  assert.equal(requisitionProgress(form).unlockedStep, 0);
+  Object.assign(form, { jobTitle: "Inspector", departmentName: "Quality" });
+  assert.equal(requisitionProgress(form).unlockedStep, 1);
+  Object.assign(form, { reason: "ADDITION", additionReason: "New production line", budgeted: "yes" });
+  assert.equal(requisitionProgress(form).unlockedStep, 1);
+  form.budgetedSalary = "5000";
+  assert.equal(requisitionProgress(form).unlockedStep, 3);
+  form.skills = "";
+  assert.equal(requisitionProgress(form).unlockedStep, 2);
+  form.reason = "REPLACEMENT";
+  assert.equal(requisitionProgress(form).unlockedStep, 1);
+  form.replacementFor = "Employee A";
+  assert.equal(requisitionProgress(form).unlockedStep, 2);
+  form.skills = "Inspection";
+  assert.equal(requisitionProgress(form).unlockedStep, 3);
+});
+
 test("the active registry grants HR routes only through the backend form resources", () => {
   assert.deepEqual(
     registeredModules.map((module) => module.code),
     [
       "COMMON",
       "SECURITY_ADMINISTRATION",
-      "REQUISITIONS",
-      "INTERVIEW_ASSESSMENTS",
-      "EMPLOYMENT_OFFERS",
       // Backend-owned probation, orientation and employee report permissions.
       "HR",
       // Session-only employee services behind VITE_FEATURE_HR_EMPLOYEE_SERVICES (hrEmployeeServices.test.mjs).

@@ -14,6 +14,7 @@ import {
   MAX_ATTACHMENT_BYTES,
   MAX_ATTACHMENT_FILES,
   requisitionIdParams,
+  recruitmentActionSchema,
   replacementForQuerySchema,
   updateBodySchema,
 } from './requisition.validation.js';
@@ -31,7 +32,7 @@ const UPLOAD_ERRORS = {
 
 /**
  * Personal Requisition Form CRUD, mounted at /api/v1/hr/requisitions. Every route requires an
- * authenticated session and the REQUISITIONS.REQUISITIONS action (re-evaluated in Oracle per request);
+ * authenticated session and the HR.REQUISITIONS action (re-evaluated in Oracle per request);
  * changes also require the session-bound CSRF token. Validation runs after authorization.
  * `POST /` and `PUT /:requisitionId` accept either JSON (header fields only) or multipart
  * (the same fields as form parts plus `files`); the attachment upload is multipart only.
@@ -98,6 +99,16 @@ export function createRequisitionRouter({
     controller.create,
   );
   router.get('/:requisitionId', ...read('VIEW', { params: requisitionIdParams }), controller.get);
+  router.post(
+    '/:requisitionId/recruitment-status',
+    ...guard('UPDATE'),
+    validate({
+      params: requisitionIdParams,
+      query: emptyQuerySchema,
+      body: recruitmentActionSchema,
+    }),
+    controller.changeRecruitmentStatus,
+  );
   router.put(
     '/:requisitionId',
     ...guard('UPDATE'),

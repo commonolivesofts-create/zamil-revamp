@@ -387,14 +387,7 @@ describe('RBAC catalogue registration CLI', () => {
     it('uses only the RBAC modules of the active registry: COMMON skipped, never the example', () => {
       assert.deepEqual(
         registryDefinitions(registeredModules).map((m) => m.code),
-        [
-          'SECURITY_ADMINISTRATION',
-          'REQUISITIONS',
-          'INTERVIEW_ASSESSMENTS',
-          'EMPLOYMENT_OFFERS',
-          'HR',
-          'WORKFLOW_MANAGER',
-        ],
+        ['SECURITY_ADMINISTRATION', 'HR', 'WORKFLOW_MANAGER'],
       );
       for (const file of ['scripts/rbac-register.js', 'scripts/lib/rbacRegistration.js']) {
         const source = readFileSync(join(import.meta.dirname, '..', file), 'utf8');

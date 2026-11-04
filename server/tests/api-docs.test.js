@@ -268,6 +268,7 @@ describe('API documentation', () => {
       ['get', '/lookups/number-to-arabic'],
       ['get', '/lookups/hijri-date'],
       ['get', '/{headerId}'],
+      ['post', '/{headerId}/accept'],
       ['put', '/{headerId}'],
       ['delete', '/{headerId}'],
     ];
@@ -301,6 +302,7 @@ describe('API documentation', () => {
       ['get', '/lookups/budget'],
       ['get', '/lookups/filter-options'],
       ['get', '/{requisitionId}'],
+      ['post', '/{requisitionId}/recruitment-status'],
       ['put', '/{requisitionId}'],
       ['delete', '/{requisitionId}'],
       ['post', '/{requisitionId}/attachments'],

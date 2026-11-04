@@ -109,6 +109,7 @@ describe('approved audit catalogue (Decision 07)', () => {
       'RBAC_ROLE_DEACTIVATED',
       'RBAC_ROLE_UNASSIGNED',
       'RBAC_ROLE_UPDATED',
+      'RECRUITMENT_STATUS_CHANGED',
       'SECURITY_BOOTSTRAP',
       'SESSION_EXPIRED',
       'SESSION_REVOKED',

@@ -108,6 +108,9 @@ export function installEmploymentOffers(
   });
 
   const employmentOfferRepository = {
+    async findRequisitionsForAcceptance() {
+      return [];
+    },
     async insertHeader(_c, h) {
       const t = table();
       const headerId = String(t.nextHeaderId++);

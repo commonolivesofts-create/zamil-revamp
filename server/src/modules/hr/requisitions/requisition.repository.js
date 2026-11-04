@@ -61,7 +61,7 @@ const mapHeader = (row) => ({
   other: row.OTHER,
   remark: row.REMARK,
   totalPackage: row.TOTAL_PACKAGE,
-  ticketStatus: row.ATTRIBUTE1 ?? '',
+  ticketStatus: row.ATTRIBUTE1 ?? 'Open',
   acceptedDate: row.ATTRIBUTE14,
   closedDate: row.ATTRIBUTE15,
   createdBy: row.CREATED_BY,
@@ -92,9 +92,7 @@ export async function insertHeader(connection, h) {
         NVL(:degree, 'N'), NVL(:masterDegree, 'N'),
         NVL(:gccExp, '0 - 2'), NVL(:workExp, '0 - 2'),
         :skills, :other, :remark, :totalPackage,
-        NVL(:ticketStatus, ''),
-        CASE WHEN :ticketStatus = 'Accepted' THEN ${TODAY} ELSE '' END,
-        CASE WHEN :ticketStatus = 'Close'    THEN ${TODAY} ELSE '' END,
+        NVL(:ticketStatus, 'Open'), NULL, NULL,
         SYSDATE, :createdBy)
      RETURNING REQUISITION_ID INTO :reqId`,
     { ...h, reqId: OUT_ID },
@@ -120,14 +118,14 @@ const READ_COLUMNS = HEADER_COLUMNS.replace(
   "TO_CHAR(REQUEST_DATE, 'DD-Mon-YY') AS REQUEST_DATE",
 ).replace('DATE_NEEDED', "TO_CHAR(DATE_NEEDED, 'DD-Mon-YY') AS DATE_NEEDED");
 
-export async function findHeader(connection, requisitionId) {
+export async function findHeader(connection, requisitionId, { forUpdate = false } = {}) {
   const [row] = await rows(
     connection,
     `SELECT ${READ_COLUMNS},
             CREATED_BY, TO_CHAR(CREATION_DATE, 'DD-Mon-YY') AS CREATION_DATE,
             LAST_UPDATED_BY, LAST_UPDATE_DATE
        FROM XXZPI_PER_REQUISITIONS_ALL
-      WHERE REQUISITION_ID = :requisitionId`,
+      WHERE REQUISITION_ID = :requisitionId${forUpdate ? ' FOR UPDATE' : ''}`,
     { requisitionId },
     { ...HEADER_ID_FETCH, LAST_UPDATED_BY: ID },
   );
@@ -162,22 +160,17 @@ const UPDATABLE = Object.freeze({
 });
 
 /*
- * Ticket columns (README §5.1 corrected, non-wiping behaviour): while the status is still
- * 'Accepted'/'Close' the previously stored date survives a re-save; leaving the values resets
- * both dates. Only added when the HR caller supplies ticketStatus.
+ * Recruitment status is HR-owned and independent of approval. Acceptance dates are written
+ * only by the offer acceptance transaction. Re-saving status never replaces either date.
  */
 const TICKET_SET = `
     ATTRIBUTE1 = :ticketStatus,
-    ATTRIBUTE14 = CASE WHEN :ticketStatus = 'Accepted' THEN ${TODAY}
-                       WHEN :ticketStatus = 'Close'    THEN NVL(:attribute14, ${TODAY})
-                       ELSE '' END,
-    ATTRIBUTE15 = CASE WHEN :ticketStatus = 'Close'    THEN ${TODAY}
-                       WHEN :ticketStatus = 'Accepted' THEN NVL(:attribute15, ${TODAY})
-                       ELSE '' END`;
+    ATTRIBUTE15 = CASE WHEN :ticketStatus = 'Close' THEN NVL(ATTRIBUTE15, ${TODAY})
+                       ELSE ATTRIBUTE15 END`;
 
 /**
  * Updates the header columns present in `values` plus the audit trio. `ticket` is
- * `{ ticketStatus, attribute14, attribute15 }` when the HR caller sent ticketStatus, else null
+ * `{ ticketStatus }` when the HR caller sent ticketStatus, else null
  * (the ATTRIBUTE1/14/15 group is then left untouched). REQUISITION_STATUS, REQUEST_DATE,
  * REQUESTER_NAME, REQUESTED_BY and REQUISITION_NUMBER are never in the SET list (README §5.1).
  */
@@ -192,8 +185,6 @@ export async function updateHeader(connection, { requisitionId, values, ticket, 
   if (ticket) {
     sets.push(TICKET_SET.trim());
     binds.ticketStatus = ticket.ticketStatus;
-    binds.attribute14 = ticket.attribute14;
-    binds.attribute15 = ticket.attribute15;
   }
   const result = await connection.execute(
     `UPDATE XXZPI_PER_REQUISITIONS_ALL
@@ -473,9 +464,27 @@ export async function createdByInScope(connection, { scopeUserId, createdBy }) {
 export async function listJobTitles(connection) {
   return rows(
     connection,
-    `SELECT DISTINCT JOB_ID, JOB_TITLE AS NAME
-       FROM XX_DIGI_EMP_MASTER
-      ORDER BY 1 DESC`,
+    `WITH CURRENT_JOB_DEPARTMENTS AS (
+       SELECT JOB_ID,
+              MIN(ORGANIZATION_ID) AS DEPARTMENT_ID,
+              COUNT(DISTINCT ORGANIZATION_ID) AS DEPARTMENT_COUNT
+         FROM XX_DIGI_EMP_MASTER
+        WHERE CURRENT_EMP_FLAG = 'Y'
+          AND ORGANIZATION_ID IS NOT NULL
+        GROUP BY JOB_ID
+     )
+     SELECT jobs.JOB_ID,
+            jobs.JOB_TITLE AS NAME,
+            CASE WHEN departments.DEPARTMENT_COUNT = 1
+                 THEN departments.DEPARTMENT_ID
+            END AS DEPARTMENT_ID
+       FROM (
+         SELECT DISTINCT JOB_ID, JOB_TITLE
+           FROM XX_DIGI_EMP_MASTER
+       ) jobs
+       LEFT JOIN CURRENT_JOB_DEPARTMENTS departments
+         ON departments.JOB_ID = jobs.JOB_ID
+      ORDER BY jobs.JOB_ID DESC`,
     {},
     { JOB_ID: ID },
   );

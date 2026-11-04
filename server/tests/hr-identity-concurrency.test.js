@@ -92,6 +92,7 @@ describe('HR identity IDs under concurrent creates', () => {
   it('requisition creates with attachments get distinct IDs, numbers and attachment IDs', async () => {
     const db = simulatedOracle();
     const service = createRequisitionService({
+      auditService: { record: async () => {} },
       storage: { save: async () => {}, remove: async () => {} },
       withConnection: db.withConnection,
       withTransaction: db.withTransaction,

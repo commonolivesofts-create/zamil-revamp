@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useAdminAction } from '@/features/security-administration/useAdminData.js'
 import { describeFailure } from '@/features/security-administration/adminFeedback.js'
+import { activeRecruitmentErrors, recruitmentValidation } from './recruitmentFieldErrors.js'
 
 // Navigation state carries only the step to reopen and a plain message (never
 // record data): a new record moves to its own URL after its first save.
@@ -23,7 +24,7 @@ const outcomeFeedback = (outcome, success) => {
 // unsaved-change tracking and one change at a time through useAdminAction
 // (never auto-retried; unknown outcomes are explained, not reported as
 // success).
-export function useRecruitmentForm({ basePath, idKey, record: initialRecord, initialForm }) {
+export function useRecruitmentForm({ basePath, idKey, record: initialRecord, initialForm, validationFields = {} }) {
   const navigate = useNavigate()
   const location = useLocation()
   const action = useAdminAction()
@@ -33,6 +34,8 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
   const [step, setStep] = useState(() => readStep(location.state))
   const [notice, setNotice] = useState(() => readNotice(location.state))
   const [focusError, setFocusError] = useState(0)
+  const [serverErrors, setServerErrors] = useState({})
+  const fieldErrors = activeRecruitmentErrors(serverErrors, form)
 
   const dirty = JSON.stringify(form) !== baseline
   const set = (key) => (eventOrValue) => {
@@ -45,11 +48,16 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
     setNotice(null)
     action.setFeedback({ kind: 'error', message, details })
   }
+  const showNotice = (message) => {
+    setNotice(null)
+    action.setFeedback({ kind: 'info', message })
+  }
   // A failed validation opens the step with the first problem and focuses it.
   const reject = (targetStep, message, details = []) => {
     setStep(targetStep)
     setFocusError((value) => value + 1)
-    showProblem(message, details)
+    if (message) showProblem(message, details)
+    else dismiss()
   }
   const dismiss = () => {
     setNotice(null)
@@ -66,6 +74,7 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
   // returns, so a new record keeps its id even if a later call fails.
   async function perform(operation, { success } = {}) {
     setNotice(null)
+    setServerErrors({})
     const snapshot = JSON.stringify(form)
     let created = null
     const keep = (saved) => {
@@ -73,6 +82,11 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
       setRecord(saved)
     }
     const outcome = await action.run(() => operation({ saved: keep }), { success })
+    const validation = recruitmentValidation(outcome.error, validationFields, form)
+    if (validation) {
+      setServerErrors(validation.errors)
+      reject(validation.step)
+    }
     if (outcome.status === 'success') setBaseline(snapshot)
     if (created) {
       const message = typeof success === 'function' && outcome.status === 'success' ? success(outcome.value) : success
@@ -83,7 +97,7 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
 
   return {
     record, form, setForm, set, patch, resetToSaved, step, setStep, dirty, pending: action.pending,
-    feedback: action.feedback ?? notice, dismiss, reject, showProblem, perform, focusError,
+    feedback: action.feedback ?? notice, fieldErrors, dismiss, reject, showProblem, showNotice, perform, focusError,
     recordId: record?.[idKey] ?? null,
   }
 }

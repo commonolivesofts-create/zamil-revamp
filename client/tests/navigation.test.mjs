@@ -310,9 +310,9 @@ test("sidebar: current production navigation for administrators, employees and e
     );
   }
   const hrAccess = ready([
-    "REQUISITIONS.REQUISITIONS:VIEW",
-    "INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW",
-    "EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW",
+    "HR.REQUISITIONS:VIEW",
+    "HR.INTERVIEW_ASSESSMENTS:VIEW",
+    "HR.EMPLOYMENT_OFFERS:VIEW",
   ]);
   assert.deepEqual(
     ids(authorizedNavigation(hrAccess)).filter((id) => id.startsWith("hr-")),
