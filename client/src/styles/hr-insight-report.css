@@ -287,13 +287,21 @@
 .zrv-ir-stream > .zrv-admin-state { margin: 0 16px 16px; }
 .zrv-ir-stream .zrv-admin-pagination { padding: 8px 16px 12px; }
 
-.zrv-ir-tablewrap { max-height: max(420px, calc(100vh - 150px)); overflow: auto; border-top: 1px solid var(--line); }
-.zrv-ir-table { width: 100%; min-width: 860px; border-collapse: separate; border-spacing: 0; font-size: 13px; }
-.zrv-ir-table th { position: sticky; z-index: 2; top: 0; padding: 0; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface-2) 92%, var(--surface-solid)); color: var(--muted); font-size: 12px; font-weight: 700; text-align: left; white-space: nowrap; }
+.zrv-ir-tablewrap { min-width: 0; border-top: 1px solid var(--line); }
+.zrv-ir-table { width: 100%; min-width: 0; table-layout: auto; border-collapse: separate; border-spacing: 0; font-size: 12px; line-height: 1.4; }
+.zrv-ir-table th { position: sticky; z-index: 2; top: 0; padding: 0; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface-2) 92%, var(--surface-solid)); color: var(--muted); font-size: 11.5px; font-weight: 700; text-align: left; white-space: normal; overflow-wrap: normal; word-break: normal; }
 .zrv-ir-table th:not(:has(button)) { padding: 9px 14px; }
 .zrv-ir-table th button { display: inline-flex; align-items: center; gap: 5px; width: 100%; padding: 9px 14px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .zrv-ir-table th button:hover, .zrv-ir-table th[aria-sort="ascending"] button, .zrv-ir-table th[aria-sort="descending"] button { color: var(--text); }
-.zrv-ir-table td { padding: 8px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; transition: background .2s; }
+.zrv-ir-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: normal; overflow-wrap: normal; word-break: normal; transition: background .2s; }
+.zrv-ir-table th:not(:has(button)), .zrv-ir-table th button { padding: 8px; }
+.zrv-ir-table th button { text-align: start; }
+.zrv-ir-table svg { flex-shrink: 0; }
+.zrv-ir-table :is(button, a, .zrv-ir-chip) { max-width: 100%; white-space: normal; overflow-wrap: normal; word-break: normal; }
+.zrv-ir-table :is(.zrv-hr-pill, .zrv-ir-ticket), .zrv-ir-table :is(.zrv-ir-col-status, .zrv-ir-col-outcome, .zrv-ir-col-ticket) { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+.zrv-ir-table .zrv-hr-pill { justify-content: center; text-align: center; }
+.zrv-ir-table .zrv-ir-btn { gap: 5px; min-height: 30px; padding: 5px 7px; font-size: 11.5px; }
+.zrv-ir-table .zrv-ir-ticket::before { flex-shrink: 0; }
 .zrv-ir-table tbody tr { cursor: pointer; animation: zrv-hr-reveal .45s var(--zrv-hr-ease) both; animation-delay: calc(var(--i) * 25ms); }
 .zrv-ir-table tbody tr:last-child td { border-bottom: 0; }
 /* Rows cycle through three soft theme tints (mint, amber, primary), each with
@@ -309,7 +317,69 @@
 .zrv-ir-table td b { display: block; font-weight: 650; }
 .zrv-ir-table td small { display: block; margin-top: 1px; color: var(--zrv-hr-fine); font-size: 11px; }
 .zrv-ir-col-position { max-width: 300px; }
-.zrv-ir-col-position b, .zrv-ir-col-position small { overflow: hidden; text-overflow: ellipsis; }
+.zrv-ir-col-position b, .zrv-ir-col-position small { white-space: normal; overflow-wrap: normal; word-break: normal; }
+
+/* Shared desktop reports fill the available viewport. Pagination uses the
+   measured height of wrapped rows; no table cells or records are clipped. */
+@media screen and (min-width: 1024px) and (min-height: 620px) {
+  #main-content:has(> .zrv-ir--fitted) { padding-block: 12px; }
+  .zrv-ir--fitted {
+    --ir-gap: 8px;
+    width: 100%;
+    height: auto;
+  }
+  .zrv-ir--fitted .zrv-ir-head { flex: 0 0 auto; gap: 6px 16px; }
+  .zrv-ir--fitted .zrv-ir-head__title { gap: 2px; }
+  .zrv-ir--fitted .zrv-ir-crumb { gap: 6px; font-size: 10px; }
+  .zrv-ir--fitted .zrv-hr-title { font-size: clamp(22px, 2vw, 28px); }
+  .zrv-ir--fitted .zrv-ir-head__title .zrv-hr-sub { font-size: 12.5px; }
+  .zrv-ir--fitted .zrv-ir-head__actions > .zrv-ir-btn { min-height: 34px; padding-inline: 11px; font-size: 12.5px; }
+  .zrv-ir--fitted .zrv-ir-collapse { flex-shrink: 0; }
+  .zrv-ir--fitted .zrv-ir-overview {
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 1fr));
+  }
+  .zrv-ir--fitted .zrv-ir-ov { gap: 5px; padding: 9px 11px; }
+  .zrv-ir--fitted .zrv-ir-ov__top { gap: 2px 8px; }
+  .zrv-ir--fitted .zrv-ir-ov__label { gap: 5px; font-size: 11px; }
+  .zrv-ir--fitted .zrv-ir-ov__label svg { padding: 3px; }
+  .zrv-ir--fitted .zrv-ir-ov__hint { font-size: 10.5px; }
+  .zrv-ir--fitted .zrv-ir-ov__hero b { font-size: 24px; }
+  .zrv-ir--fitted .zrv-ir-steps { gap: 3px; }
+  .zrv-ir--fitted .zrv-ir-steps__main { gap: 4px; }
+  .zrv-ir--fitted .zrv-ir-step { padding: 2px; }
+  .zrv-ir--fitted .zrv-ir-step__node { width: 24px; height: 24px; }
+  .zrv-ir--fitted .zrv-ir-step--branch { padding-block: 2px; }
+  .zrv-ir--fitted .zrv-ir-twin { gap: 4px; }
+  .zrv-ir--fitted .zrv-ir-twin__tiles { gap: 5px; }
+  .zrv-ir--fitted .zrv-ir-twin__tile { padding: 6px 8px; }
+  .zrv-ir--fitted .zrv-ir-twin__tile b { font-size: 19px; }
+  .zrv-ir--fitted .zrv-ir-lanes { gap: 3px; }
+  .zrv-ir--fitted .zrv-ir-breaks { gap: 2px 8px; }
+  .zrv-ir--fitted .zrv-ir-break button { padding-block: 2px; }
+  .zrv-ir--fitted .zrv-ir-main { flex: 1 1 auto; min-height: 0; }
+  .zrv-ir--fitted .zrv-ir-stream {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .zrv-ir--fitted .zrv-ir-card__head { flex: 0 0 auto; padding: 8px 13px; }
+  .zrv-ir--fitted .zrv-ir-tablewrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+  .zrv-ir--fitted .zrv-ir-table td { padding: 5px 8px; }
+  .zrv-ir--fitted .zrv-ir-table--wide :is(th:not(:has(button)), th button, td) { padding-inline: 4px; }
+  .zrv-ir--fitted .zrv-ir-stream .zrv-admin-pagination {
+    flex: 0 0 auto;
+    margin-top: 0;
+    padding: 6px 13px 8px;
+  }
+  .zrv-ir--fitted .zrv-admin-pagination .btn-secondary { min-height: 30px; padding: 5px 10px; font-size: 12px; }
+}
 .zrv-ir-num { padding: 0; border: 0; background: none; color: var(--text); font: 700 12.5px/1.3 ui-monospace, Menlo, monospace; letter-spacing: .02em; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; cursor: pointer; transition: text-decoration-color .2s; }
 .zrv-ir-num:hover { text-decoration-color: var(--zrv-hr-accent); }
 .zrv-ir-chip { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-weight: 600; }
@@ -326,12 +396,29 @@
    closing class plays the reverse before the drawer unmounts. */
 .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog-backdrop { animation: zrv-ir-fade .4s ease both; }
 .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog { gap: 14px; padding: 24px; box-shadow: -36px 0 70px -40px rgb(0 0 0 / .45); animation: zrv-ir-drawer-in .6s var(--ir-ease) both; will-change: transform; }
+.zrv-ir-drawer.zrv-hr-rp-drawer:has(.zrv-ir-offer-preview) .zrv-dialog { box-shadow: none; }
 .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog-backdrop { animation: zrv-ir-fade-out .32s ease .02s both; }
 .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog { animation: zrv-ir-drawer-out .32s cubic-bezier(.5, 0, .75, 0) both; }
 @keyframes zrv-ir-fade-out { to { opacity: 0; } }
 @keyframes zrv-ir-drawer-in { from { transform: translateX(100%); } }
 @keyframes zrv-ir-drawer-out { to { transform: translateX(100%); } }
 .zrv-ir-drawer .zrv-dialog > h2 { font: 700 20px/1.2 ui-monospace, Menlo, monospace; letter-spacing: .01em; animation: zrv-ir-rise .5s var(--ir-ease) .15s both; }
+/* A drawer that shows only the record's preview keeps the record number as
+   its dialog label for screen readers but hides the heading. */
+.zrv-ir-drawer--plain .zrv-dialog > h2 { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* The preview drawer can be widened by dragging its left edge, and only its
+   body scrolls, so the close button stays in reach above a long letter. */
+.zrv-ir-drawer--plain .zrv-dialog { width: min(var(--zrv-ir-drawer-width, 440px), 100%); height: 100dvh; overflow: hidden; }
+.zrv-ir-drawer--plain .zrv-ir-drawer__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.zrv-ir-drawer--resizable .zrv-dialog { gap: 9px; width: min(var(--zrv-ir-drawer-width, 680px), 100%); height: 100dvh; overflow: hidden; padding: 16px; }
+.zrv-ir-drawer--resizable .zrv-dialog > h2 { padding-right: 38px; font-size: 17px; }
+.zrv-ir-drawer--resizable .zrv-hr-rp-drawer__x { top: 13px; right: 13px; width: 32px; height: 32px; border-radius: 10px; }
+.zrv-ir-drawer--resizable .zrv-ir-drawer__body { flex: 1 1 auto; min-height: 0; gap: 8px; overflow-y: auto; padding-right: 3px; }
+.zrv-ir-drawer__grip { position: absolute; z-index: 4; top: 50%; left: 3px; width: 10px; height: 72px; margin-top: -36px; padding: 0; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--text) 16%, transparent); cursor: col-resize; touch-action: none; transition: background .2s; }
+/* Without the hidden heading the close button starts where the body does, so
+   it lines up with the letter's language switch and Edit and Print buttons. */
+.zrv-ir-drawer--plain .zrv-hr-rp-drawer__x { z-index: 8; top: 24px; }
+.zrv-ir-drawer__grip:hover, .zrv-ir-drawer__grip:focus-visible { background: color-mix(in srgb, var(--zrv-hr-accent) 70%, transparent); outline: 0; }
 .zrv-ir-drawer__body { display: flex; flex-direction: column; gap: 12px; }
 .zrv-ir-drawer__body > * { animation: zrv-ir-rise .55s var(--ir-ease) both; }
 .zrv-ir-drawer__body > :nth-child(1) { animation-delay: .2s; }
@@ -341,14 +428,68 @@
 @keyframes zrv-ir-rise { from { opacity: 0; transform: translateY(10px); } }
 .zrv-ir-drawer__hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 16px; border: 1px solid color-mix(in srgb, var(--zrv-hr-accent) 30%, var(--line)); border-radius: 16px; background: linear-gradient(120deg, color-mix(in srgb, var(--mint) 16%, var(--surface-solid)), var(--surface-solid) 70%); }
 .zrv-ir-drawer__hero b { font-size: 15.5px; }
-.zrv-ir-drawer__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
-.zrv-ir-drawer__facts div { min-width: 0; padding: 11px 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-solid); }
-.zrv-ir-drawer__facts dt { color: var(--zrv-hr-fine); font-size: 11.5px; font-weight: 600; }
-.zrv-ir-drawer__facts dd { margin: 4px 0 0; overflow-wrap: anywhere; font-size: 13.5px; font-weight: 650; }
+.zrv-ir-drawer__hero--profile { flex-wrap: nowrap; justify-content: flex-start; gap: 11px; padding: 11px 13px; }
+.zrv-ir-drawer__hero--profile > .zrv-pill { margin-left: auto; }
+.zrv-ir-drawer__avatar { display: inline-grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border: 1px solid color-mix(in srgb, var(--zrv-hr-accent) 28%, transparent); border-radius: 12px; background: var(--zrv-hr-accent); color: white; font-size: 12px; font-weight: 800; letter-spacing: .04em; box-shadow: 0 7px 18px color-mix(in srgb, var(--zrv-hr-accent) 20%, transparent); }
+.zrv-ir-drawer__identity { display: grid; min-width: 0; gap: 2px; }
+.zrv-ir-drawer__identity small { color: var(--zrv-hr-accent-text); font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+.zrv-ir-drawer__identity b { overflow-wrap: anywhere; }
+.zrv-ir-drawer__identity em { color: var(--zrv-hr-fine); font-size: 11.5px; font-style: normal; font-weight: 600; }
+.zrv-ir-drawer--resizable .zrv-ir-drawer__facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.zrv-ir-drawer__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.zrv-ir-drawer__facts div { min-width: 0; padding: 7px 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-solid); }
+.zrv-ir-drawer__facts dt { color: var(--zrv-hr-fine); font-size: 10.5px; font-weight: 600; }
+.zrv-ir-drawer__facts dd { margin: 2px 0 0; overflow-wrap: anywhere; font-size: 12px; font-weight: 650; line-height: 1.3; }
 .zrv-ir-drawer__due { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; border: 1px solid color-mix(in srgb, var(--ir-tone) 35%, var(--line)); border-radius: 13px; background: color-mix(in srgb, var(--ir-tone) 9%, var(--surface-solid)); }
 .zrv-ir-drawer__due span { color: var(--muted); font-size: 12.5px; font-weight: 600; }
 .zrv-ir-drawer__due b { color: var(--ir-tone-text); font-size: 13.5px; }
 .zrv-ir-drawer__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+
+/* Orientation drawer: employee identity stays concise at the top while the
+   full saved training plan is grouped into readable department sessions. */
+.zrv-ir-orientation-detail { display: grid; gap: 8px; padding-top: 5px; border-top: 1px solid var(--line); }
+.zrv-ir-orientation-heading { display: flex; align-items: center; gap: 10px; padding-top: 3px; }
+.zrv-ir-orientation-heading__icon { display: inline-grid; flex: 0 0 30px; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: color-mix(in srgb, var(--zrv-hr-accent) 12%, var(--surface-solid)); color: var(--zrv-hr-accent-text); }
+.zrv-ir-orientation-heading h3 { margin: 0; color: var(--text); font-size: 14.5px; line-height: 1.25; }
+.zrv-ir-orientation-heading p { margin: 2px 0 0; color: var(--zrv-hr-fine); font-size: 11.5px; line-height: 1.35; }
+.zrv-ir-orientation-heading--workflow { margin-top: 1px; padding-top: 9px; border-top: 1px solid var(--line); }
+.zrv-ir-orientation-facts { display: grid; grid-template-columns: repeat(var(--orientation-fact-columns, 2), minmax(0, 1fr)); gap: 5px; margin: 0; }
+.zrv-ir-orientation-facts div { min-width: 0; padding: 6px 7px; border-radius: 8px; background: color-mix(in srgb, var(--surface-solid) 82%, var(--surface-2)); }
+.zrv-ir-orientation-facts dt { color: var(--zrv-hr-fine); font-size: 9.5px; font-weight: 650; line-height: 1.2; }
+.zrv-ir-orientation-facts dd { margin: 2px 0 0; overflow-wrap: anywhere; color: var(--text); font-size: 11px; font-weight: 680; line-height: 1.25; }
+.zrv-ir-orientation-sessions { display: grid; gap: 6px; }
+.zrv-ir-orientation-session { display: grid; grid-template-columns: minmax(150px, .9fr) minmax(0, 2.1fr); overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-solid); }
+.zrv-ir-orientation-session > header { display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-right: 1px solid var(--line); background: linear-gradient(105deg, color-mix(in srgb, var(--zrv-hr-accent) 8%, var(--surface-solid)), var(--surface-solid)); }
+.zrv-ir-orientation-session > header > span { display: inline-grid; flex: 0 0 26px; width: 26px; height: 26px; place-items: center; border-radius: 8px; background: color-mix(in srgb, var(--zrv-hr-accent) 14%, var(--surface-solid)); color: var(--zrv-hr-accent-text); font: 750 10px/1 ui-monospace, Menlo, monospace; }
+.zrv-ir-orientation-session > header div { min-width: 0; }
+.zrv-ir-orientation-session h4 { margin: 0; overflow-wrap: anywhere; color: var(--text); font-size: 12px; line-height: 1.2; }
+.zrv-ir-orientation-session > header p { margin: 2px 0 0; color: var(--zrv-hr-fine); font-size: 9.5px; }
+.zrv-ir-orientation-session .zrv-ir-orientation-facts { align-content: center; padding: 6px; }
+.zrv-ir-orientation-remark { display: grid; grid-column: 2; grid-template-columns: 70px minmax(0, 1fr); gap: 6px; margin: 0 6px 6px; padding: 5px 7px; border-radius: 7px; background: color-mix(in srgb, var(--amber) 8%, var(--surface-solid)); }
+.zrv-ir-orientation-remark span { color: var(--zrv-hr-fine); font-size: 9.5px; font-weight: 650; }
+.zrv-ir-orientation-remark p { margin: 0; overflow-wrap: anywhere; color: var(--text); font-size: 10.5px; line-height: 1.3; }
+.zrv-ir-orientation-empty { margin: 0; padding: 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--muted); font-size: 12.5px; text-align: center; }
+.zrv-ir-orientation-skeleton { display: grid; gap: 9px; }
+.zrv-ir-orientation-skeleton i { display: block; height: 78px; border-radius: 14px; background: linear-gradient(100deg, var(--surface-2) 25%, var(--surface-solid) 45%, var(--surface-2) 65%); background-size: 220% 100%; animation: zrv-ir-skeleton 1.2s ease-in-out infinite; }
+@keyframes zrv-ir-skeleton { to { background-position-x: -220%; } }
+
+@media (max-width: 640px) {
+  .zrv-ir-drawer--resizable .zrv-dialog { width: 100%; }
+  .zrv-ir-drawer--resizable .zrv-ir-drawer__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .zrv-ir-drawer__grip { display: none; }
+  .zrv-ir-orientation-session { grid-template-columns: 1fr; }
+  .zrv-ir-orientation-session > header { border-right: 0; border-bottom: 1px solid var(--line); }
+  .zrv-ir-orientation-session .zrv-ir-orientation-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .zrv-ir-orientation-remark { grid-column: 1; }
+}
+
+@media (max-width: 430px) {
+  .zrv-ir-drawer__hero--profile { align-items: flex-start; flex-wrap: wrap; }
+  .zrv-ir-drawer__hero--profile > .zrv-pill { margin-left: 51px; }
+  .zrv-ir-drawer--resizable .zrv-ir-drawer__facts,
+  .zrv-ir-orientation-facts { grid-template-columns: 1fr; }
+  .zrv-ir-orientation-remark { grid-template-columns: 1fr; gap: 3px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .zrv-ir *, .zrv-ir *::before, .zrv-ir *::after { animation: none !important; transition: none !important; }
@@ -361,3 +502,5 @@
   .zrv-ir-tablewrap { max-height: none; overflow: visible; }
   .zrv-ir-table { min-width: 0; }
 }
+.zrv-ir-offer-actions { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.zrv-ir-offer-actions .zrv-ir-btn { white-space: normal; }

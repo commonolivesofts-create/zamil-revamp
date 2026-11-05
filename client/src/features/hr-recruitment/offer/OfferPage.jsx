@@ -1,22 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { COMMON_TEXT, OFFER_TEXT as T } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
-import { arDate, businessToday, enDate, formatAmount } from '../shared/hrFormat.js'
+import { businessToday, enDate, formatAmount, isIsoDate } from '../shared/hrFormat.js'
 import { useRecruitmentForm } from '../shared/useRecruitmentForm.js'
+import { useRecruitmentSteps } from '../shared/useRecruitmentSteps.js'
+import { reviewCompletion, reviewField } from '../shared/recruitmentSteps.js'
 import { RecruitmentLoader } from '../shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog } from '../shared/components/RecruitmentDialogs.jsx'
 import { Orbit, Pill, RecruitmentShell, StepHead } from '../shared/components/RecruitmentShell.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
-import { HrField } from '../shared/components/RecruitmentInputs.jsx'
+import { HrField, Review, SearchableLookup } from '../shared/components/RecruitmentInputs.jsx'
 import {
-  BENEFIT_KEYS, STEP_BENEFITS, benefitType, blankOffer, englishDisplay, isOfferLocked, monthlyPackage,
-  offerDoneSteps, offerFormFromRecord, offerPayload, offerProgress, packageArcs, validateOffer,
+  OFFER_VALIDATION_FIELDS, PACKAGE_KEYS, TERMS_KEYS, benefitType, blankOffer, completeOfferTranslations, englishDisplay, isOfferLocked, monthlyPackage,
+  offerCandidateFields, offerFormFromRecord, offerPayload, packageArcs, offerStepErrors,
 } from './offerModel.js'
+
+import { OfferLetter } from './OfferLetter.jsx'
+import { printOfferLetter } from './printOfferLetter.js'
 
 const BASE = '/hr/recruitment/offer'
 const service = hrRecruitmentServices.offers
@@ -26,6 +31,12 @@ const BENEFIT_ICONS = Object.freeze({
 })
 const PACKAGE_TONES = Object.freeze(['zrv-hr-is-basic', 'zrv-hr-is-housing', 'zrv-hr-is-transport'])
 const PACKAGE_CIRCUMFERENCE = 289.03 // 2π × 46
+// Keep Oracle IDs in the saved value; show the legacy form's business-unit labels.
+const BUSINESS_UNITS = Object.freeze([
+  Object.freeze({ code: '300000002689294', name: 'FPP BU' }),
+  Object.freeze({ code: '300000002689307', name: 'IPP BU' }),
+])
+const businessUnitName = (code) => BUSINESS_UNITS.find((unit) => unit.code === code)?.name ?? COMMON_TEXT.dash
 
 export default function OfferPage() {
   return (
@@ -37,15 +48,23 @@ export default function OfferPage() {
 
 function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord }) {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const permissions = usePermissions()
   const today = businessToday()
   const currency = 'SAR'
+  const requestedAssessment = searchParams.get('assessmentNumber')?.trim().toLowerCase()
+  const sourceCandidate = !savedRecord && requestedAssessment
+    ? lookups.candidates.find((candidate) => candidate.intNo.toLowerCase() === requestedAssessment)
+    : null
   const editor = useRecruitmentForm({
     basePath: BASE, idKey: 'offerId', record: savedRecord,
-    initialForm: savedRecord ? offerFormFromRecord(savedRecord) : blankOffer(today),
+    stepCount: 3, validationFields: OFFER_VALIDATION_FIELDS,
+    initialForm: savedRecord ? offerFormFromRecord(savedRecord) : { ...blankOffer(today), ...(sourceCandidate ? offerCandidateFields(sourceCandidate) : {}) },
   })
   const { form, record, step, setStep, patch } = editor
-  const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [acceptanceError, setAcceptanceError] = useState('')
+  const [acceptanceReasonError, setAcceptanceReasonError] = useState('')
   const [focusRow, setFocusRow] = useState(null)
   const [language, setLanguage] = useState('bi')
   const [dialog, setDialog] = useState(null)
@@ -56,9 +75,31 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
   const locked = isOfferLocked(record?.status) || !canSave
   const status = record?.status ?? 'INCOMPLETE'
   const { parts, monthly, yearly } = monthlyPackage(form.benefits)
-  const doneSteps = offerDoneSteps(form)
-  const progress = offerProgress(form)
+  const stepErrors = offerStepErrors(form)
+  Object.entries(editor.fieldErrors).forEach(([key, message]) => {
+    const field = Object.values(OFFER_VALIDATION_FIELDS).find((definition) => definition.key === key)
+    stepErrors[field?.step ?? 0][key] = message
+  })
+  const navigation = useRecruitmentSteps({ step, setStep, errorsByStep: stepErrors, reject: editor.reject, readOnly: locked })
+  const doneSteps = navigation.doneSteps
+  const errors = { ...navigation.errors, ...editor.fieldErrors }
+  const allErrors = { ...Object.assign({}, ...stepErrors), ...editor.fieldErrors }
   const conversionTimers = useRef({})
+  const conversionRevision = useRef(0)
+  const printRequested = searchParams.get('print') === '1'
+  useEffect(() => {
+    if (!savedRecord?.offerId || !printRequested) return undefined
+    let cancelled = false
+    printOfferLetter(document.querySelector('.zrv-hr--offer .zrv-offer-letter'), () => cancelled).then((printed) => {
+      if (!printed || cancelled) return
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current)
+        next.delete('print')
+        return next
+      }, { replace: true })
+    })
+    return () => { cancelled = true }
+  }, [savedRecord?.offerId, printRequested, setSearchParams])
   const lookupNotice = lookupStatus === 'loading'
     ? <p className="zrv-admin-state" role="status">Loading offer options…</p>
     : lookupStatus === 'error' || lookups.lookupErrors?.length
@@ -70,20 +111,20 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
 
   const set = (key) => (eventOrValue) => {
     editor.set(key)(eventOrValue)
-    setErrors((current) => ({ ...current, [key]: undefined }))
   }
   const setRow = (key, changes) => {
     patch((current) => ({ benefits: { ...current.benefits, [key]: { ...current.benefits[key], ...changes } } }))
-    setErrors((current) => ({ ...current, [key]: undefined }))
   }
   const convertArabic = (key, value) => {
     clearTimeout(conversionTimers.current[key])
     if (!value) return
+    const revision = conversionRevision.current
     conversionTimers.current[key] = setTimeout(async () => {
       try {
         const arabic = key === 'basic'
           ? await service.numberToArabic(Number(String(value).replaceAll(',', '')))
           : await service.hijriDate(value)
+        if (revision !== conversionRevision.current) return
         patch((current) => current.benefits[key]?.linked && current.benefits[key]?.en === value
           ? { benefits: { ...current.benefits, [key]: { ...current.benefits[key], ar: arabic } } }
           : {})
@@ -92,7 +133,7 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
       }
     }, 250)
   }
-  useEffect(() => () => Object.values(conversionTimers.current).forEach(clearTimeout), [])
+  useEffect(() => () => { conversionRevision.current += 1; Object.values(conversionTimers.current).forEach(clearTimeout) }, [])
   const changeBenefitEnglish = (key, value) => {
     const linked = form.benefits[key].linked
     setRow(key, linked ? { en: value, ar: '' } : { en: value })
@@ -104,11 +145,20 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
       else setRow(key, { linked: false })
     }
   }
+  const chooseCandidate = (candidate) => {
+    patch({ ...offerCandidateFields(candidate), ...(form.intNo === candidate.intNo ? {} : { candidateNameAr: '' }) })
+  }
   const candidateChanged = (value) => {
     set('candidateNameEn')(value)
-    const candidate = lookups.candidates.find((item) => item.candidateName.toLowerCase() === value.trim().toLowerCase())
-    if (candidate) patch({ position: candidate.positionName, intNo: candidate.intNo, reqNo: candidate.requisitionNo })
-    else patch({ position: '', intNo: '', reqNo: '' })
+    const matches = lookups.candidates.filter((item) => item.candidateName.toLowerCase() === value.trim().toLowerCase())
+    const candidate = matches.find((item) => item.intNo === form.intNo) || (matches.length === 1 ? matches[0] : null)
+    if (candidate) chooseCandidate(candidate)
+    else patch({ candidateNameAr: '', position: '', intNo: '', reqNo: '' })
+  }
+  const assessmentChanged = (value) => {
+    const candidate = lookups.candidates.find((item) => item.intNo.toLowerCase() === value.trim().toLowerCase())
+    if (candidate) chooseCandidate(candidate)
+    else patch({ candidateNameEn: '', candidateNameAr: '', position: '', intNo: value, reqNo: '' })
   }
   const chooseTitle = (value) => {
     const title = lookups.titles.find((item) => item.meaning === value)
@@ -131,27 +181,46 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
   }
 
   const saveRecord = async ({ saved }) => {
-    const result = await service.save(editor.recordId, offerPayload(form))
+    conversionRevision.current += 1
+    Object.values(conversionTimers.current).forEach(clearTimeout)
+    const prepared = await completeOfferTranslations(form, service)
+    const result = await service.save(editor.recordId, offerPayload(prepared))
     saved(result)
     return result
   }
-  const save = () => {
+  const save = async () => {
+    if (saving || editor.pending) return
     if (!canSave) return editor.showProblem(COMMON_TEXT.readOnly)
-    const result = validateOffer(form)
-    setErrors(result.errors)
-    if (!result.valid) {
-      const missing = Object.values(result.errors)
-      editor.reject(result.firstStep, `${COMMON_TEXT.stillNeeded} ${missing.join(', ')}`)
-      return
+    if (!navigation.validateAll()) return
+    setSaving(true)
+    try {
+      const outcome = await editor.perform(saveRecord, { success: (result) => `${T.saved(result.offerNumber || result.offerId)} Status: ${T.status[result.status] || result.status}.` })
+      if (outcome.status === 'success') editor.resetToSaved(outcome.value, offerFormFromRecord(outcome.value))
+      return outcome
+    } finally {
+      setSaving(false)
     }
-    editor.perform(saveRecord, { success: (result) => T.saved(result.offerNumber || result.offerId) })
   }
   const recordAcceptance = () => {
-    if (!record || !record.canRecordAcceptance || editor.dirty || !acceptanceDate) return
+    if (!record?.canRecordAcceptance || editor.dirty || editor.pending) return
+    if (!isIsoDate(acceptanceDate) || acceptanceDate < record.offerDate || acceptanceDate > today) {
+      setAcceptanceError('Enter the actual acceptance date between the offer date and today.')
+      return
+    }
+    setAcceptanceError('')
+    setAcceptanceReasonError('')
     editor.perform(() => service.accept(record.offerId, acceptanceDate, acceptanceReason), {
       success: 'Offer acceptance recorded. The linked requisition is now Offer Accepted.',
     }).then((outcome) => {
       if (outcome.status === 'success') editor.resetToSaved(outcome.value, offerFormFromRecord(outcome.value))
+      else if (outcome.error?.code === 'VALIDATION_ERROR') {
+        const issues = outcome.error.details ?? []
+        const dateInvalid = issues.some((issue) => issue.field === 'acceptedDate')
+        const reasonInvalid = issues.some((issue) => issue.field === 'reason')
+        if (dateInvalid) setAcceptanceError('Enter a valid actual acceptance date.')
+        if (reasonInvalid) setAcceptanceReasonError('Use a single line of text, up to 1000 characters.')
+        if (dateInvalid || reasonInvalid) editor.dismiss()
+      }
     })
   }
   const deleteRecord = () => editor.perform(async () => {
@@ -168,6 +237,7 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
     const type = benefitType(key)
     const row = form.benefits[key]
     const error = errors[key]
+    const arabicError = errors[`${key}Ar`]
     const enId = `of-${key}-en`
     const lookupKey = ({ housing: 'housing', transport: 'transport', vacation: 'vacation', ticket: 'ticket', medical: 'medical', contract: 'contract' })[key]
     const picks = (lookups.allowances[lookupKey] ?? []).map((item) => [item.meaning, item.description])
@@ -176,57 +246,89 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
         onFocus={() => setFocusRow(key)} onBlur={() => setFocusRow(null)}>
         <div className="zrv-hr-benefit__h">
           <span className="zrv-hr-bubble"><OrvexaIcon name={BENEFIT_ICONS[key]} size={17} /></span>
-          <b>{text.en}</b><span className="zrv-hr-benefit__ar" lang="ar" dir="rtl">{text.ar}</span>
+          <b>{text.en}{key === 'start' && <i className="zrv-hr-req" aria-hidden="true"> *</i>}</b><span className="zrv-hr-benefit__ar" lang="ar" dir="rtl">{text.ar}</span>
           <span className="zrv-hr-benefit__ok" aria-hidden="true"><OrvexaIcon name="check" size={12} /></span>
         </div>
         <div className="zrv-hr-pair">
           <div className="zrv-hr-pair__in">
             <label className="zrv-hr-sr" htmlFor={enId}>{T.labels.english(text.en)}</label>
-            <input {...fieldProps(enId, { error })} className={`ux-input zrv-hr-input${type === 'money' ? ' has-suffix' : ''}`}
-              type={type === 'date' ? 'date' : 'text'} inputMode={type === 'money' ? 'decimal' : undefined} maxLength={type === 'date' ? undefined : 500}
-              aria-required={key === 'basic' || key === 'start' ? true : undefined}
-              placeholder={type === 'money' ? T.placeholders.money : type === 'date' ? undefined : T.placeholders.text} value={row.en}
-              onChange={(event) => changeBenefitEnglish(key, event.target.value)} />
-            {type === 'money' && <span className="zrv-hr-pair__suffix">{T.perMonth(currency)}</span>}
+            {picks.length ? <SearchableLookup id={enId} value={row.en} customValue={row.en} error={error}
+              options={Array.from(new Map(picks.map(([en, ar]) => [en, { code: en, name: en, description: ar }])).values())}
+              onChange={(option) => setRow(key, { en: option.code, ar: option.description, linked: true })}
+              onInputChange={(value) => changeBenefitEnglish(key, value)} placeholder={`Search ${text.en.toLowerCase()}`} maxLength={500} />
+              : <input {...fieldProps(enId, { error })} className={`ux-input zrv-hr-input${type === 'money' ? ' has-suffix' : ''}`}
+                  type={type === 'date' ? 'date' : 'text'} inputMode={type === 'money' ? 'decimal' : undefined} maxLength={type === 'date' ? undefined : 500}
+                  aria-required={key === 'start' ? true : undefined}
+                  placeholder={type === 'money' ? T.placeholders.money : type === 'date' ? undefined : T.placeholders.text} value={row.en}
+                  onChange={(event) => changeBenefitEnglish(key, event.target.value)} />}
+            {type === 'money' && !picks.length && <span className="zrv-hr-pair__suffix">{T.perMonth(currency)}</span>}
           </div>
           <div className="zrv-hr-pair__in" dir="rtl">
             <label className="zrv-hr-sr" htmlFor={`of-${key}-ar`}>{T.labels.arabic(text.en)}</label>
-            <input id={`of-${key}-ar`} className="ux-input zrv-hr-input" dir="rtl" lang="ar" placeholder={T.placeholders.arabic} value={row.ar} maxLength={key === 'basic' ? 1000 : key === 'start' ? 100 : 500}
+            <input {...fieldProps(`of-${key}-ar`, { error: arabicError })} className="ux-input zrv-hr-input" dir="rtl" lang="ar" placeholder={T.placeholders.arabic} value={row.ar} maxLength={key === 'basic' ? 1000 : key === 'start' ? 100 : 500}
               onChange={(event) => setRow(key, { ar: event.target.value, linked: false })} />
             <button type="button" className={`zrv-hr-auto${row.linked ? '' : ' zrv-hr-is-off'}`} aria-pressed={row.linked} title={T.auto.title} aria-label={`${T.auto.title}: ${text.en}`}
               onClick={() => setArabicLinked(key, row)}>{row.linked ? T.auto.on : T.auto.off}</button>
           </div>
         </div>
         {error && <small className="zrv-auth-field-error" id={`${enId}-error`}>{error}</small>}
-        {picks.length > 0 && key !== 'probation' && (
-          <div className="zrv-hr-picks">{picks.map(([en, ar], pickIndex) => <button key={`${en}-${pickIndex}`} type="button" onClick={() => setRow(key, { en, ar, linked: true })}>{en}</button>)}</div>
-        )}
+        {arabicError && <small className="zrv-auth-field-error" id={`of-${key}-ar-error`}>{arabicError}</small>}
+
       </article>
     )
   }
 
-  const placeholder = (value, fallback) => (value ? value : <span className="zrv-hr-paper__ph">{fallback}</span>)
   // The primary button saves, so the toolbar has no second Save.
   const tools = [
     ...(canDelete ? [{ icon: 'trash-2', label: T.deleteAction, onClick: () => setDialog('delete'), disabled: editor.pending }] : []),
-    { icon: 'printer', label: COMMON_TEXT.print, onClick: () => window.print() },
+    { icon: 'printer', label: COMMON_TEXT.print, onClick: () => printOfferLetter(document.querySelector('.zrv-hr--offer .zrv-offer-letter')) },
     { icon: 'chart-column', label: COMMON_TEXT.report, onClick: () => leave(`${BASE}/report`) },
     { icon: 'file-plus', label: T.report.newOffer, onClick: () => leave(BASE) },
     { icon: 'house', label: COMMON_TEXT.home, onClick: () => navigate('/dashboard') },
   ]
-  const steps = T.tabNames.map((name, index) => [name, doneSteps[index] ? T.tabHints.done : T.tabHints.open])
+  const steps = T.tabNames.map((name, index) => [name, index === 2 ? navigation.firstInvalid < 0 ? 'Ready to save' : 'Check required details' : doneSteps[index] ? T.tabHints.done : T.tabHints.open])
+  const saveLabel = saving ? 'Saving...' : record ? 'Save changes' : T.primary
+  const candidateOptions = lookups.candidates.map((candidate) => ({
+    code: candidate.intNo, name: candidate.candidateName,
+    description: [candidate.positionName, candidate.intNo, candidate.requisitionNo].filter(Boolean).join(' / '),
+    searchText: [candidate.positionName, candidate.intNo, candidate.requisitionNo].filter(Boolean).join(' '), candidate,
+  }))
+  const arabicReview = (label, value, error) => ({ ...reviewField(label, value, false, error), lang: 'ar', dir: 'rtl' })
+  const reviewSections = [
+    { title: 'Offer and candidate details', rows: [
+      reviewField(T.labels.date, enDate(form.offerDate), true, allErrors.offerDate),
+      reviewField(T.labels.division, businessUnitName(form.division), true, allErrors.division),
+      reviewField(T.labels.salutation, form.salutation, false, allErrors.salutation),
+      arabicReview('Title (Arabic)', form.salutationAr, allErrors.salutationAr),
+      reviewField(T.labels.nameEn, form.candidateNameEn, true, allErrors.candidateNameEn),
+      arabicReview(T.labels.nameAr, form.candidateNameAr, allErrors.candidateNameAr),
+      reviewField(T.labels.position, form.position, true, allErrors.position),
+      reviewField(T.labels.intNo, form.intNo, true, allErrors.intNo),
+      reviewField(T.labels.reqNo, form.reqNo, false, allErrors.reqNo),
+    ] },
+    ...[['Package', PACKAGE_KEYS], ['Terms and conditions', TERMS_KEYS]].map(([title, keys]) => ({ title, rows: keys.flatMap((key) => [
+      reviewField(T.labels.english(T.benefits[key].en), englishDisplay(key, form.benefits[key].en, currency), key === 'start', allErrors[key]),
+      arabicReview(T.labels.arabic(T.benefits[key].en), form.benefits[key].ar, allErrors[`${key}Ar`]),
+    ]) })),
+    { title: 'Additional details', rows: [reviewField(T.labels.applicant, form.applicant, false, allErrors.applicant), reviewField(T.labels.comments, form.comments, false, allErrors.comments), reviewField('Actual acceptance date', enDate(record?.acceptedDate))] },
+  ]
+  const reviewProgress = reviewCompletion(reviewSections)
 
   return (
     <>
       <RecruitmentShell
         current="offer" title={T.title}
         flowStatus={record ? [record.offerId, T.status[record.status]].filter(Boolean).join(' · ') : null}
-        tools={tools} primary={{ label: T.primary, icon: 'save', onClick: save, disabled: !canSave }}
-        feedback={editor.feedback} onDismissFeedback={editor.dismiss} lookupNotice={lookupNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
-        steps={steps} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.final} onFinal={save}
+        tools={tools} primary={{ label: saveLabel, icon: 'save', onClick: save, disabled: !canSave }}
+        feedback={editor.feedback} feedbackMode="toast" pendingMessage={saving ? "Saving employment offer" : editor.pending ? "Updating employment offer" : null} onDismissFeedback={editor.dismiss} lookupNotice={lookupNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
+        steps={steps} step={step} onStep={setStep} doneSteps={doneSteps} lockedSteps={navigation.lockedSteps} onContinue={navigation.validateStep} finalLabel={saveLabel} onFinal={save}
+        banner={!locked ? <><p className="zrv-hr-draft-note"><OrvexaIcon name="info" size={17} /><span>Complete the required details and select <strong>{record ? 'Save changes' : T.primary}</strong> to mark this offer Completed.</span></p>
+          {sourceCandidate && <p className="zrv-hr-draft-note"><OrvexaIcon name="info" size={17} /><span>Candidate, position and requisition have been filled from assessment <strong>{sourceCandidate.intNo}</strong>. Complete the offer details below.</span></p>}
+          {requestedAssessment && !record && !sourceCandidate && <p className="zrv-hr-draft-note"><OrvexaIcon name="info" size={17} /><span>This assessment is no longer in the approved, passed candidate list. Choose an available candidate below.</span></p>}
+        </> : null}
         side={<>
           <div className="zrv-hr-side__h">
-            <span className="zrv-hr-side__t"><span className="zrv-hr-eyebrow">{T.letter.side}</span><Pill tone="warn">{T.status[status] ?? status}</Pill></span>
+            <span className="zrv-hr-side__t"><span className="zrv-hr-eyebrow">{T.letter.side}</span><Pill tone={status === 'INCOMPLETE' ? 'warn' : 'ok'}>{T.status[status] ?? status}</Pill></span>
             <div className="zrv-hr-seg" role="group" aria-label={T.letter.languages} style={{ '--li': T.languages.findIndex(([value]) => value === language) }}>
               <span className="zrv-hr-seg__pill" aria-hidden="true" />
               {T.languages.map(([value, label]) => (
@@ -234,40 +336,7 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
               ))}
             </div>
           </div>
-          <article className="zrv-hr-paper" data-lang={language} aria-label={T.letter.label}>
-            <div className="zrv-hr-paper__top">
-              <div className="zrv-hr-paper__brand">{T.letter.brand}<small>{T.letter.kind}{record?.offerId ? ` · ${record.offerId}` : ''}</small></div>
-              <h4><span data-l="en">{T.letter.title}</span><span data-l="ar" dir="rtl" lang="ar">{T.letterAr.title}</span></h4>
-            </div>
-            <p data-l="en">{T.letter.date} {placeholder(enDate(form.offerDate), T.letter.placeholders.date)}</p>
-            <p data-l="ar" dir="rtl" lang="ar">{T.letterAr.date} {placeholder(arDate(form.offerDate), T.letterAr.placeholders.date)}</p>
-            <p data-l="en">{T.letter.to} {form.salutation} {placeholder(form.candidateNameEn.trim(), T.letter.placeholders.name)}</p>
-            <p data-l="ar" dir="rtl" lang="ar">{T.letterAr.to} {form.salutationAr} {placeholder(form.candidateNameAr.trim(), T.letterAr.placeholders.name)}</p>
-            <p data-l="en">{T.letter.offer} <b>{placeholder(form.position.trim(), T.letter.placeholders.position)}</b> {T.letter.terms}</p>
-            <p data-l="ar" dir="rtl" lang="ar">{T.letterAr.offer} <b>{placeholder(form.position.trim(), T.letterAr.placeholders.position)}</b> {T.letterAr.terms}</p>
-            <table className="zrv-hr-paper__tbl">
-              <thead>
-                <tr>
-                  <th scope="col" data-l="en">{T.letter.number}</th><th scope="col" data-l="en">{T.letter.description}</th><th scope="col" data-l="en">{T.letter.benefits}</th>
-                  <th scope="col" dir="rtl" lang="ar" data-l="ar">{T.letterAr.benefits}</th><th scope="col" dir="rtl" lang="ar" data-l="ar">{T.letterAr.description}</th><th scope="col" dir="rtl" lang="ar" data-l="ar">{T.letterAr.number}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {BENEFIT_KEYS.map((key, index) => (
-                  <tr key={key} className={focusRow === key ? 'zrv-hr-is-hl' : undefined}>
-                    <td className="zrv-hr-is-n" data-l="en">{index + 1}</td><td data-l="en">{T.benefits[key].en}</td>
-                    <td data-l="en">{placeholder(englishDisplay(key, form.benefits[key].en, currency), COMMON_TEXT.dash)}</td>
-                    <td dir="rtl" lang="ar" data-l="ar">{placeholder(form.benefits[key].ar, COMMON_TEXT.dash)}</td>
-                    <td dir="rtl" lang="ar" data-l="ar">{T.benefits[key].ar}</td>
-                    <td className="zrv-hr-is-n" dir="rtl" lang="ar" data-l="ar">{(index + 1).toLocaleString('ar-EG')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p data-l="en">{T.acceptEn}</p>
-            <p data-l="ar" dir="rtl" lang="ar">{T.acceptAr}</p>
-            {form.comments.trim() && <p><b>{T.letter.comments}</b> {form.comments}</p>}
-          </article>
+          <OfferLetter form={form} language={language} focusRow={focusRow} />
           <section className="zrv-hr-pkg zrv-hr-card">
             <svg width="104" height="104" viewBox="0 0 120 120" role="img" aria-label={T.package.label(currency, formatAmount(monthly))}>
               <circle cx="60" cy="60" r="46" fill="none" className="zrv-hr-pkg__track" strokeWidth="12" />
@@ -284,71 +353,66 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
               </div>
             </div>
           </section>
-          <Orbit done={progress.done} total={progress.total} hint={doneSteps.every(Boolean) ? T.orbitReady : COMMON_TEXT.stillOpen(T.tabNames.filter((_, index) => !doneSteps[index]))} />
+          <Orbit done={reviewProgress.complete} total={reviewProgress.total} hint={doneSteps.every(Boolean) ? T.orbitReady : COMMON_TEXT.stillOpen(T.tabNames.filter((_, index) => !doneSteps[index]))} />
         </>}
       >
         {step === 0 && <>
           <StepHead {...T.heads[0]} />
-          <p className="zrv-hr-sentence">
-            <label htmlFor="of-position">{T.sentence.before}</label>
-            <input {...fieldProps('of-position', { error: errors.position })} className="zrv-hr-sentence__pos" placeholder={T.placeholders.position}
-              value={form.position} onChange={set('position')} size={Math.max(10, (form.position || T.placeholders.position).length + 1)} aria-required="true" maxLength={200} />
-            {T.sentence.after}
-          </p>
-          {errors.position && <small className="zrv-auth-field-error" id="of-position-error">{errors.position}</small>}
-          <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt">
+          <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt zrv-hr-offer-candidate-grid">
+            <HrField id="of-title" label={T.labels.salutation} error={errors.salutation}>
+              <SearchableLookup id="of-title" value={form.salutation} customValue={form.salutation} options={lookups.titles.map((item) => ({ code: item.meaning, name: item.meaning, description: item.description }))}
+                onChange={(option) => chooseTitle(option.code)} onClear={() => chooseTitle('')} placeholder="Choose a title" error={errors.salutation} />
+            </HrField>
+            <HrField id="of-name" label={T.labels.nameEn} required error={errors.candidateNameEn}>
+              <SearchableLookup id="of-name" value={candidateOptions.find((option) => option.code === form.intNo && option.name === form.candidateNameEn)?.code || ''} customValue={form.candidateNameEn}
+                options={candidateOptions} onChange={(option) => chooseCandidate(option.candidate)} onInputChange={candidateChanged}
+                placeholder="Search and select an approved candidate" required error={errors.candidateNameEn}
+                describedBy="of-candidate-autofill" />
+            </HrField>
+            <HrField id="of-name-ar" label={T.labels.nameAr} error={errors.candidateNameAr}>
+              <input {...fieldProps('of-name-ar', { error: errors.candidateNameAr })} className="ux-input zrv-hr-input" dir="rtl" lang="ar" value={form.candidateNameAr} onChange={set('candidateNameAr')} placeholder={T.placeholders.nameAr} maxLength={200} />
+            </HrField>
+            <HrField id="of-position" label={T.labels.position} required error={errors.position}>
+              <input {...fieldProps('of-position', { error: errors.position })} className="ux-input zrv-hr-input" placeholder="Filled from selected candidate"
+                value={form.position} readOnly={lookups.candidates.some((candidate) => candidate.intNo === form.intNo)} aria-required="true" maxLength={200} />
+            </HrField>
             <HrField id="of-date" label={T.labels.date} required error={errors.offerDate}>
               <input {...fieldProps('of-date', { error: errors.offerDate })} type="date" className="ux-input zrv-hr-input" value={form.offerDate} onChange={set('offerDate')} aria-required="true" />
             </HrField>
             <HrField id="of-division" label={T.labels.division} required error={errors.division}>
-              <select {...fieldProps('of-division', { error: errors.division })} className="ux-input zrv-hr-input" value={form.division} onChange={set('division')} aria-required="true">
-                <option value="">Choose a business unit</option>
-                {form.division && !lookups.businessUnits.includes(form.division) && <option value={form.division}>{form.division}</option>}
-                {lookups.businessUnits.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
+              <SearchableLookup id="of-division" value={form.division} options={BUSINESS_UNITS}
+                onChange={(option) => set('division')(option.code)} placeholder="Choose FPP BU or IPP BU" required error={errors.division} />
             </HrField>
-            <HrField id="of-title" label={T.labels.salutation}>
-              <select id="of-title" className="ux-input zrv-hr-input" value={form.salutation} onChange={(event) => chooseTitle(event.target.value)}>
-                <option value="">Choose a title</option>
-                {form.salutation && !lookups.titles.some((item) => item.meaning === form.salutation) && <option value={form.salutation}>{form.salutation}</option>}
-                {lookups.titles.map((item) => <option key={item.meaning} value={item.meaning}>{item.meaning}</option>)}
-              </select>
+            <HrField id="of-intno" label={T.labels.intNo} required error={errors.intNo}>
+              <SearchableLookup id="of-intno" value={form.intNo} customValue={form.intNo} error={errors.intNo} required maxLength={100}
+                options={candidateOptions.map((option) => ({ ...option, name: option.code, description: `${option.name} / ${option.candidate.positionName}` }))}
+                onChange={(option) => chooseCandidate(option.candidate)} onInputChange={assessmentChanged} placeholder="Filled from selected candidate" />
             </HrField>
-            <HrField id="of-name" label={T.labels.nameEn} required error={errors.candidateNameEn}>
-              <input {...fieldProps('of-name', { error: errors.candidateNameEn })} className="ux-input zrv-hr-input" value={form.candidateNameEn} list="of-candidate-options" onChange={(event) => candidateChanged(event.target.value)}
-                placeholder={T.placeholders.nameEn} aria-required="true" maxLength={200} />
-              <datalist id="of-candidate-options">{lookups.candidates.map((item) => <option key={item.intNo} value={item.candidateName} label={`${item.positionName} · ${item.intNo}`} />)}</datalist>
+            <HrField id="of-reqno" label={T.labels.reqNo} error={errors.reqNo}>
+              <input {...fieldProps('of-reqno', { error: errors.reqNo })} className="ux-input zrv-hr-input" value={form.reqNo} readOnly maxLength={100}
+                placeholder="Filled from selected candidate" />
             </HrField>
-            <HrField id="of-name-ar" label={T.labels.nameAr}>
-              <input id="of-name-ar" className="ux-input zrv-hr-input" dir="rtl" lang="ar" value={form.candidateNameAr} onChange={set('candidateNameAr')} placeholder={T.placeholders.nameAr} maxLength={200} />
+          </div>
+          <small className="zrv-hr-offer-candidate-hint" id="of-candidate-autofill">Selecting a candidate fills their position, assessment number and requisition number.</small>
+          <div className="zrv-hr-grid zrv-hr-is-3 zrv-hr-mt">
+            <HrField id="of-applicant" label={T.labels.applicant} error={errors.applicant}>
+              <input {...fieldProps('of-applicant', { error: errors.applicant })} className="ux-input zrv-hr-input" value={form.applicant} onChange={set('applicant')} maxLength={200} />
+            </HrField>
+            <HrField id="of-com" label={T.labels.comments} error={errors.comments} wide>
+              <textarea {...fieldProps('of-com', { error: errors.comments })} className="ux-textarea zrv-hr-input" value={form.comments} onChange={set('comments')} placeholder={T.placeholders.comments} maxLength={4000} />
             </HrField>
           </div>
         </>}
         {step === 1 && <>
           <StepHead {...T.heads[1]} />
-          <div className="zrv-hr-benefits">{STEP_BENEFITS[1].map(benefit)}</div>
+          <h3 className="zrv-hr-subh">Compensation package</h3>
+          <div className="zrv-hr-benefits">{PACKAGE_KEYS.map(benefit)}</div>
+          <h3 className="zrv-hr-subh zrv-hr-mt">Employment terms and benefits</h3>
+          <div className="zrv-hr-benefits">{TERMS_KEYS.map(benefit)}</div>
         </>}
         {step === 2 && <>
-          <StepHead {...T.heads[2]} />
-          <div className="zrv-hr-benefits">{STEP_BENEFITS[2].map(benefit)}</div>
-        </>}
-        {step === 3 && <>
-          <StepHead {...T.heads[3]} />
-          <div className="zrv-hr-grid zrv-hr-is-3 zrv-hr-mt">
-            <HrField id="of-intno" label={T.labels.intNo} required error={errors.intNo}>
-              <input {...fieldProps('of-intno', { error: errors.intNo })} className="ux-input zrv-hr-input" value={form.intNo} list="of-interview-options" onChange={set('intNo')} maxLength={100} aria-required="true" />
-              <datalist id="of-interview-options">{lookups.candidates.map((item) => <option key={item.intNo} value={item.intNo}>{item.candidateName} · {item.positionName}</option>)}</datalist>
-            </HrField>
-            <HrField id="of-reqno" label={T.labels.reqNo}>
-              <input id="of-reqno" className="ux-input zrv-hr-input" value={form.reqNo} onChange={set('reqNo')} maxLength={100} />
-            </HrField>
-            <HrField id="of-applicant" label={T.labels.applicant}>
-              <input id="of-applicant" className="ux-input zrv-hr-input" value={form.applicant} onChange={set('applicant')} maxLength={200} />
-            </HrField>
-            <HrField id="of-com" label={T.labels.comments} wide>
-              <textarea id="of-com" className="ux-textarea zrv-hr-input" value={form.comments} onChange={set('comments')} placeholder={T.placeholders.comments} maxLength={4000} />
-            </HrField>
-          </div>
+          <StepHead title="Review employment offer" />
+          <Review sections={reviewSections} {...reviewProgress} formTitle="Employment Offer" reference={record?.offerNumber || record?.offerId} approvalStatus={T.status[status] || status} statusLabel="Offer status" />
           {record?.status === 'ACCEPTED' ? (
             <div className="zrv-hr-offer-acceptance" role="status">
               <b>Offer Accepted</b>
@@ -359,13 +423,13 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
               <b>Record offer acceptance</b>
               <p>Enter the date the candidate actually accepted this offer. This updates the linked requisition's recruitment status.</p>
               <div className="zrv-hr-offer-acceptance__controls">
-                <HrField id="of-accepted-date" label="Actual acceptance date" required>
-                  <input id="of-accepted-date" type="date" className="ux-input zrv-hr-input" value={acceptanceDate} min={record.offerDate} max={today} onChange={(event) => setAcceptanceDate(event.target.value)} aria-required="true" />
+                <HrField id="of-accepted-date" label="Actual acceptance date" required error={acceptanceError}>
+                  <input {...fieldProps('of-accepted-date', { error: acceptanceError })} type="date" className="ux-input zrv-hr-input" value={acceptanceDate} min={record.offerDate} max={today} onChange={(event) => { setAcceptanceDate(event.target.value); setAcceptanceError('') }} aria-required="true" />
                 </HrField>
-                <HrField id="of-acceptance-reason" label="Reason (optional)">
-                  <input id="of-acceptance-reason" className="ux-input zrv-hr-input" value={acceptanceReason} maxLength={1000} onChange={(event) => setAcceptanceReason(event.target.value)} />
+                <HrField id="of-acceptance-reason" label="Reason (optional)" error={acceptanceReasonError}>
+                  <input {...fieldProps('of-acceptance-reason', { error: acceptanceReasonError })} className="ux-input zrv-hr-input" value={acceptanceReason} maxLength={1000} onChange={(event) => { setAcceptanceReason(event.target.value); setAcceptanceReasonError('') }} />
                 </HrField>
-                <button type="button" className="btn-primary" onClick={recordAcceptance} disabled={editor.pending || editor.dirty || !record.reqNo || !acceptanceDate}>Record acceptance</button>
+                <button type="button" className="btn-primary zrv-hr-btn" onClick={recordAcceptance} disabled={editor.pending || editor.dirty || !record.reqNo}><span className="zrv-hr-btn__label">Record acceptance</span></button>
               </div>
               {editor.dirty && <small>Save your changes before recording acceptance.</small>}
               {!record.reqNo && <small>Link this offer to a requisition and save it first.</small>}

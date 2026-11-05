@@ -4,8 +4,11 @@
 const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
-export const isIsoDate = (value) => typeof value === 'string' && ISO_DATE.test(value) &&
-  !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
+export const isIsoDate = (value) => {
+  if (typeof value !== 'string' || !ISO_DATE.test(value)) return false
+  const timestamp = Date.parse(`${value}T00:00:00Z`)
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value
+}
 
 // Today's calendar date in KSA business time.
 export function businessToday(now = new Date()) {

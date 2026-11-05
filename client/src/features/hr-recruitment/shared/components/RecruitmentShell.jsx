@@ -105,49 +105,51 @@ export function RecruitmentShell({
   return (
     <div className={`zrv-hr zrv-hr--${current}${compact ? ' zrv-hr--compact' : ''}`} aria-busy={pending || undefined} inert={pending && pendingMessage ? true : undefined}>
       {pending && pendingMessage && <RecruitmentPending message={pendingMessage} />}
-      <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} breadcrumb={breadcrumb} />
-      {flow && <FlowNav current={current} status={flowStatus} />}
+      <div className="zrv-hr-form-header">
+        <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} breadcrumb={breadcrumb} />
+        {flow && <FlowNav current={current} status={flowStatus} />}
 
-      <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>
-        <div className="zrv-hr-tools">
-          {tools.map((tool) => (
-            <button key={tool.label} type="button" onClick={tool.onClick} disabled={tool.disabled} title={tool.label}>
-              <OrvexaIcon name={tool.icon} size={17} /><span>{tool.label}</span>
+        <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>
+          <div className="zrv-hr-tools">
+            {tools.map((tool) => (
+              <button key={tool.label} type="button" onClick={tool.onClick} disabled={tool.disabled} title={tool.label}>
+                <OrvexaIcon name={tool.icon} size={17} /><span>{tool.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="zrv-hr-toolbar__actions">
+          {primary && (
+            <button type="button" className="btn-primary zrv-hr-btn" onClick={primary.onClick} disabled={locked || pending || primary.disabled}>
+              <OrvexaIcon name={primary.icon || 'check'} size={16} /> <span className="zrv-hr-btn__label">{primary.label}</span>
             </button>
-          ))}
+          )}
+          {secondaryAction && (
+            <button type="button" className="btn-secondary zrv-hr-btn" onClick={secondaryAction.onClick} disabled={locked || pending || secondaryAction.disabled}>
+              <OrvexaIcon name={secondaryAction.icon || 'send'} size={16} /><span>{secondaryAction.label}</span>
+            </button>
+          )}
+          </div>
         </div>
-        <div className="zrv-hr-toolbar__actions">
-        {primary && (
-          <button type="button" className="btn-primary zrv-hr-btn" onClick={primary.onClick} disabled={locked || pending || primary.disabled}>
-            <OrvexaIcon name={primary.icon || 'check'} size={16} /> <span className="zrv-hr-btn__label">{primary.label}</span>
-          </button>
-        )}
-        {secondaryAction && (
-          <button type="button" className="btn-secondary zrv-hr-btn" onClick={secondaryAction.onClick} disabled={locked || pending || secondaryAction.disabled}>
-            <OrvexaIcon name={secondaryAction.icon || 'send'} size={16} /><span>{secondaryAction.label}</span>
-          </button>
-        )}
-        </div>
+
+        {feedbackMode === 'toast' ? <RecruitmentToast feedback={feedback} onDismiss={onDismissFeedback} /> : <Feedback feedback={feedback} onDismiss={onDismissFeedback} />}
+        {lookupNotice}
+        {ticket}
+        {banner}
+
+        <nav className="zrv-hr-track" aria-label={COMMON_TEXT.stepsLabel} style={{ '--step': step, '--n': steps.length }} ref={trackRef}>
+          <span className="zrv-hr-track__fill" aria-hidden="true" />
+          {steps.map(([name, hint], index) => {
+            const done = doneSteps[index] && index !== step
+            const stepLocked = Boolean(lockedSteps[index])
+            return (
+              <button key={name} type="button" className={`zrv-hr-track__step${done ? ' zrv-hr-is-done' : ''}`} aria-current={index === step ? 'step' : undefined} disabled={stepLocked} aria-label={stepLocked ? `${name}: locked. Complete the previous steps first.` : undefined} onClick={() => go(index)}>
+                <span className="zrv-hr-track__n">{stepLocked ? <OrvexaIcon name="lock" size={15} /> : done ? <OrvexaIcon name="check" size={15} /> : index + 1}</span>
+                <span className="zrv-hr-track__t"><b>{name}</b><small>{stepLocked ? 'Complete previous step' : hint}</small></span>
+              </button>
+            )
+          })}
+        </nav>
       </div>
-
-      {feedbackMode === 'toast' ? <RecruitmentToast feedback={feedback} onDismiss={onDismissFeedback} /> : <Feedback feedback={feedback} onDismiss={onDismissFeedback} />}
-      {lookupNotice}
-      {ticket}
-      {banner}
-
-      <nav className="zrv-hr-track" aria-label={COMMON_TEXT.stepsLabel} style={{ '--step': step, '--n': steps.length }} ref={trackRef}>
-        <span className="zrv-hr-track__fill" aria-hidden="true" />
-        {steps.map(([name, hint], index) => {
-          const done = doneSteps[index] && index !== step
-          const stepLocked = Boolean(lockedSteps[index])
-          return (
-            <button key={name} type="button" className={`zrv-hr-track__step${done ? ' zrv-hr-is-done' : ''}`} aria-current={index === step ? 'step' : undefined} disabled={stepLocked} aria-label={stepLocked ? `${name}: locked. Complete the previous steps first.` : undefined} onClick={() => go(index)}>
-              <span className="zrv-hr-track__n">{stepLocked ? <OrvexaIcon name="lock" size={15} /> : done ? <OrvexaIcon name="check" size={15} /> : index + 1}</span>
-              <span className="zrv-hr-track__t"><b>{name}</b><small>{stepLocked ? 'Complete previous step' : hint}</small></span>
-            </button>
-          )
-        })}
-      </nav>
 
       <div className="zrv-hr-body">
         <form className="zrv-hr-stage" noValidate onSubmit={(event) => event.preventDefault()} ref={stageRef}>

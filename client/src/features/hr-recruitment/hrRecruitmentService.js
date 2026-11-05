@@ -441,7 +441,7 @@ const OFFER_LINE_FIELDS = Object.freeze({
   start: ["approximateStartingDate", "approximateStartingDateAr"],
   probation: ["probationaryPeriod", "probationaryPeriodAr"],
 });
-const backendOfferStatus = (value) => String(value).toLowerCase() === "accepted" ? "ACCEPTED" : "INCOMPLETE";
+const backendOfferStatus = (value) => ({ accepted: "ACCEPTED", complete: "COMPLETE", completed: "COMPLETE" })[String(value).trim().toLowerCase()] ?? "INCOMPLETE";
 const offerText = (value) =>
   value == null || value === "-" ? "" : String(value);
 
@@ -1160,6 +1160,8 @@ export function createOrientationService({ client }) {
       employeeName: textValue(data.empname),
       divisionName: textValue(data.divisionName),
       section: textValue(data.section),
+      position: textValue(data.position),
+      employmentType: textValue(data.type),
       fromDate: dateOnly(data.fromOrient),
       toDate: dateOnly(data.toOrient),
       startDate: dateOnly(data.startDate),

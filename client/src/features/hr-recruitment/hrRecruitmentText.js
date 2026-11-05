@@ -1062,11 +1062,11 @@ export const INTERVIEW_TEXT = Object.freeze({
 
 export const OFFER_TEXT = Object.freeze({
   title: "Employment Offer",
-  tabNames: Object.freeze(["Offer", "Package", "Terms", "Details"]),
+  tabNames: Object.freeze(["Candidate & offer details", "Compensation & terms", "Review"]),
   tabHints: Object.freeze({ done: "Done", open: "To do" }),
   primary: "Save offer",
   final: "Save offer",
-  status: Object.freeze({ INCOMPLETE: "Incomplete", ACCEPTED: "Offer Accepted" }),
+  status: Object.freeze({ INCOMPLETE: "Incomplete", COMPLETE: "Completed", ACCEPTED: "Offer Accepted" }),
   labels: Object.freeze({
     position: "Position offered",
     date: "Offer date",
@@ -1097,10 +1097,9 @@ export const OFFER_TEXT = Object.freeze({
   salutations: Object.freeze({ MR: "Mr.", MS: "Ms." }),
   // Tab headings are read by screen readers only: the active tab already shows the name.
   heads: Object.freeze([
-    Object.freeze({ title: "Offer" }),
-    Object.freeze({ title: "Package", desc: "Arabic fills itself from English until you edit it." }),
-    Object.freeze({ title: "Terms", desc: "A quick pick fills both languages." }),
-    Object.freeze({ title: "Details" }),
+    Object.freeze({ title: "Candidate & offer details" }),
+    Object.freeze({ title: "Compensation & terms", desc: "Complete the package and employment terms. A lookup selection fills both languages; Arabic text can also be edited." }),
+    Object.freeze({ title: "Review employment offer" }),
   ]),
   auto: Object.freeze({
     on: "AUTO",
@@ -1230,6 +1229,13 @@ export const OFFER_TEXT = Object.freeze({
     }),
     empty: "No offers match these filters.",
     detail: Object.freeze({ open: "Open offer" }),
+    // The saved letter shown when a row opens the drawer.
+    preview: Object.freeze({
+      label: "Offer letter",
+      loading: "Loading the saved letter…",
+      failed: "The saved letter could not be loaded.",
+      retry: "Retry",
+    }),
   }),
   // Benefit rows: English and Arabic descriptions plus quick picks (English, Arabic).
   benefits: Object.freeze({
@@ -1322,6 +1328,7 @@ export const INSIGHT_TEXT = Object.freeze({
   clear: (label) => `Clear ${label}`,
   show: (label, value) => `Show ${label}: ${value}`,
   close: "Close",
+  resizeDrawer: "Resize drawer",
   copy: "Copy number",
   copied: "Copied",
   timing: "Timing",

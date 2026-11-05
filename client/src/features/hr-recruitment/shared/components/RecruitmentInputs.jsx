@@ -408,7 +408,7 @@ export function FileDrop({
 
 // Form profile for the final review. The legacy `rows` mode remains available
 // to the other recruitment forms that use the compact answer summary.
-export function Review({ rows, sections, complete = 0, total = 0, reference, approvalStatus }) {
+export function Review({ rows, sections, complete = 0, total = 0, reference, approvalStatus, formTitle = 'Personnel Requisition', statusLabel = 'Approval status' }) {
   if (!sections) {
     return (
       <dl className="zrv-hr-review">
@@ -424,21 +424,22 @@ export function Review({ rows, sections, complete = 0, total = 0, reference, app
     );
   }
 
-  const ready = total > 0 && complete === total;
+  const hasIssues = sections.some((section) => section.rows.some((row) => row.error));
+  const ready = total > 0 && complete === total && !hasIssues;
   return (
     <div className="zrv-hr-review-profile">
       <div className="zrv-hr-review-profile__identity">
-        <div><span>PERSONNEL REQUISITION</span><strong>Form profile</strong></div>
+        <div><span>{formTitle.toUpperCase()}</span><strong>Form profile</strong></div>
         <dl>
-          <div><dt>Reference number</dt><dd>{reference || "New requisition"}</dd></div>
-          <div><dt>Approval status</dt><dd>{approvalStatus || "Not saved"}</dd></div>
+          <div><dt>Reference number</dt><dd>{reference || `New ${formTitle.toLowerCase()}`}</dd></div>
+          <div><dt>{statusLabel}</dt><dd>{approvalStatus || "Not saved"}</dd></div>
         </dl>
       </div>
       <header className={`zrv-hr-review-profile__summary${ready ? " zrv-hr-is-ready" : " zrv-hr-needs-attention"}`}>
         <span className="zrv-hr-review-profile__seal" aria-hidden="true">{ready ? "✓" : "!"}</span>
         <div className="zrv-hr-review-profile__summary-copy">
-          <strong>{ready ? "Ready for submission" : "Review required information"}</strong>
-          <span>{ready ? "All required details are complete." : `${total - complete} required ${total - complete === 1 ? "item needs" : "items need"} attention before saving.`}</span>
+          <strong>{ready ? "Ready to save" : "Review required information"}</strong>
+          <span>{ready ? "All required details are complete." : complete === total ? "Review the highlighted fields before saving." : `${total - complete} required ${total - complete === 1 ? "item needs" : "items need"} attention before saving.`}</span>
         </div>
         <div className="zrv-hr-review-profile__count" aria-label={`${complete} of ${total} required items complete`}>
           <b>{complete}/{total}</b><span>required</span>
@@ -458,27 +459,29 @@ export function Review({ rows, sections, complete = 0, total = 0, reference, app
         {sections.map((section, index) => {
           const required = section.rows.filter((row) => row.required);
           const sectionComplete = required.filter((row) => row.complete).length;
-          const sectionReady = required.length === sectionComplete;
+          const sectionHasErrors = section.rows.some((row) => row.error);
+          const sectionReady = required.length === sectionComplete && !sectionHasErrors;
           return (
             <section className="zrv-hr-review-section" key={section.title}>
               <header className="zrv-hr-review-section__head">
                 <span className="zrv-hr-review-section__number">{String(index + 1).padStart(2, "0")}</span>
                 <h3>{section.title}</h3>
                 <span className={`zrv-hr-review-section__state${sectionReady ? " zrv-hr-is-ready" : " zrv-hr-is-open"}`}>
-                  {required.length ? `${sectionComplete}/${required.length} required` : "Optional section"}
+                  {sectionHasErrors ? 'Needs correction' : required.length ? `${sectionComplete}/${required.length} required` : "Optional section"}
                 </span>
               </header>
               <dl className="zrv-hr-review-section__fields">
                 {section.rows.map((row) => {
-                  const state = row.required
+                  const state = row.error ? 'missing' : row.required
                     ? (row.complete ? "complete" : "missing")
                     : (row.hasValue ? "provided" : "optional");
-                  const stateLabel = state === "complete" ? "Complete" : state === "missing" ? "Required · missing" : state === "provided" ? "Provided" : "Optional · not provided";
+                  const stateLabel = row.error ? 'Needs correction' : state === "complete" ? "Complete" : state === "missing" ? "Required · missing" : state === "provided" ? "Provided" : "Optional · not provided";
                   return (
                     <div className={`zrv-hr-review-field zrv-hr-is-${state}`} key={row.label}>
                       <dt>{row.label}{row.required && <span className="zrv-hr-review-required" aria-label="required"> *</span>}</dt>
-                      <dd>{row.hasValue ? row.value : <span className="zrv-hr-review-field__empty">{row.required ? "Not provided" : "Not provided (optional)"}</span>}</dd>
+                      <dd lang={row.lang} dir={row.dir}>{row.hasValue ? row.value : <span className="zrv-hr-review-field__empty">{row.required ? "Not provided" : "Not provided (optional)"}</span>}</dd>
                       <span className="zrv-hr-review-field__status"><i aria-hidden="true" />{stateLabel}</span>
+                      {row.error && <small className="zrv-auth-field-error">{row.error}</small>}
                     </div>
                   );
                 })}
@@ -531,12 +534,17 @@ export function SearchableLookup({
   options,
   onChange,
   onInputChange,
+  onSearch,
+  onOpenChange,
+  onClear,
   customValue = "",
   placeholder = COMMON_TEXT.select,
   required = false,
   error,
   disabled = false,
   loading = false,
+  searchPending = false,
+  describedBy,
   maxLength = 200,
   noResults = "No matching options",
 }) {
@@ -549,12 +557,17 @@ export function SearchableLookup({
   const selected = options.find((option) => option.code === value);
   const matches = searching
     ? options.filter((option) =>
-        option.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+        `${option.name} ${option.description ?? ''} ${option.searchText ?? ''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
       )
     : options;
   const displayedValue = open && searching
     ? query
     : selected?.name ?? customValue;
+
+  useEffect(() => {
+    onOpenChange?.(open);
+    if (open) onSearch?.(searching ? query : "");
+  }, [open, searching, query, onOpenChange, onSearch]);
 
   const [popupStyle, setPopupStyle] = useState(null);
   useEffect(() => {
@@ -562,10 +575,15 @@ export function SearchableLookup({
     const positionPopup = () => {
       const rect = controlRef.current?.getBoundingClientRect();
       if (!rect) return;
+      const theme = window.getComputedStyle(controlRef.current);
       const below = window.innerHeight - rect.bottom - 12;
       const above = rect.top - 12;
       const openUp = below < 180 && above > below;
       setPopupStyle({
+        '--zrv-hr-accent': theme.getPropertyValue('--zrv-hr-accent'),
+        '--zrv-hr-accent-text': theme.getPropertyValue('--zrv-hr-accent-text'),
+        '--zrv-hr-shadow': theme.getPropertyValue('--zrv-hr-shadow'),
+        fontFamily: theme.fontFamily,
         position: "fixed",
         left: rect.left,
         width: rect.width,
@@ -585,6 +603,10 @@ export function SearchableLookup({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (open) document.getElementById(`${listId}-${active}`)?.scrollIntoView({ block: 'nearest' });
+  }, [open, active, query, listId]);
+
   const choose = (option) => {
     onChange(option);
     setOpen(false);
@@ -595,10 +617,11 @@ export function SearchableLookup({
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setOpen(true);
-      setActive((index) => Math.min(matches.length - 1, index + 1));
+      setActive((index) => open ? Math.max(0, Math.min(matches.length - 1, index + 1)) : 0);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActive((index) => Math.max(0, index - 1));
+      setOpen(true);
+      setActive((index) => open ? Math.max(0, index - 1) : Math.max(0, matches.length - 1));
     } else if (event.key === "Enter" && open && matches[active]) {
       event.preventDefault();
       choose(matches[active]);
@@ -612,11 +635,12 @@ export function SearchableLookup({
   };
 
   return (
-    <div className={`zrv-hr-search-select${error ? " zrv-hr-is-bad" : ""}`}>
+    <div className={`zrv-hr-search-select${error ? " zrv-hr-is-bad" : ""}${onClear && displayedValue ? " zrv-hr-is-clearable" : ""}`}>
       <div className="zrv-hr-search-select__control" ref={controlRef}>
         <span aria-hidden="true" className="zrv-hr-search-select__icon" />
         <input
           {...fieldProps(id, { error })}
+          aria-describedby={[error ? `${id}-error` : null, describedBy].filter(Boolean).join(" ") || undefined}
           role="combobox"
           className="ux-input zrv-hr-input"
           autoComplete="off"
@@ -626,9 +650,9 @@ export function SearchableLookup({
           aria-controls={listId}
           aria-autocomplete="list"
           aria-required={required || undefined}
-          aria-busy={loading || undefined}
+          aria-busy={loading || searchPending || undefined}
           maxLength={maxLength}
-          aria-activedescendant={open && matches[active] ? `${listId}-${matches[active].code}` : undefined}
+          aria-activedescendant={open && matches[active] ? `${listId}-${active}` : undefined}
           disabled={disabled || loading}
           onFocus={(event) => {
             setOpen(true);
@@ -636,6 +660,13 @@ export function SearchableLookup({
             setSearching(false);
             setActive(0);
             event.currentTarget.select();
+          }}
+          onClick={() => {
+            if (open) return;
+            setOpen(true);
+            setQuery("");
+            setSearching(false);
+            setActive(0);
           }}
           onBlur={() => window.setTimeout(() => setOpen(false), 120)}
           onChange={(event) => {
@@ -648,14 +679,18 @@ export function SearchableLookup({
           }}
           onKeyDown={onKeyDown}
         />
+        {onClear && displayedValue && <button type="button" className="zrv-hr-search-select__clear" aria-label="Clear selection" disabled={disabled || loading}
+          onMouseDown={(event) => event.preventDefault()} onClick={() => { onClear(); setQuery(""); setSearching(false); setOpen(false); }}>
+          <OrvexaIcon name="x" size={14} />
+        </button>}
         <span aria-hidden="true" className={`zrv-hr-search-select__chevron${open ? " zrv-hr-is-open" : ""}`} />
       </div>
       {open && popupStyle && createPortal(
-        <ul className="zrv-hr-search-select__list" style={popupStyle} id={listId} role="listbox" aria-label={id}>
+        <ul className="zrv-hr-search-select__list" style={popupStyle} id={listId} role="listbox" aria-label="Available options">
           {matches.map((option, index) => (
             <li
-              key={option.code}
-              id={`${listId}-${option.code}`}
+              key={`${option.code}-${index}`}
+              id={`${listId}-${index}`}
               role="option"
               aria-selected={option.code === value}
               className={`${index === active ? "zrv-hr-is-active" : ""}${option.code === value ? " zrv-hr-is-selected" : ""}`}
@@ -665,7 +700,10 @@ export function SearchableLookup({
                 choose(option);
               }}
             >
-              <span>{option.name}</span>
+              <span className="zrv-hr-search-select__option-copy">
+                <span>{option.name}</span>
+                {option.description && <small>{option.description}</small>}
+              </span>
               {option.code === value && <OrvexaIcon name="check" size={15} />}
             </li>
           ))}

@@ -6,6 +6,8 @@ import { addDays, dayWindows, monthRanges } from '../shared/insightDates.js'
 import { Pill } from '../shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '../shared/components/InsightReport.jsx'
 import { Card, Compare, Delta, Foot, HeatStrip, Hero, Hint, Sparkline } from '../shared/components/InsightCards.jsx'
+import { OfferReportActions } from './OfferReportActions.jsx'
+import { OfferPreview } from './OfferPreview.jsx'
 
 const BASE = '/hr/recruitment/offer'
 const R = T.report
@@ -13,8 +15,7 @@ const O = R.overview
 const B = R.breakdown
 const WEEKS = 8
 const date = (value) => (value ? enDate(value) : COMMON_TEXT.dash)
-// The offer status is write-once (always Incomplete), so the overview follows
-// offer dates rather than an approval flow.
+// The overview follows offer dates; saving completes an offer independently of acceptance.
 const INITIAL = Object.freeze({ search: '', dateFrom: '', dateTo: '' })
 const FIELDS = [
   { key: 'search', label: INSIGHT_TEXT.search, type: 'search', placeholder: R.filters.search },
@@ -27,7 +28,8 @@ const COLUMNS = [
   { key: 'position', label: R.columns.position, render: (row) => row.position || COMMON_TEXT.dash },
   { key: 'requisition', label: R.columns.requisition, render: (row) => row.requisitionNo || COMMON_TEXT.dash },
   { key: 'date', label: R.columns.date, sort: 'OFFER_DATE', render: (row) => date(row.offerDate) },
-  { key: 'status', label: R.columns.status, render: (row) => <Pill tone="warn">{T.status[row.status]}</Pill> },
+  { key: 'status', label: R.columns.status, render: (row) => <Pill tone={row.status === 'INCOMPLETE' ? 'warn' : 'ok'}>{T.status[row.status] || row.status}</Pill> },
+  { key: 'actions', label: 'Actions', render: (row) => <OfferReportActions row={row} /> },
 ]
 
 // Overview: offers per week (the last eight), this year against the same
@@ -106,15 +108,11 @@ function dateGroups(today) {
 // sorted and paged by the server.
 export default function OfferReportPage() {
   return (
-    <InsightReport variant="offer-report" title={R.title} subtitle={R.subtitle} heading={R.heading} resourceKey="hr-offer-report"
+    <InsightReport variant="offer-report" title={R.title} subtitle={R.subtitle} heading={R.heading} resourceKey="hr-offer-report" printLabel="Print report"
       list={hrRecruitmentServices.offers.list} create={{ permission: ACTIONS.OFFER_CREATE, path: BASE, label: R.newOffer }}
       openLabel={R.detail.open} empty={R.empty} initial={INITIAL} fields={FIELDS} columns={COLUMNS} cards={CARDS} groups={dateGroups}
       defaultSort={{ key: 'HEADER_ID', order: 'desc' }} numberOf={(row) => row.offerNumber || row.offerId}
       rowKey={(row) => row.offerId} pathOf={(row) => `${BASE}/${row.offerId}`}
-      summary={(row) => ({
-        heading: row.candidateNameEn,
-        pill: <Pill tone="warn">{T.status[row.status]}</Pill>,
-        facts: [[R.columns.position, row.position], [R.columns.requisition, row.requisitionNo], [R.columns.date, date(row.offerDate)]],
-      })} />
+      closeInDetail renderDetail={(row, { onClose }) => <OfferPreview row={row} onClose={onClose} />} />
   )
 }

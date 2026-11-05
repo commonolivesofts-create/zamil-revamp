@@ -1,7 +1,10 @@
 import { useSearchParams } from "react-router";
+import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
+import { ResourceState } from "@/features/security-administration/components/AdminUi.jsx";
+import { useResource } from "@/features/security-administration/useAdminData.js";
 import { COMMON_TEXT, INSIGHT_TEXT, ORIENTATION_TEXT as T } from "../hrRecruitmentText.js";
 import { hrRecruitmentServices } from "../hrRecruitmentService.js";
-import { daysBetween, enDate } from "../shared/hrFormat.js";
+import { enDate, initials } from "../shared/hrFormat.js";
 import { addDays, dayWindows, monthRanges } from "../shared/insightDates.js";
 import { Pill } from "../shared/components/RecruitmentShell.jsx";
 import { InsightReport } from "../shared/components/InsightReport.jsx";
@@ -16,6 +19,12 @@ const B = R.breakdown;
 const CREATE = Object.freeze({ permission: "HR.ORIENTATION_TRAININGS:CREATE", path: BASE, label: R.newSchedule });
 const date = (value) => (value ? enDate(value) : COMMON_TEXT.dash);
 const statusLabel = (value) => T.status[orientationStatus(value)];
+const time = (entry) => {
+  if (!entry) return COMMON_TEXT.dash;
+  const value = String(entry);
+  return /^\d{2}:\d{2}/.test(value) ? value.slice(0, 5) : value;
+};
+const display = (entry) => entry || COMMON_TEXT.dash;
 const FLAG_ICON = Object.freeze({ Y: "building-2", N: "factory" });
 const STEP = Object.freeze({ Draft: ["file-pen-line", "draft"], Inprocess: ["hourglass", "progress"], Approved: ["circle-check", "ok"], Rejected: ["circle-x", "bad"] });
 const FIELDS = [
@@ -101,6 +110,76 @@ function dateGroups(today) {
   }];
 }
 
+function DetailFacts({ facts, columns = 2 }) {
+  return (
+    <dl className="zrv-ir-orientation-facts" style={{ "--orientation-fact-columns": columns }}>
+      {facts.map(([label, entry]) => (
+        <div key={label}><dt>{label}</dt><dd>{display(entry)}</dd></div>
+      ))}
+    </dl>
+  );
+}
+
+function OrientationTrainingDetails({ row }) {
+  const training = useResource(
+    `hr-orientation-report-detail:${row.flag}:${row.scheduleId}`,
+    (signal) => hrRecruitmentServices.orientations.getById(row.scheduleId, { flag: row.flag, signal }),
+  );
+  if (training.status === "loading") {
+    return (
+      <section className="zrv-ir-orientation-detail" aria-busy="true" aria-label="Loading training details">
+        <div className="zrv-ir-orientation-heading"><span className="zrv-ir-orientation-heading__icon"><OrvexaIcon name="calendar-clock" size={18} /></span><div><h3>Training details</h3><p>Loading the saved orientation schedule…</p></div></div>
+        <div className="zrv-ir-orientation-skeleton" aria-hidden="true"><i /><i /><i /></div>
+      </section>
+    );
+  }
+  return (
+    <ResourceState resource={training} label="training details" empty="No saved training details are available." isEmpty={() => false}>
+      {(record) => (
+        <section className="zrv-ir-orientation-detail" aria-labelledby={`orientation-training-${row.scheduleId}`}>
+          <div className="zrv-ir-orientation-heading">
+            <span className="zrv-ir-orientation-heading__icon"><OrvexaIcon name="calendar-clock" size={18} /></span>
+            <div><h3 id={`orientation-training-${row.scheduleId}`}>Training details</h3><p>Complete saved schedule for reference {record.scheduleNumber}</p></div>
+          </div>
+          <DetailFacts columns={4} facts={[
+            ["Orientation type", R.flags[row.flag]],
+            ["Orientation window", `${date(record.fromDate)} – ${date(record.toDate)}`],
+            [T.labels.scheduledBy, record.scheduledByName],
+            ["Training sessions", String(record.lines.length)],
+          ]} />
+          <div className="zrv-ir-orientation-sessions">
+            {record.lines.map((line, index) => (
+              <article key={line.lineId} className="zrv-ir-orientation-session">
+                <header>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <div><h4>{display(line.department)}</h4><p>{date(line.fromDate)} – {date(line.toDate)}</p></div>
+                </header>
+                <DetailFacts columns={4} facts={[
+                  [T.labels.head, line.departmentHead],
+                  ["Training time", `${time(line.timeFrom)} – ${time(line.timeTo)}`],
+                  [T.labels.days, line.orientationDays],
+                  [T.labels.period, line.orientationPeriod],
+                ]} />
+                {line.remarks && <div className="zrv-ir-orientation-remark"><span>{T.labels.remark}</span><p>{line.remarks}</p></div>}
+              </article>
+            ))}
+            {!record.lines.length && <p className="zrv-ir-orientation-empty">No department training sessions were saved.</p>}
+          </div>
+          <div className="zrv-ir-orientation-heading zrv-ir-orientation-heading--workflow">
+            <span className="zrv-ir-orientation-heading__icon"><OrvexaIcon name="workflow" size={18} /></span>
+            <div><h3>Workflow details</h3><p>Current approval progress for this schedule</p></div>
+          </div>
+          <DetailFacts columns={3} facts={[
+            [R.status, statusLabel(row.status)], [C.pendingAt, row.pendingAt],
+            [C.workflowStart, date(row.workflowStart)], [C.workflowEnd, date(row.workflowEnd)],
+            [C.lastAction, row.lastAction],
+          ]} />
+        </section>
+      )}
+    </ResourceState>
+  );
+}
+
 // Orientation report: the legacy "Select type to view report" list, one table
 // (Shared or Plant) at a time; filtered, sorted and paged by the server. The
 // form opens it on the type of the schedule shown (?flag=Y|N).
@@ -113,17 +192,24 @@ export default function OrientationReportPage() {
       initial={{ flag, status: "", search: "", dateFrom: "", dateTo: "" }} required={["flag"]} fields={FIELDS} columns={COLUMNS} cards={CARDS} groups={dateGroups}
       defaultSort={{ key: "HEADER_ID", order: "desc" }} numberOf={(row) => row.scheduleNumber} rowKey={(row) => row.scheduleId}
       pathOf={(row) => `${BASE}/${row.scheduleId}?flag=${row.flag}`}
-      summary={(row, today) => {
-        const days = daysBetween(today, row.fromDate);
+      resizableDrawer renderDetail={(row) => <OrientationTrainingDetails row={row} />}
+      summary={(row) => {
         return {
           heading: row.employeeName,
+          eyebrow: "Employee details",
+          avatar: initials(row.employeeName),
+          meta: row.employeeNumber ? `Employee ${row.employeeNumber}` : null,
           pill: <Pill tone={statusTone(row.status)}>{statusLabel(row.status)}</Pill>,
+          employeeFacts: [
+            [C.empNo, row.employeeNumber], [T.labels.position, row.position],
+            [T.labels.type, row.employmentType], [C.division, row.divisionName],
+            [C.section, row.section], [C.startDate, date(row.startDate)],
+          ],
           facts: [
             [C.empNo, row.employeeNumber], [R.type, R.flags[row.flag]], [C.division, row.divisionName], [C.section, row.section],
             [R.detail.period, `${date(row.fromDate)} – ${date(row.toDate)}`], [C.startDate, date(row.startDate)],
             [C.scheduledBy, row.scheduledBy], [C.pendingAt, row.pendingAt],
           ],
-          timing: days !== null && days >= 0 ? { tone: days <= 7 ? "warn" : "calm", text: R.startsIn(days) } : null,
         };
       }} />
   );

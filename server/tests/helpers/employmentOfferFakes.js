@@ -3,7 +3,7 @@
  * transactions snapshot/rollback it too). It mirrors the SQL semantics the service relies on:
  * UUID-readback key generation whose inserts omit the PK columns, legacy 'DD-Mon-YYYY' date
  * storage with ISO 'YYYY-MM-DD' reads, the NVL defaults (applicant '-', reqNo 0, salary 0 and
- * the two hardcoded probationary-period texts), insert-only columns (STATUS, PROBATIONARY_PERIOD
+ * the two hardcoded probationary-period texts), insert-only columns (PROBATIONARY_PERIOD
  * and line ATTRIBUTE2 — skipped by the §5.2 MERGE's MATCHED branch), the delete order (line then
  * header), §7.1 filters/sort/pagination with the HEADER_ID tie-breaker, the §7.4 HR-membership
  * scope and the §8 lookups. It does NOT prove the SQL; it proves the wiring of routes,
@@ -121,7 +121,7 @@ export function installEmploymentOffers(
         employeeName: h.employeeName,
         employeeNameAr: h.employeeNameAr ?? null,
         position: h.position,
-        status: 'Incomplete', // the SQL literal — write-once, never updated
+        status: 'Complete', // successful saves complete the offer
         division: h.division ?? null,
         applicant: h.applicant ?? '-', // NVL(:applicant, '-')
         to: h.to ?? null,
@@ -185,8 +185,7 @@ export function installEmploymentOffers(
     async updateHeader(_c, { headerId, updatedBy, ...fields }) {
       const h = headerOf(headerId);
       if (!h) return false;
-      // §5.1 columns only: STATUS, CREATED_BY and CREATION_DATE are never touched.
-      Object.assign(h, fields, { updatedBy, updatedAt: store.now() });
+      Object.assign(h, fields, { status: 'Complete', updatedBy, updatedAt: store.now() });
       return true;
     },
     async mergeLine(_c, { headerId, createdBy, updatedBy, ...fields }) {

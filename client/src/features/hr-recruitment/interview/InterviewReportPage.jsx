@@ -4,6 +4,7 @@ import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { enDate } from '../shared/hrFormat.js'
 import { Pill } from '../shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '../shared/components/InsightReport.jsx'
+import { CreateEmploymentOffer } from './CreateEmploymentOffer.jsx'
 import { Card, Foot, Funnel, HalfGauge, Hero, Hint, Splits } from '../shared/components/InsightCards.jsx'
 
 const BASE = '/hr/recruitment/interview'
@@ -35,6 +36,7 @@ const COLUMNS = [
   { key: 'date', label: R.columns.date, sort: 'INTERVIEW_DATE', render: (row) => date(row.interviewDate) },
   { key: 'outcome', label: R.columns.outcome, render: (row) => (row.outcome ? <Pill tone={OUTCOME_TONE[row.outcome] === 'amber' ? 'warn' : OUTCOME_TONE[row.outcome]}>{T.outcomes[row.outcome]}</Pill> : COMMON_TEXT.dash) },
   { key: 'status', label: R.columns.status, render: (row) => <Pill tone={STATUS_TONE[row.status]}>{T.status[row.status]}</Pill> },
+  { key: 'offer', label: 'Actions', render: (row) => <CreateEmploymentOffer row={row} compact /> },
 ]
 
 // Overview: how interviews turned out, the share that passed, and how
@@ -113,6 +115,7 @@ export default function InterviewReportPage() {
       openLabel={R.detail.open} empty={R.empty} initial={INITIAL} fields={FIELDS} columns={COLUMNS} cards={CARDS} groups={GROUPS}
       defaultSort={{ key: 'HEADER_ID', order: 'desc' }} numberOf={(row) => row.assessmentNumber || row.assessmentId}
       rowKey={(row) => row.assessmentId} pathOf={(row) => `${BASE}/${row.assessmentId}`}
+      renderDetail={(row) => <CreateEmploymentOffer row={row} />}
       summary={(row) => ({
         heading: row.candidateName,
         pill: <Pill tone={STATUS_TONE[row.status]}>{T.status[row.status]}</Pill>,

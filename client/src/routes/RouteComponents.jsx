@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Outlet, ScrollRestoration, useLocation, useRouteError } from 'react-router'
-import PageState from '@/components/feedback/PageState.jsx'
+import StartupLoading from '@/components/feedback/StartupLoading.jsx'
 import { findAppRoute } from '@/config/appNavigation.js'
 import { orvexaDemoRoutes } from '@/config/orvexaRoutes.js'
 import { templateDemosAvailable } from '@/config/authRouting.js'
@@ -8,8 +8,10 @@ import useAuth from '@/features/auth/useAuth.js'
 
 // React components live outside router.jsx so that Fast Refresh can safely
 // distinguish component exports from the router configuration export.
-export const AdminLayout = lazy(() => import('@/layouts/AdminLayout.jsx'))
-export const AuthLayout = lazy(() => import('@/layouts/AuthLayout.jsx'))
+// Keep the small shared layouts available before session restoration finishes;
+// only feature pages need route chunks.
+export { default as AdminLayout } from '@/layouts/AdminLayout.jsx'
+export { default as AuthLayout } from '@/layouts/AuthLayout.jsx'
 export const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage.jsx'))
 export const PendingWorklistPage = lazy(() => import('@/features/worklist/PendingWorklistPage.jsx'))
 export const DemoPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.DemoUnconvertedPage })))
@@ -82,7 +84,6 @@ export const FormRegistrationPage = lazy(() => import('@/features/workflow-manag
 export const FormRecordPage = lazy(() => import('@/features/workflow-manager/pages/FormRecordPage.jsx'))
 export const DataSourceRegistryPage = lazy(() => import('@/features/workflow-manager/pages/DataSourceRegistryPage.jsx'))
 export const DeniedPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessDeniedPage })))
-export const AccessPendingPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessPendingPage })))
 export const AccessUnavailablePage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessUnavailablePage })))
 export const NotFoundPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.NotFoundPage })))
 export const ErrorPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.RouteErrorPage })))
@@ -123,7 +124,7 @@ export function RouterShell() {
 export function RouteErrorBoundary() {
   const error = useRouteError()
   return (
-    <Suspense fallback={<PageState kind="loading" title="Loading error page" />}>
+    <Suspense fallback={<StartupLoading />}>
       <ErrorPage error={error} />
     </Suspense>
   )

@@ -3,6 +3,7 @@
 // testable in Node. The backend validates again and assigns the assessment
 // number, status and admin manager.
 import { INTERVIEW_TEXT } from '../hrRecruitmentText.js'
+import { isIsoDate } from '../shared/hrFormat.js'
 
 export const INTERVIEW_STATUSES = Object.freeze(['INCOMPLETE', 'INPROCESS', 'APPROVED', 'REJECTED', 'COMPLETE', 'SUBMITTED'])
 export const OUTCOMES = Object.freeze(['PASSED', 'HOLD', 'FAILED'])
@@ -44,7 +45,31 @@ export const HR_FIELDS = Object.freeze([
 
 export const hrField = (key) => HR_FIELDS.find(([name]) => name === key)
 
+const INTERVIEW_API_FIELDS = {
+  candidateName: 'candidateName', requisitionNo: 'requisitionNumber', positionName: 'requisitionNumber',
+  interviewDate: 'preScreeningDate', interviewTime: 'interviewTime', division: 'divisionCode', joining: 'expectedJoiningDate',
+  interviewType: 'interviewTypeCode', nationality: 'nationality', materialStatus: 'maritalStatusCode', age: 'candidateAge',
+  secondaryEducation: 'certificateCode', secondaryEducationChk: 'certificateCheckedCode', lastPositionHeld: 'lastPosition',
+  companyName: 'currentEmployer', currentEmployer: 'currentEmployer', relevantYearsExperience: 'relevantExperienceYears',
+  location: 'location', major: 'major', curSalBasic: 'currentBasic', expSalBasic: 'expectedBasic',
+  curSalTotal: 'currentTotal', expSalTotal: 'expectedTotal',
+}
+export const INTERVIEW_VALIDATION_FIELDS = Object.freeze(Object.fromEntries([
+  ...Object.entries(INTERVIEW_API_FIELDS).map(([api, key]) => [api, { key, step: 0, label: INTERVIEW_TEXT.labels[key] }]),
+  ...['attribute3', 'payroll'].map((api) => [api, { key: 'payroll', step: 3, label: 'Payroll business unit' }]),
+  ['evaluation.status', { key: 'outcome', step: 3, label: 'Result' }],
+  ['evaluation.interviewedBy', { key: 'interviewer0', step: 3, label: 'Interviewer 1', fields: ['interviewers.0'] }],
+  ...[['adminManager', 'adminManagerName'], ['managningDirector', 'managingDirector'], ['hrRep', 'hrRepresentative'], ['deptRep', 'departmentRepresentative'], ['comment', 'hrComment']].map(([api, key]) => [`evaluation.${api}`, { key, step: 3, label: key }]),
+  ...['interviewedBy', 'interviewedBy2', 'interviewedBy3'].map((api, index) => [api, { key: `interviewer${index}`, step: 3, label: `Interviewer ${index + 1}`, fields: [`interviewers.${index}`] }]),
+  ...[['personalSpec', 'spec', SPEC_KEYS, 'rate', 'remark', 1], ['jobCompetency', 'comp', COMP_KEYS, 'cRating', 'cRemark', 2]].flatMap(([api, group, keys, rate, remark, step]) => keys.flatMap((key, index) => [
+    [`${api}.${rate}${index + 1}`, { key: `${group}.${key}`, step, label: INTERVIEW_TEXT.criteria[key][0], fields: [`${group}.${key}.rating`] }],
+    [`${api}.${remark}${index + 1}`, { key: `${group}.${key}.remark`, step, label: 'Remark', fields: [`${group}.${key}.remark`] }],
+  ])),
+  ...[['personalSpec.remarks', 'specRemarks', 1], ['jobCompetency.cRemarks', 'compRemarks', 2], ['jobCompetency.sumStrength', 'strengths', 2], ['jobCompetency.sumWeekness', 'weakness', 2]].map(([api, key, step]) => [api, { key, step, label: INTERVIEW_TEXT.labels[key] }]),
+]))
+
 export const isInterviewLocked = (status) => status === 'SUBMITTED'
+export const canCreateEmploymentOffer = (record) => Boolean(record?.status === 'APPROVED' && record?.outcome === 'PASSED' && record?.assessmentNumber)
 
 const blankRatings = (keys) => Object.fromEntries(keys.map((key) => [key, { rating: null, remark: '' }]))
 
@@ -138,22 +163,37 @@ export function validateInterview(form) {
     if (rules.required && !value) errors[key] = text.errors.required(text.labels[key])
     else if (value && type === 'number') {
       const number = Number(value)
-      if (!Number.isFinite(number) || (rules.min != null && number < rules.min) || (rules.max != null && number > rules.max)) {
+      if (!Number.isFinite(number) || (['candidateAge', 'relevantExperienceYears'].includes(key) && !Number.isInteger(number)) || (rules.min != null && number < rules.min) || (rules.max != null && number > rules.max)) {
         errors[key] = text.errors.range(rules.min, rules.max)
       }
     }
+    if (value && type === 'date' && !isIsoDate(value)) errors[key] = 'Enter a valid date.'
   }
   const amount = (key) => (String(form[key] ?? '').trim() === '' ? null : Number(form[key]))
   if (!errors.expectedTotal && amount('expectedBasic') !== null && amount('expectedTotal') !== null && amount('expectedTotal') < amount('expectedBasic')) errors.expectedTotal = text.errors.total
   if (!errors.currentTotal && amount('currentBasic') !== null && amount('currentTotal') !== null && amount('currentTotal') < amount('currentBasic')) errors.currentTotal = text.errors.total
   if (form.expectedJoiningDate && form.preScreeningDate && form.expectedJoiningDate < form.preScreeningDate) errors.expectedJoiningDate = text.errors.joining
   const missing = {
-    spec: SPEC_KEYS.filter((key) => !form.spec[key]?.rating),
-    comp: COMP_KEYS.filter((key) => !form.comp[key]?.rating),
+    spec: SPEC_KEYS.filter((key) => ![1, 2, 3, 4, 5, 'N/A'].includes(form.spec[key]?.rating)),
+    comp: COMP_KEYS.filter((key) => ![1, 2, 3, 4, 5, 'N/A'].includes(form.comp[key]?.rating)),
     outcome: !OUTCOMES.includes(form.outcome),
   }
-  const firstStep = Object.keys(errors).length ? 0 : missing.spec.length ? 1 : missing.comp.length ? 2 : missing.outcome ? 3 : -1
+  const hrInvalid = Object.keys(errors).length > 0
+  if (!form.payroll.trim()) errors.payroll = 'Choose a payroll business unit.'
+  const firstStep = hrInvalid ? 0 : missing.spec.length ? 1 : missing.comp.length ? 2 : missing.outcome || errors.payroll ? 3 : -1
   return { errors, missing, firstStep, valid: firstStep === -1 }
+}
+
+export function interviewStepErrors(form) {
+  const { errors, missing } = validateInterview(form)
+  const { payroll, ...hrErrors } = errors
+  return [
+    hrErrors,
+    Object.fromEntries(missing.spec.map((key) => [`spec.${key}`, 'Choose a rating from 1 to 5 or N/A.'])),
+    Object.fromEntries(missing.comp.map((key) => [`comp.${key}`, 'Choose a rating from 1 to 5 or N/A.'])),
+    { ...(payroll ? { payroll } : {}), ...(missing.outcome ? { outcome: INTERVIEW_TEXT.errors.outcome } : {}) },
+    {},
+  ]
 }
 
 // Expected total versus current total, in percent (rounded), or null.
