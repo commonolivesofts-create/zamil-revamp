@@ -1,12 +1,15 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import useAuth from "@/features/auth/useAuth.js";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
-import { ConfirmDialog } from "@/features/security-administration/components/AdminUi.jsx";
+import usePermissions from "@/features/access/usePermissions.js";
 import { fieldProps } from "@/features/security-administration/adminForms.js";
 import { COMMON_TEXT, ORIENTATION_TEXT as T } from "../hrRecruitmentText.js";
 import { hrRecruitmentServices } from "../hrRecruitmentService.js";
-import { enDate, initials } from "../shared/hrFormat.js";
+import { enDate, initials, isIsoDate } from "../shared/hrFormat.js";
 import { useRecruitmentForm } from "../shared/useRecruitmentForm.js";
+import { useRecruitmentSteps } from "../shared/useRecruitmentSteps.js";
+import { reviewCompletion } from "../shared/recruitmentSteps.js";
 import { RecruitmentLoader } from "../shared/components/RecruitmentLoader.jsx";
 import { NewFormDialog } from "../shared/components/RecruitmentDialogs.jsx";
 import {
@@ -16,15 +19,15 @@ import {
   StepHead,
   Tilt,
 } from "../shared/components/RecruitmentShell.jsx";
-import { HrField } from "../shared/components/RecruitmentInputs.jsx";
-import { EmployeePicker } from "../shared/components/EmployeePicker.jsx";
+import { HrField, Review, SearchableLookup } from "../shared/components/RecruitmentInputs.jsx";
+import { EmployeeLookup } from "../shared/components/EmployeeLookup.jsx";
+import { blankOrientation, orientationFormFromRecord, orientationLineKey, orientationReviewSections, orientationStepErrors, orientationValidationFields } from "./orientationForm.js";
 import {
   ORIENTATION_FLAGS,
   isOrientationEditable,
   lineMinutes,
   orientationDays,
   orientationPeriod,
-  orientationSaveProblems,
   orientationStatus,
   reversedLines,
   statusTone,
@@ -33,7 +36,7 @@ import {
 const BASE = "/hr/recruitment/orientation";
 const service = hrRecruitmentServices.orientations;
 const shortDate = (iso) =>
-  iso
+    isIsoDate(iso)
     ? new Intl.DateTimeFormat("en-GB", {
         weekday: "short",
         day: "numeric",
@@ -46,8 +49,19 @@ const weekday = (iso) =>
     weekday: "short",
     timeZone: "UTC",
   }).format(new Date(`${iso}T00:00:00Z`));
+const month = (iso) =>
+  new Intl.DateTimeFormat("en-GB", {
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(`${iso}T00:00:00Z`));
+const shortTime = (value) => (/^\d{2}:\d{2}/.test(value ?? "") ? value.slice(0, 5) : "");
+const timeRange = (line) => {
+  const from = shortTime(line.timeFrom);
+  const to = shortTime(line.timeTo);
+  return from && to ? `${from}–${to}` : from || to;
+};
 const addDays = (iso, count) => {
-  if (!iso) return "";
+  if (!isIsoDate(iso)) return "";
   const date = new Date(`${iso}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + count);
   return date.toISOString().slice(0, 10);
@@ -70,18 +84,6 @@ const emptyLine = (department, lineId = undefined) => ({
   timeFrom: "",
   timeTo: "",
   remarks: "",
-});
-const emptyForm = () => ({
-  employee: null,
-  flag: "",
-  fromOrient: "",
-  lines: [],
-});
-const formFromRecord = (record) => ({
-  employee: record.employee,
-  flag: record.flag,
-  fromOrient: record.fromDate,
-  lines: record.lines.map((line) => ({ ...line, remarks: line.remarks ?? "" })),
 });
 // A row is planned when it has a department head, both dates and both times.
 const isPlanned = (line) =>
@@ -119,15 +121,18 @@ export default function OrientationPage() {
 
 function OrientationEditor({ lookups, record: savedRecord }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const permissions = usePermissions();
   const editor = useRecruitmentForm({
     basePath: BASE,
     idKey: "scheduleId",
     record: savedRecord,
-    initialForm: savedRecord ? formFromRecord(savedRecord) : emptyForm(),
+    initialForm: savedRecord ? orientationFormFromRecord(savedRecord) : blankOrientation(),
+    validationFields: ({ lines }) => orientationValidationFields(lines),
   });
   const { form, record, step, setStep, patch } = editor;
-  const [employee, setEmployee] = useState(savedRecord?.employee ?? null);
-  const [errors, setErrors] = useState({});
+  const employee = form.employee;
+  const [saving, setSaving] = useState(false);
   const [dialog, setDialog] = useState(null);
   const [setupLoading, setSetupLoading] = useState(false);
   const [setupError, setSetupError] = useState("");
@@ -139,25 +144,34 @@ function OrientationEditor({ lookups, record: savedRecord }) {
   const planned = lines.filter(isPlanned).length;
   const minutes = lines.reduce((sum, line) => sum + lineMinutes(line), 0);
   const status = orientationStatus(record?.status ?? "Draft");
-  const doneSteps = [
-    Boolean(employee && form.fromOrient),
-    planned === lines.length && lines.length > 0,
-    planned > 0,
-    Boolean(record),
-  ];
-  const locked = Boolean(record) && !isOrientationEditable(record.status);
-  const lastLineDate = lines.reduce(
-    (latest, line) => (line.toDate && line.toDate > latest ? line.toDate : latest),
-    "",
-  );
-  const timelineStart = form.fromOrient || employee?.startDate || "";
+  const canSave = permissions.can(`HR.ORIENTATION_TRAININGS:${record ? 'UPDATE' : 'CREATE'}`);
+  const locked = !canSave || (Boolean(record) && !isOrientationEditable(record.status));
+  const stepErrors = orientationStepErrors(form, { setupLoading, setupError });
+  Object.entries(editor.fieldErrors).forEach(([key, message]) => { stepErrors[key === 'employee' || key === 'fromOrient' ? 0 : 1][key] = message; });
+  const navigation = useRecruitmentSteps({ step, setStep, errorsByStep: stepErrors, reject: editor.reject, readOnly: locked });
+  const doneSteps = navigation.doneSteps;
+  const errors = { ...navigation.errors, ...editor.fieldErrors };
+  const allErrors = { ...Object.assign({}, ...stepErrors), ...editor.fieldErrors };
+  const reviewSections = orientationReviewSections(form, record, allErrors);
+  const reviewProgress = reviewCompletion(reviewSections);
+  const saveLabel = saving ? 'Saving…' : record ? 'Save changes' : 'Save draft';
+  useEffect(() => () => { setupRequest.current += 1; }, []);
+  const orientationStart = isIsoDate(form.fromOrient)
+    ? form.fromOrient
+    : isIsoDate(employee?.startDate)
+      ? employee.startDate
+      : "";
+  const lineDates = lines.flatMap((line) => [line.fromDate, line.toDate]).filter(isIsoDate);
+  const firstLineDate = lineDates.reduce((first, date) => (!first || date < first ? date : first), "");
+  const lastLineDate = lineDates.reduce((last, date) => (date > last ? date : last), "");
+  // Include every entered session even when it falls before the orientation
+  // start or more than two weeks later. The grid already scrolls horizontally.
+  const timelineStart = [orientationStart, firstLineDate].filter(Boolean).sort()[0] ?? "";
   const timelineDays = (() => {
     if (!timelineStart) return [];
-    const last =
-      lastLineDate && lastLineDate > timelineStart
-        ? lastLineDate
-        : addDays(timelineStart, 6);
-    const count = Math.min(14, Math.max(7, spanDays(timelineStart, last)));
+    const minimumEnd = addDays(timelineStart, 6);
+    const last = lastLineDate && lastLineDate > minimumEnd ? lastLineDate : minimumEnd;
+    const count = Math.max(7, spanDays(timelineStart, last));
     return Array.from({ length: count }, (_, index) =>
       addDays(timelineStart, index),
     );
@@ -172,26 +186,23 @@ function OrientationEditor({ lookups, record: savedRecord }) {
   // Legacy getEmlpoyee(): fill the employee fields and regenerate the training rows of the
   // employee's type.
   const pickEmployee = async (picked) => {
+    if (employee?.employeeNumber === picked.employeeNumber && lines.length && !setupError && !setupLoading) return;
     const requestId = ++setupRequest.current;
-    setEmployee(picked);
+    patch({ employee: picked, flag: '', lines: [] });
     setSetupError("");
     setSetupLoading(true);
     try {
       const setup = await service.employeeSetup(picked.employeeNumber);
       if (requestId !== setupRequest.current) return;
-      setEmployee(setup.employee);
       patch({
         employee: setup.employee,
         flag: setup.flag,
         lines: setup.departments.map((department) => emptyLine(department)),
       });
-      setErrors({});
     } catch (error) {
       if (requestId !== setupRequest.current) return;
       setSetupError(error?.message || T.errors.setup);
-      // Keep the selected employee and existing form values visible when a
-      // dependent lookup fails. Saving is blocked until setup succeeds.
-      setEmployee(picked);
+      editor.showProblem(error?.message || T.errors.setup);
     } finally {
       if (requestId === setupRequest.current) setSetupLoading(false);
     }
@@ -201,38 +212,13 @@ function OrientationEditor({ lookups, record: savedRecord }) {
   const leave = (path) =>
     editor.dirty && !locked ? setDialog({ path }) : navigate(path);
   const requestSave = () => {
-    if (locked) return;
-    if (
-      setupLoading ||
-      setupError ||
-      (employee && form.employee?.employeeNumber !== employee.employeeNumber)
-    ) {
-      editor.reject(0, setupError || T.errors.setupPending);
-      return;
-    }
-    const problems = orientationSaveProblems({
-      employee,
-      fromOrient: form.fromOrient,
-      lines,
-    });
-    const nextErrors = {};
-    if (problems.includes("employee")) nextErrors.employee = T.errors.employee;
-    if (problems.includes("fromOrient")) nextErrors.fromOrient = T.errors.from;
-    if (problems.includes("noLines")) nextErrors.lines = T.errors.noLines;
-    if (problems.includes("reversed")) nextErrors.lines = T.errors.reversed;
-    setErrors(nextErrors);
-    if (problems.length) {
-      editor.reject(
-        nextErrors.employee || nextErrors.fromOrient ? 0 : 1,
-        `${T.errors.cannotSave} ${Object.values(nextErrors)[0]}`,
-      );
-      return;
-    }
-    setDialog("save");
+    if (locked || saving || editor.pending || !navigation.validateAll()) return;
+    save();
   };
-  const save = () =>
-    editor
-      .perform(
+  const save = async () => {
+    setSaving(true);
+    try {
+      const outcome = await editor.perform(
         async ({ saved }) => {
           const result = await service.save(
             editor.recordId,
@@ -242,11 +228,11 @@ function OrientationEditor({ lookups, record: savedRecord }) {
           saved(result);
           return result;
         },
-        { success: (result) => T.saved(result.scheduleNumber) },
-      )
-      .then((outcome) => {
-        if (outcome.status === "success") setDialog(null);
-      });
+        { success: (result) => `${T.saved(result.scheduleNumber)} Status: Draft.` },
+      );
+      if (outcome.status === 'success') editor.resetToSaved(outcome.value, orientationFormFromRecord(outcome.value));
+    } finally { setSaving(false); }
+  };
 
   // The primary button saves, so the toolbar has no second Save.
   const tools = [
@@ -290,19 +276,25 @@ function OrientationEditor({ lookups, record: savedRecord }) {
           record ? `${record.scheduleNumber} · ${T.status[status] ?? status}` : null
         }
         tools={tools}
-        primary={{ label: T.primary, icon: "save", onClick: requestSave }}
+        primary={{ label: saveLabel, icon: "save", onClick: requestSave }}
+        secondaryAction={record && !locked ? { label: 'Submit for Approval', icon: 'send', onClick: () => editor.showNotice('The approval workflow is pending setup. This orientation training has not been submitted.') } : null}
         feedback={editor.feedback}
+        feedbackMode="toast"
+        pendingMessage={saving || editor.pending ? 'Saving orientation training' : null}
         onDismissFeedback={editor.dismiss}
         locked={locked}
         pending={editor.pending || setupLoading}
         focusError={editor.focusError}
         banner={
+          <>
+          {!locked && <p className="zrv-hr-draft-note"><OrvexaIcon name="info" size={17} /><span><strong>{record ? 'Save changes' : 'Save draft'}</strong> stores this training as Draft. Approval submission is a separate action. Session fields are optional.</span></p>}
           <PrintSheet
             employee={employee}
             record={record}
             form={form}
             status={status}
           />
+          </>
         }
         steps={T.tabNames.map((name, index) => [
           name,
@@ -315,7 +307,9 @@ function OrientationEditor({ lookups, record: savedRecord }) {
         step={step}
         onStep={setStep}
         doneSteps={doneSteps}
-        finalLabel={T.final}
+        lockedSteps={navigation.lockedSteps}
+        onContinue={navigation.validateStep}
+        finalLabel={saveLabel}
         onFinal={requestSave}
         side={
           <>
@@ -397,12 +391,8 @@ function OrientationEditor({ lookups, record: savedRecord }) {
               </div>
             </Tilt>
             <Orbit
-              done={
-                Number(Boolean(employee)) +
-                Number(Boolean(form.fromOrient)) +
-                planned
-              }
-              total={lines.length + 2}
+              done={reviewProgress.complete}
+              total={reviewProgress.total}
               hint={
                 errors.lines ||
                 (lines.length
@@ -416,24 +406,21 @@ function OrientationEditor({ lookups, record: savedRecord }) {
         {step === 0 && (
           <>
             <StepHead {...T.heads[0]} />
-            <EmployeePicker
+            <EmployeeLookup
               id="ori-name"
               label={T.labels.name}
               required
               value={employee}
               onPick={pickEmployee}
-              error={errors.employee}
+              error={setupError || errors.employee}
+              cacheKey="orientation-training-employees"
               searchService={(query, options) =>
                 query
                   ? service.searchEmployees(query, options)
                   : { items: lookups.employees }
               }
             />
-            {setupError && (
-              <p className="zrv-auth-field-error" role="alert">
-                {setupError}
-              </p>
-            )}
+            {setupLoading && <p className="zrv-admin-hint" role="status">Loading employee details and training rows…</p>}
             <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt">
               {employeeFields.map(([label, value]) => {
                 const id = `ori-${label.replace(/\W+/g, "-").toLowerCase()}`;
@@ -465,7 +452,6 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                   value={form.fromOrient}
                   onChange={(event) => {
                     patch({ fromOrient: event.target.value });
-                    setErrors((prev) => ({ ...prev, fromOrient: "" }));
                   }}
                 />
               </HrField>
@@ -483,7 +469,7 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                   id="ori-by"
                   className="ux-input zrv-hr-input"
                   readOnly
-                  value={record?.scheduledByName ?? ""}
+                  value={record ? record.scheduledByName : user?.fullName?.trim() ?? ""}
                   placeholder={T.ticket.pending}
                 />
               </HrField>
@@ -492,127 +478,84 @@ function OrientationEditor({ lookups, record: savedRecord }) {
         )}
         {step === 1 && (
           <>
-            <StepHead {...T.heads[1]} />
+            <StepHead {...T.heads[1]} desc="Department head, dates, times and remarks are optional. Complete the details available now." />
             {!employee && <p className="zrv-hr-note">{T.pickFirst}</p>}
             {lines.length > 0 && (
-              <div className="zrv-hr-benefits">
-                {lines.map((line, index) => {
-                  const titleId = `ori-line-${index}-title`;
-                  const days = orientationDays(line.fromDate, line.toDate);
-                  const period = orientationPeriod(line.timeFrom, line.timeTo);
-                  return (
-                    <article
-                      key={`${line.department}-${index}`}
-                      style={{ "--i": index }}
-                      className={`zrv-hr-benefit zrv-hr-session${isPlanned(line) ? " zrv-hr-is-done" : ""}`}
-                    >
-                      <div className="zrv-hr-benefit__h">
-                        <span className="zrv-hr-bubble">
-                          <OrvexaIcon name="users" size={17} />
-                        </span>
-                        <b id={titleId}>{line.department}</b>
-                        <span className="zrv-hr-session__calc">
-                          <span>
-                            {T.labels.days}: {days === "" ? COMMON_TEXT.dash : days}
-                          </span>
-                          <span>
-                            {T.labels.period}: {period || COMMON_TEXT.dash}
-                          </span>
-                        </span>
-                        <span className="zrv-hr-benefit__ok" aria-hidden="true">
-                          <OrvexaIcon name="check" size={12} />
-                        </span>
-                      </div>
-                      <div
-                        className="zrv-hr-session__grid"
-                        role="group"
-                        aria-labelledby={titleId}
+              <div className="zrv-hr-training-plan">
+                <div className="zrv-hr-training-plan__summary">
+                  <div className="zrv-hr-training-plan__summary-icon" aria-hidden="true">
+                    <OrvexaIcon name="calendar-check" size={18} />
+                  </div>
+                  <div className="zrv-hr-training-plan__summary-copy">
+                    <b>Department training plan</b>
+                    <span>{planned === lines.length ? "All sessions are ready" : `${lines.length - planned} of ${lines.length} sessions need details`}</span>
+                  </div>
+                  <div className="zrv-hr-training-plan__progress" aria-label={`${planned} of ${lines.length} sessions planned`}>
+                    <span><i style={{ width: `${(planned / lines.length) * 100}%` }} /></span>
+                    <b>{planned}/{lines.length}</b>
+                  </div>
+                </div>
+                <div className="zrv-hr-training-plan__list">
+                  {lines.map((line, index) => {
+                    const titleId = `ori-line-${index}-title`;
+                    const days = orientationDays(line.fromDate, line.toDate);
+                    const period = orientationPeriod(line.timeFrom, line.timeTo);
+                    const complete = isPlanned(line);
+                    return (
+                      <article
+                        key={`${line.department}-${index}`}
+                        style={{ "--i": index }}
+                        className={`zrv-hr-training-card${complete ? " zrv-hr-is-done" : ""}`}
                       >
-                        <label className="zrv-hr-session__f zrv-hr-is-wide">
-                          <span>{T.labels.head}</span>
-                          <select
-                            className="ux-select zrv-hr-input"
-                            value={line.departmentHead}
-                            onChange={(event) =>
-                              updateLine(index, {
-                                departmentHead: event.target.value,
-                              })
-                            }
-                          >
-                            <option value="">{T.placeholders.head}</option>
-                            {managers.map((head) => (
-                              <option
-                                key={`${head.employeeNumber}-${head.name}`}
-                                value={head.name}
-                              >
-                                {head.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="zrv-hr-session__f">
-                          <span>{T.labels.sessionFrom}</span>
-                          <input
-                            type="date"
-                            className="ux-input zrv-hr-input"
-                            value={line.fromDate}
-                            onChange={(event) =>
-                              updateLine(index, { fromDate: event.target.value })
-                            }
-                          />
-                        </label>
-                        <label className="zrv-hr-session__f">
-                          <span>{T.labels.sessionTo}</span>
-                          <input
-                            type="date"
-                            className="ux-input zrv-hr-input"
-                            value={line.toDate}
-                            min={line.fromDate || undefined}
-                            onChange={(event) =>
-                              updateLine(index, { toDate: event.target.value })
-                            }
-                          />
-                        </label>
-                        <label className="zrv-hr-session__f">
-                          <span>{T.labels.timeFrom}</span>
-                          <input
-                            type="time"
-                            step="1"
-                            className="ux-input zrv-hr-input"
-                            value={line.timeFrom}
-                            onChange={(event) =>
-                              updateLine(index, { timeFrom: event.target.value })
-                            }
-                          />
-                        </label>
-                        <label className="zrv-hr-session__f">
-                          <span>{T.labels.timeTo}</span>
-                          <input
-                            type="time"
-                            step="1"
-                            className="ux-input zrv-hr-input"
-                            value={line.timeTo}
-                            onChange={(event) =>
-                              updateLine(index, { timeTo: event.target.value })
-                            }
-                          />
-                        </label>
-                        <label className="zrv-hr-session__f zrv-hr-is-full">
-                          <span>{T.labels.remark}</span>
-                          <input
-                            className="ux-input zrv-hr-input"
-                            value={line.remarks}
-                            maxLength={1000}
-                            placeholder={T.placeholders.remark}
-                            onChange={(event) =>
-                              updateLine(index, { remarks: event.target.value })
-                            }
-                          />
-                        </label>
-                      </div>
-                    </article>
-                  );
-                })}
+                        <header className="zrv-hr-training-card__head">
+                          <span className="zrv-hr-training-card__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                          <div className="zrv-hr-training-card__title">
+                            <b id={titleId}>{line.department}</b>
+                            <small>Department orientation session</small>
+                          </div>
+                          <div className="zrv-hr-training-card__metrics" aria-label="Session duration">
+                            <span><OrvexaIcon name="calendar-days" size={13} />{days === "" ? "No dates" : `${days} ${days === 1 ? "day" : "days"}`}</span>
+                            <span><OrvexaIcon name="clock" size={13} />{period || "No time"}</span>
+                          </div>
+                          <span className={`zrv-hr-training-card__status${complete ? " zrv-hr-is-ready" : ""}`}>
+                            <OrvexaIcon name={complete ? "check" : "circle-dashed"} size={13} />
+                            {complete ? "Planned" : "Needs details"}
+                          </span>
+                        </header>
+                        <div className="zrv-hr-training-card__body" role="group" aria-labelledby={titleId}>
+                          <div className="zrv-hr-training-card__field zrv-hr-is-head">
+                            <HrField id={`ori-head-${index}`} label={T.labels.head} error={errors[orientationLineKey(index, 'departmentHead')]}>
+                              <SearchableLookup id={`ori-head-${index}`} value={line.departmentHead} customValue={line.departmentHead}
+                                options={managers.map((head) => ({ code: head.name, name: head.name, description: head.employeeNumber }))}
+                                error={errors[orientationLineKey(index, 'departmentHead')]} placeholder={T.placeholders.head}
+                                onChange={(option) => updateLine(index, { departmentHead: option.code })}
+                                onClear={() => updateLine(index, { departmentHead: '' })} />
+                            </HrField>
+                          </div>
+                          {[
+                            ['fromDate', T.labels.sessionFrom, 'date'], ['toDate', T.labels.sessionTo, 'date'],
+                            ['timeFrom', T.labels.timeFrom, 'time'], ['timeTo', T.labels.timeTo, 'time'],
+                            ['remarks', T.labels.remark, 'text'],
+                          ].map(([field, label, type]) => {
+                            const id = `ori-${field}-${index}`;
+                            const error = errors[orientationLineKey(index, field)];
+                            return <div key={field} className={`zrv-hr-training-card__field zrv-hr-is-${field}`}>
+                              <HrField id={id} label={label} error={error}>
+                                <input {...fieldProps(id, { error })} className="ux-input zrv-hr-input" type={type}
+                                  value={line[field] || ''} step={type === 'time' ? '1' : undefined}
+                                  min={field === 'toDate' ? line.fromDate || undefined : undefined}
+                                  maxLength={type === 'text' ? 1000 : undefined}
+                                  placeholder={field === 'remarks' ? T.placeholders.remark : undefined}
+                                  onChange={(event) => updateLine(index, { [field]: event.target.value })} />
+                              </HrField>
+                            </div>;
+                          })}
+                        </div>
+                        {errors[orientationLineKey(index, 'department')] && <p className="zrv-auth-field-error" role="alert">{errors[orientationLineKey(index, 'department')]}</p>}
+                      </article>
+                    );
+                  })}
+                </div>
               </div>
             )}
             {errors.lines && (
@@ -629,26 +572,31 @@ function OrientationEditor({ lookups, record: savedRecord }) {
               <div
                 className="zrv-hr-timeline"
                 style={{ "--cols": timelineDays.length }}
-                role="img"
+                role="group"
                 aria-label={T.timeline.label}
               >
                 <span
                   className="zrv-hr-timeline__corner"
                   style={{ gridRow: 1, gridColumn: 1 }}
-                />
+                >Training session</span>
                 {timelineDays.map((day, column) => (
                   <span
                     key={day}
                     style={{ gridColumn: column + 2 }}
                     className={`zrv-hr-timeline__day${isWeekend(day) ? " zrv-hr-is-weekend" : ""}${employee && day === employee.startDate ? " zrv-hr-is-start" : ""}`}
+                    title={enDate(day)}
                   >
                     <b>{Number(day.slice(8))}</b>
-                    <small>{weekday(day)}</small>
+                    <small>{weekday(day)} · {month(day)}</small>
                   </span>
                 ))}
                 {lines.map((line, row) => {
                   const start = timelineDays.indexOf(line.fromDate);
                   const end = timelineDays.indexOf(line.toDate);
+                  const sessionTime = timeRange(line);
+                  const sessionDays = isIsoDate(line.fromDate) && isIsoDate(line.toDate) && line.toDate >= line.fromDate
+                    ? spanDays(line.fromDate, line.toDate)
+                    : 0;
                   const visible =
                     line.fromDate && line.toDate && start >= 0 && end >= start;
                   return [
@@ -657,7 +605,8 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                       className="zrv-hr-timeline__label"
                       style={{ gridRow: row + 2 }}
                     >
-                      {line.department}
+                      <span className="zrv-hr-timeline__label-text">{line.department}</span>
+                      {sessionTime && <small className="zrv-hr-timeline__label-time"><OrvexaIcon name="clock" size={12} />{sessionTime}</small>}
                     </span>,
                     ...timelineDays.map((day, column) => (
                       <span
@@ -674,8 +623,10 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                           gridRow: row + 2,
                           gridColumn: `${start + 2} / ${end + 3}`,
                         }}
+                        title={`${line.department}: ${enDate(line.fromDate)}${line.toDate !== line.fromDate ? ` to ${enDate(line.toDate)}` : ""}${sessionTime ? `, ${sessionTime}` : ""}`}
+                        aria-label={`${line.department} scheduled from ${enDate(line.fromDate)} to ${enDate(line.toDate)}${sessionTime ? `, ${sessionTime}` : ""}`}
                       >
-                        {line.timeFrom && `${line.timeFrom}–${line.timeTo}`}
+                        <span>{sessionDays === 1 ? "1 day" : `${sessionDays} days`}</span>
                       </span>
                     ),
                   ];
@@ -704,55 +655,11 @@ function OrientationEditor({ lookups, record: savedRecord }) {
         {step === 3 && (
           <>
             <StepHead {...T.heads[3]} />
-            <dl className="zrv-hr-review zrv-hr-ori-review">
-              {lines.map((line) => (
-                <div
-                  key={line.department}
-                  className={isPlanned(line) ? "zrv-hr-is-ok" : undefined}
-                >
-                  <dt>{line.department}</dt>
-                  <dd>
-                    {line.fromDate
-                      ? `${shortDate(line.fromDate)}${line.toDate && line.toDate !== line.fromDate ? ` – ${shortDate(line.toDate)}` : ""}`
-                      : T.review.noDates}
-                    {" · "}
-                    {line.timeFrom
-                      ? `${line.timeFrom}–${line.timeTo} (${orientationPeriod(line.timeFrom, line.timeTo) || COMMON_TEXT.dash})`
-                      : T.review.noTimes}
-                    <small>
-                      {line.departmentHead || T.review.noHead}
-                      {line.remarks ? ` · ${line.remarks}` : ""}
-                    </small>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            {errors.lines && (
-              <p className="zrv-auth-field-error" role="alert">
-                {errors.lines}
-              </p>
-            )}
+            <Review sections={reviewSections} {...reviewProgress} formTitle="Orientation Training"
+              reference={record?.scheduleNumber} approvalStatus={T.status[status] ?? status} />
           </>
         )}
       </RecruitmentShell>
-      {dialog === "save" && (
-        <ConfirmDialog
-          title={T.saveTitle}
-          description={T.saveBody}
-          confirmLabel={T.primary}
-          pending={editor.pending}
-          feedback={editor.feedback}
-          onConfirm={save}
-          onClose={() => setDialog(null)}
-        >
-          <p className="zrv-admin-confirm">
-            <b>{employee?.name}</b> · {employee?.position}
-            <br />
-            {shortDate(form.fromOrient)} · {planned}/{lines.length}{" "}
-            {T.card.sessions.toLowerCase()}
-          </p>
-        </ConfirmDialog>
-      )}
       {dialog?.path && (
         <NewFormDialog
           onConfirm={() => {

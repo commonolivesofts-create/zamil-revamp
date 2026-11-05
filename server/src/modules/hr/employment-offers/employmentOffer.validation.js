@@ -53,7 +53,7 @@ export const listQuerySchema = Joi.object({
   intNo: text(100),
   requisitionNo: text(100),
   division: Joi.string().valid(...BU_VALUES),
-  // Offer status is Incomplete until the dedicated HR acceptance action records Accepted.
+  // Saves write Complete; the dedicated HR acceptance action records Accepted.
   status: text(30),
   dateFrom: isoDate,
   dateTo: isoDate,

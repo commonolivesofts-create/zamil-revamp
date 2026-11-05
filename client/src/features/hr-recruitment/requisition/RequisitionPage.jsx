@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ContentSkeleton from "@/components/feedback/ContentSkeleton.jsx";
 import { useNavigate } from "react-router";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
 import useAuth from "@/features/auth/useAuth.js";
@@ -141,9 +142,7 @@ function RequisitionEditor({
   const lookupErrors = lookups.lookupErrors ?? [];
   const lookupNotice =
     lookupStatus === "loading" ? (
-      <p className="zrv-admin-state" role="status">
-        Loading form options… You can start filling the other fields.
-      </p>
+      <ContentSkeleton variant="inline" label="Preparing form options" />
     ) : lookupStatus === "error" || lookupErrors.length ? (
       <div className="zrv-admin-state zrv-admin-state--error" role="alert">
         <p>

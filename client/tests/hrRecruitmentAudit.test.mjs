@@ -42,6 +42,19 @@ function fakeClient(routes) {
 
 const services = (client) => createHrRecruitmentServices({ client });
 
+test("offer detail and report preserve saved completion and actual acceptance as separate statuses", async () => {
+  for (const [stored, expected] of [["Incomplete", "INCOMPLETE"], ["Complete", "COMPLETE"], ["Completed", "COMPLETE"], ["Accepted", "ACCEPTED"]]) {
+    const data = { headerId: "9", employeeName: "Sample Candidate", status: stored, offerDate: "2026-10-28", creationDate: "2026-10-28T08:00:00.000Z", line: {} };
+    const client = fakeClient({
+      "GET /hr/employment-offers/9": { data },
+      "GET /hr/employment-offers": { data: [data], pagination: { page: 1, total: 1 } },
+    });
+    const offers = services(client).offers;
+    assert.equal((await offers.getById("9")).status, expected);
+    assert.equal((await offers.list()).items[0].status, expected);
+  }
+});
+
 test("recruitment actions send the current status and reason, then reload server progress", async () => {
   const client = fakeClient({
     "POST /hr/requisitions/42/recruitment-status": { data: { requisitionId: "42" } },

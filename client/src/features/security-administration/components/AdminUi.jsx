@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import ContentSkeleton from '@/components/feedback/ContentSkeleton.jsx'
 import { describeFailure } from '../adminFeedback.js'
 import '@/styles/security-admin.css'
 
@@ -67,7 +68,7 @@ const defaultIsEmpty = (data) => {
 
 export function ResourceState({ resource, label, empty, notFound, isEmpty = defaultIsEmpty, children }) {
   if (resource.status === 'idle') return null
-  if (resource.status === 'loading') return <p className="zrv-admin-state" role="status">Loading {label}…</p>
+  if (resource.status === 'loading') return <ContentSkeleton label={`Loading ${label}`} />
   // A record that does not exist is not retried.
   if (resource.status === 'error' && resource.error?.status === 404) {
     return <p className="zrv-admin-state" role="status">{notFound || empty}</p>

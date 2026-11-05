@@ -21,8 +21,34 @@ import {
   PROBATION_PERIOD_AR,
 } from './helpers/employmentOfferFakes.js';
 import { createApp } from '../src/app.js';
+import {
+  insertHeader,
+  insertLine,
+  mergeLine,
+  updateHeader,
+  hijriDate,
+} from '../src/modules/hr/employment-offers/employmentOffer.repository.js';
 
 const BASE = '/api/v1/hr/employment-offers';
+
+it('persists Complete and maps the reserved recipient bind safely on both header writes', async () => {
+  const statements = [];
+  const connection = {
+    execute: async (sql, binds) => {
+      statements.push({ sql, binds });
+      return { rowsAffected: 1 };
+    },
+  };
+  await insertHeader(connection, { to: 'Mr' });
+  await updateHeader(connection, { to: 'Mr' });
+  assert.match(statements[0].sql, /:position, 'Complete'/);
+  assert.match(statements[1].sql, /STATUS = 'Complete'/);
+  for (const { sql, binds } of statements) {
+    assert.match(sql, /:recipientTitle/);
+    assert.equal(binds.recipientTitle, 'Mr');
+    assert.equal(Object.hasOwn(binds, 'to'), false);
+  }
+});
 const BU = '300000002689294'; // business units (README §8.9; raw ids only, labels swapped)
 const BU2 = '300000002689307';
 
@@ -285,7 +311,7 @@ describe('employment offer API', () => {
 
       const repo = f.store.employmentOfferRepository;
       const stored = await repo.findHeader({}, '1');
-      assert.equal(stored.status, 'Incomplete'); // write-once: only ever 'Incomplete'
+      assert.equal(stored.status, 'Complete'); // a validated Save completes the offer
       assert.equal(stored.offerDate, '2026-10-25'); // ISO read of the stored legacy date
       assert.equal(stored.employeeName, 'John Doe');
       assert.equal(stored.employeeNameAr, 'جون دو');
@@ -449,7 +475,7 @@ describe('employment offer API', () => {
       },
     };
 
-    it('updates the header and the line; STATUS and insert-only columns are untouched', async () => {
+    it('completes an existing Incomplete offer while updating its header and line, preserving creation audit fields', async () => {
       f.store.seedOffer({ headerId: '900', createdBy: f.hrUser.userId });
       const res = await send('put', '/900', hr, UPDATED);
       assert.equal(res.status, 200);
@@ -461,7 +487,7 @@ describe('employment offer API', () => {
       assert.equal(stored.division, BU2);
       assert.equal(stored.applicant, 'Jane Approver');
       assert.equal(stored.reqNo, 'REQ-2048');
-      assert.equal(stored.status, 'Incomplete'); // never updated (README §5)
+      assert.equal(stored.status, 'Complete');
       assert.equal(stored.createdBy, f.hrUser.userId); // audit columns immutable
       assert.equal(stored.updatedBy, f.hrUser.userId);
       assert.ok(stored.updatedAt);
@@ -540,7 +566,7 @@ describe('employment offer API', () => {
   });
 
   describe('GET / (LISTING WITH FILTERS)', () => {
-    // Four records; the fourth belongs to the non-HR creator. All STATUS 'Incomplete' (write-once).
+    // Four legacy Incomplete records; the fourth belongs to the non-HR creator.
     function seedListings() {
       f.store.seedOffer({
         headerId: '800',
@@ -835,4 +861,26 @@ describe('employment offer API', () => {
       assert.equal(withQuery.body.error.code, 'VALIDATION_ERROR');
     });
   });
+});
+
+it('uses safe Oracle bind names for offer comments and Hijri date lookup', async () => {
+  const statements = [];
+  const connection = {
+    execute: async (sql, binds) => {
+      statements.push({ sql, binds });
+      return { rowsAffected: 1, rows: [{ HIJRI: '1448/03/10' }] };
+    },
+  };
+  await insertLine(connection, { comment: 'Offer notes' });
+  await mergeLine(connection, { comment: 'Offer notes' });
+  assert.equal(await hijriDate(connection, '2026-11-05'), '1448/03/10');
+
+  for (const { sql, binds } of statements.slice(0, 2)) {
+    assert.match(sql, /:offerComment/);
+    assert.equal(binds.offerComment, 'Offer notes');
+    assert.equal(Object.hasOwn(binds, 'comment'), false);
+  }
+  assert.match(statements[2].sql, /:gregorianDate/);
+  assert.equal(statements[2].binds.gregorianDate, '2026-11-05');
+  assert.equal(Object.hasOwn(statements[2].binds, 'date'), false);
 });

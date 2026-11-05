@@ -11,6 +11,19 @@ import oracledb from 'oracledb';
  */
 const ID = { type: oracledb.STRING };
 
+// `TO` is a reserved SQL keyword, so it cannot be used as an Oracle bind name.
+// Keep the service's `to` field and translate it to a safe SQL bind here.
+const headerSqlBinds = (header) => {
+  const { to, ...binds } = header;
+  return { ...binds, recipientTitle: to };
+};
+
+// COMMENT is also an Oracle keyword; preserve the service field while using a safe SQL bind.
+const lineSqlBinds = (line) => {
+  const { comment, ...binds } = line;
+  return { ...binds, offerComment: comment };
+};
+
 const rows = async (connection, sql, binds, fetchInfo) =>
   (
     await connection.execute(sql, binds, {
@@ -31,10 +44,10 @@ export async function insertHeader(connection, h) {
         CREATED_BY, CREATION_DATE, ATTRIBUTE1, ATTRIBUTE2, ATTRIBUTE3, ATTRIBUTE4,
         ATTRIBUTE10, ATTRIBUTE11)
      VALUES
-       (:uuid, TO_DATE(:offerDate, 'DD-Mon-YYYY'), :employeeName, :position, 'Incomplete',
+       (:uuid, TO_DATE(:offerDate, 'DD-Mon-YYYY'), :employeeName, :position, 'Complete',
         :employeeNameAr, :createdBy, SYSDATE, :division, NVL(:applicant, '-'),
-        :to, :toArabic, :intNo, NVL(:reqNo, 0))`,
-    h,
+        :recipientTitle, :toArabic, :intNo, NVL(:reqNo, 0))`,
+    headerSqlBinds(h),
   );
 }
 
@@ -72,8 +85,8 @@ export async function insertLine(connection, l) {
         TO_DATE(:approxStartingDate, 'DD-Mon-YYYY'), :approxStartingDateAr,
         NVL(:probationaryPeriod, '3 months with the possibility to be extend to 6 Months.'),
         NVL(:probationaryPeriodAr, 'ثلاثة أشهر مع قابلية تمديدها إلى ستة أشهر.'),
-        :createdBy, SYSDATE, :comment, :basicSalaryAr)`,
-    l,
+        :createdBy, SYSDATE, :offerComment, :basicSalaryAr)`,
+    lineSqlBinds(l),
   );
 }
 
@@ -209,17 +222,18 @@ export async function findLine(connection, headerId) {
 
 // --- Update (README §5) --------------------------------------------------------------------------
 
-/** Header update (§5.1). STATUS, CREATED_BY and CREATION_DATE are never touched. */
+/** A validated save completes the offer. Creation audit columns remain immutable. */
 export async function updateHeader(connection, h) {
   const result = await connection.execute(
     `UPDATE XXZP.XXZP_EMPLOYMENT_OFFER_HEADER_T
         SET OFFER_DATE = TO_DATE(:offerDate, 'DD-Mon-YYYY'),
+            STATUS = 'Complete',
             EMPLOYEE_NAME = :employeeName,
             EMPLOYEE_NAME_AR = :employeeNameAr,
             POSITION = :position,
             ATTRIBUTE1 = :division,
             ATTRIBUTE2 = :applicant,
-            ATTRIBUTE3 = :to,
+            ATTRIBUTE3 = :recipientTitle,
             ATTRIBUTE4 = :toArabic,
             ATTRIBUTE10 = :intNo,
             ATTRIBUTE11 = :reqNo,
@@ -227,7 +241,7 @@ export async function updateHeader(connection, h) {
             LAST_UPDATE_LOGIN = :updatedBy,
             LAST_UPDATE_DATE = SYSDATE
       WHERE HEADER_ID = :headerId`,
-    h,
+    headerSqlBinds(h),
   );
   return result.rowsAffected === 1;
 }
@@ -259,7 +273,7 @@ export async function mergeLine(connection, l) {
         CONTRACT_PERIOD_AR = :contractPeriodAr,
         APPROXIMATE_STARTING_DATE = TO_DATE(:approxStartingDate, 'DD-Mon-YYYY'),
         APPROXIMATE_STARTING_DATE_AR = :approxStartingDateAr,
-        ATTRIBUTE1 = :comment,
+        ATTRIBUTE1 = :offerComment,
         LAST_UPDATED_BY = :updatedBy,
         LAST_UPDATE_LOGIN = :updatedBy,
         LAST_UPDATE_DATE = SYSDATE
@@ -283,8 +297,8 @@ export async function mergeLine(connection, l) {
          TO_DATE(:approxStartingDate, 'DD-Mon-YYYY'), :approxStartingDateAr,
          NVL(:probationaryPeriod, '3 months with the possibility to be extend to 6 Months.'),
          NVL(:probationaryPeriodAr, 'ثلاثة أشهر مع قابلية تمديدها إلى ستة أشهر.'),
-         :createdBy, SYSDATE, :comment, :basicSalaryAr)`,
-    l,
+         :createdBy, SYSDATE, :offerComment, :basicSalaryAr)`,
+    lineSqlBinds(l),
   );
 }
 
@@ -528,10 +542,10 @@ export async function numberToArabic(connection, number) {
 export async function hijriDate(connection, date) {
   const [row] = await rows(
     connection,
-    `SELECT TO_CHAR(TO_DATE(:date, 'YYYY-MM-DD'), 'YYYY/MM/DD',
+    `SELECT TO_CHAR(TO_DATE(:gregorianDate, 'YYYY-MM-DD'), 'YYYY/MM/DD',
                'NLS_CALENDAR=''Arabic Hijrah''') AS HIJRI
        FROM DUAL`,
-    { date },
+    { gregorianDate: date },
   );
   return row.HIJRI;
 }

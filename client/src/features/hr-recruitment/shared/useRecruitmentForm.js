@@ -6,7 +6,7 @@ import { activeRecruitmentErrors, recruitmentValidation } from './recruitmentFie
 
 // Navigation state carries only the step to reopen and a plain message (never
 // record data): a new record moves to its own URL after its first save.
-const readStep = (state) => (Number.isInteger(state?.step) && state.step >= 0 && state.step <= 3 ? state.step : 0)
+const readStep = (state, stepCount) => (Number.isInteger(state?.step) && state.step >= 0 && state.step < stepCount ? state.step : 0)
 const readNotice = (state) => (
   state?.notice && typeof state.notice.message === 'string' && ['success', 'error', 'unknown'].includes(state.notice.kind)
     ? { kind: state.notice.kind, message: state.notice.message, details: [] }
@@ -24,14 +24,14 @@ const outcomeFeedback = (outcome, success) => {
 // unsaved-change tracking and one change at a time through useAdminAction
 // (never auto-retried; unknown outcomes are explained, not reported as
 // success).
-export function useRecruitmentForm({ basePath, idKey, record: initialRecord, initialForm, validationFields = {} }) {
+export function useRecruitmentForm({ basePath, idKey, record: initialRecord, initialForm, validationFields = {}, stepCount = 4 }) {
   const navigate = useNavigate()
   const location = useLocation()
   const action = useAdminAction()
   const [record, setRecord] = useState(initialRecord)
   const [form, setForm] = useState(initialForm)
   const [baseline, setBaseline] = useState(() => JSON.stringify(initialForm))
-  const [step, setStep] = useState(() => readStep(location.state))
+  const [step, setStep] = useState(() => readStep(location.state, stepCount))
   const [notice, setNotice] = useState(() => readNotice(location.state))
   const [focusError, setFocusError] = useState(0)
   const [serverErrors, setServerErrors] = useState({})
@@ -82,7 +82,7 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
       setRecord(saved)
     }
     const outcome = await action.run(() => operation({ saved: keep }), { success })
-    const validation = recruitmentValidation(outcome.error, validationFields, form)
+    const validation = recruitmentValidation(outcome.error, typeof validationFields === 'function' ? validationFields(form) : validationFields, form)
     if (validation) {
       setServerErrors(validation.errors)
       reject(validation.step)

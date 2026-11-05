@@ -781,7 +781,7 @@ test("orientation page: flow step 4 keeps the styled editor and uses backend emp
   const page = await read(`${FEATURE}orientation/OrientationPage.jsx`);
   assert.match(
     page,
-    /<EmployeePicker\s+id="ori-name"\s+label=\{T\.labels\.name\}\s+required/,
+    /<EmployeeLookup\s+id="ori-name"\s+label=\{T\.labels\.name\}\s+required/,
   );
   assert.match(
     page,
@@ -796,7 +796,7 @@ test("orientation page: flow step 4 keeps the styled editor and uses backend emp
     /readOnly\s+value=\{toDate \? enDate\(toDate\) : ["']["']\}/,
   );
   assert.match(page, /locked=\{locked\}/, "a request in the workflow or approved is read only");
-  assert.match(page, /type="time"\s+step="1"/, "legacy time inputs use seconds");
+  assert.match(page, /step=\{type === 'time' \? '1' : undefined\}/, "legacy time inputs use seconds");
   // The report is its own page, opened on the schedule's table (Shared or Plant).
   assert.match(page, /leave\(`\$\{BASE\}\/report\?flag=\$\{savedRecord\?\.flag \|\| "N"\}`\)/);
   const report = await read(`${FEATURE}orientation/OrientationReportPage.jsx`);
@@ -1273,11 +1273,11 @@ test("probation page connects to backend supported fields", async () => {
     /const searchEmployees = \(query, options\) =>\s*service\.searchEmployees\(query, options\)/,
   );
   assert.doesNotMatch(page, /lookups\.employees/, "no preloaded employee list");
-  assert.match(page, /<EmployeePicker id="pa-emp"/);
+  assert.match(page, /<EmployeeLookup id="pa-emp"/);
   // Criteria come from the form type (legacy showDropInfo); the user only gives points.
   assert.match(page, /await service\.criteria\(formType\)/);
   assert.doesNotMatch(page, /Add criterion|Remove criterion/);
-  assert.match(page, /\{ label: 'Save', icon: 'save', onClick: save \}/);
+  assert.match(page, /\{ label: saveLabel, icon: 'save', onClick: save \}/);
   assert.doesNotMatch(page, /service\.submit|recommendation|signature/);
   const inputs = await read(
     `${FEATURE}shared/components/RecruitmentInputs.jsx`,

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation, useParams } from 'react-router'
 import useAuth from '@/features/auth/useAuth.js'
+import ContentSkeleton from '@/components/feedback/ContentSkeleton.jsx'
 import { ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT } from '../../hrRecruitmentText.js'
@@ -26,19 +27,21 @@ export function RecruitmentLoader({
   useEffect(() => identify(user?.fullName), [identify, user?.fullName])
   const lookups = useResource(`hr-recruitment-lookups:${current}`, loadLookups)
   const record = useResource(id ? `hr-recruitment-${current}:${id}` : null, (signal) => load(id, { signal }))
-  const frame = (content) => (
+  const frame = (content, loading = false) => (
     <div className={`zrv-hr zrv-hr--${current}`}>
       <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} breadcrumb={breadcrumb} />
       {flow && <FlowNav current={current} />}
-      <div className="zrv-admin-panel">{content}</div>
+      {loading
+        ? <ContentSkeleton variant="form" label={`Loading ${title}`} />
+        : <div className="zrv-admin-panel">{content}</div>}
     </div>
   )
 
   if (current !== 'requisition' && lookups.status !== 'ready') {
-    return frame(<ResourceState resource={lookups} label={COMMON_TEXT.loadingLookups} empty={COMMON_TEXT.loadingLookups}>{() => null}</ResourceState>)
+    return frame(<ResourceState resource={lookups} label={COMMON_TEXT.loadingLookups} empty={COMMON_TEXT.loadingLookups}>{() => null}</ResourceState>, lookups.status === 'loading')
   }
   if (id && record.status !== 'ready') {
-    return frame(<ResourceState resource={record} label={COMMON_TEXT.loadingRecord} empty={COMMON_TEXT.notFound} notFound={COMMON_TEXT.notFound}>{() => null}</ResourceState>)
+    return frame(<ResourceState resource={record} label={COMMON_TEXT.loadingRecord} empty={COMMON_TEXT.notFound} notFound={COMMON_TEXT.notFound}>{() => null}</ResourceState>, record.status === 'loading')
   }
   return children({
     lookups: lookups.data ?? { jobs: [], departments: [], requester: '', replacements: [] },
