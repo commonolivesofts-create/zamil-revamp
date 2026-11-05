@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import Sidebar from '@/components/layout/Sidebar.jsx'
 import Header from '@/components/layout/Header.jsx'
@@ -7,6 +7,7 @@ import CommandPalette from '@/components/layout/CommandPalette.jsx'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import useOrvexaLayout from '@/hooks/useOrvexaLayout.js'
 import useAuth from '@/features/auth/useAuth.js'
+import RouteLoading from '@/components/feedback/RouteLoading.jsx'
 import '@/styles/workspace.css'
 
 export default function AdminLayout() {
@@ -132,7 +133,9 @@ export default function AdminLayout() {
         )}
         {status === 'preview' && <div role="status" className="border-b px-4 py-2 text-center text-xs" style={{ borderColor: 'var(--line)', background: 'var(--surface-2)', color: 'var(--amber-text)' }}>Development preview — not authenticated. This mode is unavailable in production builds.</div>}
         <main id="main-content" className="px-3 py-5 sm:px-5 lg:px-6" tabIndex={-1}>
-          <Outlet />
+          <Suspense key={location.pathname} fallback={<RouteLoading />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
       {commandOpen && <CommandPalette open onClose={() => { setCommandOpen(false); document.getElementById('command-trigger')?.focus() }} />}

@@ -21,10 +21,14 @@ result.
 - **Runner:** Node's built-in `node:test` with `node:assert/strict`. No browser, DOM or React
   rendering library is installed.
 - **Consequence:** tests import plain `.js` modules (services, contracts, stores, models,
-  configuration). JSX components cannot be imported; their important properties are protected by
+  configuration). JSX components cannot be imported directly by Node; their important properties
+  are protected by
   **static source assertions** (the test reads the `.jsx` file and checks for the required code,
   for example that a button uses a specific permission key, or that a route is registered).
   Design features so that logic lives in testable `.js` modules.
+- **Loading boundary regression tests:** `loadingExperience.test.mjs` uses Vite's SSR module loader
+  and React's server renderer to exercise real JSX and Suspense fallbacks. This checks that loading
+  stays inside the shell and protected pages wait for access; it does not run a browser or effects.
 - **Transport is always mocked:** `tests/helpers/http.mjs` provides `recordingFetch`, `success`,
   `failure`, `noContent`, `deferred`, fixtures shaped like the OpenAPI contract, and
   `forbidBrowserStorage`. Tests create a client with
@@ -45,6 +49,7 @@ result.
 | `routing.test.mjs` | Safe return URLs, development-preview demo routes |
 | `securityBoundaries.test.mjs` | No browser storage/cookies in auth and API code; dev proxy |
 | `accessibility.test.mjs` | Screen-reader-only styles and route announcements |
+| `loadingExperience.test.mjs` | Session startup, pending permissions, content-only Suspense skeletons, immediate ready-page rendering |
 | `deployment.test.mjs` | `vercel.json`: SPA fallback excludes `/api`, security headers, CSP |
 
 ### What a new feature should add

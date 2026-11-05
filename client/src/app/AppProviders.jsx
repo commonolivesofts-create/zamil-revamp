@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import AppErrorBoundary from './AppErrorBoundary.jsx'
-import PageState from '@/components/feedback/PageState.jsx'
+import StartupLoading from '@/components/feedback/StartupLoading.jsx'
 import AuthProvider from '@/features/auth/AuthProvider.jsx'
 import PermissionProvider from '@/features/access/PermissionProvider.jsx'
 
@@ -8,19 +8,12 @@ import PermissionProvider from '@/features/access/PermissionProvider.jsx'
 export default function AppProviders({ children }) {
   return (
     <AppErrorBoundary>
-      <Suspense
-        fallback={
-          <PageState
-            kind="loading"
-            title="Loading workspace"
-            description="Preparing the application."
-          />
-        }
-      >
-        <AuthProvider>
-          <PermissionProvider>{children}</PermissionProvider>
-        </AuthProvider>
-      </Suspense>
+      <AuthProvider>
+        <PermissionProvider>
+          {/* Providers stay mounted even when the first route suspends. */}
+          <Suspense fallback={<StartupLoading />}>{children}</Suspense>
+        </PermissionProvider>
+      </AuthProvider>
     </AppErrorBoundary>
   )
 }

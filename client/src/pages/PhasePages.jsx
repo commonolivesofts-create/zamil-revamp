@@ -30,18 +30,6 @@ export function AccessDeniedPage({ reason }) {
   )
 }
 
-export function AccessPendingPage() {
-  return (
-    <RouteNotice
-      role="status" busy
-      eyebrow="Checking access"
-      title="Loading your permissions"
-      description="This page opens once your access has been confirmed."
-      actionLabel={null}
-    />
-  )
-}
-
 export function AccessUnavailablePage({ onRetry }) {
   return (
     <RouteNotice

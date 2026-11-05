@@ -1,0 +1,24 @@
+.zrv-route-loading {
+  width: 100%;
+  min-width: 0;
+  padding-block: 8px;
+  opacity: 0;
+  animation: zrv-route-loading-reveal 120ms ease-out 160ms forwards;
+}
+
+@keyframes zrv-route-loading-reveal {
+  to {
+    opacity: 1;
+  }
+}
+
+html[data-motion='reduced'] .zrv-route-loading {
+  opacity: 1;
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-route-loading {
+    opacity: 1;
+    animation: none;
+  }
+}

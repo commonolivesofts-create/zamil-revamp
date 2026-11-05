@@ -141,7 +141,8 @@ not import them.
 |---|---|---|
 | `PageState` | `components/feedback/PageState.jsx` | Full-screen loading/error state (session checks); not inside the shell |
 | `RouteNotice` | `pages/RouteNotice.jsx` | In-shell notice panel with an optional action link or button |
-| `AccessDeniedPage`, `AccessPendingPage`, `AccessUnavailablePage`, `NotFoundPage` | `pages/PhasePages.jsx` | Used by the guards |
+| `AccessDeniedPage`, `AccessUnavailablePage`, `NotFoundPage` | `pages/PhasePages.jsx` | Used by the guards |
+| `StartupLoading`, `RouteLoading`, `ContentSkeleton` | `components/feedback/` | Shared startup indicator and content skeletons; pending access uses `RouteLoading` |
 | `OrvexaIcon` | `components/icons/OrvexaIcon.jsx` | Icons |
 
 ### Data-page building blocks (currently in `features/security-administration/`)

@@ -10,6 +10,7 @@ import { orvexaNavigation } from '@/config/orvexaNavigation.js'
 import { getOrvexaRoute, getOrvexaSection } from '@/config/orvexaRoutes.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
+import ContentSkeleton from '@/components/feedback/ContentSkeleton.jsx'
 
 // `end={false}` keeps a list page highlighted on its detail pages.
 function SidebarLink({ to, icon, label, nested = false, end = true, onNavigate }) {
@@ -243,7 +244,9 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
               </CollapsibleSection>
             ))}
             {access.status === 'loading' && (
-              <p className="zrv-sidebar-access" role="status">Loading your access…</p>
+              <div className="zrv-sidebar-access">
+                <ContentSkeleton label="Loading navigation" />
+              </div>
             )}
             {access.status === 'error' && (
               <div className="zrv-sidebar-access" role="alert">

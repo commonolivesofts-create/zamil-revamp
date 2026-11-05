@@ -36,6 +36,22 @@ export default function ContentSkeleton({ label = 'Loading content', variant = '
               </div>
             </div>
           </>
+        ) : variant === 'table' ? (
+          <>
+            <span className="zrv-content-skeleton__block zrv-content-skeleton__heading" />
+            <div className="zrv-content-skeleton__panel">
+              <div className="zrv-content-skeleton__filters">
+                {Array.from({ length: 3 }, (_, index) => <span className="zrv-content-skeleton__block zrv-content-skeleton__input" key={index} />)}
+              </div>
+              <div className="zrv-content-skeleton__table">
+                {Array.from({ length: 6 }, (_, row) => (
+                  <div className="zrv-content-skeleton__row" key={row}>
+                    {Array.from({ length: 4 }, (_, column) => <span className="zrv-content-skeleton__block" key={column} />)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
         ) : (
           <>
             <span className="zrv-content-skeleton__block zrv-content-skeleton__heading" />
