@@ -57,9 +57,9 @@ function signedInStore() {
 const HR = ['hr-requisition', 'hr-interview', 'hr-offer']
 const COMMON = ['dashboard', 'pending-worklist', 'account-password', 'account-authenticator']
 const HR_PERMISSIONS = [
-  'REQUISITIONS.REQUISITIONS:VIEW',
-  'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS:VIEW',
-  'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS:VIEW',
+  'HR.REQUISITIONS:VIEW',
+  'HR.INTERVIEW_ASSESSMENTS:VIEW',
+  'HR.EMPLOYMENT_OFFERS:VIEW',
 ]
 
 test('a registered page appears once its permission is effective; a missing permission hides it', async () => {

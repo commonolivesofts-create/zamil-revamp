@@ -20,6 +20,16 @@ export function createRequisitionController({ requisitionService }) {
       // for JSON requests it is undefined and the insert carries no attachments.
       sendSuccess(res, await requisitionService.create(req.auth, req.body, req.files), 201);
     },
+    async changeRecruitmentStatus(req, res) {
+      sendSuccess(
+        res,
+        await requisitionService.changeRecruitmentStatus(
+          req.auth,
+          req.params.requisitionId,
+          req.body,
+        ),
+      );
+    },
     async update(req, res) {
       sendSuccess(
         res,

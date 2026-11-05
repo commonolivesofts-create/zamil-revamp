@@ -14,15 +14,14 @@ import {
   MAX_ATTACHMENT_BYTES,
   MAX_ATTACHMENT_FILES,
   requisitionIdParams,
+  recruitmentActionSchema,
   replacementForQuerySchema,
   updateBodySchema,
 } from './requisition.validation.js';
 
-// Key mirrors the owner-registered Oracle catalogue: module REQUISITIONS, resource REQUISITIONS
-// (actions VIEW, CREATE, UPDATE, DELETE, MANAGE_ATTACHMENTS) — aligned 2026-10-28 to the module
-// code registered in the permission catalog, as already done for EMPLOYMENT_OFFERS and
-// INTERVIEW_ASSESSMENTS.
-const REQUISITIONS = 'REQUISITIONS.REQUISITIONS';
+// Key mirrors the owner-registered Oracle permission catalogue: module HR, resource REQUISITIONS.
+// Supported actions: VIEW, CREATE, UPDATE, DELETE, MANAGE_ATTACHMENTS.
+const REQUISITIONS = 'HR.REQUISITIONS';
 
 const UPLOAD_ERRORS = {
   LIMIT_FILE_SIZE: 'File exceeds the allowed size',
@@ -33,7 +32,7 @@ const UPLOAD_ERRORS = {
 
 /**
  * Personal Requisition Form CRUD, mounted at /api/v1/hr/requisitions. Every route requires an
- * authenticated session and the REQUISITIONS.REQUISITIONS action (re-evaluated in Oracle per request);
+ * authenticated session and the HR.REQUISITIONS action (re-evaluated in Oracle per request);
  * changes also require the session-bound CSRF token. Validation runs after authorization.
  * `POST /` and `PUT /:requisitionId` accept either JSON (header fields only) or multipart
  * (the same fields as form parts plus `files`); the attachment upload is multipart only.
@@ -100,6 +99,16 @@ export function createRequisitionRouter({
     controller.create,
   );
   router.get('/:requisitionId', ...read('VIEW', { params: requisitionIdParams }), controller.get);
+  router.post(
+    '/:requisitionId/recruitment-status',
+    ...guard('UPDATE'),
+    validate({
+      params: requisitionIdParams,
+      query: emptyQuerySchema,
+      body: recruitmentActionSchema,
+    }),
+    controller.changeRecruitmentStatus,
+  );
   router.put(
     '/:requisitionId',
     ...guard('UPDATE'),

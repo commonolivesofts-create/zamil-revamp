@@ -132,6 +132,9 @@ function requisitionRecord(data) {
     otherRequirements: text(data.other),
     totalPackage: data.totalPackage ?? null,
     ticketStatus: text(data.ticketStatus),
+    acceptedDate: legacyDate(data.acceptedDate),
+    closedDate: legacyDate(data.closedDate),
+    recruitmentActions: Array.isArray(data.recruitmentActions) ? data.recruitmentActions : [],
     attachments: Array.isArray(data.attachments)
       ? data.attachments.map((file) => ({
           attachmentId: String(file.attachmentId),
@@ -170,9 +173,6 @@ function requisitionBody(body, requestDate) {
       body.totalPackage === "" || body.totalPackage == null
         ? null
         : Number(body.totalPackage),
-    ...(body.ticketStatus !== undefined
-      ? { ticketStatus: body.ticketStatus }
-      : {}),
   };
   return result;
 }
@@ -441,7 +441,7 @@ const OFFER_LINE_FIELDS = Object.freeze({
   start: ["approximateStartingDate", "approximateStartingDateAr"],
   probation: ["probationaryPeriod", "probationaryPeriodAr"],
 });
-const backendOfferStatus = () => "INCOMPLETE";
+const backendOfferStatus = (value) => String(value).toLowerCase() === "accepted" ? "ACCEPTED" : "INCOMPLETE";
 const offerText = (value) =>
   value == null || value === "-" ? "" : String(value);
 
@@ -477,6 +477,8 @@ function offerRecord(data) {
     offerId: String(data.headerId),
     offerNumber: null,
     status: backendOfferStatus(data.status),
+    canRecordAcceptance: data.canRecordAcceptance === true,
+    acceptedDate: data.acceptedDate ?? null,
     position: offerText(data.position),
     offerDate: data.offerDate ?? null,
     division: offerText(data.division),
@@ -622,6 +624,9 @@ function createBackendRequisitionService({ client }) {
             .map((item) => ({
               id: String(item.jobId ?? ""),
               name: String(item.name ?? ""),
+              ...(item.departmentId == null
+                ? {}
+                : { departmentId: String(item.departmentId) }),
             }))
             .filter((item) => item.name),
         ),
@@ -636,7 +641,7 @@ function createBackendRequisitionService({ client }) {
         // Requester identity comes from the authenticated profile, not a second employee lookup.
         requester: "",
         replacements: Object.freeze(replacements),
-        // The selector stays hidden unless the backend confirms; the backend also refuses the change.
+        // Server-verified HR capability also controls editing already-approved records.
         capabilities: Object.freeze({
           canManageTicket: data[3]?.canManageTicket === true,
         }),
@@ -644,6 +649,10 @@ function createBackendRequisitionService({ client }) {
       });
     },
     getById,
+    async changeRecruitmentStatus(id, action, expectedStatus, reason = "") {
+      await client.post(`${REQUISITIONS_BASE}/${segment(id)}/recruitment-status`, { action, expectedStatus, reason });
+      return getById(id);
+    },
     async removeAttachment(requisitionId, attachmentId) {
       await client.delete(
         `${REQUISITIONS_BASE}/${segment(requisitionId)}/attachments/${segment(attachmentId)}`,
@@ -1072,6 +1081,10 @@ export function createOfferService({ client }) {
     },
     async remove(id) {
       await client.delete(`${OFFERS_BASE}/${segment(id)}`);
+    },
+    async accept(id, acceptedDate, reason = "") {
+      await client.post(`${OFFERS_BASE}/${segment(id)}/accept`, { acceptedDate, reason });
+      return getById(id);
     },
   });
 }

@@ -1,0 +1,12 @@
+/* Tourist Visa Letter: bilingual labels, the English / Arabic value pairs and
+   the letter's closing line. Scoped to .zrv-hr; colours from the Orvexa and
+   HR tokens (hr-recruitment.css). */
+.zrv-hr-tv-ar { margin-inline-start: 6px; color: var(--zrv-hr-fine); font-weight: 600; font-size: .95em; }
+.zrv-hr-tv-pairs { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; margin: 0; }
+.zrv-hr-tv-pairs > div { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--zrv-hr-soft); }
+.zrv-hr-tv-pairs dt { color: var(--muted); font-size: 12px; font-weight: 700; }
+.zrv-hr-tv-pairs dd { display: flex; justify-content: space-between; gap: 12px; margin: 0; font-size: 13.5px; }
+.zrv-hr-tv-pairs dd span[lang='ar'] { color: var(--muted); text-align: right; }
+.zrv-hr-tv-pairs .zrv-hr-is-empty { color: var(--muted); font-style: italic; }
+.zrv-hr-tv-close { display: flex; justify-content: space-between; gap: 16px; margin: 16px 0 0; padding: 10px 14px; border-radius: 12px; background: var(--zrv-hr-soft); color: var(--muted); font-size: 12.5px; }
+@media (max-width: 760px) { .zrv-hr-tv-close { flex-direction: column; } }

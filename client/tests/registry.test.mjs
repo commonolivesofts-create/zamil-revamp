@@ -43,9 +43,9 @@ const PRE_REGISTRY_ROUTES = [
 // HR forms use backend-owned resource permissions; the periodwise report
 // remains session-only. All are switched by VITE_FEATURE_HR_RECRUITMENT.
 const HR = 'human-resources'
-const REQ = 'REQUISITIONS.REQUISITIONS'
-const INTERVIEW = 'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS'
-const OFFER = 'EMPLOYMENT_OFFERS.EMPLOYMENT_OFFERS'
+const REQ = 'HR.REQUISITIONS'
+const INTERVIEW = 'HR.INTERVIEW_ASSESSMENTS'
+const OFFER = 'HR.EMPLOYMENT_OFFERS'
 const PROBATION = 'HR.PROBATION_EVALUATIONS'
 const CONTRACTOR_EMPLOYEES = 'HR.CONTRACTOR_EMPLOYEES'
 const PERSONNEL_RECORD_CHANGES = 'HR.PERSONNEL_RECORD_CHANGES'
@@ -121,6 +121,29 @@ const HR_CHARTER_ROUTES = [
   { id: 'hr-charter-report', path: '/hr/employee-services/project-charter/report', label: 'Project charter report', icon: 'chart-column', ...CHARTER, nav: false },
   { id: 'hr-charter-record', path: '/hr/employee-services/project-charter/:charterId', label: 'Project charter', icon: 'file-text', ...CHARTER, nav: false },
 ]
+// Salary Certificate (English and Arabic in one form): the HR.SALARY_CERTIFICATES resource.
+const SALARY = { section: HR, subgroup: 'hr-letters', permission: 'HR.SALARY_CERTIFICATES:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_SALARY_CERTIFICATE' } }
+const VISA = { section: HR, subgroup: 'hr-letters', permission: 'HR.BUSINESS_VISA_LETTERS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_BUSINESS_VISA' } }
+const VISA_LETTER = { ...VISA, enabledBy: { env: 'VITE_FEATURE_HR_BUSINESS_VISA_LETTER' } }
+const TOURIST = { section: HR, subgroup: 'hr-letters', permission: 'HR.TOURIST_VISA_LETTERS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_TOURIST_VISA' } }
+const WARNING = { section: HR, subgroup: 'hr-letters', permission: 'HR.WARNING_LETTERS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_WARNING_LETTER' } }
+const HR_SALARY_CERTIFICATE_ROUTES = [
+  { id: 'hr-salary-certificate', path: '/hr/employee-services/salary-certificate', label: 'Salary certificate', icon: 'file-badge', ...SALARY },
+  { id: 'hr-salary-certificate-report', path: '/hr/employee-services/salary-certificate/report', label: 'Salary certificate report', icon: 'chart-column', ...SALARY, nav: false },
+  { id: 'hr-salary-certificate-record', path: '/hr/employee-services/salary-certificate/:certificateId', label: 'Salary certificate', icon: 'file-badge', ...SALARY, nav: false },
+  { id: 'hr-business-visa', path: '/hr/letters/business-visa', label: 'Business visa request', icon: 'plane', ...VISA },
+  { id: 'hr-business-visa-report', path: '/hr/letters/business-visa/report', label: 'Business visa report', icon: 'chart-column', ...VISA, nav: false },
+  { id: 'hr-business-visa-record', path: '/hr/letters/business-visa/:requestId', label: 'Business visa request', icon: 'plane', ...VISA, nav: false },
+  { id: 'hr-business-visa-letter', path: '/hr/letters/business-visa-letter', label: 'Business visa letter', icon: 'file-text', ...VISA_LETTER },
+  { id: 'hr-business-visa-letter-report', path: '/hr/letters/business-visa-letter/report', label: 'Business visa letter report', icon: 'chart-column', ...VISA_LETTER, nav: false },
+  { id: 'hr-business-visa-letter-record', path: '/hr/letters/business-visa-letter/:letterId', label: 'Business visa letter', icon: 'file-text', ...VISA_LETTER, nav: false },
+  { id: 'hr-tourist-visa', path: '/hr/letters/tourist-visa', label: 'Tourist visa letter', icon: 'luggage', ...TOURIST },
+  { id: 'hr-tourist-visa-report', path: '/hr/letters/tourist-visa/report', label: 'Tourist visa report', icon: 'chart-column', ...TOURIST, nav: false },
+  { id: 'hr-tourist-visa-record', path: '/hr/letters/tourist-visa/:letterId', label: 'Tourist visa letter', icon: 'luggage', ...TOURIST, nav: false },
+  { id: 'hr-warning-letter', path: '/hr/letters/warning-letter', label: 'Warning letter', icon: 'triangle-alert', ...WARNING },
+  { id: 'hr-warning-letter-report', path: '/hr/letters/warning-letter/report', label: 'Warning letter report', icon: 'chart-column', ...WARNING, nav: false },
+  { id: 'hr-warning-letter-record', path: '/hr/letters/warning-letter/:letterId', label: 'Warning letter', icon: 'triangle-alert', ...WARNING, nav: false },
+]
 // Workflow Manager M1: backend WORKFLOW_MANAGER permissions, no MFA requirement, no switch.
 const WF = 'WORKFLOW_MANAGER'
 const wf = { section: 'workflow-manager' }
@@ -132,7 +155,7 @@ const WORKFLOW_MANAGER_ROUTES = [
   { id: 'workflow-data-sources', path: '/workflow-manager/data-sources', label: 'Data source registry', icon: 'database', ...wf, permission: `${WF}.DATA_SOURCE_REGISTRY:VIEW`, requiresMfa: false, implemented: true },
 ]
 // Group order: workspace, human resources, workflow manager, security, account.
-const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], PRE_REGISTRY_ROUTES[1], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...HR_EMPLOYEE_CLEARANCE_ROUTES, ...HR_CHARTER_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
+const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], PRE_REGISTRY_ROUTES[1], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...HR_EMPLOYEE_CLEARANCE_ROUTES, ...HR_CHARTER_ROUTES, ...HR_SALARY_CERTIFICATE_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
 const withoutSubgroups = (routes) => routes.map(({ subgroup, ...route }) => route)
 
 test('the derived routes, sections and permission names match the active modules', () => {
@@ -147,6 +170,7 @@ test('the derived routes, sections and permission names match the active modules
       id: HR, label: 'Human resources', icon: 'users-round', subgroups: [
         { id: 'hr-recruitment', label: 'Recruitment', icon: 'user-plus', description: 'From requisition to probation' },
         { id: 'hr-employee-services', label: 'Employee services', icon: 'layers', description: 'Changes, leave and recognition' },
+        { id: 'hr-letters', label: 'Letters', icon: 'mail', description: 'Salary certificates and letters' },
         { id: 'hr-reports', label: 'Reports', icon: 'chart-column', description: 'HR reports' },
       ],
     },
@@ -170,7 +194,7 @@ test('the derived routes, sections and permission names match the active modules
     SECURITY_AUDIT_VIEW: `${SA}.SECURITY_AUDIT:VIEW`,
   })
   assert.ok(Object.isFrozen(appRoutes) && appRoutes.every(Object.isFrozen))
-  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'REQUISITIONS', 'INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS', 'HR', 'HR_EMPLOYEE_SERVICES', WF])
+  assert.deepEqual(registeredModules.map((module) => module.code), ['COMMON', SA, 'HR', 'HR_EMPLOYEE_SERVICES', WF])
   assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === SA).map((p) => p.key), SECURITY_RESOURCES.flatMap((r) => r.actions.map((a) => `${SA}.${r.code}:${a}`)))
   assert.deepEqual(registeredModules.find((module) => module.code === 'COMMON').resources, [])
 })
@@ -208,13 +232,15 @@ test('Security Administration equals the complete backend catalogue: 8 resources
   assert.deepEqual(registered, backend)
   assert.deepEqual(registered, backend)
   assert.deepEqual(registeredModules.find((item) => item.code === 'COMMON').resources, [], 'the common module adds no permissions')
-  assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === 'REQUISITIONS').map((p) => p.key), [
-    `${REQ}:VIEW`, `${REQ}:CREATE`, `${REQ}:UPDATE`, `${REQ}:DELETE`, `${REQ}:MANAGE_ATTACHMENTS`,
-  ])
-  for (const code of ['INTERVIEW_ASSESSMENTS', 'EMPLOYMENT_OFFERS']) {
-    assert.deepEqual(registry.permissions.filter((p) => p.moduleCode === code).map((p) => p.key), [
-      `${code}.${code}:VIEW`, `${code}.${code}:CREATE`, `${code}.${code}:UPDATE`, `${code}.${code}:DELETE`,
-    ])
+  for (const [resource, actions] of [
+    [REQ, ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_ATTACHMENTS']],
+    [INTERVIEW, ['VIEW', 'CREATE', 'UPDATE', 'DELETE']],
+    [OFFER, ['VIEW', 'CREATE', 'UPDATE', 'DELETE']],
+  ]) {
+    assert.deepEqual(
+      registry.permissions.filter((permission) => permission.key.startsWith(`${resource}:`)).map((permission) => permission.key),
+      actions.map((action) => `${resource}:${action}`),
+    )
   }
   assert.deepEqual(
     registry.permissions.filter((permission) => permission.key.startsWith(`${ARABIC_SALARY_CERTIFICATES}:`)).map((permission) => permission.key),

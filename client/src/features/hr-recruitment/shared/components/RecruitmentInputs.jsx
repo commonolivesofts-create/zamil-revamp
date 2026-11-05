@@ -1,4 +1,5 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
 import { Field } from "@/features/security-administration/components/AdminUi.jsx";
 import { fieldProps } from "@/features/security-administration/adminForms.js";
@@ -405,19 +406,88 @@ export function FileDrop({
   );
 }
 
-// Answer summary; missing answers are flagged.
-export function Review({ rows }) {
+// Form profile for the final review. The legacy `rows` mode remains available
+// to the other recruitment forms that use the compact answer summary.
+export function Review({ rows, sections, complete = 0, total = 0, reference, approvalStatus }) {
+  if (!sections) {
+    return (
+      <dl className="zrv-hr-review">
+        {rows.map(([label, value, missing]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd className={missing ? "zrv-hr-is-missing" : undefined}>
+              {missing ? COMMON_TEXT.notAnswered : value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+
+  const ready = total > 0 && complete === total;
   return (
-    <dl className="zrv-hr-review">
-      {rows.map(([label, value, missing]) => (
-        <div key={label}>
-          <dt>{label}</dt>
-          <dd className={missing ? "zrv-hr-is-missing" : undefined}>
-            {missing ? COMMON_TEXT.notAnswered : value}
-          </dd>
+    <div className="zrv-hr-review-profile">
+      <div className="zrv-hr-review-profile__identity">
+        <div><span>PERSONNEL REQUISITION</span><strong>Form profile</strong></div>
+        <dl>
+          <div><dt>Reference number</dt><dd>{reference || "New requisition"}</dd></div>
+          <div><dt>Approval status</dt><dd>{approvalStatus || "Not saved"}</dd></div>
+        </dl>
+      </div>
+      <header className={`zrv-hr-review-profile__summary${ready ? " zrv-hr-is-ready" : " zrv-hr-needs-attention"}`}>
+        <span className="zrv-hr-review-profile__seal" aria-hidden="true">{ready ? "✓" : "!"}</span>
+        <div className="zrv-hr-review-profile__summary-copy">
+          <strong>{ready ? "Ready for submission" : "Review required information"}</strong>
+          <span>{ready ? "All required details are complete." : `${total - complete} required ${total - complete === 1 ? "item needs" : "items need"} attention before saving.`}</span>
         </div>
-      ))}
-    </dl>
+        <div className="zrv-hr-review-profile__count" aria-label={`${complete} of ${total} required items complete`}>
+          <b>{complete}/{total}</b><span>required</span>
+        </div>
+      </header>
+      <div className="zrv-hr-review-profile__meter" role="progressbar" aria-label="Required form completion" aria-valuemin={0} aria-valuemax={total} aria-valuenow={complete}>
+        <span style={{ width: `${total ? Math.round((complete / total) * 100) : 0}%` }} />
+      </div>
+
+      <div className="zrv-hr-review-profile__legend" aria-label="Field status key">
+        <span><i className="zrv-hr-review-dot zrv-hr-is-complete" /> Complete</span>
+        <span><i className="zrv-hr-review-dot zrv-hr-is-missing" /> Required</span>
+        <span><i className="zrv-hr-review-dot zrv-hr-is-optional" /> Optional</span>
+      </div>
+
+      <div className="zrv-hr-review-profile__sections">
+        {sections.map((section, index) => {
+          const required = section.rows.filter((row) => row.required);
+          const sectionComplete = required.filter((row) => row.complete).length;
+          const sectionReady = required.length === sectionComplete;
+          return (
+            <section className="zrv-hr-review-section" key={section.title}>
+              <header className="zrv-hr-review-section__head">
+                <span className="zrv-hr-review-section__number">{String(index + 1).padStart(2, "0")}</span>
+                <h3>{section.title}</h3>
+                <span className={`zrv-hr-review-section__state${sectionReady ? " zrv-hr-is-ready" : " zrv-hr-is-open"}`}>
+                  {required.length ? `${sectionComplete}/${required.length} required` : "Optional section"}
+                </span>
+              </header>
+              <dl className="zrv-hr-review-section__fields">
+                {section.rows.map((row) => {
+                  const state = row.required
+                    ? (row.complete ? "complete" : "missing")
+                    : (row.hasValue ? "provided" : "optional");
+                  const stateLabel = state === "complete" ? "Complete" : state === "missing" ? "Required · missing" : state === "provided" ? "Provided" : "Optional · not provided";
+                  return (
+                    <div className={`zrv-hr-review-field zrv-hr-is-${state}`} key={row.label}>
+                      <dt>{row.label}{row.required && <span className="zrv-hr-review-required" aria-label="required"> *</span>}</dt>
+                      <dd>{row.hasValue ? row.value : <span className="zrv-hr-review-field__empty">{row.required ? "Not provided" : "Not provided (optional)"}</span>}</dd>
+                      <span className="zrv-hr-review-field__status"><i aria-hidden="true" />{stateLabel}</span>
+                    </div>
+                  );
+                })}
+              </dl>
+            </section>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -451,5 +521,158 @@ export function LookupSelect({
         </option>
       ))}
     </select>
+  );
+}
+
+// Local searchable lookup for bounded option lists such as job titles and departments.
+export function SearchableLookup({
+  id,
+  value,
+  options,
+  onChange,
+  onInputChange,
+  customValue = "",
+  placeholder = COMMON_TEXT.select,
+  required = false,
+  error,
+  disabled = false,
+  loading = false,
+  maxLength = 200,
+  noResults = "No matching options",
+}) {
+  const listId = useId();
+  const controlRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [active, setActive] = useState(0);
+  const selected = options.find((option) => option.code === value);
+  const matches = searching
+    ? options.filter((option) =>
+        option.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+      )
+    : options;
+  const displayedValue = open && searching
+    ? query
+    : selected?.name ?? customValue;
+
+  const [popupStyle, setPopupStyle] = useState(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const positionPopup = () => {
+      const rect = controlRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const below = window.innerHeight - rect.bottom - 12;
+      const above = rect.top - 12;
+      const openUp = below < 180 && above > below;
+      setPopupStyle({
+        position: "fixed",
+        left: rect.left,
+        width: rect.width,
+        zIndex: 10000,
+        maxHeight: Math.max(100, Math.min(280, openUp ? above : below)),
+        ...(openUp
+          ? { bottom: window.innerHeight - rect.top + 6 }
+          : { top: rect.bottom + 6 }),
+      });
+    };
+    positionPopup();
+    window.addEventListener("resize", positionPopup);
+    window.addEventListener("scroll", positionPopup, true);
+    return () => {
+      window.removeEventListener("resize", positionPopup);
+      window.removeEventListener("scroll", positionPopup, true);
+    };
+  }, [open]);
+
+  const choose = (option) => {
+    onChange(option);
+    setOpen(false);
+    setQuery("");
+    setSearching(false);
+  };
+  const onKeyDown = (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setActive((index) => Math.min(matches.length - 1, index + 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActive((index) => Math.max(0, index - 1));
+    } else if (event.key === "Enter" && open && matches[active]) {
+      event.preventDefault();
+      choose(matches[active]);
+    } else if (event.key === "Escape" && open) {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      setSearching(false);
+      setQuery("");
+    }
+  };
+
+  return (
+    <div className={`zrv-hr-search-select${error ? " zrv-hr-is-bad" : ""}`}>
+      <div className="zrv-hr-search-select__control" ref={controlRef}>
+        <span aria-hidden="true" className="zrv-hr-search-select__icon" />
+        <input
+          {...fieldProps(id, { error })}
+          role="combobox"
+          className="ux-input zrv-hr-input"
+          autoComplete="off"
+          placeholder={loading ? "Loading options..." : placeholder}
+          value={displayedValue}
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-required={required || undefined}
+          aria-busy={loading || undefined}
+          maxLength={maxLength}
+          aria-activedescendant={open && matches[active] ? `${listId}-${matches[active].code}` : undefined}
+          disabled={disabled || loading}
+          onFocus={(event) => {
+            setOpen(true);
+            setQuery("");
+            setSearching(false);
+            setActive(0);
+            event.currentTarget.select();
+          }}
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          onChange={(event) => {
+            const next = event.target.value;
+            setQuery(next);
+            setSearching(true);
+            setOpen(true);
+            setActive(0);
+            onInputChange?.(next);
+          }}
+          onKeyDown={onKeyDown}
+        />
+        <span aria-hidden="true" className={`zrv-hr-search-select__chevron${open ? " zrv-hr-is-open" : ""}`} />
+      </div>
+      {open && popupStyle && createPortal(
+        <ul className="zrv-hr-search-select__list" style={popupStyle} id={listId} role="listbox" aria-label={id}>
+          {matches.map((option, index) => (
+            <li
+              key={option.code}
+              id={`${listId}-${option.code}`}
+              role="option"
+              aria-selected={option.code === value}
+              className={`${index === active ? "zrv-hr-is-active" : ""}${option.code === value ? " zrv-hr-is-selected" : ""}`}
+              onMouseEnter={() => setActive(index)}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                choose(option);
+              }}
+            >
+              <span>{option.name}</span>
+              {option.code === value && <OrvexaIcon name="check" size={15} />}
+            </li>
+          ))}
+          {!matches.length && <li className="zrv-hr-search-select__empty" role="presentation">{noResults}</li>}
+        </ul>,
+        document.body,
+      )}
+    </div>
   );
 }

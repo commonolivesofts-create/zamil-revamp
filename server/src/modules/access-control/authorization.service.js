@@ -11,11 +11,14 @@ const CODE = /^[A-Z][A-Z0-9_]*$/;
  * a dot, so the key is unambiguous. Throws at startup for a malformed route declaration.
  */
 export function parsePermission(resourceKey, actionCode) {
-  const [moduleCode, resourceCode, extra] = String(resourceKey).split('.');
+  const normalizedResourceKey = String(resourceKey).trim();
+  const [moduleCode, resourceCode, extra] = normalizedResourceKey.split('.');
   if (extra !== undefined || !CODE.test(moduleCode ?? '') || !CODE.test(resourceCode ?? '')) {
-    throw new Error(`Invalid permission resource key: ${resourceKey}`);
+    throw new Error(`Invalid permission resource key: ${normalizedResourceKey}`);
   }
-  if (!CODE.test(actionCode ?? '')) throw new Error(`Invalid permission action: ${actionCode}`);
+  if (!CODE.test(actionCode ?? '')) {
+    throw new Error(`Invalid permission action: ${actionCode}`);
+  }
   return { moduleCode, resourceCode, actionCode };
 }
 

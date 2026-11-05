@@ -100,7 +100,7 @@ const mapHeader = (row) => ({
 });
 
 /** Full header row (README §4.1); OFFER_DATE formatted to ISO 'YYYY-MM-DD' for the API. */
-export async function findHeader(connection, headerId) {
+export async function findHeader(connection, headerId, { forUpdate = false } = {}) {
   const [row] = await rows(
     connection,
     `SELECT HEADER_ID, UUID, TO_CHAR(OFFER_DATE, 'YYYY-MM-DD') AS OFFER_DATE,
@@ -108,11 +108,48 @@ export async function findHeader(connection, headerId) {
             ATTRIBUTE1, ATTRIBUTE2, ATTRIBUTE3, ATTRIBUTE4, ATTRIBUTE10, ATTRIBUTE11,
             CREATED_BY, CREATION_DATE, LAST_UPDATED_BY, LAST_UPDATE_DATE
        FROM XXZP.XXZP_EMPLOYMENT_OFFER_HEADER_T
-      WHERE HEADER_ID = :headerId`,
+      WHERE HEADER_ID = :headerId${forUpdate ? ' FOR UPDATE' : ''}`,
     { headerId },
     ID_FETCH,
   );
   return row ? mapHeader(row) : null;
+}
+
+/** Locks the linked requisition; acceptance and its date are committed with the offer. */
+export async function findRequisitionsForAcceptance(
+  connection,
+  requisitionNo,
+  { forUpdate = false } = {},
+) {
+  return rows(
+    connection,
+    `SELECT REQUISITION_ID, REQUISITION_STATUS AS APPROVAL_STATUS, NVL(ATTRIBUTE1, 'Open') AS RECRUITMENT_STATUS,
+            TO_CHAR(TO_DATE(ATTRIBUTE14, 'DD-Mon-RR', 'NLS_DATE_LANGUAGE=English'), 'YYYY-MM-DD') AS ACCEPTED_DATE
+       FROM XXZPI_PER_REQUISITIONS_ALL
+      WHERE REQUISITION_NUMBER = :requisitionNo${forUpdate ? ' FOR UPDATE' : ''}`,
+    { requisitionNo: String(requisitionNo) },
+    { REQUISITION_ID: ID },
+  );
+}
+
+export async function recordAcceptance(
+  connection,
+  { headerId, requisitionId, acceptedDate, updatedBy },
+) {
+  await connection.execute(
+    `UPDATE XXZPI_PER_REQUISITIONS_ALL
+        SET ATTRIBUTE1 = 'Accepted',
+            ATTRIBUTE14 = TO_CHAR(TO_DATE(:acceptedDate, 'YYYY-MM-DD'), 'DD-Mon-YY', 'NLS_DATE_LANGUAGE=English'),
+            LAST_UPDATE_DATE = SYSDATE, LAST_UPDATED_BY = :updatedBy, LAST_UPDATE_LOGIN = :updatedBy
+      WHERE REQUISITION_ID = :requisitionId`,
+    { requisitionId, acceptedDate, updatedBy },
+  );
+  await connection.execute(
+    `UPDATE XXZP.XXZP_EMPLOYMENT_OFFER_HEADER_T
+        SET STATUS = 'Accepted', LAST_UPDATE_DATE = SYSDATE, LAST_UPDATED_BY = :updatedBy
+      WHERE HEADER_ID = :headerId`,
+    { headerId, updatedBy },
+  );
 }
 
 /** HEADER_ID only — the existence check of README §5/§6 (404 before any write or delete). */

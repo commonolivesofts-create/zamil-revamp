@@ -715,7 +715,7 @@ test("employee report page always sends both dates, in order", async () => {
   assert.match(page, /dateTo: dateFrom && dateTo && dateTo < dateFrom \? I\.dateOrder : ''/);
   assert.match(page, /<InsightReport [^>]*validate=\{validate\}/);
   const insight = await read(`${FEATURE}shared/components/InsightReport.jsx`);
-  assert.match(insight, /const found = Object\.fromEntries\(Object\.entries\(validate\?\.\(draft\) \?\? \{\}\)[\s\S]*?if \(Object\.keys\(found\)\.length\)/);
+  assert.match(insight, /const found = Object\.fromEntries\(\s*Object\.entries\(validate\?\.\(draft\) \?\? \{\}\)[\s\S]*?if \(Object\.keys\(found\)\.length\)/);
 });
 
 test("employee report service lists incomplete legacy rows and rejects malformed values", async () => {
@@ -1905,6 +1905,11 @@ test("HR visibility switch: true, false, unset in development and unset in produ
           "VITE_FEATURE_HR_EMPLOYEE_CLEARANCE",
           "VITE_FEATURE_HR_PROJECT_CHARTER",
           "VITE_FEATURE_HR_SURVEY_REPORT",
+          "VITE_FEATURE_HR_SALARY_CERTIFICATE",
+          "VITE_FEATURE_HR_BUSINESS_VISA",
+          "VITE_FEATURE_HR_WARNING_LETTER",
+          "VITE_FEATURE_HR_TOURIST_VISA",
+          "VITE_FEATURE_HR_BUSINESS_VISA_LETTER",
         ].includes(
           entry.enabledBy.env,
         ),

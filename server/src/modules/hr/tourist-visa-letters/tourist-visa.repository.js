@@ -58,6 +58,17 @@ const dates = new Set([
   'contract_expired_ar',
 ]);
 
+// API field names whose physical columns differ (TEST dictionary and the legacy model,
+// 2026-11-04): POSI_START_DATE(_AR) and EMP_NATIONALITY(_AR). Reads alias them back.
+const PHYSICAL = Object.freeze({
+  POSITION_START_DATE: 'POSI_START_DATE',
+  POSITION_START_DATE_AR: 'POSI_START_DATE_AR',
+  EMPLOYEE_NATIONALITY: 'EMP_NATIONALITY',
+  EMPLOYEE_NATIONALITY_AR: 'EMP_NATIONALITY_AR',
+});
+export const columnOf = (name) => PHYSICAL[name.toUpperCase()] ?? name.toUpperCase();
+const aliased = (name) => (PHYSICAL[name] ? `${PHYSICAL[name]} AS ${name}` : name);
+
 const columns = [
   'ID',
   'UUID',
@@ -74,10 +85,10 @@ const dateSelect = new Set([...dates, 'created_at', 'updated_at']);
 const projection = columns
   .map((column) =>
     dateSelect.has(column.toLowerCase())
-      ? `TO_CHAR(${column}, '${
+      ? `TO_CHAR(${columnOf(column)}, '${
           ['CREATED_AT', 'UPDATED_AT'].includes(column) ? 'YYYY-MM-DD HH24:MI' : 'YYYY-MM-DD'
         }') AS ${column}`
-      : column,
+      : aliased(column),
   )
   .join(', ');
 
@@ -98,18 +109,18 @@ export function createTouristVisaRepository() {
     const cols = types
       ? columns
           .map((name) => {
-            const type = types.get(name);
+            const type = types.get(columnOf(name));
             const format = ['CREATED_AT', 'UPDATED_AT'].includes(name)
               ? 'YYYY-MM-DD HH24:MI'
               : 'YYYY-MM-DD';
 
             if (!dateSelect.has(name.toLowerCase())) {
-              return name;
+              return aliased(name);
             }
 
             return type === 'VARCHAR2' || type === 'CHAR'
-              ? `${name} AS ${name}`
-              : `TO_CHAR(${name}, '${format}') AS ${name}`;
+              ? `${columnOf(name)} AS ${name}`
+              : `TO_CHAR(${columnOf(name)}, '${format}') AS ${name}`;
           })
           .join(', ')
       : projection;
@@ -128,7 +139,7 @@ export function createTouristVisaRepository() {
 
     if (result && types) {
       for (const field of dates) {
-        if (types.get(field.toUpperCase()) === 'VARCHAR2' && result[field]) {
+        if (types.get(columnOf(field)) === 'VARCHAR2' && result[field]) {
           const value = String(result[field]);
 
           const match = value.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
@@ -177,7 +188,7 @@ export function createTouristVisaRepository() {
     );
 
   const selectDate = (field, types) => {
-    const type = types.get(field.toUpperCase());
+    const type = types.get(columnOf(field));
 
     return type === 'DATE' || type?.startsWith('TIMESTAMP')
       ? `TO_DATE(:${field}, 'YYYY-MM-DD')`
@@ -197,13 +208,7 @@ export function createTouristVisaRepository() {
     get,
 
     async insert(connection, data, types) {
-      const cols = [
-        'UUID',
-        'REF_NO',
-        ...fields.map((f) => f.toUpperCase()),
-        'CREATED_BY',
-        'CREATED_AT',
-      ];
+      const cols = ['UUID', 'REF_NO', ...fields.map(columnOf), 'CREATED_BY', 'CREATED_AT'];
 
       const values = [
         ':uuid',
@@ -229,9 +234,7 @@ export function createTouristVisaRepository() {
     async update(connection, uuid, data, types) {
       const editable = fields.filter((field) => field !== 'employee_no');
 
-      const assignments = editable.map(
-        (field) => `${field.toUpperCase()} = ${sqlValue(field, types)}`,
-      );
+      const assignments = editable.map((field) => `${columnOf(field)} = ${sqlValue(field, types)}`);
 
       const binds = Object.fromEntries(
         [...editable, 'updated_by', 'uuid'].map((key) => [

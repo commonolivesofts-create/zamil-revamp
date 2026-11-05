@@ -241,6 +241,11 @@ input {
     box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 16%, transparent);
   }
 
+  .btn-primary.zrv-hr-btn,
+  .btn-primary.zrv-hr-btn * {
+    color: #fff !important;
+  }
+
   .btn-primary:hover {
     transform: translateY(-1px);
     box-shadow: 0 14px 30px color-mix(in srgb, var(--primary) 20%, transparent);

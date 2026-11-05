@@ -12,11 +12,11 @@ import {
 
 // Key mirrors the owner-registered Oracle catalogue: module INTERVIEW_ASSESSMENTS, resource
 // INTERVIEW_ASSESSMENTS.
-const INTERVIEW_ASSESSMENTS = 'INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS';
+const INTERVIEW_ASSESSMENTS = 'HR.INTERVIEW_ASSESSMENTS';
 
 /**
  * Interview Assessment Form CRUD, mounted at /api/v1/hr/interview-assessments. Every route
- * requires an authenticated session and the INTERVIEW_ASSESSMENTS.INTERVIEW_ASSESSMENTS action
+ * requires an authenticated session and the HR.INTERVIEW_ASSESSMENTS action
  * (re-evaluated in Oracle per request); changes also require the session-bound CSRF token.
  * Validation runs after authorization. The lookups are declared before /:headerId.
  */

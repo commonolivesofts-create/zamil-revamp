@@ -71,9 +71,9 @@ function setup() {
   const staffUser = person('1002', 'Sam Staff');
   const nobody = person('1003', 'Nada None');
 
-  // Mirrors the owner-registered Oracle catalogue (module EMPLOYMENT_OFFERS, resource
-  // EMPLOYMENT_OFFERS, actions VIEW/CREATE/UPDATE/DELETE); seeded in memory only.
-  const offersModule = rbac.addModule('EMPLOYMENT_OFFERS');
+  // Mirrors the owner-registered Oracle catalogue (module HR, resource EMPLOYMENT_OFFERS,
+  // actions VIEW/CREATE/UPDATE/DELETE); seeded in memory only.
+  const offersModule = rbac.addModule('HR');
   const offers = rbac.addResource(offersModule, 'EMPLOYMENT_OFFERS');
   const permissions = {
     VIEW: rbac.addPermission(offers, 'VIEW'),
@@ -177,6 +177,49 @@ describe('employment offer API', () => {
     return body === undefined ? req : req.send(body);
   };
   const audits = (code) => f.store.auditEvents(code);
+  it('records acceptance through an HR-only CSRF-protected action and locks the accepted offer', async () => {
+    const link = {
+      APPROVAL_STATUS: 'Approved',
+      REQUISITION_ID: '20',
+      RECRUITMENT_STATUS: 'Open',
+      ACCEPTED_DATE: null,
+      approval: 'Approved',
+    };
+    f.store.employmentOfferRepository.findRequisitionsForAcceptance = async () => [{ ...link }];
+    f.store.employmentOfferRepository.recordAcceptance = async (_c, { headerId, acceptedDate }) => {
+      link.RECRUITMENT_STATUS = 'Accepted';
+      link.ACCEPTED_DATE = acceptedDate;
+      f.store.state.employmentOffers.headers.find((h) => h.headerId === headerId).status =
+        'Accepted';
+    };
+    const created = await send('post', '/', hr, { ...BODY, offerDate: '2020-01-01', reqNo: '20' });
+    assert.equal(created.status, 201);
+    const id = created.body.data.headerId;
+    const dateBody = { acceptedDate: '2020-01-02' };
+    assert.equal((await request(f.app).post(`${BASE}/${id}/accept`).send(dateBody)).status, 401);
+    assert.equal(
+      (await request(f.app).post(`${BASE}/${id}/accept`).set('Cookie', hr.cookie).send(dateBody))
+        .status,
+      403,
+    );
+    const role = f.rbac.addRole('STAFF_OFFER_UPDATER');
+    f.rbac.grant(role, f.permissions.UPDATE);
+    f.rbac.assign(f.staffUser, role);
+    const forbidden = await send('post', `/${id}/accept`, staff, dateBody);
+    assert.equal(forbidden.status, 403);
+    assert.equal(forbidden.body.error.code, 'HR_ONLY');
+    assert.equal(
+      (await send('post', `/${id}/accept`, hr, { acceptedDate: '2020-02-30' })).status,
+      400,
+    );
+    assert.equal((await send('post', `/${id}/accept`, hr, dateBody)).status, 200);
+    assert.equal(link.approval, 'Approved');
+    const read = await get(`/${id}`);
+    assert.equal(read.body.data.status, 'Accepted');
+    assert.equal(read.body.data.acceptedDate, '2020-01-02');
+    assert.equal((await send('put', `/${id}`, hr, BODY)).status, 409);
+    assert.equal((await send('delete', `/${id}`, hr)).status, 409);
+  });
   const assertForbidden = (res, reasonCode) => {
     assert.equal(res.status, 403, JSON.stringify(res.body));
     assert.equal(res.body.error.code, 'FORBIDDEN');
