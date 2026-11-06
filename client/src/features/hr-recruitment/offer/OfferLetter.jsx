@@ -16,13 +16,13 @@ function benefitValue(key, value) {
   return amount === null ? value : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-// The form preview, report preview, and every print action render this same letter.
-// The selected language is also used in the printed document.
-export function OfferLetter({ form, language = 'bi', focusRow }) {
+// Saved-report previews and print actions use this print-ready letter. The
+// editor has its own compact live preview; the selected language applies to both.
+export function OfferLetter({ form, language = 'bi', focusRow, printSource = false }) {
   const placeholder = (value, fallback = COMMON_TEXT.dash) => value?.trim()
     ? value : <span className="zrv-hr-paper__ph">{fallback}</span>
   return (
-    <article className="zrv-hr-paper zrv-offer-letter" data-lang={language} aria-label={T.letter.label}>
+    <article className={`zrv-hr-paper zrv-offer-letter${printSource ? ' zrv-offer-letter--print-source' : ''}`} data-lang={language} aria-label={T.letter.label}>
       <header className="zrv-offer-letter__header">
         <span className="zrv-offer-letter__company">Zamil Plastic Industries Co.</span>
         <img src="/zamil-logo.png" width="398" height="157" alt="Zamil Plastics" loading="eager" />

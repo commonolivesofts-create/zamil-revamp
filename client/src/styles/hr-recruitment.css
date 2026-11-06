@@ -462,6 +462,7 @@
 .zrv-hr-paper__line { display: flex; align-items: flex-end; justify-content: center; height: 32px; margin-bottom: 5px; border-bottom: 1px solid var(--zrv-hr-paper-text); }
 .zrv-hr-paper__sigs svg { width: 100%; height: 30px; }
 .zrv-hr-paper__sigs b { display: block; font-size: 11px; }
+.zrv-hr-paper__sigs span { display: block; margin-top: 2px; color: var(--zrv-hr-paper-mute); font-size: 9.5px; }
 .zrv-hr-paper__stamp { position: absolute; right: 20px; bottom: 84px; padding: 5px 12px; border: 2.5px solid var(--zrv-hr-paper-accent); border-radius: 10px; color: var(--zrv-hr-paper-accent); font-size: 12px; font-weight: 800; letter-spacing: .14em; opacity: .85; transform: rotate(-12deg); animation: zrv-hr-stamp .5s var(--zrv-hr-spring) both; }
 @keyframes zrv-hr-stamp { from { opacity: 0; transform: rotate(-12deg) scale(2); } }
 .zrv-hr-pkg { display: flex; align-items: center; gap: 14px; padding: 14px; }

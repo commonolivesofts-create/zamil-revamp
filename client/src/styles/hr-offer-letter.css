@@ -1,4 +1,5 @@
 /* The legacy bilingual letter structure with restrained company colours. */
+.zrv-hr--offer .zrv-hr-side .zrv-offer-letter--print-source { display: none; }
 .zrv-hr--offer article.zrv-offer-letter, .zrv-ir-offer-preview article.zrv-offer-letter { --zrv-hr-paper: #fff; --zrv-hr-paper-text: #172b23; --zrv-hr-paper-mute: #53675d; display: flex; flex-direction: column; padding: 16px; border: 1px solid #d6e1da; border-radius: 4px; background: #fff; color: #172b23; font: 12.5px/1.35 Arial, Tahoma, sans-serif; letter-spacing: normal; box-shadow: none; animation: none; }
 .zrv-ir-offer-print { display: none; }
 .zrv-offer-letter, .zrv-offer-letter * { box-sizing: border-box; }
@@ -84,6 +85,7 @@
 
 @page employment-offer { size: A4 portrait; margin: 5mm; }
 @media print {
+  .zrv-hr--offer .zrv-offer-live { display: none !important; }
   /* Remove app layout containers so their spacing cannot add blank PDF pages. */
   body:has(.zrv-hr--offer), body:has(.zrv-hr--offer) *:has(.zrv-hr--offer),
   .zrv-hr--offer, .zrv-hr--offer .zrv-hr-body, .zrv-hr--offer .zrv-hr-side { display: block !important; position: static !important; width: auto !important; min-height: 0 !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; transform: none !important; contain: none !important; background: #fff !important; page: employment-offer; }
@@ -92,6 +94,7 @@
   /* The printout is a plain page: the screen preview's card border, radius and
      shadow never reach paper. */
   .zrv-hr--offer article.zrv-offer-letter, .zrv-ir-offer-preview article.zrv-offer-letter { position: static; width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: #fff; box-shadow: none; page: employment-offer; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .zrv-hr--offer .zrv-offer-letter--print-source { display: flex !important; }
   body:has(.zrv-hr--offer) *:has(.zrv-hr--offer) { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; outline: 0 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   .zrv-offer-letter__table thead { display: table-header-group; }
   .zrv-offer-letter__table tr, .zrv-offer-letter__acceptance, .zrv-offer-letter__comments, .zrv-offer-letter__signatures { break-inside: avoid; }

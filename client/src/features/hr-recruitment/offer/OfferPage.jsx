@@ -21,6 +21,7 @@ import {
 } from './offerModel.js'
 
 import { OfferLetter } from './OfferLetter.jsx'
+import { OfferLivePreview } from './OfferLivePreview.jsx'
 import { printOfferLetter } from './printOfferLetter.js'
 
 const BASE = '/hr/recruitment/offer'
@@ -336,7 +337,8 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
               ))}
             </div>
           </div>
-          <OfferLetter form={form} language={language} focusRow={focusRow} />
+          <OfferLivePreview form={form} language={language} focusRow={focusRow} offerId={record?.offerId} />
+          <OfferLetter form={form} language={language} focusRow={focusRow} printSource />
           <section className="zrv-hr-pkg zrv-hr-card">
             <svg width="104" height="104" viewBox="0 0 120 120" role="img" aria-label={T.package.label(currency, formatAmount(monthly))}>
               <circle cx="60" cy="60" r="46" fill="none" className="zrv-hr-pkg__track" strokeWidth="12" />
