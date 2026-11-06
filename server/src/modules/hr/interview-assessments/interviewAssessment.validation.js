@@ -65,7 +65,7 @@ export const listQuerySchema = Joi.object({
 
 // Ratings are "1"–"5" or "N/A"; empty is accepted and stored as '-' (README §1.2, §9).
 const rating = Joi.string().valid('1', '2', '3', '4', '5', 'N/A').allow('').optional();
-const amount = Joi.number().min(0).precision(2).strict().optional();
+const amount = Joi.number().min(0).max(999999999999.99).precision(2).strict().optional();
 const count = Joi.number().integer().min(0).optional();
 // APP_BU_INFO payroll BUs and their labels (README §1.1). APP_BU_INFO does not exist in the ADW
 // schema, so the spec's fixed values are served from here by GET /lookups/payroll-units.
