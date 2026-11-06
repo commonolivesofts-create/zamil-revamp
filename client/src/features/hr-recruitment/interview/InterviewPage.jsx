@@ -19,7 +19,7 @@ import { ChoiceCards, HrField, Review, SearchableLookup } from '../shared/compon
 import { Gauge, Radar, RatingRows } from './Scores.jsx'
 import {
   BANDS, COMP_KEYS, HR_FIELDS, INTERVIEW_VALIDATION_FIELDS, SCORE_MAX, SPEC_KEYS, bandLabel, blankInterview, hrField, interviewFormFromRecord, interviewPayload,
-  interviewStepErrors, isInterviewLocked, linkedPosition, ratedCount, salaryDelta, sumRatings, INTERVIEW_SALARY_KEYS, INTERVIEW_SALARY_PATTERN,
+  interviewStepErrors, isInterviewLocked, linkedPosition, ratedCount, salaryDelta, sumRatings, INTERVIEW_SALARY_KEYS,
 } from './interviewModel.js'
 
 const BASE = '/hr/recruitment/interview'
@@ -96,7 +96,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
 
   const set = (key) => (eventOrValue) => {
     const value = typeof eventOrValue === 'string' ? eventOrValue : eventOrValue?.target?.value
-    if (INTERVIEW_SALARY_KEYS.includes(key) && value !== '' && !/^(?:\d+)?(?:\.\d{0,2})?$/.test(value)) return
+    if (INTERVIEW_SALARY_KEYS.includes(key) && value !== '' && !/^(?:\d{0,12})?(?:\.\d{0,2})?$/.test(value)) return
     editor.set(key)(eventOrValue)
   }
   const setInterviewer = (index) => (value) => {
