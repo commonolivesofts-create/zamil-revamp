@@ -156,7 +156,7 @@ export function interviewProgress(form) {
 // Field errors on the HR tab, missing ratings and result, and the first tab
 // with a problem (-1 when the assessment can be saved).
 export const INTERVIEW_NAME_PATTERN = /^[\p{L}\p{M}]+(?:[ '’\-][\p{L}\p{M}]+)*$/u
-export const INTERVIEW_SALARY_PATTERN = /^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/
+export const INTERVIEW_SALARY_PATTERN = /^\d{1,12}(?:\.\d{1,2})?$/
 export const INTERVIEW_SALARY_KEYS = Object.freeze(['expectedBasic', 'expectedTotal', 'currentBasic', 'currentTotal'])
 const TEXT_LIMITS = { candidateName: 200, nationality: 100, currentEmployer: 200, departmentRepresentative: 200, hrComment: 500, specRemarks: 500, compRemarks: 500, strengths: 4000, weakness: 4000 }
 const control = (value) => /\p{Cc}/u.test(value)
