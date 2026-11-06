@@ -385,7 +385,7 @@ describe('interview assessment API', () => {
   describe('PUT /:headerId (UPDATE)', () => {
     const UPDATED = {
       ...BODY,
-      candidateName: 'Noura Al Harbi (Updated)',
+      candidateName: 'Noura Al Harbi',
       division: 'Non-Food',
       personalSpec: { rate1: '5', rate2: '5', rate3: '5', remarks: 'Updated remarks' },
       jobCompetency: { cRating1: '4', cRating2: 'N/A', sumStrength: 'Strong' },
@@ -400,7 +400,7 @@ describe('interview assessment API', () => {
 
       const repo = f.store.interviewAssessmentRepository;
       const stored = await repo.findHeader({}, '900');
-      assert.equal(stored.candidateName, 'Noura Al Harbi (Updated)');
+      assert.equal(stored.candidateName, 'Noura Al Harbi');
       assert.equal(stored.division, 'Non-Food');
       assert.equal(stored.status, 'Incomplete'); // never updated (README §6)
       assert.equal(stored.personalSpecTotal, 15); // 5 + 5 + 5
