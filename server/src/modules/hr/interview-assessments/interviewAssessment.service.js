@@ -301,6 +301,7 @@ export function createInterviewAssessmentService({
 
     async update(actor, headerId, body) {
       await assertApprovedRequisition(body.requisitionNo);
+      await assertLookupValues(body);
       return withTransaction(POOLS.LOW, async (c) => {
         const existing = await repository.findHeaderStatus(c, headerId);
         if (!existing) throw notFound();
