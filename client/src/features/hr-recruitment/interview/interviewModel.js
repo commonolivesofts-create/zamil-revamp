@@ -155,7 +155,14 @@ export function interviewProgress(form) {
 
 // Field errors on the HR tab, missing ratings and result, and the first tab
 // with a problem (-1 when the assessment can be saved).
-export function validateInterview(form) {
+export const INTERVIEW_NAME_PATTERN = /^[\p{L}\p{M}]+(?:[ '’\-][\p{L}\p{M}]+)*$/u
+export const INTERVIEW_SALARY_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/
+export const INTERVIEW_SALARY_KEYS = Object.freeze(['expectedBasic', 'expectedTotal', 'currentBasic', 'currentTotal'])
+const TEXT_LIMITS = { candidateName: 200, nationality: 100, currentEmployer: 200, departmentRepresentative: 200, hrComment: 500, specRemarks: 500, compRemarks: 500, strengths: 4000, weakness: 4000 }
+const control = (value) => /\p{Cc}/u.test(value)
+const contains = (list, value, key = 'code') => Array.isArray(list) && list.some((item) => (typeof item === 'string' ? item : item[key]) === value)
+
+export function validateInterview(form, lookups) {
   const text = INTERVIEW_TEXT
   const errors = {}
   for (const [key, type, rules] of HR_FIELDS) {
@@ -168,6 +175,12 @@ export function validateInterview(form) {
       }
     }
     if (value && type === 'date' && !isIsoDate(value)) errors[key] = 'Enter a valid date.'
+    if (value && !errors[key] && TEXT_LIMITS[key] && value.length > TEXT_LIMITS[key]) errors[key] = `Maximum ${TEXT_LIMITS[key]} characters.`
+    if (value && !errors[key] && key === 'candidateName' && !INTERVIEW_NAME_PATTERN.test(value)) errors[key] = 'Use letters, spaces, apostrophes or hyphens.'
+    if (value && !errors[key] && control(value)) errors[key] = 'Control characters are not allowed.'
+    if (value && !errors[key] && INTERVIEW_SALARY_KEYS.includes(key) && !INTERVIEW_SALARY_PATTERN.test(value)) errors[key] = 'Enter an amount with up to two decimal places.'
+    if (value && !errors[key] && lookups && key === 'requisitionNumber' && !contains(lookups.requisitions, value, 'requisitionNumber')) errors[key] = 'Select an approved requisition.'
+    if (value && !errors[key] && lookups && key === 'nationality' && !contains(lookups.nationalities, value)) errors[key] = 'Select a nationality from the lookup.'
   }
   const amount = (key) => (String(form[key] ?? '').trim() === '' ? null : Number(form[key]))
   if (!errors.expectedTotal && amount('expectedBasic') !== null && amount('expectedTotal') !== null && amount('expectedTotal') < amount('expectedBasic')) errors.expectedTotal = text.errors.total
@@ -178,20 +191,41 @@ export function validateInterview(form) {
     comp: COMP_KEYS.filter((key) => ![1, 2, 3, 4, 5, 'N/A'].includes(form.comp[key]?.rating)),
     outcome: !OUTCOMES.includes(form.outcome),
   }
-  const hrInvalid = Object.keys(errors).length > 0
+  for (const key of ['departmentRepresentative', 'hrComment', 'specRemarks', 'compRemarks', 'strengths', 'weakness']) {
+    const value = String(form[key] ?? '').trim()
+    if (value.length > TEXT_LIMITS[key]) errors[key] = `Maximum ${TEXT_LIMITS[key]} characters.`
+    else if (value && control(value)) errors[key] = 'Control characters are not allowed.'
+    else if (key === 'departmentRepresentative' && value && !INTERVIEW_NAME_PATTERN.test(value)) errors[key] = 'Use letters, spaces, apostrophes or hyphens.'
+  }
+  for (const group of ['spec', 'comp']) {
+    for (const [key, answer] of Object.entries(form[group])) {
+      const value = String(answer?.remark ?? '')
+      if (value.length > 500 || control(value)) errors[`${group}.${key}.remark`] = 'Remark must be at most 500 characters without control characters.'
+    }
+  }
+  if (lookups) {
+    form.interviewers.forEach((value, index) => {
+      if (value.trim() && !contains(lookups.employees, value.trim())) errors[`interviewer${index}`] = 'Select an employee from the lookup.'
+    })
+    if (form.payroll && !contains(lookups.payrollBusinessUnits, form.payroll)) errors.payroll = 'Select a payroll business unit.'
+  }
+  const hrInvalid = Object.keys(errors).some((key) => HR_FIELDS.some(([name]) => name === key))
   if (!form.payroll.trim()) errors.payroll = 'Choose a payroll business unit.'
-  const firstStep = hrInvalid ? 0 : missing.spec.length ? 1 : missing.comp.length ? 2 : missing.outcome || errors.payroll ? 3 : -1
+  const firstStep = hrInvalid ? 0
+    : missing.spec.length || Object.keys(errors).some((key) => key.startsWith('spec.') || key === 'specRemarks') ? 1
+    : missing.comp.length || Object.keys(errors).some((key) => key.startsWith('comp.') || ['compRemarks', 'strengths', 'weakness'].includes(key)) ? 2
+    : missing.outcome || Object.keys(errors).some((key) => ['payroll', 'departmentRepresentative', 'hrComment'].includes(key) || key.startsWith('interviewer')) ? 3 : -1
   return { errors, missing, firstStep, valid: firstStep === -1 }
 }
 
-export function interviewStepErrors(form) {
-  const { errors, missing } = validateInterview(form)
+export function interviewStepErrors(form, lookups) {
+  const { errors, missing } = validateInterview(form, lookups)
   const { payroll, ...hrErrors } = errors
   return [
-    hrErrors,
-    Object.fromEntries(missing.spec.map((key) => [`spec.${key}`, 'Choose a rating from 1 to 5 or N/A.'])),
-    Object.fromEntries(missing.comp.map((key) => [`comp.${key}`, 'Choose a rating from 1 to 5 or N/A.'])),
-    { ...(payroll ? { payroll } : {}), ...(missing.outcome ? { outcome: INTERVIEW_TEXT.errors.outcome } : {}) },
+    Object.fromEntries(Object.entries(hrErrors).filter(([key]) => HR_FIELDS.some(([name]) => name === key))),
+    { ...Object.fromEntries(missing.spec.map((key) => [`spec.${key}`, 'Choose a rating from 1 to 5 or N/A.'])), ...Object.fromEntries(Object.entries(errors).filter(([key]) => key.startsWith('spec.') || key === 'specRemarks')) },
+    { ...Object.fromEntries(missing.comp.map((key) => [`comp.${key}`, 'Choose a rating from 1 to 5 or N/A.'])), ...Object.fromEntries(Object.entries(errors).filter(([key]) => key.startsWith('comp.') || ['compRemarks', 'strengths', 'weakness'].includes(key))) },
+    { ...Object.fromEntries(Object.entries(errors).filter(([key]) => ['payroll', 'departmentRepresentative', 'hrComment'].includes(key) || key.startsWith('interviewer'))), ...(missing.outcome ? { outcome: INTERVIEW_TEXT.errors.outcome } : {}) },
     {},
   ]
 }
