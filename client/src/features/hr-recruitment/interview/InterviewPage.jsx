@@ -19,7 +19,7 @@ import { ChoiceCards, HrField, Review, SearchableLookup } from '../shared/compon
 import { Gauge, Radar, RatingRows } from './Scores.jsx'
 import {
   BANDS, COMP_KEYS, HR_FIELDS, INTERVIEW_VALIDATION_FIELDS, SCORE_MAX, SPEC_KEYS, bandLabel, blankInterview, hrField, interviewFormFromRecord, interviewPayload,
-  interviewStepErrors, isInterviewLocked, linkedPosition, ratedCount, salaryDelta, sumRatings,
+  interviewStepErrors, isInterviewLocked, linkedPosition, ratedCount, salaryDelta, sumRatings, INTERVIEW_SALARY_KEYS, INTERVIEW_SALARY_PATTERN,
 } from './interviewModel.js'
 
 const BASE = '/hr/recruitment/interview'
@@ -72,7 +72,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
       : linkedTitle ? <Pill tone="ok">{T.link.linked(linkedRequisition.requisitionNumber)}</Pill>
           : <Pill tone="warn">{T.link.missing}</Pill>
 
-  const stepErrors = interviewStepErrors(form)
+  const stepErrors = interviewStepErrors(form, lookups)
   if (form.requisitionNumber.trim() && !position && !lookups.lookupErrors?.includes('requisitions')) {
     stepErrors[0].requisitionNumber = 'Choose an approved requisition from the available options.'
   }
@@ -95,6 +95,8 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
       : null
 
   const set = (key) => (eventOrValue) => {
+    const value = typeof eventOrValue === 'string' ? eventOrValue : eventOrValue?.target?.value
+    if (INTERVIEW_SALARY_KEYS.includes(key) && value !== '' && !/^(?:\d+)?(?:\.\d{0,2})?$/.test(value)) return
     editor.set(key)(eventOrValue)
   }
   const setInterviewer = (index) => (value) => {
@@ -164,7 +166,8 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
               searchText: `${item.requisitionNumber} ${item.jobName}`,
             }))}
             onChange={(option) => set(key)(option.code)}
-            onInputChange={set(key)}
+            onInputChange={() => set(key)('')}
+            maxLength={100}
             required={rules.required}
             error={error}
             loading={lookupStatus === 'loading'}
@@ -177,12 +180,12 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
     return (
       <HrField key={key} id={id} label={label} required={rules.required} error={error}>
         {type === 'select' || key === 'nationality'
-          ? <SearchableLookup id={id} value={form[key]} customValue={form[key]} onChange={(option) => set(key)(option.code)} onInputChange={key === 'nationality' ? set(key) : undefined}
+          ? <SearchableLookup id={id} value={form[key]} customValue={form[key]} onChange={(option) => set(key)(option.code)} onInputChange={key === 'nationality' ? () => set(key)('') : undefined}
               onClear={!rules.required ? () => set(key)('') : undefined}
               options={key === 'nationality' ? lookups.nationalities.map((name) => ({ code: name, name })) : lookups[rules.lookup]}
-              placeholder={`Search ${label.toLowerCase()}`} required={rules.required} error={error} />
-          : <input {...fieldProps(id, { error })} className="ux-input zrv-hr-input" type={type} value={form[key]} onChange={set(key)}
-              aria-required={rules.required || undefined} inputMode={type === 'number' ? 'decimal' : undefined} min={rules.min} max={rules.max} step={type === 'number' ? (['candidateAge', 'relevantExperienceYears'].includes(key) ? 1 : 'any') : undefined} maxLength={type === 'text' ? 200 : undefined} />}
+              placeholder={`Search ${label.toLowerCase()}`} maxLength={key === 'nationality' ? 100 : 200} required={rules.required} error={error} />
+          : <input {...fieldProps(id, { error })} className="ux-input zrv-hr-input" type={INTERVIEW_SALARY_KEYS.includes(key) ? 'text' : type} value={form[key]} onChange={set(key)}
+              aria-required={rules.required || undefined} inputMode={INTERVIEW_SALARY_KEYS.includes(key) ? 'decimal' : type === 'number' ? 'numeric' : undefined} min={rules.min} max={rules.max} step={type === 'number' ? 1 : undefined} maxLength={INTERVIEW_SALARY_KEYS.includes(key) ? 20 : type === 'text' ? (key === 'nationality' ? 100 : 200) : undefined} />}
       </HrField>
     )
   }
@@ -355,7 +358,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
                   customValue={name}
                   options={lookups.employees.map((employee) => ({ code: employee, name: employee }))}
                   onChange={(option) => setInterviewer(index)(option.code)}
-                  onInputChange={setInterviewer(index)}
+                  onInputChange={() => setInterviewer(index)('')}
                   loading={lookupStatus === 'loading'}
                   placeholder="Search employees by name"
                   noResults="No employees match your search"
