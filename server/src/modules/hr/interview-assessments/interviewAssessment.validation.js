@@ -12,6 +12,9 @@ const text = (max) =>
   Joi.string().trim().max(max).pattern(NO_CONTROL_CHARACTERS).allow('').optional();
 const requiredText = (max) =>
   Joi.string().trim().min(1).max(max).pattern(NO_CONTROL_CHARACTERS).required();
+const NAME = /^[\p{L}\p{M}]+(?:[ '’\-][\p{L}\p{M}]+)*$/u;
+const name = (max) => text(max).pattern(NAME);
+const requiredName = (max) => requiredText(max).pattern(NAME);
 
 export const emptyQuerySchema = Joi.object({});
 export const emptyBodySchema = Joi.object({});
@@ -62,7 +65,7 @@ export const listQuerySchema = Joi.object({
 
 // Ratings are "1"–"5" or "N/A"; empty is accepted and stored as '-' (README §1.2, §9).
 const rating = Joi.string().valid('1', '2', '3', '4', '5', 'N/A').allow('').optional();
-const amount = Joi.number().min(0).optional();
+const amount = Joi.number().min(0).precision(2).strict().optional();
 const count = Joi.number().integer().min(0).optional();
 // APP_BU_INFO payroll BUs and their labels (README §1.1). APP_BU_INFO does not exist in the ADW
 // schema, so the spec's fixed values are served from here by GET /lookups/payroll-units.
@@ -118,7 +121,7 @@ const evaluationSchema = Joi.object({
   interviewedBy: text(200),
   adminManager: text(200),
   hrRep: text(200),
-  deptRep: text(200),
+  deptRep: name(200),
   comment: text(500),
   managningDirector: text(200),
 });
@@ -128,7 +131,7 @@ const evaluationSchema = Joi.object({
  * sections. `status` is only ever written as 'Incomplete' on insert; PUT never changes it.
  */
 export const writeBodySchema = Joi.object({
-  candidateName: requiredText(200),
+  candidateName: requiredName(200),
   requisitionNo: requiredText(100),
   positionName: requiredText(200),
   attribute3: Joi.string()
@@ -167,3 +170,13 @@ export const writeBodySchema = Joi.object({
   // Required: EVAL_STATUS is a NOT NULL column and the service reads evaluation.status.
   evaluation: evaluationSchema.required(),
 });
+
+// Keep salary relationships at the API boundary, independent of the React form.
+export const validateSalaryTotals = (body) => {
+  for (const [total, basic] of [['expSalTotal', 'expSalBasic'], ['curSalTotal', 'curSalBasic']]) {
+    if (body[total] != null && body[basic] != null && body[total] < body[basic]) {
+      return { field: total, message: 'Total salary must be greater than or equal to basic salary' };
+    }
+  }
+  return null;
+};
