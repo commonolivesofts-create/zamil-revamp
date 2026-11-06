@@ -714,4 +714,67 @@ describe('interview assessment API', () => {
       assert.equal(withQuery.body.error.code, 'VALIDATION_ERROR');
     });
   });
+
+  describe('Form 1061 input validation', () => {
+    it('refuses a syntactically valid requisition that is not approved', async () => {
+      const res = await send('post', '', hr, { ...BODY, requisitionNo: 'REQ-123456' });
+      assert.equal(res.status, 400);
+      assert.equal(res.body.error.code, 'VALIDATION_ERROR');
+    });
+
+    it('accepts Unicode candidate names and legitimate company names', async () => {
+      const res = await send('post', '', hr, {
+        ...BODY, candidateName: 'فاطمة الهاشمي', companyName: 'ACME 2 & Sons, LLC',
+        currentEmployer: '3M Manufacturing',
+      });
+      assert.equal(res.status, 201, JSON.stringify(res.body));
+    });
+
+    it('rejects invalid candidate and representative names, custom lookups and payroll', async () => {
+      for (const patch of [
+        { candidateName: '1234' },
+        { candidateName: '$$$' },
+        { candidateName: 'x'.repeat(201) },
+        { nationality: 'Fake Nation' },
+        { interviewedBy: 'Not an employee' },
+        { interviewedBy2: 'Not an employee' },
+        { attribute3: 'Fake BU' },
+        { evaluation: { ...BODY.evaluation, deptRep: '1234' } },
+        { evaluation: { ...BODY.evaluation, interviewedBy: 'Unknown Employee' } },
+      ]) {
+        const res = await send('post', '', hr, { ...BODY, ...patch });
+        assert.equal(res.status, 400, JSON.stringify({ patch, result: res.body }));
+        assert.equal(res.body.error.code, 'VALIDATION_ERROR');
+      }
+    });
+
+    it('rejects decimal overflow, negative values and total below basic', async () => {
+      for (const patch of [
+        { expSalBasic: -1 }, { curSalBasic: 1.234 },
+        { curSalTotal: 1000000000000 }, { expSalTotal: 5000 },
+        { curSalTotal: 100 }, { expSalBasic: '1e5' },
+      ]) {
+        const res = await send('post', '', hr, { ...BODY, ...patch });
+        assert.equal(res.status, 400, JSON.stringify({ patch, result: res.body }));
+      }
+    });
+
+    it('rejects invalid rating values and oversized remarks but accepts N/A', async () => {
+      for (const patch of [
+        { personalSpec: { ...BODY.personalSpec, rate1: '6' } },
+        { jobCompetency: { ...BODY.jobCompetency, cRating1: 'BAD' } },
+        { personalSpec: { ...BODY.personalSpec, remark1: 'x'.repeat(501) } },
+        { evaluation: { ...BODY.evaluation, comment: 'x'.repeat(501) } },
+      ]) {
+        const res = await send('post', '', hr, { ...BODY, ...patch });
+        assert.equal(res.status, 400, JSON.stringify(res.body));
+      }
+      const res = await send('post', '', hr, {
+        ...BODY, personalSpec: { ...BODY.personalSpec, rate1: 'N/A' },
+        jobCompetency: { ...BODY.jobCompetency, cRating1: 'N/A' },
+      });
+      assert.equal(res.status, 201, JSON.stringify(res.body));
+    });
+  });
+
 });
