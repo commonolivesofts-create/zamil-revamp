@@ -300,3 +300,41 @@ test("the three forms show no demo text and keep live API wiring", async () => {
   );
   assert.match(service, /const OFFERS_BASE = ["']\/hr\/employment-offers["']/);
 });
+
+test("form 1061 validates selected lookup values, Unicode names and salary precision", () => {
+  const lookups = {
+    requisitions: [{ requisitionNumber: 'REQ-1024' }],
+    nationalities: ['Saudi', 'Egyptian'],
+    employees: ['Khalid Mansour'],
+    payrollBusinessUnits: [{ code: '300000003618177', name: 'IPP' }],
+  };
+  const valid = {
+    ...blankInterview(TODAY),
+    requisitionNumber: 'REQ-1024', divisionCode: 'Food', interviewTypeCode: 'Online',
+    candidateName: 'نورة العتيبي', nationality: 'Saudi',
+    currentEmployer: 'Company 3 & Sons, LLC', departmentRepresentative: "Anne-Marie O'Neil",
+    expectedBasic: '1250.50', expectedTotal: '1500.50', currentBasic: '1000', currentTotal: '1100',
+    payroll: '300000003618177', interviewers: ['Khalid Mansour', '', ''],
+    spec: rated(SPEC_KEYS), comp: rated(COMP_KEYS), outcome: 'PASSED',
+  };
+  assert.equal(validateInterview(valid, lookups).valid, true);
+  for (const [key, value] of [
+    ['candidateName', '12345'], ['candidateName', '!!!!'],
+    ['departmentRepresentative', '123'], ['nationality', 'Made-up Nation'],
+    ['requisitionNumber', 'REQ-123456'], ['expectedBasic', '1e5'],
+    ['expectedBasic', '-1'], ['expectedBasic', '2.345'],
+    ['expectedBasic', '2..5'], ['expectedBasic', '9999999999999'],
+    ['hrComment', 'x'.repeat(501)], ['specRemarks', 'x'.repeat(501)],
+  ]) {
+    const result = validateInterview({ ...valid, [key]: value }, lookups);
+    assert.equal(result.valid, false, key + ': ' + value.slice(0, 20));
+    assert.ok(result.errors[key], key);
+  }
+  assert.ok(validateInterview({ ...valid, candidateName: 'x'.repeat(201) }, lookups).errors.candidateName);
+  assert.ok(validateInterview({ ...valid, interviewers: ['Unknown Employee', '', ''] }, lookups).errors.interviewer0);
+  assert.ok(validateInterview({ ...valid, payroll: 'invalid' }, lookups).errors.payroll);
+  assert.ok(validateInterview({ ...valid, expectedTotal: '100' }, lookups).errors.expectedTotal);
+  assert.ok(validateInterview({ ...valid, spec: { ...valid.spec, conf: { rating: 6, remark: '' } } }, lookups).missing.spec.includes('conf'));
+  assert.equal(validateInterview({ ...valid, spec: { ...valid.spec, conf: { rating: 'N/A', remark: '' } } }, lookups).valid, true);
+  assert.equal(validateInterview({ ...valid, comp: { ...valid.comp, jrk: { rating: 'N/A', remark: '' } } }, lookups).valid, true);
+});
