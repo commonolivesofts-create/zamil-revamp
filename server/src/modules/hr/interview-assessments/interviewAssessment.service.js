@@ -6,7 +6,7 @@ import {
 } from '../../../database/oracle.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as defaultRepository from './interviewAssessment.repository.js';
-import { PAYROLL_UNITS } from './interviewAssessment.validation.js';
+import { PAYROLL_UNITS, validateSalaryTotals } from './interviewAssessment.validation.js';
 
 /*
  * Interview Assessment Form rules (README_interview_assessment_form.md). `authorize` has already
@@ -66,6 +66,26 @@ export function createInterviewAssessmentService({
         { field: 'requisitionNo', message: 'requisitionNo must be an approved requisition' },
       ]);
     }
+  }
+
+  /** Lookup membership is checked server-side, even for requests bypassing the form. */
+  async function assertLookupValues(body) {
+    const issue = validateSalaryTotals(body);
+    if (issue) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', [issue]);
+    }
+    const [nationalities, employees] = await Promise.all([
+      body.nationality ? read((c) => repository.listNationalities(c)) : Promise.resolve([]),
+      [body.interviewedBy, body.interviewedBy2, body.interviewedBy3, body.evaluation?.interviewedBy].some(Boolean)
+        ? read((c) => repository.listEmployeeNames(c)) : Promise.resolve([]),
+    ]);
+    const problems = [];
+    if (body.nationality && !nationalities.includes(body.nationality)) problems.push({ field: 'nationality', message: 'Select an available nationality' });
+    for (const field of ['interviewedBy', 'interviewedBy2', 'interviewedBy3']) {
+      if (body[field] && !employees.includes(body[field])) problems.push({ field, message: 'Select a current employee' });
+    }
+    if (body.evaluation?.interviewedBy && !employees.includes(body.evaluation.interviewedBy)) problems.push({ field: 'evaluation.interviewedBy', message: 'Select a current employee' });
+    if (problems.length) throw new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', problems);
   }
 
   /**
@@ -237,6 +257,7 @@ export function createInterviewAssessmentService({
   return {
     async create(actor, body) {
       await assertApprovedRequisition(body.requisitionNo);
+      await assertLookupValues(body);
       return withTransaction(POOLS.LOW, async (c) => {
         const uuid = randomUUID();
         const sections = prepareSections(body, actor.userId, { uuid });
