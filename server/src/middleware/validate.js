@@ -31,7 +31,7 @@ export function validate(schemas) {
       if (error) {
         details.push(
           ...error.details.map((detail) => ({
-            field: detail.path.join('.') || part,
+            field: detail.context?.field || detail.path.join('.') || part,
             message: detail.message,
           })),
         );

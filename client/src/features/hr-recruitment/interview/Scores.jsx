@@ -32,7 +32,7 @@ export function RatingRows({ group, keys, values, onRate, onRemark, missing, err
               </label>
             </div>
             <input className="zrv-hr-row__rem" value={value.remark} onChange={(event) => onRemark(key, event.target.value)}
-              placeholder={bad ? T.rating.choose : T.rating.remark} aria-label={T.rating.remarkFor(label)} aria-invalid={Boolean(remarkError) || undefined} aria-describedby={remarkError ? remarkErrorId : undefined} maxLength={500} />
+              placeholder={bad ? T.rating.choose : T.rating.remark} aria-label={T.rating.remarkFor(label)} aria-invalid={Boolean(remarkError) || undefined} aria-describedby={remarkError ? remarkErrorId : undefined} maxLength={200} />
             {ratingError && <small id={errorId} className="zrv-auth-field-error zrv-hr-row__error">{ratingError}</small>}
             {remarkError && <small id={remarkErrorId} className="zrv-auth-field-error zrv-hr-row__error">{remarkError}</small>}
           </div>

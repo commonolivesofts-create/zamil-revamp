@@ -266,7 +266,7 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
           </div>
           <div className="zrv-hr-pair__in" dir="rtl">
             <label className="zrv-hr-sr" htmlFor={`of-${key}-ar`}>{T.labels.arabic(text.en)}</label>
-            <input {...fieldProps(`of-${key}-ar`, { error: arabicError })} className="ux-input zrv-hr-input" dir="rtl" lang="ar" placeholder={T.placeholders.arabic} value={row.ar} maxLength={key === 'basic' ? 1000 : key === 'start' ? 100 : 500}
+            <input {...fieldProps(`of-${key}-ar`, { error: arabicError })} className="ux-input zrv-hr-input" dir="rtl" lang="ar" placeholder={T.placeholders.arabic} value={row.ar} maxLength={key === 'start' ? 100 : 500}
               onChange={(event) => setRow(key, { ar: event.target.value, linked: false })} />
             <button type="button" className={`zrv-hr-auto${row.linked ? '' : ' zrv-hr-is-off'}`} aria-pressed={row.linked} title={T.auto.title} aria-label={`${T.auto.title}: ${text.en}`}
               onClick={() => setArabicLinked(key, row)}>{row.linked ? T.auto.on : T.auto.off}</button>
@@ -363,7 +363,7 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
           <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt zrv-hr-offer-candidate-grid">
             <HrField id="of-title" label={T.labels.salutation} error={errors.salutation}>
               <SearchableLookup id="of-title" value={form.salutation} customValue={form.salutation} options={lookups.titles.map((item) => ({ code: item.meaning, name: item.meaning, description: item.description }))}
-                onChange={(option) => chooseTitle(option.code)} onClear={() => chooseTitle('')} placeholder="Choose a title" error={errors.salutation} />
+                onChange={(option) => chooseTitle(option.code)} onClear={() => chooseTitle('')} placeholder="Choose a title" error={errors.salutation} maxLength={50} />
             </HrField>
             <HrField id="of-name" label={T.labels.nameEn} required error={errors.candidateNameEn}>
               <SearchableLookup id="of-name" value={candidateOptions.find((option) => option.code === form.intNo && option.name === form.candidateNameEn)?.code || ''} customValue={form.candidateNameEn}
@@ -401,7 +401,7 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
               <input {...fieldProps('of-applicant', { error: errors.applicant })} className="ux-input zrv-hr-input" value={form.applicant} onChange={set('applicant')} maxLength={200} />
             </HrField>
             <HrField id="of-com" label={T.labels.comments} error={errors.comments} wide>
-              <textarea {...fieldProps('of-com', { error: errors.comments })} className="ux-textarea zrv-hr-input" value={form.comments} onChange={set('comments')} placeholder={T.placeholders.comments} maxLength={4000} />
+              <textarea {...fieldProps('of-com', { error: errors.comments })} className="ux-textarea zrv-hr-input" value={form.comments} onChange={set('comments')} placeholder={T.placeholders.comments} maxLength={500} />
             </HrField>
           </div>
         </>}

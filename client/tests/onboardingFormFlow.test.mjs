@@ -27,13 +27,15 @@ test('orientation locates optional date and time mistakes on the exact row and a
   assert.equal(firstInvalid(errors), 1)
   assert.deepEqual(Object.keys(errors[1]), ['line:0:toDate', 'line:0:timeTo'])
   form.lines[0].toDate = '2026-11-05'
-  form.lines[0].timeTo = '11:30:00'
+  form.lines[0].timeTo = '12:30:00'
   assert.equal(firstInvalid(orientationStepErrors(form)), -1)
   const rows = orientationReviewSections(form, null)[2].rows
   assert.equal(rows.find((row) => row.label === 'Orientation days').value, 0)
-  assert.equal(rows.find((row) => row.label === 'Orientation time').value, '0.00 Hrs')
+  assert.equal(rows.find((row) => row.label === 'Orientation time').value, '1.00 Hrs')
   form.lines[1].fromDate = '2026-02-30'
+  form.lines[1].toDate = '2026-11-06'
   form.lines[1].timeFrom = '24:01'
+  form.lines[1].timeTo = '12:00:00'
   form.lines[1].remarks = 'a'.repeat(1001)
   assert.deepEqual(Object.keys(orientationStepErrors(form)[1]), ['line:1:fromDate', 'line:1:timeFrom', 'line:1:remarks'])
 })

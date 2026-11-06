@@ -1,6 +1,7 @@
 import { enDate, isIsoDate } from '../shared/hrFormat.js'
 import { reviewField } from '../shared/recruitmentSteps.js'
 import { orientationDays, orientationPeriod } from './orientationLegacy.js'
+import { textLimitError } from '../shared/formValidation.js'
 
 export const blankOrientation = () => ({ employee: null, flag: '', fromOrient: '', lines: [] })
 // Copy the orientation date into new/untouched department dates, while leaving
@@ -51,16 +52,20 @@ export function orientationStepErrors(form, { setupLoading = false, setupError =
   form.lines.forEach((line, index) => {
     const fail = (field, message) => { sessions[orientationLineKey(index, field)] = message }
     if (!line.department?.trim()) fail('department', 'The training name is missing. Reload the employee details.')
-    if ((line.departmentHead?.length || 0) > 1000) fail('departmentHead', 'Department head must be 1000 characters or fewer.')
+    const headError = textLimitError(line.departmentHead, 1000, 'Department head')
+    if (headError) fail('departmentHead', headError)
     for (const field of ['fromDate', 'toDate']) {
       if (line[field] && !isIsoDate(line[field])) fail(field, 'Enter a valid date.')
     }
+    if (Boolean(line.fromDate) !== Boolean(line.toDate)) fail(line.fromDate ? 'toDate' : 'fromDate', 'Enter both From and To dates for this training.')
     if (isIsoDate(line.fromDate) && isIsoDate(line.toDate) && line.toDate < line.fromDate) fail('toDate', 'To date must be on or after From date.')
     for (const field of ['timeFrom', 'timeTo']) {
       if (line[field] && !validTime(line[field])) fail(field, 'Enter a valid time.')
     }
-    if (validTime(line.timeFrom) && validTime(line.timeTo) && seconds(line.timeTo) < seconds(line.timeFrom)) fail('timeTo', 'Time to must be on or after Time from.')
-    if ((line.remarks?.length || 0) > 1000) fail('remarks', 'Remark must be 1000 characters or fewer.')
+    if (Boolean(line.timeFrom) !== Boolean(line.timeTo)) fail(line.timeFrom ? 'timeTo' : 'timeFrom', 'Enter both From and To times for this training.')
+    if (validTime(line.timeFrom) && validTime(line.timeTo) && seconds(line.timeTo) <= seconds(line.timeFrom)) fail('timeTo', 'To time must be after From time.')
+    const remarkError = textLimitError(line.remarks, 1000, 'Remark', { multiline: true })
+    if (remarkError) fail('remarks', remarkError)
   })
   for (let firstIndex = 0; firstIndex < form.lines.length; firstIndex += 1) {
     const first = form.lines[firstIndex]
