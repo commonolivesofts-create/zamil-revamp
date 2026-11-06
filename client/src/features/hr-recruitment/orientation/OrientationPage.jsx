@@ -21,7 +21,15 @@ import {
 } from "../shared/components/RecruitmentShell.jsx";
 import { HrField, Review, SearchableLookup } from "../shared/components/RecruitmentInputs.jsx";
 import { EmployeeLookup } from "../shared/components/EmployeeLookup.jsx";
-import { blankOrientation, orientationFormFromRecord, orientationLineKey, orientationReviewSections, orientationStepErrors, orientationValidationFields } from "./orientationForm.js";
+import {
+  blankOrientation,
+  inheritOrientationDates,
+  orientationFormFromRecord,
+  orientationLineKey,
+  orientationReviewSections,
+  orientationStepErrors,
+  orientationValidationFields,
+} from "./orientationForm.js";
 import {
   ORIENTATION_FLAGS,
   isOrientationEditable,
@@ -194,11 +202,15 @@ function OrientationEditor({ lookups, record: savedRecord }) {
     try {
       const setup = await service.employeeSetup(picked.employeeNumber);
       if (requestId !== setupRequest.current) return;
-      patch({
+      patch((current) => ({
         employee: setup.employee,
         flag: setup.flag,
-        lines: setup.departments.map((department) => emptyLine(department)),
-      });
+        lines: setup.departments.map((department) => ({
+          ...emptyLine(department),
+          fromDate: current.fromOrient,
+          toDate: current.fromOrient,
+        })),
+      }));
     } catch (error) {
       if (requestId !== setupRequest.current) return;
       setSetupError(error?.message || T.errors.setup);
@@ -451,7 +463,11 @@ function OrientationEditor({ lookups, record: savedRecord }) {
                   className="ux-input zrv-hr-input"
                   value={form.fromOrient}
                   onChange={(event) => {
-                    patch({ fromOrient: event.target.value });
+                    const fromOrient = event.target.value;
+                    patch((current) => ({
+                      fromOrient,
+                      lines: inheritOrientationDates(current.lines, fromOrient, current.fromOrient),
+                    }));
                   }}
                 />
               </HrField>
