@@ -203,7 +203,7 @@ test('service: the API paths, scoped and all-employee lookups, list filters, cre
   await assert.rejects(service.getById('../1'), { code: 'INVALID_ID' })
 })
 
-test('sidebar: the form appears in Employee services only with its switch on AND the backend VIEW permission', () => {
+test('sidebar: the form appears in Talent Management only with its switch on AND the backend VIEW permission', () => {
   const entries = (env) => resolveNavigationEntries(registry.entries, env)
   const items = (env, keys) => authorizedNavigation(ready(keys), entries(env))
     .flatMap((section) => section.items).filter((item) => item.id.startsWith('hr-clearance')).map((item) => item.id)
@@ -235,7 +235,7 @@ test('source: live API only, no browser storage, routed, permission-gated writes
   assert.match(page, /permissions\.can\(`\$\{PERMISSION\}:\$\{record \? 'UPDATE' : 'CREATE'\}`\)/)
   assert.match(page, /disabled=\{!saved\}/, 'the tabs and signatures stay disabled until the first save')
   const router = await read('../src/app/router.jsx')
-  for (const path of ['hr/employee-services/clearance', 'hr/employee-services/clearance/report', 'hr/employee-services/clearance/:clearanceId']) {
+  for (const path of ['hr/talent-management/clearance', 'hr/talent-management/clearance/report', 'hr/talent-management/clearance/:clearanceId']) {
     assert.ok(router.includes(`path: '${path}'`), path)
   }
 })
