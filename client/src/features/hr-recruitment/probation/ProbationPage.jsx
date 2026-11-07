@@ -13,6 +13,7 @@ import { NewFormDialog } from '../shared/components/RecruitmentDialogs.jsx'
 import { Orbit, Pill, RecruitmentShell, StepHead, Ticket, Tilt } from '../shared/components/RecruitmentShell.jsx'
 import { HrField, Review, SearchableLookup } from '../shared/components/RecruitmentInputs.jsx'
 import { EmployeeLookup } from '../shared/components/EmployeeLookup.jsx'
+import { Gauge } from '../interview/Scores.jsx'
 import {
   ALLOCATED_POINTS, RESULT_TEXT, RESULT_TONE, approvedBy, formResult, formTypeLabel, isEditable, totalRating,
 } from './probationRules.js'
@@ -25,6 +26,8 @@ const SUBTITLE = 'Performance Appraisal Form (PAF) for Probation Period'
 const service = hrRecruitmentServices.probations
 const STEP_NAMES = ['Employee & period', 'Evaluation criteria', 'Comments', 'Review']
 const STATUS_TEXT = { DRAFT: 'Draft', INPROCESS: 'In process', APPROVED: 'Approved', REJECTED: 'Rejected' }
+const PROBATION_BANDS = [[0, 'NOT_ACCEPTABLE'], [71, 'ACCEPTABLE']]
+const PROBATION_BAND_LABELS = { NOT_ACCEPTABLE: 'Not Acceptable', ACCEPTABLE: 'Acceptable', notRated: 'Not rated', soFar: ' · in progress' }
 const criteriaLines = (criteria) => criteria.map((item) => ({ lineId: null, param: item.param, paramAr: item.paramAr, rating: '' }))
 const STEP_OF = (key) => (key.startsWith('rating:') || key === 'lines' ? 1 : key === 'comment' || key === 'comments' ? 2 : 0)
 
@@ -160,7 +163,9 @@ function ProbationEditor({ lookups, record: savedRecord }) {
           <div className="zrv-hr-dark__badges"><span>{formTypeLabel(form.formType) || 'Select Form Type'}</span><span>{employee?.departmentName || 'Department'}</span></div>
         </Tilt>
         <Orbit done={reviewProgress.complete} total={reviewProgress.total} hint={saved ? 'Complete all ratings, Comments and Suggestion.' : 'Complete employee details and the evaluation period to save a draft.'} />
-        <section className="zrv-hr-scorecard zrv-hr-card"><b>{total}</b><span> Total / 100 · {form.lines.length} criteria</span><p>Evaluation Result: {resultPill}</p></section>
+        {step === 1
+          ? <section className="zrv-hr-scorecard zrv-hr-card"><Gauge total={total} max={100} bands={PROBATION_BANDS} rated={rated} count={form.lines.length} labels={PROBATION_BAND_LABELS} /></section>
+          : <section className="zrv-hr-scorecard zrv-hr-card"><b>{total}</b><span> Total / 100 · {form.lines.length} criteria</span><p>Evaluation Result: {resultPill}</p></section>}
       </>}>
       {step === 0 && <><StepHead title="Employee & period" />
         <div className="zrv-hr-grid zrv-hr-is-4">
@@ -185,24 +190,21 @@ function ProbationEditor({ lookups, record: savedRecord }) {
       </>}
       {step === 1 && <><StepHead title="Evaluation criteria" desc={`Each criterion is allocated ${ALLOCATED_POINTS} points; ${saved ? 'every criterion needs points from 1 to 5.' : 'points are optional until the first save.'}`} />
         {form.lines.length === 0 ? <p className={errors.lines ? 'zrv-auth-field-error' : undefined}>{errors.lines || (saved ? 'This evaluation has no criteria.' : criteriaHint)}</p>
-          : <div className="zrv-hr-criteria" role="list" aria-label="Evaluation Criteria">
-            <div className="zrv-hr-criteria__head" aria-hidden="true"><span>#</span><span>Evaluation Criteria · <span lang="ar" dir="rtl">معايير التقييم</span></span><span>Allocated</span><span>Points</span></div>
-            {form.lines.map((line, index) => <div className={`zrv-hr-criterion${errors[`rating:${index}`] ? ' zrv-hr-is-bad' : ''}`} role="listitem" style={{ '--i': index }} key={line.lineId ?? index}>
-              <span className="zrv-hr-row__n">{index + 1}</span>
-              <div className="zrv-hr-criterion__name"><b>{line.param}</b>{line.paramAr && <small lang="ar" dir="rtl">{line.paramAr}</small>}</div>
-              <span className="zrv-hr-criterion__alloc">{ALLOCATED_POINTS}</span>
-              <div className="zrv-hr-criterion__score">
-                <div className="zrv-hr-point-options" role="radiogroup" aria-label={`Points for criterion ${index + 1}`} aria-required={saved}
-                  aria-invalid={Boolean(errors[`rating:${index}`])} aria-describedby={errors[`rating:${index}`] ? `pa-rating-${index}-error` : undefined}>
-                  {[1, 2, 3, 4, 5].map((rating) => <label key={rating}>
-                    <input type="radio" name={`pa-rating-${index}`} value={rating} checked={Number(line.rating) === rating}
-                      onChange={() => setRating(index, String(rating))} required={saved} />
-                    <span>{rating}</span>
-                  </label>)}
-                </div>
-                {!saved && line.rating !== '' && <button className="zrv-hr-point-clear" type="button" onClick={() => setRating(index, '')} aria-label={`Clear points for criterion ${index + 1}`}>Clear</button>}
+          : <div className="zrv-hr-rows zrv-hr-probation-rows" role="list" aria-label="Evaluation Criteria">
+            {form.lines.map((line, index) => <div className={`zrv-hr-row zrv-hr-probation-row${line.rating !== '' && line.rating != null ? ' zrv-hr-is-rated' : ''}${errors[`rating:${index}`] ? ' zrv-hr-is-bad' : ''}`} role="listitem" style={{ '--i': index }} key={line.lineId ?? index}>
+              <span className="zrv-hr-row__n" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+              <span className="zrv-hr-row__l zrv-hr-probation-row__label">{line.param}{line.paramAr && <small lang="ar" dir="rtl">{line.paramAr}</small>}</span>
+              <span className="zrv-hr-probation-row__alloc" aria-label={`${ALLOCATED_POINTS} points allocated`}>{ALLOCATED_POINTS}<small>pts</small></span>
+              <div className="zrv-hr-pips zrv-hr-probation-row__rating" role="radiogroup" aria-label={`Rating for ${line.param || `criterion ${index + 1}`}`}
+                aria-required={saved || undefined} aria-invalid={Boolean(errors[`rating:${index}`]) || undefined}
+                aria-describedby={errors[`rating:${index}`] ? `pa-rating-${index}-error` : undefined} data-val={Number(line.rating) || 0}>
+                {[1, 2, 3, 4, 5].map((rating) => <label key={rating}>
+                  <input type="radio" name={`pa-rating-${index}`} value={rating} checked={Number(line.rating) === rating}
+                    onChange={() => setRating(index, String(rating))} required={saved} disabled={locked} aria-label={`${rating} out of ${ALLOCATED_POINTS} points`} />
+                  <span aria-hidden="true">{rating}</span>
+                </label>)}
               </div>
-              {errors[`rating:${index}`] && <p id={`pa-rating-${index}-error`} className="zrv-hr-criterion__err zrv-auth-field-error" role="alert">{errors[`rating:${index}`]}</p>}
+              {errors[`rating:${index}`] && <p id={`pa-rating-${index}-error`} className="zrv-hr-row__error zrv-auth-field-error" role="alert">{errors[`rating:${index}`]}</p>}
             </div>)}
           </div>}
         {errors.lines && form.lines.length > 0 && <p className="zrv-auth-field-error" role="alert">{errors.lines}</p>}

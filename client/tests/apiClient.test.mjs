@@ -51,6 +51,35 @@ test('non-envelope or malformed success bodies are rejected', async () => {
   }
 })
 
+test('GET retries transient failures and returns the recovered lookup response', async () => {
+  const recovered = setup((_url, _init, call) => call < 3
+    ? new Response('', { status: 503 })
+    : success([{ id: 'ready' }]))
+  const result = await recovered.client.get('/hr/lookups')
+  assert.deepEqual(result.data, [{ id: 'ready' }])
+  assert.equal(recovered.calls.length, 3)
+})
+
+test('GET retry can be disabled when a caller owns the retry policy', async () => {
+  const unavailable = setup(() => new Response('', { status: 503 }))
+  await assert.rejects(unavailable.client.get('/auth/me', { retryRead: false }), { status: 503 })
+  assert.equal(unavailable.calls.length, 1)
+})
+
+test('GET retry delay honors cancellation and mutations are never retried', async () => {
+  const controller = new AbortController()
+  const flakyRead = setup(() => { throw new TypeError('Failed to fetch') })
+  const pending = flakyRead.client.get('/hr/lookups', { signal: controller.signal })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  controller.abort()
+  await assert.rejects(pending, { code: 'ABORTED' })
+  assert.equal(flakyRead.calls.length, 1)
+
+  const failedWrite = setup(() => { throw new TypeError('Failed to fetch') })
+  await assert.rejects(failedWrite.client.post('/hr/records', {}), { code: 'NETWORK_ERROR' })
+  assert.equal(failedWrite.calls.length, 1)
+})
+
 test('structured errors keep code, status, safe message, details and request ID', async () => {
   const details = [{ field: 'username', message: '"username" is required' }, { bogus: true }]
   const { client } = setup(() => failure(400, 'VALIDATION_ERROR', 'Request validation failed', { details }))

@@ -498,6 +498,13 @@
 .zrv-hr-combo__list small { color: var(--muted); font-size: 12px; }
 .zrv-hr-combo__list .zrv-hr-combo__none { color: var(--zrv-hr-fine); cursor: default; }
 .zrv-hr-combo.zrv-hr-is-bad .zrv-hr-input { border-color: var(--danger); }
+.zrv-hr-field-loading { display: flex; align-items: center; gap: 7px; margin-top: 5px; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.zrv-hr-field-loading > i { width: 12px; height: 12px; flex: none; border: 1.5px solid color-mix(in srgb, var(--zrv-hr-accent) 25%, transparent); border-top-color: var(--zrv-hr-accent); border-radius: 50%; animation: zrv-hr-field-spin .7s linear infinite; }
+.zrv-hr-field-loading--error { color: var(--danger, #b42318); }
+.zrv-hr-field-loading--error > i { display: none; }
+.zrv-hr-field-loading button { padding: 0; border: 0; background: none; color: var(--zrv-hr-accent-text); font: inherit; font-weight: 750; text-decoration: underline; cursor: pointer; }
+@keyframes zrv-hr-field-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .zrv-hr-field-loading > i { animation: none; } }
 
 /* searchable requisition job and department fields */
 .zrv-hr-search-select { position: relative; width: 100%; }
@@ -653,32 +660,6 @@
 .zrv-hr-radio.zrv-hr-is-on em { color: var(--zrv-hr-accent-text); }
 .zrv-hr .zrv-hr-is-bad .zrv-hr-radio { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); }
 .zrv-hr-chipbox { display: flex; align-items: center; min-height: 44px; }
-.zrv-hr-criteria { display: flex; flex-direction: column; gap: 6px; }
-.zrv-hr-criteria__head { display: grid; grid-template-columns: 26px minmax(0, 1fr) 64px auto; gap: 12px; padding: 0 6px 6px 4px; border-bottom: 1px solid var(--line); color: var(--zrv-hr-fine); font-size: 11.5px; font-weight: 700; }
-.zrv-hr-criteria__head span:nth-child(3) { text-align: center; }
-.zrv-hr-criterion { display: grid; grid-template-columns: 26px minmax(0, 1fr) 64px auto; grid-template-areas: "n name alloc score" ". bar bar bar" ". note note note" ". err err err"; align-items: center; gap: 4px 12px; padding: 10px 6px 8px 4px; border-radius: 14px; animation: zrv-hr-reveal .45s var(--zrv-hr-ease) both; animation-delay: calc(var(--i) * 35ms); transition: background .3s; }
-.zrv-hr-criterion:hover, .zrv-hr-criterion:focus-within { background: color-mix(in srgb, var(--zrv-hr-accent) 6%, transparent); }
-.zrv-hr-criterion.zrv-hr-is-bad { background: color-mix(in srgb, var(--danger) 7%, transparent); }
-.zrv-hr-criterion .zrv-hr-row__n { grid-area: n; }
-.zrv-hr-criterion.zrv-hr-is-done .zrv-hr-row__n { color: var(--zrv-hr-accent-text); }
-.zrv-hr-criterion__name { grid-area: name; min-width: 0; }
-.zrv-hr-criterion__name b { display: block; font-size: 14px; }
-.zrv-hr-criterion__name small { display: block; color: var(--zrv-hr-fine); font-size: 13px; }
-.zrv-hr-criterion__alloc { display: grid; grid-area: alloc; justify-self: center; place-items: center; min-width: 44px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-solid); color: var(--muted); font: 700 12.5px/1 ui-monospace, Menlo, monospace; }
-.zrv-hr-criterion__score { display: flex; grid-area: score; align-items: center; gap: 8px; }
-.zrv-hr-criterion__quick { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 11px; background: var(--zrv-hr-soft); }
-.zrv-hr-criterion__quick button { min-width: 42px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--zrv-hr-fine); font: 700 11px/1 ui-monospace, Menlo, monospace; cursor: pointer; transition: background .25s, color .25s, transform .35s var(--zrv-hr-spring); }
-.zrv-hr-criterion__quick button:hover { background: color-mix(in srgb, var(--zrv-hr-accent) 16%, transparent); color: var(--text); }
-.zrv-hr-criterion__quick button[aria-pressed="true"] { background: var(--zrv-hr-accent); color: var(--zrv-hr-on-accent); transform: scale(1.06); }
-.zrv-hr .zrv-hr-criterion__pts { width: 74px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
-.zrv-hr-criterion__bar { grid-area: bar; height: 4px; overflow: hidden; border-radius: 4px; background: var(--line); }
-.zrv-hr-criterion__bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--zrv-hr-accent), var(--mint)); transform-origin: 0 50%; transition: transform .6s var(--zrv-hr-spring); }
-.zrv-hr-criterion__note { grid-area: note; height: 32px; }
-.zrv-hr-criterion__err { grid-area: err; }
-.zrv-hr-criteria__total { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding: 12px 16px; border-radius: 14px; background: linear-gradient(110deg, var(--zrv-hr-ink-2), var(--zrv-hr-ink)); color: var(--zrv-hr-ink-text); font-weight: 700; }
-.zrv-hr-criteria__total b { font-size: 24px; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
-.zrv-hr-criteria__total em { color: var(--zrv-hr-ink-mute); font-size: 13px; font-style: normal; }
-@media (max-width: 820px) { .zrv-hr-criteria__head { display: none; } .zrv-hr-criterion { grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "n name alloc" "score score score" "bar bar bar" "note note note" "err err err"; } .zrv-hr-criterion__score { flex-wrap: wrap; } }
 .zrv-hr-result { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; }
 @media (max-width: 620px) { .zrv-hr-result { grid-template-columns: minmax(0, 1fr); } }
 .zrv-hr-result__card { min-width: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--zrv-hr-soft); }
@@ -978,68 +959,75 @@
 .zrv-hr--requisition .zrv-hr-review div { padding: 8px 12px; border-radius: 12px; }
 .zrv-hr--requisition .zrv-hr-review dt { margin-bottom: 2px; font-size: 11px; }
 .zrv-hr--requisition .zrv-hr-review dd { font-size: 13px; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile { display: grid; gap: 16px; color: var(--text, #202a34); font-family: "Manrope", "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__identity { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 2px 13px; border-bottom: 2px solid color-mix(in srgb, var(--zrv-hr-accent) 38%, var(--line)); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__identity > div { display: grid; gap: 3px; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__identity > div span { color: var(--zrv-hr-accent-text, #704900); font-size: 11px; font-weight: 800; letter-spacing: .09em; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__identity > div strong { color: var(--text, #202a34); font-size: 18px; line-height: 1.3; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__identity dl { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px 22px; margin: 0; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__identity dl div { display: grid; gap: 3px; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__identity dt { color: var(--muted, #5f6670); font-size: 11px; font-weight: 600; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__identity dd { margin: 0; color: var(--text, #202a34); font-size: 13px; font-weight: 700; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__summary { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-solid); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__summary.zrv-hr-needs-attention { border-color: color-mix(in srgb, var(--amber-text) 32%, var(--line)); background: color-mix(in srgb, var(--amber-text) 5%, var(--surface-solid)); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__summary.zrv-hr-is-ready { border-color: color-mix(in srgb, var(--zrv-hr-accent) 32%, var(--line)); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__seal { display: grid; flex: 0 0 34px; place-items: center; width: 34px; height: 34px; border: 1px solid color-mix(in srgb, var(--amber-text) 35%, var(--line)); border-radius: 50%; color: var(--amber-text); font-size: 18px; font-weight: 800; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__summary.zrv-hr-is-ready .zrv-hr-review-profile__seal { border-color: color-mix(in srgb, var(--zrv-hr-accent) 42%, var(--line)); color: var(--zrv-hr-accent-text); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__summary-copy { display: grid; flex: 1; gap: 3px; min-width: 0; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__summary-copy strong { color: var(--text, #202a34); font-size: 15px; line-height: 1.35; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__summary-copy span { color: var(--muted, #5f6670); font-size: 13.5px; line-height: 1.5; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__count { display: grid; justify-items: end; gap: 1px; padding-left: 14px; border-left: 1px solid var(--line); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__count b { color: var(--text, #202a34); font-size: 20px; line-height: 1.1; font-weight: 800; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__count span { color: var(--muted, #5f6670); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__meter { height: 4px; overflow: hidden; border-radius: 5px; background: var(--line); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__meter span { display: block; height: 100%; border-radius: inherit; background: var(--zrv-hr-accent); transition: width .3s ease; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__legend { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0 2px; color: var(--text, #202a34); font-size: 12px; font-weight: 600; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__legend > span { display: inline-flex; align-items: center; gap: 6px; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-dot.zrv-hr-is-complete { background: var(--zrv-hr-accent); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-dot.zrv-hr-is-missing { background: var(--amber-text); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__sections { display: grid; gap: 12px; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-section { overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-solid); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-section__head { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 8px 13px; border-bottom: 1px solid var(--line); background: var(--zrv-hr-soft); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-section__number { display: grid; flex: 0 0 30px; place-items: center; width: 30px; height: 30px; border: 1px solid color-mix(in srgb, var(--zrv-hr-accent) 28%, var(--line)); border-radius: 7px; color: var(--zrv-hr-accent-text, #704900); font-size: 12px; line-height: 1; font-weight: 800; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-section__head h3 { flex: 1; margin: 0; color: var(--text, #202a34); font-size: 15px; font-weight: 750; line-height: 1.35; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-section__state { color: var(--muted, #5f6670); font-size: 12px; font-weight: 600; white-space: nowrap; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-section__state.zrv-hr-is-open { color: var(--amber-text); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-section__state.zrv-hr-is-ready { color: var(--zrv-hr-accent-text); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-section__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; gap: 5px 10px; min-width: 0; padding: 11px 13px; border-bottom: 1px solid var(--line); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field:nth-child(odd):last-child { grid-column: 1 / -1; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field:nth-last-child(-n+2) { border-bottom: 0; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field dt { grid-column: 1 / -1; color: var(--muted, #5f6670); font-size: 12px; font-weight: 700; letter-spacing: 0; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field dd { min-width: 0; margin: 0; color: var(--text, #202a34); overflow-wrap: anywhere; font-size: 14px; font-weight: 650; line-height: 1.5; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field__empty { color: var(--muted, #5f6670); font-weight: 500; font-style: normal; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-required { color: var(--amber-text, #754b00); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field__status { display: inline-flex; align-items: center; align-self: center; gap: 6px; color: var(--text, #202a34); font-size: 11px; font-weight: 600; white-space: nowrap; }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field__status i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-is-complete .zrv-hr-review-field__status { color: var(--zrv-hr-accent-text, #704900); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-is-complete .zrv-hr-review-field__status i { background: var(--zrv-hr-accent); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field.zrv-hr-is-missing .zrv-hr-review-field__status { color: var(--amber-text, #754b00); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-is-missing .zrv-hr-review-field__status i { background: var(--amber-text); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-is-missing { background: color-mix(in srgb, var(--amber-text) 3.5%, var(--surface-solid)); }
-:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-is-provided .zrv-hr-review-field__status { color: var(--muted, #5f6670); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile { display: grid; gap: 16px; color: var(--text, #202a34); font-family: "Manrope", "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__identity { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 2px 13px; border-bottom: 2px solid color-mix(in srgb, var(--zrv-hr-accent) 38%, var(--line)); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__identity > div { display: grid; gap: 3px; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__identity > div span { color: var(--zrv-hr-accent-text, #704900); font-size: 11px; font-weight: 800; letter-spacing: .09em; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__identity > div strong { color: var(--text, #202a34); font-size: 18px; line-height: 1.3; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__identity dl { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px 22px; margin: 0; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__identity dl div { display: grid; gap: 3px; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__identity dt { color: var(--muted, #5f6670); font-size: 11px; font-weight: 600; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__identity dd { margin: 0; color: var(--text, #202a34); font-size: 13px; font-weight: 700; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__summary { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-solid); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__summary.zrv-hr-needs-attention { border-color: color-mix(in srgb, var(--amber-text) 32%, var(--line)); background: color-mix(in srgb, var(--amber-text) 5%, var(--surface-solid)); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__summary.zrv-hr-is-ready { border-color: color-mix(in srgb, var(--zrv-hr-accent) 32%, var(--line)); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__seal { display: grid; flex: 0 0 34px; place-items: center; width: 34px; height: 34px; border: 1px solid color-mix(in srgb, var(--amber-text) 35%, var(--line)); border-radius: 50%; color: var(--amber-text); font-size: 18px; font-weight: 800; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__summary.zrv-hr-is-ready .zrv-hr-review-profile__seal { border-color: color-mix(in srgb, var(--zrv-hr-accent) 42%, var(--line)); color: var(--zrv-hr-accent-text); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__summary-copy { display: grid; flex: 1; gap: 3px; min-width: 0; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__summary-copy strong { color: var(--text, #202a34); font-size: 15px; line-height: 1.35; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__summary-copy span { color: var(--muted, #5f6670); font-size: 13.5px; line-height: 1.5; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__count { display: grid; justify-items: end; gap: 1px; padding-left: 14px; border-left: 1px solid var(--line); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__count b { color: var(--text, #202a34); font-size: 20px; line-height: 1.1; font-weight: 800; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__count span { color: var(--muted, #5f6670); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__meter { height: 4px; overflow: hidden; border-radius: 5px; background: var(--line); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__meter span { display: block; height: 100%; border-radius: inherit; background: var(--zrv-hr-accent); transition: width .3s ease; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__legend { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0 2px; color: var(--text, #202a34); font-size: 12px; font-weight: 600; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__legend > span { display: inline-flex; align-items: center; gap: 6px; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-dot.zrv-hr-is-complete { background: var(--zrv-hr-accent); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-dot.zrv-hr-is-missing { background: var(--amber-text); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__sections { display: grid; gap: 12px; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-section { overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-solid); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-section__head { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 8px 13px; border-bottom: 1px solid var(--line); background: var(--zrv-hr-soft); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-section__number { display: grid; flex: 0 0 30px; place-items: center; width: 30px; height: 30px; border: 1px solid color-mix(in srgb, var(--zrv-hr-accent) 28%, var(--line)); border-radius: 7px; color: var(--zrv-hr-accent-text, #704900); font-size: 12px; line-height: 1; font-weight: 800; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-section__head h3 { flex: 1; margin: 0; color: var(--text, #202a34); font-size: 15px; font-weight: 750; line-height: 1.35; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-section__state { color: var(--muted, #5f6670); font-size: 12px; font-weight: 600; white-space: nowrap; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-section__state.zrv-hr-is-open { color: var(--amber-text); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-section__state.zrv-hr-is-ready { color: var(--zrv-hr-accent-text); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-section__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; gap: 5px 10px; min-width: 0; padding: 11px 13px; border-bottom: 1px solid var(--line); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field:nth-child(odd):last-child { grid-column: 1 / -1; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field:nth-last-child(-n+2) { border-bottom: 0; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field dt { grid-column: 1 / -1; color: var(--muted, #5f6670); font-size: 12px; font-weight: 700; letter-spacing: 0; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field dd { min-width: 0; margin: 0; color: var(--text, #202a34); overflow-wrap: anywhere; font-size: 14px; font-weight: 650; line-height: 1.5; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field__empty { color: var(--muted, #5f6670); font-weight: 500; font-style: normal; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-required { color: var(--amber-text, #754b00); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field__status { display: inline-flex; align-items: center; align-self: center; gap: 6px; color: var(--text, #202a34); font-size: 11px; font-weight: 600; white-space: nowrap; }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field__status i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-is-complete .zrv-hr-review-field__status { color: var(--zrv-hr-accent-text, #704900); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-is-complete .zrv-hr-review-field__status i { background: var(--zrv-hr-accent); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field.zrv-hr-is-missing .zrv-hr-review-field__status { color: var(--amber-text, #754b00); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-is-missing .zrv-hr-review-field__status i { background: var(--amber-text); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-is-missing { background: color-mix(in srgb, var(--amber-text) 3.5%, var(--surface-solid)); }
+:is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-is-provided .zrv-hr-review-field__status { color: var(--muted, #5f6670); }
 @media (max-width: 640px) {
-  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__summary { align-items: flex-start; padding: 13px; }
-  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__identity { align-items: flex-start; flex-direction: column; }
-  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__identity dl { justify-content: flex-start; }
-  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-profile__count { padding-left: 9px; }
-  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-section__fields { grid-template-columns: 1fr; }
-  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field:nth-child(odd):last-child { grid-column: auto; }
-  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field:nth-last-child(2) { border-bottom: 1px solid var(--line); }
-  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-field:nth-last-child(1) { border-bottom: 0; }
-  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation) .zrv-hr-review-section__state { font-size: 9px; }
+  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__summary { align-items: flex-start; padding: 13px; }
+  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__identity { align-items: flex-start; flex-direction: column; }
+  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__identity dl { justify-content: flex-start; }
+  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-profile__count { padding-left: 9px; }
+  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-section__fields { grid-template-columns: 1fr; }
+  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field:nth-child(odd):last-child { grid-column: auto; }
+  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-field:nth-last-child(1) { border-bottom: 0; }
+  :is(.zrv-hr--requisition, .zrv-hr--interview, .zrv-hr--offer, .zrv-hr--orientation, .zrv-hr--probation, .zrv-hr--record-change) .zrv-hr-review-section__state { font-size: 9px; }
 }
+.zrv-hr--record-change .zrv-hr-review-profile { gap: 10px; }
+.zrv-hr--record-change .zrv-hr-review-profile__sections { gap: 8px; }
+.zrv-hr--record-change .zrv-hr-review-field { padding: 8px 11px; }
+.zrv-hr--record-change .zrv-hr-es-review-compare { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 6px; font-variant-numeric: tabular-nums; }
+.zrv-hr--record-change .zrv-hr-es-review-compare__old { color: var(--muted); font-weight: 550; }
+.zrv-hr--record-change .zrv-hr-es-review-compare__arrow { color: var(--muted); font-size: 12px; }
+.zrv-hr--record-change .zrv-hr-es-review-compare__new { color: var(--zrv-hr-accent-text); font-weight: 750; }
 .zrv-hr--requisition .zrv-hr-dark__chips { margin-top: 10px; }
 
 /* Employment Offer: 65% form / 35% preview, stacked when space is limited. */
@@ -1088,14 +1076,20 @@
 :is(.zrv-hr--probation, .zrv-hr--orientation) .zrv-hr-combo > label { margin-bottom: 4px; }
 :is(.zrv-hr--probation, .zrv-hr--orientation) .zrv-hr-combo__av { width: 36px; height: 36px; border-radius: 11px; font-size: 12px; }
 :is(.zrv-hr--probation, .zrv-hr--orientation) .zrv-hr-combo__list { left: 46px; }
-.zrv-hr--probation .zrv-hr-criteria { gap: 2px; }
-.zrv-hr--probation .zrv-hr-criterion { padding-top: 3px; padding-bottom: 3px; }
-.zrv-hr--probation .zrv-hr-criterion__name b { font-size: 13.5px; }
-.zrv-hr--probation .zrv-hr-criterion__name small { font-size: 12px; }
-.zrv-hr--probation .zrv-hr-criterion__alloc { height: 28px; }
-.zrv-hr--probation .zrv-hr-criterion .zrv-hr-input { width: 80px; }
+.zrv-hr--probation .zrv-hr-probation-row { grid-template-columns: 26px minmax(150px, 1fr) 56px auto; gap: 10px; padding: 5px 6px 5px 4px; }
+.zrv-hr--probation .zrv-hr-probation-row__label { display: grid; gap: 2px; }
+.zrv-hr--probation .zrv-hr-probation-row__label small { color: var(--zrv-hr-fine); font-size: 12px; font-weight: 500; }
+.zrv-hr--probation .zrv-hr-probation-row__alloc { display: inline-flex; align-items: baseline; justify-content: center; gap: 3px; min-width: 48px; padding: 6px 7px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-solid); color: var(--muted); font: 700 12px/1 ui-monospace, Menlo, monospace; }
+.zrv-hr--probation .zrv-hr-probation-row__alloc small { color: var(--zrv-hr-fine); font: 600 9px/1 ui-sans-serif, system-ui, sans-serif; }
+.zrv-hr--probation .zrv-hr-probation-row__rating { justify-self: start; }
+.zrv-hr--probation .zrv-hr-probation-row.zrv-hr-is-bad .zrv-hr-probation-row__rating { box-shadow: 0 0 0 1.5px var(--danger); }
+.zrv-hr--probation .zrv-hr-probation-row__rating:has(input:disabled) { opacity: .7; }
 .zrv-hr--probation .zrv-hr-scorecard { align-items: flex-start; }
 .zrv-hr--probation .zrv-hr-scorecard p { margin: 0; }
+@media (max-width: 760px) {
+  .zrv-hr--probation .zrv-hr-probation-row { grid-template-columns: 22px minmax(0, 1fr) 48px; gap: 8px; }
+  .zrv-hr--probation .zrv-hr-probation-row__rating { grid-column: 2 / -1; }
+}
 
 /* reduced motion: no transitions or animations; signatures appear drawn */
 @media (prefers-reduced-motion: reduce) {

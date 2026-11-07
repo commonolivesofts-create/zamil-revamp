@@ -54,9 +54,9 @@ export async function employee(c, number) {
               DEPARTMENT
        FROM XX_DIGI_EMP_MASTER
        WHERE CURRENT_EMP_FLAG = 'Y'
-         AND EMPLOYEE_NUMBER = :number
+         AND EMPLOYEE_NUMBER = :employeeNumber
        FETCH FIRST 1 ROWS ONLY`,
-      { number },
+      { employeeNumber: number },
     )
   )[0];
 }
@@ -164,24 +164,35 @@ export async function insert(c, h) {
       )
      VALUES
       (
-        :uuid,
-        :number,
-        :name,
-        :email,
-        :position,
-        :departmentName,
+        :nominationUuid,
+        :employeeNumber,
+        :employeeName,
+        :employeeEmail,
+        :employeePosition,
+        :employeeDepartment,
         TO_DATE(:activityDate, 'YYYY-MM-DD'),
-        :deptType,
+        :departmentType,
         :overallRating,
-        :remark,
+        :headerRemark,
         :createdBy,
-        :createdByEmpNum,
+        :createdByEmployeeNumber,
         SYSDATE,
         'DRAFT'
       )
      RETURNING HEADER_ID INTO :id`,
     {
-      ...h,
+      nominationUuid: h.uuid,
+      employeeNumber: h.number,
+      employeeName: h.name,
+      employeeEmail: h.email,
+      employeePosition: h.position,
+      employeeDepartment: h.departmentName,
+      activityDate: h.activityDate,
+      departmentType: h.deptType,
+      overallRating: h.overallRating,
+      headerRemark: h.remark,
+      createdBy: h.createdBy,
+      createdByEmployeeNumber: h.createdByEmpNum,
       id: {
         dir: oracledb.BIND_OUT,
         type: oracledb.NUMBER,
@@ -207,21 +218,29 @@ export async function setRequestNo(c, id, prefix) {
 export async function update(c, id, h, status) {
   await c.execute(
     `UPDATE ${header}
-     SET EMPLOYEE_NUMBER = :number,
-         EMPLOYEE_NAME = :name,
-         EMPLOYEE_EMAIL = :email,
-         EMPLOYEE_POSITION = :position,
-         EMPLOYEE_DEPARTMENT = :departmentName,
+     SET EMPLOYEE_NUMBER = :employeeNumber,
+         EMPLOYEE_NAME = :employeeName,
+         EMPLOYEE_EMAIL = :employeeEmail,
+         EMPLOYEE_POSITION = :employeePosition,
+         EMPLOYEE_DEPARTMENT = :employeeDepartment,
          ACTIVITY_DATE =
            TO_DATE(:activityDate, 'YYYY-MM-DD'),
          OVERALL_RATING = :overallRating,
-         REMARK = :remark,
+         REMARK = :headerRemark,
          UPDATED_BY = :updatedBy,
          UPDATED_AT = SYSDATE,
          STATUS = :status
      WHERE HEADER_ID = :id`,
     {
-      ...h,
+      employeeNumber: h.number,
+      employeeName: h.name,
+      employeeEmail: h.email,
+      employeePosition: h.position,
+      employeeDepartment: h.departmentName,
+      activityDate: h.activityDate,
+      overallRating: h.overallRating,
+      headerRemark: h.remark,
+      updatedBy: h.updatedBy,
       status,
       id,
     },

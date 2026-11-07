@@ -5,8 +5,8 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 export function RecruitmentToast({ feedback, onDismiss }) {
   const dismiss = useEffectEvent(() => onDismiss?.())
   useEffect(() => {
-    if (feedback?.kind !== 'success') return undefined
-    const timer = window.setTimeout(() => dismiss(), 6000)
+    if (!feedback) return undefined
+    const timer = window.setTimeout(() => dismiss(), 1500)
     return () => window.clearTimeout(timer)
   }, [feedback])
 

@@ -5,6 +5,7 @@ import { InsightReport } from '@/features/hr-recruitment/shared/components/Insig
 import { Card, Columns, Foot, Hero } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
 import { BUSINESS_VISA_LETTER_PATHS as PATHS, LETTERS_BREADCRUMB } from '../employeeServicesPaths.js'
 import { RESOURCE, STATUSES, businessVisaLetterService as service } from './businessVisaLetterService.js'
+import { BusinessVisaLetterReportPreview } from './BusinessVisaLetterReportPreview.jsx'
 
 const MONTHS = 6
 const INITIAL = Object.freeze({ q: '', status: '', division: '', dateFrom: '', dateTo: '' })
@@ -58,6 +59,7 @@ const list = ({ page, limit, ...filters }, options) => service.list({ page, page
 export default function BusinessVisaLetterReportPage() {
   const options = useResource('hr-business-visa-letter-options', (signal) => service.options({ signal }))
   const divisions = options.status === 'ready' ? options.data.divisions : []
+  const lookups = options.status === 'ready' ? options.data : null
   const fields = [
     { key: 'q', label: 'Search', type: 'search', placeholder: 'Ref. no., employee or embassy' },
     { key: 'status', label: 'Status', type: 'select', options: [{ value: '', label: 'All' }, ...STATUSES.map((value) => ({ value, label: STATUS_TEXT[value] }))] },
@@ -68,16 +70,9 @@ export default function BusinessVisaLetterReportPage() {
   return (
     <InsightReport variant="business-visa-letter-report" title="Business visa letter report" heading="Letters" breadcrumb={LETTERS_BREADCRUMB}
       resourceKey="hr-business-visa-letter-report" list={list} create={{ permission: `${RESOURCE}:CREATE`, path: PATHS.form, label: 'New letter' }}
-      openLabel="Open letter" empty="No business visa letters match these filters." initial={INITIAL}
+      empty="No business visa letters match these filters." initial={INITIAL}
       fields={fields} columns={COLUMNS} cards={CARDS} groups={groups} defaultSort={{ key: '', order: '' }}
-      numberOf={(row) => row.form.ref_no || row.letterId} rowKey={(row) => row.letterId} pathOf={(row) => `${PATHS.form}/${row.letterId}`}
-      summary={(row) => ({
-        heading: row.form.employee_name,
-        facts: [
-          ['Ref. no.', row.form.ref_no], ['Status', STATUS_TEXT[row.form.status] ?? row.form.status], ['Date', row.form.letter_date ? date(row.form.letter_date) : ''],
-          ['Embassy', row.form.embassy], ['Request for', row.form.request_for], ['Nationality', row.form.nationality], ['Passport no.', row.form.passport_no],
-          ['Job title', row.form.job_title], ['Visit', [row.form.visit_place, row.form.visit_days && `${row.form.visit_days} days`].filter(Boolean).join(' · ')],
-        ],
-      })} />
+      numberOf={(row) => row.form.ref_no || row.letterId} rowKey={(row) => row.letterId} closeInDetail
+      renderDetail={(row, { onClose }) => <BusinessVisaLetterReportPreview row={row} onClose={onClose} lookups={lookups} />} />
   )
 }

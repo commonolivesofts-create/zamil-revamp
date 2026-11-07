@@ -134,7 +134,7 @@ export async function listSections(c) {
     await rows(
       c,
       `SELECT DISTINCT ORGANIZATION_NAME AS NAME FROM XX_DIGI_EMP_MASTER
-    WHERE ORGANIZATION_NAME LIKE '%Section%' ORDER BY 1`,
+    WHERE UPPER(ORGANIZATION_NAME) LIKE '%SECTION%' ORDER BY 1`,
     )
   ).map((r) => ({ name: r.NAME }));
 }

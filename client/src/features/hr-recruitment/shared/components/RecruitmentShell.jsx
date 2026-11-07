@@ -85,6 +85,7 @@ export function RecruitmentShell({
   if (direction.step !== step) setDirection({ step, value: step < direction.step ? 'back' : 'fwd' })
 
   const go = (target, validate = false) => {
+    if (pending) return
     const next = Math.max(0, Math.min(steps.length - 1, target))
     if (next > step && !locked) {
       if (focusInvalid()) return
@@ -120,8 +121,8 @@ export function RecruitmentShell({
   }, [focusError])
 
   return (
-    <div className={`zrv-hr zrv-hr--${current}${compact ? ' zrv-hr--compact' : ''}`} dir={dir} aria-busy={pending || undefined} inert={pending && pendingMessage ? true : undefined}>
-      {pending && pendingMessage && <RecruitmentPending message={pendingMessage} />}
+    <div className={`zrv-hr zrv-hr--${current}${compact ? ' zrv-hr--compact' : ''}`} dir={dir} aria-busy={pending || undefined} inert={pending ? true : undefined}>
+      {pending && <RecruitmentPending message={pendingMessage || 'Processing your request'} />}
       <div className="zrv-hr-form-header">
         <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} breadcrumb={breadcrumb} />
         {flow && <FlowNav current={current} status={flowStatus} />}
@@ -129,7 +130,7 @@ export function RecruitmentShell({
         <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>
           <div className="zrv-hr-tools">
             {tools.map((tool) => (
-              <button key={tool.label} type="button" onClick={tool.onClick} disabled={tool.disabled} title={tool.label}>
+              <button key={tool.label} type="button" onClick={tool.onClick} disabled={pending || tool.disabled} title={tool.label}>
                 <OrvexaIcon name={tool.icon} size={17} /><span>{tool.label}</span>
               </button>
             ))}
@@ -159,7 +160,7 @@ export function RecruitmentShell({
             const done = doneSteps[index] && index !== step
             const stepLocked = Boolean(lockedSteps[index])
             return (
-              <button key={name} type="button" className={`zrv-hr-track__step${done ? ' zrv-hr-is-done' : ''}`} aria-current={index === step ? 'step' : undefined} disabled={stepLocked} aria-label={stepLocked ? `${name}: locked. Complete the previous steps first.` : undefined} onClick={() => go(index)}>
+              <button key={name} type="button" className={`zrv-hr-track__step${done ? ' zrv-hr-is-done' : ''}`} aria-current={index === step ? 'step' : undefined} disabled={pending || stepLocked} aria-label={stepLocked ? `${name}: locked. Complete the previous steps first.` : undefined} onClick={() => go(index)}>
                 <span className="zrv-hr-track__n">{stepLocked ? <OrvexaIcon name="lock" size={15} /> : done ? <OrvexaIcon name="check" size={15} /> : index + 1}</span>
                 <span className="zrv-hr-track__t"><b>{name}</b><small>{stepLocked ? 'Complete previous step' : hint}</small></span>
               </button>
@@ -171,18 +172,18 @@ export function RecruitmentShell({
       <div className="zrv-hr-body">
         <form className="zrv-hr-stage" noValidate onSubmit={(event) => event.preventDefault()} ref={stageRef}>
           {locked && <p className="zrv-hr-locked"><OrvexaIcon name="lock" size={15} /> {COMMON_TEXT.readOnly}</p>}
-          <fieldset disabled={locked} className="zrv-hr-stage__fs">
+          <fieldset disabled={locked || pending} className="zrv-hr-stage__fs">
             <section key={singlePage ? 'all' : step} className={`zrv-hr-panel${singlePage ? '' : ` zrv-hr-is-entering zrv-hr-is-${direction.value}`}`}>
               {children}
             </section>
           </fieldset>
           {!singlePage && <div className="zrv-hr-stage__nav">
-            <button type="button" className="btn-secondary zrv-hr-btn" onClick={() => go(step - 1)} disabled={step === 0}>
+            <button type="button" className="btn-secondary zrv-hr-btn" onClick={() => go(step - 1)} disabled={pending || step === 0}>
               <OrvexaIcon name="arrow-left" size={16} /> {COMMON_TEXT.back}
             </button>
             <span className="zrv-hr-dots" aria-hidden="true">{steps.map(([name], index) => <i key={name} className={index === step ? 'zrv-hr-is-on' : ''} />)}</span>
             {step < steps.length - 1 ? (
-              <button type="button" className="btn-primary zrv-hr-btn" onClick={() => go(step + 1, true)}><span className="zrv-hr-btn__label">{COMMON_TEXT.continue}</span> <OrvexaIcon name="arrow-right" size={16} /></button>
+              <button type="button" className="btn-primary zrv-hr-btn" onClick={() => go(step + 1, true)} disabled={pending}><span className="zrv-hr-btn__label">{COMMON_TEXT.continue}</span> <OrvexaIcon name="arrow-right" size={16} /></button>
             ) : (
               <button type="button" className="btn-primary zrv-hr-btn" onClick={() => act(onFinal)} disabled={locked || pending}><OrvexaIcon name="check" size={16} /> <span className="zrv-hr-btn__label">{finalLabel}</span></button>
             )}

@@ -128,15 +128,15 @@ test('record change (legacy): amounts keep digits and dots, at most 7 characters
   assert.deepEqual(codesOf(validateRecordChange(longGrade, employee)), ['gradeCode:tooLong'], 'grade and level: optional, 50 characters')
 })
 
-test('record change (legacy): auto-fill on employee selection sets position and family status; amounts stay (0 on a new form)', () => {
+test('record change: employee selection starts revised pay at current amounts and preserves typed fields', () => {
   const picked = revisedAfterPick(null, editable(current))
-  for (const key of PAY_KEYS) assert.equal(picked[key], '0', key)
+  for (const key of PAY_KEYS) assert.equal(picked[key], String(current[key]), key)
   assert.equal(picked.positionCode, current.positionCode)
   assert.equal(picked.familyStatusCode, current.familyStatusCode)
   const typed = { basic: '7000', house: '1700', transport: '', other: '0', communication: '0', car: '0', gradeCode: 'G7', levelCode: '', positionCode: 'X', familyStatusCode: 'S' }
   const repicked = revisedAfterPick(typed, { ...editable(current), familyStatusCode: '' })
   assert.equal(repicked.basic, '7000', 'typed amounts are kept')
-  assert.equal(repicked.transport, '0')
+  assert.equal(repicked.transport, String(current.transport), 'an empty amount is restored from current pay')
   assert.equal(repicked.gradeCode, 'G7')
   assert.equal(repicked.positionCode, current.positionCode, 'position is replaced')
   assert.equal(repicked.familyStatusCode, '', 'a previous-request employee has no family status (legacy blank)')
@@ -537,22 +537,23 @@ const transferForm = (changes = {}) => ({
   effectiveDate: '2026-11-15', directorId: 'D-1018', salaryChange: 'NO', budgetedSalary: 'YES', ...changes,
 })
 
-test('transfer: sections depend on the department; choosing a department clears the section', () => {
+test('transfer: section choices depend on the department and a matching section can be auto-selected', () => {
   assert.deepEqual(sectionsOf(LOOKUPS.departments, 'HR').map((item) => item.code), ['HR_SECTION', 'RECRUITMENT', 'PAYROLL'])
   assert.deepEqual(sectionsOf(LOOKUPS.departments, ''), [])
   assert.deepEqual(withDestination({ jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: 'PAYROLL' }, 'departmentCode', 'SALES'),
     { jobTitleCode: 'PACKER', departmentCode: 'SALES', sectionCode: '' })
+  assert.deepEqual(withDestination({ jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: 'PAYROLL' }, 'departmentCode', 'SALES', 'SALES_SECTION'),
+    { jobTitleCode: 'PACKER', departmentCode: 'SALES', sectionCode: 'SALES_SECTION' })
   assert.equal(withDestination({ jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: '' }, 'sectionCode', 'PAYROLL').departmentCode, 'HR')
   const problems = validateTransfer(transferForm({ to: { jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: 'KEY_ACCOUNTS' } }), employee, LOOKUPS.departments, { submit: false })
   assert.deepEqual(codesOf(problems), ['sectionCode:notInDepartment'])
   // A section can be typed before the department; only a chosen department can contradict it.
   const early = validateTransfer(transferForm({ to: { jobTitleCode: 'PACKER', departmentCode: '', sectionCode: 'KEY_ACCOUNTS' } }), employee, LOOKUPS.departments, { submit: false })
   assert.deepEqual(codesOf(early), ['departmentCode:required'])
-  // Section is a free-text input like the legacy form: text that is not a known code is
-  // taken as the value instead of failing with "Choose the new section".
+  // The dropdown accepts only known sections; free-typed values cannot reach the API.
   const free = validateTransfer(transferForm({ to: { jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: 'Custom Typed Section' } }), employee, LOOKUPS.departments, { submit: false })
-  assert.deepEqual(codesOf(free), [], 'free-typed section text is accepted')
-  assert.deepEqual(transferMoves(employee, { jobTitleCode: 'HR_OFFICER', departmentCode: 'HR', sectionCode: 'Custom Typed Section' }), ['sectionCode'])
+  assert.deepEqual(codesOf(free), ['sectionCode:invalid'], 'free-typed section text is rejected')
+  assert.deepEqual(transferMoves(employee, { jobTitleCode: 'HR_OFFICER', departmentCode: 'HR', sectionCode: 'PAYROLL' }), ['sectionCode'])
 })
 
 test('transfer: choosing the employee starts the new job title as now and prefills a known blood type', () => {
@@ -733,23 +734,24 @@ test('transfer page: compact frame without the duplicate document banner, tight 
   assert.match(page, /<EmployeePicker id="tr-director" label=\{T\.detailsStep\.director\} required tight /)
   assert.match(page, /<RadioCards name="tr-salary-change"/)
   assert.match(page, /<RadioCards name="tr-budgeted"/)
-  // Job title and department use the same searchable picker UI as the employee name;
-  // section stays a free-text input with suggestions, as in the legacy form.
-  assert.match(page, /<EmployeePicker id="tr-jobTitleCode" label=\{T\.moveStep\.jobTitle\} required tight /)
-  assert.match(page, /<EmployeePicker id="tr-departmentCode" label=\{T\.moveStep\.department\} required tight /)
-  assert.match(page, /searchService=\{searchJobTitles\} cacheKey="hr-service-job-titles"/)
-  assert.match(page, /searchService=\{searchDepartments\} cacheKey="hr-service-departments"/)
-  assert.match(page, /const searchLookup = \(options\) => async \(search\) =>/, 'the pickers search the master lists as the reader types')
+  // Destination choices are dropdowns backed by loaded lookup values.
+  assert.match(page, /<SearchableLookup id="tr-jobTitleCode" value=\{form\.to\.jobTitleCode\} options=\{lookups\.jobTitles\}/)
+  assert.match(page, /<SearchableLookup id="tr-departmentCode" value=\{form\.to\.departmentCode\} options=\{lookups\.departments\}/)
+  assert.match(page, /disabled=\{!lookups\.jobTitles\.length\}/)
+  assert.match(page, /disabled=\{!lookups\.departments\.length\}/)
+  assert.match(page, /onChange=\{\(option\) => pickDestination\('jobTitleCode', option\.code\)\}/)
+  assert.match(page, /onChange=\{\(option\) => pickDestination\('departmentCode', option\.code\)\}/)
   assert.doesNotMatch(page, /suggest\('jobTitleCode'/, 'job title is no longer a datalist input')
   assert.doesNotMatch(page, /suggest\('departmentCode'/, 'department is no longer a datalist input')
-  assert.match(page, /suggest\('sectionCode', T\.moveStep\.section, allSections/, 'the section list is every section, as in the legacy form')
+  assert.match(page, /<SearchableLookup id="tr-sectionCode" value=\{form\.to\.sectionCode\} options=\{sectionOptions\}/)
+  assert.match(page, /disabled=\{!form\.to\.departmentCode \|\| !sectionOptions\.length\}/)
   // Blood type uses the same searchable picker UI as job title and department, listing all types.
   assert.match(page, /<EmployeePicker id="tr-blood" label=\{T\.detailsStep\.bloodType\} required tight /)
   assert.match(page, /searchService=\{searchBloodTypes\} cacheKey="hr-service-blood-types"/)
   assert.match(page, /const bloodTypeOptions = \[\s*\.\.\.STANDARD_BLOOD_TYPES/, 'all eight blood types are always in the picker')
   assert.match(page, /const NOT_RECORDED = Object\.freeze\(\{ code: 'NOT_RECORDED', name: T\.detailsStep\.bloodUnknown \}\)/, 'Not recorded stays an option so an unknown type can still submit')
   assert.doesNotMatch(page, /<select id="tr-blood"/, 'blood type is a searchable picker, not a plain select')
-  assert.doesNotMatch(page, /<select id="tr-sectionCode"/, 'section is a text input, not a dropdown')
+  assert.doesNotMatch(page, /suggest\('sectionCode'/, 'section is a dropdown, not a text input')
   assert.match(page, /form\.salaryChange === 'YES' && \(/, 'the salary note shows for a salary change')
   // The note's link opens the Personnel Record Change form in a new tab with the employee prefilled.
   assert.match(page, /href=\{recordChangeHref\} target="_blank" rel="noopener noreferrer"/)

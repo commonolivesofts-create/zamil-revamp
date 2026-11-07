@@ -577,6 +577,7 @@ function RequisitionEditor({
                   value={form.departmentId}
                   disabled={departmentsLoading}
                   loading={departmentsLoading}
+                  loadingLabel="Loading departments…"
                   placeholder={
                     departmentsLoading
                       ? T.placeholders.loadingDepartments

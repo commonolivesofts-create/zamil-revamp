@@ -150,10 +150,12 @@ test("RecruitmentLoader options: flow, identify and breadcrumb keep the recruitm
 
 test("EmployeePicker options: tight variant and a separate cache-key prefix", async () => {
   const picker = await read(`${SHARED}EmployeePicker.jsx`);
-  assert.match(
-    picker,
-    /searchService,\s*placeholder = PICKER_TEXT\.placeholder,\s*tight = false,\s*disabled = false,\s*cacheKey = ["']hr-employees["'],\s*\}\)\s*\{/,
-  );
+  assert.match(picker, /searchService,/)
+  assert.match(picker, /placeholder = PICKER_TEXT\.placeholder/)
+  assert.match(picker, /tight = false/)
+  assert.match(picker, /disabled = false/)
+  assert.match(picker, /loading = false/)
+  assert.match(picker, /cacheKey = ["']hr-employees["']/)
   assert.match(
     picker,
     /pendingSearch = open && search !== query\.trim\(\)/,
@@ -161,9 +163,10 @@ test("EmployeePicker options: tight variant and a separate cache-key prefix", as
   );
   assert.match(
     picker,
-    /pendingSearch\s*\|\|\s*results\.status\s*===\s*["']loading["'][\s\S]*?PICKER_TEXT\.searching/,
+    /const waitingForOptions = loading \|\| \(open && \(pendingSearch \|\| results\.status === ["']loading["']\)\)/,
     "loading is visible in the result list",
   );
+  assert.match(picker, /\{waitingForOptions && \([\s\S]*?\{fieldStatus\}/)
   assert.match(
     picker,
     /useResource\(\s*open\s*\?\s*`\$\{cacheKey\}:\$\{search\.toLowerCase\(\)\}`\s*:\s*null,/,

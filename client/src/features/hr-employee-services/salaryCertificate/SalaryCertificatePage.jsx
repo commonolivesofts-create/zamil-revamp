@@ -211,7 +211,7 @@ function CertificateEditor({ initial }) {
         <div className="zrv-hr-grid zrv-hr-is-3 zrv-hr-mt">
           <HrField id="sc-approver" label="Approval name" required error={errors.approvalName}>
             <SearchableLookup id="sc-approver" value={form.approvalName} required error={errors.approvalName} disabled={approvers.status !== 'ready'}
-              loading={approvers.status === 'loading'} onChange={(option) => set('approvalName')(option.code)}
+              loading={approvers.status === 'loading'} loadingLabel="Loading approvers…" onChange={(option) => set('approvalName')(option.code)}
               options={approverList.map((item) => ({ code: item.name, name: item.name, description: item.position }))}
               placeholder={approvers.status === 'error' ? 'Approvers could not be loaded' : 'Search and choose the approver'}
               noResults="No matching approver" maxLength={200} />

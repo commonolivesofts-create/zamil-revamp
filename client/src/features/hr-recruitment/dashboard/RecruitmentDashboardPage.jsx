@@ -88,12 +88,29 @@ export default function RecruitmentDashboardPage() {
   const key = (name, enabled = true, withPeriod = true) => (enabled ? `hr-rd:${name}:${withPeriod ? period : ''}:${today}:${refreshed.round}` : null)
   const inPeriod = (source, query = {}) => count(source, within(query, range))
 
+  // Load the headline figures first. These are the numbers users need at a
+  // glance; the fuller breakdowns and historical charts can continue after.
+  const headline = useResource(key('headline', allowed.length > 0), async () => {
+    const [open, interviews, passed, offers, technicalParts] = await Promise.all([
+      can.requisitions ? count('requisitions', { requisitionStatus: 'Approved', ticketStatus: 'Open' }) : undefined,
+      can.interviews ? inPeriod('interviews') : undefined,
+      can.interviews ? inPeriod('interviews', { evaluationStatus: 'Passed' }) : undefined,
+      can.offers ? inPeriod('offers') : undefined,
+      can.probations ? Promise.all(TECHNICAL_FORMS.map((formType) => inPeriod('probations', { formType }))) : undefined,
+    ])
+    return {
+      open,
+      interviews,
+      passed,
+      offers,
+      technical: technicalParts?.reduce((sum, value) => sum + value, 0),
+    }
+  })
+
   const kpis = useResource(key('kpis', allowed.length > 0), () => counts(allowed.map((module) => module.key), async (source) => {
     const [current, before] = await Promise.all([inPeriod(source), previous ? count(source, within({}, previous)) : null])
     return { current, before }
   }))
-  const trend = useResource(key('trend', allowed.length > 0, false), () => counts(allowed.map((module) => module.key),
-    (source) => Promise.all(months.map((month) => count(source, within({}, month))))))
   const funnel = useResource(key('funnel', allowed.length > 0), async () => {
     const [requisitions, interviews, passed, offers, orientations, confirmed] = await Promise.all([
       can.requisitions ? inPeriod('requisitions') : null,
@@ -105,39 +122,65 @@ export default function RecruitmentDashboardPage() {
     ])
     return { requisitions, interviews, passed, offers, orientations, confirmed }
   })
+  // Keep these resources per module. A single slow count used to hold every
+  // journey stage and performance tile behind one all-or-nothing Promise.all.
+  // The count memo still shares identical queries with the headline, funnel
+  // and attention panels.
+  const requisitionMetrics = useResource(key('metrics:requisitions', can.requisitions), async () => {
+    const [open, approved, rejected, replacement, addition, raised, filled] = await Promise.all([
+      count('requisitions', { requisitionStatus: 'Approved', ticketStatus: 'Open' }),
+      inPeriod('requisitions', { requisitionStatus: 'Approved' }),
+      inPeriod('requisitions', { requisitionStatus: 'Rejected' }),
+      inPeriod('requisitions', { reasonOfReq: 'Replacement' }),
+      inPeriod('requisitions', { reasonOfReq: 'Addition' }),
+      inPeriod('requisitions'),
+      inPeriod('requisitions', { ticketStatus: 'Close' }),
+    ])
+    return { open, approved, rejected, replacement, addition, raised, filled }
+  })
+  const interviewMetrics = useResource(key('metrics:interviews', can.interviews), async () => {
+    const [interviews, passed, hold, failed, online] = await Promise.all([
+      inPeriod('interviews'),
+      ...OUTCOMES.map((value) => inPeriod('interviews', { evaluationStatus: value })),
+      inPeriod('interviews', { interviewType: 'Online' }),
+    ])
+    return { interviews, passed, hold, failed, online }
+  })
+  const offerMetrics = useResource(key('metrics:offers', can.offers), async () => ({
+    offers: await inPeriod('offers'),
+  }))
+  const orientationMetrics = useResource(key('metrics:orientations', can.orientations), async () => {
+    const [orientations, onboarded, plant, orientingNow] = await Promise.all([
+      inPeriod('orientations'),
+      inPeriod('orientations', { status: 'Approved' }),
+      inPeriod('orientations', { flag: 'N' }),
+      inPeriod('orientations', { status: 'Inprocess' }),
+    ])
+    return { orientations, onboarded, plant, orientingNow }
+  })
+  const probationMetrics = useResource(key('metrics:probations', can.probations), async () => {
+    const [technicalParts, confirmed, notConfirmed, evaluations, evaluatingNow] = await Promise.all([
+      Promise.all(TECHNICAL_FORMS.map((formType) => inPeriod('probations', { formType }))),
+      inPeriod('probations', { requestStatus: 'APPROVED' }),
+      inPeriod('probations', { requestStatus: 'REJECTED' }),
+      inPeriod('probations'),
+      inPeriod('probations', { requestStatus: 'INPROCESS' }),
+    ])
+    return { technical: technicalParts.reduce((sum, value) => sum + value, 0), confirmed, notConfirmed, evaluations, evaluatingNow }
+  })
+  const metricResources = [requisitionMetrics, interviewMetrics, offerMetrics, orientationMetrics, probationMetrics]
+  const metricData = Object.assign({}, ...metricResources.map((resource) => resource.data ?? {}))
   const attentionItems = ATTENTION.filter(([source]) => can[source])
   const attention = useResource(key('attention', attentionItems.length > 0, false), () => Promise.all(attentionItems.map(([source, , , , query]) =>
     count(source, typeof query === 'function' ? query(today) : query))))
-
-  // Recruitment KPIs for the period (open positions: now). Each reads only the modules the user may open.
-  const metrics = useResource(key('metrics', allowed.length > 0), async () => {
-    const pick = (enabled, load) => (enabled ? load() : undefined)
-    const values = await Promise.all([
-      pick(can.requisitions, () => count('requisitions', { requisitionStatus: 'Approved', ticketStatus: 'Open' })),
-      pick(can.probations, () => Promise.all(TECHNICAL_FORMS.map((formType) => inPeriod('probations', { formType }))).then((parts) => parts.reduce((a, b) => a + b, 0))),
-      pick(can.requisitions, () => inPeriod('requisitions', { requisitionStatus: 'Approved' })),
-      pick(can.requisitions, () => inPeriod('requisitions', { requisitionStatus: 'Rejected' })),
-      pick(can.requisitions, () => inPeriod('requisitions', { reasonOfReq: 'Replacement' })),
-      pick(can.requisitions, () => inPeriod('requisitions', { reasonOfReq: 'Addition' })),
-      pick(can.interviews, () => inPeriod('interviews')),
-      ...OUTCOMES.map((value) => pick(can.interviews, () => inPeriod('interviews', { evaluationStatus: value }))),
-      pick(can.offers, () => inPeriod('offers')),
-      pick(can.orientations, () => inPeriod('orientations')),
-      pick(can.probations, () => inPeriod('probations', { requestStatus: 'APPROVED' })),
-      pick(can.probations, () => inPeriod('probations', { requestStatus: 'REJECTED' })),
-      pick(can.requisitions, () => inPeriod('requisitions')),
-      pick(can.requisitions, () => inPeriod('requisitions', { ticketStatus: 'Close' })),
-      pick(can.interviews, () => inPeriod('interviews', { interviewType: 'Online' })),
-      pick(can.orientations, () => inPeriod('orientations', { status: 'Approved' })),
-      pick(can.probations, () => inPeriod('probations')),
-      pick(can.orientations, () => inPeriod('orientations', { flag: 'N' })),
-      pick(can.orientations, () => inPeriod('orientations', { status: 'Inprocess' })),
-      pick(can.probations, () => inPeriod('probations', { requestStatus: 'INPROCESS' })),
-    ])
-    const [open, technical, approved, rejected, replacement, addition, interviews, passed, hold, failed, offers, orientations, confirmed, notConfirmed, raised, filled, online, onboarded, evaluations, plant, orientingNow, evaluatingNow] = values
-    return { open, technical, approved, rejected, replacement, addition, interviews, passed, hold, failed, offers, orientations, confirmed, notConfirmed, raised, filled, online, onboarded, evaluations, plant, orientingNow, evaluatingNow }
-  })
-  const busy = [kpis, trend, funnel, attention, metrics].some((resource) => resource.status === 'loading')
+  // Pace tiles use requisitions, interviews and offers. Other module histories
+  // are fetched only when their chart is selected, avoiding unused monthly
+  // counts on every dashboard visit.
+  const trendModules = allowed.filter((module) => ['requisitions', 'interviews', 'offers'].includes(module.key) || module.key === chart)
+  const metricsReady = metricResources.every((resource) => resource.status !== 'loading')
+  const trend = useResource(key(`trend:${chart}`, allowed.length > 0 && metricsReady, false), () => counts(trendModules.map((module) => module.key),
+    (source) => Promise.all(months.map((month) => count(source, within({}, month))))))
+  const busy = [headline, ...metricResources, kpis, funnel, attention].some((resource) => resource.status === 'loading')
   const refresh = () => setRefreshed((current) => ({ round: current.round + 1, at: new Date(), count: createCounter(SOURCES) }))
   const choosePeriod = (value) => setParams((current) => {
     const next = new URLSearchParams(current)
@@ -147,17 +190,18 @@ export default function RecruitmentDashboardPage() {
   }, { replace: true })
 
 
-  const m = metrics.data ?? {}
+  const m = metricData
+  const h = headline.data ?? {}
   const sumOf = (...values) => (values.some((value) => value === undefined) ? undefined : values.reduce((a, b) => a + b, 0))
   const B = T.banner
   const R = T.rates
-  const hero = can.requisitions ? { icon: 'briefcase-business', label: B.open, hint: B.openHint, value: m.open, to: MODULE.requisitions.report } : null
+  const hero = can.requisitions ? { icon: 'briefcase-business', label: B.open, hint: B.openHint, value: h.open, to: MODULE.requisitions.report } : null
   const counters = [
-    can.interviews && { key: 'passed', color: 'interviews', icon: 'user-round-check', label: B.passed, value: m.passed },
-    can.offers && { key: 'offers', color: 'offers', icon: 'file-signature', label: B.offers, value: m.offers },
-    can.probations && { key: 'technical', color: 'probations', icon: 'hard-hat', label: B.technical, value: m.technical },
+    can.interviews && { key: 'passed', color: 'interviews', icon: 'user-round-check', label: B.passed, value: h.passed },
+    can.offers && { key: 'offers', color: 'offers', icon: 'file-signature', label: B.offers, value: h.offers },
+    can.probations && { key: 'technical', color: 'probations', icon: 'hard-hat', label: B.technical, value: h.technical },
   ].filter(Boolean)
-  const gauge = can.interviews && can.offers ? { label: R.hiring, unit: R.units.interviews, part: m.offers, of: m.interviews } : null
+  const gauge = can.interviews && can.offers ? { label: R.hiring, unit: R.units.interviews, part: h.offers, of: h.interviews } : null
   // The recruitment journey: one coloured stage per module in hiring order,
   // each with its KPIs (`of` makes a rate); `lead` is the stage's main count,
   // compared with the next stage's lead for the conversion between them.
@@ -257,7 +301,7 @@ export default function RecruitmentDashboardPage() {
       </header>
 
       {allowed.length === 0 ? <p className="zrv-admin-state" role="status">{T.noAccess}</p> : <>
-        {metrics.status === 'error' ? <Failure resource={metrics} /> : <>
+        {headline.status === 'error' ? <Failure resource={headline} /> : <>
           {(hero || counters.length > 0) && <Banner hero={hero} counters={counters} gauge={gauge} />}
           {journey.length > 0 && <Journey stages={journey} />}
         </>}
@@ -281,14 +325,14 @@ export default function RecruitmentDashboardPage() {
             {funnel.status === 'error' ? <Failure resource={funnel} /> : <Funnel stages={stages} />}
           </Panel>
 
-          {performance.length > 0 && metrics.status !== 'error' && (
+          {performance.length > 0 && (
             <Panel icon="gauge" title={T.performance.title} hint={T.performance.hint} className="zrv-rd-span-8">
               <KpiTiles items={performance} />
             </Panel>
           )}
 
           <div className="zrv-rd-span-4 zrv-rd-stack">
-            {mixes.length > 0 && metrics.status !== 'error' && (
+            {mixes.length > 0 && (
               <Panel icon="chart-pie" title={T.mix.title} hint={T.periodNames[period]}>
                 {mixes.map((mix) => <MixDonut key={mix.key} title={mix.title} unit={mix.unit} items={mix.items} />)}
               </Panel>

@@ -5,6 +5,7 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { businessToday, enDate, initials } from '@/features/hr-recruitment/shared/hrFormat.js'
+import { reviewCompletion, reviewField } from '@/features/hr-recruitment/shared/recruitmentSteps.js'
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
@@ -15,7 +16,7 @@ import { ES_COMMON_TEXT as C, RECORD_CHANGE_TEXT as T } from '../hrEmployeeServi
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { hijriDate } from '../shared/esFormat.js'
-import { ApprovalSigns, Counter } from '../shared/EmployeeServicesParts.jsx'
+import { Counter } from '../shared/EmployeeServicesParts.jsx'
 import { INCOMPLETE_STEP, lockedStepsOf, problemsInStep } from '../shared/stepGating.js'
 import { NO_IDENTIFY, useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
 import {
@@ -26,6 +27,23 @@ import {
 const RECORD_CHANGE_BASE = ES_PATHS.recordChange
 const service = hrEmployeeServices.recordChanges
 const loadLookups = (signal) => service.getLookups({ signal })
+const validationFields = Object.freeze({
+  empNo: { key: 'employee', step: 0, label: 'Employee', fields: ['employee.employeeNumber'] },
+  effectiveDate: { key: 'effectiveDate', step: 0, label: 'Effective date' },
+  'old.maritalStatus': { key: 'currentFamilyStatus', step: 0, label: 'Current family status' },
+  'new.position': { key: 'positionCode', step: 1, label: 'Position', fields: ['revised.positionCode'] },
+  'new.basicSal': { key: 'basic', step: 1, label: 'Basic salary', fields: ['revised.basic'] },
+  'new.houseAll': { key: 'house', step: 1, label: 'Housing allowance', fields: ['revised.house'] },
+  'new.transAll': { key: 'transport', step: 1, label: 'Transportation allowance', fields: ['revised.transport'] },
+  'new.otherAll': { key: 'other', step: 1, label: 'Other allowance', fields: ['revised.other'] },
+  'new.communAll': { key: 'communication', step: 1, label: 'Communication allowance', fields: ['revised.communication'] },
+  'new.carAll': { key: 'car', step: 1, label: 'Car allowance', fields: ['revised.car'] },
+  'new.maritalStatus': { key: 'familyStatusCode', step: 1, label: 'Family status', fields: ['revised.familyStatusCode'] },
+  'new.grade': { key: 'gradeCode', step: 1, label: 'Grade' },
+  'new.level': { key: 'levelCode', step: 1, label: 'Level' },
+  remarks: { key: 'remarks', step: 2, label: 'Remarks' },
+  views: { key: 'views', step: 2, label: 'Views and suggestions' },
+})
 
 // Revised values are edited as text: amounts as typed, codes as chosen.
 const editable = (values) => Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value === null ? '' : String(value)]))
@@ -51,6 +69,7 @@ function RecordChangeEditor({ lookups, record }) {
   const permissions = usePermissions()
   const editor = useRecruitmentForm({
     basePath: RECORD_CHANGE_BASE, idKey: 'requestId', record,
+    validationFields,
     initialForm: record ? {
       requestDate: record.requestDate, employee: record.employee, effectiveDate: record.effectiveDate ?? '', revised: editable(record.revised),
       currentFamilyStatus: record.currentFamilyStatus ?? record.employee.current.familyStatusCode ?? '',
@@ -60,7 +79,7 @@ function RecordChangeEditor({ lookups, record }) {
   const { form, set, patch, step, setStep } = editor
   const saved = editor.record
   const canSave = permissions.can(saved ? 'HR.PERSONNEL_RECORD_CHANGES:UPDATE' : 'HR.PERSONNEL_RECORD_CHANGES:CREATE')
-  const [errors, setErrors] = useState({})
+  const [localErrors, setLocalErrors] = useState({})
   const [dialog, setDialog] = useState(null)
   const [employeeLoading, setEmployeeLoading] = useState(false)
   const employeeRequest = useRef(0)
@@ -78,6 +97,7 @@ function RecordChangeEditor({ lookups, record }) {
   }
   const options = { ...lookups, positions: positionOptions }
   const locked = isRecordChangeLocked(saved?.status) || !canSave
+  const errors = { ...editor.fieldErrors, ...localErrors }
   const types = changeTypes(current, revised)
   const changed = changedKeys(current, revised)
   const totalNow = recordTotal(current)
@@ -92,11 +112,20 @@ function RecordChangeEditor({ lookups, record }) {
     : { items: lookups.employees ?? [] })
   const shown = (key, values) => (PAY_KEYS.includes(key) ? C.sr(values[key]) : FREE_TEXT_KEYS.includes(key) ? (values[key] || '—') : nameOf(label[key], values[key]))
 
-  const clear = (...keys) => setErrors((value) => Object.fromEntries(Object.entries(value).filter(([key]) => !keys.includes(key))))
+  const clear = (...keys) => setLocalErrors((value) => Object.fromEntries(Object.entries(value).filter(([key]) => !keys.includes(key))))
   const setText = (key) => (event) => { set(key)(event); clear(key) }
-  const setRevised = (key, value) => { patch((state) => ({ revised: { ...state.revised, [key]: value } })); clear(key, 'revised') }
-  // Legacy EMP_NO change: the current information and record (the two-branch auto-fill) fill in,
-  // and with them the revised position and family status; revised amounts keep their values.
+  const setRevised = (key, value) => {
+    patch((state) => {
+      const next = { ...state.revised, [key]: value }
+      if (key === 'positionCode') {
+        next.positionName = options.positions.find((item) => item.code === value)?.name ?? ''
+      }
+      return { revised: next }
+    })
+    clear(key, 'revised')
+  }
+  // Selecting an employee loads their current record into the revised fields as the starting
+  // point, so an unchanged save cannot replace existing pay with zeroes.
   const pickEmployee = async (person) => {
     const request = ++employeeRequest.current
     patch({ employee: person })
@@ -112,7 +141,7 @@ function RecordChangeEditor({ lookups, record }) {
       }))
     } catch {
       if (request !== employeeRequest.current) return
-      setErrors((value) => ({ ...value, employee: T.errors.employeeLookup }))
+      setLocalErrors((value) => ({ ...value, employee: T.errors.employeeLookup }))
     } finally {
       if (request === employeeRequest.current) setEmployeeLoading(false)
     }
@@ -132,7 +161,7 @@ function RecordChangeEditor({ lookups, record }) {
 
   const check = () => {
     const problems = validateRecordChange(form, employee)
-    setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
+    setLocalErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
     if (!problems.length) return true
     // One problem: its message; several: a count with every message listed.
     editor.reject(problems[0].step, problems.length === 1 ? messageOf(problems[0]) : C.reviewProblems(problems.length),
@@ -142,7 +171,7 @@ function RecordChangeEditor({ lookups, record }) {
   // Continue checks the open step only; later steps stay locked until this one is done.
   const continueStep = () => {
     const problems = problemsInStep(validateRecordChange(form, employee), step)
-    setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
+    setLocalErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
     if (!problems.length) {
       if (lockedSteps[step + 1]) editor.reject(step, step === 1 ? T.orbit.changeSomething : INCOMPLETE_STEP)
       return !lockedSteps[step + 1]
@@ -186,6 +215,58 @@ function RecordChangeEditor({ lookups, record }) {
   const lockedSteps = lockedStepsOf(doneSteps)
   const approvals = (saved?.approvals ?? [{ role: 'NOTED_BY', state: 'DRAFT' }, { role: 'APPROVED_BY', state: 'DRAFT' }])
     .map((item) => ({ key: item.role, name: T.approvers[item.role][0], role: T.approvers[item.role][1], state: item.state, date: item.date ? enDate(item.date) : null }))
+  const present = (value) => value !== null && value !== undefined && String(value).trim() !== ''
+  const compare = (before, after, format = (value) => String(value)) => {
+    if (!present(after)) return ''
+    return <span className="zrv-hr-es-review-compare">
+      <span className="zrv-hr-es-review-compare__old">{present(before) ? format(before) : '—'}</span>
+      <span className="zrv-hr-es-review-compare__arrow" aria-hidden="true">→</span>
+      <strong className="zrv-hr-es-review-compare__new">{format(after)}</strong>
+    </span>
+  }
+  const reviewSections = [
+    { title: 'Employee and request', rows: [
+      reviewField('Employee', employee ? `${employee.name} · #${employee.employeeNumber}` : '', true, errors.employee),
+      reviewField('Request date', form.requestDate ? enDate(form.requestDate) : ''),
+      reviewField('Effective date', form.effectiveDate ? enDate(form.effectiveDate) : '', true, errors.effectiveDate),
+      reviewField('Effective date (Hijri)', form.effectiveDate ? hijriDate(form.effectiveDate) : ''),
+      reviewField('Department', employee?.departmentName),
+      reviewField('Section', employee?.sectionName),
+      reviewField('Nationality', employee?.nationality),
+      reviewField('Joining date', employee?.startDate ? enDate(employee.startDate) : ''),
+    ] },
+    { title: 'Current and revised record', rows: [
+      reviewField('Changed fields', changed.length),
+      reviewField('Change types', types.map((type) => T.changeTypes[type]).join(', ') || T.reviewStep.noneYet),
+      reviewField('Position', compare(shown('positionCode', current ?? {}), shown('positionCode', revised ?? {})), true, errors.positionCode),
+      ...PAY_KEYS.map((key) => reviewField(
+        T.items[key][0],
+        compare(current?.[key], revised?.[key], C.sr),
+        true,
+        errors[key],
+      )),
+      reviewField('Family status', compare(
+        nameOf('familyStatuses', current?.familyStatusCode),
+        nameOf('familyStatuses', revised?.familyStatusCode),
+      ), true, errors.currentFamilyStatus || errors.familyStatusCode),
+      reviewField('Grade', compare(current?.gradeCode, revised?.gradeCode), false, errors.gradeCode),
+      reviewField('Level', compare(current?.levelCode, revised?.levelCode), false, errors.levelCode),
+      reviewField('Monthly total', compare(totalNow, totalRevised, C.money)),
+      reviewField('Net change', `${C.signed(totalRevised - totalNow, C.money)} SR`),
+    ] },
+    { title: 'Remarks and approvals', rows: [
+      reviewField(T.reviewStep.remarks, form.remarks, false, errors.remarks),
+      reviewField(T.reviewStep.views, form.views, false, errors.views),
+      reviewField(T.reviewStep.documents, form.attachments.length
+        ? form.attachments.map((file) => file.fileName).join(', ')
+        : ''),
+      ...approvals.map((item) => reviewField(
+        item.name,
+        `${C.approval[item.state] ?? item.state}${item.date ? ` · ${item.date}` : ''}`,
+      )),
+    ] },
+  ]
+  const reviewProgress = reviewCompletion(reviewSections)
   // Legacy status colours: APPROVED green, REJECTED red.
   const statusTone = status === 'REJECTED' ? 'bad' : status === 'APPROVED' || status === 'INPROCESS' ? 'ok' : 'warn'
   // ARB_DATE as saved (server computed); a new form shows today's.
@@ -356,25 +437,8 @@ function RecordChangeEditor({ lookups, record }) {
       {step === 3 && <>
         <StepHead title={T.reviewStep.title} desc={T.reviewStep.desc} />
         {current ? <>
-          <div className="zrv-hr-recap">
-            <div><small>{T.reviewStep.changes}</small><b>{changed.length}</b><span>{types.map((type) => T.changeTypes[type]).join(', ') || T.reviewStep.noneYet}</span></div>
-            <div><small>{T.reviewStep.total}</small><b>{C.money(totalRevised)}</b><span>{T.reviewStep.was(C.money(totalNow))}</span></div>
-            <div><small>{T.reviewStep.effective}</small><b className="zrv-hr-es-sm">{form.effectiveDate ? enDate(form.effectiveDate) : '—'}</b><span lang="ar" dir="rtl">{hijriDate(form.effectiveDate)}</span></div>
-          </div>
-          <ul className="zrv-hr-es-changes zrv-hr-mt">
-            {changed.map((key) => (
-              <li key={key}><b>{T.items[key][0]}</b><span className="zrv-hr-es-old">{shown(key, current)}</span><OrvexaIcon name="arrow-right" size={14} aria-hidden="true" /><span className="zrv-hr-es-new">{PAY_KEYS.includes(key) ? C.sr(revised[key]) : shown(key, revised)}</span></li>
-            ))}
-            {!changed.length && <li className="zrv-hr-es-none">{T.reviewStep.noChanges}</li>}
-          </ul>
-          <div className="zrv-hr-sep" />
-          <Review rows={[
-            [T.reviewStep.employee, `${employee.employeeNumber} · ${employee.name}`, false],
-            [T.reviewStep.remarks, form.remarks, !form.remarks.trim()],
-            [T.reviewStep.views, form.views, !form.views.trim()],
-            [T.reviewStep.documents, T.reviewStep.files(form.attachments.length), false],
-          ]} />
-          <ApprovalSigns items={approvals} />
+          <Review sections={reviewSections} {...reviewProgress} formTitle="Personnel Record Change"
+            reference={saved?.requestNumber} approvalStatus={saved ? (C.status[status] ?? status) : 'Not saved'} statusLabel="Request status" />
         </> : <button type="button" className="btn-secondary zrv-hr-btn" onClick={() => setStep(0)}><OrvexaIcon name="arrow-left" size={16} /> {C.chooseEmployeeFirst}</button>}
       </>}
     </RecruitmentShell>

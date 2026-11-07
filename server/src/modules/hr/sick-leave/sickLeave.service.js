@@ -20,6 +20,27 @@ const missing = () => new AppError(404, 'NOT_FOUND', 'Sick leave request not fou
 
 const deny = () => new AppError(403, 'FORBIDDEN', 'Access denied');
 
+function requireSupportedDayTypes(capability, body) {
+  const dayTypeColumns = capability?.dayTypes !== false;
+  const fractionalDays = capability?.fractional !== false;
+  const requestsHalfDay = body.fromDayType === 'HALF' || body.toDayType === 'HALF';
+  if (requestsHalfDay && (!dayTypeColumns || !fractionalDays)) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Validation failed', [
+      {
+        field: 'fromDayType',
+        message:
+          'Half-day requests require fractional LEAVE_DAYS storage and both day-type columns.',
+      },
+      {
+        field: 'toDayType',
+        message:
+          'Half-day requests require fractional LEAVE_DAYS storage and both day-type columns.',
+      },
+    ]);
+  }
+  return dayTypeColumns;
+}
+
 // Both endpoints inclusive.
 // Each endpoint can independently be FULL or HALF.
 export function calculateDays({ fromDate, toDate, fromDayType, toDayType }) {
@@ -214,6 +235,13 @@ export function createSickLeaveService({
   }
 
   return {
+    async capabilities() {
+      return read(async (connection) => {
+        const { dayTypes, fractional } = await repository.capabilities(connection);
+        return { halfDays: Boolean(dayTypes && fractional) };
+      });
+    },
+
     // CREATE SICK LEAVE
     async create(actor, body, files) {
       validFiles(files);
@@ -222,14 +250,19 @@ export function createSickLeaveService({
 
       try {
         return await write(async (connection) => {
-          await repository.ensureWriteSchema(connection);
+          const capability = await repository.ensureWriteSchema(connection);
+          const dayTypes = requireSupportedDayTypes(capability, body);
 
           const data = await prepare(connection, actor, body);
 
-          const headerId = await repository.insert(connection, {
-            ...data,
-            uuid: randomUUID(),
-          });
+          const headerId = await repository.insert(
+            connection,
+            {
+              ...data,
+              uuid: randomUUID(),
+            },
+            { dayTypes },
+          );
 
           await persistFiles(connection, headerId, files, saved);
 
@@ -254,23 +287,16 @@ export function createSickLeaveService({
 
         await permitted(connection, actor, header);
 
+        // Half-day columns are optional in older schemas. When absent, legacy
+        // full-day records load normally and the form hides unsupported choices.
         const capability = await repository.capabilities(connection);
-
-        if (!capability.dayTypes) {
-          throw new AppError(
-            503,
-            'SCHEMA_UNVERIFIED',
-            'Half-day persistence columns are unavailable',
-          );
-        }
-
-        const detail = await repository.header(connection, id, false, true);
+        const detail = await repository.header(connection, id, false, capability.dayTypes);
 
         return {
           ...toItem(detail),
           comments: detail.COMMENTS,
-          fromDayType: detail.FROM_DAY_TYPE,
-          toDayType: detail.TO_DAY_TYPE,
+          fromDayType: capability.dayTypes ? detail.FROM_DAY_TYPE : 'FULL',
+          toDayType: capability.dayTypes ? detail.TO_DAY_TYPE : 'FULL',
           attachments: (await repository.attachments(connection, id)).map(toAttachment),
         };
       });
@@ -279,7 +305,8 @@ export function createSickLeaveService({
     // UPDATE SICK LEAVE
     async update(actor, id, body) {
       return write(async (connection) => {
-        await repository.ensureWriteSchema(connection);
+        const capability = await repository.ensureWriteSchema(connection);
+        const dayTypes = requireSupportedDayTypes(capability, body);
 
         const header = await repository.header(connection, id, true);
 
@@ -293,10 +320,14 @@ export function createSickLeaveService({
 
         const data = await prepare(connection, actor, body);
 
-        const changed = await repository.update(connection, {
-          ...data,
-          headerId: id,
-        });
+        const changed = await repository.update(
+          connection,
+          {
+            ...data,
+            headerId: id,
+          },
+          { dayTypes },
+        );
 
         if (!changed) {
           throw conflict(header.STATUS);

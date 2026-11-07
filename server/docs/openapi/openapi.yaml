@@ -7036,8 +7036,9 @@ paths:
         token. The employee must be the authenticated employee or an eligible direct report.
         Leave type must exist in the configured lookup. The server calculates the inclusive
         leave duration from the dates and day types; a one-day request must use the same day
-        type at both ends. At least one allowed attachment is required (up to 10 files, each
-        at most 10 MiB). Creation fails closed if required Oracle schema capabilities or the
+        type at both ends. Half-day choices require both optional day-type columns; without
+        them, requests must use full days. At least one allowed attachment is required (up to
+        10 files, each at most 10 MiB). Creation fails closed if required Oracle schema capabilities or the
         configured leave-type lookup cannot be verified. No RBAC key or lookup code is implied
         by this contract.
       security: [{ sessionCookie: [] }]
@@ -7100,6 +7101,31 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
+  /api/v1/hr/sick-leave/lookups/capabilities:
+    get:
+      operationId: getSickLeaveCapabilities
+      tags: [HR Sick Leave]
+      summary: Check optional half-day support for the Sick Leave form
+      description: Requires the Sick Leave resource's VIEW action.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Whether fractional leave totals and both half-day columns are available.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data:
+                    type: object
+                    required: [halfDays]
+                    properties:
+                      halfDays: { type: boolean }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
   /api/v1/hr/sick-leave/lookups/employees/{empNumber}:
     get:
       operationId: getSickLeaveEmployee
@@ -7135,8 +7161,8 @@ paths:
       summary: Get one Sick Leave request and its attachment metadata
       description: >-
         Requires the configured Sick Leave resource's VIEW action. Non-HR visibility is limited
-        to the authenticated employee or request creator. Reading the day-type fields fails
-        closed when the required Oracle columns cannot be verified.
+        to the authenticated employee or request creator. Missing optional day-type columns
+        return FULL for both day types.
       security: [{ sessionCookie: [] }]
       parameters:
         - {
@@ -7155,11 +7181,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '503':
-          description: The required day-type schema cannot be verified.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
     put:
       operationId: updateSickLeaveRequest
       tags: [HR Sick Leave]
@@ -7167,9 +7188,10 @@ paths:
       description: >-
         Requires the configured Sick Leave resource's UPDATE action and a session-bound CSRF
         token. Only requests in Draft or REJECTED status can be updated. The server recalculates
-        leave duration and validates the employee and configured leave-type lookup. The JSON
-        body uses the same fields as creation except attachments; client-supplied calculated or
-        server-owned values are ignored. Required Oracle schema and lookup configuration are
+        leave duration and validates the employee and configured leave-type lookup. Half-day
+        choices require both optional day-type columns; without them, requests must use full
+        days. The JSON body uses the same fields as creation except attachments; client-supplied
+        calculated or server-owned values are ignored. Required Oracle schema and lookup configuration are
         checked before writing.
       security: [{ sessionCookie: [] }]
       parameters:

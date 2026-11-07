@@ -48,6 +48,8 @@
 @keyframes zrv-ir-pop { from { transform: scale(0); } }
 .zrv-ir-btn--primary { border-color: transparent; background: linear-gradient(135deg, var(--zrv-hr-accent), color-mix(in srgb, var(--zrv-hr-accent) 70%, var(--mint))); color: var(--zrv-hr-on-accent); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--zrv-hr-accent) 80%, transparent); }
 .zrv-ir-btn--primary:hover:not(:disabled) { border-color: transparent; box-shadow: 0 14px 28px -14px color-mix(in srgb, var(--zrv-hr-accent) 90%, transparent); }
+.zrv-ir-btn--danger { border-color: color-mix(in srgb, var(--danger) 38%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, var(--surface-solid)); color: var(--danger-text); }
+.zrv-ir-btn--danger:hover:not(:disabled) { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--surface-solid)); }
 
 /* Collapsible filter form: the row height animates from 0 to its content. */
 .zrv-ir-collapse { display: grid; grid-template-rows: 0fr; margin-bottom: calc(var(--ir-gap) * -1); opacity: 0; transform: translateY(-8px); transition: grid-template-rows .5s var(--ir-ease), margin-bottom .5s var(--ir-ease), opacity .3s ease, transform .5s var(--ir-ease); }
@@ -397,6 +399,7 @@
 .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog-backdrop { animation: zrv-ir-fade .4s ease both; }
 .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog { gap: 14px; padding: 24px; box-shadow: -36px 0 70px -40px rgb(0 0 0 / .45); animation: zrv-ir-drawer-in .6s var(--ir-ease) both; will-change: transform; }
 .zrv-ir-drawer.zrv-hr-rp-drawer:has(.zrv-ir-offer-preview) .zrv-dialog { box-shadow: none; }
+.zrv-ir-drawer.zrv-hr-rp-drawer:has(.zrv-ir-sick-leave-preview) .zrv-dialog { box-shadow: none; }
 .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog-backdrop { animation: zrv-ir-fade-out .32s ease .02s both; }
 .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog { animation: zrv-ir-drawer-out .32s cubic-bezier(.5, 0, .75, 0) both; }
 @keyframes zrv-ir-fade-out { to { opacity: 0; } }

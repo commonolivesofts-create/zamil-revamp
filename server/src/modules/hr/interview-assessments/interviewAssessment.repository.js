@@ -103,7 +103,7 @@ export async function insertEvaluation(connection, e) {
         HR_REP, ATTRIBUTE1, DEPT_REP, CREATED_BY, CREATION_DATE)
      VALUES
        (:headerId, :evalStatus, :evalInterviewedBy, :adminManager, :managningDirector,
-        :hrRep, :comment, :deptRep, :createdBy, SYSDATE)`,
+        :hrRep, :evalComment, :deptRep, :createdBy, SYSDATE)`,
     e,
   );
 }
@@ -542,14 +542,14 @@ export async function mergeEvaluation(connection, e) {
       WHEN MATCHED THEN UPDATE SET
         STATUS = :evalStatus, INTERVIEWED_BY = :evalInterviewedBy,
         ADMIN_MANAGER = :adminManager, MANAGNING_DIRECTOR = :managningDirector,
-        HR_REP = :hrRep, ATTRIBUTE1 = :comment, DEPT_REP = :deptRep,
+        HR_REP = :hrRep, ATTRIBUTE1 = :evalComment, DEPT_REP = :deptRep,
         LAST_UPDATED_BY = :updatedBy, LAST_UPDATE_LOGIN = :updatedBy, LAST_UPDATE_DATE = SYSDATE
       WHEN NOT MATCHED THEN INSERT
         (HEADER_ID, STATUS, INTERVIEWED_BY, ADMIN_MANAGER, MANAGNING_DIRECTOR,
          HR_REP, ATTRIBUTE1, DEPT_REP, CREATED_BY, CREATION_DATE)
         VALUES
         (:headerId, :evalStatus, :evalInterviewedBy, :adminManager, :managningDirector,
-         :hrRep, :comment, :deptRep, :createdBy, SYSDATE)`,
+         :hrRep, :evalComment, :deptRep, :createdBy, SYSDATE)`,
     e,
   );
 }

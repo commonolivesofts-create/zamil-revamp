@@ -32,5 +32,7 @@ export function createSickLeaveController(service) {
     employees: wrap((req) => service.employees(req.auth, req.query)),
 
     employee: wrap((req) => service.employee(req.auth, req.params.empNumber)),
+
+    capabilities: wrap(() => service.capabilities()),
   };
 }
