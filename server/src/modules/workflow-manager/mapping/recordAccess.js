@@ -1,5 +1,6 @@
 import { parsePermission } from '../../access-control/authorization.service.js';
 import { CODE } from './identifiers.js';
+import { verifyRecordKey } from './recordKey.js';
 
 /*
  * Form-owned record-access contract (G3-approved, M2-0). The authoritative answer to "may this
@@ -10,8 +11,14 @@ import { CODE } from './identifiers.js';
  *   - No registered provider for a form → access is unavailable (NO_RECORD_ACCESS_PROVIDER).
  *     There is no generic fallback (no "RBAC + same organization" shortcut) and no administrator
  *     bypass.
+ *   - Each purpose has MANDATORY Workflow Manager permissions (MAPPING_PREVIEW:
+ *     WORKFLOW_MANAGER.FORM_MAPPING:RUN) that are always checked on the server; callers cannot
+ *     remove them by omitting or emptying `requiredPermissions`.
  *   - Mapping configuration can only ADD requirements (additional permissions, all of which must
  *     be held); it cannot name, replace, skip or weaken the provider.
+ *   - The record key is verified against the mapping's key columns with the canonical record-key
+ *     implementation (recordKey.verifyRecordKey) before any provider is called; the provider
+ *     receives only the verified, rebuilt key.
  *   - Any provider error, timeout, malformed answer or contract-version mismatch is DENY.
  *   - Cross-organization access is possible only when the provider itself allows it under its
  *     own approved policy and says so (`crossOrganization: true`); it is never granted here.
@@ -25,6 +32,11 @@ import { CODE } from './identifiers.js';
  */
 export const RECORD_ACCESS_CONTRACT_VERSION = 1;
 export const ACCESS_PURPOSES = Object.freeze(['MAPPING_PREVIEW']);
+// Server-side permissions every request for a purpose must hold, in addition to any others.
+// Literal key (not imported from workflowManager.catalog.js, which composes this module).
+export const MANDATORY_PERMISSIONS = Object.freeze({
+  MAPPING_PREVIEW: Object.freeze(['WORKFLOW_MANAGER.FORM_MAPPING:RUN']),
+});
 export const PROVIDER_TIMEOUT_MS = 5000;
 
 export class RecordAccessRegistryError extends Error {
@@ -95,15 +107,17 @@ function withTimeout(promise, ms) {
 
 /**
  * Authoritative record-level decision. ALLOW requires: a known purpose, an authenticated actor,
- * a canonical record key, every required permission held (Workflow Manager permission plus the
- * mapping's additional permissions), a registered provider, and the provider's valid ALLOW.
- * Everything else is DENY with a basis code. Never throws for a provider failure.
+ * a record key that passes verifyRecordKey() against `keyColumns` (the mapping's header key
+ * columns), a registered provider, the purpose's MANDATORY permissions plus every additional
+ * `requiredPermissions` entry held, and the provider's valid ALLOW. Everything else is DENY with a
+ * basis code. Never throws for a provider failure.
  */
 export async function authorizeRecordAccess({
   registry,
   formCode,
   actor,
   recordKey,
+  keyColumns,
   purpose,
   connection,
   requiredPermissions = [],
@@ -115,15 +129,28 @@ export async function authorizeRecordAccess({
   if (typeof recordKey?.sha256 !== 'string' || typeof recordKey?.json !== 'string') {
     return decision(false, 'RECORD_KEY_REQUIRED');
   }
+  let verifiedKey;
+  try {
+    verifiedKey = verifyRecordKey(recordKey, keyColumns);
+  } catch (error) {
+    return decision(
+      false,
+      /^RECORD_KEY_[A-Z_]+$/.test(error?.code) ? error.code : 'RECORD_KEY_INVALID',
+    );
+  }
   const provider = PROVIDERS.get(registry)?.get(formCode);
   if (!provider) return decision(false, 'NO_RECORD_ACCESS_PROVIDER');
 
+  // Mandatory permissions first, then the additional ones; duplicates are checked once.
+  if (!Array.isArray(requiredPermissions)) return decision(false, 'PERMISSION_INVALID');
   let permissions;
   try {
-    permissions = requiredPermissions.map((key) => {
-      const [resource, action] = String(key).split(':');
-      return parsePermission(resource, action);
-    });
+    permissions = [...new Set([...MANDATORY_PERMISSIONS[purpose], ...requiredPermissions])].map(
+      (key) => {
+        const [resource, action] = String(key).split(':');
+        return parsePermission(resource, action);
+      },
+    );
   } catch {
     return decision(false, 'PERMISSION_INVALID');
   }
@@ -146,9 +173,9 @@ export async function authorizeRecordAccess({
           Object.freeze({
             actor: Object.freeze({ userId: actor.userId, sessionId: actor.sessionId ?? null }),
             recordKey: Object.freeze({
-              json: recordKey.json,
-              sha256: recordKey.sha256,
-              value: recordKey.value,
+              json: verifiedKey.json,
+              sha256: verifiedKey.sha256,
+              value: verifiedKey.value,
             }),
             purpose,
             connection,

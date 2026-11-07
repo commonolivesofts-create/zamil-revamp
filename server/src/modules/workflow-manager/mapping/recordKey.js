@@ -75,6 +75,70 @@ export function buildRecordKey(keyColumns, values) {
   });
 }
 
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+const isPlainObject = (value) =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * Integrity check of a record key received from elsewhere (a caller, a request, a stored row)
+ * against the mapping's key columns, using this module's own canonical implementation — there is
+ * no second format. The key is rebuilt with buildRecordKey() from the parts in `json`; the result
+ * must be byte-identical to `json`, its SHA-256 must equal `sha256` (lower-case hex), and `value`
+ * must canonicalize to the same JSON. Returns the rebuilt, frozen key; throws RecordKeyError:
+ *   RECORD_KEY_MALFORMED          not a { json, sha256, value } key / json is not a JSON object
+ *   RECORD_KEY_FORMAT_UNSUPPORTED a `format` other than zrv.wf.recordKey/1
+ *   RECORD_KEY_HASH_INVALID       sha256 is not 64 lower-case hex characters
+ *   RECORD_KEY_COLUMNS_INVALID    the key columns themselves are invalid
+ *   RECORD_KEY_VALUE_INVALID      a part is missing, unexpected, null or not valid for its type
+ *   RECORD_KEY_NONCANONICAL       json differs from the canonical form (order, spacing, typing,
+ *                                 number/date representation, duplicate properties)
+ *   RECORD_KEY_HASH_MISMATCH      sha256 is not the hash of json
+ *   RECORD_KEY_VALUE_MISMATCH     value does not represent exactly the same key as json
+ */
+export function verifyRecordKey(recordKey, keyColumns) {
+  const fail = (code, message) => {
+    throw new RecordKeyError(code, message);
+  };
+  if (!isPlainObject(recordKey)) fail('RECORD_KEY_MALFORMED', 'A record key object is required');
+  const { json, sha256, value, format } = recordKey;
+  if (format !== undefined && format !== RECORD_KEY_FORMAT) {
+    fail('RECORD_KEY_FORMAT_UNSUPPORTED', `Only ${RECORD_KEY_FORMAT} keys are accepted`);
+  }
+  if (typeof json !== 'string' || typeof sha256 !== 'string' || !isPlainObject(value)) {
+    fail('RECORD_KEY_MALFORMED', 'A record key has json, sha256 and value');
+  }
+  if (!SHA256_HEX.test(sha256)) fail('RECORD_KEY_HASH_INVALID', 'sha256 must be lower-case hex');
+  let parts;
+  try {
+    parts = JSON.parse(json);
+  } catch {
+    fail('RECORD_KEY_MALFORMED', 'json is not valid JSON');
+  }
+  if (!isPlainObject(parts)) fail('RECORD_KEY_MALFORMED', 'json must be a JSON object');
+  try {
+    checkKeyColumns(keyColumns);
+  } catch (error) {
+    fail('RECORD_KEY_COLUMNS_INVALID', error.message);
+  }
+  let rebuilt;
+  try {
+    rebuilt = buildRecordKey(keyColumns, parts);
+  } catch (error) {
+    fail('RECORD_KEY_VALUE_INVALID', error.message);
+  }
+  if (rebuilt.json !== json) fail('RECORD_KEY_NONCANONICAL', 'The key is not in canonical form');
+  if (rebuilt.sha256 !== sha256) fail('RECORD_KEY_HASH_MISMATCH', 'sha256 does not match the key');
+  let valueJson;
+  try {
+    valueJson = canonicalize(value);
+  } catch {
+    fail('RECORD_KEY_VALUE_MISMATCH', 'value is not a canonical key value');
+  }
+  if (valueJson !== json)
+    fail('RECORD_KEY_VALUE_MISMATCH', 'value and json describe different keys');
+  return rebuilt;
+}
+
 /**
  * SQL expression that fetches a key column as text in a session-independent form accepted by the
  * canonical parsers. `columnRef` must already be a quoted, dictionary-verified reference.

@@ -56,7 +56,7 @@
 | New | `…/mapping/sourceHandlers.js` | Form-owned SourceHandler contract + registry |
 | New | `server/src/modules/workflow-manager/integrations/index.js` | The single reviewed composition point (empty) |
 | Modified | `server/src/modules/workflow-manager/workflowManager.catalog.js` | `SOURCE_HANDLERS` now derived from the registry (compatible) |
-| New | `server/tests/workflow-mapping-{values,contracts,security}.test.js`, `server/tests/helpers/workflowMappingFixtures.js` | 59 tests, synthetic fixtures |
+| New | `server/tests/workflow-mapping-{values,contracts,security}.test.js`, `server/tests/helpers/workflowMappingFixtures.js` | 63 tests, synthetic fixtures |
 
 No frontend, OpenAPI, route, RBAC, configuration, database or business-module file changed.
 
@@ -104,6 +104,14 @@ session-independently (`TO_CHAR(…,'TM9','NLS_NUMERIC_CHARACTERS=''.,''')`, `SY
 `RAWTOHEX`). `assertSingleRecord(rows)` with `SINGLE_RECORD_FETCH_LIMIT = 2`: exactly one row,
 `RECORD_NOT_FOUND`, or `DUPLICATE_RECORD_KEY` — never the first row. E1 must reuse this module.
 
+`verifyRecordKey(recordKey, keyColumns)` checks a key received from elsewhere with the same
+implementation (no second format): it rebuilds the key from the parts in `json` with
+`buildRecordKey()` and requires byte-identical canonical JSON, `sha256` equal to its lower-case hex
+SHA-256, and `value` canonicalizing to the same JSON. Failures: `RECORD_KEY_MALFORMED`,
+`RECORD_KEY_FORMAT_UNSUPPORTED`, `RECORD_KEY_HASH_INVALID`, `RECORD_KEY_COLUMNS_INVALID`,
+`RECORD_KEY_VALUE_INVALID`, `RECORD_KEY_NONCANONICAL` (spacing, order, typing, number/date
+representation, duplicate properties), `RECORD_KEY_HASH_MISMATCH`, `RECORD_KEY_VALUE_MISMATCH`.
+
 ### 6.4 Key assurance (`keyAssurance.js`)
 
 `DATABASE_ENFORCED`: ENABLED + VALIDATED PK/unique constraint or VALID non-function-based unique
@@ -140,12 +148,17 @@ PROVISIONAL_TRANSITION, RESOLVER_UNBOUND, SOURCE_INACTIVE, SOURCE_VERSION_NOT_PU
 ### 6.7 Form-owned integrations (`recordAccess.js`, `sourceHandlers.js`, `integrations/index.js`)
 
 - **RecordAccessProvider v1** `{ formCode, contractVersion: 1, canView(ctx) → { decision, basis,
-  crossOrganization, contractVersion } }`. `authorizeRecordAccess()` returns ALLOW only if purpose,
-  actor and canonical key are present, every required permission is held (Workflow Manager
-  permission plus the mapping's additional ones), a provider is registered, and the provider
-  returns a valid ALLOW within 5 s. Missing provider, error, timeout, malformed or
-  version-mismatched answers → DENY. The registry exposes only `has()`; providers are unreachable
-  except through this function.
+  crossOrganization, contractVersion } }`. `authorizeRecordAccess({ …, recordKey, keyColumns,
+  requiredPermissions })` returns ALLOW only if: the purpose and actor are valid; the record key
+  passes `verifyRecordKey()` against the mapping's key columns (checked **before** any provider is
+  called; the provider receives only the verified, rebuilt key); a provider is registered; the
+  purpose's **mandatory** permissions are held — `MAPPING_PREVIEW` always requires
+  `WORKFLOW_MANAGER.FORM_MAPPING:RUN`, checked first, and it cannot be removed by omitting, emptying
+  or replacing `requiredPermissions` (a non-array is `PERMISSION_INVALID`); every additional
+  `requiredPermissions` entry is held (additive, duplicates checked once); and the provider returns
+  a valid ALLOW within 5 s. Missing provider, error, timeout, malformed or version-mismatched
+  answers → DENY. The registry exposes only `has()`; providers are unreachable except through this
+  function.
 - **SourceHandler v1** `{ code, name, description?, contractVersion: 1, fields[] }`; validated at
   startup; functions are never invoked in M2-0.
 - **`integrations/index.js`** is the only place providers/handlers are composed (explicit imports,
@@ -184,8 +197,9 @@ the G3 items above only.
 
 | Check | Command / method | Result | Date |
 |---|---|---|---|
-| Backend lint + format + tests | `cd server; npm run check` | Lint and Prettier clean; 1,011 tests: 1,004 passed, 0 failed, 7 pre-existing `todo` (none in M2-0) | 2026-11-07 |
-| New M2-0 tests | `workflow-mapping-{values,contracts,security}.test.js` | 59 passed | 2026-11-07 |
+| Backend lint + format + tests | `cd server; npm run check` | Lint and Prettier clean; 1,015 tests: 1,008 passed, 0 failed, 7 pre-existing `todo` (none in M2-0) | 2026-11-07 |
+| New M2-0 tests | `workflow-mapping-{values,contracts,security}.test.js` | 63 passed (incl. the PR #74 review fixes: mandatory `FORM_MAPPING:RUN`, record-key integrity) | 2026-11-07 |
+| Mutation check of the review fixes | Temporarily removed the mandatory permission, then the key verification | Each removal made the new tests fail (1 and 2 failures); file restored byte-identical | 2026-11-07 |
 | M1 regression | `workflow-manager.test.js`, `rbac-register.test.js` within the suite | Passed, unchanged | 2026-11-07 |
 | Frontend tests | `cd client; npm test` (no client change) | 511 tests: 508 passed, 0 failed, 3 pre-existing `todo` | 2026-11-07 |
 | Oracle TEST, read-only | Repository/service against Workflow Manager tables and `XXZP.XX_DIGI_EMP_MASTER` (dictionary + aggregate counts); key fetch expressions on `DUAL` literals | 25/25 passed: identity and function-based index detection, PK → DATABASE_ENFORCED, protected-object refusal, unknown-column refusal, `ORA-01456` proves the read-only guard blocks writes, NUMBER/DATE/TIMESTAMP/TZ (offset and region)/RAW round trips, NLS independence | 2026-11-07 |

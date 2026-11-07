@@ -19,6 +19,7 @@ import {
   MAX_KEY_COLUMNS,
   RECORD_KEY_FORMAT,
   SINGLE_RECORD_FETCH_LIMIT,
+  verifyRecordKey,
 } from '../src/modules/workflow-manager/mapping/recordKey.js';
 import {
   canonicalCalendarDate,
@@ -300,6 +301,31 @@ describe('canonical record keys', () => {
     }));
     throwsCode(() => buildRecordKey(wide, {}), 'KEY_TOO_WIDE');
     throwsCode(() => buildRecordKey([id], { REQUEST_ID: 0.5 }), 'PRECISION_RISK');
+  });
+
+  it('verifies received keys by rebuilding them with the same canonical implementation', () => {
+    const columns = [
+      { name: 'AMOUNT', oracleType: 'NUMBER', precision: 38, scale: 9 },
+      { name: 'BOOKED_AT', oracleType: 'TIMESTAMP(9) WITH TIME ZONE' },
+    ];
+    const key = buildRecordKey(columns, { AMOUNT: '1.50', BOOKED_AT: '2026-01-01T03:00:00+03:00' });
+    // A plain-object copy (e.g. after JSON transport) verifies and yields the same frozen key.
+    const verified = verifyRecordKey(JSON.parse(JSON.stringify(key)), columns);
+    assert.equal(verified.json, key.json);
+    assert.equal(verified.sha256, key.sha256);
+    assert.ok(Object.isFrozen(verified) && Object.isFrozen(verified.value));
+    // Equivalent but non-canonical representations of the same instant/number are refused.
+    const alt = '{"AMOUNT":"1.50","BOOKED_AT":"2026-01-01T03:00:00+03:00"}';
+    throwsCode(
+      () => verifyRecordKey({ json: alt, sha256: key.sha256, value: JSON.parse(alt) }, columns),
+      'RECORD_KEY_NONCANONICAL',
+    );
+    throwsCode(() => verifyRecordKey('x', columns), 'RECORD_KEY_MALFORMED');
+    throwsCode(
+      () => verifyRecordKey({ ...key, sha256: 'f'.repeat(64) }, columns),
+      'RECORD_KEY_HASH_MISMATCH',
+    );
+    throwsCode(() => verifyRecordKey(key, columns.slice(0, 1)), 'RECORD_KEY_VALUE_INVALID');
   });
 
   it('reads by key fail closed: exactly one row, never "the first"', () => {

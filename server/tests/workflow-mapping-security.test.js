@@ -4,6 +4,7 @@
  * that the generic mapping engine writes nothing and names no business form.
  */
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 
@@ -195,8 +196,10 @@ describe('dictionary service (read-only)', () => {
 
 // --- Record access ------------------------------------------------------------------------------
 
-const KEY = buildRecordKey([{ name: 'REQUEST_ID', oracleType: 'NUMBER' }], { REQUEST_ID: '1' });
+const KEY_COLUMNS = [{ name: 'REQUEST_ID', oracleType: 'NUMBER' }];
+const KEY = buildRecordKey(KEY_COLUMNS, { REQUEST_ID: '1' });
 const ACTOR = { userId: '7', sessionId: '70' };
+const RUN = 'WORKFLOW_MANAGER.FORM_MAPPING:RUN';
 const answer = (extra = {}) => ({
   decision: 'ALLOW',
   basis: 'SAME_ORGANIZATION',
@@ -219,6 +222,7 @@ function access({
     formCode: 'DEMO_REQUEST',
     actor: ACTOR,
     recordKey: KEY,
+    keyColumns: KEY_COLUMNS,
     purpose: 'MAPPING_PREVIEW',
     connection: {},
     requiredPermissions,
@@ -350,10 +354,153 @@ describe('form-owned record access', () => {
       formCode: 'DEMO_REQUEST',
       actor: ACTOR,
       recordKey: KEY,
+      keyColumns: KEY_COLUMNS,
       purpose: 'MAPPING_PREVIEW',
       holds: async () => true,
     });
     assert.equal(forged.basis, 'NO_RECORD_ACCESS_PROVIDER');
+  });
+
+  it('always enforces FORM_MAPPING:RUN for MAPPING_PREVIEW, whatever the caller passes', async () => {
+    const asked = [];
+    let called = 0;
+    const provider = async () => ((called += 1), answer());
+    const withoutRun = async (_userId, p) => {
+      const key = `${p.moduleCode}.${p.resourceCode}:${p.actionCode}`;
+      asked.push(key);
+      return key !== RUN;
+    };
+    for (const requiredPermissions of [[], undefined, ['DEMO.REQUESTS:VIEW']]) {
+      asked.length = 0;
+      const result = await access({ provider, holds: withoutRun, requiredPermissions });
+      assert.deepEqual(
+        result,
+        { decision: 'DENY', basis: 'PERMISSION_MISSING', crossOrganization: false },
+        JSON.stringify(requiredPermissions),
+      );
+      assert.equal(asked[0], RUN, 'the mandatory permission is checked first');
+    }
+    assert.equal(called, 0, 'the provider is never asked without RUN');
+
+    // With RUN held, an empty or omitted list still checks RUN, and additions stay additive.
+    for (const requiredPermissions of [[], undefined]) {
+      asked.length = 0;
+      const ok = await access({
+        provider,
+        requiredPermissions,
+        holds: async (_u, p) => (
+          asked.push(`${p.moduleCode}.${p.resourceCode}:${p.actionCode}`),
+          true
+        ),
+      });
+      assert.equal(ok.decision, 'ALLOW');
+      assert.deepEqual(asked, [RUN]);
+    }
+    asked.length = 0;
+    await access({
+      provider,
+      requiredPermissions: [RUN, 'DEMO.REQUESTS:VIEW', RUN],
+      holds: async (_u, p) => (
+        asked.push(`${p.moduleCode}.${p.resourceCode}:${p.actionCode}`),
+        true
+      ),
+    });
+    assert.deepEqual(asked, [RUN, 'DEMO.REQUESTS:VIEW'], 'duplicates checked once, RUN first');
+    assert.equal(
+      (await access({ provider, requiredPermissions: 'DEMO.REQUESTS:VIEW' })).basis,
+      'PERMISSION_INVALID',
+      'a non-array list cannot replace the mandatory set',
+    );
+    assert.equal(
+      (await access({ provider, requiredPermissions: null })).basis,
+      'PERMISSION_INVALID',
+    );
+  });
+
+  it('verifies record-key integrity with the canonical implementation before any provider call', async () => {
+    let called = 0;
+    const provider = async () => ((called += 1), answer());
+    const sha = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
+    const forge = (json, extra = {}) => ({
+      json,
+      sha256: sha(json),
+      value: JSON.parse(json),
+      ...extra,
+    });
+    const cases = [
+      ['RECORD_KEY_REQUIRED', 'not an object'],
+      ['RECORD_KEY_MALFORMED', { json: '{"REQUEST_ID":"1"}', sha256: KEY.sha256, value: null }],
+      ['RECORD_KEY_MALFORMED', { json: '{not json', sha256: KEY.sha256, value: {} }],
+      ['RECORD_KEY_MALFORMED', { json: '["1"]', sha256: sha('["1"]'), value: {} }],
+      ['RECORD_KEY_FORMAT_UNSUPPORTED', { ...KEY, format: 'zrv.wf.recordKey/2' }],
+      ['RECORD_KEY_HASH_INVALID', { ...KEY, sha256: KEY.sha256.toUpperCase() }],
+      ['RECORD_KEY_HASH_INVALID', { ...KEY, sha256: 'abc' }],
+      ['RECORD_KEY_HASH_MISMATCH', { ...KEY, sha256: sha('{"REQUEST_ID":"2"}') }],
+      // Same key, noncanonical text: hash recomputed for the forged text so only canonicality fails.
+      ['RECORD_KEY_NONCANONICAL', forge('{ "REQUEST_ID": "1" }')],
+      ['RECORD_KEY_NONCANONICAL', forge('{"REQUEST_ID":"01"}')],
+      ['RECORD_KEY_NONCANONICAL', forge('{"REQUEST_ID":"1.0"}')],
+      ['RECORD_KEY_NONCANONICAL', forge('{"REQUEST_ID":1}')],
+      ['RECORD_KEY_NONCANONICAL', forge('{"REQUEST_ID":"2","REQUEST_ID":"1"}')],
+      ['RECORD_KEY_VALUE_INVALID', forge('{"REQUEST_ID":"abc"}')],
+      ['RECORD_KEY_VALUE_INVALID', forge('{"REQUEST_ID":null}')],
+      ['RECORD_KEY_VALUE_INVALID', forge('{"OTHER":"1"}')],
+      ['RECORD_KEY_VALUE_INVALID', forge('{"REQUEST_ID":"1","EXTRA":"2"}')],
+      [
+        'RECORD_KEY_VALUE_INVALID',
+        forge('{"REQUEST_ID":"0.5"}', {}),
+        [
+          { name: 'REQUEST_ID', oracleType: 'NUMBER' },
+          { name: 'LINE_NO', oracleType: 'NUMBER' },
+        ],
+      ],
+      ['RECORD_KEY_VALUE_MISMATCH', { ...KEY, value: { REQUEST_ID: '2' } }],
+      ['RECORD_KEY_VALUE_MISMATCH', { ...KEY, value: { REQUEST_ID: 1 } }],
+      ['RECORD_KEY_VALUE_MISMATCH', { ...KEY, value: { REQUEST_ID: '1', EXTRA: '2' } }],
+      ['RECORD_KEY_COLUMNS_INVALID', KEY, []],
+      ['RECORD_KEY_COLUMNS_INVALID', KEY, null],
+      ['RECORD_KEY_COLUMNS_INVALID', KEY, [{ name: 'request_id', oracleType: 'NUMBER' }]],
+      // A key built for different columns is not this mapping's key.
+      [
+        'RECORD_KEY_VALUE_INVALID',
+        buildRecordKey([{ name: 'OTHER_ID', oracleType: 'NUMBER' }], { OTHER_ID: '1' }),
+      ],
+      // Typed differently: the text key "1" is not the canonical DATE form.
+      ['RECORD_KEY_VALUE_INVALID', KEY, [{ name: 'REQUEST_ID', oracleType: 'DATE' }]],
+    ];
+    for (const [basis, recordKey, keyColumns = KEY_COLUMNS] of cases) {
+      const result = await access({ provider, recordKey, keyColumns });
+      assert.deepEqual(
+        result,
+        { decision: 'DENY', basis, crossOrganization: false },
+        `${basis}: ${JSON.stringify(recordKey)}`,
+      );
+    }
+    assert.equal(called, 0, 'no malformed key ever reaches a provider');
+    // Missing key columns entirely is refused too.
+    assert.equal(
+      (await access({ provider, keyColumns: undefined })).basis,
+      'RECORD_KEY_COLUMNS_INVALID',
+    );
+  });
+
+  it('passes the provider only the verified, rebuilt canonical key', async () => {
+    let received;
+    const columns = [
+      { name: 'ORDER_NO', oracleType: 'VARCHAR2' },
+      { name: 'LINE_NO', oracleType: 'NUMBER', scale: 0 },
+    ];
+    const key = buildRecordKey(columns, { ORDER_NO: 'A-1', LINE_NO: '2' });
+    const result = await access({
+      provider: async (ctx) => ((received = ctx.recordKey), answer()),
+      recordKey: { ...key, value: { ORDER_NO: 'A-1', LINE_NO: '2' }, extra: 'ignored' },
+      keyColumns: [...columns].reverse(),
+    });
+    assert.equal(result.decision, 'ALLOW');
+    assert.deepEqual(Object.keys(received).sort(), ['json', 'sha256', 'value']);
+    assert.equal(received.json, '{"LINE_NO":"2","ORDER_NO":"A-1"}');
+    assert.equal(received.sha256, key.sha256);
+    assert.ok(Object.isFrozen(received.value));
   });
 
   it('validates the registry and exposes no provider', () => {
