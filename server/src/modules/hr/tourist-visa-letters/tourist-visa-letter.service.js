@@ -18,12 +18,15 @@ const digits = (value) =>
   );
 
 const number = (value) => {
-  const parsed = Number(
-    String(value ?? '')
-      .replace(/,/g, '')
-      .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x660))
-      .replace(/[^0-9.-]/g, ''),
-  );
+  const cleaned = String(value ?? '')
+    .replace(/,/g, '')
+    .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x660))
+    .replace(/[^0-9.-]/g, '');
+
+  // A blank or non-numeric salary is rejected, not silently stored as 0.
+  if (!/\d/.test(cleaned)) return null;
+
+  const parsed = Number(cleaned);
 
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
@@ -239,6 +242,16 @@ export function createTouristVisaService({
 
     if (!existing) {
       Object.assign(result, snapshot);
+
+      // The origin is the requester's answer, not the employee's home country;
+      // the snapshot only supplies it as a default.
+      if (body.tourism_from !== undefined) {
+        result.tourism_from = body.tourism_from;
+      }
+
+      if (body.tourism_from_ar !== undefined) {
+        result.tourism_from_ar = body.tourism_from_ar;
+      }
     } else {
       result.employee_no = existing.employee_no;
 
@@ -279,9 +292,9 @@ export function createTouristVisaService({
           timeZone: 'UTC',
         }).format(new Date(`${result.cur_date}T12:00:00Z`));
 
-        const [month, day, year] = formatted.split('/');
+        const [month, day, year] = formatted.match(/\d+/g) ?? [];
 
-        if (/^\d+$/.test(year)) {
+        if (month && day && year) {
           result.cur_date_ar = `${day}/${month}/${year}`;
         }
       } catch {

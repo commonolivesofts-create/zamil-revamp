@@ -11,6 +11,12 @@ const date = Joi.string()
       : helpers.error('any.invalid');
   });
 
+// The optional dates are blank in the form and the client sends them as null.
+// Only the letter date itself is required.
+const optionalDate = date.allow(null, '');
+
+const requiredDate = date.required();
+
 // Reject HTML angle brackets and control characters
 // without using a control-character regular expression.
 const containsUnsafeCharacters = (value) => {
@@ -58,8 +64,10 @@ export const countryParams = Joi.object({
 });
 
 // Employee lookup query.
+// An empty q lists the first employees with the form (the picker's opening list); a search
+// still needs two characters.
 export const employeeQuery = Joi.object({
-  q: Joi.string().trim().min(2).max(100).required(),
+  q: Joi.string().trim().min(2).max(100).allow('').default(''),
 });
 
 // Listing filters and pagination.
@@ -80,9 +88,9 @@ export const listQuery = Joi.object({
 
   approval_name: text(200),
 
-  date_from: date,
+  date_from: optionalDate,
 
-  date_to: date,
+  date_to: optionalDate,
 
   sort: Joi.string()
     .valid(
@@ -103,10 +111,10 @@ export const listQuery = Joi.object({
 // Tourist Visa Letter request fields.
 const raw = {
   // Letter details
-  cur_date: date,
+  cur_date: requiredDate,
   cur_date_ar: text(500),
 
-  division: text(500),
+  division: Joi.string().valid('ZPIL', 'Z3P').required(),
 
   country: text(500),
   country_ar: text(500),
@@ -124,25 +132,25 @@ const raw = {
   passport_no: text(100),
   passport_no_ar: text(100),
 
-  pass_issue_date: date,
-  pass_issue_date_ar: date,
+  pass_issue_date: optionalDate,
+  pass_issue_date_ar: optionalDate,
 
   national_id: text(100),
   national_id_ar: text(100),
 
-  nati_issue_date: date,
-  nati_issue_date_ar: date,
+  nati_issue_date: optionalDate,
+  nati_issue_date_ar: optionalDate,
 
   // Position details
   position: text(500),
   position_ar: text(500),
 
-  position_start_date: date,
-  position_start_date_ar: date,
+  position_start_date: optionalDate,
+  position_start_date_ar: optionalDate,
 
   // Contract details
-  contract_expired: date,
-  contract_expired_ar: date,
+  contract_expired: optionalDate,
+  contract_expired_ar: optionalDate,
 
   contract: text(500),
   contract_ar: text(500),
