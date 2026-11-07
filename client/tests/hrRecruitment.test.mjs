@@ -214,6 +214,30 @@ test("employment offer starts empty, validates API-required values and serialize
   assert.equal(validateOffer({ ...blank, ...payload }).valid, true);
 });
 
+test("employment offer live preview keeps the branch layout and three signature spaces separate from print", async () => {
+  const preview = await readFile(
+    new URL("../src/features/hr-recruitment/offer/OfferLivePreview.jsx", import.meta.url),
+    "utf8",
+  );
+  const page = await readFile(
+    new URL("../src/features/hr-recruitment/offer/OfferPage.jsx", import.meta.url),
+    "utf8",
+  );
+  const styles = await readFile(
+    new URL("../src/styles/hr-offer-letter.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(preview, /className="zrv-hr-paper zrv-offer-live"/);
+  assert.equal((preview.match(/className="zrv-hr-paper__line"/g) ?? []).length, 3);
+  assert.match(preview, /Saad Al Essa/);
+  assert.match(preview, /Bader Alsulaim/);
+  assert.match(page, /<OfferLivePreview\b/);
+  assert.match(page, /<OfferLetter\b[^\n]*printSource \/>/);
+  assert.match(styles, /\.zrv-hr--offer \.zrv-hr-side \.zrv-offer-letter--print-source \{ display: none; \}/);
+  assert.match(styles, /\.zrv-hr--offer \.zrv-offer-letter--print-source \{ display: flex !important; \}/);
+});
+
 test("all recruitment services use the supplied API client and validate path IDs", async () => {
   const calls = [];
   const client = {

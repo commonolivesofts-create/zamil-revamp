@@ -22,11 +22,13 @@ Not committed.
   Permission `HR.BUSINESS_VISA_LETTERS` (MATCH on TEST; shared with the Business Visa Request form). Switch
   `VITE_FEATURE_HR_BUSINESS_VISA_LETTER`.
 - Steps: Letter (reference no., date, division, status Draft / Final; embassy with its Arabic name, request
-  for), Employee (picked from the current employees; the master's nationality, passport, ID / Iqama and
-  expiry, job title, employment date, contract nature and salary fill editable fields, with the Arabic
-  nationality, job title and contract nature), Visit (place, days, purpose in English and Arabic, expenses,
-  return statement, closing text, with the legacy defaults), Preview (the English and Arabic letter side by
-  side, gaps highlighted; Print prints it).
+  for — the embassy list is the full legacy list, and the Arabic name fills only while it is still empty),
+  Employee (picked from the current employees, searchable by number or name; the master's nationality,
+  passport, ID / Iqama and expiry, job title, employment date, contract nature and salary fill editable
+  fields, with the Arabic nationality, job title and contract nature), Visit (place, days, purpose in English
+  and Arabic, expenses, return statement, closing text, with the legacy defaults), Preview (the English and
+  Arabic letter side by side with the legacy header/request-for text, Arabic dates and signatures; gaps
+  highlighted; Print prints it).
 - Required (the backend's): reference no. (unique), letter date, division, employee name.
 - Report: ref. no. / status, employee, embassy, visit, date; search, status, division and date filters; total
   and by-month cards.

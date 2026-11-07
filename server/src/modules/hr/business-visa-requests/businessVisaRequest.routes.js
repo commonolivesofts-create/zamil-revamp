@@ -69,6 +69,12 @@ export function createBusinessVisaRequestRouter({
     validate({ params: documentParams, query: empty, body: empty }),
     c.removeDocument,
   );
+  router.delete(
+    '/:id',
+    ...write('DELETE'),
+    validate({ params: idParams, query: empty, body: empty }),
+    c.remove,
+  );
 
   return router;
 }

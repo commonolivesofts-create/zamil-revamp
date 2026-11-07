@@ -1,19 +1,19 @@
-import { useId, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
-import { useResource } from '@/features/security-administration/useAdminData.js'
 import { businessToday, enDate, initials } from '@/features/hr-recruitment/shared/hrFormat.js'
-import { useSettled } from '@/features/hr-recruitment/shared/useSettled.js'
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
-import { HrField } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
+import { HrField, SearchableLookup } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
+import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { Orbit, RecruitmentShell, StepHead, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { CHARTER_PATHS } from '../employeeServicesPaths.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
+import { INCOMPLETE_STEP, lockedStepsOf, problemsInStep } from '../shared/stepGating.js'
 import '@/styles/hr-employee-services.css'
 import '@/styles/hr-employee-services-forms.css'
 import '@/styles/hr-project-charter.css'
@@ -43,17 +43,12 @@ const formOf = (record) => ({
   ...Object.fromEntries(Object.keys(TEXT_FIELDS).map((key) => [key, record[key]])),
 })
 
-// Project manager: free text with employee-name suggestions (legacy datalist).
-function NameSuggest({ id, value, onChange, error, max }) {
-  const listId = useId()
-  const term = useSettled(value.trim(), 250)
-  const names = useResource(term.length >= 2 ? `hr-charter-names:${term.toLowerCase()}` : null, (signal) => charterService.searchEmployees(term, { signal }))
-  return <>
-    <input {...fieldProps(id, { error })} className="ux-input zrv-hr-input" aria-required="true" list={listId} autoComplete="off" maxLength={max}
-      value={value} onChange={onChange} placeholder="Type a name…" />
-    <datalist id={listId}>{names.status === 'ready' && names.data.map((item) => <option key={item.empNo} value={item.name}>{item.jobTitle}</option>)}</datalist>
-  </>
-}
+// Project manager: the standard searchable employee dropdown (legacy datalist
+// of current employees). The charter stores the picked name.
+const managerOption = (item) => ({ employeeId: item.empNo, employeeNumber: item.empNo, name: item.name, jobTitle: item.jobTitle })
+const searchManagers = async (search, options) => ({
+  items: (await charterService.searchEmployees(search, options)).map(managerOption),
+})
 
 function CharterEditor({ lookups, initial }) {
   const navigate = useNavigate()
@@ -77,8 +72,7 @@ function CharterEditor({ lookups, initial }) {
   const toggle = (key, part) => patch((current) => ({ milestones: { ...current.milestones, [key]: { ...current.milestones[key], [part]: !current.milestones[key][part] } } }))
 
   // Legacy proj_name: choosing the idea fills the project name and business unit.
-  const selectIdea = async (event) => {
-    const ideaId = event.target.value
+  const selectIdea = async (ideaId) => {
     const request = ++ideaRequest.current
     patch({ ideaId, idea: lookups.ideas.find((item) => item.ideaId === ideaId) ?? null })
     clear('ideaId')
@@ -89,6 +83,19 @@ function CharterEditor({ lookups, initial }) {
     } catch {
       if (request === ideaRequest.current) setErrors((current) => ({ ...current, ideaId: 'The idea details could not be loaded. Try again.' }))
     }
+  }
+
+  // Continue checks the open step only; later steps stay locked until this one is done.
+  const continueStep = () => {
+    const problems = problemsInStep(validateCharter(form, { isNew }), step)
+    setErrors(Object.fromEntries(problems.map((problem) => [problem.field, problem.message])))
+    if (!problems.length) {
+      if (lockedSteps[step + 1]) editor.reject(step, step === 1 ? 'Tick at least one milestone as started.' : INCOMPLETE_STEP)
+      return !lockedSteps[step + 1]
+    }
+    const messages = problems.map((problem) => problem.message)
+    editor.reject(step, messages.length === 1 ? messages[0] : C.reviewProblems(messages.length))
+    return false
   }
 
   const save = () => {
@@ -123,19 +130,21 @@ function CharterEditor({ lookups, initial }) {
   const filled = required.filter(Boolean).length
   const customers = [form.processOwner, form.keyStakeholders, form.finalCustomer, form.projectTeam].filter((value) => value.trim()).length
   const open = STEPS.filter((_, index) => index !== 1 && !doneSteps[index])
+  const lockedSteps = lockedStepsOf(doneSteps)
   const readOnly = (id, label, value, placeholder) => (
     <HrField id={id} label={label}><input id={id} className="ux-input zrv-hr-input" readOnly value={value ?? ''} placeholder={placeholder} /></HrField>
   )
   const text = (key, label, { required: needed = false, area = false, wide = false } = {}) => (
     <HrField id={`pc-${key}`} label={label} required={needed} wide={wide} error={errors[key]}>
       {area
-        ? <textarea {...fieldProps(`pc-${key}`, { error: errors[key] })} className="ux-textarea zrv-hr-input" rows={2} aria-required={needed || undefined}
+        ? <textarea {...fieldProps(`pc-${key}`, { error: errors[key] })} className="ux-textarea zrv-hr-input" rows={2} aria-required={needed || undefined} disabled={locked}
           maxLength={TEXT_FIELDS[key]} value={form[key]} onChange={set(key)} />
-        : <input {...fieldProps(`pc-${key}`, { error: errors[key] })} className="ux-input zrv-hr-input" aria-required={needed || undefined}
+        : <input {...fieldProps(`pc-${key}`, { error: errors[key] })} className="ux-input zrv-hr-input" aria-required={needed || undefined} disabled={locked}
           maxLength={TEXT_FIELDS[key]} value={form[key]} onChange={set(key)} />}
     </HrField>
   )
   const dates = form.expectedStartDate ? `${enDate(form.expectedStartDate)}${form.expectedEndDate ? ` – ${enDate(form.expectedEndDate)}` : ''}` : ''
+  const manager = form.projectManager.trim() ? { employeeId: '', employeeNumber: '', name: form.projectManager.trim() } : null
 
   return <>
     <RecruitmentShell current="charter" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE}
@@ -145,7 +154,7 @@ function CharterEditor({ lookups, initial }) {
         [STEPS[0], `${filled}/${required.length} required`], [STEPS[1], `${progress.started}/${progress.total} started`],
         [STEPS[2], customers ? `${customers}/4 filled` : 'Optional'],
       ]}
-      step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={SAVE} onFinal={save}
+      step={step} onStep={setStep} doneSteps={doneSteps} lockedSteps={lockedSteps} onContinue={continueStep} finalLabel={SAVE} onFinal={save}
       side={<>
         <Tilt aria-label="Charter card">
           <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{form.idea?.ideaNum || 'Draft'}</span><span className="zrv-hr-dark__status">{record?.status || 'Not saved'}</span></div>
@@ -167,16 +176,15 @@ function CharterEditor({ lookups, initial }) {
       </>}>
 
       {step === 0 && <>
-        <StepHead title="Which idea becomes a project?" desc={record ? 'Set the manager, dates and goals.' : 'Choose an approved idea, then set the manager, dates and goals.'} />
-        <h3 className="zrv-hr-subh">Idea</h3>
+        <StepHead title="Which idea becomes a project?" desc={record ? 'Manager, dates and goals.' : 'Choose an approved idea.'} />
         <div className="zrv-hr-grid zrv-hr-is-4">
           {record
             ? readOnly('pc-idea', 'Idea no.', form.idea?.ideaNum)
             : <HrField id="pc-idea" label="Idea no." required error={errors.ideaId}>
-              <select {...fieldProps('pc-idea', { error: errors.ideaId })} className="ux-select zrv-hr-input" aria-required="true" value={form.ideaId} onChange={selectIdea}>
-                <option value="">{lookups.ideas.length ? 'Select an approved idea' : 'No approved ideas'}</option>
-                {lookups.ideas.map((item) => <option key={item.ideaId} value={item.ideaId}>{item.ideaNum}{item.title ? ` · ${item.title}` : ''}</option>)}
-              </select>
+              <SearchableLookup id="pc-idea" value={form.ideaId} required error={errors.ideaId} disabled={locked}
+                options={lookups.ideas.map((item) => ({ code: item.ideaId, name: `${item.ideaNum}${item.title ? ` · ${item.title}` : ''}` }))}
+                onChange={(option) => selectIdea(option.code)} placeholder={lookups.ideas.length ? 'Search an approved idea' : 'No approved ideas'}
+                noResults="No approved ideas match" maxLength={200} />
             </HrField>}
           {readOnly('pc-name', 'Project name', form.idea?.title, 'Fills from the idea')}
           {readOnly('pc-bu', 'Business unit', form.idea?.businessUnit, 'Fills from the idea')}
@@ -184,15 +192,15 @@ function CharterEditor({ lookups, initial }) {
         </div>
         <h3 className="zrv-hr-subh">Plan</h3>
         <div className="zrv-hr-grid zrv-hr-is-4">
-          <HrField id="pc-projectManager" label="Project manager" required error={errors.projectManager}>
-            <NameSuggest id="pc-projectManager" value={form.projectManager} onChange={set('projectManager')} error={errors.projectManager} max={TEXT_FIELDS.projectManager} />
-          </HrField>
+          <EmployeePicker id="pc-projectManager" label="Project manager" required tight value={manager}
+            onPick={(item) => set('projectManager')(item.name)} error={errors.projectManager}
+            searchService={searchManagers} cacheKey="hr-charter-managers" disabled={locked} />
           <HrField id="pc-start" label="Expected start" required error={errors.expectedStartDate}>
-            <input {...fieldProps('pc-start', { error: errors.expectedStartDate })} type="date" className="ux-input zrv-hr-input" aria-required="true"
+            <input {...fieldProps('pc-start', { error: errors.expectedStartDate })} type="date" className="ux-input zrv-hr-input" aria-required="true" disabled={locked}
               value={form.expectedStartDate} onChange={(event) => { set('expectedStartDate')(event); clear('expectedEndDate') }} />
           </HrField>
           <HrField id="pc-end" label="Expected completion" required error={errors.expectedEndDate}>
-            <input {...fieldProps('pc-end', { error: errors.expectedEndDate })} type="date" className="ux-input zrv-hr-input" aria-required="true"
+            <input {...fieldProps('pc-end', { error: errors.expectedEndDate })} type="date" className="ux-input zrv-hr-input" aria-required="true" disabled={locked}
               min={form.expectedStartDate || undefined} value={form.expectedEndDate} onChange={set('expectedEndDate')} />
           </HrField>
           {text('processImpacted', 'Process impacted')}
@@ -215,7 +223,7 @@ function CharterEditor({ lookups, initial }) {
                 return (
                   <span key={part} role="cell">
                     <label className={`zrv-hr-esf-chip zrv-hr-is-ok${on ? ' zrv-hr-is-on' : ''}`}>
-                      <input type="checkbox" checked={on} onChange={() => toggle(item.key, part)} aria-label={`${item.label}: ${part === 'start' ? 'Start' : 'Complete'}`} />
+                      <input type="checkbox" checked={on} onChange={() => toggle(item.key, part)} disabled={locked} aria-label={`${item.label}: ${part === 'start' ? 'Start' : 'Complete'}`} />
                       <span>{part === 'start' ? 'Start' : 'Complete'}</span>
                     </label>
                   </span>

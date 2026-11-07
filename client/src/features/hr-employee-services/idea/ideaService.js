@@ -4,6 +4,7 @@
 import { apiClient } from '../../../services/api/apiClient.js'
 import { employeeServicesFormsConfig } from '../employeeServicesFormsConfig.js'
 import { createIdeaDemoClient } from '../demo/ideaDemoClient.js'
+import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { invalidResponse, params, segment } from '../shared/formRecords.js'
 import { ideaBody, readIdeaEmployee, readIdeaEmployeeDetails, readIdeaLookups, readIdeaPage, readIdeaRecord } from './ideaContract.js'
 
@@ -11,6 +12,11 @@ export const IDEA_BASE = '/ideas'
 
 export function createIdeaService({ client }) {
   const getById = async (id, { signal } = {}) => readIdeaRecord((await client.get(`${IDEA_BASE}/${segment(id)}`, { signal })).data)
+  // The picker's list, loaded with the form.
+  const employees = createEmployeeList({
+    load: ({ signal } = {}) => client.get(`${IDEA_BASE}/lookups/employees`, { signal }).then(({ data }) => data),
+    shape: readIdeaEmployee,
+  })
   return Object.freeze({
     async getLookups({ signal } = {}) {
       const [divisions, categories] = await Promise.all([
@@ -19,14 +25,14 @@ export function createIdeaService({ client }) {
       ])
       return readIdeaLookups(divisions.data, categories.data)
     },
+    preloadEmployees: (options) => employees.list(options),
     async searchEmployees(search = '', { signal } = {}) {
-      const { data } = await client.get(`${IDEA_BASE}/lookups/employees`, { params: params({ q: String(search).trim() }), signal })
+      const term = String(search).trim()
+      // Opening the field lists the employees loaded with the form.
+      if (!term) return employeePage(await employees.list({ signal }))
+      const { data } = await client.get(`${IDEA_BASE}/lookups/employees`, { params: params({ q: term }), signal })
       if (!Array.isArray(data)) throw invalidResponse('employee list')
-      const items = Object.freeze(data.slice(0, 25).map(readIdeaEmployee))
-      return Object.freeze({
-        items,
-        pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }),
-      })
+      return employeePage(data.slice(0, 25).map(readIdeaEmployee))
     },
     async employeeDetails(employeeNumber, { signal } = {}) {
       return readIdeaEmployeeDetails((await client.get(`${IDEA_BASE}/lookups/employees/${encodeURIComponent(employeeNumber)}`, { signal })).data)

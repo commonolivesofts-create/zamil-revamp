@@ -1672,8 +1672,8 @@ export function createProbationService({ client }) {
     async save(id, body) {
       const payload = id
         ? {
-            comment: body.comment,
-            comments: body.comments,
+            comment: body.comment.replace(/\r\n?/gu, '\n').trim(),
+            comments: body.comments.replace(/\r\n?/gu, '\n').trim(),
             lines: body.lines.map((line) => ({
               lineId: line.lineId,
               rating: Number(line.rating),

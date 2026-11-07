@@ -3,6 +3,7 @@
 // functions, testable in Node. The backend assigns the offer number and status.
 import { OFFER_TEXT } from '../hrRecruitmentText.js'
 import { arDate, enDate, isIsoDate, toAmount } from '../shared/hrFormat.js'
+import { normalizeNotes, normalizeShortText, textLimitError } from '../shared/formValidation.js'
 
 export const OFFER_STATUSES = Object.freeze(['INCOMPLETE', 'COMPLETE', 'ACCEPTED'])
 // Kept for the unused demo adapter; the live backend has no issue action.
@@ -136,15 +137,15 @@ export function offerFormFromRecord(record) {
 
 export function offerPayload(form) {
   return {
-    position: form.position.trim(), offerDate: form.offerDate || null, division: form.division,
-    salutation: form.salutation.trim(), salutationAr: form.salutationAr.trim(),
-    candidateNameEn: form.candidateNameEn.trim(), candidateNameAr: form.candidateNameAr.trim(),
-    intNo: form.intNo.trim(), reqNo: form.reqNo.trim(), applicant: form.applicant.trim(),
+    position: normalizeShortText(form.position), offerDate: form.offerDate || null, division: form.division,
+    salutation: normalizeShortText(form.salutation), salutationAr: normalizeShortText(form.salutationAr),
+    candidateNameEn: normalizeShortText(form.candidateNameEn), candidateNameAr: normalizeShortText(form.candidateNameAr),
+    intNo: normalizeShortText(form.intNo), reqNo: normalizeShortText(form.reqNo), applicant: normalizeShortText(form.applicant),
     benefits: Object.fromEntries(BENEFIT_KEYS.map((key) => {
       const row = form.benefits[key]
-      return [key, { en: String(row.en ?? '').trim(), ar: String(row.ar ?? '').trim(), autoArabic: row.linked }]
+      return [key, { en: normalizeShortText(row.en), ar: normalizeShortText(row.ar), autoArabic: row.linked }]
     })),
-    comments: form.comments.trim(),
+    comments: normalizeNotes(form.comments),
   }
 }
 
@@ -162,14 +163,30 @@ export function validateOffer(form) {
   if (form.offerDate && !isIsoDate(form.offerDate)) errors.offerDate = 'Enter a valid offer date.'
   const basic = String(form.benefits.basic.en).trim()
   if (basic && !/^(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?$/.test(basic)) errors.basic = 'Enter a valid basic salary of zero or more.'
-  const firstStep = errors.position || errors.candidateNameEn || errors.offerDate || errors.division || errors.intNo ? 0 : errors.basic || errors.start ? 1 : -1
+  if (form.reqNo && !/^[0-9]{1,38}$/.test(String(form.reqNo).trim())) errors.reqNo = 'The linked requisition number must contain digits only.'
+  const check = (key, value, limit, label, options) => {
+    const message = textLimitError(value, limit, label, options)
+    if (message) errors[key] = message
+  }
+  check('candidateNameEn', form.candidateNameEn, 1000, 'Candidate name')
+  check('candidateNameAr', form.candidateNameAr, 1000, 'Arabic candidate name')
+  check('position', form.position, 1000, 'Position')
+  check('applicant', form.applicant, 500, 'Applicant')
+  check('comments', form.comments, 500, 'Comments', { multiline: true })
+  for (const [key, type] of BENEFITS) {
+    if (type !== 'date' && key !== 'basic') check(key, form.benefits[key].en, 500, `${OFFER_TEXT.benefits[key].en}`)
+    check(`${key}Ar`, form.benefits[key].ar, key === 'start' ? 100 : 500, `${OFFER_TEXT.benefits[key].en} (Arabic)`)
+  }
+  const benefitKeys = new Set(BENEFITS.flatMap(([key]) => [key, `${key}Ar`]))
+  const firstStep = Object.keys(errors).some((key) => !benefitKeys.has(key)) ? 0 : Object.keys(errors).some((key) => benefitKeys.has(key)) ? 1 : -1
   return { errors, firstStep, valid: firstStep === -1 }
 }
 
 export function offerStepErrors(form) {
   const { errors } = validateOffer(form)
-  const { basic, start, ...header } = errors
-  return [header, { ...(basic ? { basic } : {}), ...(start ? { start } : {}) }, {}]
+  const benefitKeys = new Set(BENEFITS.flatMap(([key]) => [key, `${key}Ar`]))
+  return [Object.fromEntries(Object.entries(errors).filter(([key]) => !benefitKeys.has(key))),
+    Object.fromEntries(Object.entries(errors).filter(([key]) => benefitKeys.has(key))), {}]
 }
 
 export function offerDoneSteps(form) {

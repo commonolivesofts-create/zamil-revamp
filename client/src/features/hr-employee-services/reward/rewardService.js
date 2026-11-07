@@ -4,6 +4,7 @@
 import { apiClient } from '../../../services/api/apiClient.js'
 import { employeeServicesFormsConfig } from '../employeeServicesFormsConfig.js'
 import { createRewardDemoClient } from '../demo/rewardDemoClient.js'
+import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { invalidResponse, params, segment } from '../shared/formRecords.js'
 import {
   readRewardCriteria, readRewardEmployee, readRewardListItem, readRewardRecord, readRewardRequestor, rewardBody,
@@ -15,6 +16,11 @@ const LIST_SORT = Object.freeze(['headerId', 'requestNo', 'employeeName', 'activ
 
 export function createRewardService({ client }) {
   const getById = async (id, { signal } = {}) => readRewardRecord((await client.get(`${REWARD_BASE}/${segment(id)}`, { signal })).data)
+  // The picker's list, loaded with the form.
+  const employees = createEmployeeList({
+    load: ({ signal } = {}) => client.get(`${REWARD_BASE}/lookups/employees`, { params: params({ limit: 50 }), signal }).then(({ data }) => data),
+    shape: readRewardEmployee,
+  })
   const list = async ({ page = 1, pageSize = 25, search, status, department, date_from, date_to, employeeNumber, sort, order } = {}, { signal } = {}) => {
     const result = await client.get(REWARD_BASE, {
       params: params({
@@ -33,17 +39,16 @@ export function createRewardService({ client }) {
     async requestor({ signal } = {}) {
       return readRewardRequestor((await client.get(`${REWARD_BASE}/lookups/requestor`, { signal })).data)
     },
+    preloadEmployees: (options) => employees.list(options),
     // Search by number, name or email (the picker sends one term to all three when it is not a number).
     async searchEmployees(search = '', { signal } = {}) {
       const term = String(search).trim()
+      // Opening the field lists the employees loaded with the form.
+      if (!term) return employeePage(await employees.list({ signal }))
       const query = /^\d+$/.test(term) ? { empNo: term } : term.includes('@') ? { email: term } : { name: term }
       const { data } = await client.get(`${REWARD_BASE}/lookups/employees`, { params: params({ ...query, limit: 25 }), signal })
       if (!Array.isArray(data)) throw invalidResponse('employee list')
-      const items = Object.freeze(data.map(readRewardEmployee))
-      return Object.freeze({
-        items,
-        pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }),
-      })
+      return employeePage(data.map(readRewardEmployee))
     },
     list,
     // Nominations of one employee in the month of `activityDate` that the user can see.

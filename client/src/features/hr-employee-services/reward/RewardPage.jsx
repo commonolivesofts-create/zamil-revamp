@@ -15,11 +15,13 @@ import { FORM_PATHS } from '../employeeServicesPaths.js'
 import { STATUS_TEXT, isEditable } from '../shared/formRecords.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import { RatingChips } from '../shared/FormParts.jsx'
+import { errorsInStep, lockedStepsOf } from '../shared/stepGating.js'
 import '@/styles/hr-employee-services.css'
 import '@/styles/hr-employee-services-forms.css'
 import {
   DEPARTMENT_TEXT, LINE_REMARK_MAX, REMARK_MAX, duplicateOf, monthOf, ratingSummary, stepOfErrors, validateReward,
 } from './rewardModel.js'
+import { warmEmployeeList } from '../shared/employeeList.js'
 import { rewardDemo, rewardService } from './rewardService.js'
 
 const TITLE = 'Employee Reward Nomination'
@@ -30,7 +32,11 @@ export default function RewardPage() {
   return (
     <RecruitmentLoader current="reward" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={rewardDemo}
       title={TITLE} param="nominationId" load={rewardService.getById}
-      loadLookups={async (signal) => ({ requestor: await rewardService.requestor({ signal }) })}>
+      loadLookups={async (signal) => {
+        // Opening the employee field lists employees without a request.
+        warmEmployeeList(rewardService, { signal })
+        return { requestor: await rewardService.requestor({ signal }) }
+      }}>
       {({ lookups, record, editorKey }) => <RewardEditor key={editorKey} requestor={lookups.requestor} initial={record} />}
     </RecruitmentLoader>
   )
@@ -75,10 +81,24 @@ function RewardEditor({ requestor, initial }) {
     clear('department')
   }
 
-  const save = () => {
-    if (locked) return
+  const allErrors = () => {
     const next = validateReward({ ...form, lines }, { employee, requestor, criteria: criteriaList, duplicate })
     if (form.department && criteria.status !== 'ready') next.department = 'Wait for the criteria of this section to load.'
+    return next
+  }
+  // Continue checks the open step only; later steps stay locked until this one is done.
+  const continueStep = () => {
+    const problems = errorsInStep(allErrors(), (field) => stepOfErrors({ [field]: true }), step)
+    setErrors(problems)
+    if (!Object.keys(problems).length) return true
+    const messages = Object.values(problems)
+    editor.reject(step, messages.length === 1 ? messages[0] : C.reviewProblems(messages.length))
+    return false
+  }
+
+  const save = () => {
+    if (locked) return
+    const next = allErrors()
     setErrors(next)
     if (Object.keys(next).length) {
       editor.reject(stepOfErrors(next), 'Review the highlighted fields.')
@@ -102,6 +122,7 @@ function RewardEditor({ requestor, initial }) {
     Boolean(criteriaList.length && lines.every((line) => line.rating && line.remark.trim())),
     Boolean(form.overallRating && form.remark.trim()),
   ]
+  const lockedSteps = lockedStepsOf(doneSteps)
   const progress = [form.department, employee, form.activityDate].filter(Boolean).length + summary.rated + (form.overallRating ? 1 : 0)
   const progressTotal = 3 + (criteriaList.length || 4) + 1
   const ring = 2 * Math.PI * 40
@@ -112,7 +133,7 @@ function RewardEditor({ requestor, initial }) {
     <RecruitmentShell current="reward" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE} demo={rewardDemo}
       tools={tools} primary={{ label: 'Save draft', icon: 'save', onClick: save }} locked={locked} pending={editor.pending} focusError={editor.focusError}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss}
-      steps={STEPS.map((name, index) => [name, index === 1 && summary.total ? C.step.rated(summary.rated, summary.total) : doneSteps[index] ? C.step.done : C.step.open])} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel="Save draft" onFinal={save}
+      steps={STEPS.map((name, index) => [name, index === 1 && summary.total ? C.step.rated(summary.rated, summary.total) : doneSteps[index] ? C.step.done : C.step.open])} step={step} onStep={setStep} doneSteps={doneSteps} lockedSteps={lockedSteps} onContinue={continueStep} finalLabel="Save draft" onFinal={save}
       side={<>
         <Tilt className={`zrv-hr-esf-reward-card${summary.total && summary.rated === summary.total ? ' zrv-hr-is-complete' : ''}`} aria-label="Nomination card">
           <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{record?.requestNo || 'RWD · Draft'}</span><span className="zrv-hr-dark__status">{status ? STATUS_TEXT[status] : 'Not saved'}</span></div>

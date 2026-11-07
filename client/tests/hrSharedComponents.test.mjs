@@ -77,7 +77,7 @@ test("RecruitmentShell options: flow, compact and banner default to the earlier 
   const shell = await read(`${SHARED}RecruitmentShell.jsx`);
   assert.match(
     shell,
-    /flow = true, compact = false, banner = null, breadcrumb, lockedSteps = \[\], onContinue, feedbackMode = ['"]inline['"], children,/,
+    /flow = true, compact = false, banner = null, breadcrumb, lockedSteps = \[\], onContinue, feedbackMode = ['"]toast['"], .*children,/,
   );
   assert.match(shell, /pending, pendingMessage/);
   assert.match(shell, /secondaryAction/);

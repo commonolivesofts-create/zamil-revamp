@@ -28,6 +28,7 @@ test('readers keep the request shape and reject unexpected data', () => {
   const record = readRequest(RECORD)
   assert.equal(record.requestId, '7')
   assert.equal(record.status, 'DRAFT')
+  assert.equal(readRequest({ ...RECORD, status: 'Accepted' }).status, 'ACCEPTED', 'the legacy workflow status is recognized')
   assert.equal(record.visaSingle, true)
   assert.equal(record.visaMultiple, false)
   assert.deepEqual(record.documents.map((item) => item.attachmentId), ['3'])

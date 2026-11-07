@@ -464,7 +464,7 @@ describe('employment offer API', () => {
       employeeName: 'John Doe (Updated)',
       division: BU2,
       applicant: 'Jane Approver',
-      reqNo: 'REQ-2048',
+      reqNo: '2048',
       line: {
         ...BODY.line,
         basicSalary: 9200,
@@ -486,7 +486,7 @@ describe('employment offer API', () => {
       assert.equal(stored.employeeName, 'John Doe (Updated)');
       assert.equal(stored.division, BU2);
       assert.equal(stored.applicant, 'Jane Approver');
-      assert.equal(stored.reqNo, 'REQ-2048');
+      assert.equal(stored.reqNo, '2048');
       assert.equal(stored.status, 'Complete');
       assert.equal(stored.createdBy, f.hrUser.userId); // audit columns immutable
       assert.equal(stored.updatedBy, f.hrUser.userId);

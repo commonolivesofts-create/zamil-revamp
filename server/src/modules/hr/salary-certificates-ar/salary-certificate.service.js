@@ -49,7 +49,9 @@ const view = (row) => {
 };
 
 const identity = (m) =>
-  m.NATION_EN === 'Saudi' ? m.NATIONAL_IDENTIFIER || m.PASSPORT_NUMBER : m.IQAMA_NUMBER;
+  m.NATION_EN === 'Saudi'
+    ? m.NATIONAL_IDENTIFIER || m.PASSPORT_NUMBER
+    : m.IQAMA_NUMBER || m.NATIONAL_IDENTIFIER || m.PASSPORT_NUMBER;
 
 const snapshot = (m) => {
   if (
@@ -78,11 +80,9 @@ const snapshot = (m) => {
   const totalSalary =
     basicSalary + housingAllowance + transportAllowance + commAllowance + carAllowance;
 
-  const nationalIdentifier = ascii(identity(m));
-
-  if (!nationalIdentifier) {
-    throw error(400, 'IDENTITY_REQUIRED', 'National identifier missing');
-  }
+  // Legacy prints a blank ID / Passport No. when the master has none; do not
+  // block the certificate (TEST employee data has no identity for most people).
+  const nationalIdentifier = identity(m);
 
   return {
     employeeNo: ascii(String(m.EMPLOYEE_NUMBER)),
@@ -91,7 +91,7 @@ const snapshot = (m) => {
 
     nationality: m.NATIONALITY_AR,
 
-    nationalIdentifier: String(nationalIdentifier),
+    nationalIdentifier: nationalIdentifier ? String(ascii(nationalIdentifier)) : '',
 
     jobTitle: m.POSITION_ARABIC,
 
@@ -326,6 +326,8 @@ export function createSalaryCertificateService({
           })
         ).map((r) => ({
           employeeNo: ascii(String(r.EMPLOYEE_NUMBER)),
+          // The picker shows the certificate language's name; fall back to English.
+          name: r.FULL_NAME_AR || r.FULL_NAME,
         })),
       ),
 

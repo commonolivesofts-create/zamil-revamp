@@ -56,9 +56,9 @@
 
 | Route id | Path | Permission | `alsoRequires` | MFA | In sidebar? |
 |---|---|---|---|---|---|
-| `hr-clearance` | `/hr/employee-services/clearance` | `HR.EMPLOYEE_CLEARANCE:VIEW` | — | No | Yes (Employee services) |
-| `hr-clearance-report` | `/hr/employee-services/clearance/report` | same | — | No | No |
-| `hr-clearance-record` | `/hr/employee-services/clearance/:clearanceId` | same | — | No | No |
+| `hr-clearance` | `/hr/talent-management/clearance` | `HR.EMPLOYEE_CLEARANCE:VIEW` | — | No | Yes (Employee services) |
+| `hr-clearance-report` | `/hr/talent-management/clearance/report` | same | — | No | No |
+| `hr-clearance-record` | `/hr/talent-management/clearance/:clearanceId` | same | — | No | No |
 
 All three are switched by `VITE_FEATURE_HR_EMPLOYEE_CLEARANCE` (unset = development builds only).
 
@@ -156,3 +156,15 @@ None (not run in a browser in this round).
   Oracle TEST, read-only: 14 concurrent list requests failed 14/14 before, 0/14 after (also 0/30).
   Regression test in `server/tests/hr-report-sql.test.js`. Probation, orientation and personal status
   make the same nested call when opening one record (not changed here).
+
+## Addendum (2026-11-07): legacy parity fixes
+
+- `ATTRIBUTE2` (`computerReturned`) is `0` for both `IT` and `No Computer` (legacy `getComputer()` ids
+  `0001`/`0002`) and `99` for an employee receiver. Previously only `IT` produced `0`.
+- Each tab's `*_MGR_USERID` stores the first approver of its lookup, matching the approver the screen
+  shows and legacy `row_array()`. Previously a multi-row lookup stored `NULL`.
+- List scope also includes `CREATED_BY = me`, so a requester keeps seeing a request whose subject has
+  left their team. The subject still sees requests raised for them (intentional deviation from
+  legacy, documented in `docs/testing/employee-clearance-legacy-comparison.md` §7).
+- Regression coverage added in `server/tests/employee-clearance.test.js`; OpenAPI list description
+  updated. Client suite 505/0/3, server suite 927/0/7, client lint and build clean.

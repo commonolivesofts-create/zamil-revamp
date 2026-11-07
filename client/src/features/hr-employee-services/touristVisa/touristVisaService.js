@@ -5,6 +5,7 @@
 // from the master, writes the salary in words and the Hijri date, and checks
 // the countries and the approver. A letter is addressed by its UUID.
 import { apiClient, ApiError } from '../../../services/api/apiClient.js'
+import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { invalidResponse, isoDate, params, text } from '../shared/formRecords.js'
 
 export const BASE = '/hr/tourist-visa-letters'
@@ -127,8 +128,17 @@ export function validateLetter(form, { approvers }) {
   return errors
 }
 
+const employeeOption = (item) => (text(item?.employee_no)
+  ? Object.freeze({ employeeId: text(item.employee_no), employeeNumber: text(item.employee_no), name: text(item.employee_name) })
+  : null)
+
 export function createTouristVisaService({ client }) {
   const getById = async (value, { signal } = {}) => readLetter((await client.get(`${BASE}/${uuidOf(value)}`, { signal })).data)
+  // The picker's list, loaded with the form (the legacy datalist of employees).
+  const employees = createEmployeeList({
+    load: ({ signal } = {}) => client.get(`${BASE}/lookups/employees`, { signal }).then(({ data }) => data),
+    shape: employeeOption,
+  })
   return Object.freeze({
     getById,
     async lookups({ signal } = {}) {
@@ -141,15 +151,16 @@ export function createTouristVisaService({ client }) {
         approvers: Object.freeze(approvers.data.map((item) => Object.freeze({ name: text(item?.approval_name), position: text(item?.position_name) })).filter((item) => item.name)),
       })
     },
+    preloadEmployees: (options) => employees.list(options),
     // The legacy number / name search (at least two characters), in the picker's shape.
     async searchEmployees(search = '', { signal } = {}) {
       const q = String(search).trim()
-      const data = q.length < 2 ? [] : (await client.get(`${BASE}/lookups/employees`, { params: { q }, signal })).data
+      // Opening the field lists the employees loaded with the form.
+      if (!q) return employeePage(await employees.list({ signal }))
+      if (q.length < 2) return employeePage([])
+      const data = (await client.get(`${BASE}/lookups/employees`, { params: { q }, signal })).data
       if (!Array.isArray(data)) throw invalidResponse('employee list')
-      const items = Object.freeze(data.filter((item) => text(item?.employee_no)).map((item) => Object.freeze({
-        employeeId: text(item.employee_no), employeeNumber: text(item.employee_no), name: text(item.employee_name),
-      })))
-      return Object.freeze({ items, pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }) })
+      return employeePage(data.map(employeeOption).filter(Boolean))
     },
     async employee(employeeNo, { signal } = {}) {
       return readEmployee((await client.get(`${BASE}/lookups/employees/${encodeURIComponent(employeeNo)}`, { signal })).data)

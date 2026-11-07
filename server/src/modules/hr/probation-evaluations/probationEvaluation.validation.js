@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { dbText } from '../formText.validation.js';
 
 const id = Joi.string().pattern(/^[1-9][0-9]{0,18}$/);
 const NO_CONTROL_CHARACTERS = /^[^\p{Cc}]+$/u;
@@ -120,8 +121,8 @@ export const updateBodySchema = Joi.object({
   formDate: ignored,
   fromDate: ignored,
   toDate: ignored,
-  comment: requiredText(COLUMN),
-  comments: requiredText(COLUMN),
+  comment: dbText(COLUMN, { required: true, multiline: true }),
+  comments: dbText(COLUMN, { required: true, multiline: true }),
   lines: Joi.array()
     .items(
       Joi.object({

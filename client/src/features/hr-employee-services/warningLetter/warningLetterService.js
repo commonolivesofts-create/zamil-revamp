@@ -3,11 +3,12 @@
 // position from the master and numbers the letter (reference ZPIL/<id>/<n>,
 // warning no. = the employee's count + 1). Readers reject unexpected data.
 import { apiClient } from '../../../services/api/apiClient.js'
+import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { ID, invalidResponse, isoDate, normalizeStatus, params, segment, text } from '../shared/formRecords.js'
 
 export const BASE = '/hr/warning-letters'
 export const RESOURCE = 'HR.WARNING_LETTERS'
-export const TEXT_MAX = 1000
+export const TEXT_MAX = 2000
 
 // The legacy reasons, English and Arabic as on the form.
 export const REASONS = Object.freeze([
@@ -99,19 +100,29 @@ export function validateLetter(form) {
   return errors
 }
 
+const employeeOption = (item) => (text(item?.emp_no)
+  ? Object.freeze({ employeeId: text(item.emp_no), employeeNumber: text(item.emp_no), name: text(item.emp_name) })
+  : null)
+
 export function createWarningLetterService({ client }) {
   const getById = async (value, { signal } = {}) => readLetter((await client.get(`${BASE}/${segment(value)}`, { signal })).data)
+  // The picker's list, loaded with the form (the legacy datalist of employees).
+  const employees = createEmployeeList({
+    load: ({ signal } = {}) => client.get(`${BASE}/lookups/employees`, { signal }).then(({ data }) => data),
+    shape: employeeOption,
+  })
   return Object.freeze({
     getById,
+    preloadEmployees: (options) => employees.list(options),
     // The legacy name / number search (at least two characters), in the picker's shape.
     async searchEmployees(search = '', { signal } = {}) {
       const q = String(search).trim()
-      const data = q.length < 2 ? [] : (await client.get(`${BASE}/lookups/employees`, { params: { q }, signal })).data
+      // Opening the field lists the employees loaded with the form.
+      if (!q) return employeePage(await employees.list({ signal }))
+      if (q.length < 2) return employeePage([])
+      const data = (await client.get(`${BASE}/lookups/employees`, { params: { q }, signal })).data
       if (!Array.isArray(data)) throw invalidResponse('employee list')
-      const items = Object.freeze(data.filter((item) => text(item?.emp_no)).map((item) => Object.freeze({
-        employeeId: text(item.emp_no), employeeNumber: text(item.emp_no), name: text(item.emp_name),
-      })))
-      return Object.freeze({ items, pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }) })
+      return employeePage(data.map(employeeOption).filter(Boolean))
     },
     async employee(employeeNo, { signal } = {}) {
       return readEmployee((await client.get(`${BASE}/lookups/employee/${encodeURIComponent(employeeNo)}`, { signal })).data)

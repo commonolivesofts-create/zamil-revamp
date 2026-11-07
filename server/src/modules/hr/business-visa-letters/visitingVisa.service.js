@@ -6,6 +6,13 @@ import {
 
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as defaultRepo from './visitingVisa.repository.js';
+import {
+  DIVISIONS,
+  EMBASSIES,
+  REQUEST_FOR,
+  divisionLabel,
+  requestForArabic,
+} from './visitingVisa.options.js';
 
 const missing = () => new AppError(404, 'RESOURCE_NOT_FOUND', 'Business visa letter not found');
 
@@ -217,8 +224,9 @@ export function createVisitingVisaService({
         return result;
       }),
 
-    // GET /lookups/employees
-    employees: () => read((connection) => repository.employees(connection)),
+    // GET /lookups/employees (the legacy datalist: all current employees, or
+    // the number / name search once the requester types).
+    employees: (query = {}) => read((connection) => repository.employees(connection, query.q)),
 
     // GET /lookups/employee/:employeeNumber
     employee: (employeeNumber) =>
@@ -246,37 +254,9 @@ export function createVisitingVisaService({
 
     // GET /lookups/options
     options: () => ({
-      divisions: [
-        {
-          value: '300000003618177',
-          label: 'IPP BU',
-        },
-        {
-          value: '300000003618190',
-          label: 'FPP BU',
-        },
-      ],
-
-      request_for: [
-        {
-          value: 'Business Single',
-          label: 'Business Single',
-          ar: 'مفردة',
-        },
-        {
-          value: 'Business Multiple',
-          label: 'Business Multiple',
-          ar: 'متعددة',
-        },
-      ],
-
-      embassies: [
-        {
-          value: 'Indian',
-          label: 'Indian',
-          ar: 'سفارة الهند',
-        },
-      ],
+      divisions: DIVISIONS,
+      request_for: REQUEST_FOR,
+      embassies: EMBASSIES,
     }),
 
     // GET /:id/print
@@ -290,19 +270,9 @@ export function createVisitingVisaService({
       return {
         ...item,
 
-        division_label:
-          item.division_id === '300000003618177'
-            ? 'IPP BU'
-            : item.division_id === '300000003618190'
-              ? 'FPP BU'
-              : null,
+        division_label: divisionLabel(item.division_id),
 
-        request_for_arabic_label:
-          item.request_for === 'Business Single'
-            ? 'مفردة'
-            : item.request_for === 'Business Multiple'
-              ? 'متعددة'
-              : null,
+        request_for_arabic_label: requestForArabic(item.request_for),
 
         letter_date_display: dateDisplay(item.letter_date),
       };

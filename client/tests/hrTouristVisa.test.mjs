@@ -62,6 +62,11 @@ test('service: lookups, a two-character search, create and update by UUID', asyn
   calls.length = 0
   assert.equal((await service.searchEmployees('1')).items.length, 0)
   assert.equal(calls.length, 0)
+  // The list loads with the form; opening the field serves it without a search.
+  await service.preloadEmployees()
+  assert.ok(calls.at(-1)[1].endsWith('/lookups/employees'))
+  assert.equal((await service.searchEmployees('')).items[0].name, 'Employee')
+  assert.equal(calls.length, 1, 'the opening list does not search again')
   assert.equal((await service.searchEmployees('10')).items[0].name, 'Employee')
   const form = letterFormOf(readLetter(ROW))
   assert.equal((await service.save(null, form, APPROVERS)).letterId, UUID)

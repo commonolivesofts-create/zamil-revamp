@@ -1,8 +1,18 @@
 import { enDate, isIsoDate } from '../shared/hrFormat.js'
 import { reviewField } from '../shared/recruitmentSteps.js'
 import { orientationDays, orientationPeriod } from './orientationLegacy.js'
+import { textLimitError } from '../shared/formValidation.js'
 
 export const blankOrientation = () => ({ employee: null, flag: '', fromOrient: '', lines: [] })
+// Copy the orientation date into new/untouched department dates, while leaving
+// dates that were deliberately changed on an individual session alone.
+export function inheritOrientationDates(lines, fromOrient, previousFromOrient = '') {
+  return lines.map((line) => ({
+    ...line,
+    fromDate: !line.fromDate || line.fromDate === previousFromOrient ? fromOrient : line.fromDate,
+    toDate: !line.toDate || line.toDate === previousFromOrient ? fromOrient : line.toDate,
+  }))
+}
 export const orientationFormFromRecord = (record) => ({
   employee: record.employee, flag: record.flag, fromOrient: record.fromDate,
   lines: record.lines.map((line) => ({ ...line, remarks: line.remarks ?? '' })),
@@ -21,10 +31,15 @@ export function orientationValidationFields(lines) {
   return fields
 }
 const validTime = (value) => /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(value)
-const minutes = (value) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5))
+const seconds = (value) => {
+  const [hours, mins, secs = '0'] = value.split(':')
+  return Number(hours) * 3600 + Number(mins) * 60 + Number(secs)
+}
+const hasDateRange = (line) => isIsoDate(line.fromDate) && isIsoDate(line.toDate) && line.toDate >= line.fromDate
+const hasTimeRange = (line) => validTime(line.timeFrom) && validTime(line.timeTo) && seconds(line.timeTo) > seconds(line.timeFrom)
 
-// Session fields remain optional. Only provided values and their date/time order
-// are checked; a blank session must never prevent a legacy draft from saving.
+// Session fields remain optional. Check provided values, row order and
+// cross-row time clashes; a blank session must not block a legacy draft.
 export function orientationStepErrors(form, { setupLoading = false, setupError = '' } = {}) {
   const employee = {}
   const sessions = {}
@@ -37,17 +52,34 @@ export function orientationStepErrors(form, { setupLoading = false, setupError =
   form.lines.forEach((line, index) => {
     const fail = (field, message) => { sessions[orientationLineKey(index, field)] = message }
     if (!line.department?.trim()) fail('department', 'The training name is missing. Reload the employee details.')
-    if ((line.departmentHead?.length || 0) > 1000) fail('departmentHead', 'Department head must be 1000 characters or fewer.')
+    const headError = textLimitError(line.departmentHead, 1000, 'Department head')
+    if (headError) fail('departmentHead', headError)
     for (const field of ['fromDate', 'toDate']) {
       if (line[field] && !isIsoDate(line[field])) fail(field, 'Enter a valid date.')
     }
+    if (Boolean(line.fromDate) !== Boolean(line.toDate)) fail(line.fromDate ? 'toDate' : 'fromDate', 'Enter both From and To dates for this training.')
     if (isIsoDate(line.fromDate) && isIsoDate(line.toDate) && line.toDate < line.fromDate) fail('toDate', 'To date must be on or after From date.')
     for (const field of ['timeFrom', 'timeTo']) {
       if (line[field] && !validTime(line[field])) fail(field, 'Enter a valid time.')
     }
-    if (validTime(line.timeFrom) && validTime(line.timeTo) && minutes(line.timeTo) < minutes(line.timeFrom)) fail('timeTo', 'Time to must be on or after Time from.')
-    if ((line.remarks?.length || 0) > 1000) fail('remarks', 'Remark must be 1000 characters or fewer.')
+    if (Boolean(line.timeFrom) !== Boolean(line.timeTo)) fail(line.timeFrom ? 'timeTo' : 'timeFrom', 'Enter both From and To times for this training.')
+    if (validTime(line.timeFrom) && validTime(line.timeTo) && seconds(line.timeTo) <= seconds(line.timeFrom)) fail('timeTo', 'To time must be after From time.')
+    const remarkError = textLimitError(line.remarks, 1000, 'Remark', { multiline: true })
+    if (remarkError) fail('remarks', remarkError)
   })
+  for (let firstIndex = 0; firstIndex < form.lines.length; firstIndex += 1) {
+    const first = form.lines[firstIndex]
+    if (!hasDateRange(first) || !hasTimeRange(first)) continue
+    for (let secondIndex = firstIndex + 1; secondIndex < form.lines.length; secondIndex += 1) {
+      const second = form.lines[secondIndex]
+      if (!hasDateRange(second) || !hasTimeRange(second)) continue
+      const datesOverlap = first.fromDate <= second.toDate && second.fromDate <= first.toDate
+      const timesOverlap = seconds(first.timeFrom) < seconds(second.timeTo) && seconds(second.timeFrom) < seconds(first.timeTo)
+      if (datesOverlap && timesOverlap) {
+        sessions[orientationLineKey(secondIndex, 'timeFrom')] = `This time overlaps with ${first.department}. Choose another time for this date.`
+      }
+    }
+  }
   return [employee, sessions, {}, {}]
 }
 const date = (value) => isIsoDate(value) ? enDate(value) : value

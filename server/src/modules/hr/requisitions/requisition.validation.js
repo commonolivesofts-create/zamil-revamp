@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { dbText } from '../formText.validation.js';
 
 /*
  * Personal Requisition Form request schemas (README_personal_requisition_form.md §3.2, §7.1, §9).
@@ -33,20 +34,20 @@ export const attachmentParams = Joi.object({
 // README §9 validation rules shared by insert and update.
 const writeFields = {
   jobId: nullableId,
-  jobName: requiredText(200),
+  jobName: dbText(150, { required: true }),
   deptId: nullableId,
-  deptName: requiredText(200),
+  deptName: dbText(150, { required: true }),
   dateNeeded: date.required(),
   reasonOfReq: Joi.string().valid('Replacement', 'Addition').required(),
   replacementFor: Joi.when('reasonOfReq', {
     is: Joi.string().valid('Replacement'),
-    then: requiredText(200),
-    otherwise: text(200),
+    then: dbText(1000, { required: true }),
+    otherwise: dbText(1000),
   }),
   reason: Joi.when('reasonOfReq', {
     is: Joi.string().valid('Addition'),
-    then: requiredText(4000),
-    otherwise: text(4000),
+    then: dbText(1000, { required: true, multiline: true }),
+    otherwise: dbText(1000, { multiline: true }),
   }),
   budgeted: yn.default('N'),
   budgetedSal: Joi.number().min(0).default(0),
@@ -57,9 +58,9 @@ const writeFields = {
   masterDegree: yn.default('N'),
   gccExp: experienceRange.default('0 - 2'),
   workExp: experienceRange.default('0 - 2'),
-  skills: text(4000),
-  other: text(4000),
-  remark: text(4000),
+  skills: dbText(2000),
+  other: dbText(2000, { multiline: true }),
+  remark: dbText(1000, { multiline: true }),
   totalPackage: Joi.number().min(0).allow(null).optional(),
 };
 

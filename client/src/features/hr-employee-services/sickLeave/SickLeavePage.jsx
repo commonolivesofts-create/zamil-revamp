@@ -3,31 +3,34 @@ import { useNavigate } from 'react-router'
 import usePermissions from '@/features/access/usePermissions.js'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { useResource } from '@/features/security-administration/useAdminData.js'
-import { businessToday, enDate, initials } from '@/features/hr-recruitment/shared/hrFormat.js'
+import { businessToday, enDate } from '@/features/hr-recruitment/shared/hrFormat.js'
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
-import { FileDrop, HrField, Review } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
+import { FileDrop, HrField } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
-import { Orbit, RecruitmentShell, StepHead, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { RecruitmentShell } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
-import { STATUS_TEXT, isEditable } from '../shared/formRecords.js'
+import { isEditable } from '../shared/formRecords.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import '@/styles/hr-employee-services.css'
 import '@/styles/hr-employee-services-forms.css'
 import { SICK_LEAVE_TYPE } from './sickLeaveContract.js'
 import {
-  BACK_DAYS, COMMENTS_MAX, FILE_EXTENSIONS, addDays, backToWork, isWeekend, leaveDays, overlapOf, stepOfErrors, validateSickLeave, workingDays,
+  BACK_DAYS, COMMENTS_MAX, FILE_EXTENSIONS, addDays, leaveDays, overlapOf, stepOfErrors, validateSickLeave,
 } from './sickLeaveModel.js'
+import { warmEmployeeList } from '../shared/employeeList.js'
 import { sickLeaveDemo, sickLeaveService } from './sickLeaveService.js'
+import PreviewLanguageSwitch from '../shared/PreviewLanguageSwitch.jsx'
+import SickLeavePreview from './SickLeavePreview.jsx'
 
 const TITLE = 'Sick Leave Request'
-const STEPS = ['Dates', 'Certificate', 'Comments']
+const SECTIONS = ['Dates', 'Certificate', 'Comments']
 const DAY_TYPE_TEXT = Object.freeze({ FULL: 'Full day', HALF: 'Half day' })
 const FILE_TEXT = Object.freeze({
-  title: 'Attach the medical certificate',
-  hint: 'Drop files here or click to browse · up to 10 files, 10 MB each',
+  title: 'Medical certificate',
+  hint: 'Drop files or click to browse',
   uploadNote: 'Files are uploaded with the request when you save.',
   remove: (name) => `Remove ${name}`,
   size: (kb) => `${kb} KB`,
@@ -38,45 +41,13 @@ const monthEnd = (iso) => addDays(`${addDays(`${iso.slice(0, 7)}-28`, 4).slice(0
 export default function SickLeavePage() {
   return (
     <RecruitmentLoader current="sick-leave" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={sickLeaveDemo}
-      title={TITLE} param="leaveId" load={sickLeaveService.getById} loadLookups={async () => ({})}>
+      title={TITLE} param="leaveId" load={sickLeaveService.getById} loadLookups={(signal) => {
+        // Opening Emp# lists employees without a request.
+        warmEmployeeList(sickLeaveService, { signal })
+        return {}
+      }}>
       {({ record, editorKey }) => <SickLeaveEditor key={editorKey} initial={record} />}
     </RecruitmentLoader>
-  )
-}
-
-// One or two months around the request: the leave range, weekends and the
-// employee's other requests.
-function MiniCalendar({ fromDate, toDate, others, today }) {
-  const anchor = fromDate || today
-  const months = [anchor.slice(0, 7)]
-  if (toDate && toDate.slice(0, 7) !== months[0] && toDate > anchor) months.push(toDate.slice(0, 7))
-  const taken = (day) => others.find((item) => day >= item.fromDate && day <= item.toDate)
-  return (
-    <div className="zrv-hr-esf-cal" aria-label="Leave calendar">
-      {months.map((month) => {
-        const first = `${month}-01`
-        const offset = new Date(`${first}T00:00:00Z`).getUTCDay()
-        const last = Number(monthEnd(first).slice(8))
-        const cells = [...Array(offset).fill(null), ...Array.from({ length: last }, (_, index) => `${month}-${String(index + 1).padStart(2, '0')}`)]
-        return (
-          <div key={month} className="zrv-hr-esf-month">
-            <b>{new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${first}T00:00:00Z`))}</b>
-            <div className="zrv-hr-esf-days" aria-hidden="true">
-              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((name, index) => <span key={index} className="zrv-hr-esf-dow">{name}</span>)}
-              {cells.map((day, index) => {
-                if (!day) return <span key={`blank-${index}`} />
-                const inside = fromDate && toDate && day >= fromDate && day <= toDate
-                const other = taken(day)
-                const classes = ['zrv-hr-esf-day', isWeekend(day) && 'zrv-hr-is-weekend', inside && 'zrv-hr-is-in', day === fromDate && inside && 'zrv-hr-is-start',
-                  day === toDate && inside && 'zrv-hr-is-end', day === today && 'zrv-hr-is-today', other && 'zrv-hr-is-taken'].filter(Boolean).join(' ')
-                return <span key={day} className={classes} style={{ '--i': index }} title={other ? `Request ${other.leaveId}` : undefined}>{Number(day.slice(8))}</span>
-              })}
-            </div>
-          </div>
-        )
-      })}
-      <div className="zrv-hr-esf-key"><span><i className="zrv-hr-is-in" />Sick leave</span><span><i className="zrv-hr-is-weekend" />Weekend (Fri, Sat)</span><span><i className="zrv-hr-is-taken" />Other request</span></div>
-    </div>
   )
 }
 
@@ -84,7 +55,7 @@ function SickLeaveEditor({ initial }) {
   const navigate = useNavigate()
   const permissions = usePermissions()
   const today = businessToday()
-  const editor = useRecruitmentForm({ basePath: FORM_PATHS.sickLeave, idKey: 'leaveId', record: initial, initialForm: initial ? {
+  const editor = useRecruitmentForm({ basePath: FORM_PATHS.sickLeave, idKey: 'leaveId', stepCount: 3, record: initial, initialForm: initial ? {
     employee: initial.employee, fromDate: initial.fromDate, toDate: initial.toDate, fromDayType: initial.fromDayType,
     toDayType: initial.toDayType, comments: initial.comments,
   } : { employee: null, fromDate: '', toDate: '', fromDayType: 'FULL', toDayType: 'FULL', comments: '' } })
@@ -92,15 +63,15 @@ function SickLeaveEditor({ initial }) {
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
   const [showFormats, setShowFormats] = useState(false)
+  const [language, setLanguage] = useState('en')
   // Files picked but not uploaded yet (kept outside the form's saved-state tracking).
   const [newFiles, setNewFiles] = useState([])
   const employeeRequest = useRef(0)
   const canWrite = permissions.can(record ? 'HR.SICK_LEAVE:UPDATE' : 'HR.SICK_LEAVE:CREATE')
   const canAttach = permissions.can('HR.SICK_LEAVE:MANAGE_ATTACHMENTS')
   const locked = Boolean(record && !isEditable(record.status)) || !canWrite
-  const status = record?.status ?? null
 
-  // The employee's requests in the months shown (calendar and overlap check).
+  // The employee's requests in the months shown (overlap check).
   const anchor = form.fromDate || today
   const range = { from: monthStart(anchor), to: monthEnd(form.toDate && form.toDate > anchor ? form.toDate : anchor) }
   const others = useResource(form.employee ? `sick-leave-others:${form.employee.employeeNumber}:${range.from}:${range.to}` : null,
@@ -109,8 +80,8 @@ function SickLeaveEditor({ initial }) {
   const overlap = overlapOf(otherRequests, { leaveId: record?.leaveId, fromDate: form.fromDate, toDate: form.toDate })
   const single = form.fromDate && form.fromDate === form.toDate
   const days = leaveDays({ ...form, toDayType: single ? form.fromDayType : form.toDayType })
-  const working = workingDays(form.fromDate, form.toDate)
-  const back = backToWork(form.toDate)
+  const files = [...(record?.attachments ?? []), ...newFiles]
+  const hasFile = files.length > 0
 
   const clear = (...keys) => setErrors((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !keys.includes(key))))
   const set = (key) => (event) => { editor.set(key)(event); clear(key) }
@@ -126,17 +97,27 @@ function SickLeaveEditor({ initial }) {
     }
   }
 
+  const goToSection = (index) => {
+    const next = Math.max(0, Math.min(SECTIONS.length - 1, index))
+    setStep(next)
+    document.getElementById(`sl-section-${next}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  // The request as it would be saved (files are the not-yet-uploaded ones).
+  const payload = () => ({ ...form, toDayType: single ? form.fromDayType : form.toDayType, files: newFiles })
+  const validateAll = () => validateSickLeave(payload(), { isNew: !record, today, overlap })
+
   const save = () => {
     if (locked) return
-    const payload = { ...form, toDayType: single ? form.fromDayType : form.toDayType, files: newFiles }
-    const next = validateSickLeave(payload, { isNew: !record, today, overlap })
+    const next = validateAll()
     setErrors(next)
     if (Object.keys(next).length) {
-      editor.reject(stepOfErrors(next), 'Review the highlighted fields.')
+      const first = stepOfErrors(next)
+      editor.reject(first, 'Review the highlighted fields.')
+      requestAnimationFrame(() => document.getElementById(`sl-section-${first}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
       return
     }
     editor.perform(async ({ saved }) => {
-      const result = await sickLeaveService.save(editor.recordId, payload, newFiles)
+      const result = await sickLeaveService.save(editor.recordId, payload(), newFiles)
       saved(result)
       setNewFiles([])
       return result
@@ -161,37 +142,28 @@ function SickLeaveEditor({ initial }) {
     { icon: 'chart-column', label: 'Report', onClick: () => navigate(FORM_PATHS.sickLeaveReport) },
     { icon: 'file-plus', label: 'New request', onClick: () => (editor.dirty && !locked ? setDialog('new') : startNew()) },
   ]
-  const savedFiles = record?.attachments ?? []
   const fromHint = record ? undefined : `Up to ${BACK_DAYS} days back`
   const commentsHint = `${form.comments.length} / ${COMMENTS_MAX}`
-  const hasFile = savedFiles.length + newFiles.length > 0
   const doneSteps = [Boolean(form.employee && form.fromDate && form.toDate && form.toDate >= form.fromDate && !overlap), hasFile, Boolean(form.comments.trim())]
-  const progress = [form.employee, form.fromDate, form.toDate, hasFile, form.comments.trim()].filter(Boolean).length
 
   return <>
-    <RecruitmentShell current="sick-leave" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE} demo={sickLeaveDemo}
+    <RecruitmentShell current="sick-leave" flow={false} compact singlePage breadcrumb={C.breadcrumb} title={TITLE} demo={sickLeaveDemo}
       tools={tools} primary={{ label: 'Save draft', icon: 'save', onClick: save }} locked={locked} pending={editor.pending} focusError={editor.focusError}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss}
-      steps={STEPS.map((name, index) => [name, index === 1 && hasFile ? C.step.files(savedFiles.length + newFiles.length) : doneSteps[index] ? C.step.done : C.step.open])}
-      step={step} onStep={setStep} doneSteps={doneSteps} finalLabel="Save draft" onFinal={save}
+      steps={SECTIONS.map((name, index) => [name, index === 1 && hasFile ? C.step.files(files.length) : doneSteps[index] ? C.step.done : C.step.open])}
+      step={step} onStep={goToSection} doneSteps={doneSteps}
       side={<>
-        <Tilt aria-label="Sick leave card">
-          <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{record ? `SL · ${record.leaveId}` : 'SL · Draft'}</span><span className="zrv-hr-dark__status">{status ? STATUS_TEXT[status] : 'Not saved'}</span></div>
-          <div className="zrv-hr-dark__who"><span className="zrv-hr-dark__av">{initials(form.employee?.name)}</span><div>
-            <h3 className="zrv-hr-dark__title">{form.employee?.name || 'Employee'}</h3>
-            <div className="zrv-hr-dark__sub">{form.employee?.departmentName || 'Department'}</div></div></div>
-          <dl className="zrv-hr-esf-grid">
-            <div><dt>From – to</dt><dd>{form.fromDate ? `${enDate(form.fromDate)}${form.toDate ? ` – ${enDate(form.toDate)}` : ''}` : '—'}</dd></div>
-            <div><dt>Back to work</dt><dd>{back ? enDate(back) : '—'}</dd></div>
-            <div><dt>No. of days</dt><dd>{days || '—'}</dd></div>
-            <div><dt>Attachments</dt><dd>{savedFiles.length + newFiles.length}</dd></div>
-          </dl>
-        </Tilt>
-        <Orbit done={progress} total={5} hint={!form.employee ? 'Start with the employee.' : !form.fromDate || !form.toDate ? 'Choose the dates.'
-          : overlap ? 'The dates overlap another request.' : !hasFile ? 'Attach the medical certificate.' : !form.comments.trim() ? 'Add your comments.' : 'Ready to save.'} />
+        <div className="zrv-hr-side__h">
+          <span className="zrv-hr-side__t"><span className="zrv-hr-eyebrow">Preview</span></span>
+          <PreviewLanguageSwitch value={language} onChange={setLanguage} />
+        </div>
+        <SickLeavePreview form={form} record={record} days={days} single={single} files={files} language={language} />
       </>}>
-      {step === 0 && <>
-        <StepHead title="Who is off, and when?" desc="You can request sick leave for yourself or a direct report." />
+      <section id="sl-section-0" className="zrv-hr-esf-section">
+        <div className="zrv-hr-esf-sectionhead">
+          <h2>Employee and leave dates</h2>
+          <span className="zrv-hr-esf-daypill" role="status"><b key={days}>{days || '—'}</b> day{days === 1 ? '' : 's'}</span>
+        </div>
         <div className="zrv-hr-grid zrv-hr-is-3">
           <EmployeePicker id="sl-employee" label="Employee #" required tight value={form.employee} error={errors.employee} cacheKey="hr-sick-leave-employees"
             placeholder="Type employee number or name…" searchService={(term, options) => sickLeaveService.searchEmployees(term, options)}
@@ -218,50 +190,29 @@ function SickLeaveEditor({ initial }) {
             </select>
           </HrField>}
         </div>
-        <div className="zrv-hr-esf-counts zrv-hr-mt">
-          <div className="zrv-hr-is-pop"><small>No. of days</small><b key={days}>{days || '—'}</b><span>calendar days (server rule)</span></div>
-          <div><small>Working days</small><b key={`w${working}`}>{days ? working : '—'}</b><span>excl. Fri &amp; Sat</span></div>
-          <div><small>Back to work</small><b className="zrv-hr-is-small">{back ? enDate(back) : '—'}</b><span>next working day</span></div>
-        </div>
         {overlap && <p className="zrv-auth-field-error zrv-hr-mt" role="status">These dates overlap request {overlap.leaveId} ({enDate(overlap.fromDate)} – {enDate(overlap.toDate)}).</p>}
         {others.status === 'error' && <p className="zrv-hr-esf-note" role="status">Other requests of this employee could not be checked.</p>}
-        <MiniCalendar fromDate={form.fromDate} toDate={form.toDate} others={otherRequests} today={today} />
-      </>}
+      </section>
 
-      {step === 1 && <>
-        <StepHead title="Attach the medical certificate."
-          desc={record ? 'Added files are uploaded when you save; saved files can be removed while the request is a draft.' : 'At least one file is required for a new request.'} />
-        <div className="zrv-hr-esf-attach-head">
-          <span className="zrv-hr-label">Attachments{!record && <i className="zrv-hr-req" aria-hidden="true">*</i>}</span>
-          <button type="button" className="zrv-hr-esf-link" aria-expanded={showFormats} onClick={() => setShowFormats((value) => !value)}>Check valid file formats</button>
-        </div>
-        {showFormats && <p className="zrv-hr-esf-note" role="note">Accepted: <b>{FILE_EXTENSIONS.join(', ').toUpperCase()}</b> · up to <b>10 MB</b> each, 10 files at a time.</p>}
-        <div className={errors.files ? 'zrv-hr-is-bad' : undefined}>
-          <FileDrop text={FILE_TEXT} files={[...savedFiles, ...newFiles]} disabled={locked || (Boolean(record) && !canAttach)}
-            canRemoveSaved={!locked && canAttach} onRemove={removeSaved}
-            onChange={(list) => { setNewFiles(list.filter((item) => item.file)); clear('files') }} />
-        </div>
-        {errors.files && <p className="zrv-auth-field-error" role="alert">{errors.files}</p>}
-      </>}
+      <div className="zrv-hr-esf-two">
+        <section id="sl-section-1" className={`zrv-hr-esf-card${step === 1 ? ' zrv-hr-is-focus' : ''}`}>
+          <div className={errors.files ? 'zrv-hr-is-bad' : undefined} aria-invalid={errors.files ? true : undefined}>
+            <FileDrop text={FILE_TEXT} files={files} disabled={locked || (Boolean(record) && !canAttach)}
+              canRemoveSaved={!locked && canAttach} onRemove={removeSaved}
+              onChange={(list) => { setNewFiles(list.filter((item) => item.file)); clear('files') }} />
+          </div>
+          {errors.files && <p className="zrv-auth-field-error" role="alert">{errors.files}</p>}
+          {showFormats && <p className="zrv-hr-esf-note" role="note">Accepted: <b>{FILE_EXTENSIONS.join(', ').toUpperCase()}</b> · up to <b>10 MB</b> each, 10 files at a time.</p>}
+          <button type="button" className="zrv-hr-esf-link zrv-hr-esf-cardlink" aria-expanded={showFormats} onClick={() => setShowFormats((value) => !value)}>File formats</button>
+        </section>
 
-      {step === 2 && <>
-        <StepHead title="Add your comments and review." />
-        <div className="zrv-hr-grid">
+        <section id="sl-section-2" className={`zrv-hr-esf-card${step === 2 ? ' zrv-hr-is-focus' : ''}`}>
           <HrField id="sl-comments" label="Comments" required wide error={errors.comments} hint={commentsHint}>
-            <textarea {...fieldProps('sl-comments', { error: errors.comments, hint: commentsHint })} className="ux-textarea zrv-hr-input" rows={3} value={form.comments}
-              maxLength={COMMENTS_MAX} onChange={set('comments')} placeholder="Enter your comments" />
+            <textarea {...fieldProps('sl-comments', { error: errors.comments, hint: commentsHint })} className="ux-textarea zrv-hr-input" rows={4} value={form.comments}
+              maxLength={COMMENTS_MAX} onChange={set('comments')} placeholder="Reason for the request" aria-label="Comments" />
           </HrField>
-        </div>
-        <div className="zrv-hr-sep" />
-        <Review rows={[
-          ['Employee', form.employee ? `${form.employee.employeeNumber} · ${form.employee.name}` : '', !form.employee],
-          ['Dates', form.fromDate && form.toDate ? `${enDate(form.fromDate)} – ${enDate(form.toDate)} · ${days} day${days === 1 ? '' : 's'} (${working} working)` : '', !form.fromDate || !form.toDate],
-          ['Day types', single ? DAY_TYPE_TEXT[form.fromDayType] : `${DAY_TYPE_TEXT[form.fromDayType]} → ${DAY_TYPE_TEXT[form.toDayType]}`, false],
-          ['Back to work', back && enDate(back), !back],
-          ['Attachments', `${savedFiles.length + newFiles.length} file${savedFiles.length + newFiles.length === 1 ? '' : 's'}`, !record && !newFiles.length],
-        ]} />
-        <p className="zrv-admin-hint zrv-hr-mt">The request is saved as a draft. Sending it for approval is not available yet.</p>
-      </>}
+        </section>
+      </div>
     </RecruitmentShell>
     {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
   </>

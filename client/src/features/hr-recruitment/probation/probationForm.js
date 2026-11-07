@@ -1,6 +1,7 @@
 import { enDate, isIsoDate } from '../shared/hrFormat.js'
 import { reviewField } from '../shared/recruitmentSteps.js'
 import { approvedBy, formTypeLabel, validateForCreate, validateForSubmit, totalRating, formResult, RESULT_TEXT } from './probationRules.js'
+import { textLimitError } from '../shared/formValidation.js'
 
 export const blankProbation = () => ({ employee: null, formType: '', formDate: '', fromDate: '', toDate: '', comment: '', comments: '', lines: [] })
 export const probationFormFromRecord = (record) => ({
@@ -36,8 +37,9 @@ export function probationStepErrors(form, { saved = false, employeeStatus = 'rea
       if (line.rating !== '' && line.rating != null && (!Number.isInteger(Number(line.rating)) || Number(line.rating) < 1 || Number(line.rating) > 5)) errors[`rating:${index}`] = 'Rate this criterion from 1 to 5.'
     })
   } else {
-    for (const key of ['comment', 'comments']) {
-      if ((form[key]?.length || 0) > 500) errors[key] = 'Use 500 characters or fewer.'
+    for (const [key, label] of [['comment', 'Comments'], ['comments', 'Suggestion']]) {
+      const message = textLimitError(form[key], 500, label, { multiline: true })
+      if (message) errors[key] = message
     }
   }
   return [

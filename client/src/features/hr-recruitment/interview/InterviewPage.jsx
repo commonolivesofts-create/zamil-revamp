@@ -17,10 +17,13 @@ import { Orbit, Pill, RecruitmentShell, StepHead, Tilt } from '../shared/compone
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { ChoiceCards, HrField, Review, SearchableLookup } from '../shared/components/RecruitmentInputs.jsx'
 import { Gauge, Radar, RatingRows } from './Scores.jsx'
+import { NATIONALITIES as BUSINESS_NATIONALITIES } from '@/features/hr-employee-services/businessVisa/nationalities.js'
 import {
   BANDS, COMP_KEYS, HR_FIELDS, INTERVIEW_VALIDATION_FIELDS, SCORE_MAX, SPEC_KEYS, bandLabel, blankInterview, hrField, interviewFormFromRecord, interviewPayload,
   interviewStepErrors, isInterviewLocked, linkedPosition, ratedCount, salaryDelta, sumRatings,
 } from './interviewModel.js'
+
+const NATIONALITY_FALLBACK = Object.freeze(BUSINESS_NATIONALITIES.map((item) => item.label))
 
 const BASE = '/hr/recruitment/interview'
 const service = hrRecruitmentServices.interviews
@@ -150,6 +153,9 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
     const id = `ia-${key}`
     const label = T.labels[key]
     const error = errors[key]
+    const hint = key === 'candidateAge' ? 'Whole number from 18 to 70'
+      : key === 'relevantExperienceYears' ? 'Whole number from 0 to 50'
+        : type === 'number' ? 'Nonnegative amount, up to two decimal places' : undefined
     if (key === 'requisitionNumber') {
       return (
         <HrField key={key} id={id} label={label} required={rules.required} error={error}>
@@ -165,6 +171,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
             }))}
             onChange={(option) => set(key)(option.code)}
             onInputChange={set(key)}
+            maxLength={50}
             required={rules.required}
             error={error}
             loading={lookupStatus === 'loading'}
@@ -175,14 +182,18 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
       )
     }
     return (
-      <HrField key={key} id={id} label={label} required={rules.required} error={error}>
+      <HrField key={key} id={id} label={label} required={rules.required} error={error} hint={hint}>
         {type === 'select' || key === 'nationality'
           ? <SearchableLookup id={id} value={form[key]} customValue={form[key]} onChange={(option) => set(key)(option.code)} onInputChange={key === 'nationality' ? set(key) : undefined}
               onClear={!rules.required ? () => set(key)('') : undefined}
-              options={key === 'nationality' ? lookups.nationalities.map((name) => ({ code: name, name })) : lookups[rules.lookup]}
-              placeholder={`Search ${label.toLowerCase()}`} required={rules.required} error={error} />
-          : <input {...fieldProps(id, { error })} className="ux-input zrv-hr-input" type={type} value={form[key]} onChange={set(key)}
-              aria-required={rules.required || undefined} inputMode={type === 'number' ? 'decimal' : undefined} min={rules.min} max={rules.max} step={type === 'number' ? (['candidateAge', 'relevantExperienceYears'].includes(key) ? 1 : 'any') : undefined} maxLength={type === 'text' ? 200 : undefined} />}
+              options={key === 'nationality'
+                ? ((Array.isArray(lookups.nationalities) && lookups.nationalities.length ? lookups.nationalities : NATIONALITY_FALLBACK).map((name) => ({ code: name, name })))
+                : lookups[rules.lookup]}
+              placeholder={`Search ${label.toLowerCase()}`} required={rules.required} error={error} maxLength={key === 'nationality' ? 100 : 200} />
+          : <input {...fieldProps(id, { error })} className="ux-input zrv-hr-input" type={type === 'number' ? 'text' : type} value={form[key]} onChange={set(key)}
+              aria-required={rules.required || undefined} inputMode={type === 'number' ? (['candidateAge', 'relevantExperienceYears'].includes(key) ? 'numeric' : 'decimal') : undefined}
+              maxLength={key === 'candidateAge' ? 3 : type === 'number' ? 24 : ({ requisitionNumber: 50, location: 100, major: 100 }[key] ?? 200)}
+              min={key === 'candidateAge' ? 18 : undefined} max={key === 'candidateAge' ? 70 : undefined} />}
       </HrField>
     )
   }
@@ -318,10 +329,10 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
               <input {...fieldProps('ia-comprem', { error: errors.compRemarks })} className="ux-input zrv-hr-input" value={form.compRemarks} onChange={set('compRemarks')} maxLength={500} />
             </HrField>
             <HrField id="ia-str" error={errors.strengths} label={T.labels.strengths}>
-              <textarea {...fieldProps('ia-str', { error: errors.strengths })} className="ux-textarea zrv-hr-input" value={form.strengths} onChange={set('strengths')} maxLength={4000} />
+              <textarea {...fieldProps('ia-str', { error: errors.strengths })} className="ux-textarea zrv-hr-input" value={form.strengths} onChange={set('strengths')} maxLength={200} />
             </HrField>
             <HrField id="ia-weak" error={errors.weakness} label={T.labels.weakness}>
-              <textarea {...fieldProps('ia-weak', { error: errors.weakness })} className="ux-textarea zrv-hr-input" value={form.weakness} onChange={set('weakness')} maxLength={4000} />
+              <textarea {...fieldProps('ia-weak', { error: errors.weakness })} className="ux-textarea zrv-hr-input" value={form.weakness} onChange={set('weakness')} maxLength={200} />
             </HrField>
           </div>
         </>}
@@ -340,7 +351,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
               <input id="ia-adm" className="ux-input zrv-hr-input" readOnly value={form.adminManagerName} placeholder={T.placeholders.adminManager} />
             </HrField>
             <HrField id="ia-rep" error={errors.departmentRepresentative} label={T.labels.deptRep}>
-              <input {...fieldProps('ia-rep', { error: errors.departmentRepresentative })} className="ux-input zrv-hr-input" value={form.departmentRepresentative} onChange={set('departmentRepresentative')} maxLength={200} />
+              <input {...fieldProps('ia-rep', { error: errors.departmentRepresentative })} className="ux-input zrv-hr-input" value={form.departmentRepresentative} onChange={set('departmentRepresentative')} maxLength={50} />
             </HrField>
             <HrField id="ia-pay" label={T.labels.payroll} required error={errors.payroll}>
               <SearchableLookup id="ia-pay" value={form.payroll} customValue={form.payroll} options={lookups.payrollBusinessUnits}
@@ -359,12 +370,12 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
                   loading={lookupStatus === 'loading'}
                   placeholder="Search employees by name"
                   noResults="No employees match your search"
-                  maxLength={200}
+                  maxLength={index === 0 ? 50 : 200}
                 />
               </HrField>
             ))}
             <HrField id="ia-hrc" error={errors.hrComment} label={T.labels.hrComment} wide>
-              <input {...fieldProps('ia-hrc', { error: errors.hrComment })} className="ux-input zrv-hr-input" value={form.hrComment} onChange={set('hrComment')} maxLength={500} />
+              <input {...fieldProps('ia-hrc', { error: errors.hrComment })} className="ux-input zrv-hr-input" value={form.hrComment} onChange={set('hrComment')} maxLength={50} />
             </HrField>
           </div>
         </>}

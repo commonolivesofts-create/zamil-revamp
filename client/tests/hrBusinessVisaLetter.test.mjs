@@ -47,6 +47,9 @@ test('service: employees fetched once and filtered; create, then update read bac
     return { data: ROW }
   }
   const service = createBusinessVisaLetterService({ client: { get: call('GET'), post: call('POST'), put: call('PUT') } })
+  // The employees load with the form; both searches and the opening list use that one request.
+  await service.preloadEmployees()
+  assert.deepEqual((await service.searchEmployees('')).items.map((item) => item.employeeNumber), ['1001', '2002'])
   assert.deepEqual((await service.searchEmployees('bet')).items.map((item) => item.employeeNumber), ['2002'])
   assert.equal((await service.searchEmployees('100')).items[0].name, 'Alpha')
   assert.equal(calls.filter(([, path]) => path.endsWith('/lookups/employees')).length, 1)

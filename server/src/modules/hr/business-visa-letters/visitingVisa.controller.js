@@ -45,7 +45,7 @@ export function createVisitingVisaController({ service: s }) {
     employees: async (req, res) =>
       res.json({
         success: true,
-        data: await s.employees(),
+        data: await s.employees(req.query),
       }),
 
     employee: async (req, res) =>

@@ -96,6 +96,21 @@ describe('personal status change repository', () => {
     assert.match(connection.calls[1].sql, /CURRENT_EMP_FLAG = 'Y'/);
   });
 
+  it('employee lookup lists number, name and section, and searches by number or name', async () => {
+    const connection = mockConnection([{ rows: [] }, { rows: [] }]);
+    const repository = createPersonalStatusRepository();
+    await repository.employees(connection);
+    await repository.employees(connection, ' saad ');
+    const [all, searched] = connection.calls;
+    assert.match(all.sql, /TO_CHAR\(EMPLOYEE_NUMBER\) AS "empNo"/);
+    assert.match(all.sql, /MAX\(FULL_NAME\) AS "name"/);
+    assert.match(all.sql, /GROUP BY EMPLOYEE_NUMBER/);
+    assert.match(all.sql, /UPPER\(FULL_NAME\) LIKE '%' \|\| UPPER\(:search\) \|\| '%'/);
+    assert.match(all.sql, /TO_CHAR\(EMPLOYEE_NUMBER\) LIKE '%' \|\| :search \|\| '%'/);
+    assert.equal(all.binds.search, null, 'no term lists every employee');
+    assert.equal(searched.binds.search, 'saad');
+  });
+
   it('insert uses the identity column, binds every value and writes START_DATE as DD-MON-RR text', async () => {
     const connection = mockConnection([{ rowsAffected: 1, outBinds: { headerId: ['653'] } }]);
     const repository = createPersonalStatusRepository();

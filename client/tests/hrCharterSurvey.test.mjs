@@ -108,7 +108,7 @@ test('survey: charts read as per-group answer rows; "All" is sent for every unse
   assert.deepEqual([page.items[0].responseId, page.items[0].submittedAt, page.items[0].year], ['5', '2026-11-03', '2026'])
 })
 
-test('sidebar: charter (Employee services) and survey report (Reports) need their switch AND VIEW', () => {
+test('sidebar: charter (Talent Management) and survey report (Reports) need their switch AND VIEW', () => {
   const ids = (env, keys) => authorizedNavigation(ready(keys), resolveNavigationEntries(registry.entries, env))
     .flatMap((section) => section.items).map((item) => item.id).filter((id) => id.startsWith('hr-charter') || id.startsWith('hr-survey'))
   const on = { VITE_FEATURE_HR_PROJECT_CHARTER: 'true', VITE_FEATURE_HR_SURVEY_REPORT: 'true', DEV: false }
@@ -129,7 +129,15 @@ test('source: live APIs only, no browser storage, routed', async () => {
     }
   }
   const router = await readFile(new URL('../src/app/router.jsx', import.meta.url), 'utf8')
-  for (const path of ['hr/employee-services/project-charter', 'hr/employee-services/project-charter/report', 'hr/employee-services/project-charter/:charterId', 'hr/reports/survey', 'hr/reports/survey/responses']) {
+  for (const path of ['hr/talent-management/project-charter', 'hr/talent-management/project-charter/report', 'hr/talent-management/project-charter/:charterId', 'hr/reports/survey', 'hr/reports/survey/responses']) {
     assert.ok(router.includes(`path: '${path}'`), path)
   }
+})
+
+test('charter form: the manager is the shared employee dropdown and the Idea heading is not duplicated', async () => {
+  const page = await readFile(new URL('../src/features/hr-employee-services/charter/CharterPage.jsx', import.meta.url), 'utf8')
+  assert.match(page, /<EmployeePicker id="pc-projectManager"/)
+  assert.match(page, /searchService=\{searchManagers\}/)
+  assert.doesNotMatch(page, /NameSuggest|<h3[^>]*>Idea<\/h3>/)
+  assert.doesNotMatch(page, /Choose an approved idea, then set the manager/)
 })

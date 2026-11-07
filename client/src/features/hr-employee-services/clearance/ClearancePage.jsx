@@ -15,6 +15,7 @@ import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { CLEARANCE_PATHS } from '../employeeServicesPaths.js'
 import { STATUS_TEXT, isEditable } from '../shared/formRecords.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
+import { lockedStepsOf, problemsInStep } from '../shared/stepGating.js'
 import '@/styles/hr-employee-services.css'
 import '@/styles/hr-employee-services-forms.css'
 import '@/styles/hr-employee-clearance.css'
@@ -22,6 +23,7 @@ import {
   COMMENTS_MAX, CONTACT_MAX, DISABLED_UNTIL, IT_ACTIONS, IT_SUBJECTS, PURPOSE_MAX, SECTIONS, SIGNATURES, blankClearance, hasCost,
   returnedCount, sectionApprovers, validateClearance, withItAction,
 } from './clearanceModel.js'
+import { warmEmployeeList } from '../shared/employeeList.js'
 import { clearanceService } from './clearanceService.js'
 
 // The legacy form: views/ZPIL/empclearance.php creates a request,
@@ -30,7 +32,11 @@ const TITLE = 'Employee Clearance'
 const STEPS = ['Employee', 'IT access', 'Sign-off', 'Departments']
 const SAVE = 'Save clearance'
 const PERMISSION = 'HR.EMPLOYEE_CLEARANCE'
-const loadLookups = (signal) => clearanceService.getLookups({ signal })
+const loadLookups = (signal) => {
+  // Opening the employee field lists the user's employees without a request.
+  warmEmployeeList(clearanceService, { signal })
+  return clearanceService.getLookups({ signal })
+}
 
 export default function ClearancePage() {
   return (
@@ -163,6 +169,18 @@ function ClearanceEditor({ lookups, initial }) {
   const manager = managers.find((item) => item.name === form.departmentManager.name)
   const receiver = destinations.find((item) => item.value === form.computerReceivedBy)
 
+  // Continue checks the open step only; later steps stay locked until this one is done.
+  const continueStep = () => {
+    const problems = problemsInStep(validateClearance(form, { managers, destinations }), step)
+    setErrors(Object.fromEntries(problems.map((problem) => [problem.field, problem.message])))
+    if (!problems.length) return true
+    const sectionProblem = problems.find((problem) => problem.step === 3)
+    if (sectionProblem) setTab(sectionProblem.field.split(':')[0])
+    const messages = problems.map((problem) => problem.message)
+    editor.reject(step, messages.length === 1 ? messages[0] : C.reviewProblems(messages.length))
+    return false
+  }
+
   const save = () => {
     if (locked) return
     const problems = validateClearance(form, { managers, destinations })
@@ -201,6 +219,7 @@ function ClearanceEditor({ lookups, initial }) {
   const firstRequired = [employee, form.contact.trim(), form.purpose.trim()].filter(Boolean).length
   const signOff = [form.departmentManager.name, form.computerReceivedBy].filter(Boolean).length
   const open = STEPS.filter((_, index) => index < 3 && !doneSteps[index])
+  const lockedSteps = lockedStepsOf(doneSteps)
   const vacation = form.vacationFrom ? `${enDate(form.vacationFrom)}${form.vacationTo ? ` – ${enDate(form.vacationTo)}` : ''}` : ''
   const readOnly = (id, label, value, placeholder) => (
     <HrField id={id} label={label}><input id={id} className="ux-input zrv-hr-input" readOnly value={value ?? ''} placeholder={placeholder} /></HrField>
@@ -230,7 +249,7 @@ function ClearanceEditor({ lookups, initial }) {
         [STEPS[0], `${firstRequired}/3 required`], [STEPS[1], `${itDone}/${IT_SUBJECTS.length} chosen`],
         [STEPS[2], `${signOff}/2 required`], [STEPS[3], saved ? `${returned} returned` : 'After first save'],
       ]}
-      step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={SAVE} onFinal={save}
+      step={step} onStep={setStep} doneSteps={doneSteps} lockedSteps={lockedSteps} onContinue={continueStep} finalLabel={SAVE} onFinal={save}
       side={<>
         <Tilt aria-label="Clearance card">
           <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{record?.referenceNo || 'Draft'}</span><span className="zrv-hr-dark__status">{status ? STATUS_TEXT[status] : 'Not saved'}</span></div>

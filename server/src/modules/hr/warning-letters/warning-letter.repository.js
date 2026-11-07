@@ -110,6 +110,7 @@ export const repository = {
          POSITION_NAME EMP_JOB
        FROM XX_DIGI_EMP_MASTER
        WHERE EMPLOYEE_NUMBER = :empNo
+         AND UPPER(NVL(CURRENT_EMP_FLAG, 'Y')) = 'Y'
        ${lock ? 'FOR UPDATE' : ''}`,
       { empNo },
     );
@@ -118,9 +119,16 @@ export const repository = {
   },
 
   nextWarning: async (connection, empNo) => {
+    // MAX + 1, not COUNT + 1: a deleted letter must not make the next letter
+    // reuse an existing warning number. Ignore non-numeric legacy values.
     const result = await run(
       connection,
-      `SELECT COUNT(1) + 1 N
+      `SELECT NVL(MAX(
+                CASE
+                  WHEN REGEXP_LIKE(TRIM(WARNING_NO), '^[0-9]+$')
+                  THEN TO_NUMBER(WARNING_NO)
+                END
+              ), 0) + 1 N
        FROM ${T}
        WHERE EMP_NO = :empNo`,
       { empNo },
@@ -129,10 +137,19 @@ export const repository = {
     return Number(result.rows[0].N);
   },
 
+  // The picker's list: no term lists the first employees with the form (the legacy datalist),
+  // and a search still needs two characters.
   employees: async (connection, q) => {
-    if (q.trim().length < 2) {
+    const term = q.trim();
+    if (term.length === 1) {
       return [];
     }
+
+    const filter = term
+      ? `WHERE
+           UPPER(M.EMPLOYEE_NUMBER) LIKE :term
+           OR UPPER(M.FULL_NAME) LIKE :term`
+      : '';
 
     const result = await run(
       connection,
@@ -144,15 +161,12 @@ export const repository = {
          FROM XX_DIGI_EMP_DETAILS D
          JOIN XX_DIGI_EMP_MASTER M
            ON D.EMPLOYEE_NUMBER = M.EMPLOYEE_NUMBER
-         WHERE
-           UPPER(M.EMPLOYEE_NUMBER) LIKE :term
-           OR UPPER(M.FULL_NAME) LIKE :term
+         ${filter ? `${filter} AND` : 'WHERE'}
+           UPPER(NVL(M.CURRENT_EMP_FLAG, 'Y')) = 'Y'
          ORDER BY EMP_NO
        )
        WHERE ROWNUM <= 20`,
-      {
-        term: `%${q.toUpperCase()}%`,
-      },
+      term ? { term: `%${term.toUpperCase()}%` } : {},
     );
 
     return result.rows.map(lower);

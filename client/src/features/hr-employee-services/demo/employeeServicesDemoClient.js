@@ -73,7 +73,7 @@ const COLLECTIONS = Object.freeze({
       transferId: record.transferId, transferNumber: record.transferNumber, status: record.status,
       employeeName: record.employee.name, employeeNumber: record.employee.employeeNumber, fromDepartmentName: record.employee.departmentName,
       toDepartmentName: lookups.departments.find((item) => item.code === record.to.departmentCode)?.name ?? null,
-      toSectionName: sectionsOf(lookups.departments, record.to.departmentCode).find((item) => item.code === record.to.sectionCode)?.name ?? null,
+      toSectionName: sectionsOf(lookups.departments, record.to.departmentCode).find((item) => item.code === record.to.sectionCode)?.name ?? record.to.sectionCode ?? null,
       effectiveDate: record.effectiveDate, salaryChange: record.salaryChange, budgetedSalary: record.budgetedSalary,
       requestDate: record.requestDate, updatedAt: record.updatedAt,
     }),

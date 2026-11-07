@@ -4,7 +4,8 @@
 // documents (uploaded one per call after the request is saved). Readers reject
 // unexpected data.
 import { apiClient } from '../../../services/api/apiClient.js'
-import { ID, invalidResponse, isoDate, normalizeStatus, pageOf, params, segment, text } from '../shared/formRecords.js'
+import { ID, invalidResponse, isoDate, pageOf, params, segment, text } from '../shared/formRecords.js'
+import { normalizeRequestStatus } from './businessVisaStatus.js'
 
 export const BASE = '/hr/business-visa-requests'
 export const RESOURCE = 'HR.BUSINESS_VISA_LETTERS'
@@ -47,7 +48,7 @@ export function readRequest(data) {
   return Object.freeze({
     requestId: String(data.id),
     requestNo: text(data.requestNo),
-    status: normalizeStatus(data.status),
+    status: normalizeRequestStatus(data.status),
     requestedBy: text(data.requestedBy),
     notedBy: text(data.notedBy),
     approvedBy: text(data.approvedBy),

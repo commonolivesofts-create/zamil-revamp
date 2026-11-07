@@ -24,9 +24,11 @@ Not committed.
   contract in English and Arabic, and the salary, from the master; passport issue, national ID issue,
   position start and contract expiry dates), Travel (tourism from — defaults to the employee's country — and
   to), Approval (approver and position; the legacy closing line).
-- The server writes the salary in words and the Hijri date, and checks the countries and the approver. Each
-  Arabic date follows its English date (legacy had two inputs). The employee is fixed once saved. No delete
-  on screen.
+- The optional dates may be left blank; only the letter date is required. Tourism from keeps the
+  requester's answer (the employee's country is only the default).
+- The server writes the salary in words and the Hijri date, and checks the countries and the approver. A
+  blank or non-numeric salary is refused instead of being stored as 0. Each Arabic date follows its English
+  date (legacy had two inputs). The employee is fixed once saved. No delete on screen.
 - Report: ref. no., employee, nationality / national ID, To, approver, date; search, division, country and
   date filters; total and by-month cards.
 - Permission `HR.TOURIST_VISA_LETTERS` (VIEW / CREATE / UPDATE): RESOURCE and all four permissions MATCH on

@@ -4,6 +4,7 @@
 // number, status and admin manager.
 import { INTERVIEW_TEXT } from '../hrRecruitmentText.js'
 import { isIsoDate } from '../shared/hrFormat.js'
+import { normalizeNotes, normalizeShortText, textLimitError } from '../shared/formValidation.js'
 
 export const INTERVIEW_STATUSES = Object.freeze(['INCOMPLETE', 'INPROCESS', 'APPROVED', 'REJECTED', 'COMPLETE', 'SUBMITTED'])
 export const OUTCOMES = Object.freeze(['PASSED', 'HOLD', 'FAILED'])
@@ -102,20 +103,20 @@ export function interviewFormFromRecord(record) {
 export function interviewPayload(form) {
   const body = {}
   for (const [key, type] of HR_FIELDS) {
-    const value = String(form[key] ?? '').trim()
+    const value = type === 'text' ? normalizeShortText(form[key]) : String(form[key] ?? '').trim()
     if (type === 'number') body[key] = value === '' ? null : Number(value)
     else if (type === 'text') body[key] = value
     else body[key] = value || null
   }
-  const ratings = (group, keys) => Object.fromEntries(keys.map((key) => [key, { rating: group[key].rating, remark: group[key].remark.trim() }]))
+  const ratings = (group, keys) => Object.fromEntries(keys.map((key) => [key, { rating: group[key].rating, remark: normalizeShortText(group[key].remark) }]))
   return {
     ...body,
-    personalSpecification: ratings(form.spec, SPEC_KEYS), personalSpecificationRemarks: form.specRemarks.trim(),
-    competency: ratings(form.comp, COMP_KEYS), competencyRemarks: form.compRemarks.trim(),
-    strengths: form.strengths.trim(), weakness: form.weakness.trim(), outcome: form.outcome || null,
+    personalSpecification: ratings(form.spec, SPEC_KEYS), personalSpecificationRemarks: normalizeShortText(form.specRemarks),
+    competency: ratings(form.comp, COMP_KEYS), competencyRemarks: normalizeShortText(form.compRemarks),
+    strengths: normalizeNotes(form.strengths), weakness: normalizeNotes(form.weakness), outcome: form.outcome || null,
     adminManagerName: form.adminManagerName, managingDirector: form.managingDirector, hrRepresentative: form.hrRepresentative,
-    departmentRepresentative: form.departmentRepresentative.trim(), payroll: form.payroll.trim(), hrComment: form.hrComment.trim(),
-    interviewers: form.interviewers.map((name) => name.trim()),
+    departmentRepresentative: normalizeShortText(form.departmentRepresentative), payroll: form.payroll.trim(), hrComment: normalizeShortText(form.hrComment),
+    interviewers: form.interviewers.map(normalizeShortText),
   }
 }
 
@@ -163,8 +164,11 @@ export function validateInterview(form) {
     if (rules.required && !value) errors[key] = text.errors.required(text.labels[key])
     else if (value && type === 'number') {
       const number = Number(value)
-      if (!Number.isFinite(number) || (['candidateAge', 'relevantExperienceYears'].includes(key) && !Number.isInteger(number)) || (rules.min != null && number < rules.min) || (rules.max != null && number > rules.max)) {
-        errors[key] = text.errors.range(rules.min, rules.max)
+      const whole = ['candidateAge', 'relevantExperienceYears'].includes(key)
+      if ((whole && !/^\d+$/.test(value)) || (!whole && !/^\d+(?:\.\d{1,2})?$/.test(value)) || !Number.isFinite(number) || (rules.min != null && number < rules.min) || (rules.max != null && number > rules.max)) {
+        errors[key] = key === 'candidateAge' ? 'Enter a whole-number age from 18 to 70.'
+          : key === 'relevantExperienceYears' ? 'Enter whole years of experience from 0 to 50.'
+            : 'Enter a nonnegative amount with up to two decimal places.'
       }
     }
     if (value && type === 'date' && !isIsoDate(value)) errors[key] = 'Enter a valid date.'
@@ -173,25 +177,43 @@ export function validateInterview(form) {
   if (!errors.expectedTotal && amount('expectedBasic') !== null && amount('expectedTotal') !== null && amount('expectedTotal') < amount('expectedBasic')) errors.expectedTotal = text.errors.total
   if (!errors.currentTotal && amount('currentBasic') !== null && amount('currentTotal') !== null && amount('currentTotal') < amount('currentBasic')) errors.currentTotal = text.errors.total
   if (form.expectedJoiningDate && form.preScreeningDate && form.expectedJoiningDate < form.preScreeningDate) errors.expectedJoiningDate = text.errors.joining
+  const check = (key, value, limit, label, { multiline = false } = {}) => {
+    const message = textLimitError(value, limit, label, { multiline })
+    if (message) errors[key] = message
+  }
+  for (const [key, limit] of Object.entries({ requisitionNumber: 50, candidateName: 200, nationality: 100, location: 100, major: 100, currentEmployer: 200, lastPosition: 200 })) {
+    check(key, form[key], limit, text.labels[key])
+  }
+  for (const [group, keys] of [['spec', SPEC_KEYS], ['comp', COMP_KEYS]]) {
+    keys.forEach((key) => check(`${group}.${key}.remark`, form[group][key]?.remark, 200, `${text.criteria[key][0]} remark`))
+  }
+  check('strengths', form.strengths, 200, text.labels.strengths, { multiline: true })
+  check('weakness', form.weakness, 200, text.labels.weakness, { multiline: true })
+  check('departmentRepresentative', form.departmentRepresentative, 50, text.labels.deptRep)
+  check('hrComment', form.hrComment, 50, text.labels.hrComment)
+  form.interviewers.forEach((name, index) => check(`interviewer${index}`, name, index === 0 ? 50 : 200, text.labels.interviewer(index)))
   const missing = {
     spec: SPEC_KEYS.filter((key) => ![1, 2, 3, 4, 5, 'N/A'].includes(form.spec[key]?.rating)),
     comp: COMP_KEYS.filter((key) => ![1, 2, 3, 4, 5, 'N/A'].includes(form.comp[key]?.rating)),
     outcome: !OUTCOMES.includes(form.outcome),
   }
-  const hrInvalid = Object.keys(errors).length > 0
+  const hrInvalid = Object.keys(errors).some((key) => HR_FIELDS.some(([field]) => field === key))
   if (!form.payroll.trim()) errors.payroll = 'Choose a payroll business unit.'
-  const firstStep = hrInvalid ? 0 : missing.spec.length ? 1 : missing.comp.length ? 2 : missing.outcome || errors.payroll ? 3 : -1
+  const firstStep = hrInvalid ? 0 : missing.spec.length || SPEC_KEYS.some((key) => errors[`spec.${key}.remark`]) ? 1
+    : missing.comp.length || COMP_KEYS.some((key) => errors[`comp.${key}.remark`]) || errors.strengths || errors.weakness ? 2
+      : missing.outcome || errors.payroll || errors.departmentRepresentative || errors.hrComment || form.interviewers.some((_, index) => errors[`interviewer${index}`]) ? 3 : -1
   return { errors, missing, firstStep, valid: firstStep === -1 }
 }
 
 export function interviewStepErrors(form) {
   const { errors, missing } = validateInterview(form)
-  const { payroll, ...hrErrors } = errors
+  const { payroll, strengths, weakness, departmentRepresentative, hrComment, interviewer0, interviewer1, interviewer2, ...remaining } = errors
+  const hrErrors = Object.fromEntries(Object.entries(remaining).filter(([key]) => !key.startsWith('spec.') && !key.startsWith('comp.')))
   return [
     hrErrors,
-    Object.fromEntries(missing.spec.map((key) => [`spec.${key}`, 'Choose a rating from 1 to 5 or N/A.'])),
-    Object.fromEntries(missing.comp.map((key) => [`comp.${key}`, 'Choose a rating from 1 to 5 or N/A.'])),
-    { ...(payroll ? { payroll } : {}), ...(missing.outcome ? { outcome: INTERVIEW_TEXT.errors.outcome } : {}) },
+    { ...Object.fromEntries(missing.spec.map((key) => [`spec.${key}`, 'Choose a rating from 1 to 5 or N/A.'])), ...Object.fromEntries(Object.entries(errors).filter(([key]) => key.startsWith('spec.'))) },
+    { ...Object.fromEntries(missing.comp.map((key) => [`comp.${key}`, 'Choose a rating from 1 to 5 or N/A.'])), ...Object.fromEntries(Object.entries(errors).filter(([key]) => key.startsWith('comp.'))), ...(strengths ? { strengths } : {}), ...(weakness ? { weakness } : {}) },
+    { ...(payroll ? { payroll } : {}), ...(missing.outcome ? { outcome: INTERVIEW_TEXT.errors.outcome } : {}), ...(departmentRepresentative ? { departmentRepresentative } : {}), ...(hrComment ? { hrComment } : {}), ...(interviewer0 ? { interviewer0 } : {}), ...(interviewer1 ? { interviewer1 } : {}), ...(interviewer2 ? { interviewer2 } : {}) },
     {},
   ]
 }

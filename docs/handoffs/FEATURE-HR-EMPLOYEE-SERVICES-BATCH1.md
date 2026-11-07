@@ -110,12 +110,12 @@ Legend: **L** = legacy field, **P** = prototype only, **B** = backend only.
 
 | Route id | Path | Permission | MFA | In sidebar? |
 |---|---|---|---|---|
-| `hr-sick-leave` | `/hr/employee-services/sick-leave` | `HR.SICK_LEAVE:VIEW` | No | Yes (Employee services) |
-| `hr-sick-leave-report` | `/hr/employee-services/sick-leave/report` | `HR.SICK_LEAVE:VIEW` | No | No (from the form) |
-| `hr-sick-leave-record` | `/hr/employee-services/sick-leave/:leaveId` | `HR.SICK_LEAVE:VIEW` | No | No |
-| `hr-reward` | `/hr/employee-services/reward-nomination` | `HR.EMPLOYEE_OF_THE_MONTH:VIEW` | No | Yes |
+| `hr-sick-leave` | `/hr/talent-management/sick-leave` | `HR.SICK_LEAVE:VIEW` | No | Yes (Employee services) |
+| `hr-sick-leave-report` | `/hr/talent-management/sick-leave/report` | `HR.SICK_LEAVE:VIEW` | No | No (from the form) |
+| `hr-sick-leave-record` | `/hr/talent-management/sick-leave/:leaveId` | `HR.SICK_LEAVE:VIEW` | No | No |
+| `hr-reward` | `/hr/talent-management/reward-nomination` | `HR.EMPLOYEE_OF_THE_MONTH:VIEW` | No | Yes |
 | `hr-reward-report` / `-record` | `…/report`, `…/:nominationId` | same | No | No |
-| `hr-idea` | `/hr/employee-services/ideas` | `HR.IDEAS:VIEW` | No | Yes |
+| `hr-idea` | `/hr/talent-management/ideas` | `HR.IDEAS:VIEW` | No | Yes |
 | `hr-idea-report` / `-record` | `…/report`, `…/:ideaId` | same | No | No |
 
 **Sidebar.** Human resources → **Recruitment** (requisition, interview, offer, orientation, probation) · **Employee services** (personal status change and its report, transfer and its report, performance appraisal, sick leave, reward nomination, share an idea) · **Reports** (employee report, periodwise employees).

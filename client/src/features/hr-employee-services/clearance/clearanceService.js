@@ -3,6 +3,7 @@
 // scopes every lookup and record to the signed-in user (self and direct
 // reports; VIEW_ALL widens it).
 import { apiClient } from '../../../services/api/apiClient.js'
+import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { ID, invalidResponse, params, segment } from '../shared/formRecords.js'
 import {
   clearanceBody, readApprovers, readClearanceEmployee, readClearancePage, readClearanceRecord, readDestinations,
@@ -13,14 +14,24 @@ export const CLEARANCE_BASE = '/hr/employee-clearance'
 
 export function createClearanceService({ client }) {
   const getById = async (id, { signal } = {}) => readClearanceRecord((await client.get(`${CLEARANCE_BASE}/${segment(id)}`, { signal })).data)
+  // The pickers' lists, loaded with the form (the server keeps each user's scope).
+  const employeeList = (scope) => createEmployeeList({
+    load: ({ signal } = {}) => client.get(`${CLEARANCE_BASE}/lookups/employees`, { params: params({ scope, pageSize: 100 }), signal })
+      .then(({ data }) => {
+        if (!data || !Array.isArray(data.items)) throw invalidResponse('employee list')
+        return data.items
+      }),
+    shape: readClearanceEmployee,
+  })
+  const scopedEmployees = employeeList('scoped')
+  const allEmployees = employeeList('all')
   const searchPage = async (scope, search, signal) => {
-    const { data } = await client.get(`${CLEARANCE_BASE}/lookups/employees`, { params: params({ scope, q: String(search).trim(), pageSize: 25 }), signal })
+    const q = String(search).trim()
+    // Opening the field lists the employees loaded with the form.
+    if (!q) return employeePage(await (scope === 'all' ? allEmployees : scopedEmployees).list({ signal }))
+    const { data } = await client.get(`${CLEARANCE_BASE}/lookups/employees`, { params: params({ scope, q, pageSize: 25 }), signal })
     if (!data || !Array.isArray(data.items)) throw invalidResponse('employee list')
-    const items = Object.freeze(data.items.map(readClearanceEmployee))
-    return Object.freeze({
-      items,
-      pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }),
-    })
+    return employeePage(data.items.map(readClearanceEmployee))
   }
   return Object.freeze({
     // Department managers, the four section approvers and the computer receivers, loaded once per form.
@@ -35,6 +46,7 @@ export function createClearanceService({ client }) {
         approvers: Object.freeze(Object.fromEntries(lookups.map((section, index) => [section, readApprovers(lists[index].data)]))),
       })
     },
+    preloadEmployees: (options) => scopedEmployees.list(options),
     // The employees the user may raise a clearance for (legacy getEmpNum: self and direct reports).
     searchEmployees: (search = '', { signal } = {}) => searchPage('scoped', search, signal),
     // Names for the IT "access to" suggestions (legacy Empname(): every employee; the server

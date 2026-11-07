@@ -63,7 +63,11 @@ export function validateTransfer(form, employee, departments, { submit }) {
   if (!to.jobTitleCode) add('jobTitleCode', 'required', 0)
   if (!to.departmentCode) add('departmentCode', 'required', 0)
   if (!to.sectionCode) add('sectionCode', 'required', 0)
-  if (to.sectionCode && !sectionsOf(departments, to.departmentCode).some((item) => item.code === to.sectionCode)) add('sectionCode', 'notInDepartment', 0)
+  // The legacy section field is a free-text input: a known section code must belong to the
+  // chosen department, but free text the reader typed is taken as-is (the server checks it
+  // against the sections list), so it is not rejected here for not being a known code.
+  const knownSection = departments.some((item) => (item.sections ?? []).some((section) => section.code === to.sectionCode))
+  if (to.sectionCode && to.departmentCode && knownSection && !sectionsOf(departments, to.departmentCode).some((item) => item.code === to.sectionCode)) add('sectionCode', 'notInDepartment', 0)
   if (submit && employee && to.jobTitleCode && to.departmentCode && to.sectionCode && !transferMoves(employee, to).length) add('to', 'noMove', 0)
   if (!form.effectiveDate) add('effectiveDate', 'required', 1)
   else if (!isIsoDate(form.effectiveDate)) add('effectiveDate', 'invalid', 1)
