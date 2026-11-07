@@ -1,9 +1,31 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
 import { Field } from "@/features/security-administration/components/AdminUi.jsx";
 import { fieldProps } from "@/features/security-administration/adminForms.js";
 import { COMMON_TEXT, REQUISITION_TEXT } from "../../hrRecruitmentText.js";
+import { fieldValueError, normalizeDigits, utf8Bytes } from '../formValidation.js';
+
+function findControl(children) {
+  for (const child of Children.toArray(children)) {
+    if (!isValidElement(child)) continue;
+    if (['input', 'textarea', 'select'].includes(child.type)) return child;
+    if (typeof child.type === 'string') {
+      const nested = findControl(child.props.children);
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
+function updateControl(children, id, props) {
+  return Children.map(children, child => {
+    if (!isValidElement(child)) return child;
+    if (['input', 'textarea', 'select'].includes(child.type) && child.props.id === id) return cloneElement(child, props);
+    return typeof child.type === 'string' && child.props.children
+      ? cloneElement(child, {}, updateControl(child.props.children, id, props)) : child;
+  });
+}
 
 // The shared <Field> (label, hint, linked error) in the recruitment grid.
 // `wide` spans the whole row; `required` adds the visual marker (inputs carry
@@ -15,11 +37,50 @@ export function HrField({
   hint,
   error,
   wide = false,
+  lengthUnit = 'bytes',
   children,
 }) {
+  const [touched, setTouched] = useState(false);
+  const [inputProblem, setInputProblem] = useState('');
+  const control = findControl(children);
+  const props = control?.props;
+  const editable = props && !props.readOnly && !props.disabled && !['checkbox', 'radio', 'file', 'hidden'].includes(props.type);
+  const numeric = props?.inputMode === 'decimal' || props?.inputMode === 'numeric' ? props.inputMode
+    : props?.type === 'number' ? (props.step && props.step !== '1' ? 'decimal' : 'numeric') : null;
+  const rules = { label: typeof label === 'string' ? label : 'This field', maxLength: props?.maxLength, lengthUnit, numeric,
+    min: props?.min, max: props?.max, required: touched && required, phone: props?.type === 'tel', multiline: control?.type === 'textarea' };
+  const liveError = editable ? inputProblem || fieldValueError(props.value, rules) : '';
+  const message = liveError || error;
+  const used = props?.maxLength && editable && !numeric ? (lengthUnit === 'bytes' ? utf8Bytes(props.value) : [...String(props.value ?? '')].length) : 0;
+  const capacity = used ? `${[...String(props.value ?? '')].length} characters · ${Math.round(used / props.maxLength * 100)}% of limit` : '';
+  const controls = editable ? updateControl(children, props.id, {
+    // Explain overflow instead of silently truncating pasted text.
+    maxLength: undefined,
+    'data-max-length': props.maxLength,
+    'data-length-unit': lengthUnit,
+    'data-numeric': numeric || undefined,
+    type: props.type === 'number' ? 'text' : props.type,
+    // A native date input can otherwise accept expanded years (for example,
+    // 20266). Bound it to the four-digit calendar range used by the API.
+    max: props.type === 'date' ? (props.max || '9999-12-31') : props.max,
+    inputMode: numeric || props.inputMode,
+    'aria-invalid': message ? true : undefined,
+    'aria-describedby': [...new Set([...(props['aria-describedby'] || '').split(' '), message ? `${id}-error` : '', capacity ? `${id}-capacity` : ''].filter(Boolean))].join(' ') || undefined,
+    onBlur: event => { setTouched(true); props.onBlur?.(event); },
+    onChange: event => {
+      if (numeric || props.type === 'tel') {
+        const value = normalizeDigits(event.target.value);
+        const allowed = numeric === 'numeric' ? /^\d*$/.test(value) : numeric === 'decimal' ? /^\d*(\.\d*)?$/.test(value) : /^\+?[\d ()-]*$/.test(value);
+        if (!allowed) { setInputProblem(numeric === 'decimal' ? 'Use digits and a decimal point only.' : 'Use digits only; letters are not accepted.'); return; }
+        event.target.value = value;
+      }
+      setInputProblem('');
+      props.onChange?.(event);
+    },
+  }) : children;
   return (
     <div
-      className={`zrv-hr-field${wide ? " zrv-hr-is-wide" : ""}${error ? " zrv-hr-is-bad" : ""}`}
+      className={`zrv-hr-field${wide ? " zrv-hr-is-wide" : ""}${message ? " zrv-hr-is-bad" : ""}`}
     >
       <Field
         id={id}
@@ -34,10 +95,11 @@ export function HrField({
           </>
         }
         hint={hint}
-        error={error}
+        error={message}
       >
-        {children}
+        {controls}
       </Field>
+      {capacity && <small id={`${id}-capacity`} className="zrv-hr-field-capacity">{capacity}</small>}
     </div>
   );
 }

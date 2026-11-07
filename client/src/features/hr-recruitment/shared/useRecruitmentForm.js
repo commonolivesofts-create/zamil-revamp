@@ -56,7 +56,10 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
   const reject = (targetStep, message, details = []) => {
     setStep(targetStep)
     setFocusError((value) => value + 1)
-    if (message) showProblem(message, details)
+    // Field-level validation is already rendered beside the controls. A count
+    // summary duplicates those errors and can linger after the user fixes them.
+    const isValidationSummary = /(?:\b\d+\s+items?\s+need attention\b|\bone item needs attention\b|\b\d+\s+criteria need attention\b|review the highlighted fields)/i.test(message ?? '')
+    if (message && !isValidationSummary) showProblem(message, details)
     else dismiss()
   }
   const dismiss = () => {

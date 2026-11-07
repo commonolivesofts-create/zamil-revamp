@@ -17,10 +17,13 @@ import { Orbit, Pill, RecruitmentShell, StepHead, Tilt } from '../shared/compone
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { ChoiceCards, HrField, Review, SearchableLookup } from '../shared/components/RecruitmentInputs.jsx'
 import { Gauge, Radar, RatingRows } from './Scores.jsx'
+import { NATIONALITIES as BUSINESS_NATIONALITIES } from '@/features/hr-employee-services/businessVisa/nationalities.js'
 import {
   BANDS, COMP_KEYS, HR_FIELDS, INTERVIEW_VALIDATION_FIELDS, SCORE_MAX, SPEC_KEYS, bandLabel, blankInterview, hrField, interviewFormFromRecord, interviewPayload,
   interviewStepErrors, isInterviewLocked, linkedPosition, ratedCount, salaryDelta, sumRatings,
 } from './interviewModel.js'
+
+const NATIONALITY_FALLBACK = Object.freeze(BUSINESS_NATIONALITIES.map((item) => item.label))
 
 const BASE = '/hr/recruitment/interview'
 const service = hrRecruitmentServices.interviews
@@ -183,11 +186,14 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
         {type === 'select' || key === 'nationality'
           ? <SearchableLookup id={id} value={form[key]} customValue={form[key]} onChange={(option) => set(key)(option.code)} onInputChange={key === 'nationality' ? set(key) : undefined}
               onClear={!rules.required ? () => set(key)('') : undefined}
-              options={key === 'nationality' ? lookups.nationalities.map((name) => ({ code: name, name })) : lookups[rules.lookup]}
+              options={key === 'nationality'
+                ? ((Array.isArray(lookups.nationalities) && lookups.nationalities.length ? lookups.nationalities : NATIONALITY_FALLBACK).map((name) => ({ code: name, name })))
+                : lookups[rules.lookup]}
               placeholder={`Search ${label.toLowerCase()}`} required={rules.required} error={error} maxLength={key === 'nationality' ? 100 : 200} />
           : <input {...fieldProps(id, { error })} className="ux-input zrv-hr-input" type={type === 'number' ? 'text' : type} value={form[key]} onChange={set(key)}
               aria-required={rules.required || undefined} inputMode={type === 'number' ? (['candidateAge', 'relevantExperienceYears'].includes(key) ? 'numeric' : 'decimal') : undefined}
-              maxLength={type === 'number' ? 24 : ({ requisitionNumber: 50, location: 100, major: 100 }[key] ?? 200)} />}
+              maxLength={key === 'candidateAge' ? 3 : type === 'number' ? 24 : ({ requisitionNumber: 50, location: 100, major: 100 }[key] ?? 200)}
+              min={key === 'candidateAge' ? 18 : undefined} max={key === 'candidateAge' ? 70 : undefined} />}
       </HrField>
     )
   }
