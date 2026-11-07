@@ -25,12 +25,18 @@ export const employeeParams = Joi.object({
 
 export const noQuery = Joi.object({});
 
+// The picker's opening list has no term (all current employees); a search
+// needs at least two characters.
+export const employeeQuery = Joi.object({
+  q: Joi.string().trim().min(2).max(100).allow('').default(''),
+});
+
 export const listQuery = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(0).max(100000).default(10),
   search: txt(200),
   ref_no: txt(50),
-  status: Joi.string().valid('DRAFT', 'FINAL', ''),
+  status: Joi.string().valid('DRAFT', 'FINAL').allow(null, ''),
   division_id: txt(50),
   from: iso.allow(''),
   to: iso.allow(''),
@@ -68,7 +74,7 @@ export const writeBody = Joi.object({
   return_employee_name: txt(1000),
   return_statement: txt(1000),
   closing_text: txt(1000),
-  status: Joi.string().valid('DRAFT', 'FINAL'),
+  status: Joi.string().valid('DRAFT', 'FINAL').allow(null, ''),
   embassy_ar: txt(1000),
   job_title_ar: txt(1000),
   contract_nature_ar: txt(1000),

@@ -235,15 +235,26 @@ export async function list(c, q) {
   };
 }
 
-export async function employees(c) {
+export async function employees(c, term = '') {
+  const search = String(term ?? '').trim();
+
   const r = await run(
     c,
     `SELECT EMPLOYEE_NUMBER, FULL_NAME
      FROM XX_DIGI_EMP_MASTER
      WHERE EMPLOYEE_NUMBER IS NOT NULL
        AND UPPER(NVL(CURRENT_EMP_FLAG,'Y')) = 'Y'
+       ${
+         search
+           ? `AND (
+                UPPER(EMPLOYEE_NUMBER) LIKE UPPER(:term)
+                OR UPPER(FULL_NAME) LIKE UPPER(:term)
+              )`
+           : ''
+       }
      GROUP BY EMPLOYEE_NUMBER, FULL_NAME
      ORDER BY FULL_NAME`,
+    search ? { term: `%${search}%` } : {},
   );
 
   return r.rows.map(map);

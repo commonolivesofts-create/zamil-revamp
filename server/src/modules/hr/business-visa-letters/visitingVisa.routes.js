@@ -10,6 +10,7 @@ import {
   idParams,
   employeeParams,
   noQuery,
+  employeeQuery,
   listQuery,
   writeBody,
 } from './visitingVisa.validation.js';
@@ -49,7 +50,7 @@ export function createVisitingVisaRouter({ service, authenticate, authorize, aud
   router.get('/', ...read(listQuery), c.list);
 
   // Employee dropdown
-  router.get('/lookups/employees', ...read(), c.employees);
+  router.get('/lookups/employees', ...read(employeeQuery), c.employees);
 
   // Static options
   router.get('/lookups/options', ...read(), c.options);
