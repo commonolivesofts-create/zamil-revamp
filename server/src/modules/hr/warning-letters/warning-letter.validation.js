@@ -143,6 +143,16 @@ export function normalizeBody(body, creating = false) {
 
   if (creating) {
     result.emp_no = body.emp_no;
+
+    // Create defaults the warning date to today (Riyadh) when it is omitted.
+    if (!result.war_date) {
+      result.war_date = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Riyadh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+    }
   }
 
   for (const key of fields) {

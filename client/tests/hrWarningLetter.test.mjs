@@ -59,6 +59,11 @@ test('service: search needs two characters; create and update return the stored 
   const service = createWarningLetterService({ client: { get: call('GET'), post: call('POST'), put: call('PUT') } })
   assert.equal((await service.searchEmployees('1')).items.length, 0)
   assert.equal(calls.length, 0, 'one character does not call the API')
+  // The list loads with the form; opening the field serves it without a search.
+  await service.preloadEmployees()
+  assert.ok(calls.at(-1)[1].endsWith('/lookups/employees'), 'the preload lists the employees')
+  assert.equal((await service.searchEmployees('')).items[0].employeeNumber, '1001')
+  assert.equal(calls.length, 1, 'the opening list does not search again')
   assert.equal((await service.searchEmployees(' 10 ')).items[0].employeeNumber, '1001')
   assert.equal((await service.employee('1001')).nextWarningNo, '3')
   const form = { ...letterFormOf(readLetter(ROW)) }
