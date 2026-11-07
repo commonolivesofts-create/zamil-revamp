@@ -11,24 +11,38 @@ import { NewFormDialog } from '@/features/hr-recruitment/shared/components/Recru
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { Orbit, Pill, RecruitmentShell, StepHead, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { HrField } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
-import { APPRAISAL_TEXT as T, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { APPRAISAL_TEXT as EN_TEXT, APPRAISAL_TEXT_AR as AR_TEXT, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { NO_IDENTIFY, useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
+import { lockedStepsOf, problemsInStep } from '../shared/stepGating.js'
 import '@/styles/hr-employee-services.css'
 import {
+  APPRAISAL_CRITERIA_AR, APPRAISAL_SCALE_AR,
   EXPLANATION_MAX, GOALS_MAX, GOALS_MIN, GRADES, RATINGS, TEXT_MAX, TRAINING_MAX, appraisalPayload, appraisalResult, blankAppraisal, filledLines,
   isAppraisalLocked, missingExplanations, needsExplanation, ratedCount, validateAppraisal, yearsUntil,
 } from './appraisalModel.js'
+import SignaturePad from './SignaturePad.jsx'
 
 const BASE = ES_PATHS.appraisal
 const service = hrEmployeeServices.appraisals
 const loadLookups = (signal) => hrEmployeeServices.performance.lookups({ signal })
-// Signature strokes for the two signature pads.
-const INK = ['M6 30 C 18 6, 26 40, 36 20 S 52 8, 58 26 S 76 36, 84 14 S 104 30, 118 22 S 140 10, 150 28', 'M8 24 C 20 40, 30 4, 44 22 S 60 36, 70 16 S 92 8, 100 28 C 108 40, 126 6, 150 20']
+
+// A signature is stored as a drawn image with its date. Records made before
+// signing on screen only hold a date string; both are read here.
+const signatureOf = (value) => {
+  if (!value) return { image: null, date: null }
+  if (typeof value === 'string') {
+    return value.startsWith('data:image')
+      ? { image: value, date: null }
+      : { image: null, date: value }
+  }
+  return { image: value.image ?? null, date: value.date ?? null }
+}
 
 export default function AppraisalPage() {
   useEmployeeServicesUser()
+  const T = EN_TEXT
   return (
     <RecruitmentLoader current="appraisal" flow={false} identify={NO_IDENTIFY} breadcrumb={C.performanceBreadcrumb} demo={false}
       title={T.title} param="appraisalId" load={service.getById} loadLookups={loadLookups}>
@@ -41,6 +55,7 @@ const loadTeam = (periodCode) => (signal) => hrEmployeeServices.performance.team
 
 // The team (and the appraiser) of the first review period loads before the form.
 function AppraisalEditor({ lookups, record }) {
+  const T = EN_TEXT
   const periodCode = record?.periodCode ?? lookups.periods[0].code
   const team = useResource(`hr-appraisal-team:${periodCode}`, loadTeam(periodCode))
   if (team.status !== 'ready') {
@@ -69,15 +84,25 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
   const [tab, setTab] = useState('goals')
+  const [language, setLanguage] = useState('en')
   const tabs = useRef({})
   const locked = isAppraisalLocked(saved?.status)
-  const { criteria, scale, distribution, periods } = lookups
+  const T = language === 'ar' ? AR_TEXT : EN_TEXT
+  const arabic = language === 'ar'
+  const periods = lookups.periods
+  const distribution = lookups.distribution
+  const criteria = arabic
+    ? lookups.criteria.map((item, index) => ({ ...item, label: APPRAISAL_CRITERIA_AR[index] ?? item.label }))
+    : lookups.criteria
+  const scale = arabic
+    ? lookups.scale.map((item) => ({ ...item, ...APPRAISAL_SCALE_AR[item.grade] }))
+    : lookups.scale
   // Another period loads its own team; until it is ready its employee list stays empty.
   const teamResource = useResource(`hr-appraisal-team:${form.periodCode}`, loadTeam(form.periodCode))
   const team = teamResource.status === 'ready' ? teamResource.data
     : form.periodCode === initialPeriod ? initialTeam : { appraiser: initialTeam.appraiser, members: [] }
   const teamNotice = teamResource.status === 'ready' || form.periodCode === initialPeriod ? null : (
-    <ResourceState resource={teamResource} label={T.employeeStep.loadingTeam} empty={C.list.empty}>{() => null}</ResourceState>
+    <ResourceState resource={teamResource} label={T.employeeStep.loadingTeam} empty={T.common.empty}>{() => null}</ResourceState>
   )
   const members = team.members
   const appraiser = saved?.appraiser ?? team.appraiser
@@ -114,7 +139,10 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   const pickEmployee = (person) => { setValue('employeeId')(person.employeeId); clear('employeeId') }
   const rate = (code, change) => { patch((state) => ({ ratings: { ...state.ratings, [code]: { rating: null, explanation: '', ...state.ratings[code], ...change } } })); clear(code) }
   const choosePeriod = (event) => { patch({ periodCode: event.target.value, employeeId: '' }); clear('employeeId') }
-  const sign = (role) => { patch((state) => ({ signatures: { ...state.signatures, [role]: state.signatures[role] ? null : today } })); clear(role) }
+  const setSignature = (role, image) => {
+    patch((state) => ({ signatures: { ...state.signatures, [role]: image ? { image, date: today } : null } }))
+    clear(role)
+  }
 
   const check = (submit) => {
     const validationTeam = employee?.personId ? members : members.filter((member) => member.employeeId !== form.employeeId)
@@ -122,9 +150,20 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
     setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
     if (!problems.length) return true
     if (problems.some((problem) => problem.field === 'goals' || problem.field === 'training')) setTab(problems.find((problem) => problem.field === 'goals') ? 'goals' : 'training')
-    const criteriaProblems = problems.filter((problem) => criteria.some((item) => item.code === problem.field)).length
-    const message = problems.length === 1 ? messageOf(problems[0]) : criteriaProblems ? T.errors.criteriaCount(criteriaProblems) : C.reviewProblems(problems.length)
-    editor.reject(problems[0].step, message, problems.length === 1 ? [] : [...new Set(problems.map(messageOf))])
+    editor.reject(problems[0].step)
+    return false
+  }
+  // Continue checks the open step against the submission rules (the signature is
+  // asked for on the last step, not to move between steps).
+  const continueStep = () => {
+    const validationTeam = employee?.personId ? members : members.filter((member) => member.employeeId !== form.employeeId)
+    const problems = problemsInStep(validateAppraisal(form, { criteria, team: validationTeam, scale, distribution }, { submit: true, appraiserSignature: false }), step)
+    setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
+    if (!problems.length) return true
+    if (problems.some((problem) => problem.field === 'goals' || problem.field === 'training')) {
+      setTab(problems.find((problem) => problem.field === 'goals') ? 'goals' : 'training')
+    }
+    editor.reject(step)
     return false
   }
   const save = () => {
@@ -156,13 +195,15 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   }
 
   const tools = [
-    { icon: 'house', label: C.home, onClick: () => leave('/dashboard') },
+    { icon: 'house', label: T.common.home, onClick: () => leave('/dashboard') },
     { icon: 'chart-column', label: T.tools.report, onClick: () => leave(ES_PATHS.appraisalReport) },
+    { icon: 'languages', label: arabic ? 'English' : 'العربية', onClick: () => setLanguage(arabic ? 'en' : 'ar') },
     { icon: 'send', label: T.submit, onClick: requestSubmit, disabled: locked || editor.pending },
     { icon: 'file-plus', label: T.tools.newAppraisal, onClick: () => leave(BASE) },
-    { icon: 'printer', label: C.print, onClick: () => window.print() },
+    { icon: 'printer', label: T.common.print, onClick: () => window.print() },
   ]
   const doneSteps = [Boolean(employee), result.complete && !unexplained.length, goals.length >= GOALS_MIN, Boolean(form.signatures.appraiser)]
+  const lockedSteps = lockedStepsOf(doneSteps)
   const years = (from, serverValue) => (employee ? (serverValue ?? yearsUntil(from, period.to, today))?.toFixed(1) ?? '' : '')
 
   const listEditor = (key, label, max, min, placeholder) => {
@@ -191,17 +232,18 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
 
   return <>
     <RecruitmentShell current="appraisal" flow={false} compact breadcrumb={C.performanceBreadcrumb} demo={false} title={T.title}
+      dir={arabic ? 'rtl' : undefined}
       tools={tools} primary={{ label: T.save, icon: 'save', onClick: save }}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss} lookupNotice={teamNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
       ticket={<Ticket avatar={initials(employee?.name)} code={T.formCode} items={[
         { k: T.ticket.number, v: saved?.appraisalNumber || T.ticket.onSave },
-        { k: T.ticket.employee, v: employee?.name || C.notSelected, big: true },
+        { k: T.ticket.employee, v: employee?.name || T.common.notSelected, big: true },
         { k: T.ticket.period, v: `${enDate(period.from)} – ${enDate(period.to)}` },
         { k: T.ticket.appraiser, v: appraiser.name },
-        { k: T.ticket.status, v: <Pill tone={status === 'DRAFT' ? 'warn' : 'ok'}>{C.status[status]}</Pill> },
+        { k: T.ticket.status, v: <Pill tone={status === 'DRAFT' ? 'warn' : 'ok'}>{T.common.status[status]}</Pill> },
       ]} />}
-      steps={T.steps.map(([name], index) => [name, index === 1 ? C.step.rated(rated, criteria.length) : doneSteps[index] ? C.step.done : C.step.open])}
-      step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.submit} onFinal={requestSubmit}
+      steps={T.steps.map(([name], index) => [name, index === 1 ? T.common.rated(rated, criteria.length) : doneSteps[index] ? T.common.done : T.common.open])}
+      step={step} onStep={setStep} doneSteps={doneSteps} lockedSteps={lockedSteps} onContinue={continueStep} finalLabel={T.submit} onFinal={requestSubmit}
       side={<>
         <Tilt aria-label={T.card.label}>
           <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{saved?.appraisalNumber || T.card.draft(form.periodCode)}</span></div>
@@ -238,14 +280,14 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
           </HrField>
           <EmployeePicker id="ap-employee" label={T.employeeStep.employee} required tight value={employee} onPick={pickEmployee}
             error={errors.employeeId} disabled={Boolean(saved)} searchService={searchEmployees} cacheKey={`hr-appraisal-employees:${form.periodCode}`} />
-          {selectedEmployee && employeeLookup.status !== 'ready' && <ResourceState resource={employeeLookup} label={T.employeeStep.loadingEmployee} empty={C.list.empty}>{() => null}</ResourceState>}
+          {selectedEmployee && employeeLookup.status !== 'ready' && <ResourceState resource={employeeLookup} label={T.employeeStep.loadingEmployee} empty={T.common.empty}>{() => null}</ResourceState>}
         </div>
         <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt">
           {[['employeeNumber', employee?.employeeNumber], ['jobTitle', employee?.jobTitle], ['grade', employee?.grade], ['company', employee?.companyName],
             ['department', employee?.departmentName], ['yearsCompany', years(employee?.joinedDate, employee?.yearsInCompany)], ['yearsPosition', years(employee?.positionDate, employee?.yearsInPosition)],
             ['appraiser', appraiser.name]].map(([key, value]) => (
             <HrField key={key} id={`ap-info-${key}`} label={T.employeeStep.info[key]}>
-              <input id={`ap-info-${key}`} className="ux-input zrv-hr-input" readOnly value={value ?? ''} placeholder={C.fillsFromEmployee} />
+              <input id={`ap-info-${key}`} className="ux-input zrv-hr-input" readOnly value={value ?? ''} placeholder={T.common.fillsFromEmployee} />
             </HrField>
           ))}
         </div>
@@ -318,7 +360,10 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
         <div role="tabpanel" id={`ap-panel-${tab}`} aria-labelledby={`ap-tab-${tab}`} className="zrv-hr-es-panel">
           {tab === 'goals'
             ? listEditor('goals', T.resultStep.goals, GOALS_MAX, GOALS_MIN, T.resultStep.goalsPlaceholder)
-            : listEditor('training', T.resultStep.training, TRAINING_MAX, 1, T.resultStep.trainingPlaceholder)}
+            : <>
+              <p className="zrv-hr-note zrv-hr-es-tab-hint">{T.resultStep.trainingHint}</p>
+              {listEditor('training', T.resultStep.training, TRAINING_MAX, 1, T.resultStep.trainingPlaceholder)}
+            </>}
         </div>
       </>}
 
@@ -336,17 +381,16 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
           </HrField>
         </div>
         <div className="zrv-hr-signs zrv-hr-mt">
-          {[['employee', employee?.name || T.card.employee, T.meetingStep.employeeRole], ['appraiser', appraiser.name, T.meetingStep.appraiserRole]].map(([role, name, label], index) => {
-            const date = form.signatures[role]
+          {[['employee', employee?.name || T.card.employee, T.meetingStep.employeeRole], ['appraiser', appraiser.name, T.meetingStep.appraiserRole]].map(([role, name, label]) => {
+            const signature = signatureOf(form.signatures[role])
+            const signed = Boolean(signature.image || signature.date)
             return (
-              <div key={role} className={`zrv-hr-sign${date ? ' zrv-hr-is-signed' : ''}${errors[role] ? ' zrv-hr-is-bad' : ''}`}>
-                <div className="zrv-hr-sign__pad">{date ? <svg viewBox="0 0 160 44" aria-hidden="true"><path className="zrv-hr-ink" d={INK[index]} /></svg> : T.meetingStep.notSigned}</div>
-                <b>{name}</b><small>{label}{date ? T.meetingStep.signedOn(enDate(date)) : ''}</small>
-                <button type="button" className="btn-secondary zrv-hr-btn" aria-pressed={Boolean(date)} aria-invalid={Boolean(errors[role]) || undefined}
-                  aria-describedby={errors[role] ? `ap-sign-${role}-error` : undefined} onClick={() => sign(role)}>
-                  <OrvexaIcon name={date ? 'x' : 'pen-line'} size={15} /> {date ? T.meetingStep.unsign : T.meetingStep.sign}
-                </button>
-                {errors[role] && <small id={`ap-sign-${role}-error`} className="zrv-auth-field-error">{errors[role]}</small>}
+              <div key={role} className={`zrv-hr-sign${signed ? ' zrv-hr-is-signed' : ''}${errors[role] ? ' zrv-hr-is-bad' : ''}`}>
+                <SignaturePad id={`ap-sign-${role}`} label={`${label} — ${name}`} hint={T.meetingStep.signHint} clearLabel={T.meetingStep.clearSign}
+                  value={signature.image} onChange={(image) => setSignature(role, image)} disabled={locked} />
+                <b>{name}</b>
+                <small>{label}{signature.date ? T.meetingStep.signedOn(enDate(signature.date)) : signature.image ? T.meetingStep.signedOn(enDate(today)) : ` · ${T.meetingStep.notSigned}`}</small>
+                {errors[role] && <small id={`ap-sign-${role}-error`} className="zrv-auth-field-error" aria-invalid="true">{errors[role]}</small>}
               </div>
             )
           })}

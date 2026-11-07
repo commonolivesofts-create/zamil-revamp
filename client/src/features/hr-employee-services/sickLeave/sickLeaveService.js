@@ -5,6 +5,7 @@
 import { apiClient } from '../../../services/api/apiClient.js'
 import { employeeServicesFormsConfig } from '../employeeServicesFormsConfig.js'
 import { createSickLeaveDemoClient } from '../demo/sickLeaveDemoClient.js'
+import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { ID, invalidResponse, params, segment } from '../shared/formRecords.js'
 import { readSickLeaveEmployee, readSickLeavePage, readSickLeaveRecord, sickLeaveFields } from './sickLeaveContract.js'
 
@@ -27,16 +28,20 @@ export function createSickLeaveService({ client }) {
     return readSickLeavePage(data)
   }
   const upload = (id, files) => client.post(`${SICK_LEAVE_BASE}/${segment(id)}/attachments`, formData({}, files))
+  // Self and direct reports only (legacy rule, applied by the server); loaded with the form.
+  const employees = createEmployeeList({
+    load: ({ signal } = {}) => client.get(`${SICK_LEAVE_BASE}/lookups/employees`, { params: params({ pageSize: 100 }), signal }).then(({ data }) => data),
+    shape: readSickLeaveEmployee,
+  })
   return Object.freeze({
-    // Self and direct reports only (legacy rule, applied by the server).
+    preloadEmployees: (options) => employees.list(options),
     async searchEmployees(search = '', { signal } = {}) {
-      const { data } = await client.get(`${SICK_LEAVE_BASE}/lookups/employees`, { params: params({ q: String(search).trim(), pageSize: 25 }), signal })
+      const term = String(search).trim()
+      // Opening the field lists the employees loaded with the form.
+      if (!term) return employeePage(await employees.list({ signal }))
+      const { data } = await client.get(`${SICK_LEAVE_BASE}/lookups/employees`, { params: params({ q: term, pageSize: 25 }), signal })
       if (!Array.isArray(data)) throw invalidResponse('employee list')
-      const items = Object.freeze(data.map(readSickLeaveEmployee))
-      return Object.freeze({
-        items,
-        pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }),
-      })
+      return employeePage(data.map(readSickLeaveEmployee))
     },
     async employeeDetails(employeeNumber, { signal } = {}) {
       return readSickLeaveEmployee((await client.get(`${SICK_LEAVE_BASE}/lookups/employees/${encodeURIComponent(employeeNumber)}`, { signal })).data)

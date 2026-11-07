@@ -10,7 +10,7 @@ export const RATINGS = Object.freeze([1, 2, 3, 4, 5])
 export const CRITERIA_COUNT = 20
 export const GOALS_MIN = 3
 export const GOALS_MAX = 5
-export const TRAINING_MAX = 6
+export const TRAINING_MAX = 5
 export const TEXT_MAX = 2000
 export const EXPLANATION_MAX = 500
 
@@ -25,6 +25,39 @@ export const DEFAULT_SCALE = Object.freeze([
   Object.freeze({ min: 0, grade: 'E' }),
 ])
 export const DEFAULT_DISTRIBUTION = Object.freeze({ A: 15, B: 30, C: 40, D: 10, E: 5 })
+
+// Arabic labels of the same criteria (the legacy CI3 Arabic form) and of the
+// five scale bands, keyed by grade. English criteria come from the lookups.
+export const APPRAISAL_CRITERIA_AR = Object.freeze([
+  'جودة / دقة العمل',
+  'كمية العمل',
+  'الإعتمادية',
+  'الحضور / الالتزام بالمواعيد',
+  'مهارات الاتصال المهني مع زملاء العمل / المشرفين',
+  'مهارات الاتصال التي تركز على العملاء',
+  'القدرة على العمل كعضو في الفريق. العمل بروح الفريق الواحد',
+  'يوضح الموقف الإيجابي',
+  'القدرة على العمل بشكل مستقل',
+  'يتقبل الملاحظات',
+  'الإستعداد لتحمل مسؤوليات إضافية',
+  'يتوافق مع سياسات وإجراءات الشركة',
+  'يظهر مهارات فعالة في حل المشاكل',
+  'الرغبة في تعلم المهارات المتعلقة بالوظيفة الجديدة',
+  'طرح الأسئلة وطلب التوجيه حسب الحاجة',
+  'يحرز التقدم نحو أهداف التطوير المهني',
+  'يظهر اهتمامه بالقيم الأساسية لمجموعة الزامل',
+  'مبادرة',
+  'تطوير الآخرين',
+  'بيئة صحية آمنة',
+])
+
+export const APPRAISAL_SCALE_AR = Object.freeze({
+  A: Object.freeze({ title: 'يتفوق باستمرار', description: 'يحقق ويتجاوز باستمرار الأهداف المطلوبة بحسب معايير الأداء الموضوعة. كما يشارك مشاركة استثنائية وفعالة، ويضيف قيمة للعمل تتجاوز الدور المنوط به.' }),
+  B: Object.freeze({ title: 'يحقق ويتجاوز', description: 'يحقق الأهداف المطلوبة باستمرار وغالباً يتجاوزها حسب معايير الأداء الموضوعة. كما يتميز بالمشاركة الفعالة في تحقيق الأهداف الكلية للقسم الذي يعمل فيه.' }),
+  C: Object.freeze({ title: 'يحقق النجاح المتوقع', description: 'يحقق الأهداف المطلوبة ويتجاوزها في بعض الأحيان حسب معايير الأداء الموضوعة. كما يضيف قيمة للدور المتوقع منه.' }),
+  D: Object.freeze({ title: 'يحقق بعض الأهداف', description: 'يحقق بعض الأهداف وليست جميعها حسب المعايير الموضوعة. كما أنه غير ثابت ويحتاج لإشراف أكثر، ويجب وضع خطة لتحسين الأداء.' }),
+  E: Object.freeze({ title: 'دون التوقعات', description: 'لا يحقق الأهداف المحددة بصورة دائمة حسب معايير الأداء الموضوعة. يتطلب مراقبة وتوجيهاً مستمراً من المشرف، ومن الضروري عمل خطة شاملة لتحسين الأداء.' }),
+})
 
 export const isAppraisalLocked = (status) => status === 'SUBMITTED' || status === 'INPROCESS'
 
@@ -116,6 +149,7 @@ export function validateAppraisal(form, { criteria, team, scale, distribution },
   const goals = filledLines(form.goals)
   if (submit && goals.length < GOALS_MIN) add('goals', 'tooFew', 2)
   if (goals.length > GOALS_MAX) add('goals', 'tooMany', 2)
+  if (submit && !filledLines(form.training).length) add('training', 'tooFew', 2)
   if (filledLines(form.training).length > TRAINING_MAX) add('training', 'tooMany', 2)
   if (form.employeeRemarks.length > TEXT_MAX) add('employeeRemarks', 'tooLong', 3)
   if (form.appraiserRemarks.length > TEXT_MAX) add('appraiserRemarks', 'tooLong', 3)

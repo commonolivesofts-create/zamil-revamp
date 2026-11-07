@@ -179,6 +179,20 @@
 .zrv-hr-es-lines.zrv-hr-is-bad .zrv-hr-input { border-color: color-mix(in srgb, var(--danger) 50%, var(--line)); }
 .zrv-hr-es-ack { margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--zrv-hr-accent) 7%, transparent); color: var(--muted); font-size: 13.5px; }
 
+/* Performance Appraisal: the signer draws directly on the form. */
+.zrv-hr-sign .zrv-hr-es-pad { position: relative; display: block; height: 140px; padding: 0; overflow: hidden; border-style: solid; background: #fff; touch-action: none; user-select: none; }
+.zrv-hr-es-pad__canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.zrv-hr-es-pad__img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.zrv-hr-es-pad__hint { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 16px; color: var(--zrv-hr-fine); font-size: 12.5px; text-align: center; pointer-events: none; }
+.zrv-hr-es-pad__clear { position: absolute; inset-inline-end: 8px; bottom: 8px; display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: color-mix(in srgb, var(--surface-solid) 88%, transparent); color: var(--muted); font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+.zrv-hr-es-pad__clear:disabled { opacity: .45; cursor: default; }
+.zrv-hr-es-pad.zrv-hr-is-locked { cursor: default; }
+.zrv-hr-es-pad.zrv-hr-is-locked .zrv-hr-es-pad__canvas { cursor: default; }
+@media print {
+  .zrv-hr-sign .zrv-hr-es-pad { height: 110px; }
+  .zrv-hr-es-pad__clear, .zrv-hr-es-pad__hint { display: none !important; }
+}
+
 /* print: the form or list only (hr-recruitment.css hides the app chrome and the toolbar) */
 @media print {
   .zrv-hr :is(.zrv-hr-es-tabs, .zrv-hr-rp-search, .zrv-hr-es-reset) { display: none !important; }

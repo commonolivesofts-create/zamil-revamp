@@ -1,15 +1,13 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
-import { enDate } from '@/features/hr-recruitment/shared/hrFormat.js'
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
-import { ChoiceCards, HrField, Review } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
+import { ChoiceCards, HrField, SearchableLookup } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
-import { Orbit, RecruitmentShell, StepHead, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { Orbit, RecruitmentShell, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
 import { STATUS_TEXT, isEditable } from '../shared/formRecords.js'
@@ -17,15 +15,21 @@ import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import '@/styles/hr-employee-services.css'
 import '@/styles/hr-employee-services-forms.css'
 import { IDEA_MAX, IDEA_MIN, TITLE_MAX, cleanAmount, formatSar, ideaProgress, stepOfErrors, validateIdea } from './ideaModel.js'
+import { warmEmployeeList } from '../shared/employeeList.js'
 import { ideaDemo, ideaService } from './ideaService.js'
 
 const TITLE = 'Share an Idea'
-const STEPS = ['Idea', 'Impact', 'Review']
+// One compact page, as Sick Leave: the tabs scroll to each anchored section.
+const SECTIONS = ['Idea', 'Impact']
 
 export default function IdeaPage() {
   return (
     <RecruitmentLoader current="idea" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={ideaDemo}
-      title={TITLE} param="ideaId" load={ideaService.getById} loadLookups={(signal) => ideaService.getLookups({ signal })}>
+      title={TITLE} param="ideaId" load={ideaService.getById} loadLookups={(signal) => {
+        // Opening Emp# lists employees without a request.
+        warmEmployeeList(ideaService, { signal })
+        return ideaService.getLookups({ signal })
+      }}>
       {({ lookups, record, editorKey }) => <IdeaEditor key={editorKey} lookups={lookups} initial={record} />}
     </RecruitmentLoader>
   )
@@ -44,14 +48,13 @@ function Bulb({ level }) {
   )
 }
 
-// A labelled select of { value, label } options.
+// A labelled lookup of { value, label } options: searchable as the list grows.
 function SelectField({ id, label, value, onChange, options, placeholder, error }) {
   return (
     <HrField id={id} label={label} required error={error}>
-      <select {...fieldProps(id, { error })} className="ux-select zrv-hr-input" value={value} onChange={onChange} aria-required="true">
-        <option value="">{placeholder}</option>
-        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
+      <SearchableLookup id={id} value={value} options={options.map((option) => ({ code: option.value, name: option.label }))}
+        onChange={(option) => onChange(option.code)} onClear={() => onChange('')} placeholder={placeholder} error={error}
+        required maxLength={200} />
     </HrField>
   )
 }
@@ -59,7 +62,7 @@ function SelectField({ id, label, value, onChange, options, placeholder, error }
 function IdeaEditor({ lookups, initial }) {
   const navigate = useNavigate()
   const permissions = usePermissions()
-  const editor = useRecruitmentForm({ basePath: FORM_PATHS.idea, idKey: 'ideaId', record: initial, initialForm: initial ? {
+  const editor = useRecruitmentForm({ basePath: FORM_PATHS.idea, idKey: 'ideaId', stepCount: SECTIONS.length, record: initial, initialForm: initial ? {
     employee: initial.employee, division: initial.division, investmentCategory: initial.investmentCategory, projectType: initial.projectType,
     title: initial.title, idea: initial.idea, hasInvestment: initial.hasInvestment,
     investmentValue: initial.hasInvestment === 'yes' && initial.investmentValue !== null ? String(initial.investmentValue) : '',
@@ -94,12 +97,21 @@ function IdeaEditor({ lookups, initial }) {
     }
   }
 
+  // One page: a tab scrolls to the section it names (as Sick Leave).
+  const goToSection = (index) => {
+    const next = Math.max(0, Math.min(SECTIONS.length - 1, index))
+    setStep(next)
+    document.getElementById(`idea-section-${next}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   const save = () => {
     if (locked) return
     const next = validateIdea(form)
     setErrors(next)
     if (Object.keys(next).length) {
-      editor.reject(stepOfErrors(next), 'Review the highlighted fields.')
+      const first = stepOfErrors(next)
+      editor.reject(first, 'Review the highlighted fields.')
+      requestAnimationFrame(() => document.getElementById(`idea-section-${first}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
       return
     }
     editor.perform(async ({ saved }) => {
@@ -117,14 +129,13 @@ function IdeaEditor({ lookups, initial }) {
   const doneSteps = [
     Boolean(form.employee && form.division && form.investmentCategory && form.projectType && form.title.trim() && form.idea.trim().length >= IDEA_MIN),
     Boolean(form.hasInvestment && (form.hasInvestment === 'no' || Number(form.investmentValue) > 0)),
-    Boolean(record),
   ]
-
   return <>
-    <RecruitmentShell current="idea" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE} demo={ideaDemo}
+    <RecruitmentShell current="idea" flow={false} compact singlePage breadcrumb={C.breadcrumb} title={TITLE} demo={ideaDemo}
       tools={tools} primary={{ label: 'Save draft', icon: 'save', onClick: save }} locked={locked} pending={editor.pending} focusError={editor.focusError}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss}
-      steps={STEPS.map((name, index) => [name, doneSteps[index] ? C.step.done : C.step.open])} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel="Save draft" onFinal={save}
+      steps={SECTIONS.map((name, index) => [name, doneSteps[index] ? C.step.done : C.step.open])} step={step} onStep={goToSection} doneSteps={doneSteps}
+      finalLabel="Save draft" onFinal={save}
       side={<>
         <Tilt className={`zrv-hr-esf-idea-card${level >= 1 ? ' zrv-hr-is-lit' : ''}`} aria-label="Idea card">
           <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{record?.idNo || 'IDEA · Draft'}</span><span className="zrv-hr-dark__status">{status ? STATUS_TEXT[status] : 'Not saved'}</span></div>
@@ -147,10 +158,13 @@ function IdeaEditor({ lookups, initial }) {
         </Tilt>
         <Orbit done={progress.done} total={progress.total} hint={level >= 1 ? 'Ready to save.' : !form.employee ? 'Start with the employee.' : 'Keep describing your idea.'} />
       </>}>
-      {step === 0 && <>
-        <StepHead title="What’s your idea?" />
-        <div className="zrv-hr-grid zrv-hr-is-2">
-          <EmployeePicker id="id-employee" label="EMP #" required value={form.employee} error={errors.employee} cacheKey="hr-idea-employees"
+      <section id="idea-section-0" className="zrv-hr-esf-section">
+        <div className="zrv-hr-esf-sectionhead">
+          <h2>The idea</h2>
+          <span className="zrv-hr-esf-daypill" role="status"><b key={progress.done}>{Math.round(level * 100)}%</b> described</span>
+        </div>
+        <div className="zrv-hr-grid zrv-hr-is-4">
+          <EmployeePicker id="id-employee" label="EMP #" required tight value={form.employee} error={errors.employee} cacheKey="hr-idea-employees"
             placeholder="Enter employee number or name…" searchService={(term, options) => ideaService.searchEmployees(term, options)}
             onPick={selectEmployee} disabled={locked} />
           <HrField id="id-dept" label="Department"><input id="id-dept" className="ux-input zrv-hr-input" readOnly value={form.employee?.departmentName ?? ''} placeholder="Fills from the employee" /></HrField>
@@ -158,61 +172,47 @@ function IdeaEditor({ lookups, initial }) {
             options={lookups.divisions} placeholder="Select division" />
           <SelectField id="id-category" label="Investment category" value={form.investmentCategory} onChange={set('investmentCategory')}
             error={errors.investmentCategory} options={lookups.investmentCategories} placeholder="Select category" />
+        </div>
+        <div className="zrv-hr-grid zrv-hr-is-3 zrv-hr-mt">
           <SelectField id="id-type" label="Project type" value={form.projectType} onChange={set('projectType')} error={errors.projectType}
             options={lookups.projectTypes} placeholder="Select project type" />
-          <HrField id="id-title" label="Idea title" required wide error={errors.title}>
-            <input {...fieldProps('id-title', { error: errors.title })} className="ux-input zrv-hr-input zrv-hr-esf-title" value={form.title} maxLength={TITLE_MAX} onChange={set('title')}
-              placeholder="Write the idea title in one line" />
-          </HrField>
+          <div className="zrv-hr-esf-span2">
+            <HrField id="id-title" label="Idea title" required error={errors.title}>
+              <input {...fieldProps('id-title', { error: errors.title })} className="ux-input zrv-hr-input zrv-hr-esf-title" value={form.title} maxLength={TITLE_MAX} onChange={set('title')}
+                placeholder="Write the idea title in one line" />
+            </HrField>
+          </div>
+        </div>
+        <div className="zrv-hr-mt">
           <HrField id="id-idea" label="Your idea" required wide error={errors.idea} hint={ideaHint}>
-            <textarea {...fieldProps('id-idea', { error: errors.idea, hint: ideaHint })} className="ux-textarea zrv-hr-input" rows={5} value={form.idea} maxLength={IDEA_MAX} onChange={set('idea')}
+            <textarea {...fieldProps('id-idea', { error: errors.idea, hint: ideaHint })} className="ux-textarea zrv-hr-input" rows={3} value={form.idea} maxLength={IDEA_MAX} onChange={set('idea')}
               placeholder="What would you change, and how?" />
           </HrField>
         </div>
-      </>}
+      </section>
 
-      {step === 1 && <>
-        <StepHead title="What will it change?" desc="Depreciation, NPV (8 %), IRR and ROI are calculated by the server from these values when you save." />
+      <section id="idea-section-1" className={`zrv-hr-esf-card zrv-hr-mt${step === 1 ? ' zrv-hr-is-focus' : ''}`}>
+        <div className="zrv-hr-esf-sectionhead"><h2>Impact</h2></div>
         <div className="zrv-hr-grid zrv-hr-is-2">
           <ChoiceCards compact label="Investment needed?" value={form.hasInvestment} error={errors.hasInvestment}
             onChange={(value) => { patch({ hasInvestment: value, ...(value === 'no' ? { investmentValue: '' } : {}) }); clear('hasInvestment', 'investmentValue') }}
             options={[{ value: 'yes', icon: 'wallet', title: 'Yes', desc: 'Needs money to implement' }, { value: 'no', icon: 'check', title: 'No', desc: 'Can be done with what we have' }]} />
-          <div className="zrv-hr-grid">
+          <div className="zrv-hr-grid zrv-hr-is-2">
             {form.hasInvestment === 'yes' && <HrField id="id-amount" label="Estimated investment (SAR)" required error={errors.investmentValue}>
               <input {...fieldProps('id-amount', { error: errors.investmentValue })} className="ux-input zrv-hr-input" inputMode="decimal" value={form.investmentValue} placeholder="e.g. 12000"
                 onChange={(event) => { patch({ investmentValue: cleanAmount(event.target.value) }); clear('investmentValue') }} />
             </HrField>}
-            <HrField id="id-saving" label="Saving value (SAR per year)" error={errors.saving}>
+            <HrField id="id-saving" label="Saving value (SAR / year)" error={errors.saving}>
               <input {...fieldProps('id-saving', { error: errors.saving })} className="ux-input zrv-hr-input" inputMode="decimal" value={form.saving} placeholder="Enter saving value"
                 onChange={(event) => { patch({ saving: cleanAmount(event.target.value) }); clear('saving') }} />
             </HrField>
           </div>
         </div>
-        {feasibility && <dl className="zrv-hr-esf-chosen zrv-hr-mt" aria-label="Feasibility (last save)">
+        {feasibility ? <dl className="zrv-hr-esf-chosen zrv-hr-mt" aria-label="Feasibility (last save)">
           {[['Depreciation / year', formatSar(feasibility.depreciation)], ['NPV (8 %)', formatSar(feasibility.npv)], ['IRR', `${feasibility.irr ?? 0} %`], ['ROI', String(feasibility.roi ?? 0)]]
             .map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-        </dl>}
-      </>}
-
-      {step === 2 && <>
-        <StepHead title="Check the idea and save it." />
-        {record?.attachments.length > 0 && <>
-          <h3 className="zrv-hr-esf-subhead">Attachments on file</h3>
-          <ul className="zrv-hr-files">{record.attachments.map((item) => (
-            <li key={item.attachmentId} className="zrv-hr-file"><span className="zrv-hr-bubble"><OrvexaIcon name="file-text" size={16} /></span>
-              <span className="zrv-hr-file__name">{item.fileName}</span>{item.attachedOn && <small>{enDate(item.attachedOn)}</small>}</li>))}</ul>
-        </>}
-        <Review rows={[
-          ['Title', form.title, !form.title.trim()],
-          ['Employee', form.employee ? `${form.employee.employeeNumber} · ${form.employee.name}` : '', !form.employee],
-          ['Division · department', `${nameOf(lookups.divisions, form.division) || '—'} · ${form.employee?.departmentName || '—'}`, !form.division],
-          ['Category · type', `${nameOf(lookups.investmentCategories, form.investmentCategory) || '—'} · ${nameOf(lookups.projectTypes, form.projectType) || '—'}`, !form.investmentCategory || !form.projectType],
-          ['Idea', form.idea.trim().slice(0, 140) + (form.idea.trim().length > 140 ? '…' : ''), form.idea.trim().length < IDEA_MIN],
-          ['Investment', form.hasInvestment === 'yes' ? `Yes · ${formatSar(form.investmentValue)}` : form.hasInvestment === 'no' ? 'No' : '', !form.hasInvestment],
-          ['Saving', form.saving ? `${formatSar(form.saving)} a year` : 'Not given', false],
-        ]} />
-        <p className="zrv-admin-hint zrv-hr-mt">The idea is saved as a draft. Adding files and sending the idea for approval are not available yet.</p>
-      </>}
+        </dl> : <p className="zrv-admin-hint zrv-hr-mt">Depreciation, NPV (8 %), IRR and ROI are calculated by the server when you save. The idea is saved as a draft; adding files and sending it for approval are not available yet.</p>}
+      </section>
     </RecruitmentShell>
     {dialog === 'new' && <NewFormDialog onConfirm={() => { setDialog(null); startNew() }} onClose={() => setDialog(null)} />}
   </>
