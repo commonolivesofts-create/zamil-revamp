@@ -64,6 +64,7 @@ describe('Business visa request validation', () => {
     for (const body of [
       { ...BODY, fax: '' },
       { ...BODY, visaSingle: false },
+      { ...BODY, visaMultiple: true },
       { ...BODY, travelOther: true },
       { ...BODY, expiryDate: '2023-01-01' },
       { ...BODY, division: 'IBM' },
@@ -108,6 +109,8 @@ describe('Business visa request repository SQL', () => {
     await repo.updateHeader(c, '1', body, { updatedBy: 1 });
     await repo.insertDocument(c, { id: '1', uuid: 'u', name: 'n', fileName: 'f' });
     await repo.deleteDocument(c, '1', '2');
+    await repo.deleteDocuments(c, '1');
+    await repo.deleteHeader(c, '1');
     await repo.requester(c, '100');
     assertExactBinds(c.statements);
     const reqNo = c.statements.find(({ sql }) => sql.includes('SET REQ_NO'));
@@ -130,7 +133,7 @@ function fakes({ status = 'DRAFT' } = {}) {
   };
   const repository = {
     requester: async () => 'Requester',
-    departments: async () => ['HR'],
+    departments: async () => ['Human Resources'],
     header: async (_c, id, options) => (
       calls.push(['header', id, options]),
       String(id) === '7' ? header : null
@@ -144,6 +147,8 @@ function fakes({ status = 'DRAFT' } = {}) {
       '4'
     ),
     deleteDocument: async () => true,
+    deleteDocuments: async (_c, id) => calls.push(['deleteDocuments', id]),
+    deleteHeader: async (_c, id) => (calls.push(['deleteHeader', id]), true),
     list: async () => ({ total: 1, items: [header] }),
   };
   const storage = {
@@ -159,7 +164,7 @@ function fakes({ status = 'DRAFT' } = {}) {
     withConnection: run,
     withTransaction: run,
   });
-  return { service, calls, storage };
+  return { service, calls, repository, storage };
 }
 
 describe('Business visa request service', () => {
@@ -220,5 +225,55 @@ describe('Business visa request service', () => {
     };
     await assert.rejects(() => service.addDocument('7', file, 'Passport'), /disk full/);
     assert.deepEqual(storage.removed, ['4']);
+  });
+
+  it('rejects a department that is not in the lookup', async () => {
+    const { service, calls } = fakes();
+    await assert.rejects(() => service.create(actor, { ...BODY, dept: 'Unknown' }), {
+      statusCode: 400,
+    });
+    assert.ok(!calls.some(([name]) => name === 'insertHeader'));
+  });
+
+  it('refuses to create when the requester cannot be resolved', async () => {
+    const { calls, repository, storage } = fakes();
+    const emptyRequester = createBusinessVisaRequestService({
+      repository: { ...repository, requester: async () => null },
+      storage,
+      withConnection: (_pool, work) => work({}),
+      withTransaction: (_pool, work) => work({}),
+    });
+    await assert.rejects(() => emptyRequester.create(actor, BODY), {
+      statusCode: 400,
+      code: 'REQUESTER_NOT_FOUND',
+    });
+    assert.ok(!calls.some(([name]) => name === 'insertHeader'));
+  });
+
+  it('deletes the documents, the header and the stored files', async () => {
+    const { calls, repository, storage } = fakes();
+    const withDocument = createBusinessVisaRequestService({
+      repository: {
+        ...repository,
+        documents: async () => [{ LINE_ID: 4, DOC_FILE_NAME: 'p.pdf' }],
+      },
+      storage,
+      withConnection: (_pool, work) => work({}),
+      withTransaction: (_pool, work) => work({}),
+    });
+    assert.deepEqual(await withDocument.remove('7'), { id: '7' });
+    assert.deepEqual(
+      calls.filter(([name]) => name === 'deleteDocuments' || name === 'deleteHeader'),
+      [
+        ['deleteDocuments', '7'],
+        ['deleteHeader', '7'],
+      ],
+    );
+    assert.deepEqual(storage.removed, ['4']);
+  });
+
+  it('answers 404 when deleting a request that does not exist', async () => {
+    const { service } = fakes();
+    await assert.rejects(() => service.remove('8'), { statusCode: 404 });
   });
 });

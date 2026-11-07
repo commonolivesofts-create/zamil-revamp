@@ -7,7 +7,7 @@ export const DIVISIONS = Object.freeze([
   Object.freeze({ code: '300000003618190', name: 'FPP' }),
 ]);
 
-export const STATUSES = Object.freeze(['DRAFT', 'INPROCESS', 'APPROVED', 'REJECTED']);
+export const STATUSES = Object.freeze(['DRAFT', 'INPROCESS', 'APPROVED', 'REJECTED', 'ACCEPTED']);
 
 const iso = Joi.string()
   .pattern(/^\d{4}-\d{2}-\d{2}$/)
@@ -91,6 +91,8 @@ export const writeBody = Joi.object({
     if (value.expiryDate < value.issueDate)
       return helpers.message('expiryDate must not be before issueDate');
     if (!value.visaSingle && !value.visaMultiple) return helpers.message('Choose the visa type');
+    if (value.visaSingle && value.visaMultiple)
+      return helpers.message('Choose either the single or the multiple visa type, not both');
     if ((value.travelOther || value.hotelOther) && !value.otherDetails) {
       return helpers.message('otherDetails is required when "Others" is chosen');
     }
