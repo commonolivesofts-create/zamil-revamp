@@ -57,10 +57,19 @@ export function createTransferRequestService({
         'transfer.effectiveDate',
         'A valid effective date is required',
       );
+    // Blood types are a fixed set of eight; the lookup can be empty in some databases, so
+    // the standard values are accepted alongside whatever the lookup returns. "Not
+    // recorded" is also accepted so an unknown blood type does not block the request.
+    const STANDARD_BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    const NOT_RECORDED_BLOOD_TYPES = ['NOT_RECORDED', 'Not recorded'];
     if (
       !required(transfer.bloodType) ||
-      !(await repository.listBloodTypes(connection)).some(
-        (x) => String(x.code) === transfer.bloodType,
+      !(
+        STANDARD_BLOOD_TYPES.includes(transfer.bloodType) ||
+        NOT_RECORDED_BLOOD_TYPES.includes(transfer.bloodType) ||
+        (await repository.listBloodTypes(connection)).some(
+          (x) => String(x.code) === transfer.bloodType,
+        )
       )
     ) {
       throw fail('BLOOD_TYPE_INVALID', 'transfer.bloodType', 'Blood type is invalid');
@@ -112,7 +121,7 @@ export function createTransferRequestService({
       tDept: transfer.dept,
       tSection: transfer.section,
       tEffectiveDate: transfer.effectiveDate,
-      tBloodType: transfer.bloodType,
+      tBloodType: transfer.bloodType === 'NOT_RECORDED' ? 'Not recorded' : transfer.bloodType,
       tSuperiorNo: num(director.empNo),
       tSuperiorName: director.name,
       tChangeSalary: transfer.changeSalary,

@@ -94,6 +94,11 @@ export const employeeNumberParamsSchema = Joi.object({
   empNo: positiveIdSchema,
 });
 
+// The Emp# picker filters by employee number or name; an empty search lists the employees.
+export const employeeSearchQuerySchema = Joi.object({
+  search: Joi.string().trim().max(100).allow(''),
+});
+
 export const listQuerySchema = Joi.object({
   search: Joi.string(),
   status: Joi.string(),

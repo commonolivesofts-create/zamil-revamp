@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 import usePermissions from '@/features/access/usePermissions.js'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
@@ -9,13 +9,14 @@ import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitm
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
 import { Orbit, Pill, RecruitmentShell, StepHead, RouteCard, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
-import { FileDrop, HrField, Review } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
+import { FileDrop, HrField, Review, SearchableLookup } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { ES_COMMON_TEXT as C, RECORD_CHANGE_TEXT as T } from '../hrEmployeeServicesText.js'
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { hijriDate } from '../shared/esFormat.js'
 import { ApprovalSigns, Counter } from '../shared/EmployeeServicesParts.jsx'
+import { INCOMPLETE_STEP, lockedStepsOf, problemsInStep } from '../shared/stepGating.js'
 import { NO_IDENTIFY, useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
 import {
   AMOUNT_MAX_LENGTH, FREE_TEXT_KEYS, GRADE_LEVEL_MAX, PAY_KEYS, TEXT_MAX, amountDelta, amountInput, blankRecordChange, changeTypes, changedKeys,
@@ -46,6 +47,7 @@ function messageOf({ field, code }) {
 
 function RecordChangeEditor({ lookups, record }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const permissions = usePermissions()
   const editor = useRecruitmentForm({
     basePath: RECORD_CHANGE_BASE, idKey: 'requestId', record,
@@ -60,6 +62,8 @@ function RecordChangeEditor({ lookups, record }) {
   const canSave = permissions.can(saved ? 'HR.PERSONNEL_RECORD_CHANGES:UPDATE' : 'HR.PERSONNEL_RECORD_CHANGES:CREATE')
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
+  const [employeeLoading, setEmployeeLoading] = useState(false)
+  const employeeRequest = useRef(0)
   const employee = form.employee
   // The current record is the server snapshot; its family status is the editable legacy
   // OLD_MARITAL_STATUS input.
@@ -81,22 +85,50 @@ function RecordChangeEditor({ lookups, record }) {
   const status = saved?.status ?? 'NEW'
   const nameOf = (list, code) => options[list].find((item) => item.code === code)?.name ?? code ?? ''
   const label = { positionCode: 'positions', gradeCode: 'grades', levelCode: 'levels', familyStatusCode: 'familyStatuses' }
-  // The picker lists each employee with position and section.
-  const searchEmployees = async (search, options) => {
-    const page = await service.searchEmployees(search, options)
-    return { ...page, items: page.items.map((item) => ({ ...item, position: item.current.positionName || nameOf('positions', item.current.positionCode), section: item.sectionName })) }
-  }
+  // Open: every employee from the master, as the legacy Emp# datalist. Typed: the same list
+  // narrowed by employee number or name, so searching makes no request.
+  const searchEmployees = (search, options) => (search
+    ? service.searchEmployees(search, options)
+    : { items: lookups.employees ?? [] })
   const shown = (key, values) => (PAY_KEYS.includes(key) ? C.sr(values[key]) : FREE_TEXT_KEYS.includes(key) ? (values[key] || '—') : nameOf(label[key], values[key]))
 
   const clear = (...keys) => setErrors((value) => Object.fromEntries(Object.entries(value).filter(([key]) => !keys.includes(key))))
   const setText = (key) => (event) => { set(key)(event); clear(key) }
   const setRevised = (key, value) => { patch((state) => ({ revised: { ...state.revised, [key]: value } })); clear(key, 'revised') }
-  // Legacy EMP_NO change: fills the current information and record, and the revised position and
-  // family status; the revised amounts keep their values (0 on a new form).
-  const pickEmployee = (person) => {
-    patch((state) => ({ employee: person, revised: revisedAfterPick(state.revised, editable(person.current)), currentFamilyStatus: person.current.familyStatusCode ?? '' }))
+  // Legacy EMP_NO change: the current information and record (the two-branch auto-fill) fill in,
+  // and with them the revised position and family status; revised amounts keep their values.
+  const pickEmployee = async (person) => {
+    const request = ++employeeRequest.current
+    patch({ employee: person })
     clear('employee', 'effectiveDate', 'revised', 'currentFamilyStatus')
+    setEmployeeLoading(true)
+    try {
+      const details = await service.employee(person.employeeNumber)
+      if (request !== employeeRequest.current) return
+      patch((state) => ({
+        employee: details,
+        revised: revisedAfterPick(state.revised, editable(details.current)),
+        currentFamilyStatus: details.current.familyStatusCode ?? '',
+      }))
+    } catch {
+      if (request !== employeeRequest.current) return
+      setErrors((value) => ({ ...value, employee: T.errors.employeeLookup }))
+    } finally {
+      if (request === employeeRequest.current) setEmployeeLoading(false)
+    }
   }
+
+  // A salary change opened from the Transfer Request form arrives with ?employee=<no>:
+  // auto-fill that employee so the requester continues with the record already loaded.
+  const prefillEmployee = searchParams.get('employee')
+  const prefillDone = useRef(false)
+  useEffect(() => {
+    if (prefillDone.current || record || !prefillEmployee || form.employee) return
+    prefillDone.current = true
+    pickEmployee({ employeeId: prefillEmployee, employeeNumber: prefillEmployee, name: searchParams.get('name') ?? '' })
+    // Runs once per opened form; the auto-fill request is exactly what pickEmployee does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillEmployee, record, form.employee, searchParams])
 
   const check = () => {
     const problems = validateRecordChange(form, employee)
@@ -105,6 +137,18 @@ function RecordChangeEditor({ lookups, record }) {
     // One problem: its message; several: a count with every message listed.
     editor.reject(problems[0].step, problems.length === 1 ? messageOf(problems[0]) : C.reviewProblems(problems.length),
       problems.length === 1 ? [] : problems.map((problem) => messageOf(problem)))
+    return false
+  }
+  // Continue checks the open step only; later steps stay locked until this one is done.
+  const continueStep = () => {
+    const problems = problemsInStep(validateRecordChange(form, employee), step)
+    setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
+    if (!problems.length) {
+      if (lockedSteps[step + 1]) editor.reject(step, step === 1 ? T.orbit.changeSomething : INCOMPLETE_STEP)
+      return !lockedSteps[step + 1]
+    }
+    const messages = problems.map(messageOf)
+    editor.reject(step, messages.length === 1 ? messages[0] : C.reviewProblems(messages.length))
     return false
   }
   const save = () => {
@@ -139,6 +183,7 @@ function RecordChangeEditor({ lookups, record }) {
   ]
   const filled = [employee, form.effectiveDate, revised?.positionCode].filter(Boolean).length + (changed.length ? 1 : 0)
   const doneSteps = [Boolean(employee && form.effectiveDate), changed.length > 0, true, locked]
+  const lockedSteps = lockedStepsOf(doneSteps)
   const approvals = (saved?.approvals ?? [{ role: 'NOTED_BY', state: 'DRAFT' }, { role: 'APPROVED_BY', state: 'DRAFT' }])
     .map((item) => ({ key: item.role, name: T.approvers[item.role][0], role: T.approvers[item.role][1], state: item.state, date: item.date ? enDate(item.date) : null }))
   // Legacy status colours: APPROVED green, REJECTED red.
@@ -168,12 +213,9 @@ function RecordChangeEditor({ lookups, record }) {
             <input {...fieldProps(id, { error: errors[key] })} className="ux-input zrv-hr-input" autoComplete="off" maxLength={GRADE_LEVEL_MAX}
               value={revised[key] ?? ''} onChange={(event) => setRevised(key, event.target.value)} />
           ) : (
-            <select {...fieldProps(id, { error: errors[key] })} className="ux-select zrv-hr-input" aria-required
-              disabled={locked}
-              value={revised[key]} onChange={(event) => setRevised(key, event.target.value)}>
-              <option value="">{C.select}</option>
-              {options[label[key]].map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
-            </select>
+            <SearchableLookup id={id} value={revised[key]} error={errors[key]} disabled={locked} required
+              options={options[label[key]].map((item) => ({ code: item.code, name: item.name }))}
+              onChange={(option) => setRevised(key, option.code)} placeholder={C.select} maxLength={200} />
           )}
         </div>
         <span className={`zrv-hr-es-delta zrv-hr-is-${!isChanged ? 'same' : money ? (delta.amount > 0 ? 'up' : 'down') : 'changed'}`}>
@@ -200,7 +242,7 @@ function RecordChangeEditor({ lookups, record }) {
       banner={<PrintSheet employee={employee} current={current} revised={revised} form={form} saved={saved} status={status} hijri={hijri}
         approvals={approvals} shown={shown} totalNow={totalNow} totalRevised={totalRevised} />}
       steps={T.steps.map(([name], index) => [name, index === 1 && changed.length ? C.step.changed(changed.length) : doneSteps[index] ? C.step.done : C.step.open])}
-      step={step} onStep={setStep} doneSteps={doneSteps}
+      step={step} onStep={setStep} doneSteps={doneSteps} lockedSteps={lockedSteps} onContinue={continueStep}
       finalLabel={T.submit} onFinal={requestSubmit}
       side={<>
         <Tilt aria-label={T.card.label}>
@@ -224,16 +266,16 @@ function RecordChangeEditor({ lookups, record }) {
       </>}
     >
       {step === 0 && <>
-        <StepHead title={T.employeeStep.title} desc={T.employeeStep.desc} />
-        <div className="zrv-hr-es-bi"><span>{T.formTitleEn}</span><span lang="ar" dir="rtl">{T.formTitleAr}</span></div>
+        <StepHead title={T.employeeStep.title} />
         <div className="zrv-hr-grid zrv-hr-is-2">
-          <EmployeePicker id="rc-employee" label={T.employeeStep.employee} placeholder={T.employeeStep.employeePlaceholder} required value={employee} onPick={pickEmployee} error={errors.employee}
+          <EmployeePicker id="rc-employee" label={T.employeeStep.employee} placeholder={T.employeeStep.employeePlaceholder} required tight value={employee} onPick={pickEmployee} error={errors.employee}
             searchService={searchEmployees} cacheKey="hr-service-employees" />
           <HrField id="rc-effective" label={T.employeeStep.effective} required error={errors.effectiveDate} hint={form.effectiveDate ? hijriDate(form.effectiveDate) : undefined}>
             <input {...fieldProps('rc-effective', { error: errors.effectiveDate, hint: hijriDate(form.effectiveDate) || undefined })} type="date" className="ux-input zrv-hr-input"
               aria-required="true" value={form.effectiveDate} onChange={setText('effectiveDate')} />
           </HrField>
         </div>
+        {employeeLoading && <p className="zrv-admin-hint" role="status">Loading the employee&apos;s current record…</p>}
         {effectiveBeforeStart(form.effectiveDate, employee) && <p className="zrv-hr-note">{T.employeeStep.beforeStart}</p>}
         <h3 className="zrv-hr-subh">{T.employeeStep.currentInfo}</h3>
         <div className="zrv-hr-grid zrv-hr-is-3">

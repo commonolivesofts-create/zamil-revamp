@@ -438,7 +438,7 @@ export const createPersonalStatusService = ({
     },
 
     // EMPLOYEE DATALIST
-    employees: () => read((connection) => repository.employees(connection)),
+    employees: (search) => read((connection) => repository.employees(connection, search)),
 
     // POSITION DATALIST
     positions: () => read((connection) => repository.positions(connection)),
