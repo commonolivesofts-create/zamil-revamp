@@ -37,7 +37,7 @@ organization, and the mapping versions panel on the form page shows the versions
 | **Form code** | Yes | Upper-case letters, digits and underscores, starting with a letter; at most 80 characters; unique. | Typed letters are converted to upper case. **Cannot be changed after registration** — it is the form's permanent identity. |
 | **Form name** | Yes | 1–200 characters, no control characters. | Shown in lists and later in workflow screens. |
 | **Owning module** | Yes | Must be an **active** module of the permission catalog. Security administration and Workflow Manager cannot own forms. | The list shows *Module name (CODE)*. |
-| **Detail route** (optional) | No | An application route: starts with `/`, lower-case segments with digits and hyphens, and `:parameters`, e.g. `/hr/employee-services/sick-leave/:leaveId`. No web address, query string or `..`. At most 500 characters. | Used later to link a workflow task to the form record. |
+| **Detail route** (optional) | No | An application route: starts with `/`, lower-case segments with digits and hyphens, and `:parameters`, e.g. `/hr/talent-management/sick-leave/:leaveId`. No web address, query string or `..`. At most 500 characters. | Used later to link a workflow task to the form record. |
 | **Description** (optional) | No | At most 1000 characters. | Free text for administrators. |
 
 ## Step by step — register a form
