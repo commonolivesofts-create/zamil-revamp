@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { authorizedNavigation, resolveNavigationEntries } from '../src/config/appNavigation.js'
 import { registry } from '../src/config/registry/index.js'
 import {
-  certificateBody, createSalaryCertificateService, parseCertificateId, readApprovers, readCertificate, validateCertificate,
+  certificateBody, createSalaryCertificateService, parseCertificateId, readApprovers, readCertificate, readEmployee, validateCertificate,
 } from '../src/features/hr-employee-services/salaryCertificate/salaryCertificateService.js'
 
 const RECORD = {
@@ -32,6 +32,29 @@ test('records and approvers read the same shape from both APIs', () => {
   assert.throws(() => readCertificate('en', { id: 'x' }), { code: 'INVALID_RESPONSE' })
 })
 
+test('the Arabic lookup shows the Arabic name, nationality and title; the record read falls back', () => {
+  // The Arabic employee lookup returns the English values in name/nationality/position
+  // and the Arabic ones in the *Ar keys (README_salary_certificate_form_arabic §6.2).
+  const lookup = readEmployee('ar', {
+    employeeNo: '1001', employeeName: 'عمر علي حسن', name: 'Omar Ali Hassan', nameAr: 'عمر علي حسن',
+    nationality: 'Egyptian', nationalityAr: 'مصري', jobTitle: 'مهندس', position: 'Engineer', positionAr: 'مهندس',
+    joiningDate: '2020-01-05', nationalIdentifier: '1234', division: 'IPP', allowanceFlag: 'Yes',
+  })
+  assert.deepEqual([lookup.name, lookup.nationality, lookup.jobTitle], ['عمر علي حسن', 'مصري', 'مهندس'])
+  assert.deepEqual([lookup.nameOther, lookup.jobTitleOther], ['Omar Ali Hassan', 'Engineer'])
+  // A saved certificate has only the certificate-language columns.
+  const saved = readEmployee('ar', RECORD)
+  assert.deepEqual([saved.name, saved.nationality, saved.jobTitle], ['موظف', 'سعودي', 'مهندس'])
+  assert.equal(saved.nameOther, '')
+})
+
+test('approvers without a position are not offered (the backend would reject them)', () => {
+  assert.deepEqual(readApprovers('en', [
+    { employeeNo: 1, name: 'Approver', position: 'Manager' },
+    { employeeNo: 2, name: 'No Position', position: '' },
+  ]), [{ employeeNo: '1', name: 'Approver', position: 'Manager' }])
+})
+
 test('body and validation follow the backend write schema', () => {
   const form = { employee: EMPLOYEE, certDate: '2026-11-04', toEmpName: ' Bank ', approvalName: 'معتمد' }
   assert.deepEqual(certificateBody(form), { employeeNo: '1001', certDate: '2026-11-04', toEmpName: 'Bank', approvalName: 'معتمد', allowanceFlag: 'Yes', joiningDate: '2020-01-05' })
@@ -44,13 +67,19 @@ test('service: each language uses its own API; create returns the stored record'
   const calls = []
   const call = (method) => async (path, ...rest) => {
     calls.push({ method, path, params: (method === 'GET' ? rest[0] : rest[1])?.params, body: method === 'GET' ? undefined : rest[0] })
-    if (path.endsWith('/lookups/employee-numbers')) return { data: [{ employeeNo: '1001' }] }
+    if (path.endsWith('/lookups/employee-numbers')) return { data: [{ employeeNo: '1001', name: 'Omar Ali' }] }
     if (method === 'POST') return { data: { id: 12, refNo: 'ZPIL/26/012' } }
     if (method === 'PUT') return { data: { id: 12 } }
     if (/\/(salary-certificates|salary-certificates-ar)$/.test(path)) return { data: { items: [RECORD], page: 1, pageSize: 20, total: 1 } }
     return { data: RECORD }
   }
   const service = createSalaryCertificateService({ client: { get: call('GET'), post: call('POST'), put: call('PUT') } })
+  // The numbers load per language with the form; opening the field serves that list.
+  await service.preloadEmployees({ lang: 'ar' })
+  assert.deepEqual([calls.at(-1).path, calls.at(-1).params], ['/salary-certificates-ar/lookups/employee-numbers', { pageSize: 100 }])
+  assert.equal((await service.searchEmployees('ar', '')).items[0].employeeNumber, '1001')
+  assert.equal((await service.searchEmployees('ar', '')).items[0].name, 'Omar Ali', 'the dropdown shows the employee name')
+  assert.equal(calls.filter((item) => item.path.endsWith('/lookups/employee-numbers')).length, 1, 'the opening list does not search again')
   const found = await service.searchEmployees('ar', ' 10 ')
   assert.deepEqual([calls.at(-1).path, calls.at(-1).params], ['/salary-certificates-ar/lookups/employee-numbers', { q: '10', pageSize: 20 }])
   assert.equal(found.items[0].employeeNumber, '1001')
