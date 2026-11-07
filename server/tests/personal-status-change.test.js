@@ -257,7 +257,18 @@ function createRepository() {
           .map((row) => ({ ...row, PENDING_AT: row.PENDING_AT ?? null })),
       };
     },
-    employees: async () => [{ empNo: '12001' }, { empNo: '12002' }],
+    employees: async (_connection, search = '') => {
+      const rows = [
+        { empNo: '12001', name: 'Employee One', position: 'Operator', section: 'Production' },
+        { empNo: '12002', name: 'Employee Two', position: 'Supervisor', section: 'Injection' },
+      ];
+      const term = String(search ?? '')
+        .trim()
+        .toUpperCase();
+      return term
+        ? rows.filter((row) => `${row.empNo} ${row.name}`.toUpperCase().includes(term))
+        : rows;
+    },
     positions: async () => [{ name: 'Operator' }, { name: 'Supervisor' }],
   };
   return repo;
@@ -586,9 +597,17 @@ describe('personal status change API', () => {
 
   it('auto-fill: master employee info; current record from the latest APPROVED request, else the master', async () => {
     assert.deepEqual((await get('/lookups/employees')).body.data, [
-      { empNo: '12001' },
-      { empNo: '12002' },
+      { empNo: '12001', name: 'Employee One', position: 'Operator', section: 'Production' },
+      { empNo: '12002', name: 'Employee Two', position: 'Supervisor', section: 'Injection' },
     ]);
+    // The Emp# picker searches by employee number or name.
+    assert.deepEqual((await get('/lookups/employees?search=12002')).body.data, [
+      { empNo: '12002', name: 'Employee Two', position: 'Supervisor', section: 'Injection' },
+    ]);
+    assert.deepEqual((await get('/lookups/employees?search=two')).body.data, [
+      { empNo: '12002', name: 'Employee Two', position: 'Supervisor', section: 'Injection' },
+    ]);
+    assert.deepEqual((await get('/lookups/employees?search=nobody')).body.data, []);
     assert.deepEqual((await get('/lookups/positions')).body.data, [
       { name: 'Operator' },
       { name: 'Supervisor' },

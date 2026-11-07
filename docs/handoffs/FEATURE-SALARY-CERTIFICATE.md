@@ -19,7 +19,7 @@ Not committed.
 
 - One form: the chosen **language** selects the API (`/salary-certificates` or
   `/salary-certificates-ar`) and the stored language of the names, nationality and titles. It is fixed
-  once saved; a record id carries it (`/hr/employee-services/salary-certificate/en-12`, `…/ar-7`).
+  once saved; a record id carries it (`/hr/talent-management/salary-certificate/en-12`, `…/ar-7`).
 - Steps: Employee (language, employee no., personal and job information), Salary (from the master,
   read-only), Certificate (date, To, ref. no., approver and position, the legacy notes). Labels show
   English and Arabic; values follow the certificate's direction.
@@ -45,9 +45,10 @@ Not committed.
    against production: `TO_EMP_NAME VARCHAR2(1000)` on both tables, `EMP_NAME_LIST VARCHAR2(2000)` on
    the Arabic table (sizes from the API validation).
 2. **Employee identity data is empty on TEST**: of 147 current employees none has
-   `NATIONAL_IDENTIFIER` or `PASSPORT_NUMBER` and one has `IQAMA_NUMBER`, so the backend rejects
-   nearly every employee (`IDENTITY_REQUIRED`). The form shows that message. Legacy printed a blank
-   ID; the backend rule was not relaxed.
+   `NATIONAL_IDENTIFIER` or `PASSPORT_NUMBER` and one has `IQAMA_NUMBER`. The backend used to
+   reject nearly every employee (`IDENTITY_REQUIRED`); it now mirrors legacy: the ID / Passport
+   No. is left blank when the master has none, and a non-Saudi falls back to
+   `IQAMA_NUMBER`, then `NATIONAL_IDENTIFIER`, then `PASSPORT_NUMBER`. Legacy printed a blank ID.
 3. `HR.SALARY_CERTIFICATES` and `HR.SALARY_CERTIFICATES_AR` exist in the TEST catalogue (MATCH); the registry uses their Oracle names. The sidebar entry shows for roles granted `HR.SALARY_CERTIFICATES:VIEW`.
 
 ## 10. Validation

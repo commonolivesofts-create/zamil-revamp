@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { dbText } from '../formText.validation.js';
 
 /*
  * Employment Offer Form request schemas (README_employment_offer_form.md §7.1, §9).
@@ -53,7 +54,7 @@ export const listQuerySchema = Joi.object({
   intNo: text(100),
   requisitionNo: text(100),
   division: Joi.string().valid(...BU_VALUES),
-  // Offer status is Incomplete until the dedicated HR acceptance action records Accepted.
+  // Saves write Complete; the dedicated HR acceptance action records Accepted.
   status: text(30),
   dateFrom: isoDate,
   dateTo: isoDate,
@@ -77,34 +78,36 @@ const salary = Joi.alternatives().try(
       return parsed;
     }, 'strip salary commas'),
 );
-// ATTRIBUTE11 is NUMBER/VARCHAR2 (README §1.1): accepts "REQ-1024" or a plain number.
+// Live Oracle ATTRIBUTE11 is NUMBER; only decimal requisition numbers fit.
 const requisitionNoValue = Joi.alternatives().try(
-  Joi.number(),
-  Joi.string().trim().max(100).pattern(NO_CONTROL_CHARACTERS),
+  Joi.string()
+    .trim()
+    .pattern(/^[0-9]{1,38}$/),
+  Joi.number().integer().min(0),
 );
 
 const lineSchema = Joi.object({
   basicSalary: salary.optional(),
-  basicSalaryAr: text(1000),
-  housingAllowance: text(500),
-  housingAllowanceAr: text(500),
-  transportation: text(500),
-  transportationAr: text(500),
-  annualVacation: text(500),
-  annualVacationAr: text(500),
-  ticket: text(500),
-  ticketAr: text(500),
-  medical: text(500),
-  medicalAr: text(500),
-  contractPeriod: text(500),
-  contractPeriodAr: text(500),
+  basicSalaryAr: dbText(500),
+  housingAllowance: dbText(500),
+  housingAllowanceAr: dbText(500),
+  transportation: dbText(500),
+  transportationAr: dbText(500),
+  annualVacation: dbText(500),
+  annualVacationAr: dbText(500),
+  ticket: dbText(500),
+  ticketAr: dbText(500),
+  medical: dbText(500),
+  medicalAr: dbText(500),
+  contractPeriod: dbText(500),
+  contractPeriodAr: dbText(500),
   // Required: APPROXIMATE_STARTING_DATE is a NOT NULL DATE (README §9).
   approximateStartingDate: isoDate.required(),
-  approximateStartingDateAr: text(100),
+  approximateStartingDateAr: dbText(100),
   // Optional: the SQL applies the hardcoded defaults from §1.2 via NVL when absent.
-  probationaryPeriod: text(500),
-  probationaryPeriodAr: text(500),
-  comment: text(4000),
+  probationaryPeriod: dbText(500),
+  probationaryPeriodAr: dbText(500),
+  comment: dbText(500, { multiline: true }),
 });
 
 /**

@@ -38,7 +38,9 @@ function mapHeader(r) {
       dateOfJoining: r.C_DATE_OF_JOINING,
       jobTitle: r.C_JOB_TITLE,
       dept: r.C_DEPT,
-      section: r.C_SECTION,
+      // C_SECTION is the full organisation name; older rows can have it empty while
+      // C_DEPT holds the stripped name, so restore the full name from that.
+      section: r.C_SECTION ?? (r.C_DEPT ? `${String(r.C_DEPT).trim()} Section` : null),
     },
     transfer: {
       jobTitle: r.T_JOB_TITLE,
@@ -116,6 +118,10 @@ export async function findEmployeeDetails(c, name) {
     dateOfJoining: hire?.START_DATE ?? null,
     jobTitle: job?.NAME ?? null,
     deptName: dept?.NAME ?? null,
+    // Legacy split of the single organisation name: Department is it with "Section"
+    // stripped, Section is the full name (CI3 getEmpDetails2 -> trans_form.php).
+    department: dept?.NAME ? dept.NAME.replace('Section', '').trim() : null,
+    section: dept?.NAME ?? null,
   };
 }
 export async function listJobs(c) {

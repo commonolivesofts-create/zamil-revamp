@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ContentSkeleton from "@/components/feedback/ContentSkeleton.jsx";
 import { useNavigate } from "react-router";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
 import useAuth from "@/features/auth/useAuth.js";
@@ -41,6 +42,7 @@ import {
   isRequisitionLocked,
   leadTime,
   requisitionFormFromRecord,
+  requisitionFieldIssues,
   requisitionPayload,
   requisitionProgress,
   REQUISITION_VALIDATION_FIELDS,
@@ -118,6 +120,8 @@ function RequisitionEditor({
     (signal) => service.getBudget(budgetName, { signal }),
   );
   const progress = requisitionProgress(form);
+  const fieldIssues = requisitionFieldIssues(form);
+  const firstProblemStep = Math.min(...[...progress.missing.map((check) => check.step), ...fieldIssues.map((issue) => issue.step), 3]);
   const unlockedStep = Math.max(furthestUnlocked, progress.unlockedStep);
   // Keep completed steps available when an earlier answer is edited again.
   if (unlockedStep > furthestUnlocked) setFurthestUnlocked(unlockedStep);
@@ -125,13 +129,14 @@ function RequisitionEditor({
   if (step > unlockedStep) setStep(unlockedStep);
   const continueStep = () => {
     const missing = progress.missing.filter((check) => check.step === step);
-    if (!missing.length) return true;
+    if (!missing.length && !fieldIssues.some((issue) => issue.step === step)) return true;
     setShowErrors(true);
     editor.reject(step);
     return false;
   };
   const errors = {
     ...(showErrors ? Object.fromEntries(progress.missing.map((check) => [check.key, `Please complete ${check.label}.`])) : {}),
+    ...(showErrors ? Object.fromEntries(fieldIssues.map(({ key, message }) => [key, message])) : {}),
     ...editor.fieldErrors,
   };
   const lead = leadTime(today, form.neededDate);
@@ -141,9 +146,7 @@ function RequisitionEditor({
   const lookupErrors = lookups.lookupErrors ?? [];
   const lookupNotice =
     lookupStatus === "loading" ? (
-      <p className="zrv-admin-state" role="status">
-        Loading form options… You can start filling the other fields.
-      </p>
+      <ContentSkeleton variant="inline" label="Preparing form options" />
     ) : lookupStatus === "error" || lookupErrors.length ? (
       <div className="zrv-admin-state zrv-admin-state--error" role="alert">
         <p>
@@ -192,9 +195,9 @@ function RequisitionEditor({
 
   const save = async () => {
     if (saving || editor.pending) return;
-    if (progress.missing.length) {
+    if (progress.missing.length || fieldIssues.length) {
       setShowErrors(true);
-      editor.reject(progress.firstStep);
+      editor.reject(firstProblemStep);
       return;
     }
     setSaving(true);
@@ -218,9 +221,9 @@ function RequisitionEditor({
   };
 
   const saveFromReview = () => {
-    if (progress.missing.length) {
+    if (progress.missing.length || fieldIssues.length) {
       setShowErrors(true);
-      editor.reject(progress.firstStep);
+      editor.reject(firstProblemStep);
       return;
     }
     save();
@@ -557,6 +560,7 @@ function RequisitionEditor({
                   }))}
                   onChange={(option) => updateJobTitle(option.name, option)}
                   onInputChange={updateJobTitle}
+                  maxLength={150}
                   error={errors.jobTitle}
                   required
                   placeholder={T.placeholders.jobTitle}
@@ -591,6 +595,7 @@ function RequisitionEditor({
                   }))}
                   required
                   error={errors.departmentId}
+                  maxLength={150}
                 />
               </HrField>
               <HrField
@@ -617,6 +622,7 @@ function RequisitionEditor({
                   {...fieldProps("rq-remark", { error: errors.remark })}
                   className="ux-textarea zrv-hr-input"
                   value={form.remark}
+                  maxLength={1000}
                   onChange={set("remark")}
                   placeholder={T.placeholders.remark}
                 />
@@ -713,6 +719,7 @@ function RequisitionEditor({
                     {...fieldProps("rq-add", { error: errors.additionReason })}
                     className="ux-textarea zrv-hr-input"
                     value={form.additionReason}
+                    maxLength={1000}
                     onChange={set("additionReason")}
                     placeholder={T.placeholders.additionReason}
                     aria-required="true"
@@ -745,9 +752,9 @@ function RequisitionEditor({
                       {...fieldProps("rq-bud", {
                         error: errors.budgetedSalary,
                       })}
-                      type="number"
-                      min="0"
+                      type="text"
                       inputMode="decimal"
+                      maxLength={24}
                       className="ux-input zrv-hr-input"
                       value={form.budgetedSalary}
                       onChange={set("budgetedSalary")}
@@ -835,6 +842,7 @@ function RequisitionEditor({
                   {...fieldProps("rq-other", { error: errors.otherRequirements })}
                   className="ux-textarea zrv-hr-input"
                   value={form.otherRequirements}
+                  maxLength={2000}
                   onChange={set("otherRequirements")}
                   placeholder={T.placeholders.otherRequirements}
                 />

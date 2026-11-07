@@ -29,13 +29,17 @@ Not committed.
   "if other" when an "Others" box is ticked, passport expiry not before issue, and a document on a new
   request (the legacy note "Please attach clear copy of passport").
 - Request number as legacy: `<division> - <0000 id>`. Status `DRAFT` on create; drafts and rejected
-  requests can be changed, in-process and approved ones are read-only (409), as the other HR forms.
+  requests can be changed, in-process, approved and accepted ones are read-only (409), as the other HR
+  forms. The report's status filter also offers the legacy workflow's `ACCEPTED`.
+- The department must be one of the lookup names, and create refuses when the signed-in user has no
+  employee record (`REQUESTER_NOT_FOUND`) instead of writing a blank requester.
+- Report: search (visitor, request no., nationality, company, visit purpose), status, division,
+  department, date range; cards for total and requests by month.
 - Documents: one upload per call after the request is saved; legacy file types, up to 24 MB; named after
   the file (legacy "Document name"; unnamed → `Document - n`). Stored on disk under
   `attachments/business-visa-requests/<lineId>_<name>`, as the other modules. Legacy files on the CI3 server
-  are listed but not served (no module serves downloads yet).
-- Report: search (visitor, request no., passport, company), status, division, department, date range;
-  cards for total and requests by month.
+  are listed but not served (no module serves downloads yet). Deleting the request removes its document
+  rows and (best effort) the stored files.
 - Not built: the approval workflow (`visa_flow.php`, MSG_TYPE `BVF`, DM/DIR/GM/HR columns), which is read
   only (Noted by = `DIR_NAME`, Approved by = `GM_NAME`).
 
@@ -53,6 +57,7 @@ Not committed.
 | PUT | `/:id` | UPDATE + CSRF |
 | POST | `/:id/documents` (multipart `file`, `name`) | UPDATE + CSRF |
 | DELETE | `/:id/documents/:lineId` | UPDATE + CSRF |
+| DELETE | `/:id` (documents and header, then the stored files) | DELETE + CSRF |
 
 Tables `XXZP.XX_BUS_VISA_HEADER` / `XX_BUS_VISA_DOCS` (no DDL): `HEADER_ID` and `LINE_ID` are identity
 columns (read-only dictionary check, 2026-11-04). Check boxes keep the legacy literals (`Single`,

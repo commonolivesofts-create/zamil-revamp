@@ -433,13 +433,23 @@ export const createPersonalStatusRepository = () => {
   };
 
   // Legacy fetchEmpNo: every employee number of the master (no hierarchy rule).
-  const employees = async (connection) => {
+  // The legacy Emp# datalist (every employee number) plus the name and organisation the picker
+  // shows; `search` narrows by employee number or name so the form can be searched by either.
+  const employees = async (connection, search = '') => {
+    const term = String(search ?? '').trim();
     const result = await connection.execute(
-      `SELECT DISTINCT
-         TO_CHAR(EMPLOYEE_NUMBER) AS "empNo"
+      `SELECT
+         TO_CHAR(EMPLOYEE_NUMBER) AS "empNo",
+         MAX(FULL_NAME) AS "name",
+         MAX(JOB_TITLE) AS "position",
+         MAX(DIVISION) AS "section"
        FROM XX_DIGI_EMP_MASTER
-       ORDER BY 1`,
-      {},
+       WHERE (:search IS NULL
+              OR UPPER(FULL_NAME) LIKE '%' || UPPER(:search) || '%'
+              OR TO_CHAR(EMPLOYEE_NUMBER) LIKE '%' || :search || '%')
+       GROUP BY EMPLOYEE_NUMBER
+       ORDER BY EMPLOYEE_NUMBER`,
+      { search: term || null },
       options,
     );
 

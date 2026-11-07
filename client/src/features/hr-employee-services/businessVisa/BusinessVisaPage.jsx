@@ -2,29 +2,35 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import usePermissions from '@/features/access/usePermissions.js'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
-import { businessToday, enDate, initials } from '@/features/hr-recruitment/shared/hrFormat.js'
+import { businessToday } from '@/features/hr-recruitment/shared/hrFormat.js'
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
 import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/RecruitmentLoader.jsx'
-import { FileDrop, HrField } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
-import { Orbit, RecruitmentShell, StepHead, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import { FileDrop, HrField, SearchableLookup } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
+import { RecruitmentShell } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { BUSINESS_VISA_PATHS as PATHS, LETTERS_BREADCRUMB } from '../employeeServicesPaths.js'
-import { STATUS_TEXT, isEditable } from '../shared/formRecords.js'
+import { isEditable } from '../shared/formRecords.js'
+import { REQUEST_STATUS_TEXT as STATUS_TEXT } from './businessVisaStatus.js'
 import '@/styles/hr-employee-services.css'
 import '@/styles/hr-employee-services-forms.css'
+import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import '@/styles/hr-business-visa.css'
 import { NATIONALITIES } from './nationalities.js'
 import {
   FILE_EXTENSIONS, FILE_MAX_MB, RESOURCE, TEXT_MAX, blankRequest, businessVisaService as service, fileProblem, validateRequest,
 } from './businessVisaService.js'
+import PreviewLanguageSwitch from '../shared/PreviewLanguageSwitch.jsx'
+import BusinessVisaRequestPreview from './BusinessVisaRequestPreview.jsx'
 
 // The legacy Business Visa Request form (visa_request/visa.php): a visa for a
 // business visitor coming to the company, with the passport copy attached.
+// A short form, so one compact page with anchored sections (as Sick Leave) and a
+// live preview of the request beside it.
 const TITLE = 'Business Visa Request'
-const STEPS = ['Request', 'Visitor', 'Travel & visa', 'Documents']
+const SECTIONS = ['Requester', 'Visitor', 'Travel & visa', 'Documents']
 const SAVE = 'Save request'
-const STEP_OF = {
+const SECTION_OF = {
   division: 0, dept: 0, requestDate: 0,
   visitorName: 1, visitorPhone: 1, nationality: 1, profession: 1, passportNo: 1, issueDate: 1, expiryDate: 1, companyName: 1, address: 1, tel: 1, fax: 1, arrivalDate: 1,
   comingFrom: 2, travelRoute: 2, visitPurpose: 2, saudiEmbassy: 2, visaType: 2, otherDetails: 2,
@@ -48,7 +54,7 @@ const visaTypeOf = (form) => [form.visaSingle && 'Single', form.visaMultiple && 
 
 export default function BusinessVisaPage() {
   return (
-    <RecruitmentLoader current="business-visa" flow={false} breadcrumb={LETTERS_BREADCRUMB} identify={() => {}}
+    <RecruitmentLoader current="business-visa" flow={false} breadcrumb={LETTERS_BREADCRUMB} identify={NO_IDENTIFY}
       title={TITLE} param="requestId" load={service.getById} loadLookups={(signal) => service.options({ signal })}>
       {({ lookups, record, editorKey }) => <VisaEditor key={editorKey} lookups={lookups} initial={record} />}
     </RecruitmentLoader>
@@ -61,13 +67,14 @@ function VisaEditor({ lookups, initial }) {
   const navigate = useNavigate()
   const permissions = usePermissions()
   const editor = useRecruitmentForm({
-    basePath: PATHS.form, idKey: 'requestId', record: initial,
+    basePath: PATHS.form, idKey: 'requestId', stepCount: SECTIONS.length, record: initial,
     initialForm: initial ? formOf(initial) : blankRequest(businessToday()),
   })
   const { form, patch, step, setStep, record } = editor
   const [errors, setErrors] = useState({})
   const [files, setFiles] = useState([])
   const [dialog, setDialog] = useState(null)
+  const [language, setLanguage] = useState('en')
   const canWrite = permissions.can(`${RESOURCE}:${record ? 'UPDATE' : 'CREATE'}`)
   const canAttach = permissions.can(`${RESOURCE}:UPDATE`) || !record
   const locked = Boolean(record && !isEditable(record.status)) || !canWrite
@@ -92,14 +99,29 @@ function VisaEditor({ lookups, initial }) {
     }, { success: `${file.fileName} removed.` })
   }
 
-  const save = () => {
-    if (locked) return
+  const validateAll = () => {
     const next = validateRequest(form)
     if (!record && !files.length) next.files = 'Attach a clear copy of the passport.'
+    return next
+  }
+
+  // One page: a tab scrolls to the section it names (as Sick Leave).
+  const goToSection = (index) => {
+    const next = Math.max(0, Math.min(SECTIONS.length - 1, index))
+    setStep(next)
+    document.getElementById(`bv-section-${next}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const scrollToSection = (index) => requestAnimationFrame(() => document.getElementById(`bv-section-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+
+  const save = () => {
+    if (locked) return
+    const next = validateAll()
     setErrors(next)
     const keys = Object.keys(next)
     if (keys.length) {
-      editor.reject(Math.min(...keys.map((key) => STEP_OF[key] ?? 0)), keys.length === 1 ? next[keys[0]] : C.reviewProblems(keys.length))
+      const first = Math.min(...keys.map((key) => SECTION_OF[key] ?? 0))
+      editor.reject(first, keys.length === 1 ? next[keys[0]] : C.reviewProblems(keys.length))
+      scrollToSection(first)
       return
     }
     editor.perform(async ({ saved: keep }) => {
@@ -127,27 +149,25 @@ function VisaEditor({ lookups, initial }) {
   const visaDone = (form.visaSingle || form.visaMultiple) && (!(form.travelOther || form.hotelOther) || has('otherDetails'))
   const fileCount = documents.length + files.length
   const doneSteps = [counts[0] === 3, counts[1] === STEP_FIELDS[1].length, counts[2] === 4 && visaDone, fileCount > 0]
-  const requiredTotal = 3 + STEP_FIELDS[1].length + 4 + 2
-  const filled = counts[0] + counts[1] + counts[2] + (visaDone ? 1 : 0) + (fileCount ? 1 : 0)
-  const open = STEPS.filter((_, index) => !doneSteps[index])
   const visaType = visaTypeOf(form)
+  const divisionName = lookups.divisions.find((item) => item.code === form.division)?.name
 
   const field = (key, label, { type = 'text', required = true, wide = false, placeholder, max = TEXT_MAX } = {}) => (
     <HrField key={key} id={`bv-${key}`} label={label} required={required} wide={wide} error={errors[key]}>
       {type === 'textarea'
         ? <textarea {...fieldProps(`bv-${key}`, { error: errors[key] })} className="ux-input zrv-hr-input" rows={2} maxLength={max} value={form[key]} onChange={set(key)} readOnly={locked} placeholder={placeholder} />
-        : <input {...fieldProps(`bv-${key}`, { error: errors[key] })} type={type} className="ux-input zrv-hr-input" aria-required={required || undefined}
+        : <input {...fieldProps(`bv-${key}`, { error: errors[key] })} type={type} max={type === 'date' ? '9999-12-31' : undefined} className="ux-input zrv-hr-input" aria-required={required || undefined}
           maxLength={type === 'text' || type === 'tel' ? max : undefined} value={form[key]} onChange={set(key)} readOnly={locked} placeholder={placeholder} />}
     </HrField>
   )
-  const select = (key, label, options, placeholder = 'Select') => (
+  // Long lists (divisions, departments and nationalities) are searchable; a saved
+  // value outside the list (older records) still shows and can be replaced.
+  const select = (key, label, options, placeholder = 'Search or select') => (
     <HrField id={`bv-${key}`} label={label} required error={errors[key]}>
-      <select {...fieldProps(`bv-${key}`, { error: errors[key] })} className="ux-select zrv-hr-input" aria-required="true" value={form[key]} onChange={set(key)} disabled={locked}>
-        <option value="">{placeholder}</option>
-        {/* A saved value outside the list (older records) stays visible. */}
-        {form[key] && !options.some((item) => item.value === form[key]) && <option value={form[key]}>{form[key]}</option>}
-        {options.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-      </select>
+      <SearchableLookup id={`bv-${key}`} value={form[key]} customValue={form[key]} required error={errors[key]} disabled={locked}
+        options={options.map((item) => ({ code: item.value, name: item.label }))}
+        onChange={(option) => set(key)(option.code)} onClear={() => set(key)('')}
+        placeholder={placeholder} maxLength={200} />
     </HrField>
   )
   const check = (key, label, group) => (
@@ -156,90 +176,79 @@ function VisaEditor({ lookups, initial }) {
       <span>{label}</span>
     </label>
   )
+  const attachments = [...documents.map((item) => item.fileName), ...files.map((item) => item.fileName)]
 
   return <>
-    <RecruitmentShell current="business-visa" flow={false} compact breadcrumb={LETTERS_BREADCRUMB} title={TITLE}
+    <RecruitmentShell current="business-visa" flow={false} compact singlePage breadcrumb={LETTERS_BREADCRUMB} title={TITLE}
       tools={tools} primary={{ label: SAVE, icon: 'save', onClick: save }} locked={locked} pending={editor.pending} focusError={editor.focusError}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss}
       steps={[
-        [STEPS[0], `${counts[0]}/3 required`], [STEPS[1], `${counts[1]}/${STEP_FIELDS[1].length} required`],
-        [STEPS[2], visaType || `${counts[2]}/4 required`], [STEPS[3], fileCount ? `${fileCount} file${fileCount === 1 ? '' : 's'}` : 'Passport copy'],
+        [SECTIONS[0], `${counts[0]}/3 required`], [SECTIONS[1], `${counts[1]}/${STEP_FIELDS[1].length} required`],
+        [SECTIONS[2], visaType || `${counts[2]}/4 required`], [SECTIONS[3], fileCount ? `${fileCount} file${fileCount === 1 ? '' : 's'}` : 'Passport copy'],
       ]}
-      step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={SAVE} onFinal={save}
+      step={step} onStep={goToSection} doneSteps={doneSteps}
       side={<>
-        <Tilt aria-label="Request card">
-          <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{record?.requestNo || 'Draft'}</span><span className="zrv-hr-dark__status">{record ? STATUS_TEXT[record.status] : 'Not saved'}</span></div>
-          <div className="zrv-hr-dark__who"><span className="zrv-hr-dark__av" aria-hidden="true">{initials(form.visitorName)}</span><div>
-            <h3 className={`zrv-hr-dark__title${has('visitorName') ? '' : ' zrv-hr-is-empty'}`}>{form.visitorName.trim() || 'Visitor'}</h3>
-            <div className={`zrv-hr-dark__sub${has('companyName') ? '' : ' zrv-hr-is-empty'}`}>{form.companyName.trim() || 'Company'}</div></div></div>
-          <div className="zrv-hr-dark__badges">
-            {visaType && <span className="zrv-hr-is-solid">{visaType}</span>}
-            {form.nationality && <span>{nationalityLabel(form.nationality)}</span>}
-          </div>
-          <div className="zrv-hr-dark__grid">
-            <div><small>Arrival</small><b>{form.arrivalDate ? enDate(form.arrivalDate) : '—'}</b></div>
-            <div><small>Passport expiry</small><b>{form.expiryDate ? enDate(form.expiryDate) : '—'}</b></div>
-            <div><small>Requested by</small><b>{record?.requestedBy || 'You'}</b></div>
-            <div><small>Documents</small><b>{fileCount}</b></div>
-          </div>
-        </Tilt>
-        <Orbit done={filled} total={requiredTotal} hint={open.length ? `Still open: ${open.join(', ')}` : 'Ready to save.'} />
+        <div className="zrv-hr-side__h">
+          <span className="zrv-hr-side__t"><span className="zrv-hr-eyebrow">Preview</span></span>
+          <PreviewLanguageSwitch value={language} onChange={setLanguage} />
+        </div>
+        <BusinessVisaRequestPreview form={form} record={record} divisionName={divisionName} nationality={nationalityLabel(form.nationality)}
+          attachments={attachments} files={[...documents, ...files]} language={language} />
       </>}>
 
-      {step === 0 && <>
-        <StepHead title="Who is requesting the visa?" desc="The request date and the requester's signature." />
+      <section id="bv-section-0" className="zrv-hr-esf-section">
+        <div className="zrv-hr-esf-sectionhead">
+          <h2>Requester</h2>
+          <span className="zrv-hr-esf-count" role="status">{counts[0]} / 3 required</span>
+        </div>
         <div className="zrv-hr-grid zrv-hr-is-4">
           {select('division', 'Division', lookups.divisions.map((item) => ({ value: item.code, label: item.name })))}
           {select('dept', 'Department', lookups.departments.map((name) => ({ value: name, label: name })))}
           {field('requestDate', 'Date', { type: 'date' })}
           <HrField id="bv-no" label="Request no."><input id="bv-no" className="ux-input zrv-hr-input" readOnly value={record?.requestNo ?? ''} placeholder={C.generated} /></HrField>
         </div>
-        {record && <>
-          <h3 className="zrv-hr-subh">Signature</h3>
-          <div className="zrv-hr-grid zrv-hr-is-4">
-            {[['bv-req', 'Requested by', record.requestedBy], ['bv-noted', 'Noted by', record.notedBy], ['bv-appr', 'Approved by', record.approvedBy], ['bv-status', 'Status', STATUS_TEXT[record.status]]].map(([id, label, value]) => (
-              <HrField key={id} id={id} label={label}><input id={id} className="ux-input zrv-hr-input" readOnly value={value || ''} placeholder="—" /></HrField>
-            ))}
-          </div>
-        </>}
-      </>}
+        {record && <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt">
+          {[['bv-req', 'Requested by', record.requestedBy], ['bv-noted', 'Noted by', record.notedBy], ['bv-appr', 'Approved by', record.approvedBy], ['bv-status', 'Status', STATUS_TEXT[record.status]]].map(([id, label, value]) => (
+            <HrField key={id} id={id} label={label}><input id={id} className="ux-input zrv-hr-input" readOnly value={value || ''} placeholder="—" /></HrField>
+          ))}
+        </div>}
+      </section>
 
-      {step === 1 && <>
-        <StepHead title="Who is visiting?" desc="The visitor as written in their passport." />
-        <h3 className="zrv-hr-subh">Identity</h3>
+      <section id="bv-section-1" className={`zrv-hr-esf-card zrv-hr-mt${step === 1 ? ' zrv-hr-is-focus' : ''}`}>
+        <div className="zrv-hr-esf-sectionhead">
+          <h2>Visitor</h2>
+          <span className="zrv-hr-esf-count" role="status">{counts[1]} / {STEP_FIELDS[1].length} required</span>
+        </div>
         <div className="zrv-hr-grid zrv-hr-is-4">
           {field('visitorName', 'Visitor name')}
           {select('nationality', 'Nationality', NATIONALITIES)}
           {field('profession', 'Profession')}
           {field('visitorPhone', 'Visitor phone', { type: 'tel' })}
-        </div>
-        <h3 className="zrv-hr-subh">Passport</h3>
-        <div className="zrv-hr-grid zrv-hr-is-4">
           {field('passportNo', 'Passport no.')}
           {field('issueDate', 'Issue date', { type: 'date' })}
           {field('expiryDate', 'Expiry date', { type: 'date' })}
           {field('arrivalDate', 'Approx. arrival', { type: 'date' })}
         </div>
-        <h3 className="zrv-hr-subh">Company</h3>
-        <div className="zrv-hr-grid zrv-hr-is-4">
+        <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt">
           {field('companyName', 'Company name & business', { wide: true })}
           {field('tel', 'Tel', { type: 'tel' })}
           {field('fax', 'Fax', { type: 'tel' })}
           {field('address', 'Address', { type: 'textarea', required: false, wide: true })}
         </div>
-      </>}
+      </section>
 
-      {step === 2 && <>
-        <StepHead title="How will they travel, and who pays?" desc="Route, purpose, visa type and expenses." />
-        <h3 className="zrv-hr-subh">Travel</h3>
+      <section id="bv-section-2" className={`zrv-hr-esf-card zrv-hr-mt${step === 2 ? ' zrv-hr-is-focus' : ''}`}>
+        <div className="zrv-hr-esf-sectionhead">
+          <h2>Travel &amp; visa</h2>
+          <span className="zrv-hr-esf-daypill" role="status">{visaType || `${counts[2]} / 4 required`}</span>
+        </div>
         <div className="zrv-hr-grid zrv-hr-is-4">
           {field('comingFrom', 'Coming from')}
           {field('travelRoute', 'Travelling route (sector)')}
           {field('visitPurpose', 'Purpose of visit')}
           {field('saudiEmbassy', 'Saudi embassy', { placeholder: 'City the visa is sent to' })}
         </div>
-        <h3 className="zrv-hr-subh">Visa and expenses</h3>
-        <div className="zrv-hr-bv-rows">
+        <div className="zrv-hr-bv-rows zrv-hr-mt">
           <div className={`zrv-hr-bv-row${errors.visaType ? ' zrv-hr-is-bad' : ''}`} role="group" aria-labelledby="bv-visa">
             <span id="bv-visa" className="zrv-hr-label">Visa type<i className="zrv-hr-req" aria-hidden="true">*</i></span>
             <div className="zrv-hr-bv-checks">{check('visaSingle', 'Single', 'visaType')}{check('visaMultiple', 'Multiple for 1 year', 'visaType')}</div>
@@ -255,17 +264,20 @@ function VisaEditor({ lookups, initial }) {
         {(form.travelOther || form.hotelOther || has('otherDetails')) && <div className="zrv-hr-grid zrv-hr-mt">
           {field('otherDetails', 'If other, please specify', { type: 'textarea', required: form.travelOther || form.hotelOther, wide: true })}
         </div>}
-      </>}
+      </section>
 
-      {step === 3 && <>
-        <StepHead title="Which documents are attached?" desc={record ? 'Saved documents can be removed while the request is a draft or rejected.' : 'A clear copy of the passport is required.'} />
+      <section id="bv-section-3" className={`zrv-hr-esf-card zrv-hr-mt${step === 3 ? ' zrv-hr-is-focus' : ''}`}>
+        <div className="zrv-hr-esf-sectionhead">
+          <h2>Documents</h2>
+          <span className="zrv-hr-esf-count" role="status">{fileCount} file{fileCount === 1 ? '' : 's'}</span>
+        </div>
         <p className="zrv-hr-esf-note" role="note">Accepted: <b>{FILE_EXTENSIONS.join(', ').toUpperCase()}</b> · up to <b>{FILE_MAX_MB} MB</b> each.</p>
-        <div className={errors.files ? 'zrv-hr-is-bad' : undefined}>
+        <div className={errors.files ? 'zrv-hr-is-bad zrv-hr-mt' : 'zrv-hr-mt'}>
           <FileDrop text={FILE_TEXT} files={[...documents, ...files]} disabled={locked || !canAttach}
             canRemoveSaved={!locked && canAttach} onRemove={removeSaved} onChange={addFiles} />
         </div>
         {errors.files && <p className="zrv-auth-field-error" role="alert">{errors.files}</p>}
-      </>}
+      </section>
     </RecruitmentShell>
     {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
   </>

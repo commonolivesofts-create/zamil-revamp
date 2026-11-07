@@ -67,97 +67,116 @@ export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.br
 // `breadcrumb`.
 export function RecruitmentShell({
   current, title, subtitle, flowStatus, tools, primary, secondaryAction, feedback, onDismissFeedback, lookupNotice, ticket, steps, step, onStep, doneSteps,
-  finalLabel, onFinal, side, locked, pending, pendingMessage, focusError, demo, flow = true, compact = false, banner = null, breadcrumb, lockedSteps = [], onContinue, feedbackMode = 'inline', children,
+  finalLabel, onFinal, side, locked, pending, pendingMessage, focusError, demo, flow = true, compact = false, banner = null, breadcrumb, lockedSteps = [], onContinue, feedbackMode = 'toast', dir, singlePage = false, children,
 }) {
   const [direction, setDirection] = useState({ step, value: 'fwd' })
   const stageRef = useRef(null)
   const trackRef = useRef(null)
   const moved = useRef(false)
+  const focusInvalid = () => {
+    const invalid = stageRef.current?.querySelector('[aria-invalid="true"]')
+    const target = invalid?.matches('input,select,textarea,button') ? invalid : invalid?.querySelector('input,select,textarea,button')
+    if (!target) return false
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    target.focus({ preventScroll: true })
+    return true
+  }
+  const act = (action) => { if (!locked && !pending && !focusInvalid()) action?.() }
   if (direction.step !== step) setDirection({ step, value: step < direction.step ? 'back' : 'fwd' })
 
   const go = (target, validate = false) => {
     const next = Math.max(0, Math.min(steps.length - 1, target))
-    if (validate && onContinue?.() === false) return
-    if (lockedSteps[next]) return
-    if (next === step) return
+    if (next > step && !locked) {
+      if (focusInvalid()) return
+      if (onContinue?.() === false) return
+    }
+    // Badges may depend on a later step. Continue uses the current validator;
+    // track locks only prevent jumping ahead by clicking a future tab.
+    if (lockedSteps[next] && !(validate && onContinue)) return
+    if (next === step && !singlePage) return
     moved.current = true
     onStep(next)
-    requestAnimationFrame(() => trackRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+    if (!singlePage) requestAnimationFrame(() => trackRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
 
   // Keyboard users land on the heading of the step they moved to.
   useEffect(() => {
-    if (!moved.current) return
+    if (!moved.current || singlePage) return
     moved.current = false
     stageRef.current?.querySelector('.zrv-hr-panel h2')?.focus({ preventScroll: true })
-  }, [step])
+  }, [step, singlePage])
 
   useEffect(() => {
     if (!focusError) return
     const frame = requestAnimationFrame(() => {
       const invalid = stageRef.current?.querySelector('[aria-invalid="true"]')
       const target = invalid?.matches('input,select,textarea,button') ? invalid : invalid?.querySelector('input,select,textarea,button')
-      target?.focus()
+      if (target) {
+        target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+        target.focus({ preventScroll: true })
+      }
     })
     return () => cancelAnimationFrame(frame)
   }, [focusError])
 
   return (
-    <div className={`zrv-hr zrv-hr--${current}${compact ? ' zrv-hr--compact' : ''}`} aria-busy={pending || undefined} inert={pending && pendingMessage ? true : undefined}>
+    <div className={`zrv-hr zrv-hr--${current}${compact ? ' zrv-hr--compact' : ''}`} dir={dir} aria-busy={pending || undefined} inert={pending && pendingMessage ? true : undefined}>
       {pending && pendingMessage && <RecruitmentPending message={pendingMessage} />}
-      <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} breadcrumb={breadcrumb} />
-      {flow && <FlowNav current={current} status={flowStatus} />}
+      <div className="zrv-hr-form-header">
+        <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} breadcrumb={breadcrumb} />
+        {flow && <FlowNav current={current} status={flowStatus} />}
 
-      <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>
-        <div className="zrv-hr-tools">
-          {tools.map((tool) => (
-            <button key={tool.label} type="button" onClick={tool.onClick} disabled={tool.disabled} title={tool.label}>
-              <OrvexaIcon name={tool.icon} size={17} /><span>{tool.label}</span>
+        <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>
+          <div className="zrv-hr-tools">
+            {tools.map((tool) => (
+              <button key={tool.label} type="button" onClick={tool.onClick} disabled={tool.disabled} title={tool.label}>
+                <OrvexaIcon name={tool.icon} size={17} /><span>{tool.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="zrv-hr-toolbar__actions">
+          {primary && (
+            <button type="button" className="btn-primary zrv-hr-btn" onClick={() => act(primary.onClick)} disabled={locked || pending || primary.disabled}>
+              <OrvexaIcon name={primary.icon || 'check'} size={16} /> <span className="zrv-hr-btn__label">{primary.label}</span>
             </button>
-          ))}
+          )}
+          {secondaryAction && (
+            <button type="button" className="btn-secondary zrv-hr-btn" onClick={() => act(secondaryAction.onClick)} disabled={locked || pending || secondaryAction.disabled}>
+              <OrvexaIcon name={secondaryAction.icon || 'send'} size={16} /><span>{secondaryAction.label}</span>
+            </button>
+          )}
+          </div>
         </div>
-        <div className="zrv-hr-toolbar__actions">
-        {primary && (
-          <button type="button" className="btn-primary zrv-hr-btn" onClick={primary.onClick} disabled={locked || pending || primary.disabled}>
-            <OrvexaIcon name={primary.icon || 'check'} size={16} /> <span className="zrv-hr-btn__label">{primary.label}</span>
-          </button>
-        )}
-        {secondaryAction && (
-          <button type="button" className="btn-secondary zrv-hr-btn" onClick={secondaryAction.onClick} disabled={locked || pending || secondaryAction.disabled}>
-            <OrvexaIcon name={secondaryAction.icon || 'send'} size={16} /><span>{secondaryAction.label}</span>
-          </button>
-        )}
-        </div>
+
+        {feedbackMode === 'toast' ? <RecruitmentToast feedback={feedback} onDismiss={onDismissFeedback} /> : <Feedback feedback={feedback} onDismiss={onDismissFeedback} />}
+        {lookupNotice}
+        {ticket}
+        {banner}
+
+        <nav className="zrv-hr-track" aria-label={COMMON_TEXT.stepsLabel} style={{ '--step': step, '--n': steps.length }} ref={trackRef}>
+          <span className="zrv-hr-track__fill" aria-hidden="true" />
+          {steps.map(([name, hint], index) => {
+            const done = doneSteps[index] && index !== step
+            const stepLocked = Boolean(lockedSteps[index])
+            return (
+              <button key={name} type="button" className={`zrv-hr-track__step${done ? ' zrv-hr-is-done' : ''}`} aria-current={index === step ? 'step' : undefined} disabled={stepLocked} aria-label={stepLocked ? `${name}: locked. Complete the previous steps first.` : undefined} onClick={() => go(index)}>
+                <span className="zrv-hr-track__n">{stepLocked ? <OrvexaIcon name="lock" size={15} /> : done ? <OrvexaIcon name="check" size={15} /> : index + 1}</span>
+                <span className="zrv-hr-track__t"><b>{name}</b><small>{stepLocked ? 'Complete previous step' : hint}</small></span>
+              </button>
+            )
+          })}
+        </nav>
       </div>
-
-      {feedbackMode === 'toast' ? <RecruitmentToast feedback={feedback} onDismiss={onDismissFeedback} /> : <Feedback feedback={feedback} onDismiss={onDismissFeedback} />}
-      {lookupNotice}
-      {ticket}
-      {banner}
-
-      <nav className="zrv-hr-track" aria-label={COMMON_TEXT.stepsLabel} style={{ '--step': step, '--n': steps.length }} ref={trackRef}>
-        <span className="zrv-hr-track__fill" aria-hidden="true" />
-        {steps.map(([name, hint], index) => {
-          const done = doneSteps[index] && index !== step
-          const stepLocked = Boolean(lockedSteps[index])
-          return (
-            <button key={name} type="button" className={`zrv-hr-track__step${done ? ' zrv-hr-is-done' : ''}`} aria-current={index === step ? 'step' : undefined} disabled={stepLocked} aria-label={stepLocked ? `${name}: locked. Complete the previous steps first.` : undefined} onClick={() => go(index)}>
-              <span className="zrv-hr-track__n">{stepLocked ? <OrvexaIcon name="lock" size={15} /> : done ? <OrvexaIcon name="check" size={15} /> : index + 1}</span>
-              <span className="zrv-hr-track__t"><b>{name}</b><small>{stepLocked ? 'Complete previous step' : hint}</small></span>
-            </button>
-          )
-        })}
-      </nav>
 
       <div className="zrv-hr-body">
         <form className="zrv-hr-stage" noValidate onSubmit={(event) => event.preventDefault()} ref={stageRef}>
           {locked && <p className="zrv-hr-locked"><OrvexaIcon name="lock" size={15} /> {COMMON_TEXT.readOnly}</p>}
           <fieldset disabled={locked} className="zrv-hr-stage__fs">
-            <section key={step} className={`zrv-hr-panel zrv-hr-is-entering zrv-hr-is-${direction.value}`}>
+            <section key={singlePage ? 'all' : step} className={`zrv-hr-panel${singlePage ? '' : ` zrv-hr-is-entering zrv-hr-is-${direction.value}`}`}>
               {children}
             </section>
           </fieldset>
-          <div className="zrv-hr-stage__nav">
+          {!singlePage && <div className="zrv-hr-stage__nav">
             <button type="button" className="btn-secondary zrv-hr-btn" onClick={() => go(step - 1)} disabled={step === 0}>
               <OrvexaIcon name="arrow-left" size={16} /> {COMMON_TEXT.back}
             </button>
@@ -165,11 +184,11 @@ export function RecruitmentShell({
             {step < steps.length - 1 ? (
               <button type="button" className="btn-primary zrv-hr-btn" onClick={() => go(step + 1, true)}><span className="zrv-hr-btn__label">{COMMON_TEXT.continue}</span> <OrvexaIcon name="arrow-right" size={16} /></button>
             ) : (
-              <button type="button" className="btn-primary zrv-hr-btn" onClick={onFinal} disabled={locked || pending}><OrvexaIcon name="check" size={16} /> <span className="zrv-hr-btn__label">{finalLabel}</span></button>
+              <button type="button" className="btn-primary zrv-hr-btn" onClick={() => act(onFinal)} disabled={locked || pending}><OrvexaIcon name="check" size={16} /> <span className="zrv-hr-btn__label">{finalLabel}</span></button>
             )}
-          </div>
+          </div>}
         </form>
-        <aside className="zrv-hr-side">{side}</aside>
+        {side && <aside className="zrv-hr-side">{side}</aside>}
       </div>
     </div>
   )

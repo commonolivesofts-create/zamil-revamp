@@ -1,6 +1,60 @@
 /* Signed-in workspace: dashboard cards and sidebar access states.
    Uses the Orvexa theme tokens only; the original Orvexa CSS is unchanged. */
 
+/* Size the workspace from its actual header and banners. Keep these rules in
+   app-owned CSS so the purchased template and printed documents stay intact. */
+@media screen {
+  body[data-app-shell="true"] {
+    --app-content-max-width: none;
+    --app-page-shell-max-width: none;
+  }
+
+  body[data-app-shell="true"] #app-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 100dvh;
+  }
+
+  body[data-app-shell="true"] #app-main > header,
+  body[data-app-shell="true"] #app-main > [role="status"] {
+    flex-shrink: 0;
+  }
+
+  body[data-app-shell="true"] #app-main > #main-content {
+    display: flex;
+    flex: 1 0 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  #main-content > :is(.zrv-hr, .zrv-admin, .zrv-dash, .zrv-ws, .zrv-auth-page, .zrv-route-notice, .zrv-page-state) {
+    flex: 1 0 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  #main-content > .zrv-route-notice {
+    margin-block: 0;
+  }
+
+  #main-content > .zrv-ws {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #main-content > .zrv-ws > .scene {
+    flex: 1 0 auto;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+  }
+}
+
 /* ---------------------------------------------------------------- dashboard */
 .zrv-dash {
   width: min(100%, 1180px);

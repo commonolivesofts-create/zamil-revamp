@@ -150,7 +150,79 @@ describe('Salary certificate repository SQL', () => {
       await repo.list(c, { page: 1, pageSize: 5, q: 'a', from: '2026-01-01', to: '2026-12-31' });
       await repo.picker(c, { q: '1', page: 1, pageSize: 5 });
       assertExactBinds(c.statements);
+      // The picker searches by name too and returns it for the dropdown.
+      const picker = c.statements.find(({ sql }) => sql.includes('ORDER BY EMPLOYEE_NUMBER'));
+      assert.match(picker.sql, /FULL_NAME/);
+      assert.match(picker.sql, /UPPER\(FULL_NAME\) LIKE/);
     }
+  });
+});
+
+describe('Salary certificate identity', () => {
+  const row = {
+    EMPLOYEE_NUMBER: '1001',
+    FULL_NAME: 'Omar Ali',
+    POSITION_NAME: 'Engineer',
+    NATIONALITY: 'Egyptian',
+    JOINING_DATE: '2020-01-05',
+    DIVISION: 'IPP',
+    BASIC_SALARY: 5000,
+    HOUSING_ALLOWANCE: 0,
+    TRANSPORTATION_ALLOWANCE: 0,
+    COMMUNICATION_ALLOWANCE: 0,
+    CAR_ALLOWANCE: 0,
+  };
+
+  it('English: no identifier is blank, not an error; a non-Saudi falls back to ID or passport', async () => {
+    const { createSalaryCertificateEnglishService } =
+      await import('../src/modules/hr/salary-certificates-english/salary-certificate-english.service.js');
+    const serviceWith = (r) =>
+      createSalaryCertificateEnglishService({
+        repository: { employee: async () => [r] },
+        withConnection: (_pool, fn) => fn({}),
+      });
+
+    // TEST employee data: no NATIONAL_IDENTIFIER/PASSPORT/IQAMA. Legacy printed a blank ID.
+    assert.equal((await serviceWith(row).employee('1001')).nationalIdentifier, '');
+    assert.equal(
+      (await serviceWith({ ...row, PASSPORT_NUMBER: 'P123456' }).employee('1001'))
+        .nationalIdentifier,
+      'P123456',
+    );
+    assert.equal(
+      (
+        await serviceWith({
+          ...row,
+          NATIONALITY: 'Saudi',
+          NATIONAL_IDENTIFIER: '1234567890',
+        }).employee('1001')
+      ).nationalIdentifier,
+      '1234567890',
+    );
+  });
+
+  it('Arabic: no identifier is blank, not an error; a non-Saudi falls back to ID or passport', async () => {
+    const { createSalaryCertificateService } =
+      await import('../src/modules/hr/salary-certificates-ar/salary-certificate.service.js');
+    const serviceWith = (r) =>
+      createSalaryCertificateService({
+        repository: { employee: async () => [r] },
+        withConnection: (_pool, fn) => fn({}),
+      });
+    const arabic = {
+      ...row,
+      FULL_NAME_AR: 'عمر علي',
+      POSITION_ARABIC: 'مهندس',
+      NATIONALITY_AR: 'مصري',
+      NATION_EN: 'Egyptian',
+    };
+
+    assert.equal((await serviceWith(arabic).employee('1001')).nationalIdentifier, '');
+    assert.equal(
+      (await serviceWith({ ...arabic, IQAMA_NUMBER: '2345678901' }).employee('1001'))
+        .nationalIdentifier,
+      '2345678901',
+    );
   });
 });
 

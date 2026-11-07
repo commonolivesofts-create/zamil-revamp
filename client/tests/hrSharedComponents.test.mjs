@@ -77,7 +77,7 @@ test("RecruitmentShell options: flow, compact and banner default to the earlier 
   const shell = await read(`${SHARED}RecruitmentShell.jsx`);
   assert.match(
     shell,
-    /flow = true, compact = false, banner = null, breadcrumb, lockedSteps = \[\], onContinue, feedbackMode = ['"]inline['"], children,/,
+    /flow = true, compact = false, banner = null, breadcrumb, lockedSteps = \[\], onContinue, feedbackMode = ['"]toast['"], .*children,/,
   );
   assert.match(shell, /pending, pendingMessage/);
   assert.match(shell, /secondaryAction/);
@@ -186,22 +186,14 @@ test("EmployeePicker options: tight variant and a separate cache-key prefix", as
   );
 });
 
-test("unmodified HR pages do not opt into the new options", async () => {
+test("onboarding forms keep the full recruitment frame and navigation", async () => {
   const pages = [
-    "offer/OfferPage.jsx",
     "orientation/OrientationPage.jsx",
     "probation/ProbationPage.jsx",
   ];
   for (const page of pages) {
     const source = await read(`../src/features/hr-recruitment/${page}`);
-    // Orientation uses the banner slot for its legacy printout (hidden on screen).
-    assert.doesNotMatch(
-      source,
-      page === "orientation/OrientationPage.jsx"
-        ? /flow=\{false\}|\btight\b|cacheKey=/
-        : /banner=|flow=\{false\}|\btight\b|cacheKey=/,
-      page,
-    );
+    assert.doesNotMatch(source, /flow=\{false\}/, page);
     const shellTags = source.match(/<RecruitmentShell\b[\s\S]*?>/g) ?? [];
     assert.ok(
       shellTags.length > 0 &&

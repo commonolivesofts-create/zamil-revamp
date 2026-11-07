@@ -15,3 +15,11 @@
   .zrv-hr-bv-row > small { grid-column: 1; }
   .zrv-hr-bv-check { flex: 1 1 140px; min-width: 0; }
 }
+
+/* Print the request itself (the preview), not the form. */
+@media print {
+  .zrv-hr--business-visa .zrv-hr-form-header, .zrv-hr--business-visa .zrv-hr-stage { display: none !important; }
+  .zrv-hr--business-visa .zrv-hr-body { display: block; }
+  .zrv-hr--business-visa .zrv-hr-side { display: block; width: 100%; }
+  .zrv-hr--business-visa .zrv-hr-esf-paper { padding: 0; border: 0; box-shadow: none; }
+}

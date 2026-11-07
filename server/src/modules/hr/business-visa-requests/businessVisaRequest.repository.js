@@ -199,13 +199,23 @@ export async function deleteDocument(connection, id, lineId) {
   return result.rowsAffected === 1;
 }
 
+export async function deleteDocuments(connection, id) {
+  await connection.execute(`DELETE FROM ${DOCS} WHERE HEADER_ID = :id`, { id });
+}
+
+export async function deleteHeader(connection, id) {
+  const result = await connection.execute(`DELETE FROM ${HEADER} WHERE HEADER_ID = :id`, { id });
+  return result.rowsAffected === 1;
+}
+
 // Report filters (legacy report(): every request, newest first).
 function where({ q, status, division, dept, dateFrom, dateTo }) {
   const clauses = [];
   const binds = {};
   if (q) {
     clauses.push(
-      `(UPPER(H.VISIT_NAME) LIKE :q OR UPPER(H.REQ_NO) LIKE :q OR UPPER(H.PASS_NO) LIKE :q OR UPPER(H.COMPANY_NAME) LIKE :q)`,
+      `(UPPER(H.VISIT_NAME) LIKE :q OR UPPER(H.REQ_NO) LIKE :q OR UPPER(H.NATION) LIKE :q
+        OR UPPER(H.COMPANY_NAME) LIKE :q OR UPPER(H.VISIT_PURPOSE) LIKE :q)`,
     );
     binds.q = `%${q.toUpperCase()}%`;
   }

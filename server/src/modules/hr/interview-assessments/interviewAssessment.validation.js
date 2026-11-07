@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { dbText } from '../formText.validation.js';
 
 /*
  * Interview Assessment Form request schemas (README_interview_assessment_form.md §3.2, §7.1, §9).
@@ -10,8 +11,6 @@ const id = Joi.string().pattern(/^[1-9][0-9]{0,18}$/);
 const NO_CONTROL_CHARACTERS = /^[^\p{Cc}]+$/u;
 const text = (max) =>
   Joi.string().trim().max(max).pattern(NO_CONTROL_CHARACTERS).allow('').optional();
-const requiredText = (max) =>
-  Joi.string().trim().min(1).max(max).pattern(NO_CONTROL_CHARACTERS).required();
 
 export const emptyQuerySchema = Joi.object({});
 export const emptyBodySchema = Joi.object({});
@@ -74,21 +73,21 @@ const BU_VALUES = PAYROLL_UNITS.map((unit) => unit.code);
 
 const personalSpecSchema = Joi.object({
   rate1: rating,
-  remark1: text(500),
+  remark1: dbText(200),
   rate2: rating,
-  remark2: text(500),
+  remark2: dbText(200),
   rate3: rating,
-  remark3: text(500),
+  remark3: dbText(200),
   rate4: rating,
-  remark4: text(500),
+  remark4: dbText(200),
   rate5: rating,
-  remark5: text(500),
+  remark5: dbText(200),
   rate6: rating,
-  remark6: text(500),
+  remark6: dbText(200),
   rate7: rating,
-  remark7: text(500),
+  remark7: dbText(200),
   rate8: rating,
-  remark8: text(500),
+  remark8: dbText(200),
   // Client totals are accepted but recomputed server-side (README §9).
   rate9: count,
   remarks: text(500),
@@ -96,31 +95,31 @@ const personalSpecSchema = Joi.object({
 
 const jobCompetencySchema = Joi.object({
   cRating1: rating,
-  cRemark1: text(500),
+  cRemark1: dbText(200),
   cRating2: rating,
-  cRemark2: text(500),
+  cRemark2: dbText(200),
   cRating3: rating,
-  cRemark3: text(500),
+  cRemark3: dbText(200),
   cRating4: rating,
-  cRemark4: text(500),
+  cRemark4: dbText(200),
   cRating5: rating,
-  cRemark5: text(500),
+  cRemark5: dbText(200),
   cRating6: rating,
-  cRemark6: text(500),
+  cRemark6: dbText(200),
   cRating7: count,
   cRemarks: text(500),
-  sumStrength: text(4000),
-  sumWeekness: text(4000),
+  sumStrength: dbText(200, { multiline: true }),
+  sumWeekness: dbText(200, { multiline: true }),
 });
 
 const evaluationSchema = Joi.object({
   status: Joi.string().valid('Passed', 'Hold', 'Failed').required(),
-  interviewedBy: text(200),
-  adminManager: text(200),
-  hrRep: text(200),
-  deptRep: text(200),
-  comment: text(500),
-  managningDirector: text(200),
+  interviewedBy: dbText(50),
+  adminManager: dbText(50),
+  hrRep: dbText(50),
+  deptRep: dbText(50),
+  comment: dbText(50),
+  managningDirector: dbText(50),
 });
 
 /**
@@ -128,16 +127,16 @@ const evaluationSchema = Joi.object({
  * sections. `status` is only ever written as 'Incomplete' on insert; PUT never changes it.
  */
 export const writeBodySchema = Joi.object({
-  candidateName: requiredText(200),
-  requisitionNo: requiredText(100),
-  positionName: requiredText(200),
+  candidateName: dbText(200, { required: true }),
+  requisitionNo: dbText(50, { required: true }),
+  positionName: dbText(200, { required: true }),
   attribute3: Joi.string()
     .trim()
     .valid(...BU_VALUES)
     .required(),
   nationality: text(100),
   materialStatus: Joi.string().valid('Single', 'Married').allow('').optional(),
-  age: count,
+  age: Joi.number().integer().min(18).max(70).optional(),
   interviewDate: isoDate,
   interviewTime: text(20),
   interviewType: Joi.string().valid('Personal', 'Online').allow('').optional(),
@@ -148,7 +147,7 @@ export const writeBodySchema = Joi.object({
   secondaryEducationChk: Joi.string().valid('Yes', 'No').allow('').optional(),
   lastPositionHeld: text(200),
   companyName: text(200),
-  relevantYearsExperience: count,
+  relevantYearsExperience: Joi.number().integer().min(0).max(50).optional(),
   location: text(100),
   currentEmployer: text(200),
   joining: isoDate,

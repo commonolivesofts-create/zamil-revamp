@@ -498,13 +498,14 @@ export async function listEmployees(connection, { q = null, page = 1, pageSize =
           AS DEPARTMENT_NAME
       FROM XX_DIGI_EMP_MASTER
 
-      WHERE (
-        :q IS NULL
-        OR UPPER(FULL_NAME)
-          LIKE '%' || UPPER(:q) || '%'
-        OR TO_CHAR(EMPLOYEE_NUMBER)
-          LIKE '%' || :q || '%'
-      )
+      WHERE CURRENT_EMP_FLAG = 'Y'
+        AND (
+          :q IS NULL
+          OR UPPER(FULL_NAME)
+            LIKE '%' || UPPER(:q) || '%'
+          OR TO_CHAR(EMPLOYEE_NUMBER)
+            LIKE '%' || :q || '%'
+        )
 
       ORDER BY FULL_NAME
       OFFSET :offset ROWS

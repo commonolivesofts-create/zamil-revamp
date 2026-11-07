@@ -6,6 +6,7 @@ import {
   emptyBodySchema,
   emptyQuerySchema,
   employeeNumberParamsSchema,
+  employeeSearchQuerySchema,
   headerIdParamsSchema,
   listQuerySchema,
   writeBodySchema,
@@ -50,7 +51,11 @@ export function createPersonalStatusRoutes({
     next();
   });
 
-  router.get('/lookups/employees', ...read('VIEW'), controller.employees);
+  router.get(
+    '/lookups/employees',
+    ...read('VIEW', { query: employeeSearchQuerySchema }),
+    controller.employees,
+  );
 
   router.get('/lookups/positions', ...read('VIEW'), controller.positions);
 

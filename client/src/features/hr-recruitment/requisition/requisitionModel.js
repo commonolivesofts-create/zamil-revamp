@@ -2,6 +2,7 @@
 // to the existing /hr/requisitions API by hrRecruitmentService.js.
 import { REQUISITION_TEXT } from '../hrRecruitmentText.js'
 import { daysBetween } from '../shared/hrFormat.js'
+import { normalizeNotes, normalizeShortText, textLimitError } from '../shared/formValidation.js'
 
 export const REQUISITION_STATUSES = Object.freeze(['Draft', 'Inprocess', 'Approved', 'Rejected'])
 export const REASONS = Object.freeze(['REPLACEMENT', 'ADDITION'])
@@ -59,11 +60,11 @@ export function requisitionFormFromRecord(record, today = '') {
 export function requisitionPayload(form) {
   const reason = REASONS.includes(form.reason) ? form.reason : ''
   return {
-    jobId: form.jobId, jobName: form.jobTitle.trim(), deptId: form.departmentId,
-    deptName: form.departmentName.trim(), dateNeeded: form.neededDate,
+    jobId: form.jobId, jobName: normalizeShortText(form.jobTitle), deptId: form.departmentId,
+    deptName: normalizeShortText(form.departmentName), dateNeeded: form.neededDate,
     reasonOfReq: reason === 'REPLACEMENT' ? 'Replacement' : reason === 'ADDITION' ? 'Addition' : '',
-    replacementFor: reason === 'REPLACEMENT' ? form.replacementFor.trim() : '',
-    reason: reason === 'ADDITION' ? form.additionReason.trim() : '',
+    replacementFor: reason === 'REPLACEMENT' ? normalizeShortText(form.replacementFor) : '',
+    reason: reason === 'ADDITION' ? normalizeNotes(form.additionReason) : '',
     budgeted: form.budgeted === 'yes' ? 'Y' : form.budgeted === 'no' ? 'N' : '',
     budgetedSal: form.budgeted === 'yes' ? form.budgetedSalary : '',
     highSchool: form.highSchool === 'yes' ? 'Y' : form.highSchool === 'no' ? 'N' : '',
@@ -71,9 +72,28 @@ export function requisitionPayload(form) {
     higherDiploma: form.higherDiploma === 'yes' ? 'Y' : form.higherDiploma === 'no' ? 'N' : '',
     degree: form.degree === 'yes' ? 'Y' : form.degree === 'no' ? 'N' : '',
     masterDegree: form.masterDegree === 'yes' ? 'Y' : form.masterDegree === 'no' ? 'N' : '',
-    gccExp: form.gccExp, workExp: form.workExp, skills: form.skills.trim(),
-    other: form.otherRequirements.trim(), remark: form.remark.trim(), totalPackage: form.totalPackage,
+    gccExp: form.gccExp, workExp: form.workExp, skills: normalizeShortText(form.skills),
+    other: normalizeNotes(form.otherRequirements), remark: normalizeNotes(form.remark), totalPackage: form.totalPackage,
   }
+}
+
+export function requisitionFieldIssues(form) {
+  const issues = []
+  const check = (step, key, label, value, limit, multiline = false) => {
+    const message = textLimitError(value, limit, label, { multiline })
+    if (message) issues.push({ step, key, message })
+  }
+  check(0, 'jobTitle', 'Job title', form.jobTitle, 150)
+  check(0, 'departmentId', 'Department', form.departmentName, 150)
+  check(0, 'remark', 'Remark', form.remark, 1000, true)
+  if (form.reason === 'REPLACEMENT') check(1, 'replacementFor', 'Replacement for', form.replacementFor, 1000)
+  if (form.reason === 'ADDITION') check(1, 'additionReason', 'Reason for addition', form.additionReason, 1000, true)
+  if (form.budgeted === 'yes' && form.budgetedSalary !== '' && !/^\d+(?:\.\d{1,2})?$/.test(String(form.budgetedSalary).trim())) {
+    issues.push({ step: 1, key: 'budgetedSalary', message: 'Enter a nonnegative salary with up to two decimal places.' })
+  }
+  check(2, 'skills', 'Skills and knowledge', form.skills, 2000)
+  check(2, 'otherRequirements', 'Other requirements', form.otherRequirements, 2000, true)
+  return issues
 }
 
 export function requisitionChecks(form) {

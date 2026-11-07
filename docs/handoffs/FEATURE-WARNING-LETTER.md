@@ -24,7 +24,10 @@ Not committed.
   reasons in English and Arabic, Others in English and Arabic), Action (action in English and Arabic; the
   warning letter and other letter boxes, each with its comment).
 - Rules (the backend's): a ticked reason or an Others text; a comment for each ticked letter. The employee
-  is fixed once saved. As legacy, letters stay editable and there is no delete on screen.
+  is fixed once saved. As legacy, letters stay editable and there is no delete on screen. The warning date
+  defaults to today (Riyadh) when omitted; unticking a letter clears its comment. Warning numbers use
+  `MAX(WARNING_NO) + 1` so a deleted letter cannot make the next one collide, and employee lookups only
+  accept current employees. Texts allow 2000 characters.
 - Report: the legacy columns (ref. no., warning no., employee, division, position, date) plus the reasons;
   search, reason, division and date filters; total and by-month cards.
 - Permission `HR.WARNING_LETTERS` (VIEW opens; CREATE / UPDATE save). The registry name now matches the TEST

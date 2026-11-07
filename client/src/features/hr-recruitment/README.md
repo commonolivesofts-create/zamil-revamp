@@ -1,4 +1,4 @@
-﻿# HR recruitment: forms 1060, 1061, 1062, 1101, 1064 and the HR reports
+# HR recruitment: forms 1060, 1061, 1062, 1101, 1064 and the HR reports
 
 Five forms make up the recruitment flow (the step bar under **Human resources**):
 
@@ -73,6 +73,10 @@ All list endpoints take `page` and `pageSize` and return the standard envelope w
 
 ### Interview Assessment (1061)
 
+The form follows HR, Personal specification, Competency, Evaluation and Review. Required answers and valid ratings unlock the following steps; unlocked steps remain available for corrections. The final review shows every answer, optional omissions and missing required information. Validation appears beside the field, while save results and other errors use toast feedback and a save overlay.
+
+Requisition, interviewer and other lookup fields use searchable pickers. Save assessment stores an Incomplete record; Submit for Approval currently shows a workflow-pending notice. Approved assessments with a Passed result expose Create employment offer in the report and drawer for users with offer view/create permissions, opening a form filled from the current eligible-candidate lookup.
+
 **Lookups** (`GET /hr/interview-assessments/lookups/â€¦`):
 - `nationalities` and `requisitions` (approved only).
 - `employees` (interviewers).
@@ -96,7 +100,9 @@ All list endpoints take `page` and `pageSize` and return the standard envelope w
 
 **Records:** `GET /`, `GET /:id`, `POST /`, `PUT /:id` and `DELETE /:id`.
 
-The bilingual package rows map to the single `line` object. The status is always `Incomplete`: the API supports only create, read, update and delete.
+The bilingual package rows map to the single `line` object. The form follows Candidate & offer details, Compensation & terms, and Review, using the same validation, searchable fields, review profile and save feedback as requisitions. Candidate selection fills the assessment number, position and requisition together. Assessment references and optional notes are collected in the first step; optional allowances do not block progress, and the starting date remains required.
+
+Unsaved offers display Incomplete. A validated Save offer or Save changes writes Complete on the server and displays Completed; existing legacy Incomplete records become Complete when saved. This explicitly replaces the legacy hardcoded Incomplete status. Opening a report row shows the saved offer letter in the drawer, filled as the form's live preview shows it, with a language switch and the permission-aware Edit and Print actions; Print sends the saved letter to the browser's print dialog. The live letter and A4 printout share the legacy bilingual layout with updated typography, subtle green table shading, an always-visible comments box and three signature lines. Printing uses the language selected in the live preview; report row printing defaults to bilingual and waits for the logo and fonts. The legacy offer form has no approval submission workflow, so this form has no Submit for Approval button. The separate HR acceptance action records the candidate's actual acceptance date and updates the linked requisition to Offer Accepted. Accepted offers remain read-only.
 
 ### Orientation Training (1101)
 
@@ -129,6 +135,8 @@ Follows the legacy CI3 form `Newhiretrain` (`views/ZPIL/nht-new.php`); details i
 - Print shows the legacy PDF layout. `validateOrientationForSubmit` holds the legacy submit rule
   (not wired yet).
 
+The Employee, Departments, Timeline and Review steps use the shared locked navigation, inline validation, searchable employee/manager lookups and a complete review profile. Blank session fields remain optional. Save draft / Save changes provides a loading overlay and toast. A saved editable record shows Submit for Approval as a pending-workflow notice only.
+
 ### Probation Evaluation (1064)
 
 The page follows the legacy CI3 form (`docs/testing/probation-legacy-comparison.md`): `probation.php` to create an evaluation, `prf_uplines.php` to edit a saved one.
@@ -153,6 +161,8 @@ The page follows the legacy CI3 form (`docs/testing/probation-legacy-comparison.
 - "Approved by" shows HR SUPERVISOR once approved.
 - Report columns: Emp. #, Name, Job Title, Department, Total Rating, Evaluation, Status, Date and Pending At. Pending At is the open CI3 workflow step.
 - `DELETE /:id` (Draft only) exists in the API, but the page has no Delete button, as legacy.
+
+The Employee & period, Evaluation criteria, Comments and Review steps use the shared locked navigation, inline validation and a complete review profile. Employee and form type choices are searchable; points use a visible 1-5 radio group. Save draft / Save changes provides a loading overlay and toast. Saved editable records show Submit for Approval as a pending-workflow notice only. The workflow execution remains outside this implementation.
 
 ## Record access and status rules (backend)
 

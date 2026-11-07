@@ -49,9 +49,9 @@
 
 | Route id | Path | Permission | `alsoRequires` | MFA | In sidebar? |
 |---|---|---|---|---|---|
-| `hr-record-change` | `/hr/employee-services/record-change` | `HR.PERSONNEL_RECORD_CHANGES:VIEW` | — | No | Yes |
-| `hr-record-change-requests` | `/hr/employee-services/record-change/requests` | `HR.PERSONNEL_RECORD_CHANGES:VIEW` | — | No | Yes |
-| `hr-record-change-record` | `/hr/employee-services/record-change/:requestId` | `HR.PERSONNEL_RECORD_CHANGES:VIEW` | — | No | No |
+| `hr-record-change` | `/hr/talent-management/record-change` | `HR.PERSONNEL_RECORD_CHANGES:VIEW` | — | No | Yes |
+| `hr-record-change-requests` | `/hr/talent-management/record-change/requests` | `HR.PERSONNEL_RECORD_CHANGES:VIEW` | — | No | Yes |
+| `hr-record-change-record` | `/hr/talent-management/record-change/:requestId` | `HR.PERSONNEL_RECORD_CHANGES:VIEW` | — | No | No |
 
 Routes unchanged. Buttons: Save (`CREATE` new / `UPDATE` saved, drafts only), New request (`CREATE`),
 Export CSV and Print (VIEW).

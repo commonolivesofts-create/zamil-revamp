@@ -3,7 +3,7 @@ import { bandOf } from './interviewModel.js'
 
 // One row per criterion: a 1–5 or N/A radio group (arrow keys move between ratings)
 // and a remark. Missing ratings are marked invalid after a failed save.
-export function RatingRows({ group, keys, values, onRate, onRemark, missing }) {
+export function RatingRows({ group, keys, values, onRate, onRemark, missing, errors = {} }) {
   return (
     <div className="zrv-hr-rows">
       {keys.map((key, index) => {
@@ -11,11 +11,15 @@ export function RatingRows({ group, keys, values, onRate, onRemark, missing }) {
         const bad = missing.includes(key)
         const [label] = T.criteria[key]
         const labelId = `ia-${group}-${key}-label`
+        const errorId = `ia-${group}-${key}-error`
+        const remarkErrorId = `ia-${group}-${key}-remark-error`
+        const ratingError = errors[`${group}.${key}`] || (bad ? T.rating.choose : '')
+        const remarkError = errors[`${group}.${key}.remark`]
         return (
           <div key={key} className={`zrv-hr-row${value.rating ? ' zrv-hr-is-rated' : ''}${bad ? ' zrv-hr-is-bad' : ''}`} style={{ '--i': index }}>
             <span className="zrv-hr-row__n" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
             <span className="zrv-hr-row__l" id={labelId}>{label}</span>
-            <div className="zrv-hr-pips" role="radiogroup" aria-labelledby={labelId} aria-required="true" aria-invalid={bad || undefined} data-val={value.rating || 0}>
+            <div className="zrv-hr-pips" role="radiogroup" aria-labelledby={labelId} aria-describedby={ratingError ? errorId : undefined} aria-required="true" aria-invalid={bad || undefined} data-val={value.rating || 0}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <label key={n}>
                   <input type="radio" name={`ia-${group}-${key}`} value={n} checked={value.rating === n} onChange={() => onRate(key, n)} aria-label={T.rating.of(n)} />
@@ -28,7 +32,9 @@ export function RatingRows({ group, keys, values, onRate, onRemark, missing }) {
               </label>
             </div>
             <input className="zrv-hr-row__rem" value={value.remark} onChange={(event) => onRemark(key, event.target.value)}
-              placeholder={bad ? T.rating.choose : T.rating.remark} aria-label={T.rating.remarkFor(label)} maxLength={500} />
+              placeholder={bad ? T.rating.choose : T.rating.remark} aria-label={T.rating.remarkFor(label)} aria-invalid={Boolean(remarkError) || undefined} aria-describedby={remarkError ? remarkErrorId : undefined} maxLength={200} />
+            {ratingError && <small id={errorId} className="zrv-auth-field-error zrv-hr-row__error">{ratingError}</small>}
+            {remarkError && <small id={remarkErrorId} className="zrv-auth-field-error zrv-hr-row__error">{remarkError}</small>}
           </div>
         )
       })}

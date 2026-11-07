@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { dbText } from '../formText.validation.js';
 import { STATUS_LABELS } from './orientationTraining.rules.js';
 
 const id = Joi.string().pattern(/^[1-9][0-9]{0,18}$/);
@@ -104,15 +105,15 @@ const optionalDate = isoDate.allow('', null);
 // none is required. Orientation Days and Orientation Time are computed by the server.
 const line = Joi.object({
   lineId: id,
-  department: requiredText(1000),
-  departmentHead: text(1000).allow(null),
+  department: dbText(1000, { required: true }),
+  departmentHead: dbText(1000, { nullable: true }),
   fromDate: optionalDate,
   toDate: optionalDate,
   orientationDays: Joi.any().strip(),
   timeFrom: time,
   timeTo: time,
   orientationPeriod: Joi.any().strip(),
-  remarks: text(1000).allow(null),
+  remarks: dbText(1000, { multiline: true, nullable: true }),
 });
 
 // Legacy posts Name (empno) and From; everything else is read only and filled from the employee
@@ -134,29 +135,59 @@ const header = {
   lines: Joi.array().items(line).min(1).required(),
 };
 
-const toMinutes = (value) => {
-  const [hours, minutes] = value.split(':').map(Number);
-  return hours * 60 + minutes;
+const toSeconds = (value) => {
+  const [hours, minutes, seconds = 0] = value.split(':').map(Number);
+  return hours * 3600 + minutes * 60 + seconds;
 };
 // Legacy wrote "Select To Date" as the days and "-2.-30 Hrs" as the time of a reversed range; such
 // a line is refused instead.
 const validateLines = (value, helpers) => {
-  if (value.lines.some((item) => item.fromDate && item.toDate && item.toDate < item.fromDate)) {
-    return helpers.error('date.lineOrder');
-  }
-  if (
-    value.lines.some(
-      (item) => item.timeFrom && item.timeTo && toMinutes(item.timeTo) < toMinutes(item.timeFrom),
-    )
-  ) {
-    return helpers.error('time.lineOrder');
+  for (const [index, item] of value.lines.entries()) {
+    const row = index + 1;
+    if (Boolean(item.fromDate) !== Boolean(item.toDate)) {
+      return helpers.error('date.linePair', {
+        field: `lines.${index}.${item.fromDate ? 'toDate' : 'fromDate'}`,
+        row,
+      });
+    }
+    if (item.fromDate && item.toDate && item.toDate < item.fromDate) {
+      return helpers.error('date.lineOrder', { field: `lines.${index}.toDate`, row });
+    }
+    if (Boolean(item.timeFrom) !== Boolean(item.timeTo)) {
+      return helpers.error('time.linePair', {
+        field: `lines.${index}.${item.timeFrom ? 'timeTo' : 'timeFrom'}`,
+        row,
+      });
+    }
+    if (item.timeFrom && item.timeTo && toSeconds(item.timeTo) <= toSeconds(item.timeFrom)) {
+      return helpers.error('time.lineOrder', { field: `lines.${index}.timeTo`, row });
+    }
+    if (!item.fromDate || !item.toDate || !item.timeFrom || !item.timeTo) continue;
+    for (let prior = 0; prior < index; prior += 1) {
+      const earlier = value.lines[prior];
+      if (!earlier.fromDate || !earlier.toDate || !earlier.timeFrom || !earlier.timeTo) continue;
+      const datesOverlap = earlier.fromDate <= item.toDate && item.fromDate <= earlier.toDate;
+      const timesOverlap =
+        toSeconds(earlier.timeFrom) < toSeconds(item.timeTo) &&
+        toSeconds(item.timeFrom) < toSeconds(earlier.timeTo);
+      if (datesOverlap && timesOverlap) {
+        return helpers.error('time.overlap', {
+          field: `lines.${index}.timeFrom`,
+          row,
+          prior: prior + 1,
+        });
+      }
+    }
   }
   return value;
 };
 const withLineRules = (schema) =>
   schema.custom(validateLines).messages({
-    'date.lineOrder': 'Line toDate must be on or after fromDate',
-    'time.lineOrder': 'Line timeTo must be on or after timeFrom',
+    'date.linePair': 'Training row {{#row}} needs both From and To dates',
+    'date.lineOrder': 'Training row {{#row}}: To date must be on or after From date',
+    'time.linePair': 'Training row {{#row}} needs both From and To times',
+    'time.lineOrder': 'Training row {{#row}}: To time must be after From time',
+    'time.overlap': 'Training row {{#row}} overlaps with row {{#prior}}. Choose another time',
   });
 
 export const createBodySchema = withLineRules(Joi.object(header));

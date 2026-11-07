@@ -168,7 +168,10 @@ export function createEmployeeClearanceService({
     for (const key of ['quality', 'warehouse', 'accounts', 'admin']) {
       const options = await repository.approvers(c, key);
 
-      managerUserIds[key] = options.length === 1 ? options[0].USER_ID : null;
+      // Legacy get*Manager() reads row_array(), the first lookup row, and the
+      // screen shows that same first approver: store its user id, not only for
+      // a single-row lookup (which would leave the tab's manager id null).
+      managerUserIds[key] = options[0]?.USER_ID ?? null;
     }
 
     const sections = {};
@@ -200,7 +203,9 @@ export function createEmployeeClearanceService({
       department: e.DEPARTMENT_NAME,
       division: e.DIVISION,
 
-      computerFlag: receiver === 'it' ? 0 : 99,
+      // ATTRIBUTE2 is 0 for both "IT" and "No Computer" (comp_rec 0001/0002 in
+      // legacy getComputer()) and 99 for an employee receiver.
+      computerFlag: receiver === 'it' || receiver === 'none' ? 0 : 99,
 
       purpose: b.purpose,
       contact: b.contact,

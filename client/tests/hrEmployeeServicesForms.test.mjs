@@ -25,6 +25,8 @@ import {
   backToWork, leaveDays, overlapOf, validateSickLeave, workingDays,
 } from '../src/features/hr-employee-services/sickLeave/sickLeaveModel.js'
 import { createSickLeaveDemoClient } from '../src/features/hr-employee-services/demo/sickLeaveDemoClient.js'
+import { errorsInStep } from '../src/features/hr-employee-services/shared/stepGating.js'
+import { stepOfErrors, RATING_ORDER } from '../src/features/hr-employee-services/reward/rewardModel.js'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 const fast = { latencyMs: 0 }
@@ -33,9 +35,9 @@ const ready = (keys) => {
   return { status: 'ready', mfaVerified: false, has: (key) => set.has(key) }
 }
 const FORMS = [
-  { id: 'hr-sick-leave', env: 'VITE_FEATURE_HR_SICK_LEAVE', permission: 'HR.SICK_LEAVE:VIEW', path: '/hr/employee-services/sick-leave' },
-  { id: 'hr-reward', env: 'VITE_FEATURE_HR_REWARD_NOMINATION', permission: 'HR.EMPLOYEE_OF_THE_MONTH:VIEW', path: '/hr/employee-services/reward-nomination' },
-  { id: 'hr-idea', env: 'VITE_FEATURE_HR_IDEAS', permission: 'HR.IDEAS:VIEW', path: '/hr/employee-services/ideas' },
+  { id: 'hr-sick-leave', env: 'VITE_FEATURE_HR_SICK_LEAVE', permission: 'HR.SICK_LEAVE:VIEW', path: '/hr/talent-management/sick-leave' },
+  { id: 'hr-reward', env: 'VITE_FEATURE_HR_REWARD_NOMINATION', permission: 'HR.EMPLOYEE_OF_THE_MONTH:VIEW', path: '/hr/talent-management/reward-nomination' },
+  { id: 'hr-idea', env: 'VITE_FEATURE_HR_IDEAS', permission: 'HR.IDEAS:VIEW', path: '/hr/talent-management/ideas' },
 ]
 
 // ---------- shared contract helpers ----------
@@ -91,6 +93,15 @@ test('reward: client validation mirrors the backend and adds the one-per-month r
   assert.match(validateReward(form, { employee: { ...employee, email: '' }, criteria }).employee, /incomplete/)
   const errors = validateReward({ ...form, overallRating: '', remark: ' ', lines: [{ rating: '', remark: 'x'.repeat(501) }] }, { employee, criteria })
   assert.deepEqual(Object.keys(errors).sort(), ['overallRating', 'rating:0', 'rating:1', 'rating:2', 'rating:3', 'remark', 'remark:0', 'remark:1', 'remark:2', 'remark:3'])
+  // Continue checks only the open step: a function stepOf (as the reward page passes it)
+  // must resolve, so unfilled ratings do not block step 0's Continue.
+  const stepOf = (field) => stepOfErrors({ [field]: true })
+  assert.deepEqual(Object.keys(errorsInStep(errors, stepOf, 0)), [])
+  assert.deepEqual(Object.keys(errorsInStep(errors, stepOf, 1)).sort(), ['rating:0', 'rating:1', 'rating:2', 'rating:3', 'remark:0', 'remark:1', 'remark:2', 'remark:3'])
+  assert.deepEqual(Object.keys(errorsInStep(errors, stepOf, 2)).sort(), ['overallRating', 'remark'])
+  assert.deepEqual(errorsInStep({ department: 'x' }, stepOf, 0), { department: 'x' })
+  // The chips follow the CI3 dropdown order.
+  assert.deepEqual(RATING_ORDER, ['A', 'AS', 'BS', 'CS'])
   const duplicate = duplicateOf([{ nominationId: '2', employeeNumber: '9101', activityDate: '2026-10-05', status: 'INPROCESS', requestNo: 'PROD-0002' }],
     { nominationId: '9', employeeNumber: '9101', activityDate: '2026-10-31' })
   assert.equal(duplicate.requestNo, 'PROD-0002')
@@ -153,6 +164,16 @@ test('idea: client validation (required lists, title, 40-character idea, amounts
   assert.ok(validateIdea({ ...form, saving: '1.234' }).saving)
   assert.equal(validateIdea({ ...form, hasInvestment: 'no', investmentValue: '' }).investmentValue, undefined)
   assert.equal(cleanAmount('12,000.5.1'), '12000.51')
+})
+
+test('idea page: one compact page with tabs that scroll to each section, no review step', async () => {
+  const page = await read('../src/features/hr-employee-services/idea/IdeaPage.jsx')
+  assert.match(page, /compact singlePage/)
+  assert.match(page, /onStep=\{goToSection\}/)
+  assert.match(page, /id="idea-section-0"/)
+  assert.match(page, /id="idea-section-1"/)
+  assert.doesNotMatch(page, /const SECTIONS = \[[^\]]*Review/)
+  assert.doesNotMatch(page, /<Review\b/)
 })
 
 test('idea: the service runs unchanged on the demo adapter (parity with the backend contract)', async () => {
@@ -218,6 +239,20 @@ test('sick leave: records read camelCase attachments and YYYY-MM-DD dates', () =
   assert.throws(() => readSickLeaveRecord({ headerId: 5, attachments: [{ ATTACHMENT_ID: 1 }] }), { code: 'INVALID_RESPONSE' })
 })
 
+test('sick leave page: one compact page with a live preview and tabs that scroll to each section', async () => {
+  const page = await read('../src/features/hr-employee-services/sickLeave/SickLeavePage.jsx')
+  assert.match(page, /compact singlePage/, 'the form is one page, not a step wizard')
+  assert.doesNotMatch(page, /\bTilt\b|\bOrbit\b/, 'the old green summary card is gone')
+  assert.match(page, /<SickLeavePreview/, 'the request is shown as a paper preview like the offer')
+  assert.match(page, /onStep=\{goToSection\}/, 'the top tabs scroll instead of changing steps')
+  assert.match(page, /scrollIntoView/)
+  for (const index of [0, 1, 2]) assert.match(page, new RegExp(`id="sl-section-${index}"`))
+  const preview = await read('../src/features/hr-employee-services/sickLeave/SickLeavePreview.jsx')
+  assert.match(preview, /Sick Leave Request/)
+  assert.match(preview, /No\. of days/)
+  assert.match(preview, /Comments/)
+})
+
 test('sick leave: the service runs unchanged on the demo adapter (multipart create, uploads, 409)', async () => {
   const service = createSickLeaveService({ client: createSickLeaveDemoClient(fast) })
   const employees = await service.searchEmployees('')
@@ -241,9 +276,9 @@ test('sick leave: the service runs unchanged on the demo adapter (multipart crea
   assert.deepEqual((await service.overlapping('9201', '2026-10-20', '2026-10-21')).map((item) => item.leaveId), ['3'])
 })
 
-// ---------- sidebar: HR → Employee services ----------
+// ---------- sidebar: HR → Talent Management ----------
 
-test('sidebar: each form appears in Employee services only with its switch on AND its VIEW permission', () => {
+test('sidebar: each form appears in Talent Management only with its switch on AND its VIEW permission', () => {
   const hrGroup = NAVIGATION_GROUPS.find((group) => group.id === 'human-resources')
   assert.deepEqual(hrGroup.subgroups.map((item) => item.id), ['hr-recruitment', 'hr-employee-services', 'hr-letters', 'hr-reports'])
   const allOn = Object.fromEntries(FORMS.map((form) => [form.env, 'true']))

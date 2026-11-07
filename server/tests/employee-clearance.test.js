@@ -266,7 +266,10 @@ function installEmployeeClearance(store, employeeByUser) {
     },
     list: async (_connection, userId, privileged, filter) => {
       let headers = state.headers.filter(
-        (header) => privileged || inScope(userId, header.EMP_NO, false),
+        (header) =>
+          privileged ||
+          String(header.CREATED_BY) === String(userId) ||
+          inScope(userId, header.EMP_NO, false),
       );
       if (filter.pendingAt) headers = [];
       if (filter.empNo) {
@@ -442,6 +445,8 @@ describe('employee clearance API', () => {
     assert.equal(header.EMP_NAME, 'Test Employee');
     assert.equal(header.DEPMGR_NO, '1001');
     assert.equal(header.STATUS, 'Draft');
+    // "IT" is comp_rec 0001 in the legacy getComputer() lookup: flag 0.
+    assert.equal(header.ATTRIBUTE2, 0);
     assert.equal(state.itMatrix.length, 5);
     assert.deepEqual(
       state.itMatrix.map((line) => line.LINE_ID),
@@ -489,6 +494,49 @@ describe('employee clearance API', () => {
     assert.equal(state.headers.length, 0);
   });
 
+  it('stores the computer flag and section manager like the legacy lookups', async () => {
+    const state = f.store.employeeClearance.state;
+
+    // "No Computer" is comp_rec 0002: also flag 0, like IT.
+    const noComputer = await send('post', '', sessions.staff, {
+      ...BODY,
+      computerReceivedBy: 'none',
+    });
+    assert.equal(noComputer.status, 201);
+    const noComputerHeader = state.headers.find(
+      (header) => header.HEADER_ID === noComputer.body.data.headerId,
+    );
+    assert.equal(noComputerHeader.COM_REC, 'none');
+    assert.equal(noComputerHeader.ATTRIBUTE2, 0);
+
+    // An employee receiver keeps flag 99.
+    const employee = await send('post', '', sessions.staff, {
+      ...BODY,
+      computerReceivedBy: '2001',
+    });
+    assert.equal(employee.status, 201);
+    const employeeHeader = state.headers.find(
+      (header) => header.HEADER_ID === employee.body.data.headerId,
+    );
+    assert.equal(employeeHeader.ATTRIBUTE2, 99);
+
+    // Legacy get*Manager() uses row_array(), the first lookup row, and the
+    // screen shows that same first approver: its USER_ID is stored even when
+    // the lookup returns several rows.
+    const lookup = f.store.employeeClearance.repository.approvers;
+    f.store.employeeClearance.repository.approvers = async (connection, section) =>
+      section === 'quality'
+        ? [
+            { NAME: 'First Approver', EMP_NO: '1001', USER_ID: 4242 },
+            { NAME: 'Second Approver', EMP_NO: '2001', USER_ID: 4343 },
+          ]
+        : lookup(connection, section);
+
+    const multi = await send('post', '', sessions.staff, BODY);
+    assert.equal(multi.status, 201);
+    assert.equal(state.sections.get(`${multi.body.data.headerId}:quality`).QLTY_MGR_USERID, 4242);
+  });
+
   it('enforces employee scope for creation, lookup, and record visibility', async () => {
     const outOfScopeCreate = await send('post', '', sessions.staff, {
       ...BODY,
@@ -513,6 +561,23 @@ describe('employee clearance API', () => {
     const created = await send('post', '', sessions.staff, BODY);
     const hiddenRecord = await get(`/${created.body.data.headerId}`, sessions.outsider);
     assert.equal(hiddenRecord.status, 404);
+  });
+
+  it('lists records the caller created even when the subject is no longer in scope', async () => {
+    const created = await send('post', '', sessions.staff, BODY);
+    const id = created.body.data.headerId;
+    // Simulate a subject who left the creator's team after the request was raised.
+    f.store.employeeClearance.state.headers.find((header) => header.HEADER_ID === id).EMP_NO =
+      '9999';
+
+    const listed = await get('');
+    assert.equal(listed.status, 200);
+    assert.equal(listed.body.data.total, 1);
+    assert.equal(listed.body.data.items[0].headerId, id);
+
+    const other = await get('', sessions.outsider);
+    assert.equal(other.status, 200);
+    assert.equal(other.body.data.total, 0);
   });
 
   it('returns lookup data and rejects unknown records with 404', async () => {

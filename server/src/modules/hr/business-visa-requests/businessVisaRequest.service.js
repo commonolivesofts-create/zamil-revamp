@@ -85,6 +85,18 @@ export function createBusinessVisaRequestService({
     return row;
   }
 
+  async function assertDepartment(connection, dept) {
+    if (!dept) return;
+
+    const names = await repository.departments(connection);
+
+    if (!names.some((name) => String(name).toUpperCase() === String(dept).toUpperCase())) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Validation failed', [
+        { field: 'dept', message: 'Choose a department from the list' },
+      ]);
+    }
+  }
+
   return {
     async options() {
       return read(async (connection) => ({
@@ -111,7 +123,16 @@ export function createBusinessVisaRequestService({
 
     async create(actor, body) {
       return write(async (connection) => {
+        await assertDepartment(connection, body.dept);
+
         const requestedBy = await repository.requester(connection, actor.employeeNumber);
+
+        if (!requestedBy) {
+          throw new AppError(400, 'REQUESTER_NOT_FOUND', 'Requester employee record not found', [
+            { field: 'requestedBy', message: 'Your employee record could not be resolved' },
+          ]);
+        }
+
         const id = await repository.insertHeader(connection, body, {
           uuid: randomUUID(),
           requestedBy,
@@ -124,7 +145,36 @@ export function createBusinessVisaRequestService({
     async update(actor, id, body) {
       return write(async (connection) => {
         await editableHeader(connection, id);
+        await assertDepartment(connection, body.dept);
         await repository.updateHeader(connection, id, body, { updatedBy: actor.userId });
+        return { id: String(id) };
+      });
+    },
+
+    async remove(id) {
+      return write(async (connection) => {
+        const row = await repository.header(connection, id, { lock: true });
+
+        if (!row) throw missing();
+
+        const documents = await repository.documents(connection, id);
+        await repository.deleteDocuments(connection, id);
+        await repository.deleteHeader(connection, id);
+
+        // Best-effort removal of the stored files after the rows are gone.
+        if (storage) {
+          await Promise.all(
+            documents.map((document) =>
+              storage
+                .remove({
+                  attachmentId: String(document.LINE_ID),
+                  fileName: document.DOC_FILE_NAME ?? '',
+                })
+                .catch(() => {}),
+            ),
+          );
+        }
+
         return { id: String(id) };
       });
     },

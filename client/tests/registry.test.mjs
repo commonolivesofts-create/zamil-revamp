@@ -78,12 +78,12 @@ const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-periodwise-report', path: '/hr/reports/periodwise-employees', label: 'Periodwise employees', icon: 'chart-column', section: HR, subgroup: 'hr-reports', permission: 'HR.PERIODWISE_EMPLOYEES:VIEW', requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
   { id: 'hr-survey-report', path: '/hr/reports/survey', label: 'Survey report', icon: 'chart-bar', section: HR, subgroup: 'hr-reports', permission: 'HR.SURVEY_REPORTS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_SURVEY_REPORT' } },
   { id: 'hr-survey-responses', path: '/hr/reports/survey/responses', label: 'Survey responses', icon: 'table', section: HR, subgroup: 'hr-reports', permission: 'HR.SURVEY_REPORTS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_SURVEY_REPORT' }, nav: false },
-  { id: 'hr-record-change', path: '/hr/employee-services/record-change', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', label: 'Personal status report', icon: 'layers', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
-  { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
-  { id: 'hr-transfer', path: '/hr/employee-services/transfer', label: 'Transfer request', icon: 'arrow-left-right', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-transfer-report', path: '/hr/employee-services/transfer/report', label: 'Transfer report', icon: 'chart-column', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
-  { id: 'hr-transfer-record', path: '/hr/employee-services/transfer/:transferId', label: 'Transfer request', icon: 'arrow-left-right', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-record-change', path: '/hr/talent-management/record-change', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-record-change-requests', path: '/hr/talent-management/record-change/requests', label: 'Personal status report', icon: 'layers', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-record-change-record', path: '/hr/talent-management/record-change/:requestId', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-transfer', path: '/hr/talent-management/transfer', label: 'Transfer request', icon: 'arrow-left-right', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-transfer-report', path: '/hr/talent-management/transfer/report', label: 'Transfer report', icon: 'chart-column', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-transfer-record', path: '/hr/talent-management/transfer/:transferId', label: 'Transfer request', icon: 'arrow-left-right', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
 ]
 // Performance appraisal remains in the session-only HR_EMPLOYEE_SERVICES module.
 const HR_EMPLOYEE_SERVICES_ROUTES = [
@@ -103,23 +103,23 @@ const formRoutes = (id, path, label, icon, resource, env, param) => {
   ]
 }
 const HR_EMPLOYEE_SERVICES_FORM_ROUTES = [
-  ...formRoutes('hr-sick-leave', '/hr/employee-services/sick-leave', 'Sick leave', 'heart-pulse', 'SICK_LEAVE', 'VITE_FEATURE_HR_SICK_LEAVE', 'leaveId'),
-  ...formRoutes('hr-reward', '/hr/employee-services/reward-nomination', 'Reward nomination', 'trophy', 'EMPLOYEE_OF_THE_MONTH', 'VITE_FEATURE_HR_REWARD_NOMINATION', 'nominationId'),
-  ...formRoutes('hr-idea', '/hr/employee-services/ideas', 'Share an idea', 'lightbulb', 'IDEAS', 'VITE_FEATURE_HR_IDEAS', 'ideaId'),
+  ...formRoutes('hr-sick-leave', '/hr/talent-management/sick-leave', 'Sick leave', 'heart-pulse', 'SICK_LEAVE', 'VITE_FEATURE_HR_SICK_LEAVE', 'leaveId'),
+  ...formRoutes('hr-reward', '/hr/talent-management/reward-nomination', 'Reward nomination', 'trophy', 'EMPLOYEE_OF_THE_MONTH', 'VITE_FEATURE_HR_REWARD_NOMINATION', 'nominationId'),
+  ...formRoutes('hr-idea', '/hr/talent-management/ideas', 'Share an idea', 'lightbulb', 'IDEAS', 'VITE_FEATURE_HR_IDEAS', 'ideaId'),
 ]
 // Employee Clearance (1063): the HR.EMPLOYEE_CLEARANCE resource, as the backend guards it.
 const CLEARANCE = { section: HR, subgroup: ES, permission: 'HR.EMPLOYEE_CLEARANCE:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_CLEARANCE' } }
 const HR_EMPLOYEE_CLEARANCE_ROUTES = [
-  { id: 'hr-clearance', path: '/hr/employee-services/clearance', label: 'Employee clearance', icon: 'door-open', ...CLEARANCE },
-  { id: 'hr-clearance-report', path: '/hr/employee-services/clearance/report', label: 'Employee clearance report', icon: 'chart-column', ...CLEARANCE, nav: false },
-  { id: 'hr-clearance-record', path: '/hr/employee-services/clearance/:clearanceId', label: 'Employee clearance', icon: 'door-open', ...CLEARANCE, nav: false },
+  { id: 'hr-clearance', path: '/hr/talent-management/clearance', label: 'Employee clearance', icon: 'door-open', ...CLEARANCE },
+  { id: 'hr-clearance-report', path: '/hr/talent-management/clearance/report', label: 'Employee clearance report', icon: 'chart-column', ...CLEARANCE, nav: false },
+  { id: 'hr-clearance-record', path: '/hr/talent-management/clearance/:clearanceId', label: 'Employee clearance', icon: 'door-open', ...CLEARANCE, nav: false },
 ]
 // Project Charter (ZPI.IMS.FM.13): the HR.PROJECT_CHARTERS resource, its own switch.
 const CHARTER = { section: HR, subgroup: ES, permission: 'HR.PROJECT_CHARTERS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_PROJECT_CHARTER' } }
 const HR_CHARTER_ROUTES = [
-  { id: 'hr-charter', path: '/hr/employee-services/project-charter', label: 'Project charter', icon: 'file-text', ...CHARTER },
-  { id: 'hr-charter-report', path: '/hr/employee-services/project-charter/report', label: 'Project charter report', icon: 'chart-column', ...CHARTER, nav: false },
-  { id: 'hr-charter-record', path: '/hr/employee-services/project-charter/:charterId', label: 'Project charter', icon: 'file-text', ...CHARTER, nav: false },
+  { id: 'hr-charter', path: '/hr/talent-management/project-charter', label: 'Project charter', icon: 'file-text', ...CHARTER },
+  { id: 'hr-charter-report', path: '/hr/talent-management/project-charter/report', label: 'Project charter report', icon: 'chart-column', ...CHARTER, nav: false },
+  { id: 'hr-charter-record', path: '/hr/talent-management/project-charter/:charterId', label: 'Project charter', icon: 'file-text', ...CHARTER, nav: false },
 ]
 // Salary Certificate (English and Arabic in one form): the HR.SALARY_CERTIFICATES resource.
 const SALARY = { section: HR, subgroup: 'hr-letters', permission: 'HR.SALARY_CERTIFICATES:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_SALARY_CERTIFICATE' } }
@@ -128,9 +128,9 @@ const VISA_LETTER = { ...VISA, enabledBy: { env: 'VITE_FEATURE_HR_BUSINESS_VISA_
 const TOURIST = { section: HR, subgroup: 'hr-letters', permission: 'HR.TOURIST_VISA_LETTERS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_TOURIST_VISA' } }
 const WARNING = { section: HR, subgroup: 'hr-letters', permission: 'HR.WARNING_LETTERS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_WARNING_LETTER' } }
 const HR_SALARY_CERTIFICATE_ROUTES = [
-  { id: 'hr-salary-certificate', path: '/hr/employee-services/salary-certificate', label: 'Salary certificate', icon: 'file-badge', ...SALARY },
-  { id: 'hr-salary-certificate-report', path: '/hr/employee-services/salary-certificate/report', label: 'Salary certificate report', icon: 'chart-column', ...SALARY, nav: false },
-  { id: 'hr-salary-certificate-record', path: '/hr/employee-services/salary-certificate/:certificateId', label: 'Salary certificate', icon: 'file-badge', ...SALARY, nav: false },
+  { id: 'hr-salary-certificate', path: '/hr/talent-management/salary-certificate', label: 'Salary certificate', icon: 'file-badge', ...SALARY },
+  { id: 'hr-salary-certificate-report', path: '/hr/talent-management/salary-certificate/report', label: 'Salary certificate report', icon: 'chart-column', ...SALARY, nav: false },
+  { id: 'hr-salary-certificate-record', path: '/hr/talent-management/salary-certificate/:certificateId', label: 'Salary certificate', icon: 'file-badge', ...SALARY, nav: false },
   { id: 'hr-business-visa', path: '/hr/letters/business-visa', label: 'Business visa request', icon: 'plane', ...VISA },
   { id: 'hr-business-visa-report', path: '/hr/letters/business-visa/report', label: 'Business visa report', icon: 'chart-column', ...VISA, nav: false },
   { id: 'hr-business-visa-record', path: '/hr/letters/business-visa/:requestId', label: 'Business visa request', icon: 'plane', ...VISA, nav: false },
@@ -169,7 +169,7 @@ test('the derived routes, sections and permission names match the active modules
     {
       id: HR, label: 'Human resources', icon: 'users-round', subgroups: [
         { id: 'hr-recruitment', label: 'Recruitment', icon: 'user-plus', description: 'From requisition to probation' },
-        { id: 'hr-employee-services', label: 'Employee services', icon: 'layers', description: 'Changes, leave and recognition' },
+        { id: 'hr-employee-services', label: 'Talent Management', icon: 'layers', description: 'Changes, leave and recognition' },
         { id: 'hr-letters', label: 'Letters', icon: 'mail', description: 'Salary certificates and letters' },
         { id: 'hr-reports', label: 'Reports', icon: 'chart-column', description: 'HR reports' },
       ],

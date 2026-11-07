@@ -7,6 +7,7 @@
 // re-reads the employee and salary snapshot, so the body carries only the
 // requester's answers plus the two consistency assertions it requires.
 import { apiClient, ApiError } from '../../../services/api/apiClient.js'
+import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { ID, invalidResponse, isoDate, optionalNumber, pageOf, params, text } from '../shared/formRecords.js'
 
 export const LANGUAGES = Object.freeze({
@@ -33,12 +34,17 @@ const salaries = (data) => Object.freeze(Object.fromEntries(SALARY_KEYS.map((key
 
 export function readEmployee(lang, data) {
   if (!data || !text(data.employeeNo)) throw invalidResponse('employee')
+  const arabic = lang === 'ar'
   return Object.freeze({
     employeeNo: text(data.employeeNo),
-    // The certificate's own language (the Arabic API returns Arabic in these fields).
-    name: text(data.employeeName), nationality: text(data.nationality), jobTitle: text(data.jobTitle),
+    // The certificate's own language. The Arabic lookup returns the English values in
+    // `name`/`nationality`/`position` and the Arabic ones in `nameAr`/`nationalityAr`/
+    // `positionAr`; a saved record has only the certificate-language columns, so fall back.
+    name: text(arabic ? data.nameAr || data.employeeName : data.employeeName),
+    nationality: text(arabic ? data.nationalityAr || data.nationality : data.nationality),
+    jobTitle: text(arabic ? data.positionAr || data.jobTitle : data.jobTitle),
     // The English values the Arabic lookup also returns (used as a hint under the Arabic text).
-    nameOther: lang === 'ar' ? text(data.name) : '', jobTitleOther: lang === 'ar' ? text(data.position) : '',
+    nameOther: arabic ? text(data.name) : '', jobTitleOther: arabic ? text(data.position) : '',
     nationalIdentifier: text(data.nationalIdentifier), joiningDate: isoDate(data.joiningDate), division: text(data.division),
     allowanceFlag: data.allowanceFlag === 'Yes' ? 'Yes' : 'No',
     ...salaries(data),
@@ -51,7 +57,9 @@ export function readApprovers(lang, data) {
     employeeNo: text(item?.employeeNo),
     name: text(lang === 'ar' ? item?.nameAr : item?.name),
     position: text(lang === 'ar' ? item?.positionAr : item?.position),
-  })).filter((item) => item.name))
+  }))
+    // The backend rejects a signer without a position, so do not offer one.
+    .filter((item) => item.name && item.position))
 }
 
 export function readCertificate(lang, data) {
@@ -112,23 +120,44 @@ export function validateCertificate(form, { approvers }) {
   return errors
 }
 
+const employeeNumberOption = (item) => {
+  const no = text(item?.employeeNo)
+  if (!no) return null
+  // The dropdown shows the employee name, with the number in small under it.
+  return Object.freeze({ employeeId: no, employeeNumber: no, name: text(item?.name) || no })
+}
+
 export function createSalaryCertificateService({ client }) {
   const getById = async (value, { signal } = {}) => {
     const { language: lang, id } = parseCertificateId(value)
     return readCertificate(lang, (await client.get(`${language(lang).base}/${id}`, { signal })).data)
+  }
+  const lists = new Map()
+  const numbersFor = (lang) => {
+    if (!lists.has(lang)) {
+      lists.set(lang, createEmployeeList({
+        load: ({ signal } = {}) => client.get(`${language(lang).base}/lookups/employee-numbers`, { params: params({ pageSize: 100 }), signal }).then(({ data }) => data),
+        shape: employeeNumberOption,
+      }))
+    }
+    return lists.get(lang)
   }
   return Object.freeze({
     getById,
     async approvers(lang, { signal } = {}) {
       return readApprovers(lang, (await client.get(`${language(lang).base}/lookups/approvers`, { signal })).data)
     },
+    // The picker's list of employee numbers (the legacy datalist), loaded once per language
+    // with the form.
+    preloadEmployees: ({ lang = 'ar', signal } = {}) => numbersFor(lang).list({ signal }),
     // Employee numbers matching the search (the legacy datalist), in the picker's shape.
     async searchEmployees(lang, search = '', { signal } = {}) {
-      const { data } = await client.get(`${language(lang).base}/lookups/employee-numbers`, { params: params({ q: String(search).trim(), pageSize: 20 }), signal })
+      const q = String(search).trim()
+      // Opening the field lists the numbers loaded with the form.
+      if (!q) return employeePage(await numbersFor(lang).list({ signal }))
+      const { data } = await client.get(`${language(lang).base}/lookups/employee-numbers`, { params: params({ q, pageSize: 20 }), signal })
       if (!Array.isArray(data)) throw invalidResponse('employee list')
-      const items = Object.freeze(data.map((item) => text(item?.employeeNo)).filter(Boolean)
-        .map((no) => Object.freeze({ employeeId: no, employeeNumber: no, name: no })))
-      return Object.freeze({ items, pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }) })
+      return employeePage(data.map(employeeNumberOption).filter(Boolean))
     },
     async employee(lang, employeeNo, { signal } = {}) {
       return readEmployee(lang, (await client.get(`${language(lang).base}/lookups/employees/${encodeURIComponent(employeeNo)}`, { signal })).data)

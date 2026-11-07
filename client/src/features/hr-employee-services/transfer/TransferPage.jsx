@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
@@ -15,6 +15,8 @@ import { ES_COMMON_TEXT as C, TRANSFER_TEXT as T } from '../hrEmployeeServicesTe
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { NO_IDENTIFY, useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
+import { warmEmployeeList } from '../shared/employeeList.js'
+import { lockedStepsOf, problemsInStep } from '../shared/stepGating.js'
 import '@/styles/hr-employee-services.css'
 import {
   TRANSFER_ROUTE, blankTransfer, isTransferLocked, sectionsOf, transferMoves, transferPayload, validateTransfer, withDestination,
@@ -23,7 +25,11 @@ import {
 
 const BASE = ES_PATHS.transfer
 const service = hrEmployeeServices.transfers
-const loadLookups = (signal) => service.getLookups({ signal })
+const loadLookups = (signal) => {
+  // Opening the employee field lists employees without a request.
+  warmEmployeeList(service, { signal })
+  return service.getLookups({ signal })
+}
 const messageOf = ({ field, code }) => T.errors[field][code]
 
 export default function TransferPage() {
@@ -52,6 +58,11 @@ function TransferEditor({ lookups, record, user }) {
   const saved = editor.record
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
+  const [employeeLoading, setEmployeeLoading] = useState(false)
+  // What the user typed in a "Transfer to" field, so a name that is still being typed is not
+  // replaced by the chosen option's name.
+  const [typedTo, setTypedTo] = useState({})
+  const employeeRequest = useRef(0)
   const employee = form.employee
   const canWrite = permissions.can(saved ? 'HR.TRANSFER_REQUESTS:UPDATE' : 'HR.TRANSFER_REQUESTS:CREATE')
   const locked = isTransferLocked(saved?.status) || !canWrite
@@ -63,12 +74,64 @@ function TransferEditor({ lookups, record, user }) {
   const doc = lookups.transferDocument
   const nameIn = (list, code) => list.find((item) => item.code === code)?.name ?? ''
   const departmentName = (code) => nameIn(lookups.departments, code)
-  const sectionName = (departmentCode, code) => nameIn(sectionsOf(lookups.departments, departmentCode), code)
+  // The legacy form's section field is a text input whose suggestions list every section
+  // in the master (a global list, not per-department), so typing a section does not need
+  // the department to be chosen first; a name in the chosen department wins.
+  const allSections = [...new Map(lookups.departments.flatMap((item) => item.sections ?? []).map((item) => [item.name.toLocaleLowerCase(), item])).values()]
+  const sectionName = (departmentCode, code) => nameIn(sectionsOf(lookups.departments, departmentCode), code) || nameIn(allSections, code)
   const jobName = (code) => nameIn(lookups.jobTitles, code)
   const director = lookups.directors.find((item) => item.directorId === form.directorId) ?? null
   const asOption = (item) => ({ employeeId: item.directorId, employeeNumber: item.directorId, name: item.name, position: item.area, section: T.detailsStep.directorRole })
+  const asLookupOption = (item) => ({ employeeId: item.code, employeeNumber: '', name: item.name, position: '', section: '' })
+  const selectedJobTitle = lookups.jobTitles.find((item) => item.code === form.to.jobTitleCode) ?? null
+  const selectedDepartment = lookups.departments.find((item) => item.code === form.to.departmentCode) ?? null
+  // Blood types are a fixed set of eight; the picker always lists them all (merged with
+  // whatever the lookup returns) plus "Not recorded", so the reader can still submit when
+  // the blood type is unknown.
+  const STANDARD_BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+  const bloodTypeOptions = [
+    ...STANDARD_BLOOD_TYPES.map((code) => ({ code, name: code })),
+    ...(lookups.bloodTypes ?? []).filter((item) => !STANDARD_BLOOD_TYPES.includes(item.code)),
+  ]
+  const NOT_RECORDED = Object.freeze({ code: 'NOT_RECORDED', name: T.detailsStep.bloodUnknown })
+  const bloodPickerOptions = [NOT_RECORDED, ...bloodTypeOptions]
+  const selectedBloodType = bloodPickerOptions.find((item) => item.code === form.bloodType)
+    ?? (form.bloodType ? { code: form.bloodType, name: form.bloodType } : null)
   const currentOf = { jobTitleCode: employee ? jobName(employee.jobTitleCode) : '', departmentCode: employee?.departmentName ?? '', sectionCode: employee?.sectionName ?? '' }
-  const targetOf = { jobTitleCode: jobName(form.to.jobTitleCode), departmentCode: departmentName(form.to.departmentCode), sectionCode: sectionName(form.to.departmentCode, form.to.sectionCode) }
+  const targetOf = { jobTitleCode: jobName(form.to.jobTitleCode) || (typedTo.jobTitleCode ?? ''), departmentCode: departmentName(form.to.departmentCode) || (typedTo.departmentCode ?? ''), sectionCode: sectionName(form.to.departmentCode, form.to.sectionCode) || (typedTo.sectionCode ?? '') }
+  // Master lists and typing differ in case and spacing, so names are compared loosely.
+  const normalizeName = (value) => String(value ?? '').toLocaleLowerCase().replace(/[_\s]+/g, ' ').trim()
+  const candidatesOf = (key, departmentCode = form.to.departmentCode) => (key === 'departmentCode' ? [lookups.departments, []]
+    : key === 'jobTitleCode' ? [lookups.jobTitles, []] : [allSections, sectionsOf(lookups.departments, departmentCode)])
+  const matchOf = (key, text, departmentCode) => {
+    const wanted = normalizeName(text)
+    const [options, prefer] = candidatesOf(key, departmentCode)
+    if (!wanted) return null
+    return [...prefer, ...options].find((item) => normalizeName(item.name) === wanted) ?? null
+  }
+  const textOf = (key, options) => typedTo[key] ?? nameIn(options, form.to[key])
+  // The form stores codes; what the reader typed is settled into codes when they continue or
+  // save, so a name typed in full works even if no keystroke landed on the last character.
+  // Section keeps free text that is not in the master list, as the legacy input allowed.
+  const resolveTo = () => {
+    const departmentCode = typedTo.departmentCode == null ? form.to.departmentCode : matchOf('departmentCode', typedTo.departmentCode)?.code ?? ''
+    const codeOf = (key) => {
+      if (typedTo[key] == null) return form.to[key]
+      const matched = matchOf(key, typedTo[key], departmentCode)?.code
+      if (matched) return matched
+      // Section is a free-text input like the legacy form: what the reader typed is the
+      // value even when it is not in the master list (the server checks it on save).
+      return key === 'sectionCode' ? String(typedTo[key]).trim() : ''
+    }
+    // A section typed before the department still has to belong to the department that ends up chosen.
+    return { jobTitleCode: codeOf('jobTitleCode'), departmentCode, sectionCode: codeOf('sectionCode') }
+  }
+  const settleTo = () => {
+    const to = resolveTo()
+    if (['jobTitleCode', 'departmentCode', 'sectionCode'].some((key) => to[key] !== form.to[key])) patch({ to })
+    setTypedTo((value) => Object.fromEntries(Object.entries(value).map(([key, text]) => [key, matchOf(key, text, to.departmentCode)?.name ?? text])))
+    return to
+  }
 
   // The pickers list each employee with job title and section; directors with their area.
   const searchEmployees = async (search, options) => {
@@ -79,24 +142,74 @@ function TransferEditor({ lookups, record, user }) {
     const term = search.trim().toLocaleLowerCase()
     return { items: lookups.directors.filter((item) => `${item.directorId} ${item.name} ${item.area}`.toLocaleLowerCase().includes(term)).map(asOption) }
   }
+  // Job title and department use the same searchable picker UI as the employee name:
+  // opening the field lists every option, typing narrows it, picking sets the code.
+  const searchLookup = (options) => async (search) => {
+    const term = String(search ?? '').trim().toLocaleLowerCase()
+    const items = term ? options.filter((item) => item.name.toLocaleLowerCase().includes(term)) : options
+    return { items: items.map(asLookupOption) }
+  }
+  const searchJobTitles = searchLookup(lookups.jobTitles)
+  const searchDepartments = searchLookup(lookups.departments)
+  const searchBloodTypes = searchLookup(bloodPickerOptions)
+  const pickDestination = (key) => (option) => {
+    patch((state) => ({ to: withDestination(state.to, key, option.employeeId) }))
+    if (key === 'departmentCode') setTypedTo((value) => ({ ...value, sectionCode: null }))
+    clear(key, 'to', ...(key === 'departmentCode' ? ['sectionCode'] : []))
+  }
 
   const clear = (...keys) => setErrors((value) => Object.fromEntries(Object.entries(value).filter(([key]) => !keys.includes(key))))
   const setValue = (key) => (eventOrValue) => { set(key)(eventOrValue); clear(key) }
-  const setTo = (key) => (event) => { patch((state) => ({ to: withDestination(state.to, key, event.target.value) })); clear(key, 'to', ...(key === 'departmentCode' ? ['sectionCode'] : [])) }
-  const pickEmployee = (person) => { patch((state) => withTransferEmployee({ ...state, employee: person }, person)); clear('employee', 'to', 'effectiveDate') }
+  // What the reader types sets the code the request stores, matched loosely on the name; other
+  // text leaves the code unset, so the check asks for a name from the list.
+  const typeTo = (key) => (text) => {
+    patch((state) => ({ to: withDestination(state.to, key, matchOf(key, text)?.code ?? '') }))
+    setTypedTo((value) => ({ ...value, [key]: text, ...(key === 'departmentCode' ? { sectionCode: null } : {}) }))
+    clear(key, 'to', ...(key === 'departmentCode' ? ['sectionCode'] : []))
+  }
+  // The picker lists names; the employee's snapshot (job title, section, blood type, joining
+  // date) is fetched once for the picked employee and fills the move.
+  const pickEmployee = async (person) => {
+    const request = ++employeeRequest.current
+    setTypedTo({})
+    patch({ employee: person })
+    clear('employee', 'to', 'effectiveDate')
+    setEmployeeLoading(true)
+    try {
+      const details = await service.employee(person.name)
+      if (request !== employeeRequest.current) return
+      patch((state) => withTransferEmployee({ ...state, employee: details }, details))
+    } catch {
+      if (request !== employeeRequest.current) return
+      setErrors((value) => ({ ...value, employee: T.errors.employeeLookup }))
+    } finally {
+      if (request === employeeRequest.current) setEmployeeLoading(false)
+    }
+  }
 
   const check = (submit) => {
-    const problems = validateTransfer(form, employee, lookups.departments, { submit })
+    const problems = validateTransfer({ ...form, to: settleTo() }, employee, lookups.departments, { submit })
     setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
     if (!problems.length) return true
     editor.reject(problems[0].step, problems.length === 1 ? messageOf(problems[0]) : C.reviewProblems(problems.length),
       problems.length === 1 ? [] : problems.map(messageOf))
     return false
   }
+  // Continue checks the open step only; later steps stay locked until this one is done.
+  const continueStep = () => {
+    const problems = problemsInStep(validateTransfer({ ...form, to: settleTo() }, employee, lookups.departments, { submit: true }), step)
+    setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
+    if (!problems.length) return true
+    const messages = problems.map(messageOf)
+    editor.reject(step, messages.length === 1 ? messages[0] : C.reviewProblems(messages.length))
+    return false
+  }
   const save = () => {
-    if (locked || !check(false)) return
+    if (locked) return
+    const to = settleTo()
+    if (!check(false)) return
     editor.perform(async ({ saved: keep }) => {
-      const result = await service.save(editor.recordId, transferPayload(form, employee), employee)
+      const result = await service.save(editor.recordId, transferPayload({ ...form, to }, employee), employee)
       keep(result)
       return result
     }, { success: (result) => T.saved(result.transferNumber) })
@@ -108,8 +221,9 @@ function TransferEditor({ lookups, record, user }) {
   }
   const submit = () => {
     setDialog(null)
+    const to = resolveTo()
     editor.perform(async ({ saved: keep }) => {
-      const result = await service.save(editor.recordId, transferPayload(form, employee), employee)
+      const result = await service.save(editor.recordId, transferPayload({ ...form, to }, employee), employee)
       keep(result)
       return result
     }, { success: (result) => T.saved(result.transferNumber) })
@@ -124,17 +238,29 @@ function TransferEditor({ lookups, record, user }) {
     { icon: 'house', label: C.home, onClick: () => leave('/dashboard') },
   ]
   const doneSteps = [Boolean(employee && moves.length && form.to.sectionCode), Boolean(form.effectiveDate && form.directorId && form.salaryChange && form.budgetedSalary), locked]
+  const lockedSteps = lockedStepsOf(doneSteps)
   const filled = [employee, form.to.departmentCode, form.to.sectionCode, form.to.jobTitleCode, form.effectiveDate, form.directorId, form.salaryChange, form.budgetedSalary].filter(Boolean).length
   const approvals = saved?.approvals ?? TRANSFER_ROUTE.map((role) => ({ role, state: 'DRAFT' }))
   const office = saved?.office ?? null
   const yesNo = [{ value: 'YES', title: T.detailsStep.yes, icon: 'check' }, { value: 'NO', title: T.detailsStep.no, icon: 'x', tone: 'hold' }]
-  const select = (key, label, options, placeholder, disabled = false) => (
+  // The salary note opens the Personnel Record Change form in a new tab with this
+  // employee's number and name, so the record change auto-fills from the master.
+  const recordChangeHref = employee?.employeeNumber
+    ? `${ES_PATHS.recordChange}?employee=${encodeURIComponent(employee.employeeNumber)}&name=${encodeURIComponent(employee.name ?? '')}`
+    : ES_PATHS.recordChange
+  // Job title and department are searchable pickers like the employee name (search as you
+  // type, pick to set the code). Section stays a free-text input with suggestions, as in
+  // the old CI3 form, so the reader can type anything into it.
+  const suggest = (key, label, options, placeholder) => (
     <HrField id={`tr-${key}`} label={label} required error={errors[key]}>
-      <select {...fieldProps(`tr-${key}`, { error: errors[key] })} className="ux-select zrv-hr-input" aria-required="true" disabled={disabled}
-        value={form.to[key]} onChange={setTo(key)}>
-        <option value="">{placeholder}</option>
-        {options.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
-      </select>
+      <input id={`tr-${key}`} name={`tr-${key}`} type="text" list={`tr-${key}-suggestions`} className="ux-input zrv-hr-input"
+        autoComplete="off" aria-required="true" aria-invalid={errors[key] ? true : undefined}
+        aria-describedby={errors[key] ? `tr-${key}-error` : undefined}
+        placeholder={placeholder} value={textOf(key, options)}
+        onChange={(event) => typeTo(key)(event.target.value)} />
+      <datalist id={`tr-${key}-suggestions`}>
+        {options.map((item) => <option key={item.code} value={item.name} />)}
+      </datalist>
     </HrField>
   )
 
@@ -149,17 +275,7 @@ function TransferEditor({ lookups, record, user }) {
         { k: T.ticket.date, v: enDate(form.requestDate) },
         { k: T.ticket.status, v: <Pill tone={status === 'DRAFT' ? 'warn' : 'ok'}>{C.status[status]}</Pill> },
       ]} />}
-      banner={(
-        <dl className="zrv-hr-es-docstrip" aria-label={T.document.label}>
-          <div className="zrv-hr-es-docstrip__title"><dt className="zrv-hr-sr">{T.document.label}</dt><dd>{doc.title}</dd></div>
-          <div><dt>{T.document.control}</dt><dd className="zrv-hr-mono">{doc.controlNumber}</dd></div>
-          {doc.version && <div><dt>{T.document.version}</dt><dd>{doc.version}</dd></div>}
-          {doc.issueDate && <div><dt>{T.document.issued}</dt><dd>{enDate(doc.issueDate)}</dd></div>}
-          {doc.pages && <div><dt>{T.document.pages}</dt><dd>{doc.pages}</dd></div>}
-          <div><dt>{T.document.company}</dt><dd>{nameIn(lookups.companies, form.companyCode) || '—'}</dd></div>
-        </dl>
-      )}
-      steps={T.steps.map(([name], index) => [name, doneSteps[index] ? C.step.done : C.step.open])} step={step} onStep={setStep} doneSteps={doneSteps} finalLabel={T.saveDraft} onFinal={requestSubmit}
+      steps={T.steps.map(([name], index) => [name, doneSteps[index] ? C.step.done : C.step.open])} step={step} onStep={setStep} doneSteps={doneSteps} lockedSteps={lockedSteps} onContinue={continueStep} finalLabel={T.saveDraft} onFinal={requestSubmit}
       side={<>
         <Tilt aria-label={T.card.label}>
           <div className="zrv-hr-dark__top"><span className="zrv-hr-mono">{saved?.transferNumber || T.card.draft}</span></div>
@@ -195,6 +311,7 @@ function TransferEditor({ lookups, record, user }) {
             </select>
           </HrField>
         </div>
+        {employeeLoading && <p className="zrv-admin-hint" role="status">{T.moveStep.loading}</p>}
         <div className="zrv-hr-es-compare zrv-hr-mt">
           <div className="zrv-hr-es-col">
             <span className="zrv-hr-es-col__h">{T.moveStep.current}</span>
@@ -205,12 +322,13 @@ function TransferEditor({ lookups, record, user }) {
           </div>
           <div className="zrv-hr-es-col zrv-hr-is-to">
             <span className="zrv-hr-es-col__h">{T.moveStep.transferTo}</span>
-            {select('jobTitleCode', T.moveStep.jobTitle, lookups.jobTitles.map((item) => ({ code: item.code, label: item.name })), T.moveStep.chooseJob)}
-            {select('departmentCode', T.moveStep.department, lookups.departments.map((item) => ({
-              code: item.code, label: employee && item.code === employee.departmentCode ? T.moveStep.currentMark(item.name) : item.name,
-            })), T.moveStep.chooseDepartment)}
-            {select('sectionCode', T.moveStep.section, sectionsOf(lookups.departments, form.to.departmentCode).map((item) => ({ code: item.code, label: item.name })),
-              form.to.departmentCode ? T.moveStep.chooseSection : T.moveStep.departmentFirst, !form.to.departmentCode)}
+            <EmployeePicker id="tr-jobTitleCode" label={T.moveStep.jobTitle} required tight placeholder={T.moveStep.suggestJob}
+              value={selectedJobTitle ? asLookupOption(selectedJobTitle) : null} onPick={pickDestination('jobTitleCode')} error={errors.jobTitleCode}
+              searchService={searchJobTitles} cacheKey="hr-service-job-titles" />
+            <EmployeePicker id="tr-departmentCode" label={T.moveStep.department} required tight placeholder={T.moveStep.suggestDepartment}
+              value={selectedDepartment ? asLookupOption(selectedDepartment) : null} onPick={pickDestination('departmentCode')} error={errors.departmentCode}
+              searchService={searchDepartments} cacheKey="hr-service-departments" />
+            {suggest('sectionCode', T.moveStep.section, allSections, T.moveStep.suggestSection)}
           </div>
         </div>
         {errors.to && <p className="zrv-auth-field-error" role="alert">{errors.to}</p>}
@@ -234,19 +352,18 @@ function TransferEditor({ lookups, record, user }) {
           <HrField id="tr-director-id" label={T.detailsStep.directorId}>
             <input id="tr-director-id" className="ux-input zrv-hr-input" readOnly value={director?.directorId ?? ''} placeholder={T.detailsStep.directorIdPlaceholder} />
           </HrField>
-          <HrField id="tr-blood" label={T.detailsStep.bloodType} required error={errors.bloodType} hint={employee?.bloodType ? T.detailsStep.bloodFromRecord : undefined}>
-            <select {...fieldProps('tr-blood', { error: errors.bloodType, hint: employee?.bloodType ? 'record' : undefined })} className="ux-select zrv-hr-input" aria-required="true" value={form.bloodType} onChange={setValue('bloodType')}>
-              <option value="">{T.detailsStep.bloodUnknown}</option>
-              {lookups.bloodTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
-            </select>
-          </HrField>
+          {/* Same searchable picker UI as job title and department: opening the field
+              lists every blood type, typing narrows it, picking sets the value. */}
+          <EmployeePicker id="tr-blood" label={T.detailsStep.bloodType} required tight placeholder={T.detailsStep.bloodSearch}
+            value={selectedBloodType ? asLookupOption(selectedBloodType) : null} onPick={(item) => { setValue('bloodType')(item.employeeId) }} error={errors.bloodType}
+            searchService={searchBloodTypes} cacheKey="hr-service-blood-types" />
         </div>
         <div className="zrv-hr-grid zrv-hr-is-2 zrv-hr-mt">
           <RadioCards name="tr-salary-change" label={T.detailsStep.salaryChange} options={yesNo} value={form.salaryChange} onChange={setValue('salaryChange')} error={errors.salaryChange} />
           <RadioCards name="tr-budgeted" label={T.detailsStep.budgetedSalary} options={yesNo} value={form.budgetedSalary} onChange={setValue('budgetedSalary')} error={errors.budgetedSalary} />
         </div>
         {form.salaryChange === 'YES' && (
-          <p className="zrv-hr-note">{T.detailsStep.salaryNote} <Link to={ES_PATHS.recordChange}>{T.detailsStep.salaryLink}</Link></p>
+          <p className="zrv-hr-note">{T.detailsStep.salaryNote} <a className="zrv-hr-link" href={recordChangeHref} target="_blank" rel="noopener noreferrer">{T.detailsStep.salaryLink}</a></p>
         )}
       </>}
 

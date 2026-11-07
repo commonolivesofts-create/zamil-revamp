@@ -1,4 +1,5 @@
-import { useId, useState } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useId, useRef, useState } from "react";
 import { useResource } from "@/features/security-administration/useAdminData.js";
 import { PICKER_TEXT } from "../../hrRecruitmentText.js";
 import { initials } from "../hrFormat.js";
@@ -25,9 +26,11 @@ export function EmployeePicker({
 }) {
   const listId = useId();
   const statusId = useId();
+  const controlRef = useRef(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [popupStyle, setPopupStyle] = useState(null);
   const search = useSettled(query.trim(), 250);
   const pendingSearch = open && search !== query.trim();
   const results = useResource(
@@ -36,6 +39,39 @@ export function EmployeePicker({
   );
   const matches =
     !pendingSearch && results.status === "ready" ? results.data.items : [];
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const positionPopup = () => {
+      const rect = controlRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const theme = window.getComputedStyle(controlRef.current);
+      const below = window.innerHeight - rect.bottom - 12;
+      const above = rect.top - 12;
+      const openUp = below < 180 && above > below;
+      setPopupStyle({
+        "--zrv-hr-accent": theme.getPropertyValue("--zrv-hr-accent"),
+        "--zrv-hr-accent-text": theme.getPropertyValue("--zrv-hr-accent-text"),
+        "--zrv-hr-shadow": theme.getPropertyValue("--zrv-hr-shadow"),
+        fontFamily: theme.fontFamily,
+        position: "fixed",
+        left: rect.left,
+        width: rect.width,
+        zIndex: 2147483647,
+        maxHeight: Math.max(100, Math.min(280, openUp ? above : below)),
+        ...(openUp
+          ? { bottom: window.innerHeight - rect.top + 6 }
+          : { top: rect.bottom + 6 }),
+      });
+    };
+    positionPopup();
+    window.addEventListener("resize", positionPopup);
+    window.addEventListener("scroll", positionPopup, true);
+    return () => {
+      window.removeEventListener("resize", positionPopup);
+      window.removeEventListener("scroll", positionPopup, true);
+    };
+  }, [open]);
   const status = !open
     ? ""
     : pendingSearch || results.status === "loading"
@@ -79,7 +115,7 @@ export function EmployeePicker({
           </i>
         )}
       </label>
-      <div className="zrv-hr-combo__in">
+      <div className="zrv-hr-combo__in" ref={controlRef}>
         {!tight && (
           <span className="zrv-hr-combo__av" aria-hidden="true">
             {initials(value?.name)}
@@ -88,7 +124,7 @@ export function EmployeePicker({
         <input
           id={id}
           role="combobox"
-          className="ux-input zrv-hr-input"
+          className={`ux-input zrv-hr-input${value?.employeeNumber && !open ? " zrv-hr-combo__selected" : ""}`}
           autoComplete="off"
           placeholder={placeholder}
           aria-expanded={open}
@@ -96,11 +132,7 @@ export function EmployeePicker({
           aria-autocomplete="list"
           aria-required={required || undefined}
           disabled={disabled}
-          aria-activedescendant={
-            open && matches[active]
-              ? `${listId}-${matches[active].employeeId}`
-              : undefined
-          }
+          aria-activedescendant={open && matches[active] ? `${listId}-${active}` : undefined}
           aria-invalid={Boolean(error)}
           aria-describedby={[
             error ? `${id}-error` : null,
@@ -117,7 +149,9 @@ export function EmployeePicker({
               setActive(0);
             }
           }}
-          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          // A typed search that was not picked is not a selection: clear it (legacy
+          // rejected an employee number that did not match the list).
+          onBlur={() => setTimeout(() => { setOpen(false); setQuery(""); }, 120)}
           onChange={(event) => {
             setQuery(event.target.value);
             setOpen(true);
@@ -126,9 +160,10 @@ export function EmployeePicker({
           onKeyDown={onKeyDown}
         />
       </div>
-      {open && (
+      {open && popupStyle && createPortal(
         <ul
           className="zrv-hr-combo__list"
+          style={popupStyle}
           id={listId}
           role="listbox"
           aria-label={label}
@@ -145,8 +180,8 @@ export function EmployeePicker({
           )}
           {matches.map((employee, index) => (
             <li
-              key={employee.employeeId}
-              id={`${listId}-${employee.employeeId}`}
+              key={`${employee.employeeId}-${index}`}
+              id={`${listId}-${index}`}
               role="option"
               aria-selected={index === active}
               className={index === active ? "zrv-hr-is-active" : undefined}
@@ -172,7 +207,8 @@ export function EmployeePicker({
               {PICKER_TEXT.noMatch}
             </li>
           )}
-        </ul>
+        </ul>,
+        document.body,
       )}
       <span
         id={statusId}

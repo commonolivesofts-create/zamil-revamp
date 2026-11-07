@@ -4,7 +4,7 @@ import { monthRanges } from '@/features/hr-recruitment/shared/insightDates.js'
 import { InsightReport } from '@/features/hr-recruitment/shared/components/InsightReport.jsx'
 import { Card, Columns, Foot, Hero } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
 import { BUSINESS_VISA_PATHS as PATHS, LETTERS_BREADCRUMB } from '../employeeServicesPaths.js'
-import { RECORD_STATUSES, STATUS_TEXT } from '../shared/formRecords.js'
+import { REQUEST_STATUSES as RECORD_STATUSES, REQUEST_STATUS_TEXT as STATUS_TEXT } from './businessVisaStatus.js'
 import { NATIONALITIES } from './nationalities.js'
 import { RESOURCE, businessVisaService as service } from './businessVisaService.js'
 

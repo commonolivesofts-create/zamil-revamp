@@ -4,6 +4,7 @@
 // editable fields (the table keeps the letter's text, not the employee
 // number). Readers reject unexpected data.
 import { apiClient } from '../../../services/api/apiClient.js'
+import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { ID, invalidResponse, isoDate, params, segment, text } from '../shared/formRecords.js'
 
 export const BASE = '/hr/business-visa-letters'
@@ -95,24 +96,24 @@ export function validateLetter(form) {
 
 export function createBusinessVisaLetterService({ client }) {
   const getById = async (id, { signal } = {}) => readLetter((await client.get(`${BASE}/${segment(id)}`, { signal })).data)
-  let employees = null
+  // Every current employee once, loaded with the form.
+  const employees = createEmployeeList({
+    load: ({ signal } = {}) => client.get(`${BASE}/lookups/employees`, { signal }).then(({ data }) => data),
+    shape: (item) => (text(item?.employee_number)
+      ? Object.freeze({ employeeId: text(item.employee_number), employeeNumber: text(item.employee_number), name: text(item.full_name) })
+      : null),
+  })
   return Object.freeze({
     getById,
     async options({ signal } = {}) {
       return readOptions((await client.get(`${BASE}/lookups/options`, { signal })).data)
     },
+    preloadEmployees: (options) => employees.list(options),
     // The API returns every current employee once; the picker filters them by number or name.
     async searchEmployees(search = '', { signal } = {}) {
-      if (!employees) {
-        const { data } = await client.get(`${BASE}/lookups/employees`, { signal })
-        if (!Array.isArray(data)) throw invalidResponse('employee list')
-        employees = data.filter((item) => text(item?.employee_number)).map((item) => Object.freeze({
-          employeeId: text(item.employee_number), employeeNumber: text(item.employee_number), name: text(item.full_name),
-        }))
-      }
       const term = String(search).trim().toUpperCase()
-      const items = Object.freeze(employees.filter((item) => !term || item.employeeNumber.toUpperCase().includes(term) || item.name.toUpperCase().includes(term)).slice(0, 20))
-      return Object.freeze({ items, pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }) })
+      const list = await employees.list({ signal })
+      return employeePage(list.filter((item) => !term || item.employeeNumber.toUpperCase().includes(term) || item.name.toUpperCase().includes(term)))
     },
     async employee(employeeNumber, { signal } = {}) {
       return readEmployee((await client.get(`${BASE}/lookups/employee/${encodeURIComponent(employeeNumber)}`, { signal })).data)

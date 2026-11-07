@@ -27,10 +27,10 @@ src/main.jsx
 └── <StrictMode>
     └── <AppProviders>                       src/app/AppProviders.jsx
         ├── <AppErrorBoundary>               last-resort rendering error page
-        ├── <Suspense>                       fallback for lazy-loaded pages
         ├── <AuthProvider>                   src/features/auth/AuthProvider.jsx   → useAuth()
         └── <PermissionProvider>             src/features/access/PermissionProvider.jsx → usePermissions()
-            └── <App>                        <RouterProvider router={router} />
+            └── <Suspense>                   neutral startup fallback; providers remain mounted
+                └── <App>                    <RouterProvider router={router} />
 ```
 
 New global providers are a shared-architecture change (gate G3 in the
@@ -40,6 +40,14 @@ New global providers are a shared-architecture change (gate G3 in the
 
 All routes are declared once in `src/app/router.jsx`; page components are lazy-loaded in
 `src/routes/RouteComponents.jsx`.
+
+The shared layouts are loaded eagerly. `AdminLayout` owns a pathname-keyed `Suspense` boundary
+inside `<main>` so loading another page keeps the sidebar and header mounted and replaces only
+the content with `RouteLoading`. Pending permissions use the same skeleton without mounting the
+protected page. Session restoration and initial public-page chunks use `StartupLoading`, with one
+neutral appearance instead of separate session/workspace messages. Visual indicators have a short
+CSS delay to avoid flashes on fast responses, and respect reduced-motion preferences; ready pages
+are never delayed. Session and permission errors retain their explicit retry controls.
 
 ```text
 RouterShell (route announcer, scroll restoration)

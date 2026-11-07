@@ -611,6 +611,9 @@ export async function list(c, userId, privileged, filter) {
     `
     (
       :privileged = 1
+      -- Legacy creator scope (empclearnce_list): the requester always sees what
+      -- they raised, even if the subject later leaves their team.
+      OR CH.CREATED_BY = :currentUserId
       OR CH.EMP_NO = :myNo
       OR CH.EMP_NO IN (
         SELECT E.EMPLOYEE_NUMBER
@@ -630,6 +633,7 @@ export async function list(c, userId, privileged, filter) {
 
   const b = {
     privileged: privileged ? 1 : 0,
+    currentUserId: userId,
     myNo: a?.EMPLOYEE_NUMBER ?? null,
     myPersonId: a?.PERSON_ID ?? null,
     offset: (filter.page - 1) * filter.pageSize,

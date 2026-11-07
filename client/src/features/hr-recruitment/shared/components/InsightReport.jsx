@@ -16,8 +16,18 @@ import { clampRange } from "../insightDates.js";
 import "@/styles/hr-recruitment.css";
 import "@/styles/hr-insight-report.css";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 15;
 const DRAWER_EXIT_MS = 320;
+const DRAWER_MIN_WIDTH = 420;
+const DRAWER_STEP = 24;
+// A widened drawer always leaves a sliver of the page in view.
+const clampDrawerWidth = (value) =>
+  Math.round(
+    Math.min(
+      Math.max(value, DRAWER_MIN_WIDTH),
+      Math.max(DRAWER_MIN_WIDTH, window.innerWidth - 24),
+    ),
+  );
 const reducedMotion = () =>
   typeof window !== "undefined" &&
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -77,7 +87,8 @@ function counter(list, signal) {
 //   cards: [{ key, load({ query, today, count, countIn, omit }), render(data, ctx) }],
 //     ctx: { query, today, pick(patch) → { active, onPick } };
 //   groups: [{ key, title, tone, items: [{ key, label, patch }] }], or a function of today returning them;
-//   summary(row, today) → { heading, pill, facts: [[label, value]], timing?: { tone, text } };
+//   summary(row, today) → { heading, pill, facts: [[label, value]], timing?: { tone, text } },
+//     or omit it when the drawer shows only the row's detail component;
 //   breadcrumb, demo (the demo-data badge), tools (extra header buttons),
 //   onRefresh (runs before Refresh reloads), validate(draft) → { key: message }
 //   (checked on Apply) and pathOf (without it the summary has no Open link) are optional.
@@ -103,9 +114,12 @@ export function InsightReport({
   groups: groupsOf = [],
   summary,
   renderDetail,
+  closeInDetail = false,
+  resizableDrawer = false,
   breadcrumb = COMMON_TEXT.breadcrumb,
   demo = false,
   tools = null,
+  printLabel = T.print,
   onRefresh,
   validate,
 }) {
@@ -121,6 +135,7 @@ export function InsightReport({
   const [query, setQuery] = useState(initial);
   const [sort, setSort] = useState(defaultSort);
   const [page, setPage] = useState(1);
+  const reportRef = useRef(null);
   const [selected, setSelected] = useState(null);
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef(0);
@@ -260,9 +275,21 @@ export function InsightReport({
     );
   };
   const [first, ...rest] = columns;
+  const fixedColumnWidth = (column) => {
+    if (column.key === "ticket") return 130;
+    if (/^(status|outcome)$/.test(column.key)) return 100;
+    return 0;
+  };
+  const columnWeight = (column) => {
+    if (/^(actions|assessment|offer|position|candidate|employee|name|requester|scheduledBy)$/.test(column.key)) return 1.8;
+    if (/^(department|division|section|pendingAt)$/.test(column.key)) return 1.3;
+    return 1;
+  };
+  const totalWeight = columns.reduce((sum, column) => sum + (fixedColumnWidth(column) ? 0 : columnWeight(column)), 0);
+  const fixedWidth = columns.reduce((sum, column) => sum + fixedColumnWidth(column), 0);
 
   return (
-    <div className={`zrv-hr zrv-hr--${variant} zrv-hr--compact zrv-ir`}>
+    <div ref={reportRef} className={`zrv-hr zrv-hr--${variant} zrv-hr--compact zrv-ir zrv-ir--fitted`}>
       <header className="zrv-ir-head">
         <div className="zrv-ir-head__title">
           <nav aria-label="Breadcrumb">
@@ -318,7 +345,7 @@ export function InsightReport({
             onClick={() => window.print()}
           >
             <OrvexaIcon name="printer" size={16} />
-            {T.print}
+            {printLabel}
           </button>
           {tools}
           {canCreate && (
@@ -487,8 +514,11 @@ export function InsightReport({
                   tabIndex={0}
                   aria-busy={records.refreshing || undefined}
                 >
-                  <table className="zrv-ir-table">
+                  <table className={`zrv-ir-table${columns.length > 10 ? " zrv-ir-table--wide" : ""}`}>
                     <caption className="zrv-hr-sr">{heading}</caption>
+                    <colgroup>
+                      {columns.map((column) => <col key={column.key} style={{ width: fixedColumnWidth(column) ? `${fixedColumnWidth(column)}px` : `calc((100% - ${fixedWidth}px) * ${columnWeight(column) / totalWeight})` }} />)}
+                    </colgroup>
                     <thead>
                       <tr>
                         {columns.map((column) => (
@@ -576,20 +606,27 @@ export function InsightReport({
       {selected && (
         <Summary
           row={selected}
-          detail={summary(selected, today)}
+          detail={summary ? summary(selected, today) : null}
           number={numberOf(selected)}
           path={pathOf?.(selected)}
-          extra={renderDetail?.(selected, {
-            onChanged: (updated) => {
-              setSelected((current) =>
-                current && rowKey(current) === rowKey(selected)
-                  ? { ...current, ...updated }
-                  : current,
-              );
-              refresh();
-            },
-          })}
+          extra={
+            // The detail button calls onClose from its click handler, after render.
+            // eslint-disable-next-line react-hooks/refs
+            renderDetail?.(selected, {
+              onClose: close,
+              onChanged: (updated) => {
+                setSelected((current) =>
+                  current && rowKey(current) === rowKey(selected)
+                    ? { ...current, ...updated }
+                    : current,
+                );
+                refresh();
+              },
+            })
+          }
           openLabel={openLabel}
+          closeInDetail={closeInDetail}
+          resizable={resizableDrawer}
           closing={closing}
           onClose={close}
         />
@@ -635,18 +672,66 @@ function Breakdown({ group, counts, isActive, onPick }) {
 }
 
 // Side summary of one listed record (the list's own fields; the full record
-// opens on its form). It slides in and, while `closing`, slides out.
+// opens on its form). Without `detail` it shows only the detail component,
+// keeping the record number as the drawer's label for screen readers. It
+// slides in and, while `closing`, slides out.
 function Summary({
   row,
   detail,
   number,
   path,
   openLabel,
+  closeInDetail,
+  resizable,
   closing,
   onClose,
   extra,
 }) {
   const [copiedOf, setCopiedOf] = useState(null);
+  const [drawerWidth, setDrawerWidth] = useState(null);
+  const drag = useRef(null);
+  const startResize = (event) => {
+    const dialog = event.currentTarget.closest(".zrv-dialog");
+    if (!dialog) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    drag.current = {
+      x: event.clientX,
+      width: dialog.getBoundingClientRect().width,
+    };
+  };
+  const resize = (event) => {
+    if (!drag.current) return;
+    setDrawerWidth(
+      clampDrawerWidth(
+        drag.current.width + drag.current.x - event.clientX,
+      ),
+    );
+  };
+  const stopResize = (event) => {
+    drag.current = null;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+  // The grip also widens and narrows the drawer from the keyboard.
+  const keyResize = (event) => {
+    const step =
+      event.key === "ArrowLeft"
+        ? DRAWER_STEP
+        : event.key === "ArrowRight"
+          ? -DRAWER_STEP
+          : 0;
+    if (!step) return;
+    event.preventDefault();
+    const dialog = event.currentTarget.closest(".zrv-dialog");
+    setDrawerWidth(
+      clampDrawerWidth(
+        (drawerWidth ?? dialog?.getBoundingClientRect().width ?? DRAWER_MIN_WIDTH) +
+          step,
+      ),
+    );
+  };
   const copied = copiedOf === row;
   const canCopy =
     typeof navigator !== "undefined" && Boolean(navigator.clipboard?.writeText);
@@ -657,56 +742,85 @@ function Summary({
     );
   return (
     <div
-      className={`zrv-hr-rp-drawer zrv-ir-drawer${closing ? " zrv-ir-is-closing" : ""}`}
+      className={`zrv-hr-rp-drawer zrv-ir-drawer${detail ? "" : " zrv-ir-drawer--plain"}${resizable ? " zrv-ir-drawer--resizable" : ""}${closing ? " zrv-ir-is-closing" : ""}`}
+      style={
+        drawerWidth ? { "--zrv-ir-drawer-width": `${drawerWidth}px` } : undefined
+      }
     >
       <Dialog title={String(number)} onClose={onClose}>
-        <button
-          type="button"
-          className="zrv-hr-rp-drawer__x"
-          onClick={onClose}
-          aria-label={T.close}
-        >
-          <OrvexaIcon name="x" size={18} />
-        </button>
+        {(!detail || resizable) && (
+          <button
+            type="button"
+            className="zrv-ir-drawer__grip"
+            aria-label={T.resizeDrawer}
+            title={T.resizeDrawer}
+            onPointerDown={startResize}
+            onPointerMove={resize}
+            onPointerUp={stopResize}
+            onPointerCancel={stopResize}
+            onKeyDown={keyResize}
+          />
+        )}
+        {!closeInDetail && (
+          <button
+            type="button"
+            className="zrv-hr-rp-drawer__x"
+            onClick={onClose}
+            aria-label={T.close}
+          >
+            <OrvexaIcon name="x" size={18} />
+          </button>
+        )}
         <div key={String(number)} className="zrv-ir-drawer__body">
-          <div className="zrv-ir-drawer__hero">
-            <b>{detail.heading || COMMON_TEXT.dash}</b>
-            {detail.pill}
-          </div>
-          <dl className="zrv-ir-drawer__facts">
-            {detail.facts.map(([label, value]) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{value || COMMON_TEXT.dash}</dd>
+          {detail && (
+            <>
+              <div className={`zrv-ir-drawer__hero${detail.avatar ? " zrv-ir-drawer__hero--profile" : ""}`}>
+                {detail.avatar && <span className="zrv-ir-drawer__avatar" aria-hidden="true">{detail.avatar}</span>}
+                <span className="zrv-ir-drawer__identity">
+                  {detail.eyebrow && <small>{detail.eyebrow}</small>}
+                  <b>{detail.heading || COMMON_TEXT.dash}</b>
+                  {detail.meta && <em>{detail.meta}</em>}
+                </span>
+                {detail.pill}
               </div>
-            ))}
-          </dl>
-          {detail.timing && (
-            <div
-              className={`zrv-ir-drawer__due zrv-ir-is-${detail.timing.tone}`}
-            >
-              <span>{T.timing}</span>
-              <b>{detail.timing.text}</b>
-            </div>
+              <dl className="zrv-ir-drawer__facts">
+                {(detail.employeeFacts ?? detail.facts).map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value || COMMON_TEXT.dash}</dd>
+                  </div>
+                ))}
+              </dl>
+              {detail.timing && (
+                <div
+                  className={`zrv-ir-drawer__due zrv-ir-is-${detail.timing.tone}`}
+                >
+                  <span>{T.timing}</span>
+                  <b>{detail.timing.text}</b>
+                </div>
+              )}
+            </>
           )}
           {extra}
-          <div className="zrv-ir-drawer__actions">
-            {path && (
-              <Link className="zrv-ir-btn zrv-ir-btn--primary" to={path}>
-                <OrvexaIcon name="external-link" size={16} />
-                {openLabel}
-              </Link>
-            )}
-            {canCopy && (
-              <button type="button" className="zrv-ir-btn" onClick={copy}>
-                <OrvexaIcon name={copied ? "check" : "copy"} size={16} />
-                {copied ? T.copied : T.copy}
-              </button>
-            )}
-            <span className="zrv-hr-sr" role="status">
-              {copied ? T.copied : ""}
-            </span>
-          </div>
+          {detail && (
+            <div className="zrv-ir-drawer__actions">
+              {path && (
+                <Link className="zrv-ir-btn zrv-ir-btn--primary" to={path}>
+                  <OrvexaIcon name="external-link" size={16} />
+                  {openLabel}
+                </Link>
+              )}
+              {canCopy && (
+                <button type="button" className="zrv-ir-btn" onClick={copy}>
+                  <OrvexaIcon name={copied ? "check" : "copy"} size={16} />
+                  {copied ? T.copied : T.copy}
+                </button>
+              )}
+              <span className="zrv-hr-sr" role="status">
+                {copied ? T.copied : ""}
+              </span>
+            </div>
+          )}
         </div>
       </Dialog>
     </div>

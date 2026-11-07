@@ -79,6 +79,14 @@ screens and one presenter fix.
 - Server: `GET /hr/employee-clearance/:id` now returns `computerSignature` (`COM_SIG`). Without it the
   edit form could not show the stored value and a save would have blanked it. OpenAPI
   `EmployeeClearanceDetail` and `server/tests/employee-clearance.test.js` updated.
+- Server: `ATTRIBUTE2` (`computerReturned`) is now `0` for both `IT` and `No Computer` and `99` for an
+  employee receiver, matching the legacy `getComputer()` ids `0001`/`0002` and §1.1 of the legacy
+  README (previously only `IT` produced `0`).
+- Server: each tab's `*_MGR_USERID` now stores the first approver of its lookup (legacy
+  `row_array()` and the approved name both use the first row) instead of being left `NULL` whenever
+  the lookup returned more than one row.
+- Server: the list scope now also includes `CREATED_BY = me` (legacy `empclearnce_list()` creator
+  scope), so a requester still sees a request whose subject has since left their team.
 
 ## 6. Verification
 
@@ -98,6 +106,9 @@ backend in this round.
 5. **Scope** — the backend limits employees, computer receivers and "access to" suggestions to the
    user and direct reports unless the user holds `HR.EMPLOYEE_CLEARANCE:VIEW_ALL`
    (legacy listed every employee for the last two). Free text stays allowed for "access to".
+   The list shows requests the user created, requests about them, and requests about their direct
+   reports; legacy showed only requests they created, so a subject now also sees a request raised
+   for them by their manager.
 6. **Department manager list** — the backend uses `APPROVAL_AUTHORITY` 5–9, not the legacy
    hardcoded job ids / employee numbers.
 

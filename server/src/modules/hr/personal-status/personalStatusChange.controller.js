@@ -22,7 +22,7 @@ export const createPersonalStatusController = (service) => {
 
     list: handle((req) => service.list(req.query, req.auth)),
 
-    employees: handle(() => service.employees()),
+    employees: handle((req) => service.employees(req.query.search)),
 
     positions: handle(() => service.positions()),
 

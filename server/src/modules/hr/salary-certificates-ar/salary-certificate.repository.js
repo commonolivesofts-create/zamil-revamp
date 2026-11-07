@@ -169,13 +169,15 @@ export const repository = {
   picker: async (c, { q = '', page, pageSize }) => {
     const result = await c.execute(
       `
-      SELECT EMPLOYEE_NUMBER
+      SELECT EMPLOYEE_NUMBER, FULL_NAME_AR, FULL_NAME
       FROM (
-        SELECT DISTINCT EMPLOYEE_NUMBER
+        SELECT DISTINCT EMPLOYEE_NUMBER, FULL_NAME_AR, FULL_NAME
         FROM XX_DIGI_EMP_MASTER
         WHERE (
           :q IS NULL
           OR EMPLOYEE_NUMBER LIKE '%' || :q || '%'
+          OR UPPER(FULL_NAME_AR) LIKE '%' || UPPER(:q) || '%'
+          OR UPPER(FULL_NAME) LIKE '%' || UPPER(:q) || '%'
         )
       )
       ORDER BY EMPLOYEE_NUMBER

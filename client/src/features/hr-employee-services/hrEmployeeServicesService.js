@@ -9,6 +9,7 @@ import {
   readAppraisal, readAppraisalListItem, readAppraisalTeam, readPerformanceLookups,
 } from './hrEmployeeServicesContract.js'
 import { familyStatusCode } from './recordChange/recordChangeModel.js'
+import { employeePage } from './shared/employeeList.js'
 
 export const EMPLOYEE_SERVICES_BASE = '/hr/employee-services'
 export const PERFORMANCE_BASE = '/hr/performance'
@@ -79,6 +80,18 @@ function personalStatusEmployee(source) {
   })
 }
 
+// A row of the Emp# lookup: the number the request saves plus the name and section the picker
+// shows. A row without a usable number is skipped, so one bad master row cannot empty the list.
+function personalStatusLookupEmployee(source) {
+  const number = String(source?.empNo ?? '').trim()
+  if (!/^\d{1,19}$/.test(number)) return null
+  const section = textValue(source?.section)
+  return Object.freeze({
+    employeeId: number, employeeNumber: number, name: textValue(source?.name) || number,
+    position: textValue(source?.position), section, departmentName: section,
+  })
+}
+
 function personalStatusRecord(source) {
   if (!source || typeof source !== 'object' || !/^\d{1,19}$/.test(String(source.headerId ?? '')) ||
     !/^\d{1,19}$/.test(String(source.empNo ?? ''))) {
@@ -145,14 +158,23 @@ function createTransferRequestService({ client }) {
   const codeFor = (prefix, name) => transferCode(prefix, name)
   const findName = (items, code) => items.find((item) => item.code === code)?.name ?? ''
   const employeeFromApi = (data, name = data.empName) => {
-    const sectionName = textValue(data.section ?? data.deptName)
-    const departmentName = textValue(data.department ?? data.deptName?.replace(/\s*Section\s*$/i, ''))
-    const jobTitle = textValue(data.jobTitle)
+    // Legacy semantics (CI3 getEmpDetails2 + trans_form.php): the master stores a single
+    // organisation name; Department is that name with "Section" stripped and Section is the
+    // full name. The API may send deptName only, or a saved row's dept/section pair, so
+    // accept every shape and fall back to deptName for the section.
+    const deptName = textValue(data.deptName).trim()
+    const savedDept = textValue(data.department ?? data.dept).trim()
+    // A saved row's C_SECTION can be empty while C_DEPT holds the stripped name; the
+    // full section name is that name with "Section" restored.
+    const sectionName = textValue(data.section).trim() || deptName || (savedDept ? `${savedDept} Section` : '')
+    const departmentName = savedDept || deptName.replace(/\s*Section\s*$/i, '').trim()
+    const jobTitle = textValue(data.jobTitle).trim()
     const normalizeOrg = (value) => String(value ?? '').toLowerCase().replace(/\b(department|section)\b/g, '').replace(/[^a-z0-9]/g, '')
     const normalizedDepartment = normalizeOrg(departmentName)
-    const department = lookups.departments.find((item) => item.name === departmentName) ??
-      lookups.departments.find((item) => normalizeOrg(item.name) === normalizedDepartment) ??
-      lookups.departments.find((item) => normalizedDepartment && normalizeOrg(item.name).includes(normalizedDepartment))
+    const departments = lookups?.departments ?? []
+    const department = departments.find((item) => item.name === departmentName) ??
+      departments.find((item) => normalizeOrg(item.name) === normalizedDepartment) ??
+      departments.find((item) => normalizedDepartment && normalizeOrg(item.name).includes(normalizedDepartment))
     return Object.freeze({
       employeeId: textValue(data.personId ?? data.empNo), employeeNumber: textValue(data.empNo), name: textValue(name) || textValue(data.empNo),
       nationality: '', departmentCode: department?.code ?? codeFor('DEPT', departmentName), departmentName: department?.name ?? departmentName,
@@ -182,12 +204,22 @@ function createTransferRequestService({ client }) {
       // The API exposes a global section list with no department association.
       sections: Object.freeze(sectionOptions),
     }))
+    // Blood types are a fixed set; accept whatever shape the lookup returns and fall back
+    // to the standard eight when it is empty, so the dropdown always lists them all.
+    const STANDARD_BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+    const bloodTypeOptions = (bloodTypes.data ?? [])
+      .map((item) => {
+        const code = typeof item === 'string' ? item : (item.code ?? item.CODE ?? item.name ?? item.NAME)
+        return code == null || String(code).trim() === '' ? null : Object.freeze({ code: String(code), name: String(code) })
+      })
+      .filter(Boolean)
+    if (!bloodTypeOptions.length) bloodTypeOptions.push(...STANDARD_BLOOD_TYPES.map((code) => Object.freeze({ code, name: code })))
     lookups = Object.freeze({
       positions: Object.freeze([]), grades: Object.freeze([]), levels: Object.freeze([]), familyStatuses: Object.freeze([]),
       departments: Object.freeze(departmentOptions),
       jobTitles: Object.freeze((jobs.data ?? []).map((item) => Object.freeze({ code: codeFor('JOB', item.name), name: item.name }))),
       directors: Object.freeze((directors.data ?? []).map((item) => Object.freeze({ directorId: String(item.empNo), name: item.name, area: '' }))),
-      bloodTypes: Object.freeze((bloodTypes.data ?? []).map((item) => Object.freeze({ code: String(item.code), name: String(item.code) }))),
+      bloodTypes: Object.freeze(bloodTypeOptions),
       companies: Object.freeze(['Zamil Plastic Non-Food', 'Zamil Plastic Food'].map((name) => Object.freeze({ code: codeFor('PLANT', name), name }))),
       transferDocument: Object.freeze({ title: 'Transfer Request Form', controlNumber: 'ZPI.TCN.FM.01', version: '', issueDate: '', pages: '' }),
     })
@@ -195,19 +227,27 @@ function createTransferRequestService({ client }) {
     return lookups
   }
   const getLookups = async ({ signal } = {}) => ensureLookups(signal)
-  const searchEmployees = async (search = '', { signal, limit = 10 } = {}) => {
-    const term = String(search).trim().toLocaleLowerCase()
-    if (!term) return Object.freeze({ items: Object.freeze([]), pagination: Object.freeze({ page: 1, limit, total: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false }) })
+  // Every employee name, loaded with the form; the picker narrows them without a request and
+  // the picked employee's snapshot is fetched once.
+  const loadNames = ({ signal } = {}) => {
     if (!employeeNames) {
-      const { data } = await client.get(`${TRANSFER_REQUESTS_BASE}/lookups/employees`, { signal })
-      employeeNames = (data ?? []).map((item) => item.name).filter((name) => typeof name === 'string')
+      employeeNames = client.get(`${TRANSFER_REQUESTS_BASE}/lookups/employees`, { signal })
+        .then(({ data }) => Object.freeze((data ?? []).map((item) => item.name).filter((name) => typeof name === 'string' && name.trim())))
+        .catch((error) => {
+          employeeNames = null
+          throw error
+        })
     }
-    const names = employeeNames.filter((name) => name.toLocaleLowerCase().includes(term)).slice(0, limit)
-    const settled = await Promise.allSettled(names.map((name) => apiEmployee(name, { signal })))
-    const failed = settled.find((item) => item.status === 'rejected' && item.reason?.status !== 404)
-    if (failed) throw failed.reason
-    const items = settled.filter((item) => item.status === 'fulfilled').map((item) => item.value)
-    return Object.freeze({ items: Object.freeze(items), pagination: Object.freeze({ page: 1, limit, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }) })
+    return employeeNames
+  }
+  const employeeOption = (name) => Object.freeze({ employeeId: name, employeeNumber: '', name, position: '', section: '', jobTitleCode: '', bloodType: null })
+  const searchEmployees = async (search = '', { signal } = {}) => {
+    const term = String(search).trim().toLocaleLowerCase()
+    const names = await loadNames({ signal })
+    // Every name, as the legacy datalist had: opening the field lists the whole master in
+    // name order and typing narrows it without a request.
+    const matches = term ? names.filter((name) => name.toLocaleLowerCase().includes(term)) : names
+    return employeePage(matches.map(employeeOption))
   }
   const makeRecord = async (data, { signal } = {}) => {
     await ensureLookups(signal)
@@ -244,7 +284,9 @@ function createTransferRequestService({ client }) {
       current: { empNo: employee.employeeNumber, empName: employee.name, dateOfJoining: employee.startDate,
         jobTitle: findName(lookups.jobTitles, employee.jobTitleCode), dept: employee.departmentName, section: employee.sectionName },
       transfer: { jobTitle: findName(lookups.jobTitles, body.to.jobTitleCode), dept: findName(lookups.departments, body.to.departmentCode),
-        section: findName(lookups.departments.find((item) => item.code === body.to.departmentCode)?.sections ?? [], body.to.sectionCode), effectiveDate: body.effectiveDate,
+        // Section is a free-text input: a known code sends its master name, free text the
+        // reader typed is sent as typed (the server checks it against the sections list).
+        section: findName(lookups.departments.find((item) => item.code === body.to.departmentCode)?.sections ?? [], body.to.sectionCode) || body.to.sectionCode || '', effectiveDate: body.effectiveDate,
         bloodType: body.bloodType, superiorNo: selectedDirector?.directorId,
         changeSalary: body.salaryChange === 'YES' ? 'Yes' : body.salaryChange === 'NO' ? 'No' : '',
         budgetedSalary: body.budgetedSalary === 'YES' ? 'Yes' : body.budgetedSalary === 'NO' ? 'No' : '' },
@@ -252,7 +294,13 @@ function createTransferRequestService({ client }) {
   }
   return Object.freeze({
     getLookups,
+    preloadEmployees: (options) => loadNames(options),
     searchEmployees,
+    // The auto-filled snapshot behind a name (also the transfer's "current" record).
+    async employee(name, { signal } = {}) {
+      await ensureLookups(signal)
+      return apiEmployee(name, { signal })
+    },
     async list({ signal } = {}) {
       await ensureLookups(signal)
       const rows = []
@@ -296,7 +344,8 @@ function createTransferRequestService({ client }) {
 // the existing form model so the current UI can stay unchanged.
 function createPersonalStatusRecordService({ client }) {
   let positions = Object.freeze([])
-  let employeeNumbers = null
+  // The legacy Emp# datalist: every employee number from XX_DIGI_EMP_MASTER, loaded once.
+  let employeeLookup = null
   const positionName = (code) => positions.find((item) => item.code === code)?.name ?? ''
   const valuesForApi = (values = {}) => {
     const result = {}
@@ -324,36 +373,44 @@ function createPersonalStatusRecordService({ client }) {
   const record = (response) => personalStatusRecord(response)
   return Object.freeze({
     async getLookups({ signal } = {}) {
-      const { data } = await client.get(`${PERSONNEL_RECORD_CHANGES_BASE}/lookups/positions`, { signal })
-      if (!Array.isArray(data)) {
+      const [positionResult, employeeResult] = await Promise.all([
+        client.get(`${PERSONNEL_RECORD_CHANGES_BASE}/lookups/positions`, { signal }),
+        client.get(`${PERSONNEL_RECORD_CHANGES_BASE}/lookups/employees`, { signal }),
+      ])
+      if (!Array.isArray(positionResult.data) || !Array.isArray(employeeResult.data)) {
         throw new ApiError('The server returned unexpected personal status form options.', { code: 'INVALID_RESPONSE' })
       }
-      positions = Object.freeze(data.filter((item) => typeof item?.name === 'string' && item.name.trim())
+      positions = Object.freeze(positionResult.data.filter((item) => typeof item?.name === 'string' && item.name.trim())
         .map((item) => Object.freeze({ code: positionCode(item.name), name: item.name })))
-      return Object.freeze({ positions, grades: Object.freeze([]), levels: Object.freeze([]),
+      // Every employee number in XX_DIGI_EMP_MASTER, as the legacy Emp# datalist had: loaded with
+      // the form so opening Emp# lists them at once and typing narrows them without a request.
+      employeeLookup = Object.freeze(employeeResult.data.map(personalStatusLookupEmployee).filter(Boolean))
+      return Object.freeze({ positions, employees: employeeLookup, grades: Object.freeze([]), levels: Object.freeze([]),
         familyStatuses: Object.freeze([{ code: 'S', name: 'Single' }, { code: 'M', name: 'Married' }]),
         departments: Object.freeze([]), jobTitles: Object.freeze([]), directors: Object.freeze([]), bloodTypes: Object.freeze([]), companies: Object.freeze([]),
         transferDocument: null })
     },
-    async searchEmployees(search = '', { signal, limit = 10 } = {}) {
-      const term = String(search).trim()
-      if (!term || !/^\d+$/.test(term)) return Object.freeze({ items: Object.freeze([]), pagination: Object.freeze({ page: 1, limit, total: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false }) })
-      if (!employeeNumbers) {
-        const result = await client.get(`${PERSONNEL_RECORD_CHANGES_BASE}/lookups/employees`, { signal })
-        if (!Array.isArray(result.data)) {
+    // The legacy Emp# datalist narrowed the loaded list as the user typed; the same list is
+    // filtered here by employee number or name, so no request is made per keystroke.
+    async searchEmployees(search = '', { signal } = {}) {
+      const term = String(search).trim().toLowerCase()
+      let rows = employeeLookup
+      if (!rows) {
+        const { data } = await client.get(`${PERSONNEL_RECORD_CHANGES_BASE}/lookups/employees`, { signal })
+        if (!Array.isArray(data)) {
           throw new ApiError('The server returned unexpected employee options.', { code: 'INVALID_RESPONSE' })
         }
-        employeeNumbers = Object.freeze(result.data.map((item) => String(item?.empNo ?? '')).filter((number) => /^\d{1,19}$/.test(number)))
+        rows = Object.freeze(data.map(personalStatusLookupEmployee).filter(Boolean))
       }
-      const matches = employeeNumbers.filter((number) => number.includes(term)).slice(0, limit)
-      const fetched = await Promise.allSettled(matches.map(async (number) => {
-        const { data } = await client.get(`${PERSONNEL_RECORD_CHANGES_BASE}/lookups/employees/${segment(number)}`, { signal })
-        return personalStatusEmployee(data)
-      }))
-      const failure = fetched.find((item) => item.status === 'rejected' && item.reason?.status !== 404)
-      if (failure) throw failure.reason
-      const items = fetched.filter((item) => item.status === 'fulfilled').map((item) => item.value)
-      return Object.freeze({ items: Object.freeze(items), pagination: Object.freeze({ page: 1, limit, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }) })
+      const items = Object.freeze(term
+        ? rows.filter((row) => row.employeeNumber.includes(term) || row.name.toLowerCase().includes(term))
+        : rows)
+      return Object.freeze({ items, pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }) })
+    },
+    // The two-branch auto-fill (master row, or the latest approved request) for one employee.
+    async employee(empNo, { signal } = {}) {
+      const { data } = await client.get(`${PERSONNEL_RECORD_CHANGES_BASE}/lookups/employees/${segment(empNo)}`, { signal })
+      return personalStatusEmployee(data)
     },
     async list({ signal } = {}) {
       const fetchPage = async (page) => {
@@ -396,6 +453,8 @@ const APPRAISAL_CRITERIA = Object.freeze([
   'Makes progress towards professional development goals', 'Demonstrates Zamil Group Core Values', 'Initiative', 'Developing Others',
   'Health Safety & Environment (HSE)',
 ])
+// Every appraisal belongs to the company (the legacy form hard-coded it too).
+const APPRAISAL_COMPANY_NAME = 'Zamil Plastic'
 const APPRAISAL_GRADES = Object.freeze([
   { grade: 'A', min: 4.25, title: 'Consistently Exceeds', description: 'Consistently exceeds expectations.' },
   { grade: 'B', min: 3.5, title: 'Meets and Exceeds', description: 'Meets and exceeds expectations.' },
@@ -414,7 +473,7 @@ function createPerformanceAppraisalService({ client }) {
   }))
   const employee = (data) => Object.freeze({
     employeeId: String(data.number), employeeNumber: String(data.number), personId: String(data.personId), name: data.name,
-    jobTitle: data.jobTitle ?? '', grade: '', companyName: '', departmentName: data.department ?? '',
+    jobTitle: data.jobTitle ?? '', grade: '', companyName: APPRAISAL_COMPANY_NAME, departmentName: data.department ?? '',
     joinedDate: data.hireDate ?? '', positionDate: '', yearsInCompany: data.yearsInCompany ?? null, yearsInPosition: data.yearsInPosition ?? null,
   })
   const readRecord = (data) => {
@@ -473,7 +532,7 @@ function createPerformanceAppraisalService({ client }) {
       if (!Array.isArray(peopleResult.data)) throw new ApiError('The server returned unexpected appraisal employees.', { code: 'INVALID_RESPONSE' })
       const members = peopleResult.data.map((item) => Object.freeze({
         employeeId: String(item.number), employeeNumber: String(item.number), personId: null, name: String(item.name ?? ''),
-        jobTitle: '', grade: '', companyName: '', departmentName: '', joinedDate: '', positionDate: '',
+        jobTitle: '', grade: '', companyName: APPRAISAL_COMPANY_NAME, departmentName: '', joinedDate: '', positionDate: '',
         yearsInCompany: null, yearsInPosition: null, savedGrade: null,
       })).filter((item) => item.name && /^\d{1,19}$/.test(item.employeeId))
       const requestor = requestorResult.data ?? {}

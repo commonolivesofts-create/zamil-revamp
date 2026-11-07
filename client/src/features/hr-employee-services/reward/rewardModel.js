@@ -11,8 +11,9 @@ export const LINE_REMARK_MAX = 500
 // that it is present); 500 matches the line remark column.
 export const REMARK_MAX = 500
 
-// Display order of the legacy scale (the codes have no numeric meaning).
-export const RATING_ORDER = Object.freeze(['AS', 'A', 'CS', 'BS'])
+// Display order of the legacy scale, as the CI3 dropdown lists it (the codes
+// have no numeric meaning): A, AS, BS, CS.
+export const RATING_ORDER = Object.freeze(['A', 'AS', 'BS', 'CS'])
 export const RATING_TONE = Object.freeze({ AS: 'ok', A: 'ok', CS: 'warn', BS: 'bad' })
 
 export const DEPARTMENT_TEXT = Object.freeze({

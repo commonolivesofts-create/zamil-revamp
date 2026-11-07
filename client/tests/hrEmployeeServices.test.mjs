@@ -34,7 +34,7 @@ import {
   withTransferEmployee,
 } from '../src/features/hr-employee-services/transfer/transferModel.js'
 import {
-  DEFAULT_DISTRIBUTION, DEFAULT_SCALE, appraisalPayload, appraisalResult, averageRating, blankAppraisal, filledLines, gradeAllocation, gradeQuotas, isOverQuota,
+  DEFAULT_DISTRIBUTION, DEFAULT_SCALE, APPRAISAL_CRITERIA_AR, APPRAISAL_SCALE_AR, appraisalPayload, appraisalResult, averageRating, blankAppraisal, filledLines, gradeAllocation, gradeQuotas, isOverQuota,
   missingExplanations, needsExplanation, ratedCount, scaleFor, validateAppraisal, yearsUntil,
 } from '../src/features/hr-employee-services/performance/appraisalModel.js'
 import { SESSION_TOKEN, forbidBrowserStorage, noContent, recordingFetch, success } from './helpers/http.mjs'
@@ -254,7 +254,11 @@ test('personal status service uses its actual lookup, list and draft CRUD endpoi
     department: 'Injection', startDate: '2019-03-17', old, new: { position: old.position, maritalStatus: 'M' } }
   const { fetchImpl, calls } = recordingFetch((url, init) => {
     if (url === '/api/v1/hr/personnel-record-changes/lookups/positions') return success([position])
-    if (url === '/api/v1/hr/personnel-record-changes/lookups/employees') return success([{ empNo: '2172' }, { empNo: '2558' }])
+    const employeeRows = [
+      { empNo: '2172', name: 'Previous Request Employee', position: 'Head of IT', section: 'IT' },
+      { empNo: '2558', name: 'Employee Example', position: 'Operator', section: 'Production' },
+    ]
+    if (url === '/api/v1/hr/personnel-record-changes/lookups/employees') return success(employeeRows)
     if (url === '/api/v1/hr/personnel-record-changes/lookups/employees/2172') return success({
       branch: 'previousRequest', empNo: '2172', empName: null, nationality: null, section: null, department: null, startDate: null,
       old: { position: 'Head of IT', basicSal: 20000, houseAll: 0, transAll: 0, otherAll: 0, communAll: 0, carAll: 0, total: 20000 },
@@ -278,12 +282,20 @@ test('personal status service uses its actual lookup, list and draft CRUD endpoi
   const services = createEmployeeServices({ client, recordChangeClient: client })
   const lookups = await services.recordChanges.getLookups()
   assert.deepEqual(lookups.positions.map((item) => item.name), ['Operator'])
-  const found = await services.recordChanges.searchEmployees('2558')
-  assert.equal(found.items[0].name, 'Employee Example')
-  assert.equal(found.items[0].current.basic, 5000)
-  const previousRequestEmployee = await services.recordChanges.searchEmployees('2172')
-  assert.equal(previousRequestEmployee.items[0].name, '2172', 'the employee number remains visible when the saved snapshot has no name')
-  assert.equal(previousRequestEmployee.items[0].current.positionName, 'Head of IT')
+  // Employees load with the form, so opening Emp# lists them without a request.
+  assert.deepEqual(lookups.employees.map((item) => item.employeeNumber), ['2172', '2558'])
+  // Searching returns lightweight rows; the salary snapshot is fetched for the picked one only.
+  const found = await services.recordChanges.employee('2558')
+  assert.equal(found.name, 'Employee Example')
+  assert.equal(found.current.basic, 5000)
+  const byName = await services.recordChanges.searchEmployees('Example')
+  assert.deepEqual(byName.items.map((item) => item.employeeNumber), ['2558'], 'searches by name')
+  assert.equal(byName.items[0].section, 'Production')
+  assert.deepEqual((await services.recordChanges.searchEmployees('2558')).items.map((item) => item.employeeNumber), ['2558'], 'searches by number')
+  assert.equal(calls.filter((call) => call.url === '/api/v1/hr/personnel-record-changes/lookups/employees').length, 1, 'narrowing the legacy list makes no request')
+  const previousRequestEmployee = await services.recordChanges.employee('2172')
+  assert.equal(previousRequestEmployee.name, '2172', 'the employee number remains visible when the saved snapshot has no name')
+  assert.equal(previousRequestEmployee.current.positionName, 'Head of IT')
   const listed = await services.recordChanges.list()
   assert.equal(listed.items[0].requestNumber, '0007-Production')
   assert.equal(listed.items[0].position, 'Supervisor')
@@ -293,14 +305,14 @@ test('personal status service uses its actual lookup, list and draft CRUD endpoi
     ['Production', 'Injection', 7000, 7500, 'Review', 'Requester Example', 'Approver Example'])
 
   const form = { ...blankRecordChange('2026-10-29'), requestDate: '2026-10-29', effectiveDate: '2026-11-01', revised: {
-    ...found.items[0].current, positionCode: lookups.positions[0].code, basic: '5500',
+    ...found.current, positionCode: lookups.positions[0].code, basic: '5500',
   } }
-  const draft = await services.recordChanges.save(null, recordChangePayload({ ...form, currentFamilyStatus: 'S' }, found.items[0]), found.items[0])
+  const draft = await services.recordChanges.save(null, recordChangePayload({ ...form, currentFamilyStatus: 'S' }, found), found)
   assert.equal(draft.requestId, '7')
   assert.equal(draft.employee.name, 'Employee Example')
   assert.equal(draft.arbDate, 'Hijri date', 'ARB_DATE as saved by the server')
   assert.equal(draft.currentFamilyStatus, 'M')
-  const updated = await services.recordChanges.save('7', recordChangePayload({ ...form, revised: { ...form.revised, gradeCode: 'G7' } }, found.items[0]), found.items[0])
+  const updated = await services.recordChanges.save('7', recordChangePayload({ ...form, revised: { ...form.revised, gradeCode: 'G7' } }, found), found)
   assert.equal(updated.requestNumber, '0007-Production')
   assert.equal((await services.recordChanges.getById('7')).revised.basic, 5500)
   await services.recordChanges.delete('7')
@@ -431,18 +443,18 @@ test('routes: transfers use HR permissions and list paths win over record ids', 
   const hr = registeredModules.find((item) => item.code === 'HR')
   assert.deepEqual(hr.resources.find((item) => item.code === 'TRANSFER_REQUESTS').actions, ['VIEW', 'CREATE', 'UPDATE', 'DELETE'])
   assert.deepEqual(servicesFor({ [SWITCH]: 'true' }).map((route) => [route.id, route.path, route.nav !== false, route.permission]), [
-    ['hr-transfer', '/hr/employee-services/transfer', true, 'HR.TRANSFER_REQUESTS:VIEW'],
-    ['hr-transfer-report', '/hr/employee-services/transfer/report', false, 'HR.TRANSFER_REQUESTS:VIEW'],
-    ['hr-transfer-record', '/hr/employee-services/transfer/:transferId', false, 'HR.TRANSFER_REQUESTS:VIEW'],
+    ['hr-transfer', '/hr/talent-management/transfer', true, 'HR.TRANSFER_REQUESTS:VIEW'],
+    ['hr-transfer-report', '/hr/talent-management/transfer/report', false, 'HR.TRANSFER_REQUESTS:VIEW'],
+    ['hr-transfer-record', '/hr/talent-management/transfer/:transferId', false, 'HR.TRANSFER_REQUESTS:VIEW'],
     ['hr-appraisal', '/hr/performance/appraisal', true, undefined],
     ['hr-appraisal-report', '/hr/performance/appraisal/report', false, undefined],
     ['hr-appraisal-record', '/hr/performance/appraisal/:appraisalId', false, undefined],
   ])
-  assert.equal(findAppRoute('/hr/employee-services/record-change/requests')?.id, 'hr-record-change-requests')
-  assert.equal(findAppRoute('/hr/employee-services/record-change/12')?.id, 'hr-record-change-record')
-  assert.equal(findAppRoute('/hr/employee-services/record-change')?.id, 'hr-record-change')
-  assert.equal(findAppRoute('/hr/employee-services/transfer/report')?.id, 'hr-transfer-report')
-  assert.equal(findAppRoute('/hr/employee-services/transfer/3')?.id, 'hr-transfer-record')
+  assert.equal(findAppRoute('/hr/talent-management/record-change/requests')?.id, 'hr-record-change-requests')
+  assert.equal(findAppRoute('/hr/talent-management/record-change/12')?.id, 'hr-record-change-record')
+  assert.equal(findAppRoute('/hr/talent-management/record-change')?.id, 'hr-record-change')
+  assert.equal(findAppRoute('/hr/talent-management/transfer/report')?.id, 'hr-transfer-report')
+  assert.equal(findAppRoute('/hr/talent-management/transfer/3')?.id, 'hr-transfer-record')
 })
 
 // ------------------------------------------------------------ static checks of the screens
@@ -533,6 +545,14 @@ test('transfer: sections depend on the department; choosing a department clears 
   assert.equal(withDestination({ jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: '' }, 'sectionCode', 'PAYROLL').departmentCode, 'HR')
   const problems = validateTransfer(transferForm({ to: { jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: 'KEY_ACCOUNTS' } }), employee, LOOKUPS.departments, { submit: false })
   assert.deepEqual(codesOf(problems), ['sectionCode:notInDepartment'])
+  // A section can be typed before the department; only a chosen department can contradict it.
+  const early = validateTransfer(transferForm({ to: { jobTitleCode: 'PACKER', departmentCode: '', sectionCode: 'KEY_ACCOUNTS' } }), employee, LOOKUPS.departments, { submit: false })
+  assert.deepEqual(codesOf(early), ['departmentCode:required'])
+  // Section is a free-text input like the legacy form: text that is not a known code is
+  // taken as the value instead of failing with "Choose the new section".
+  const free = validateTransfer(transferForm({ to: { jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: 'Custom Typed Section' } }), employee, LOOKUPS.departments, { submit: false })
+  assert.deepEqual(codesOf(free), [], 'free-typed section text is accepted')
+  assert.deepEqual(transferMoves(employee, { jobTitleCode: 'HR_OFFICER', departmentCode: 'HR', sectionCode: 'Custom Typed Section' }), ['sectionCode'])
 })
 
 test('transfer: choosing the employee starts the new job title as now and prefills a known blood type', () => {
@@ -541,6 +561,7 @@ test('transfer: choosing the employee starts the new job title as now and prefil
   assert.equal(form.bloodType, 'O+')
   assert.equal(withTransferEmployee(blankTransfer('2026-10-29', 'ZP_NON_FOOD'), DEMO_SERVICE_EMPLOYEES[1]).bloodType, '', 'unknown stays empty')
   assert.equal(withTransferEmployee({ ...blankTransfer('2026-10-29', 'ZP_NON_FOOD'), bloodType: 'AB+' }, employee).bloodType, 'AB+', 'a chosen value is kept')
+  assert.deepEqual(codesOf(validateTransfer(transferForm({ bloodType: 'NOT_RECORDED' }), employee, LOOKUPS.departments, { submit: true })), [], 'Not recorded still submits')
 })
 
 test('transfer: backend-required destination fields and final-review move validation', () => {
@@ -599,9 +620,9 @@ test('transfer API adapter maps transfer-request lookups, employee search, draft
     if (url === '/api/v1/hr/transfer-requests/lookups/sections') return success([{ name: 'Production Section' }, { name: 'Maintenance Section' }])
     if (url === '/api/v1/hr/transfer-requests/lookups/departments') return success(['Production Department', 'Maintenance Department'])
     if (url === '/api/v1/hr/transfer-requests/lookups/directors') return success([{ name: 'Sample Director', empNo: '900' }])
-    if (url === '/api/v1/hr/transfer-requests/lookups/blood-types') return success([{ code: 'O+' }])
+    if (url === '/api/v1/hr/transfer-requests/lookups/blood-types') return success([])
     if (url === '/api/v1/hr/transfer-requests/lookups/requestor') return success([{ empNo: '500', fullName: 'Signed-in User' }])
-    if (url === '/api/v1/hr/transfer-requests/lookups/employees') return success([{ name: 'Sample Worker' }])
+    if (url === '/api/v1/hr/transfer-requests/lookups/employees') return success([{ name: 'Aaron Adams' }, { name: 'Sample Worker' }, { name: 'Zoe Zhang' }])
     if (url.startsWith('/api/v1/hr/transfer-requests/lookups/employees/')) return success({ empNo: '2172', personId: '33', dateOfJoining: '2018-01-01', jobTitle: 'Operator', deptName: 'Production Section' })
     if (url === '/api/v1/hr/transfer-requests' && init.method === 'POST') return success({ headerId: '8', uuid: 'request-uuid' }, 201)
     if (url === '/api/v1/hr/transfer-requests/8' && init.method === 'GET') return success(apiRecord)
@@ -617,11 +638,19 @@ test('transfer API adapter maps transfer-request lookups, employee search, draft
   const transfers = createEmployeeServices({ client, transferClient: client }).transfers
   const lookups = await transfers.getLookups()
   assert.equal(lookups.companies[0].name, 'Zamil Plastic Non-Food')
+  assert.deepEqual(lookups.bloodTypes.map((item) => item.code), ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], 'all blood types show even when the lookup is empty')
   assert.equal(lookups.directors[0].directorId, '900')
+  // Opening the field lists every name, as the legacy datalist did (no A-only slice); the
+  // picked employee's snapshot is fetched once.
+  const all = await transfers.searchEmployees('')
+  assert.deepEqual(all.items.map((item) => item.name), ['Aaron Adams', 'Sample Worker', 'Zoe Zhang'])
+  assert.equal(calls.filter((call) => call.url === '/api/v1/hr/transfer-requests/lookups/employees').length, 1, 'one request for the whole list')
   const found = await transfers.searchEmployees('worker')
-  assert.equal(found.items[0].employeeNumber, '2172')
-  assert.equal(found.items[0].sectionName, 'Production Section')
-  const employeeResult = found.items[0]
+  assert.deepEqual(found.items.map((item) => item.name), ['Sample Worker'])
+  const employeeResult = await transfers.employee('Sample Worker')
+  assert.equal(employeeResult.employeeNumber, '2172')
+  assert.equal(employeeResult.sectionName, 'Production Section')
+  assert.equal(employeeResult.departmentName, 'Production Department')
   const form = transferForm({ companyCode: lookups.companies[0].code, to: {
     jobTitleCode: lookups.jobTitles.find((item) => item.name === 'Technician').code,
     departmentCode: lookups.departments.find((item) => item.name === 'Maintenance Department').code,
@@ -635,8 +664,18 @@ test('transfer API adapter maps transfer-request lookups, employee search, draft
   assert.equal(posted.current.empNo, '2172')
   assert.deepEqual(posted.transfer, { jobTitle: 'Technician', dept: 'Maintenance Department', section: 'Maintenance Section', effectiveDate: '2026-11-15',
     bloodType: 'O+', superiorNo: '900', changeSalary: 'No', budgetedSalary: 'Yes' })
+  // Free-typed section text (not in the master list) is sent to the server as typed.
+  const freeForm = transferForm({ ...form, to: { ...form.to, sectionCode: 'Typed Free Section' } })
+  await transfers.save(null, transferPayload(freeForm, employeeResult), employeeResult)
+  const freePosted = JSON.parse(calls.filter((call) => call.init.method === 'POST').at(-1).init.body)
+  assert.equal(freePosted.transfer.section, 'Typed Free Section')
   const report = await transfers.list()
   assert.deepEqual([report.items[0].transferNumber, report.items[0].employeeNumber, report.items[0].status], ['8', '2172', 'DRAFT'])
+  // Reopening a saved row: the API sends current.dept/current.section, which the
+  // adapter maps to the employee's department and section names.
+  const reopened = await transfers.getById('8')
+  assert.equal(reopened.employee.departmentName, 'Production Department')
+  assert.equal(reopened.employee.sectionName, 'Production Section')
 })
 
 test('contracts: transfer lookups and transfer shapes are checked', () => {
@@ -684,15 +723,37 @@ test('demo adapter: transfer save, submit, the report and 404, 409 and 422 error
   }
 })
 
-test('transfer page: compact frame with the document strip, tight pickers, radio groups and a report view', async () => {
+test('transfer page: compact frame without the duplicate document banner, tight pickers, radio groups and a report view', async () => {
   const page = await read(`${FEATURE}transfer/TransferPage.jsx`)
   assert.match(page, /<RecruitmentShell current="transfer" flow=\{false\} compact /)
-  assert.match(page, /banner=\{\(\n\s*<dl className="zrv-hr-es-docstrip"/)
+  assert.doesNotMatch(page, /zrv-hr-es-docstrip/, 'the document strip (title/control/company) is not repeated above the form')
+  assert.doesNotMatch(page, /banner=\{\(/, 'no banner prop on the shell')
+  assert.match(page, /code=\{doc\.controlNumber\}/, 'the control number stays in the ticket')
   assert.match(page, /<EmployeePicker id="tr-employee" label=\{T\.moveStep\.employee\} required tight /)
   assert.match(page, /<EmployeePicker id="tr-director" label=\{T\.detailsStep\.director\} required tight /)
   assert.match(page, /<RadioCards name="tr-salary-change"/)
   assert.match(page, /<RadioCards name="tr-budgeted"/)
-  assert.match(page, /disabled=\{disabled\}/, 'the section waits for a department')
+  // Job title and department use the same searchable picker UI as the employee name;
+  // section stays a free-text input with suggestions, as in the legacy form.
+  assert.match(page, /<EmployeePicker id="tr-jobTitleCode" label=\{T\.moveStep\.jobTitle\} required tight /)
+  assert.match(page, /<EmployeePicker id="tr-departmentCode" label=\{T\.moveStep\.department\} required tight /)
+  assert.match(page, /searchService=\{searchJobTitles\} cacheKey="hr-service-job-titles"/)
+  assert.match(page, /searchService=\{searchDepartments\} cacheKey="hr-service-departments"/)
+  assert.match(page, /const searchLookup = \(options\) => async \(search\) =>/, 'the pickers search the master lists as the reader types')
+  assert.doesNotMatch(page, /suggest\('jobTitleCode'/, 'job title is no longer a datalist input')
+  assert.doesNotMatch(page, /suggest\('departmentCode'/, 'department is no longer a datalist input')
+  assert.match(page, /suggest\('sectionCode', T\.moveStep\.section, allSections/, 'the section list is every section, as in the legacy form')
+  // Blood type uses the same searchable picker UI as job title and department, listing all types.
+  assert.match(page, /<EmployeePicker id="tr-blood" label=\{T\.detailsStep\.bloodType\} required tight /)
+  assert.match(page, /searchService=\{searchBloodTypes\} cacheKey="hr-service-blood-types"/)
+  assert.match(page, /const bloodTypeOptions = \[\s*\.\.\.STANDARD_BLOOD_TYPES/, 'all eight blood types are always in the picker')
+  assert.match(page, /const NOT_RECORDED = Object\.freeze\(\{ code: 'NOT_RECORDED', name: T\.detailsStep\.bloodUnknown \}\)/, 'Not recorded stays an option so an unknown type can still submit')
+  assert.doesNotMatch(page, /<select id="tr-blood"/, 'blood type is a searchable picker, not a plain select')
+  assert.doesNotMatch(page, /<select id="tr-sectionCode"/, 'section is a text input, not a dropdown')
+  assert.match(page, /form\.salaryChange === 'YES' && \(/, 'the salary note shows for a salary change')
+  // The note's link opens the Personnel Record Change form in a new tab with the employee prefilled.
+  assert.match(page, /href=\{recordChangeHref\} target="_blank" rel="noopener noreferrer"/)
+  assert.match(page, /ES_PATHS\.recordChange\}\?employee=\$\{encodeURIComponent\(employee\.employeeNumber\)\}/)
   assert.match(page, /\{ icon: 'chart-column', label: T\.tools\.report, onClick: \(\) => leave\(ES_PATHS\.transferReport\) \}/)
   assert.match(page, /\{ icon: 'house', label: C\.home, onClick: \(\) => leave\('\/dashboard'\) \}/)
   assert.match(page, /saved\?\.requestedBy \?\? \{ name: user\?\.fullName/, 'requester from the server (before the first save: the session user)')
@@ -732,7 +793,7 @@ test('appraisal: rating is the average of the 20 criteria to two decimals', () =
 
 test('appraisal: all 20 are required to submit and a rating of 1 or 5 needs an explanation', () => {
   const context = { criteria: CRITERIA, team: [member('101')], scale: PERF.scale, distribution: PERF.distribution }
-  const form = (ratings) => ({ ...blankAppraisal('2026'), employeeId: '101', ratings, goals: ['a', 'b', 'c'], signatures: { employee: null, appraiser: '2026-10-29' } })
+  const form = (ratings) => ({ ...blankAppraisal('2026'), employeeId: '101', ratings, goals: ['a', 'b', 'c'], training: ['Safety course'], signatures: { employee: null, appraiser: '2026-10-29' } })
   assert.deepEqual(codesOf(validateAppraisal(form(allRated(3)), context, { submit: true })), [])
   const partial = Object.fromEntries(CRITERIA.slice(0, 19).map((item) => [item.code, { rating: 3, explanation: '' }]))
   assert.deepEqual(codesOf(validateAppraisal(form(partial), context, { submit: true })), ['C20:required'])
@@ -760,7 +821,7 @@ test('appraisal: allocation is the grades already given plus this one; over the 
   assert.equal(isOverQuota('B', gradeAllocation(team, '4', 'B'), gradeQuotas(team.length)), false)
   assert.deepEqual(gradeAllocation(team, '1', 'C'), { A: 1, B: 1, C: 3, D: 1, E: 0 }, "this employee's saved grade is replaced, not counted twice")
   const context = { criteria: CRITERIA, team, scale: PERF.scale, distribution: PERF.distribution }
-  const over = { ...blankAppraisal('2026'), employeeId: '4', ratings: allRated(5), goals: ['a', 'b', 'c'], signatures: { employee: null, appraiser: '2026-10-29' } }
+  const over = { ...blankAppraisal('2026'), employeeId: '4', ratings: allRated(5), goals: ['a', 'b', 'c'], training: ['Safety course'], signatures: { employee: null, appraiser: '2026-10-29' } }
   assert.equal(appraisalResult(over, CRITERIA, team, PERF.scale, PERF.distribution).overQuota, true)
   assert.deepEqual(codesOf(validateAppraisal(over, context, { submit: true })), ['appraiserRemarks:overQuota'], 'not a block: a remark is enough')
   assert.deepEqual(codesOf(validateAppraisal({ ...over, appraiserRemarks: 'Exceptional year.' }, context, { submit: true })), [])
@@ -776,11 +837,23 @@ test('appraisal: years to the period end or today, whichever is earlier, to one 
   assert.equal(yearsUntil('', '2026-12-31', '2026-10-29'), null)
 })
 
-test('appraisal: 3 to 5 development goals to submit; training optional; the appraiser signs', () => {
+test('appraisal: the Arabic form labels all 20 criteria and the five scale bands', () => {
+  assert.equal(APPRAISAL_CRITERIA_AR.length, 20)
+  assert.ok(APPRAISAL_CRITERIA_AR.every((label) => typeof label === 'string' && label.trim()))
+  assert.deepEqual(Object.keys(APPRAISAL_SCALE_AR), ['A', 'B', 'C', 'D', 'E'])
+  assert.deepEqual(APPRAISAL_SCALE_AR.A.title, 'يتفوق باستمرار')
+  assert.ok(Object.values(APPRAISAL_SCALE_AR).every((band) => band.title && band.description))
+  assert.deepEqual(DEFAULT_SCALE.map((band) => band.grade), Object.keys(APPRAISAL_SCALE_AR), 'English and Arabic agree on the grades')
+})
+
+test('appraisal: 3 to 5 development goals and at least one training need to submit; the appraiser signs', () => {
   const context = { criteria: CRITERIA, team: [member('101')], scale: PERF.scale, distribution: PERF.distribution }
-  const form = (goals, signatures = { employee: null, appraiser: '2026-10-29' }) => ({ ...blankAppraisal('2026'), employeeId: '101', ratings: allRated(3), goals, signatures })
+  const form = (goals, signatures = { employee: null, appraiser: '2026-10-29' }, training = ['Safety course']) => ({ ...blankAppraisal('2026'), employeeId: '101', ratings: allRated(3), goals, training, signatures })
   assert.deepEqual(codesOf(validateAppraisal(form(['a', ' ', 'b']), context, { submit: true })), ['goals:tooFew'])
   assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c']), context, { submit: true })), [])
+  assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c'], undefined, [' ']), context, { submit: true })), ['training:tooFew'], 'the first training need is mandatory like the legacy form')
+  assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c'], undefined, ['A', 'B', 'C', 'D', 'E', 'F']), context, { submit: false })), ['training:tooMany'], 'training has the legacy five rows')
+  assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c'], undefined, []), context, { submit: false })), [], 'a draft may leave training empty')
   assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c', 'd', 'e', 'f']), context, { submit: false })), ['goals:tooMany'])
   assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c'], { employee: null, appraiser: null }), context, { submit: true })), ['appraiser:required'])
   assert.deepEqual(codesOf(validateAppraisal(form(['a', 'b', 'c'], { employee: '2026-10-29', appraiser: '2026-10-29' }), context, { submit: true })), [], 'the employee may sign now or later')
@@ -823,7 +896,7 @@ test('demo adapter: appraisal team, save, server rating and grade, submit locks;
     await assert.rejects(() => services.performance.team('1999'), (error) => error.status === 422)
     const previous = (await services.appraisals.list()).items
     assert.deepEqual(previous.map((item) => [item.appraisalNumber, item.grade, item.rating]), [['EPA-2026-0007', 'B', 4]])
-    const form = { ...blankAppraisal('2026'), employeeId: '102', ratings: allRated(4), goals: ['a', 'b', 'c'] }
+    const form = { ...blankAppraisal('2026'), employeeId: '102', ratings: allRated(4), goals: ['a', 'b', 'c'], training: ['Safety course'] }
     const draft = await services.appraisals.save(null, appraisalPayload(form, CRITERIA))
     assert.equal(draft.appraisalNumber, 'EPA-2026-0008')
     assert.deepEqual(draft.appraiser, { name: 'Sample Signed-in User', employeeNumber: '7001' })
@@ -868,6 +941,8 @@ test('backend appraisal adapter uses eligible employee snapshots and creates the
   assert.equal(calls.filter(([, path]) => path.includes('/lookups/employees/')).length, 0)
   const selectedEmployee = await services.performance.employee(team.members[0].name, String(new Date().getFullYear()))
   assert.equal(selectedEmployee.personId, '3204', 'employee details load only after selection')
+  assert.equal(selectedEmployee.companyName, 'Zamil Plastic', 'the company is pre-set like the legacy form')
+  assert.equal(team.members[0].companyName, 'Zamil Plastic', 'the team carries the company too')
   const form = { ...blankAppraisal(String(new Date().getFullYear())), employeeId: '204', ratings: allRated(4), goals: ['Improve planning', 'Communicate clearly', 'Deliver milestones'], training: ['Safety course'] }
   const created = await services.appraisals.save(null, appraisalPayload(form, CRITERIA), selectedEmployee)
   assert.equal(created.appraisalId, '7')
@@ -891,8 +966,13 @@ test('appraisal page: compact frame, radio groups for ratings, development tabs,
   assert.match(page, /role="tabpanel" id=\{`ap-panel-\$\{tab\}`\}/)
   assert.match(page, /<table className="zrv-hr-es-dtable/, 'the distribution is a real table')
   assert.match(page, /label: T\.tools\.report, onClick: \(\) => leave\(ES_PATHS\.appraisalReport\)/, 'the report is its own page')
-  assert.match(page, /\{ icon: 'house', label: C\.home, onClick: \(\) => leave\('\/dashboard'\) \}/)
+  assert.match(page, /\{ icon: 'house', label: T\.common\.home, onClick: \(\) => leave\('\/dashboard'\) \}/)
   assert.doesNotMatch(page, /[Ll]ogout|[Ss]ign out/, 'the app header handles signing out')
+  assert.match(page, /<SignaturePad id=\{`ap-sign-\$\{role\}`\}/, 'the signer draws on the form itself')
+  assert.doesNotMatch(page, /zrv-hr-ink|const INK =/, 'no simulated signature strokes')
+  assert.match(page, /const \[language, setLanguage\] = useState\('en'\)/, 'the form can be shown in Arabic')
+  assert.match(page, /APPRAISAL_CRITERIA_AR|APPRAISAL_SCALE_AR/, 'criteria and scale have Arabic labels')
+  assert.match(page, /dir=\{arabic \? 'rtl' : undefined\}/, 'Arabic switches the shell to right-to-left')
   assert.match(page, /const appraiser = saved\?\.appraiser \?\? team\.appraiser/, 'the appraiser comes from the server')
   assert.match(page, /<EmployeePicker id="ap-employee"[^>]*searchService=\{searchEmployees\}/, 'employee selection uses the searchable picker')
   assert.match(page, /const matches = term \? members\.filter/, 'employee matches include name and employee number')

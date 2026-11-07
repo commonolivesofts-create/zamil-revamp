@@ -43,7 +43,7 @@ export default function FormEditor({ initial, create, modules, action, onSubmit,
             {currentModuleMissing && <option value={draft.moduleCode}>{draft.moduleCode} (not an active module)</option>}
           </select>
         </Field>
-        <Field id="wf-form-route" label="Detail route (optional)" hint="Application page of one record, e.g. /hr/employee-services/sick-leave/:leaveId" error={shown.detailRoute}>
+        <Field id="wf-form-route" label="Detail route (optional)" hint="Application page of one record, e.g. /hr/talent-management/sick-leave/:leaveId" error={shown.detailRoute}>
           <input {...fieldProps('wf-form-route', { hint: true, error: shown.detailRoute })} className="ux-input zwf-code" autoComplete="off" spellCheck={false} maxLength={500} value={draft.detailRoute} onChange={set('detailRoute')} disabled={disabled} />
         </Field>
         <div className="zrv-admin-grid__wide">

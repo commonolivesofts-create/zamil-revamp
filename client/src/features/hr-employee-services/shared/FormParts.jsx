@@ -1,7 +1,7 @@
 // A rating on the legacy A / AS / BS / CS scale (Reward Nomination): native
 // radios styled as chips in a labelled radio group (Tab enters the group,
 // arrow keys move the choice). `scale`: [{ code, label }] from the criteria
-// lookup, shown in RATING_ORDER (above → below standard).
+// lookup, shown in RATING_ORDER (the CI3 dropdown order).
 import { RATING_ORDER, RATING_TONE } from '../reward/rewardModel.js'
 
 export function RatingChips({ name, labelledBy, scale, value, onChange, error }) {
@@ -13,7 +13,8 @@ export function RatingChips({ name, labelledBy, scale, value, onChange, error })
         {options.map((item) => (
           <label key={item.code} className={`zrv-hr-esf-chip zrv-hr-is-${RATING_TONE[item.code]}${value === item.code ? ' zrv-hr-is-on' : ''}`}>
             <input type="radio" name={name} value={item.code} checked={value === item.code} onChange={() => onChange(item.code)} />
-            <span>{item.label}</span>
+            {/* The CI3 options read "A - At Standard": code and label together. */}
+            <span>{item.code} - {item.label}</span>
           </label>
         ))}
       </div>

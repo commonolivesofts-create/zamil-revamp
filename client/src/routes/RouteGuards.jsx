@@ -1,11 +1,13 @@
 import { Link, Navigate, Outlet, useLocation, useMatches } from 'react-router'
 import PageState from '@/components/feedback/PageState.jsx'
+import StartupLoading from '@/components/feedback/StartupLoading.jsx'
+import RouteLoading from '@/components/feedback/RouteLoading.jsx'
 import { appRoutes, routeAccess } from '@/config/appNavigation.js'
 import { mfaChallengePath, safeReturnTo, templateDemosAvailable } from '@/config/authRouting.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
 import {
-  AccessPendingPage, AccessUnavailablePage, DeniedPage, NotFoundPage,
+  AccessUnavailablePage, DeniedPage, NotFoundPage,
 } from '@/routes/RouteComponents.jsx'
 
 // Shown once session restoration (with its bounded automatic retries) could not
@@ -23,7 +25,7 @@ function SessionCheckUnavailable({ retrySession, from }) {
 export function ProtectedRoute() {
   const location = useLocation()
   const { status, retrySession } = useAuth()
-  if (status === 'loading') return <PageState kind="loading" title="Checking session" description="Verifying your access." />
+  if (status === 'loading') return <StartupLoading />
   const from = safeReturnTo(`${location.pathname}${location.search}${location.hash}`)
   if (status === 'error') return <SessionCheckUnavailable retrySession={retrySession} from={from} />
   if (status !== 'authenticated' && status !== 'preview') return <Navigate to="/login" state={{ from }} replace />
@@ -33,7 +35,7 @@ export function ProtectedRoute() {
 export function GuestOnlyRoute() {
   const location = useLocation()
   const { status, mfa } = useAuth()
-  if (status === 'loading') return <PageState kind="loading" title="Checking session" />
+  if (status === 'loading') return <StartupLoading />
   if (status === 'authenticated') return <Navigate to={safeReturnTo(location.state?.from)} replace />
   if (status === 'mfa_required') return <Navigate to={mfaChallengePath(mfa)} state={{ from: location.state?.from }} replace />
   return <Outlet />
@@ -44,7 +46,7 @@ export function GuestOnlyRoute() {
 export function MfaChallengeRoute() {
   const location = useLocation()
   const { status, mfa } = useAuth()
-  if (status === 'loading') return <PageState kind="loading" title="Checking session" />
+  if (status === 'loading') return <StartupLoading />
   if (status === 'authenticated') return <Navigate to={safeReturnTo(location.state?.from)} replace />
   if (status !== 'mfa_required') return <Navigate to="/login" state={{ from: location.state?.from }} replace />
   const expected = mfaChallengePath(mfa)
@@ -64,7 +66,7 @@ export function AppRouteAccess() {
   const route = appRoutes.find((item) => item.id === routeId)
   switch (routeAccess(route, access)) {
     case 'allowed': return <Outlet />
-    case 'pending': return <AccessPendingPage />
+    case 'pending': return <RouteLoading />
     case 'error': return <AccessUnavailablePage onRetry={access.reload} />
     case 'mfa_required': return <DeniedPage reason="mfa" />
     case 'denied': return <DeniedPage />
@@ -82,7 +84,7 @@ export function TemplateDemoRoute() {
 
 export function RootRedirect() {
   const { status, retrySession } = useAuth()
-  if (status === 'loading') return <PageState kind="loading" title="Checking session" />
+  if (status === 'loading') return <StartupLoading />
   if (status === 'error') return <SessionCheckUnavailable retrySession={retrySession} />
   return <Navigate to={status === 'authenticated' || status === 'preview' ? '/dashboard' : '/login'} replace />
 }
