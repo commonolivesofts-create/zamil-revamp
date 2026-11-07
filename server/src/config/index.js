@@ -121,7 +121,7 @@ const envSchema = Joi.object({
   ORACLE_CONNECT_TIMEOUT_S: Joi.number().integer().min(1).default(15),
   ORACLE_STMT_CACHE_SIZE: Joi.number().integer().min(0).default(30),
   ORACLE_POOL_STATISTICS: Joi.boolean().default(true),
-  ...poolSchema('ORACLE_LOW', { min: 1, max: 4, queueMax: 50, queueTimeoutMs: 10000 }),
+  ...poolSchema('ORACLE_LOW', { min: 1, max: 8, queueMax: 50, queueTimeoutMs: 10000 }),
   ...poolSchema('ORACLE_HIGH', { min: 0, max: 2, queueMax: 10, queueTimeoutMs: 30000 }),
 
   // Session cookie. The __Host- prefix requires Secure, Path=/ and no Domain attribute.

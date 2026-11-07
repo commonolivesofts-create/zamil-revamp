@@ -301,4 +301,28 @@ describe('Contract fixes', () => {
       { attachmentId: 21, fileName: 'a.pdf', attachedOn: '2026-10-07' },
     ]);
   });
+
+  it('Sick Leave detail still loads when the optional half-day columns are absent', async () => {
+    const header = {
+      HEADER_ID: 5,
+      EMP_ID: '1001',
+      CREATED_BY: 9,
+      STATUS: 'Draft',
+      FROM_DATE_ISO: '2026-10-05',
+      TO_DATE_ISO: '2026-10-06',
+    };
+    const service = createSickLeaveService({
+      repository: {
+        header: async (_connection, _id, _lock, withDayTypes) =>
+          withDayTypes ? { ...header, FROM_DAY_TYPE: 'HALF' } : header,
+        resolveSelf: async () => '1001',
+        capabilities: async () => ({ dayTypes: false }),
+        attachments: async () => [],
+      },
+      withConnection: async (_pool, callback) => callback({}),
+    });
+    const detail = await service.get({ userId: 9 }, '5');
+    assert.equal(detail.fromDayType, 'FULL');
+    assert.equal(detail.toDayType, 'FULL');
+  });
 });

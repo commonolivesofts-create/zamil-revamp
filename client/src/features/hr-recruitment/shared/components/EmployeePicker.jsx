@@ -22,6 +22,8 @@ export function EmployeePicker({
   placeholder = PICKER_TEXT.placeholder,
   tight = false,
   disabled = false,
+  loading = false,
+  loadingLabel,
   cacheKey = "hr-employees",
 }) {
   const listId = useId();
@@ -31,6 +33,7 @@ export function EmployeePicker({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [popupStyle, setPopupStyle] = useState(null);
+  const fieldLabel = typeof label === "string" ? label.toLocaleLowerCase() : "field";
   const search = useSettled(query.trim(), 250);
   const pendingSearch = open && search !== query.trim();
   const results = useResource(
@@ -38,7 +41,23 @@ export function EmployeePicker({
     (signal) => searchService(search, { signal }),
   );
   const matches =
-    !pendingSearch && results.status === "ready" ? results.data.items : [];
+    !loading && !pendingSearch && results.status === "ready" ? results.data.items : [];
+  // Keep large employee, department and job-title masters cheap to paint. Users
+  // can narrow the list by typing, while keyboard navigation stays within the
+  // same visible results as the pointer.
+  const maxVisibleMatches = 80;
+  const visibleMatches = matches.slice(0, maxVisibleMatches);
+  const hasMoreMatches = matches.length > visibleMatches.length;
+  const waitingForOptions = loading || (open && (pendingSearch || results.status === "loading"));
+  const failedToLoad = open && !loading && results.status === "error";
+  const fieldLoadingLabel = loadingLabel ?? `Loading ${fieldLabel} options…`;
+  const fieldStatus = loading
+    ? fieldLoadingLabel
+    : pendingSearch || (open && results.status === "loading")
+      ? `Loading ${fieldLabel} options…`
+      : failedToLoad
+        ? `Couldn’t load ${fieldLabel} options.`
+        : "";
 
   useEffect(() => {
     if (!open) return undefined;
@@ -74,10 +93,10 @@ export function EmployeePicker({
   }, [open]);
   const status = !open
     ? ""
-    : pendingSearch || results.status === "loading"
-      ? PICKER_TEXT.searching
+    : waitingForOptions
+      ? fieldStatus
       : results.status === "error"
-        ? PICKER_TEXT.failed
+        ? fieldStatus
         : PICKER_TEXT.results(matches.length);
 
   const pick = (employee) => {
@@ -89,13 +108,13 @@ export function EmployeePicker({
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setOpen(true);
-      setActive((index) => Math.min(matches.length - 1, index + 1));
+      setActive((index) => visibleMatches.length ? Math.min(visibleMatches.length - 1, index + 1) : 0);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActive((index) => Math.max(0, index - 1));
-    } else if (event.key === "Enter" && open && matches[active]) {
+      setActive((index) => visibleMatches.length ? Math.max(0, index - 1) : 0);
+    } else if (event.key === "Enter" && open && visibleMatches[active]) {
       event.preventDefault();
-      pick(matches[active]);
+      pick(visibleMatches[active]);
     } else if (event.key === "Escape" && open) {
       event.preventDefault();
       event.stopPropagation();
@@ -131,8 +150,9 @@ export function EmployeePicker({
           aria-controls={listId}
           aria-autocomplete="list"
           aria-required={required || undefined}
-          disabled={disabled}
-          aria-activedescendant={open && matches[active] ? `${listId}-${active}` : undefined}
+          aria-busy={waitingForOptions || undefined}
+          disabled={disabled || loading}
+          aria-activedescendant={open && visibleMatches[active] ? `${listId}-${active}` : undefined}
           aria-invalid={Boolean(error)}
           aria-describedby={[
             error ? `${id}-error` : null,
@@ -168,17 +188,17 @@ export function EmployeePicker({
           role="listbox"
           aria-label={label}
         >
-          {(pendingSearch || results.status === "loading") && (
+          {waitingForOptions && (
             <li className="zrv-hr-combo__none" role="presentation">
-              {PICKER_TEXT.searching}
+              {fieldStatus}
             </li>
           )}
-          {!pendingSearch && results.status === "error" && (
+          {!waitingForOptions && results.status === "error" && (
             <li className="zrv-hr-combo__none" role="presentation">
               {PICKER_TEXT.failed}
             </li>
           )}
-          {matches.map((employee, index) => (
+          {visibleMatches.map((employee, index) => (
             <li
               key={`${employee.employeeId}-${index}`}
               id={`${listId}-${index}`}
@@ -202,9 +222,14 @@ export function EmployeePicker({
               )}
             </li>
           ))}
-          {!pendingSearch && results.status === "ready" && !matches.length && (
+          {!waitingForOptions && results.status === "ready" && !matches.length && (
             <li className="zrv-hr-combo__none" role="presentation">
               {PICKER_TEXT.noMatch}
+            </li>
+          )}
+          {!waitingForOptions && hasMoreMatches && (
+            <li className="zrv-hr-combo__none" role="presentation">
+              Showing the first {maxVisibleMatches} of {matches.length}. Type to narrow the list.
             </li>
           )}
         </ul>,
@@ -212,11 +237,11 @@ export function EmployeePicker({
       )}
       <span
         id={statusId}
-        className="zrv-hr-sr"
+        className={fieldStatus ? `zrv-hr-field-loading${failedToLoad ? " zrv-hr-field-loading--error" : ""}` : "zrv-hr-sr"}
         role="status"
         aria-live="polite"
       >
-        {status}
+        {fieldStatus ? <><i aria-hidden="true" />{fieldStatus}{failedToLoad && <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={results.reload}>Retry</button>}</> : status}
       </span>
       {error && (
         <small id={`${id}-error`} className="zrv-auth-field-error">

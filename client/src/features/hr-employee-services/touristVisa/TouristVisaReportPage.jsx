@@ -5,6 +5,7 @@ import { InsightReport } from '@/features/hr-recruitment/shared/components/Insig
 import { Card, Columns, Foot, Hero } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
 import { LETTERS_BREADCRUMB, TOURIST_VISA_PATHS as PATHS } from '../employeeServicesPaths.js'
 import { DIVISIONS, RESOURCE, touristVisaService as service } from './touristVisaService.js'
+import { TouristVisaReportPreview } from './TouristVisaReportPreview.jsx'
 
 // The legacy tourist visa report.
 const MONTHS = 6
@@ -69,16 +70,9 @@ export default function TouristVisaReportPage() {
   return (
     <InsightReport variant="tourist-visa-report" title="Tourist visa report" heading="Letters" breadcrumb={LETTERS_BREADCRUMB}
       resourceKey="hr-tourist-visa-report" list={list} create={{ permission: `${RESOURCE}:CREATE`, path: PATHS.form, label: 'New letter' }}
-      openLabel="Open letter" empty="No tourist visa letters match these filters." initial={INITIAL}
+      empty="No tourist visa letters match these filters." initial={INITIAL}
       fields={fields} columns={COLUMNS} cards={CARDS} groups={groups} defaultSort={{ key: '', order: '' }}
-      numberOf={(row) => row.refNo || row.employeeNo} rowKey={(row) => row.letterId} pathOf={(row) => `${PATHS.form}/${row.letterId}`}
-      summary={(row) => ({
-        heading: row.employeeName,
-        facts: [
-          ['Ref. no.', row.refNo], ['Date', row.curDate ? date(row.curDate) : ''], ['Division', row.division], ['To', row.country],
-          ['Employee no.', row.employeeNo], ['Nationality', row.nationality], ['National ID', row.nationalId],
-          ['Approved by', [row.approvalName, row.positionName].filter(Boolean).join(' · ')],
-        ],
-      })} />
+      numberOf={(row) => row.refNo || row.employeeNo} rowKey={(row) => row.letterId} closeInDetail
+      renderDetail={(row, { onClose }) => <TouristVisaReportPreview row={row} onClose={onClose} />} />
   )
 }

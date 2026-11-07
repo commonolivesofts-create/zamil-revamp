@@ -209,7 +209,12 @@ describe('personal status change repository', () => {
     const connection = mockConnection([{ rows: [{ FOUND: 1 }] }]);
     const repository = createPersonalStatusRepository();
     assert.equal(await repository.positionExists(connection, 'Operator'), true);
-    assert.match(connection.calls[0].sql, /POSITION_NAME = :name OR JOB_TITLE = :name/);
+    assert.match(
+      connection.calls[0].sql,
+      /UPPER\(TRIM\(POSITION_NAME\)\) = UPPER\(TRIM\(:name\)\)/,
+    );
+    assert.match(connection.calls[0].sql, /UPPER\(TRIM\(JOB_TITLE\)\) = UPPER\(TRIM\(:name\)\)/);
+    assert.equal(connection.calls[0].binds.name, 'Operator');
   });
 
   it('HR check fails closed and same-department compares ORGANIZATION_ID', async () => {

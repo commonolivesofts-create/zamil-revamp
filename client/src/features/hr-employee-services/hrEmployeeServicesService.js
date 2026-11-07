@@ -1,7 +1,7 @@
 // Services of the HR employee services screens. Personal Status Change uses
 // its real backend routes; transfer and appraisal use the shared API client or
 // the in-memory demo adapter selected by VITE_HR_EMPLOYEE_SERVICES_DEMO.
-import { ApiError, apiClient } from '../../services/api/apiClient.js'
+import { ApiError, apiClient, isOutcomeUnknown } from '../../services/api/apiClient.js'
 import { createEmployeeServicesDemoClient } from './demo/employeeServicesDemoClient.js'
 import { hrEmployeeServicesConfig } from './hrEmployeeServicesConfig.js'
 import {
@@ -147,7 +147,7 @@ const transferCode = (prefix, value) => {
 const transferStatus = (value) => ({ DRAFT: 'DRAFT', INPROCESS: 'INPROCESS', APPROVED: 'APPROVED', REJECTED: 'REJECTED' })[
   String(value ?? '').replace(/\s+/g, '').toUpperCase()
 ] ?? 'DRAFT'
-const approvalStatus = (value) => ({ APPROVED: 'APPROVED', INPROCESS: 'PENDING', REJECTED: 'PENDING' })[
+const approvalStatus = (value) => ({ APPROVED: 'APPROVED', INPROCESS: 'PENDING', REJECTED: 'REJECTED' })[
   String(value ?? '').replace(/\s+/g, '').toUpperCase()
 ] ?? 'DRAFT'
 
@@ -199,11 +199,17 @@ function createTransferRequestService({ client }) {
       client.get(`${TRANSFER_REQUESTS_BASE}/lookups/requestor`, { signal }),
     ])
     const sectionOptions = (sections.data ?? []).map((item) => Object.freeze({ code: codeFor('SECTION', item.name), name: item.name }))
-    const departmentOptions = (departments.data ?? []).map((name) => Object.freeze({
-      code: codeFor('DEPT', name), name,
-      // The API exposes a global section list with no department association.
-      sections: Object.freeze(sectionOptions),
-    }))
+    const departmentOptions = (departments.data ?? []).map((name) => {
+      // Some departments are also the employee's section (for example, IT
+      // Department). Include that exact value as a valid section choice.
+      const departmentSection = Object.freeze({ code: codeFor('SECTION', name), name })
+      return Object.freeze({
+        code: codeFor('DEPT', name), name,
+        departmentSection,
+        // The API exposes a global section list with no department association.
+        sections: Object.freeze([...sectionOptions, departmentSection]),
+      })
+    })
     // Blood types are a fixed set; accept whatever shape the lookup returns and fall back
     // to the standard eight when it is empty, so the dropdown always lists them all.
     const STANDARD_BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
@@ -284,8 +290,7 @@ function createTransferRequestService({ client }) {
       current: { empNo: employee.employeeNumber, empName: employee.name, dateOfJoining: employee.startDate,
         jobTitle: findName(lookups.jobTitles, employee.jobTitleCode), dept: employee.departmentName, section: employee.sectionName },
       transfer: { jobTitle: findName(lookups.jobTitles, body.to.jobTitleCode), dept: findName(lookups.departments, body.to.departmentCode),
-        // Section is a free-text input: a known code sends its master name, free text the
-        // reader typed is sent as typed (the server checks it against the sections list).
+        // The section picker stores a stable code for the server's exact organization name.
         section: findName(lookups.departments.find((item) => item.code === body.to.departmentCode)?.sections ?? [], body.to.sectionCode) || body.to.sectionCode || '', effectiveDate: body.effectiveDate,
         bloodType: body.bloodType, superiorNo: selectedDirector?.directorId,
         changeSalary: body.salaryChange === 'YES' ? 'Yes' : body.salaryChange === 'NO' ? 'No' : '',
@@ -347,9 +352,10 @@ function createPersonalStatusRecordService({ client }) {
   // The legacy Emp# datalist: every employee number from XX_DIGI_EMP_MASTER, loaded once.
   let employeeLookup = null
   const positionName = (code) => positions.find((item) => item.code === code)?.name ?? ''
-  const valuesForApi = (values = {}) => {
+  const valuesForApi = (values = {}, current = {}) => {
     const result = {}
-    const position = positionName(values.positionCode)
+    const position = positionName(values.positionCode) || values.positionName ||
+      (values.positionCode && values.positionCode === current.positionCode ? current.positionName : '')
     if (position) result.position = position
     const fields = { basic: 'basicSal', house: 'houseAll', transport: 'transAll', other: 'otherAll', communication: 'communAll', car: 'carAll' }
     for (const [key, field] of Object.entries(fields)) {
@@ -368,7 +374,7 @@ function createPersonalStatusRecordService({ client }) {
     empNo: employee?.employeeNumber ?? body.employeeId,
     effectiveDate: body.effectiveDate,
     old: { maritalStatus: body.currentFamilyStatus || null },
-    new: valuesForApi(body.revised), remarks: body.remarks ?? '', views: body.views ?? '',
+    new: valuesForApi(body.revised, employee?.current), remarks: body.remarks ?? '', views: body.views ?? '',
   })
   const record = (response) => personalStatusRecord(response)
   return Object.freeze({
@@ -502,6 +508,29 @@ function createPerformanceAppraisalService({ client }) {
     development: body.goals, training: body.training,
     remarks: { employee: body.employeeRemarks, appraiser: body.appraiserRemarks }, formLanguage: 'English',
   })
+  const createdRecord = (id, body, employeeItem, appraiserItem) => {
+    const ratings = Object.fromEntries(criteria.map((item) => [item.code, {
+      rating: body.ratings[item.code]?.rating ?? null,
+      explanation: body.ratings[item.code]?.explanation ?? '',
+    }]))
+    const values = Object.values(ratings).map((item) => item.rating).filter(Number.isFinite)
+    const rating = values.length === criteria.length
+      ? Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 100) / 100
+      : null
+    const grade = rating === null ? null
+      : rating > 4.24 ? 'A'
+        : rating > 3.49 ? 'B'
+          : rating > 2.49 ? 'C'
+            : rating > 1.59 ? 'D' : 'E'
+    return Object.freeze({
+      appraisalId: String(id), appraisalNumber: String(id), status: 'INPROCESS', periodCode: String(body.periodCode),
+      appraiser: Object.freeze({ name: appraiserItem?.name ?? '', employeeNumber: String(appraiserItem?.employeeNumber ?? '') }),
+      employee: Object.freeze({ ...employeeItem, grade: grade ?? employeeItem.grade ?? '' }),
+      ratings: Object.freeze(ratings), goals: Object.freeze([...body.goals]), training: Object.freeze([...body.training]),
+      employeeRemarks: body.employeeRemarks ?? '', appraiserRemarks: body.appraiserRemarks ?? '',
+      signatures: Object.freeze({ employee: null, appraiser: null }), rating, grade, updatedAt: new Date().toISOString(),
+    })
+  }
   return Object.freeze({
     async lookups({ signal } = {}) {
       const [statsResponse] = await Promise.all([client.get(`${PERFORMANCE_APPRAISALS_BASE}/lookups/grade-stats`, { signal })])
@@ -555,16 +584,47 @@ function createPerformanceAppraisalService({ client }) {
       const { data } = await client.get(`${PERFORMANCE_APPRAISALS_BASE}/${segment(id)}`, { signal })
       return readRecord(data)
     },
-    async save(id, body, selectedEmployee) {
+    async save(id, body, selectedEmployee, selectedAppraiser) {
       const employeeItem = selectedEmployee
       if (!employeeItem?.personId) throw new ApiError('Select an eligible employee before saving.', { code: 'EMPLOYEE_REQUIRED' })
       const payload = bodyForApi(body, employeeItem)
-      const response = id
-        ? await client.put(`${PERFORMANCE_APPRAISALS_BASE}/${segment(id)}`, payload)
-        : await client.post(PERFORMANCE_APPRAISALS_BASE, payload)
-      const recordId = response.data?.headerId ?? id
+      let recordId = id
+      let createConfirmed = false
+      if (id) {
+        await client.put(`${PERFORMANCE_APPRAISALS_BASE}/${segment(id)}`, payload)
+      } else {
+        try {
+          const response = await client.post(PERFORMANCE_APPRAISALS_BASE, payload)
+          recordId = response.data?.headerId
+          createConfirmed = Boolean(recordId)
+        } catch (error) {
+          if (!isOutcomeUnknown(error)) throw error
+          // A timed-out POST may have committed. Reconcile against the user's
+          // appraisal for this employee and year before asking them to submit again.
+          try {
+            const { data = [] } = await client.get(PERFORMANCE_APPRAISALS_BASE, { params: {
+              year: yearOf(body.periodCode), search: employeeItem.employeeNumber,
+              page: 1, pageSize: 100, sort: 'headerId', order: 'desc',
+            } })
+            const existing = data.find((item) => String(item.empNumber) === String(employeeItem.employeeNumber) && Number(item.year) === yearOf(body.periodCode))
+            if (!existing?.headerId) throw error
+            recordId = existing.headerId
+            createConfirmed = true
+          } catch {
+            throw error
+          }
+        }
+      }
       if (!recordId) throw new ApiError('The server did not return the created appraisal number.', { code: 'INVALID_RESPONSE' })
-      return this.getById(String(recordId))
+      recordId = segment(String(recordId))
+      try {
+        return await this.getById(String(recordId))
+      } catch (error) {
+        if (!createConfirmed) throw error
+        // The POST or reconciliation list confirmed persistence. Keep the
+        // saved ID and answers available even if the detail read is transiently unavailable.
+        return createdRecord(recordId, body, employeeItem, selectedAppraiser)
+      }
     },
     submit() { throw new ApiError('The appraisal API creates the request in process when it is saved.', { code: 'SUBMIT_UNSUPPORTED' }) },
     async delete(id) { await client.delete(`${PERFORMANCE_APPRAISALS_BASE}/${segment(id)}`) },

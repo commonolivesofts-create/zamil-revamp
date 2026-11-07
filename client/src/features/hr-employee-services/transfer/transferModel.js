@@ -33,8 +33,13 @@ export function withTransferEmployee(form, employee) {
   return { ...form, to: { jobTitleCode: employee.jobTitleCode, departmentCode: '', sectionCode: '' }, bloodType: form.bloodType || employee.bloodType || '' }
 }
 
-// Choosing a department clears the section, which must belong to it.
-export const withDestination = (to, key, value) => ({ ...to, [key]: value, ...(key === 'departmentCode' ? { sectionCode: '' } : {}) })
+// Choosing a department resets its section, or seeds the matching section when
+// the organization uses the department name as its section name.
+export const withDestination = (to, key, value, matchingSectionCode = '') => ({
+  ...to,
+  [key]: value,
+  ...(key === 'departmentCode' ? { sectionCode: matchingSectionCode } : {}),
+})
 
 // Request body: only the requester's answers. Number, status, requester,
 // employee snapshot and approval states are server values.
@@ -63,11 +68,11 @@ export function validateTransfer(form, employee, departments, { submit }) {
   if (!to.jobTitleCode) add('jobTitleCode', 'required', 0)
   if (!to.departmentCode) add('departmentCode', 'required', 0)
   if (!to.sectionCode) add('sectionCode', 'required', 0)
-  // The legacy section field is a free-text input: a known section code must belong to the
-  // chosen department, but free text the reader typed is taken as-is (the server checks it
-  // against the sections list), so it is not rejected here for not being a known code.
+  // Section choices come from the server's organization list. Reject any value that is not
+  // one of those choices before sending the request.
   const knownSection = departments.some((item) => (item.sections ?? []).some((section) => section.code === to.sectionCode))
-  if (to.sectionCode && to.departmentCode && knownSection && !sectionsOf(departments, to.departmentCode).some((item) => item.code === to.sectionCode)) add('sectionCode', 'notInDepartment', 0)
+  if (to.sectionCode && !knownSection) add('sectionCode', 'invalid', 0)
+  else if (to.sectionCode && to.departmentCode && !sectionsOf(departments, to.departmentCode).some((item) => item.code === to.sectionCode)) add('sectionCode', 'notInDepartment', 0)
   if (submit && employee && to.jobTitleCode && to.departmentCode && to.sectionCode && !transferMoves(employee, to).length) add('to', 'noMove', 0)
   if (!form.effectiveDate) add('effectiveDate', 'required', 1)
   else if (!isIsoDate(form.effectiveDate)) add('effectiveDate', 'invalid', 1)

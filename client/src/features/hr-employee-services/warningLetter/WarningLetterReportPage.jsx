@@ -4,6 +4,7 @@ import { InsightReport } from '@/features/hr-recruitment/shared/components/Insig
 import { Card, Columns, Foot, Hero } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
 import { LETTERS_BREADCRUMB, WARNING_LETTER_PATHS as PATHS } from '../employeeServicesPaths.js'
 import { REASONS, RESOURCE, warningLetterService as service } from './warningLetterService.js'
+import { WarningLetterReportPreview } from './WarningLetterReportPreview.jsx'
 
 // The legacy warning/report.php columns: ref. no., warning no., employee,
 // division, position and date.
@@ -73,17 +74,9 @@ export default function WarningLetterReportPage() {
   return (
     <InsightReport variant="warning-letter-report" title="Warning letter report" heading="Warning letters" breadcrumb={LETTERS_BREADCRUMB}
       resourceKey="hr-warning-letter-report" list={list} create={{ permission: `${RESOURCE}:CREATE`, path: PATHS.form, label: 'New letter' }}
-      openLabel="Open letter" empty="No warning letters match these filters." initial={INITIAL}
+      empty="No warning letters match these filters." initial={INITIAL}
       fields={FIELDS} columns={COLUMNS} cards={CARDS} groups={groups} defaultSort={{ key: '', order: '' }}
-      numberOf={(row) => row.referenceNo || row.letterId} rowKey={(row) => row.letterId} pathOf={(row) => `${PATHS.form}/${row.letterId}`}
-      summary={(row) => ({
-        heading: row.employee.name,
-        facts: [
-          ['Ref. no.', row.referenceNo], ['Warning no.', row.warningNo], ['Date', row.warDate ? date(row.warDate) : ''],
-          ['Employee no.', row.employee.employeeNo], ['Division', row.employee.division], ['Position', row.employee.position],
-          ['Reasons', reasonsOf(row).join(', ')], ['Action', row.actionText],
-          ['Warning letter', row.warningLetter ? row.warningComment || 'Yes' : ''], ['Other letter', row.otherLetter ? row.otherComment || 'Yes' : ''],
-        ],
-      })} />
+      numberOf={(row) => row.referenceNo || row.letterId} rowKey={(row) => row.letterId} closeInDetail
+      renderDetail={(row, { onClose }) => <WarningLetterReportPreview row={row} onClose={onClose} />} />
   )
 }

@@ -80,7 +80,7 @@ Legend: **L** = legacy field, **P** = prototype only, **B** = backend only.
 | Employee # | `empNumber` | `EMP_ID` (+ `EMP_NAME` by server) | L | Required; self or a direct report (legacy rule, enforced by the server) |
 | Leave type | `leaveType` | `LEAVE_TYPE` | L | Fixed "Sick Leave" (legacy) |
 | From / To date | `fromDate`, `toDate` | `FROM_DATE`, `TOO_DATE` | L | Required, YYYY-MM-DD; To ≥ From (client and server) |
-| First / last day type | `fromDayType`, `toDayType` (FULL/HALF) | `FROM_DAY_TYPE`, `TO_DAY_TYPE` | **B** | Required by the backend; default Full; on one date both must match |
+| First / last day type | `fromDayType`, `toDayType` (FULL/HALF) | `FROM_DAY_TYPE`, `TO_DAY_TYPE`, fractional `LEAVE_DAYS` | **B** | Stored and selectable when both day-type columns and fractional `LEAVE_DAYS` exist; otherwise half-day choices are hidden and full-day requests remain available |
 | No. of days | server | `LEAVE_DAYS` | L | Server-computed (calendar days inclusive, a half day counts 0.5); preview shown |
 | Comments | `comments` | `COMMENTS` | L | Required, ≤ 2000 (legacy and backend; the prototype's optional ≤ 500 is not used) |
 | Attachments (medical certificate) | multipart `files` | `XXZP_ALL_ATTACHMENTS` (`SICKLEAVE`) + disk | L | ≥ 1 on a new request (legacy); backend file types; ≤ 10 MB; ≤ 10 per upload; add and remove while editable |
@@ -200,7 +200,7 @@ Baseline on `main` at `59645ce`: server 812 tests (811 pass, 1 documented legacy
 - Reward header remark ≤ 500 and idea text ≤ 4000: the column lengths were not verified.
 - The section and rating texts come from the backend lookups. The legacy "Managemnet" typo is kept, as in the spec.
 - The FPP division id: the backend lookup uses `…3618190`; legacy `getEmpDetails` also maps `…2689307`. The backend mapping is used.
-- Sick leave writes require `FROM_DAY_TYPE`, `TO_DAY_TYPE`, a fractional `LEAVE_DAYS` and identity `HEADER_ID` columns. The backend checks them at run time and answers 503 when they are missing. They are **not in the legacy code** and were not verified on TEST in this run.
+- Sick leave half-day requests require `FROM_DAY_TYPE`, `TO_DAY_TYPE` and fractional `LEAVE_DAYS`; the backend checks these at run time and hides half-day choices when any capability is absent. Full-day requests remain available. Identity `HEADER_ID` support is still required for writes. The day-type columns are **not in the legacy code** and were not verified on TEST in this run.
 
 ### 12.2 Prototype fields not built (no column or API)
 - **Reward:** headline achievement, supporting files, 1–5 stars, feedback options, average score.
@@ -224,7 +224,7 @@ Baseline on `main` at `59645ce`: server 812 tests (811 pass, 1 documented legacy
 | 6 | Idea attachments (upload/delete) | `POST /ideas/:id/attachments` multipart → `{ attachments: [{ attachmentId, fileName }] }` (as sick leave) | `INSERT INTO XXZP_ALL_ATTACHMENTS … RETURNING HEADER_ID` with `FORM_NAME='IDEA'` (identity confirmed in audit §11.2) | G1 |
 | 7 | Sick leave balance, entitlement and other leave | `GET /hr/sick-leave/lookups/balance/:empNumber?year` → `{ entitlement, used, bands: [{ label, days }] }` | Source table unknown (HR policy / Fusion absence data) | G1, G4 |
 | 8 | Prototype-only fields (§12.2) | Added to the existing write bodies | New columns, e.g. on `XXZP_SICK_LEAVE`: `REASON`, `WORK_RELATED`, `CLINIC`, `CERT_NO`, `CERT_DATE`, `RELIEVER_EMP`, `CONTACT_PHONE`; on `XXZP_IDEA`: `PROBLEM`, `BENEFITS`, `EFFORT`, `AREA`, plus a co-contributors line table; on `XX_EMP_RATING_EOM_HEADER`: `HEADLINE` | G1, G4 |
-| 9 | Sick leave day-type columns if missing on TEST | — | Verify `ALL_TAB_COLUMNS` read-only; otherwise DDL `FROM_DAY_TYPE`, `TO_DAY_TYPE` | G1 |
+| 9 | Sick leave half-day support on TEST | — | Verify `ALL_TAB_COLUMNS`; if needed, widen `LEAVE_DAYS` and add the day-type columns per `SICK-LEAVE-HALF-DAYS-001` | G1 |
 | 10 | Sick leave HR-wide view | — | Set `SICK_LEAVE_HR_RESOURCE_KEY` (e.g. a new `HR.SICK_LEAVE:VIEW_ALL`), or switch to the `XXZP_HR` lookup like the sibling modules | G2 |
 | 11 | Idea delete | `DELETE /ideas/:id` still returns 409 | `XXZP_IDEA` has no deletion marker | G1 |
 
