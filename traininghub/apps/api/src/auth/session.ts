@@ -13,6 +13,8 @@ export interface SessionClaims {
   personId: number;
   abs: number;
   ph: string;
+  /** Authenticated by the host Zamil session. */
+  provider?: 'zamil';
   iat: number;
   exp: number;
 }
@@ -29,11 +31,14 @@ export class SessionService {
   private now() {
     return Math.floor(this.clock().getTime() / 1000);
   }
-  async issue(res: Response, c: { personId: number; ph: string; abs?: number }) {
+  async issue(
+    res: Response,
+    c: { personId: number; ph: string; abs?: number; provider?: 'zamil' },
+  ) {
     const now = this.now();
     const abs = c.abs ?? now + SESSION_ABSOLUTE_SECONDS;
     const exp = Math.min(now + SESSION_IDLE_SECONDS, abs);
-    const token = await new SignJWT({ abs, ph: c.ph })
+    const token = await new SignJWT({ abs, ph: c.ph, ...(c.provider && { provider: c.provider }) })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(String(c.personId))
       .setIssuedAt(now)
@@ -45,11 +50,11 @@ export class SessionService {
     try {
       const { payload } = await jwtVerify(token, this.key, { algorithms: ['HS256'], currentDate: this.clock() });
       const personId = Number(payload.sub);
-      const { abs, ph, iat, exp } = payload as Record<string, unknown>;
-      if (!Number.isSafeInteger(personId) || typeof abs !== 'number' || typeof ph !== 'string' || typeof iat !== 'number' || typeof exp !== 'number')
+      const { abs, ph, provider, iat, exp } = payload as Record<string, unknown>;
+      if (!Number.isSafeInteger(personId) || typeof abs !== 'number' || typeof ph !== 'string' || (provider !== undefined && provider !== 'zamil') || typeof iat !== 'number' || typeof exp !== 'number')
         return null;
       if (this.now() >= abs) return null;
-      return { personId, abs, ph, iat, exp };
+      return { personId, abs, ph, ...(provider === 'zamil' && { provider }), iat, exp };
     } catch {
       return null;
     }

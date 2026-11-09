@@ -1,15 +1,19 @@
 // Reads the session cookie on every API request; sets req.auth for a valid session.
 // Invalid sessions are cleared and the request continues anonymously (guards return 401).
 import type { RequestHandler } from 'express';
+import type { AppConfig } from '../config';
 import type { DataLayer } from '../data/ports';
 import { riyadhDate, type Clock } from '../lib/dates';
+import { AppError } from '../lib/errors';
 import { loadAuthContext } from './context';
 import { SESSION_COOKIE, type SessionService } from './session';
+import { clearZamilCookie, resolveZamilIdentity } from './zamil-sso';
 
 export function authenticate(deps: {
   data: DataLayer;
   sessions: SessionService;
   clock: Clock;
+  zamil: AppConfig['auth']['zamil'];
 }): RequestHandler {
   return async (req, res, next) => {
     const token: unknown = req.cookies?.[SESSION_COOKIE];
@@ -28,11 +32,31 @@ export function authenticate(deps: {
       !claims ||
       !auth ||
       auth.personId !== claims.personId ||
-      auth.passwordFingerprint !== claims.ph
+      (claims.provider !== 'zamil' && auth.passwordFingerprint !== claims.ph)
     ) {
       deps.sessions.clear(res);
       next();
       return;
+    }
+
+    if (claims.provider === 'zamil') {
+      let identity;
+      try {
+        identity = await resolveZamilIdentity(req, deps.zamil);
+      } catch (error) {
+        deps.sessions.clear(res);
+        if (error instanceof AppError && error.code === 'UNAUTHENTICATED') {
+          clearZamilCookie(res, deps.zamil);
+        }
+        // Fail closed for the SSO session but let the API's normal 401 route expose local sign-in.
+        next();
+        return;
+      }
+      if (identity.personNumber !== auth.employee.personNumber) {
+        deps.sessions.clear(res);
+        next();
+        return;
+      }
     }
 
     auth.session = deps.sessions.shouldRefresh(claims)

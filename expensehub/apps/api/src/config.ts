@@ -73,6 +73,14 @@ const envSchema = z
 
     AUTH_PROVIDER: z.enum(['local', 'entra']).default('local'),
     DEV_QUICK_LOGIN: z.stringbool().default(true),
+    /** SSO calls the host API server-side; omitted in production to keep local sign-in available. */
+    ZAMIL_AUTH_API_BASE_URL: z.url().optional(),
+    ZAMIL_AUTH_SESSION_COOKIE_NAME: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]+$/)
+      .default('__Host-zr_session'),
+    ZAMIL_AUTH_COOKIE_SECURE: z.stringbool().default(true),
+    ZAMIL_AUTH_COOKIE_SAMESITE: z.enum(['lax', 'strict']).default('lax'),
     /** TRD §5: bcrypt cost 12. Lower only in tests. */
     BCRYPT_COST: z.coerce.number().int().min(4).max(15).default(12),
   })
@@ -113,6 +121,33 @@ const envSchema = z
           code: 'custom',
           path: ['SESSION_SECRET'],
           message: 'placeholder secret not allowed in production',
+        });
+      }
+      if (
+        env.ZAMIL_AUTH_API_BASE_URL &&
+        new URL(env.ZAMIL_AUTH_API_BASE_URL).protocol !== 'https:'
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ZAMIL_AUTH_API_BASE_URL'],
+          message: 'must use HTTPS in production because it carries the Zamil session cookie',
+        });
+      }
+      if (!env.ZAMIL_AUTH_COOKIE_SECURE) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ZAMIL_AUTH_COOKIE_SECURE'],
+          message: 'must be true in production to match the Zamil session cookie',
+        });
+      }
+    }
+    if (env.ZAMIL_AUTH_API_BASE_URL) {
+      const apiPath = new URL(env.ZAMIL_AUTH_API_BASE_URL).pathname.replace(/\/+$/, '');
+      if (!apiPath.endsWith('/api/v1')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ZAMIL_AUTH_API_BASE_URL'],
+          message: 'must point to the Zamil API base path ending in /api/v1',
         });
       }
     }
@@ -162,7 +197,17 @@ export interface AppConfig {
     smtp?: { host: string; port: number; from: string };
     teamsWebhookUrl?: string;
   };
-  auth: { provider: 'local' | 'entra'; devQuickLogin: boolean; bcryptCost: number };
+  auth: {
+    provider: 'local' | 'entra';
+    devQuickLogin: boolean;
+    bcryptCost: number;
+    zamil: {
+      apiBaseUrl?: string;
+      sessionCookieName: string;
+      cookieSecure: boolean;
+      cookieSameSite: 'lax' | 'strict';
+    };
+  };
 }
 
 export class ConfigError extends Error {
@@ -243,6 +288,16 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       provider: e.AUTH_PROVIDER,
       devQuickLogin: !isProduction && e.DEV_QUICK_LOGIN,
       bcryptCost: isProduction ? Math.max(12, e.BCRYPT_COST) : e.BCRYPT_COST,
+      zamil: {
+        apiBaseUrl:
+          e.ZAMIL_AUTH_API_BASE_URL?.replace(/\/+$/, '') ??
+          (isProduction
+            ? undefined
+            : 'http://127.0.0.1:7381/api/v1'),
+        sessionCookieName: e.ZAMIL_AUTH_SESSION_COOKIE_NAME,
+        cookieSecure: e.ZAMIL_AUTH_COOKIE_SECURE,
+        cookieSameSite: e.ZAMIL_AUTH_COOKIE_SAMESITE,
+      },
     },
   };
 }

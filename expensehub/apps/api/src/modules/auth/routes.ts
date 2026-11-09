@@ -15,6 +15,7 @@ import type { AppConfig } from '../../config';
 import type { DataLayer } from '../../data/ports';
 import { DEMO_USERS, DEV_PASSWORD } from '../../data/seed/demo-users';
 import { AppError } from '../../lib/errors';
+import { resolveZamilIdentity, revokeZamilSession } from '../../auth/zamil-sso';
 import type { AuthService } from './service';
 
 export interface AuthRouteDeps {
@@ -41,12 +42,17 @@ export function authRoutes({ config, data, auth, sessions }: AuthRouteDeps): Rou
   const passwordLimit = limiter();
 
   /** Issues the session cookie and answers with /auth/me. */
-  async function signIn(res: Parameters<RequestHandler>[1], userId: number) {
+  async function signIn(
+    res: Parameters<RequestHandler>[1],
+    userId: number,
+    sessionOptions: { abs?: number; provider?: 'zamil' } = {},
+  ) {
     const ctx = await auth.context(userId);
     const session = await sessions.issue(res, {
       userId,
       personId: ctx.personId,
       ph: ctx.passwordFingerprint,
+      ...sessionOptions,
     });
     res.json(auth.toMe(ctx, session));
   }
@@ -58,7 +64,18 @@ export function authRoutes({ config, data, auth, sessions }: AuthRouteDeps): Rou
     await signIn(res, verified.userId);
   });
 
-  router.post('/auth/logout', (_req, res) => {
+  router.post('/auth/sso', async (req, res) => {
+    const identity = await resolveZamilIdentity(req, config.auth.zamil);
+    const verified = await auth.ssoLogin(identity.personNumber);
+    req.log.info({ provider: 'zamil' }, 'signed in through host SSO');
+    await signIn(res, verified.userId, {
+      abs: identity.absoluteExpiresAt,
+      provider: 'zamil',
+    });
+  });
+
+  router.post('/auth/logout', async (req, res) => {
+    await revokeZamilSession(req, res, config.auth.zamil);
     sessions.clear(res);
     res.json({ ok: true });
   });

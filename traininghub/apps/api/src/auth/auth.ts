@@ -1,6 +1,7 @@
 // Local sign-in by Fusion person number + password, session middleware and the dev quick login.
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { AppError } from '../lib/errors';
+import { clearZamilCookie, resolveZamilIdentity } from './zamil-sso';
 import { directory, nowIso, type Ctx } from '../domain/ctx';
 import type { Services } from '../services';
 import { burnPasswordCheck, hashPassword, passwordFingerprint, verifyPassword } from './password';
@@ -79,15 +80,50 @@ export function sessionMiddleware(svc: Services): RequestHandler {
     if (!person?.active) return next(new AppError('UNAUTHENTICATED', 'Your account is not active'));
     const quick = claims.ph === 'quick';
     const user = await req.ctx.store.one('users', { personId: claims.personId });
-    if (quick ? !svc.config.auth.quickLogin : passwordFingerprint(user?.passwordHash ?? null) !== claims.ph)
+    const zamilSso = claims.provider === 'zamil';
+    if (zamilSso) {
+      let identity;
+      try {
+        identity = await resolveZamilIdentity(req, svc.config.auth.zamil);
+      } catch (error) {
+        svc.sessions.clear(res);
+        if (error instanceof AppError && error.code === 'UNAUTHENTICATED') {
+          clearZamilCookie(res, svc.config.auth.zamil);
+        }
+        return next(new AppError('UNAUTHENTICATED', 'Please sign in'));
+      }
+      if (identity.personNumber !== person.personNumber) {
+        svc.sessions.clear(res);
+        return next(new AppError('UNAUTHENTICATED', 'Please sign in'));
+      }
+    }
+    if (!zamilSso && (quick ? !svc.config.auth.quickLogin : passwordFingerprint(user?.passwordHash ?? null) !== claims.ph))
       return next(new AppError('UNAUTHENTICATED', 'Your session has ended — please sign in again'));
     req.personId = claims.personId;
     req.quick = quick;
-    req.mustChangePassword = !quick && !!user?.mustChangeFlag;
+    req.mustChangePassword = !quick && !zamilSso && !!user?.mustChangeFlag;
     req.ctx.actor = claims.personId;
-    if (svc.sessions.needsRefresh(claims)) await svc.sessions.issue(res, { personId: claims.personId, ph: claims.ph, abs: claims.abs });
+    if (svc.sessions.needsRefresh(claims))
+      await svc.sessions.issue(res, {
+        personId: claims.personId,
+        ph: claims.ph,
+        abs: claims.abs,
+        provider: claims.provider,
+      });
     const allowed = req.path === '/me' || req.path.startsWith('/auth/');
     if (req.mustChangePassword && !allowed) return next(new AppError('FORBIDDEN', 'Change your password first'));
     next();
   };
+}
+
+/** Resolve a host-authenticated employee to the local session identity by Fusion person number. */
+export async function resolveZamilPerson(ctx: Ctx, personNumber: string) {
+  const person = (await directory(ctx)).byNumber.get(personNumber.trim());
+  if (!person?.active)
+    throw new AppError(
+      'FORBIDDEN',
+      'No active TrainingHub profile was found for this Zamil employee. Ask HR to sync the employee profile.',
+    );
+  const user = await ctx.store.one('users', { personId: person.personId });
+  return { personId: person.personId, ph: passwordFingerprint(user?.passwordHash ?? null) };
 }

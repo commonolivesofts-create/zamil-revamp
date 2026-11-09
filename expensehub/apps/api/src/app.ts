@@ -67,7 +67,7 @@ export function createApp({ config, logger, data, services, checkDataStore }: Ap
 
   const api = express.Router();
   api.use(requireAppHeader);
-  api.use(authenticate({ data, sessions: s.sessions, clock: s.clock }));
+  api.use(authenticate({ data, sessions: s.sessions, clock: s.clock, zamil: config.auth.zamil }));
   api.use(
     healthRoutes({
       config,

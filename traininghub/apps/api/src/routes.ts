@@ -35,7 +35,8 @@ import {
   workflowInput,
   type EligibilityRuleCode,
 } from '@traininghub/shared';
-import { changePassword, login, sessionMiddleware } from './auth/auth';
+import { changePassword, login, resolveZamilPerson, sessionMiddleware } from './auth/auth';
+import { resolveZamilIdentity, revokeZamilSession } from './auth/zamil-sso';
 import * as admin from './domain/admin';
 import { directory, hasRole, settings as loadSettings } from './domain/ctx';
 import { eligibility, loadRules, saveRule } from './domain/eligibility';
@@ -96,6 +97,20 @@ export function apiRouter(svc: Services): Router {
     await svc.sessions.issue(res, { personId: s.personId, ph: s.ph });
     res.json({ ok: true, mustChangePassword: s.mustChange });
   });
+  r.post('/auth/sso', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const identity = await resolveZamilIdentity(req, svc.config.auth.zamil);
+    const local = await resolveZamilPerson(ctx(req), identity.personNumber);
+    await svc.sessions.issue(res, {
+      personId: local.personId,
+      ph: local.ph,
+      abs: identity.absoluteExpiresAt,
+      provider: 'zamil',
+    });
+    req.ctx.actor = local.personId;
+    req.log.info({ provider: 'zamil' }, 'signed in through host SSO');
+    res.json(await insight.me(ctx(req), false));
+  });
   r.post('/auth/quick', async (req, res) => {
     if (!svc.config.auth.quickLogin || svc.config.isProduction) throw forbidden('Quick sign-in is disabled');
     const { personId } = body(z.object({ personId: z.coerce.number().int().positive() }), req);
@@ -104,7 +119,8 @@ export function apiRouter(svc: Services): Router {
     await svc.sessions.issue(res, { personId, ph: 'quick' });
     res.json({ ok: true });
   });
-  r.post('/auth/logout', (_req, res) => {
+  r.post('/auth/logout', async (req, res) => {
+    await revokeZamilSession(req, res, svc.config.auth.zamil);
     svc.sessions.clear(res);
     res.json({ ok: true });
   });

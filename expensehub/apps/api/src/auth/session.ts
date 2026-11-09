@@ -17,6 +17,8 @@ export interface SessionClaims {
   abs: number;
   /** Password fingerprint (see password.ts). */
   ph: string;
+  /** Authenticated by the host Zamil session; local password changes do not revoke this session. */
+  provider?: 'zamil';
   iat: number;
   exp: number;
 }
@@ -43,12 +45,23 @@ export class SessionService {
 
   async issue(
     res: Response,
-    claims: { userId: number; personId: number; ph: string; abs?: number },
+    claims: {
+      userId: number;
+      personId: number;
+      ph: string;
+      abs?: number;
+      provider?: 'zamil';
+    },
   ): Promise<SessionTimes> {
     const now = this.nowSeconds();
     const abs = claims.abs ?? now + SESSION_ABSOLUTE_SECONDS;
     const exp = Math.min(now + SESSION_IDLE_SECONDS, abs);
-    const token = await new SignJWT({ pid: claims.personId, abs, ph: claims.ph })
+    const token = await new SignJWT({
+      pid: claims.personId,
+      abs,
+      ph: claims.ph,
+      ...(claims.provider && { provider: claims.provider }),
+    })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(String(claims.userId))
       .setIssuedAt(now)
@@ -72,19 +85,28 @@ export class SessionService {
         currentDate: this.clock(),
       });
       const userId = Number(payload.sub);
-      const { pid, abs, ph, iat, exp } = payload as Record<string, unknown>;
+      const { pid, abs, ph, provider, iat, exp } = payload as Record<string, unknown>;
       if (
         !Number.isSafeInteger(userId) ||
         typeof pid !== 'number' ||
         typeof abs !== 'number' ||
         typeof ph !== 'string' ||
+        (provider !== undefined && provider !== 'zamil') ||
         typeof iat !== 'number' ||
         typeof exp !== 'number' ||
         this.nowSeconds() >= abs
       ) {
         return null;
       }
-      return { userId, personId: pid, abs, ph, iat, exp };
+      return {
+        userId,
+        personId: pid,
+        abs,
+        ph,
+        ...(provider === 'zamil' && { provider }),
+        iat,
+        exp,
+      };
     } catch {
       return null;
     }

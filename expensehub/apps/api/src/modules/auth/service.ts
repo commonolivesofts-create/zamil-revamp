@@ -29,6 +29,21 @@ export class AuthService {
     return this.deps.provider.verifyCredentials(username, password);
   }
 
+  /** Resolve a Zamil-authenticated employee to this app's active user account. */
+  async ssoLogin(personNumber: string): Promise<VerifiedUser> {
+    const found = await this.deps.data.read(async (r) => {
+      const employee = await r.employees.getByPersonNumber(personNumber.trim());
+      const user = employee ? await r.users.getByPersonId(employee.personId) : undefined;
+      return employee?.active === 'Y' && user?.active === 'Y' ? user : undefined;
+    });
+    if (!found)
+      throw new AppError(
+        'FORBIDDEN',
+        'No active ExpenseHub profile was found for this Zamil employee. Ask an administrator to sync the employee profile.',
+      );
+    return { userId: found.userId, personId: found.personId };
+  }
+
   /** Dev only (D-33): sign in as a seeded user without a password. */
   async devLogin(personNumber: string): Promise<VerifiedUser> {
     if (!this.deps.config.auth.devQuickLogin) throw new AppError('NOT_FOUND', 'Not available');
