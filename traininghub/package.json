@@ -1,0 +1,44 @@
+{
+  "name": "traininghub",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TrainingHub \u2014 training requests, job skills matrix and assessments for Zamil Plastic Industries",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "env:from-expensehub": "node scripts/env-from-expensehub.mjs",
+    "predev": "node scripts/ensure-env.mjs",
+    "dev": "concurrently -k -n api,web -c cyan,magenta \"npm run dev -w @traininghub/api\" \"npm run dev -w @traininghub/web\"",
+    "build": "npm run build -w @traininghub/web",
+    "start": "npm run start -w @traininghub/api",
+    "test": "vitest run",
+    "e2e": "npm run e2e -w @traininghub/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write .",
+    "db:ping": "tsx apps/api/src/db/scripts/db-ping.ts",
+    "db:migrate": "tsx apps/api/src/db/scripts/migrate.ts",
+    "db:seed": "tsx apps/api/src/db/scripts/seed.ts",
+    "db:smoke": "tsx apps/api/src/db/scripts/smoke.ts",
+    "data:reset": "tsx apps/api/src/db/scripts/data-reset.ts",
+    "fusion:sync": "tsx apps/api/src/integrations/fusion/sync-cli.ts",
+    "fusion:bip-deploy": "node scripts/bip-deploy.mjs",
+    "fusion:check": "tsx apps/api/src/integrations/fusion/check-cli.ts",
+    "db:find-employees": "tsx apps/api/src/db/scripts/find-employees.ts",
+    "db:demo-data": "tsx apps/api/src/db/scripts/demo-data.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "archiver": "^7.0.1",
+    "concurrently": "^9.2.0",
+    "prettier": "^3.6.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
