@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+backups
+storage
+secrets
+playwright-report
+test-results
+package-lock.json
+docs
+*.md
+fusion/bip/*.html
+video

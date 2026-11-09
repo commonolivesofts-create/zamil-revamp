@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ExpenseHub BIP Reports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- GENERATED from fusion/bip/guide.template.html + fusion/bip/*.sql by `npm run docs:bip`. Edit those, not docs/BIP-SETUP.html. -->
+<style>
+:root {
+  --bg: #f7f8fa; --surface: #ffffff; --surface-2: #f1f3f6; --ink: #0f1729; --muted: #5b6475;
+  --border: #e3e6ec; --primary: #1d4ed8; --primary-soft: #e8efff; --warn: #9a5b00; --warn-soft: #fff4dc;
+  --ok: #0f7a4a; --ok-soft: #e3f6ec; --danger: #b42318; --danger-soft: #fdecea; --code-bg: #0f1729; --code-ink: #e7ebf3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c111b; --surface: #121a28; --surface-2: #192234; --ink: #e7ebf3; --muted: #9aa4b6;
+    --border: #253047; --primary: #7aa2ff; --primary-soft: #1a2747; --warn: #f5b649; --warn-soft: #33270f;
+    --ok: #4ed29a; --ok-soft: #0f2c22; --danger: #ff8a80; --danger-soft: #3a1714; --code-bg: #070b12; --code-ink: #e7ebf3;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c111b; --surface: #121a28; --surface-2: #192234; --ink: #e7ebf3; --muted: #9aa4b6;
+  --border: #253047; --primary: #7aa2ff; --primary-soft: #1a2747; --warn: #f5b649; --warn-soft: #33270f;
+  --ok: #4ed29a; --ok-soft: #0f2c22; --danger: #ff8a80; --danger-soft: #3a1714; --code-bg: #070b12; --code-ink: #e7ebf3;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 Inter, system-ui, sans-serif; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 40px 16px 80px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); }
+h1 { font-size: 30px; line-height: 1.2; margin: 6px 0 10px; letter-spacing: -.01em; }
+h2 { font-size: 20px; margin: 0 0 12px; }
+h3 { font-size: 16px; margin: 20px 0 8px; }
+p { margin: 0 0 12px; }
+.lede { color: var(--muted); font-size: 16px; max-width: 72ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+section.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 18px 0; }
+.step-no { display: inline-grid; place-items: center; inline-size: 26px; block-size: 26px; border-radius: 8px; background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: 13px; margin-inline-end: 10px; vertical-align: 2px; }
+.table-scroll { overflow-x: auto; margin: 8px 0 4px; border: 1px solid var(--border); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: start; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: var(--surface-2); font-weight: 600; font-size: 13px; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12.5px; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; }
+.note { border-radius: 10px; padding: 12px 14px; margin: 12px 0; font-size: 14px; border: 1px solid transparent; }
+.note.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.note.ok { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+.note.danger { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+.note strong { display: block; margin-bottom: 2px; }
+.tag { font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.tag.edit { color: var(--danger); background: var(--danger-soft); }
+.tag.verify { color: var(--warn); background: var(--warn-soft); }
+ol, ul { padding-inline-start: 22px; margin: 6px 0 12px; }
+li { margin: 4px 0; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+nav.toc a, a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+details.sql { border: 1px solid var(--border); border-radius: 12px; margin: 14px 0; overflow: hidden; background: var(--surface); }
+details.sql > summary { cursor: pointer; padding: 14px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; list-style: none; }
+details.sql > summary::-webkit-details-marker { display: none; }
+details.sql > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+details.sql[open] > summary::before { transform: rotate(90deg); }
+.sql-name { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 600; font-size: 14px; }
+.sql-desc { color: var(--muted); font-size: 13px; }
+.sql-body { position: relative; border-top: 1px solid var(--border); }
+.sql-body pre { margin: 0; padding: 16px; overflow-x: auto; background: var(--code-bg); color: var(--code-ink); font: 12.5px/1.55 "JetBrains Mono", ui-monospace, monospace; }
+.copy { position: absolute; inset-block-start: 10px; inset-inline-end: 10px; font: 600 12px Inter, sans-serif; padding: 6px 10px; border-radius: 8px; border: 1px solid #3a4560; background: #1b2436; color: #e7ebf3; cursor: pointer; }
+.copy:hover { background: #26324a; }
+footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
+@media (max-width: 560px) { h1 { font-size: 24px; } section.card { padding: 18px; } }
+@media print { body { background: #fff; } details.sql { break-inside: avoid; } .copy { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Zamil Plastic Industries · Oracle Fusion BI Publisher</div>
+  <h1>ExpenseHub BI Publisher reports: setup pack</h1>
+  <p class="lede">ExpenseHub reads its master data and payment status from Oracle Fusion through seven BI Publisher reports. This pack contains the SQL for each one and the steps to create, secure and test them. Build them in the <b>test pod</b> first, then move them to production with Archive/Unarchive.</p>
+  <div class="meta">
+    <span class="chip">For: the Fusion administrator / BI developer</span>
+    <span class="chip">Version 3 · 23 Oct 2026: rates report added; supplier linked by EMPLOYEE_ID; QuickPay totals</span>
+    <span class="chip">Catalog folder: /Custom/ExpenseHub</span>
+  </div>
+</header>
+
+<section class="card">
+  <h2>The seven reports</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Report (exact name)</th><th>What ExpenseHub uses it for</th><th>Data source</th><th>Parameters</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><code>EH_HCM_EMPLOYEES</code></td><td>Employees, line manager, BU, default expense account</td><td>ApplicationDB_HCM</td><td><code>P_AS_OF_DATE</code></td><td>01:00 daily</td></tr>
+      <tr><td><code>EH_AP_EMPLOYEE_PAYEES</code></td><td>Whether each employee can be paid: supplier, site for their BU, active bank account (flags only)</td><td>ApplicationDB_FSCM</td><td>none</td><td>01:00 daily</td></tr>
+      <tr><td><code>EH_GL_SEGMENT_VALUES</code></td><td>Values of the 6 chart-of-accounts segments</td><td>ApplicationDB_FSCM</td><td>none</td><td>01:30 daily</td></tr>
+      <tr><td><code>EH_HCM_BUSINESS_TRIPS</code></td><td>Approved business leave requests, with every field of the request</td><td>ApplicationDB_HCM</td><td><code>P_ABSENCE_TYPES</code>, <code>P_FROM_DATE</code></td><td>02:00 daily</td></tr>
+      <tr><td><code>EH_PAY_QUICK_PAYS</code></td><td>QuickPay results that Finance invoices (allowances are calculated in payroll)</td><td>ApplicationDB_HCM</td><td><code>P_ELEMENTS</code>, <code>P_FROM_DATE</code></td><td>02:00 daily</td></tr>
+      <tr><td><code>EH_AP_INVOICE_PAYMENTS</code></td><td>Payment number and date of ExpenseHub invoices</td><td>ApplicationDB_FSCM</td><td><code>P_INVOICE_IDS</code></td><td>hourly 07:00–20:00</td></tr>
+    <tr><td><code>EH_GL_DAILY_RATES</code></td><td>Daily conversion rates to SAR (the currencyRates REST resource cannot be filtered in this pod)</td><td>ApplicationDB_FSCM</td><td><code>P_TO_CURRENCY</code>, <code>P_RATE_TYPE</code>, <code>P_FROM_DATE</code></td><td>06:00 daily</td></tr>
+    </tbody>
+  </table></div>
+  <nav class="toc" aria-label="Contents">
+    <a href="#edit">1. Before you start</a>
+    <a href="#create">2. Create a report</a>
+    <a href="#security">3. Permissions</a>
+    <a href="#test">4. Test</a>
+    <a href="#sql">5. The SQL</a>
+    <a href="#trouble">6. Troubleshooting</a>
+  </nav>
+</section>
+
+<section class="card" id="edit">
+  <h2><span class="step-no">1</span>Before you start: values to fill in</h2>
+  <p>The SQL has placeholders written as <code>&lt;&lt;…&gt;&gt;</code> and marked <span class="tag edit">EDIT</span>. Replace each one with your pod's real value. Items marked <span class="tag verify">VERIFY</span> are the usual Fusion table or column names; check them in your release's data dictionary before going further.</p>
+  <div class="table-scroll"><table>
+    <thead><tr><th>What</th><th>Where</th><th>Where to find the value</th></tr></thead>
+    <tbody>
+      <tr><td>The three <b>business unit names</b></td><td><code>bu_map</code> in EMPLOYEES, PAYEES, BUSINESS_TRIPS, QUICK_PAYS</td><td><b>Already filled in</b>: <code>IPP BU</code>, <code>FPP BU</code> and <code>APP BU</code>, read from the test pod on 22 Oct 2026. Change them only if production uses different names.</td></tr>
+      <tr><td>The six <b>chart-of-accounts value set codes</b></td><td><code>seg_map</code> in GL_SEGMENT_VALUES</td><td><i>Manage Chart of Accounts Value Sets</i>. The order is Company, Location, Cost Center, Account, Segment 5, Segment 6.</td></tr>
+      <tr><td>The trip <b>destination</b></td><td>nothing to edit</td><td>BUSINESS_TRIPS returns every field of the business leave request (<code>ATTRIBUTE1</code> to <code>ATTRIBUTE30</code>, the reason and the comments). The ExpenseHub team picks the field that holds the destination; see section 4.</td></tr>
+      <tr><td>QuickPay <b>element names</b></td><td>passed in at run time</td><td>Nothing to edit. ExpenseHub sends them from its own setup. They must match the element's base name.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card" id="create">
+  <h2><span class="step-no">2</span>Create a report (repeat for each of the seven)</h2>
+  <ol>
+    <li><b>Folder.</b> Reports and Analytics → Browse Catalog → <i>Shared Folders → Custom</i> → New → Folder <code>ExpenseHub</code>. This is done once.</li>
+    <li><b>Data model.</b> New → Data Model. Set the <i>Default Data Source</i> to the one in the table above.</li>
+    <li><b>Data set.</b> New Data Set → <i>SQL Query</i>. Name it after the report (for example <code>EH_HCM_EMPLOYEES</code>), choose the same data source and <i>Standard SQL</i>, and paste the SQL from section 5. Do not add a closing semicolon. When BI Publisher asks whether to create the bind parameters, answer <b>Yes</b>.</li>
+    <li><b>Parameters.</b> Open each parameter. Set Data Type <b>String</b>, Parameter Type <b>Text</b>, and leave the default value <b>blank</b>. Keep the name exactly as it is (<code>P_AS_OF_DATE</code>, …).</li>
+    <li><b>Sample data.</b> On the <i>Data</i> tab, enter test values and click View, then <i>Save As Sample Data</i>. Save the data model as <code>&lt;REPORT&gt;_DM</code> in <code>/Custom/ExpenseHub</code>.</li>
+    <li><b>Report.</b> Click <i>Create Report</i>, choose <i>Use Data Model</i>, and pick a simple <b>table</b> layout that contains <b>every column</b>.
+      <ul>
+        <li>Keep each column header <b>exactly</b> the same as the SQL alias, in capitals with underscores (for example <code>PERSON_ID</code>). The layout editor may turn it into "Person Id"; if it does, rename it back. ExpenseHub reads the columns by these names.</li>
+        <li>Remove any totals, grouping, sorting and number formats from the layout. Every column is already text on purpose.</li>
+      </ul>
+    </li>
+    <li><b>Output.</b> Report Properties → set <i>Default Format</i> to <b>CSV</b> and tick CSV in Output Formats. Under Formatting, use a comma as the CSV delimiter and keep the header row.</li>
+    <li><b>Save</b> the report as exactly <code>EH_HCM_EMPLOYEES</code> (and so on) in <code>/Custom/ExpenseHub</code>. ExpenseHub calls <code>/Custom/ExpenseHub/&lt;REPORT&gt;.xdo</code>.</li>
+  </ol>
+  <div class="note warn"><strong>Do not rename anything</strong>ExpenseHub depends on the report names, parameter names and column names exactly as written here. If something has to change, ask the ExpenseHub team first, because the code has to change too.</div>
+</section>
+
+<section class="card" id="security">
+  <h2><span class="step-no">3</span>Permissions</h2>
+  <ul>
+    <li>On the folder <code>/Custom/ExpenseHub</code>, open More → <i>Permissions</i>. Grant the role held by <code>ERP_INTEGRATION_USER</code> <b>Read</b> and <b>Run Publisher Report</b>, and apply it to the items inside the folder.</li>
+    <li>The integration user also needs a role that lets it run BI Publisher reports through the web service, for example BI Consumer or a custom role that includes it. It has already been confirmed (19 Oct 2026) that the user can reach the report service.</li>
+    <li>The data models read tables directly, so HCM data roles do not filter them. The filter on the three business units keeps the output to ZPI employees.</li>
+  </ul>
+  <div class="note danger"><strong>No bank details</strong><code>EH_AP_EMPLOYEE_PAYEES</code> returns Y/N flags only. Never add IBANs, account numbers or bank names to it, or to any other ExpenseHub report.</div>
+</section>
+
+<section class="card" id="test">
+  <h2><span class="step-no">4</span>Test</h2>
+  <ol>
+    <li><b>In Fusion:</b> open each report and run it with test values, for example <code>P_FROM_DATE</code> a year ago and <code>P_ABSENCE_TYPES</code> = <code>Business Trip</code>. Check the CSV header row against the column list in the SQL.</li>
+    <li><b>From ExpenseHub:</b> the ExpenseHub team runs <code>npm run fusion:bip-check</code>. It calls all seven reports exactly as the nightly jobs do and reports, for each one: row count, counts per BU or segment, missing or unexpected columns, and any row that breaks the format (dates, amounts, flags). It never prints names or other row data.</li>
+    <li><b>Trip destination:</b> <code>npm run fusion:bip-check EH_HCM_BUSINESS_TRIPS --show-fields</code> lists each leave-request field, how many trips fill it, and a few sample values. The field that holds the destination (for example <code>ATTRIBUTE3</code>) goes into the ExpenseHub option <i>Trip destination field</i>. Your admin can also read it from the absence descriptive flexfield setup: each segment shows its table column.</li>
+    <li><b>Sense checks:</b>
+      <ul>
+        <li>EMPLOYEES has about 170 rows across IPP, FPP and APP, and nearly all of them have a line manager and a default expense account.</li>
+        <li>PAYEES has one row per employee.</li>
+        <li>SEGMENT_VALUES returns all six segments.</li>
+        <li>INVOICE_PAYMENTS returns nothing without invoice ids. That is correct.</li>
+      </ul>
+    </li>
+  </ol>
+  <div class="note ok"><strong>ExpenseHub protects itself</strong>If a report returns no rows, or fewer than half of the previous night's rows, the sync stops without changing anything and shows an error on the integration monitor. A broken report cannot wipe the employee list.</div>
+</section>
+
+<section class="card" id="sql">
+  <h2><span class="step-no">5</span>The SQL</h2>
+  <p>One data set per report. Each header comment gives the catalog path, the data source, the parameters, and the <span class="tag edit">EDIT</span> and <span class="tag verify">VERIFY</span> points.</p>
+<details class="sql" id="EH_HCM_EMPLOYEES"><summary><span class="sql-name">EH_HCM_EMPLOYEES</span><span class="sql-desc">Employees, supervisor, BU, default account</span></summary><div class="sql-body"><button class="copy" type="button">Copy SQL</button><pre><code>-- ============================================================================================
+-- EH_HCM_EMPLOYEES — INT-01/02/03: employees, supervisor, BU, default expense account
+-- Catalog:     /Custom/ExpenseHub/EH_HCM_EMPLOYEES.xdo        Data source: ApplicationDB_HCM
+-- Parameter:   P_AS_OF_DATE  (Text, YYYY-MM-DD; blank = today)
+-- Run by:      ExpenseHub nightly 01:00 (full extract — an employee missing here is deactivated)
+-- Contract:    apps/api/src/integrations/fusion/contracts.ts  hcmEmployeeCsv
+--
+-- EDIT before use:  the three business unit names in bu_map (exactly as in Fusion).
+-- VERIFY in the test pod: phone types for mobile (WM/HM), location table.
+-- ============================================================================================
+WITH params AS (
+  SELECT NVL(TO_DATE(:P_AS_OF_DATE, 'YYYY-MM-DD'), TRUNC(SYSDATE)) AS as_of FROM dual
+),
+bu_map AS (                                                    -- Fusion BU names (read from the test pod, 22 Oct 2026)
+  SELECT 'IPP BU' AS bu_name, 'IPP' AS bu_code FROM dual UNION ALL
+  SELECT 'FPP BU',            'FPP'            FROM dual UNION ALL
+  SELECT 'APP BU',            'APP'            FROM dual
+)
+SELECT
+  TO_CHAR(papf.person_id)                                         AS PERSON_ID,
+  papf.person_number                                              AS PERSON_NUMBER,
+  ppnf.display_name                                               AS FULL_NAME,
+  pea.email_address                                               AS EMAIL,
+  ( SELECT MAX(NVL2(ph.country_code_number, '+' || ph.country_code_number, NULL) || ph.phone_number)
+             KEEP (DENSE_RANK FIRST ORDER BY DECODE(ph.phone_type, 'WM', 1, 2))
+      FROM per_phones ph
+     WHERE ph.person_id = papf.person_id
+       AND ph.phone_type IN ('WM', 'HM')                          -- VERIFY: work / home mobile
+       AND prm.as_of BETWEEN NVL(ph.date_from, prm.as_of) AND NVL(ph.date_to, prm.as_of)
+  )                                                               AS MOBILE,
+  TO_CHAR(paam.assignment_id)                                     AS ASSIGNMENT_ID,
+  bm.bu_code                                                      AS BU_CODE,
+  pj.name                                                         AS JOB_NAME,
+  ( SELECT MAX(hla.location_code) FROM hr_locations_all hla
+     WHERE hla.location_id = paam.location_id )                   AS LOCATION_CODE,
+  TO_CHAR(pasf.manager_id)                                        AS SUPERVISOR_PERSON_ID,
+  CASE WHEN gcc.code_combination_id IS NOT NULL THEN
+    gcc.segment1 || '.' || gcc.segment2 || '.' || gcc.segment3 || '.' ||
+    gcc.segment4 || '.' || gcc.segment5 || '.' || gcc.segment6
+  END                                                             AS DEFAULT_EXPENSE_ACCOUNT,
+  CASE WHEN paam.assignment_status_type = 'ACTIVE' THEN 'Y' ELSE 'N' END AS ACTIVE_FLAG
+FROM params prm
+JOIN per_all_people_f papf
+  ON prm.as_of BETWEEN papf.effective_start_date AND papf.effective_end_date
+JOIN per_person_names_f ppnf
+  ON  ppnf.person_id = papf.person_id
+  AND ppnf.name_type = 'GLOBAL'
+  AND prm.as_of BETWEEN ppnf.effective_start_date AND ppnf.effective_end_date
+JOIN per_all_assignments_m paam
+  ON  paam.person_id = papf.person_id
+  AND paam.assignment_type = 'E'                                  -- employee assignments only
+  AND paam.primary_flag = 'Y'
+  AND paam.effective_latest_change = 'Y'
+  AND prm.as_of BETWEEN paam.effective_start_date AND paam.effective_end_date
+JOIN fun_all_business_units_v bu
+  ON  bu.bu_id = paam.business_unit_id
+JOIN bu_map bm
+  ON  bm.bu_name = bu.bu_name                                     -- only IPP / FPP / APP people
+LEFT JOIN per_email_addresses pea
+  ON  pea.email_address_id = papf.primary_email_id
+LEFT JOIN per_jobs_f_tl pj
+  ON  pj.job_id = paam.job_id
+  AND pj.language = USERENV('LANG')
+  AND prm.as_of BETWEEN pj.effective_start_date AND pj.effective_end_date
+LEFT JOIN per_assignment_supervisors_f pasf
+  ON  pasf.assignment_id = paam.assignment_id
+  AND pasf.manager_type = 'LINE_MANAGER'
+  AND pasf.primary_flag = 'Y'
+  AND prm.as_of BETWEEN pasf.effective_start_date AND pasf.effective_end_date
+LEFT JOIN gl_code_combinations gcc
+  ON  gcc.code_combination_id = paam.default_code_comb_id
+ORDER BY papf.person_number</code></pre></div></details>
+<details class="sql" id="EH_AP_EMPLOYEE_PAYEES"><summary><span class="sql-name">EH_AP_EMPLOYEE_PAYEES</span><span class="sql-desc">Supplier, site and bank flags per employee</span></summary><div class="sql-body"><button class="copy" type="button">Copy SQL</button><pre><code>-- ============================================================================================
+-- EH_AP_EMPLOYEE_PAYEES — INT-07: can this employee be paid through Payables?
+-- Catalog:     /Custom/ExpenseHub/EH_AP_EMPLOYEE_PAYEES.xdo   Data source: ApplicationDB_FSCM
+-- Parameters:  none
+-- Run by:      ExpenseHub nightly 01:00, right after EH_HCM_EMPLOYEES
+-- Contract:    apps/api/src/integrations/fusion/contracts.ts  apPayeeCsv
+--
+-- D-47: the employee's supplier is the one whose EMPLOYEE_ID is the person, else the supplier
+-- named exactly like the employee (unique names only — Finance's 10035–10038 have no employee
+-- link); site &lt;BU&gt;-EMP or any pay site in the BU. Supplier numbers are NOT person numbers.
+-- Returns FLAGS ONLY. Never add bank account numbers, IBANs or bank names to this report.
+--
+-- EDIT before use:  the three business unit names in bu_map (same as EH_HCM_EMPLOYEES).
+-- VERIFY in the test pod: POZ_SUPPLIERS.END_DATE_ACTIVE, POZ_SITE_ASSIGNMENTS_ALL_M.BU_ID,
+--                         the IBY payee / instrument tables.
+-- ============================================================================================
+WITH params AS (
+  SELECT TRUNC(SYSDATE) AS as_of FROM dual
+),
+bu_map AS (                                                    -- Fusion BU names (read from the test pod, 22 Oct 2026)
+  SELECT 'IPP BU' AS bu_name, 'IPP' AS bu_code FROM dual UNION ALL
+  SELECT 'FPP BU',            'FPP'            FROM dual UNION ALL
+  SELECT 'APP BU',            'APP'            FROM dual
+),
+emp AS (
+  SELECT papf.person_id, papf.person_number, bm.bu_code, bu.bu_id,
+         UPPER(TRIM(ppnf.display_name))                                   AS name_key,
+         COUNT(*) OVER (PARTITION BY UPPER(TRIM(ppnf.display_name)))      AS same_name
+    FROM params prm
+    JOIN per_all_people_f papf
+      ON prm.as_of BETWEEN papf.effective_start_date AND papf.effective_end_date
+    JOIN per_person_names_f ppnf
+      ON  ppnf.person_id = papf.person_id
+      AND ppnf.name_type = 'GLOBAL'
+      AND prm.as_of BETWEEN ppnf.effective_start_date AND ppnf.effective_end_date
+    JOIN per_all_assignments_m paam
+      ON  paam.person_id = papf.person_id
+      AND paam.assignment_type = 'E'
+      AND paam.primary_flag = 'Y'
+      AND paam.effective_latest_change = 'Y'
+      AND prm.as_of BETWEEN paam.effective_start_date AND paam.effective_end_date
+    JOIN fun_all_business_units_v bu ON bu.bu_id = paam.business_unit_id
+    JOIN bu_map bm                   ON bm.bu_name = bu.bu_name
+),
+candidates AS (
+  SELECT e.person_id,
+         e.bu_code,
+         e.bu_id,
+         ps.party_id,
+         ps.segment1                 AS supplier_number,
+         ps.end_date_active          AS supplier_end_date,
+         site.vendor_site_id,
+         site.vendor_site_code,
+         site.inactive_date          AS site_inactive_date,
+         -- D-47: the supplier linked to the person (EMPLOYEE_ID) wins; then a site named
+         -- &lt;BU&gt;-EMP; then any pay site in the employee's BU.
+         ROW_NUMBER() OVER (
+           PARTITION BY e.person_id
+           ORDER BY CASE WHEN ps.employee_id = e.person_id THEN 0
+                         WHEN ps.vendor_id IS NOT NULL THEN 1 ELSE 2 END,
+                    CASE WHEN site.vendor_site_code = e.bu_code || '-EMP' THEN 0
+                         WHEN site.vendor_site_id IS NOT NULL THEN 1 ELSE 2 END,
+                    site.vendor_site_id
+         )                           AS rn
+    FROM emp e
+    CROSS JOIN params prm
+    -- D-47: the supplier's employee link; otherwise a supplier whose name is exactly this
+    -- employee's full name, and only when no other employee has that name. Never the supplier
+    -- number (12 ordinary suppliers share person numbers).
+    LEFT JOIN hz_parties hp
+      ON  e.same_name = 1
+      AND UPPER(TRIM(hp.party_name)) = e.name_key
+    LEFT JOIN poz_suppliers ps
+      ON  ps.employee_id = e.person_id
+       OR (ps.employee_id IS NULL AND ps.party_id = hp.party_id)
+    LEFT JOIN poz_supplier_sites_all_m site
+      ON  site.vendor_id = ps.vendor_id
+      AND site.pay_site_flag = 'Y'
+      AND prm.as_of BETWEEN site.effective_start_date AND site.effective_end_date
+      AND (site.vendor_site_code = e.bu_code || '-EMP' OR site.prc_bu_id = e.bu_id)
+),
+payee AS (
+  SELECT * FROM candidates WHERE rn = 1
+)
+SELECT
+  TO_CHAR(p.person_id)                                            AS PERSON_ID,
+  p.supplier_number                                               AS SUPPLIER_NUMBER,
+  p.vendor_site_code                                              AS SUPPLIER_SITE,
+  p.bu_code                                                       AS BU_CODE,
+  CASE
+    WHEN p.vendor_site_id IS NOT NULL
+     AND NVL(p.supplier_end_date,  prm.as_of + 1) &gt; prm.as_of
+     AND NVL(p.site_inactive_date, prm.as_of + 1) &gt; prm.as_of
+     AND EXISTS (                                               -- site assigned to the BU
+           SELECT 1
+             FROM poz_site_assignments_all_m psa
+            WHERE psa.vendor_site_id = p.vendor_site_id
+              AND psa.bu_id = p.bu_id                           -- VERIFY: client BU column
+              AND NVL(psa.inactive_date, prm.as_of + 1) &gt; prm.as_of)
+    THEN 'Y' ELSE 'N'
+  END                                                             AS SITE_ACTIVE_FLAG,
+  CASE
+    WHEN p.party_id IS NOT NULL
+     AND EXISTS (                                               -- an active disbursement bank account
+           SELECT 1
+             FROM iby_external_payees_all iep
+             JOIN iby_pmt_instr_uses_all ipiu
+               ON  ipiu.ext_pmt_party_id = iep.ext_payee_id
+               AND ipiu.instrument_type  = 'BANKACCOUNT'
+               AND ipiu.payment_flow     = 'DISBURSEMENTS'
+               AND prm.as_of BETWEEN NVL(ipiu.start_date, prm.as_of) AND NVL(ipiu.end_date, prm.as_of)
+             JOIN iby_ext_bank_accounts ieba
+               ON  ieba.ext_bank_account_id = ipiu.instrument_id
+               AND prm.as_of BETWEEN NVL(ieba.start_date, prm.as_of) AND NVL(ieba.end_date, prm.as_of)
+            WHERE iep.payee_party_id = p.party_id
+              AND (iep.supplier_site_id IS NULL OR iep.supplier_site_id = p.vendor_site_id))
+    THEN 'Y' ELSE 'N'
+  END                                                             AS HAS_ACTIVE_BANK_FLAG
+FROM payee p
+CROSS JOIN params prm
+ORDER BY p.person_id</code></pre></div></details>
+<details class="sql" id="EH_GL_SEGMENT_VALUES"><summary><span class="sql-name">EH_GL_SEGMENT_VALUES</span><span class="sql-desc">Chart-of-accounts segment values</span></summary><div class="sql-body"><button class="copy" type="button">Copy SQL</button><pre><code>-- ============================================================================================
+-- EH_GL_SEGMENT_VALUES — INT-04: values of the 6 chart-of-accounts segments
+-- Catalog:     /Custom/ExpenseHub/EH_GL_SEGMENT_VALUES.xdo    Data source: ApplicationDB_FSCM
+-- Parameters:  none
+-- Run by:      ExpenseHub nightly 01:30 (full extract — a value missing here is disabled)
+-- Contract:    apps/api/src/integrations/fusion/contracts.ts  glSegmentValueCsv
+--
+-- COA (D-12): Company.Location.CostCenter.Account.000.000000, e.g. IPP.003.127.55251.000.000000
+--
+-- Value set codes: read from the test pod (see seg_map); Segment 6 = Detailed_ledger.
+-- VERIFY in the test pod: FND_VS_VALUES_B.SUMMARY_FLAG (parent values are left out).
+-- ============================================================================================
+WITH seg_map AS (                                              -- EDIT: value set codes
+  -- Read from the test pod on 22 Oct 2026 (value sets holding IPP / 003 / 127 / 55251 / 000).
+  SELECT 'COMPANY'     AS segment, 'ZPI_Company'    AS value_set_code FROM dual UNION ALL
+  SELECT 'LOCATION',               'ZPI_Location'                     FROM dual UNION ALL
+  SELECT 'COST_CENTER',            'ZPI_CostCentre'                   FROM dual UNION ALL
+  SELECT 'ACCOUNT',                'ZPI_Account'                      FROM dual UNION ALL
+  SELECT 'SEGMENT5',               'ZPI_Product'                      FROM dual UNION ALL
+  -- Segment 6 = Detailed ledger (Finance, 23 Oct 2026; default value 0000000).
+  SELECT 'SEGMENT6', vs.value_set_code
+    FROM fnd_vs_value_sets vs
+   WHERE UPPER(vs.value_set_code) = 'ZPI_DETAILED_LEDGER'
+)
+SELECT
+  sm.segment                                                      AS SEGMENT,
+  v.value                                                         AS VALUE,
+  NVL(tl.description, tl.translated_value)                        AS DESCRIPTION,
+  NVL(v.enabled_flag, 'N')                                        AS ENABLED_FLAG,
+  TO_CHAR(v.start_date_active, 'YYYY-MM-DD')                      AS START_DATE,
+  TO_CHAR(v.end_date_active,   'YYYY-MM-DD')                      AS END_DATE
+FROM seg_map sm
+JOIN fnd_vs_value_sets vs
+  ON  vs.value_set_code = sm.value_set_code
+JOIN fnd_vs_values_b v
+  ON  v.value_set_id = vs.value_set_id
+LEFT JOIN fnd_vs_values_tl tl
+  ON  tl.value_id = v.value_id
+  AND tl.language = USERENV('LANG')
+WHERE NVL(v.summary_flag, 'N') = 'N'                              -- postable (child) values only
+ORDER BY sm.segment, v.value</code></pre></div></details>
+<details class="sql" id="EH_HCM_BUSINESS_TRIPS"><summary><span class="sql-name">EH_HCM_BUSINESS_TRIPS</span><span class="sql-desc">Approved business leave requests, all fields</span></summary><div class="sql-body"><button class="copy" type="button">Copy SQL</button><pre><code>-- ============================================================================================
+-- EH_HCM_BUSINESS_TRIPS — INT-05a: approved business leave requests (D-09, D-11, D-46)
+-- Catalog:     /Custom/ExpenseHub/EH_HCM_BUSINESS_TRIPS.xdo   Data source: ApplicationDB_HCM
+-- Parameters:  P_ABSENCE_TYPES  (Text, comma-separated absence type names, e.g. Business Trip)
+--              P_FROM_DATE      (Text, YYYY-MM-DD; ExpenseHub sends today − 365)
+-- Run by:      ExpenseHub nightly 02:00 + on demand
+-- Contract:    apps/api/src/integrations/fusion/contracts.ts  businessTripCsv
+--
+-- D-46: the destination is entered on the business leave request. Rather than guess which field
+-- holds it, this report returns EVERY field of the request (ATTRIBUTE_CATEGORY, ATTRIBUTE1…30). ExpenseHub reads the destination from the field named in
+-- its option TRIP_DESTINATION_FIELD (e.g. ATTRIBUTE3); the other fields are ignored.
+-- `npm run fusion:bip-check EH_HCM_BUSINESS_TRIPS --show-fields` shows which field is filled.
+-- DURATION_DAYS = calendar days, start and end inclusive.
+--
+-- EDIT before use:  bu_map (same as EH_HCM_EMPLOYEES).
+-- Checked in the test pod (22 Oct 2026): ANC_PER_ABS_ENTRIES has no ABSENCE_REASON_ID here, so
+-- the reason and comments are not returned; the ATTRIBUTE columns are the leave request's fields.
+-- ============================================================================================
+WITH params AS (
+  SELECT NVL(TO_DATE(:P_FROM_DATE, 'YYYY-MM-DD'), TRUNC(SYSDATE) - 365) AS from_date,
+         ',' || NVL(:P_ABSENCE_TYPES, 'Business Trip') || ','            AS type_list
+    FROM dual
+),
+bu_map AS (                                                    -- Fusion BU names (read from the test pod, 22 Oct 2026)
+  SELECT 'IPP BU' AS bu_name FROM dual UNION ALL
+  SELECT 'FPP BU'             FROM dual UNION ALL
+  SELECT 'APP BU'             FROM dual
+)
+SELECT
+  TO_CHAR(apae.per_absence_entry_id)                              AS ABSENCE_ENTRY_ID,
+  TO_CHAR(apae.person_id)                                         AS PERSON_ID,
+  aat.name                                                        AS ABSENCE_TYPE,
+  TO_CHAR(TRUNC(apae.start_date), 'YYYY-MM-DD')                   AS START_DATE,
+  TO_CHAR(TRUNC(apae.end_date),   'YYYY-MM-DD')                   AS END_DATE,
+  TO_CHAR(TRUNC(apae.end_date) - TRUNC(apae.start_date) + 1)      AS DURATION_DAYS,
+  apae.approval_status_cd                                         AS APPROVAL_STATUS,
+  -- Every field of the business leave request (D-46) ------------------------------------------
+  apae.attribute_category                                         AS ATTRIBUTE_CATEGORY,
+  apae.attribute1  AS ATTRIBUTE1,  apae.attribute2  AS ATTRIBUTE2,  apae.attribute3  AS ATTRIBUTE3,
+  apae.attribute4  AS ATTRIBUTE4,  apae.attribute5  AS ATTRIBUTE5,  apae.attribute6  AS ATTRIBUTE6,
+  apae.attribute7  AS ATTRIBUTE7,  apae.attribute8  AS ATTRIBUTE8,  apae.attribute9  AS ATTRIBUTE9,
+  apae.attribute10 AS ATTRIBUTE10, apae.attribute11 AS ATTRIBUTE11, apae.attribute12 AS ATTRIBUTE12,
+  apae.attribute13 AS ATTRIBUTE13, apae.attribute14 AS ATTRIBUTE14, apae.attribute15 AS ATTRIBUTE15,
+  apae.attribute16 AS ATTRIBUTE16, apae.attribute17 AS ATTRIBUTE17, apae.attribute18 AS ATTRIBUTE18,
+  apae.attribute19 AS ATTRIBUTE19, apae.attribute20 AS ATTRIBUTE20, apae.attribute21 AS ATTRIBUTE21,
+  apae.attribute22 AS ATTRIBUTE22, apae.attribute23 AS ATTRIBUTE23, apae.attribute24 AS ATTRIBUTE24,
+  apae.attribute25 AS ATTRIBUTE25, apae.attribute26 AS ATTRIBUTE26, apae.attribute27 AS ATTRIBUTE27,
+  apae.attribute28 AS ATTRIBUTE28, apae.attribute29 AS ATTRIBUTE29, apae.attribute30 AS ATTRIBUTE30
+FROM params prm
+JOIN anc_per_abs_entries apae
+  ON  apae.start_date &gt;= prm.from_date
+JOIN anc_absence_types_f_tl aat
+  ON  aat.absence_type_id = apae.absence_type_id
+  AND aat.language = USERENV('LANG')
+  AND apae.start_date BETWEEN aat.effective_start_date AND aat.effective_end_date
+WHERE apae.approval_status_cd = 'APPROVED'
+  AND NVL(apae.absence_status_cd, 'X') &lt;&gt; 'ORA_WITHDRAWN'
+  AND INSTR(prm.type_list, ',' || aat.name || ',') &gt; 0
+  AND EXISTS (                                                  -- only IPP / FPP / APP people
+        SELECT 1
+          FROM per_all_assignments_m paam
+          JOIN fun_all_business_units_v bu ON bu.bu_id = paam.business_unit_id
+          JOIN bu_map bm                   ON bm.bu_name = bu.bu_name
+         WHERE paam.person_id = apae.person_id
+           AND paam.assignment_type = 'E'
+           AND paam.primary_flag = 'Y'
+           AND apae.start_date BETWEEN paam.effective_start_date AND paam.effective_end_date)
+ORDER BY apae.start_date, apae.per_absence_entry_id</code></pre></div></details>
+<details class="sql" id="EH_PAY_QUICK_PAYS"><summary><span class="sql-name">EH_PAY_QUICK_PAYS</span><span class="sql-desc">QuickPay results to invoice</span></summary><div class="sql-body"><button class="copy" type="button">Copy SQL</button><pre><code>-- ============================================================================================
+-- EH_PAY_QUICK_PAYS — INT-05b: QuickPays that Finance invoices through Payables (D-10, D-48)
+-- Catalog:     /Custom/ExpenseHub/EH_PAY_QUICK_PAYS.xdo       Data source: ApplicationDB_HCM
+-- Parameters:  P_ELEMENTS   (Text, optional comma-separated element names; blank = every QuickPay)
+--              P_FROM_DATE  (Text, YYYY-MM-DD; ExpenseHub sends today − 90)
+-- Run by:      ExpenseHub nightly 02:00 + on demand
+-- Contract:    apps/api/src/integrations/fusion/contracts.ts  quickPayCsv
+--
+-- D-48: one row per QuickPay (payroll relationship action); PAY_VALUE = its total = the sum of
+-- the Standard and Supplemental Earnings it paid. That total becomes the invoice amount.
+-- Key: PAYROLL_ACTION_ID + RUN_RESULT_ID (here the payroll relationship action id).
+-- ============================================================================================
+WITH params AS (
+  SELECT NVL(TO_DATE(:P_FROM_DATE, 'YYYY-MM-DD'), TRUNC(SYSDATE) - 90) AS from_date,
+         ',' || :P_ELEMENTS || ','                                      AS element_list,
+         :P_ELEMENTS                                                    AS elements
+    FROM dual
+),
+bu_map AS (                                                    -- Fusion BU names (read from the test pod, 22 Oct 2026)
+  SELECT 'IPP BU' AS bu_name, 'IPP' AS bu_code FROM dual UNION ALL
+  SELECT 'FPP BU',            'FPP'            FROM dual UNION ALL
+  SELECT 'APP BU',            'APP'            FROM dual
+),
+results AS (
+  SELECT ppa.payroll_action_id,
+         ppra.payroll_rel_action_id,
+         pprd.person_id,
+         ppa.effective_date,
+         pet.base_element_name,
+         TO_NUMBER(prrv.result_value) AS amount
+    FROM params prm
+    JOIN pay_payroll_actions ppa
+      ON  ppa.action_type = 'Q'                                   -- QuickPay
+      AND ppa.effective_date &gt;= prm.from_date
+    JOIN pay_payroll_rel_actions ppra
+      ON  ppra.payroll_action_id = ppa.payroll_action_id          -- (rolled-back ones are gone)
+    JOIN pay_pay_relationships_dn pprd
+      ON  pprd.payroll_relationship_id = ppra.payroll_relationship_id
+    JOIN pay_run_results prr
+      ON  prr.payroll_rel_action_id = ppra.payroll_rel_action_id
+    JOIN pay_element_types_f pet
+      ON  pet.element_type_id = prr.element_type_id
+      AND ppa.effective_date BETWEEN pet.effective_start_date AND pet.effective_end_date
+    JOIN pay_ele_classifications pec
+      ON  pec.classification_id = pet.classification_id
+      AND pec.base_classification_name IN ('Standard Earnings', 'Supplemental Earnings')
+    JOIN pay_input_values_f piv
+      ON  piv.element_type_id = pet.element_type_id
+      AND piv.base_name = 'Pay Value'
+      AND ppa.effective_date BETWEEN piv.effective_start_date AND piv.effective_end_date
+    JOIN pay_run_result_values prrv
+      ON  prrv.run_result_id = prr.run_result_id
+      AND prrv.input_value_id = piv.input_value_id
+   WHERE prm.elements IS NULL
+      OR INSTR(prm.element_list, ',' || pet.base_element_name || ',') &gt; 0
+)
+SELECT
+  TO_CHAR(r.payroll_action_id)                                    AS PAYROLL_ACTION_ID,
+  TO_CHAR(r.payroll_rel_action_id)                                AS RUN_RESULT_ID,
+  TO_CHAR(r.person_id)                                            AS PERSON_ID,
+  SUBSTR(LISTAGG(DISTINCT r.base_element_name, ', ' ON OVERFLOW TRUNCATE '...')
+           WITHIN GROUP (ORDER BY r.base_element_name), 1, 240)   AS ELEMENT_NAME,
+  TO_CHAR(ROUND(SUM(r.amount), 2), 'FM999999999990.00')           AS PAY_VALUE,
+  TO_CHAR(r.effective_date, 'YYYY-MM-DD')                         AS EFFECTIVE_DATE,
+  MAX(bm.bu_code)                                                 AS BU_CODE
+FROM results r
+JOIN per_all_assignments_m paam                                   -- BU at the effective date
+  ON  paam.person_id = r.person_id
+  AND paam.assignment_type = 'E'
+  AND paam.primary_flag = 'Y'
+  AND paam.effective_latest_change = 'Y'
+  AND r.effective_date BETWEEN paam.effective_start_date AND paam.effective_end_date
+JOIN fun_all_business_units_v bu
+  ON  bu.bu_id = paam.business_unit_id
+JOIN bu_map bm
+  ON  bm.bu_name = bu.bu_name
+GROUP BY r.payroll_action_id, r.payroll_rel_action_id, r.person_id, r.effective_date
+HAVING ROUND(SUM(r.amount), 2) &gt; 0
+ORDER BY r.effective_date, r.payroll_action_id, r.payroll_rel_action_id</code></pre></div></details>
+<details class="sql" id="EH_AP_INVOICE_PAYMENTS"><summary><span class="sql-name">EH_AP_INVOICE_PAYMENTS</span><span class="sql-desc">Payments of ExpenseHub invoices</span></summary><div class="sql-body"><button class="copy" type="button">Copy SQL</button><pre><code>-- ============================================================================================
+-- EH_AP_INVOICE_PAYMENTS — INT-09: payments of the invoices ExpenseHub created
+-- Catalog:     /Custom/ExpenseHub/EH_AP_INVOICE_PAYMENTS.xdo  Data source: ApplicationDB_FSCM
+-- Parameter:   P_INVOICE_IDS  (Text, comma-separated Fusion InvoiceIds, e.g. 300000050001,300000050002)
+-- Run by:      ExpenseHub hourly 07:00–20:00, for invoices it is waiting on
+-- Contract:    apps/api/src/integrations/fusion/contracts.ts  invoicePaymentCsv
+--
+-- STATUS is the payment status (NEGOTIABLE, CLEARED, RECONCILED, VOIDED, …). ExpenseHub ignores
+-- VOIDED payments and takes the latest of the others, so rows are ordered by payment date.
+-- No parameter → no rows.
+-- ============================================================================================
+WITH ids AS (
+  SELECT TO_NUMBER(TRIM(REGEXP_SUBSTR(:P_INVOICE_IDS, '[^,]+', 1, LEVEL))) AS invoice_id
+    FROM dual
+ CONNECT BY REGEXP_SUBSTR(:P_INVOICE_IDS, '[^,]+', 1, LEVEL) IS NOT NULL
+)
+SELECT
+  TO_CHAR(aip.invoice_id)                                         AS INVOICE_ID,
+  TO_CHAR(aca.check_number)                                       AS PAYMENT_NUMBER,
+  TO_CHAR(aca.check_date, 'YYYY-MM-DD')                           AS PAYMENT_DATE,
+  TO_CHAR(aip.amount, 'FM999999999990.00')                        AS AMOUNT,
+  aca.status_lookup_code                                          AS STATUS
+FROM ids
+JOIN ap_invoice_payments_all aip
+  ON  aip.invoice_id = ids.invoice_id
+JOIN ap_checks_all aca
+  ON  aca.check_id = aip.check_id
+ORDER BY aip.invoice_id, aca.check_date, aip.invoice_payment_id</code></pre></div></details>
+<details class="sql" id="EH_GL_DAILY_RATES"><summary><span class="sql-name">EH_GL_DAILY_RATES</span><span class="sql-desc">Daily conversion rates to SAR</span></summary><div class="sql-body"><button class="copy" type="button">Copy SQL</button><pre><code>-- ============================================================================================
+-- EH_GL_DAILY_RATES — INT-06: daily conversion rates to SAR (the REST fallback, INTEGRATION §4)
+-- Catalog:     /Custom/ExpenseHub/EH_GL_DAILY_RATES.xdo       Data source: ApplicationDB_FSCM
+-- Parameters:  P_TO_CURRENCY (Text, default SAR) · P_RATE_TYPE (Text, e.g. Corporate; blank = all)
+--              P_FROM_DATE   (Text, YYYY-MM-DD; ExpenseHub sends yesterday, or −365 days on first run)
+-- Run by:      ExpenseHub daily 06:00
+-- Contract:    apps/api/src/integrations/fusion/contracts.ts  glDailyRateCsv
+--
+-- Why a report: the currencyRates REST resource in this pod cannot be filtered (23 Oct 2026).
+-- ============================================================================================
+SELECT
+  gdr.from_currency                                               AS FROM_CURRENCY,
+  gdr.to_currency                                                 AS TO_CURRENCY,
+  gdct.user_conversion_type                                       AS RATE_TYPE,
+  TO_CHAR(gdr.conversion_date, 'YYYY-MM-DD')                      AS RATE_DATE,
+  TO_CHAR(gdr.conversion_rate, 'FM999999990.00000000')            AS RATE
+FROM gl_daily_rates gdr
+JOIN gl_daily_conversion_types gdct
+  ON  gdct.conversion_type = gdr.conversion_type
+WHERE gdr.to_currency = NVL(:P_TO_CURRENCY, 'SAR')
+  AND gdr.conversion_date &gt;= NVL(TO_DATE(:P_FROM_DATE, 'YYYY-MM-DD'), TRUNC(SYSDATE) - 365)
+  AND (:P_RATE_TYPE IS NULL OR gdct.user_conversion_type = :P_RATE_TYPE)
+  AND gdr.conversion_rate &gt; 0
+ORDER BY gdr.from_currency, gdr.conversion_date</code></pre></div></details>
+</section>
+
+<section class="card" id="trouble">
+  <h2><span class="step-no">6</span>Troubleshooting</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Message</th><th>Cause</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td><code>Report definition not found</code></td><td>The report name or folder differs</td><td>Save it as exactly <code>/Custom/ExpenseHub/&lt;REPORT&gt;</code>.</td></tr>
+      <tr><td><code>AccessDeniedException</code></td><td>Missing folder permissions</td><td>Section 3.</td></tr>
+      <tr><td><code>ORA-00942</code> table or view does not exist</td><td>Wrong data source, or a table name that differs in your release</td><td>Use the data source in the table above; check the <span class="tag verify">VERIFY</span> names.</td></tr>
+      <tr><td><code>ORA-00904</code> invalid identifier</td><td>A column name that differs in your release</td><td>Check the <span class="tag verify">VERIFY</span> columns in the data dictionary.</td></tr>
+      <tr><td>bip-check: "columns — missing / unexpected"</td><td>The layout renamed the headers</td><td>Section 2, step 6.</td></tr>
+      <tr><td>bip-check: "CONTRACT — line n BU_CODE"</td><td>A BU name in <code>bu_map</code> does not match</td><td>Copy the BU names exactly.</td></tr>
+      <tr><td>0 rows</td><td>The <code>&lt;&lt;…&gt;&gt;</code> placeholders are still in the SQL</td><td>Section 1.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>ExpenseHub · Integration spec INT-01 … INT-09 · SQL source: <code>fusion/bip/*.sql</code> in the ExpenseHub project.</footer>
+</div>
+<script>
+document.querySelectorAll('.copy').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var text = btn.parentElement.querySelector('pre').innerText;
+    var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy SQL'; }, 1500); };
+    try { navigator.clipboard.writeText(text).then(done, function () {}); } catch (e) {}
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ExpenseHub demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="stage"></div>
+<script type="module" src="runtime.js"></script>
+<script type="module">
+  // Preview: ?t=12.5 shows that moment; ?play plays in real time.
+  const q = new URLSearchParams(location.search);
+  const wait = () => new Promise((r) => (window.renderAt ? r() : setTimeout(() => wait().then(r), 30)));
+  await wait();
+  if (q.has('play')) {
+    const t0 = performance.now() - Number(q.get('t') ?? 0) * 1000;
+    const loop = () => { window.renderAt(((performance.now() - t0) / 1000) % window.TOTAL); requestAnimationFrame(loop); };
+    loop();
+  } else {
+    window.renderAt(Number(q.get('t') ?? 0));
+  }
+</script>
+</body>
+</html>

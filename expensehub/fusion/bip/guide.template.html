@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ExpenseHub BIP Reports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- GENERATED from fusion/bip/guide.template.html + fusion/bip/*.sql by `npm run docs:bip`. Edit those, not docs/BIP-SETUP.html. -->
+<style>
+:root {
+  --bg: #f7f8fa; --surface: #ffffff; --surface-2: #f1f3f6; --ink: #0f1729; --muted: #5b6475;
+  --border: #e3e6ec; --primary: #1d4ed8; --primary-soft: #e8efff; --warn: #9a5b00; --warn-soft: #fff4dc;
+  --ok: #0f7a4a; --ok-soft: #e3f6ec; --danger: #b42318; --danger-soft: #fdecea; --code-bg: #0f1729; --code-ink: #e7ebf3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c111b; --surface: #121a28; --surface-2: #192234; --ink: #e7ebf3; --muted: #9aa4b6;
+    --border: #253047; --primary: #7aa2ff; --primary-soft: #1a2747; --warn: #f5b649; --warn-soft: #33270f;
+    --ok: #4ed29a; --ok-soft: #0f2c22; --danger: #ff8a80; --danger-soft: #3a1714; --code-bg: #070b12; --code-ink: #e7ebf3;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c111b; --surface: #121a28; --surface-2: #192234; --ink: #e7ebf3; --muted: #9aa4b6;
+  --border: #253047; --primary: #7aa2ff; --primary-soft: #1a2747; --warn: #f5b649; --warn-soft: #33270f;
+  --ok: #4ed29a; --ok-soft: #0f2c22; --danger: #ff8a80; --danger-soft: #3a1714; --code-bg: #070b12; --code-ink: #e7ebf3;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 Inter, system-ui, sans-serif; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 40px 16px 80px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); }
+h1 { font-size: 30px; line-height: 1.2; margin: 6px 0 10px; letter-spacing: -.01em; }
+h2 { font-size: 20px; margin: 0 0 12px; }
+h3 { font-size: 16px; margin: 20px 0 8px; }
+p { margin: 0 0 12px; }
+.lede { color: var(--muted); font-size: 16px; max-width: 72ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+section.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 18px 0; }
+.step-no { display: inline-grid; place-items: center; inline-size: 26px; block-size: 26px; border-radius: 8px; background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: 13px; margin-inline-end: 10px; vertical-align: 2px; }
+.table-scroll { overflow-x: auto; margin: 8px 0 4px; border: 1px solid var(--border); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: start; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: var(--surface-2); font-weight: 600; font-size: 13px; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12.5px; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; }
+.note { border-radius: 10px; padding: 12px 14px; margin: 12px 0; font-size: 14px; border: 1px solid transparent; }
+.note.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.note.ok { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+.note.danger { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+.note strong { display: block; margin-bottom: 2px; }
+.tag { font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.tag.edit { color: var(--danger); background: var(--danger-soft); }
+.tag.verify { color: var(--warn); background: var(--warn-soft); }
+ol, ul { padding-inline-start: 22px; margin: 6px 0 12px; }
+li { margin: 4px 0; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+nav.toc a, a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+details.sql { border: 1px solid var(--border); border-radius: 12px; margin: 14px 0; overflow: hidden; background: var(--surface); }
+details.sql > summary { cursor: pointer; padding: 14px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; list-style: none; }
+details.sql > summary::-webkit-details-marker { display: none; }
+details.sql > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+details.sql[open] > summary::before { transform: rotate(90deg); }
+.sql-name { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 600; font-size: 14px; }
+.sql-desc { color: var(--muted); font-size: 13px; }
+.sql-body { position: relative; border-top: 1px solid var(--border); }
+.sql-body pre { margin: 0; padding: 16px; overflow-x: auto; background: var(--code-bg); color: var(--code-ink); font: 12.5px/1.55 "JetBrains Mono", ui-monospace, monospace; }
+.copy { position: absolute; inset-block-start: 10px; inset-inline-end: 10px; font: 600 12px Inter, sans-serif; padding: 6px 10px; border-radius: 8px; border: 1px solid #3a4560; background: #1b2436; color: #e7ebf3; cursor: pointer; }
+.copy:hover { background: #26324a; }
+footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
+@media (max-width: 560px) { h1 { font-size: 24px; } section.card { padding: 18px; } }
+@media print { body { background: #fff; } details.sql { break-inside: avoid; } .copy { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Zamil Plastic Industries · Oracle Fusion BI Publisher</div>
+  <h1>ExpenseHub BI Publisher reports: setup pack</h1>
+  <p class="lede">ExpenseHub reads its master data and payment status from Oracle Fusion through seven BI Publisher reports. This pack contains the SQL for each one and the steps to create, secure and test them. Build them in the <b>test pod</b> first, then move them to production with Archive/Unarchive.</p>
+  <div class="meta">
+    <span class="chip">For: the Fusion administrator / BI developer</span>
+    <span class="chip">Version 3 · 23 Oct 2026: rates report added; supplier linked by EMPLOYEE_ID; QuickPay totals</span>
+    <span class="chip">Catalog folder: /Custom/ExpenseHub</span>
+  </div>
+</header>
+
+<section class="card">
+  <h2>The seven reports</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Report (exact name)</th><th>What ExpenseHub uses it for</th><th>Data source</th><th>Parameters</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><code>EH_HCM_EMPLOYEES</code></td><td>Employees, line manager, BU, default expense account</td><td>ApplicationDB_HCM</td><td><code>P_AS_OF_DATE</code></td><td>01:00 daily</td></tr>
+      <tr><td><code>EH_AP_EMPLOYEE_PAYEES</code></td><td>Whether each employee can be paid: supplier, site for their BU, active bank account (flags only)</td><td>ApplicationDB_FSCM</td><td>none</td><td>01:00 daily</td></tr>
+      <tr><td><code>EH_GL_SEGMENT_VALUES</code></td><td>Values of the 6 chart-of-accounts segments</td><td>ApplicationDB_FSCM</td><td>none</td><td>01:30 daily</td></tr>
+      <tr><td><code>EH_HCM_BUSINESS_TRIPS</code></td><td>Approved business leave requests, with every field of the request</td><td>ApplicationDB_HCM</td><td><code>P_ABSENCE_TYPES</code>, <code>P_FROM_DATE</code></td><td>02:00 daily</td></tr>
+      <tr><td><code>EH_PAY_QUICK_PAYS</code></td><td>QuickPay results that Finance invoices (allowances are calculated in payroll)</td><td>ApplicationDB_HCM</td><td><code>P_ELEMENTS</code>, <code>P_FROM_DATE</code></td><td>02:00 daily</td></tr>
+      <tr><td><code>EH_AP_INVOICE_PAYMENTS</code></td><td>Payment number and date of ExpenseHub invoices</td><td>ApplicationDB_FSCM</td><td><code>P_INVOICE_IDS</code></td><td>hourly 07:00–20:00</td></tr>
+    <tr><td><code>EH_GL_DAILY_RATES</code></td><td>Daily conversion rates to SAR (the currencyRates REST resource cannot be filtered in this pod)</td><td>ApplicationDB_FSCM</td><td><code>P_TO_CURRENCY</code>, <code>P_RATE_TYPE</code>, <code>P_FROM_DATE</code></td><td>06:00 daily</td></tr>
+    </tbody>
+  </table></div>
+  <nav class="toc" aria-label="Contents">
+    <a href="#edit">1. Before you start</a>
+    <a href="#create">2. Create a report</a>
+    <a href="#security">3. Permissions</a>
+    <a href="#test">4. Test</a>
+    <a href="#sql">5. The SQL</a>
+    <a href="#trouble">6. Troubleshooting</a>
+  </nav>
+</section>
+
+<section class="card" id="edit">
+  <h2><span class="step-no">1</span>Before you start: values to fill in</h2>
+  <p>The SQL has placeholders written as <code>&lt;&lt;…&gt;&gt;</code> and marked <span class="tag edit">EDIT</span>. Replace each one with your pod's real value. Items marked <span class="tag verify">VERIFY</span> are the usual Fusion table or column names; check them in your release's data dictionary before going further.</p>
+  <div class="table-scroll"><table>
+    <thead><tr><th>What</th><th>Where</th><th>Where to find the value</th></tr></thead>
+    <tbody>
+      <tr><td>The three <b>business unit names</b></td><td><code>bu_map</code> in EMPLOYEES, PAYEES, BUSINESS_TRIPS, QUICK_PAYS</td><td><b>Already filled in</b>: <code>IPP BU</code>, <code>FPP BU</code> and <code>APP BU</code>, read from the test pod on 22 Oct 2026. Change them only if production uses different names.</td></tr>
+      <tr><td>The six <b>chart-of-accounts value set codes</b></td><td><code>seg_map</code> in GL_SEGMENT_VALUES</td><td><i>Manage Chart of Accounts Value Sets</i>. The order is Company, Location, Cost Center, Account, Segment 5, Segment 6.</td></tr>
+      <tr><td>The trip <b>destination</b></td><td>nothing to edit</td><td>BUSINESS_TRIPS returns every field of the business leave request (<code>ATTRIBUTE1</code> to <code>ATTRIBUTE30</code>, the reason and the comments). The ExpenseHub team picks the field that holds the destination; see section 4.</td></tr>
+      <tr><td>QuickPay <b>element names</b></td><td>passed in at run time</td><td>Nothing to edit. ExpenseHub sends them from its own setup. They must match the element's base name.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card" id="create">
+  <h2><span class="step-no">2</span>Create a report (repeat for each of the seven)</h2>
+  <ol>
+    <li><b>Folder.</b> Reports and Analytics → Browse Catalog → <i>Shared Folders → Custom</i> → New → Folder <code>ExpenseHub</code>. This is done once.</li>
+    <li><b>Data model.</b> New → Data Model. Set the <i>Default Data Source</i> to the one in the table above.</li>
+    <li><b>Data set.</b> New Data Set → <i>SQL Query</i>. Name it after the report (for example <code>EH_HCM_EMPLOYEES</code>), choose the same data source and <i>Standard SQL</i>, and paste the SQL from section 5. Do not add a closing semicolon. When BI Publisher asks whether to create the bind parameters, answer <b>Yes</b>.</li>
+    <li><b>Parameters.</b> Open each parameter. Set Data Type <b>String</b>, Parameter Type <b>Text</b>, and leave the default value <b>blank</b>. Keep the name exactly as it is (<code>P_AS_OF_DATE</code>, …).</li>
+    <li><b>Sample data.</b> On the <i>Data</i> tab, enter test values and click View, then <i>Save As Sample Data</i>. Save the data model as <code>&lt;REPORT&gt;_DM</code> in <code>/Custom/ExpenseHub</code>.</li>
+    <li><b>Report.</b> Click <i>Create Report</i>, choose <i>Use Data Model</i>, and pick a simple <b>table</b> layout that contains <b>every column</b>.
+      <ul>
+        <li>Keep each column header <b>exactly</b> the same as the SQL alias, in capitals with underscores (for example <code>PERSON_ID</code>). The layout editor may turn it into "Person Id"; if it does, rename it back. ExpenseHub reads the columns by these names.</li>
+        <li>Remove any totals, grouping, sorting and number formats from the layout. Every column is already text on purpose.</li>
+      </ul>
+    </li>
+    <li><b>Output.</b> Report Properties → set <i>Default Format</i> to <b>CSV</b> and tick CSV in Output Formats. Under Formatting, use a comma as the CSV delimiter and keep the header row.</li>
+    <li><b>Save</b> the report as exactly <code>EH_HCM_EMPLOYEES</code> (and so on) in <code>/Custom/ExpenseHub</code>. ExpenseHub calls <code>/Custom/ExpenseHub/&lt;REPORT&gt;.xdo</code>.</li>
+  </ol>
+  <div class="note warn"><strong>Do not rename anything</strong>ExpenseHub depends on the report names, parameter names and column names exactly as written here. If something has to change, ask the ExpenseHub team first, because the code has to change too.</div>
+</section>
+
+<section class="card" id="security">
+  <h2><span class="step-no">3</span>Permissions</h2>
+  <ul>
+    <li>On the folder <code>/Custom/ExpenseHub</code>, open More → <i>Permissions</i>. Grant the role held by <code>ERP_INTEGRATION_USER</code> <b>Read</b> and <b>Run Publisher Report</b>, and apply it to the items inside the folder.</li>
+    <li>The integration user also needs a role that lets it run BI Publisher reports through the web service, for example BI Consumer or a custom role that includes it. It has already been confirmed (19 Oct 2026) that the user can reach the report service.</li>
+    <li>The data models read tables directly, so HCM data roles do not filter them. The filter on the three business units keeps the output to ZPI employees.</li>
+  </ul>
+  <div class="note danger"><strong>No bank details</strong><code>EH_AP_EMPLOYEE_PAYEES</code> returns Y/N flags only. Never add IBANs, account numbers or bank names to it, or to any other ExpenseHub report.</div>
+</section>
+
+<section class="card" id="test">
+  <h2><span class="step-no">4</span>Test</h2>
+  <ol>
+    <li><b>In Fusion:</b> open each report and run it with test values, for example <code>P_FROM_DATE</code> a year ago and <code>P_ABSENCE_TYPES</code> = <code>Business Trip</code>. Check the CSV header row against the column list in the SQL.</li>
+    <li><b>From ExpenseHub:</b> the ExpenseHub team runs <code>npm run fusion:bip-check</code>. It calls all seven reports exactly as the nightly jobs do and reports, for each one: row count, counts per BU or segment, missing or unexpected columns, and any row that breaks the format (dates, amounts, flags). It never prints names or other row data.</li>
+    <li><b>Trip destination:</b> <code>npm run fusion:bip-check EH_HCM_BUSINESS_TRIPS --show-fields</code> lists each leave-request field, how many trips fill it, and a few sample values. The field that holds the destination (for example <code>ATTRIBUTE3</code>) goes into the ExpenseHub option <i>Trip destination field</i>. Your admin can also read it from the absence descriptive flexfield setup: each segment shows its table column.</li>
+    <li><b>Sense checks:</b>
+      <ul>
+        <li>EMPLOYEES has about 170 rows across IPP, FPP and APP, and nearly all of them have a line manager and a default expense account.</li>
+        <li>PAYEES has one row per employee.</li>
+        <li>SEGMENT_VALUES returns all six segments.</li>
+        <li>INVOICE_PAYMENTS returns nothing without invoice ids. That is correct.</li>
+      </ul>
+    </li>
+  </ol>
+  <div class="note ok"><strong>ExpenseHub protects itself</strong>If a report returns no rows, or fewer than half of the previous night's rows, the sync stops without changing anything and shows an error on the integration monitor. A broken report cannot wipe the employee list.</div>
+</section>
+
+<section class="card" id="sql">
+  <h2><span class="step-no">5</span>The SQL</h2>
+  <p>One data set per report. Each header comment gives the catalog path, the data source, the parameters, and the <span class="tag edit">EDIT</span> and <span class="tag verify">VERIFY</span> points.</p>
+<!--SQL:EH_HCM_EMPLOYEES|Employees, supervisor, BU, default account-->
+<!--SQL:EH_AP_EMPLOYEE_PAYEES|Supplier, site and bank flags per employee-->
+<!--SQL:EH_GL_SEGMENT_VALUES|Chart-of-accounts segment values-->
+<!--SQL:EH_HCM_BUSINESS_TRIPS|Approved business leave requests, all fields-->
+<!--SQL:EH_PAY_QUICK_PAYS|QuickPay results to invoice-->
+<!--SQL:EH_AP_INVOICE_PAYMENTS|Payments of ExpenseHub invoices-->
+<!--SQL:EH_GL_DAILY_RATES|Daily conversion rates to SAR-->
+</section>
+
+<section class="card" id="trouble">
+  <h2><span class="step-no">6</span>Troubleshooting</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Message</th><th>Cause</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td><code>Report definition not found</code></td><td>The report name or folder differs</td><td>Save it as exactly <code>/Custom/ExpenseHub/&lt;REPORT&gt;</code>.</td></tr>
+      <tr><td><code>AccessDeniedException</code></td><td>Missing folder permissions</td><td>Section 3.</td></tr>
+      <tr><td><code>ORA-00942</code> table or view does not exist</td><td>Wrong data source, or a table name that differs in your release</td><td>Use the data source in the table above; check the <span class="tag verify">VERIFY</span> names.</td></tr>
+      <tr><td><code>ORA-00904</code> invalid identifier</td><td>A column name that differs in your release</td><td>Check the <span class="tag verify">VERIFY</span> columns in the data dictionary.</td></tr>
+      <tr><td>bip-check: "columns — missing / unexpected"</td><td>The layout renamed the headers</td><td>Section 2, step 6.</td></tr>
+      <tr><td>bip-check: "CONTRACT — line n BU_CODE"</td><td>A BU name in <code>bu_map</code> does not match</td><td>Copy the BU names exactly.</td></tr>
+      <tr><td>0 rows</td><td>The <code>&lt;&lt;…&gt;&gt;</code> placeholders are still in the SQL</td><td>Section 1.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>ExpenseHub · Integration spec INT-01 … INT-09 · SQL source: <code>fusion/bip/*.sql</code> in the ExpenseHub project.</footer>
+</div>
+<script>
+document.querySelectorAll('.copy').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var text = btn.parentElement.querySelector('pre').innerText;
+    var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy SQL'; }, 1500); };
+    try { navigator.clipboard.writeText(text).then(done, function () {}); } catch (e) {}
+  });
+});
+</script>
+</body>
+</html>
