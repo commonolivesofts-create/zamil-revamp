@@ -76,6 +76,8 @@ git clone <repository SSH or HTTPS URL> zamil-revamp
 cd zamil-revamp
 cd server; npm install; cd ..
 cd client; npm install; cd ..
+cd traininghub; npm install; cd ..
+cd expensehub; npm install; cd ..
 ```
 
 Use `npm install` (or `npm ci` for a clean install from the lockfiles). Do not add, upgrade or
@@ -125,14 +127,17 @@ bundle, so it must never contain a secret.
 
 ## 6. Run locally
 
-Start the backend first, then the frontend, in two terminals:
+Start the backend first, then the client. The client command also starts TrainingHub and ExpenseHub:
 
 ```powershell
 cd server; npm run dev        # http://127.0.0.1:7381 (watch mode)
-cd client; npm run dev        # http://localhost:7382
+cd client; npm run dev        # Zamil :7382, TrainingHub :7384, ExpenseHub :7386
 ```
 
-Open **http://localhost:7382**.
+Open **http://localhost:7382**. The hub APIs run on :7383 and :7385 and are accessed through their
+web proxies. Install dependencies once in `traininghub/` and `expensehub/`; Ctrl+C in the client
+terminal stops all three frontends and both hub APIs. Use `npm run dev:web` in `client/` if you only
+need the Zamil frontend.
 
 ### The same-origin `/api` proxy
 
