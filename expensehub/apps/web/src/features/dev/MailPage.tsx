@@ -36,7 +36,7 @@ export function MailPage() {
   return (
     <div className="min-h-dvh bg-canvas text-ink">
       <header className="sticky top-0 z-10 border-b border-border bg-surface/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
+        <div className="flex h-16 w-full items-center gap-3 px-4 sm:px-6">
           <Logo variant="mark" />
           <span className="font-semibold">{t('mail.title')}</span>
           <Tag tone="warn">{t('common.devOnly')}</Tag>
@@ -52,7 +52,7 @@ export function MailPage() {
         </div>
       </header>
 
-      <main id="main" className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <main id="main" className="w-full px-4 py-6 sm:px-6">
         <p className="mb-5 text-sm text-muted">{t('mail.description')}</p>
         {items.length === 0 ? (
           <Card>
