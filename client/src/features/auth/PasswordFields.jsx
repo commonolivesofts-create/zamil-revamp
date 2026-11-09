@@ -5,7 +5,7 @@ import { policyRules } from './passwordPolicy.js'
 // Password input with a visibility toggle. The value is never trimmed.
 // `labelAddon` renders after the label text (the login page's "Forgot?" link).
 export const PasswordInput = forwardRef(function PasswordInput({
-  id, label, value, onChange, error, disabled, autoComplete, maxLength, describedBy, labelAddon,
+  id, label, value, onChange, error, disabled, autoComplete, maxLength, describedBy, labelAddon, leadingIcon, placeholder,
 }, ref) {
   const [visible, setVisible] = useState(false)
   const errorId = `${id}-error`
@@ -14,6 +14,7 @@ export const PasswordInput = forwardRef(function PasswordInput({
     <div className="field">
       <label htmlFor={id}>{label}{labelAddon && <> {labelAddon}</>}</label>
       <div className="zrv-password-input">
+        {leadingIcon && <OrvexaIcon name={leadingIcon} className="zrv-auth-leading-icon" />}
         <input
           ref={ref}
           id={id}
@@ -23,6 +24,7 @@ export const PasswordInput = forwardRef(function PasswordInput({
           autoCapitalize="none"
           spellCheck={false}
           maxLength={maxLength}
+          placeholder={placeholder}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled}

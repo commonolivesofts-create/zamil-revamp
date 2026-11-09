@@ -66,23 +66,23 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="auth-shell zrv-auth-page">
-      {/* Describes only implemented sign-in behaviour; no product claims or figures. */}
-      <section className="auth-visual" aria-label={`About ${appConfig.name}`}>
-        <div className="auth-visual-copy">
-          <span className="brand-mark-large"><OrvexaIcon name="building-2" className="size-6" /></span>
-          <h1>{appConfig.name}</h1>
-          <p>Secure access to the {appConfig.name} enterprise application with your company account.</p>
-          <div className="auth-points">
-            <div className="auth-point"><b>Company username</b><span>Sign in with your employee username</span></div>
-            <div className="auth-point"><b>Authenticator app</b><span>Required for administrative access</span></div>
-            <div className="auth-point"><b>Self-service recovery</b><span>Reset your password or authenticator by e-mail</span></div>
-          </div>
-        </div>
-      </section>
+    <main className="auth-shell zrv-auth-page" aria-label={`About ${appConfig.name}`}>
+      <svg className="zrv-login-ribbons" viewBox="0 0 1440 200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+        <path d="M0 100C280 160 520 190 760 165S1200 50 1440 35v165H0Z" fill="#05382a" fillOpacity=".65" />
+        <path d="M0 155c290-15 480 40 760 20s490-90 680-95v130H0Z" fill="#067a45" fillOpacity=".38" />
+        <path d="M0 125c280 65 500 85 770 55s500-100 670-108" fill="none" stroke="#39d879" strokeOpacity=".7" strokeWidth="3" />
+        <path d="M0 170c285-15 485 35 765 16s495-88 675-94" fill="none" stroke="#159c5a" strokeOpacity=".6" strokeWidth="10" />
+      </svg>
       <section className="auth-form-wrap" aria-label="Sign in">
+        <header className="zrv-login-brand" aria-label={appConfig.name}>
+          <span className="zrv-login-brand-mark" aria-hidden="true" />
+          <span className="zrv-login-brand-copy">
+            <h1>{appConfig.name}</h1>
+            <span>Enterprise Business Application Platform</span>
+          </span>
+        </header>
         <form className="auth-form" onSubmit={submit} noValidate>
-          <div className="ux-kicker"><OrvexaIcon name="shield-check" className="size-4" /> Secure sign-in</div>
+          <div className="ux-kicker"><OrvexaIcon name="shield-check" className="size-4" /> SECURE SIGN-IN</div>
           <h2>Sign in to {appConfig.name}</h2>
           <p>Use your employee username and password.</p>
           {!authConfig.configured && (
@@ -106,14 +106,19 @@ export default function LoginPage() {
           )}
           <div className="field">
             <label htmlFor="auth-username">Username</label>
-            <input ref={usernameRef} id="auth-username" className="ux-input" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={USERNAME_MAX} value={username} onChange={(event) => setUsername(event.target.value)} disabled={pending} aria-invalid={Boolean(fieldErrors.username)} aria-describedby={fieldErrors.username ? 'auth-username-error' : undefined} required />
+            <div className="zrv-login-input">
+              <OrvexaIcon name="user-round" className="zrv-auth-leading-icon" />
+              <input ref={usernameRef} id="auth-username" className="ux-input" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={USERNAME_MAX} placeholder="Enter your employee username" value={username} onChange={(event) => setUsername(event.target.value)} disabled={pending} aria-invalid={Boolean(fieldErrors.username)} aria-describedby={fieldErrors.username ? 'auth-username-error' : undefined} required />
+            </div>
             {fieldErrors.username && <small id="auth-username-error" className="zrv-auth-field-error">{fieldErrors.username}</small>}
           </div>
           <PasswordInput
             ref={passwordRef}
             id="auth-password"
             label="Password"
-            labelAddon={<Link to="/forgot-password" state={{ from: location.state?.from }} style={{ color: 'var(--primary-text)' }}>Forgot?</Link>}
+            labelAddon={<Link to="/forgot-password" state={{ from: location.state?.from }} style={{ color: 'var(--primary-text)' }}>Forgot password?</Link>}
+            leadingIcon="lock-keyhole"
+            placeholder="Enter your password"
             value={password}
             onChange={setPassword}
             error={fieldErrors.password}
@@ -122,10 +127,23 @@ export default function LoginPage() {
             maxLength={PASSWORD_MAX}
           />
           <button className="btn-primary mt-5 w-full zrv-auth-submit" type="submit" disabled={pending || !authConfig.configured}>
-            <OrvexaIcon name="log-in" className="size-4" /> {pending ? 'Signing in…' : 'Continue securely'}
+            <OrvexaIcon name="log-in" className="size-4" /> {pending ? 'Signing in…' : 'Continue Securely'}
           </button>
-          <p className="auth-note">Accounts protected by multi-factor authentication are asked for an authenticator code after the password. Access is controlled by your organization's authentication service.</p>
-          <p className="zrv-app-version">{appConfig.displayVersion}</p>
+          <div className="zrv-login-indicators" aria-label="Security information">
+            <div className="zrv-login-indicator">
+              <OrvexaIcon name="shield-check" className="size-5" />
+              <span>Company<br />Username</span>
+            </div>
+            <div className="zrv-login-indicator">
+              <OrvexaIcon name="smartphone" className="size-5" />
+              <span>Authenticator<br />App</span>
+            </div>
+            <div className="zrv-login-indicator">
+              <OrvexaIcon name="refresh-cw" className="size-5" />
+              <span>Self-Service<br />Recovery</span>
+            </div>
+          </div>
+          <div className="zrv-version-footer"><span aria-hidden="true" /><p className="zrv-app-version">{appConfig.displayVersion}</p><span aria-hidden="true" /></div>
         </form>
       </section>
     </main>
