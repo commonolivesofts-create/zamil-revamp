@@ -1,7 +1,8 @@
 import { EXTERNAL_LINK_REL, EXTERNAL_LINK_TARGET } from '@/config/externalDestinations.js'
 
 // A registry external destination: always a new tab with no opener and no
-// referrer, and announced as such. `href` is already validated (https only) and
+// referrer, and announced as such. `href` is already validated (https or a
+// loopback HTTP address for local applications) and
 // the entry already passed routeAccess(); the destination system still
 // authorizes its own users. Internal entries keep using React Router links.
 export default function ExternalNavigationLink({ href, className, onClick, children }) {

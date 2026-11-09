@@ -318,18 +318,20 @@ test('common links need authentication only; Security Administration keeps permi
 
 // ---------------------------------------------------------------- external destinations
 
-test('external URLs: only absolute https with a host name or IP address and no credentials', () => {
+test('external URLs: absolute https or loopback http with a host name or IP address and no credentials', () => {
   for (const url of [
     'https://reports.example.com/production', 'https://10.20.30.40:8443/portal?plant=1', 'https://[2001:db8::1]/x',
+    'http://localhost:7384', 'http://127.0.0.1:7384', 'http://[::1]:7384',
   ]) assert.ok(validateExternalUrl(url), url)
   for (const url of [
-    'http://reports.example.com', 'javascript:alert(1)', 'data:text/html,x', '//reports.example.com',
+    'http://reports.example.com', 'http://localhost.evil.example', 'javascript:alert(1)', 'data:text/html,x', '//reports.example.com',
     'https://user:pass@reports.example.com', 'https://token@reports.example.com', 'https://reports.example.com/a b',
     'https://reports.example.com\\x', '/dashboard', 'ftp://files.example.com', '', null, 42,
   ]) assert.equal(validateExternalUrl(url), null, String(url))
   assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, { VITE_EXTERNAL_PORTAL: ' https://10.0.0.5/portal ' }), 'https://10.0.0.5/portal')
   assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, {}), null, 'unresolved')
   assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, { VITE_EXTERNAL_PORTAL: 'http://10.0.0.5' }), null, 'invalid')
+  assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, { VITE_EXTERNAL_PORTAL: 'http://localhost:7384' }), 'http://localhost:7384/', 'local development link')
 })
 
 function moduleWith(navigation, extra = {}) {
