@@ -29,7 +29,7 @@ const COLUMNS = [
   { key: 'requisition', label: R.columns.requisition, render: (row) => row.requisitionNo || COMMON_TEXT.dash },
   { key: 'date', label: R.columns.date, sort: 'OFFER_DATE', render: (row) => date(row.offerDate) },
   { key: 'status', label: R.columns.status, render: (row) => <Pill tone={row.status === 'INCOMPLETE' ? 'warn' : 'ok'}>{T.status[row.status] || row.status}</Pill> },
-  { key: 'actions', label: 'Actions', render: (row) => <OfferReportActions row={row} /> },
+  { key: 'actions', label: 'Actions', export: false, render: (row) => <OfferReportActions row={row} /> },
 ]
 
 // Overview: offers per week (the last eight), this year against the same

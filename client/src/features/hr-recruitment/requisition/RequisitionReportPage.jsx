@@ -33,16 +33,15 @@ const FIELDS = [
   { key: "dateTo", label: R.filters.to, type: "date" },
 ];
 const COLUMNS = [
-  { key: "number", label: R.columns.number, sort: "requisitionId", render: (row) => row.requisitionNumber || row.requisitionId, sub: (row) => date(row.requestDate) },
+  { key: "number", label: R.columns.number, sort: "requisitionId", subLabel: R.detail.requestDate, render: (row) => row.requisitionNumber || row.requisitionId, sub: (row) => date(row.requestDate) },
   { key: "position", label: R.position, render: (row) => <><b>{row.jobTitle || COMMON_TEXT.dash}</b><small>{row.departmentName}</small></> },
   { key: "requester", label: R.columns.requester, sort: "requesterName", render: (row) => row.requesterName || COMMON_TEXT.dash },
   { key: "reason", label: R.columns.reason, render: (row) => (row.reason ? <span className="zrv-ir-chip"><OrvexaIcon name={row.reason === "Replacement" ? "repeat" : "user-plus"} size={13} />{R.reasons[row.reason] ?? row.reason}</span> : COMMON_TEXT.dash) },
-  { key: "needed", label: R.neededBy, sort: "dateNeeded", render: (row) => <Needed row={row} /> },
+  { key: "needed", label: R.neededBy, sort: "dateNeeded", text: (row) => date(row.neededDate), render: (row) => <Needed row={row} /> },
   { key: "ticket", label: R.columns.ticketStatus, render: (row) => (row.ticketStatus ? <span className={`zrv-ir-ticket zrv-ir-ticket--${row.ticketStatus.toLowerCase()}`}>{R.ticketStatus[row.ticketStatus] ?? row.ticketStatus}</span> : COMMON_TEXT.dash) },
   { key: "status", label: R.columns.status, render: (row) => <Pill tone={STATUS_TONE[row.status] ?? "warn"}>{statusLabel(row.status)}</Pill> },
-  { key: "assessment", label: "Actions", render: (row) => <CreateInterviewAssessment row={row} compact /> },
+  { key: "assessment", label: "Actions", export: false, render: (row) => <CreateInterviewAssessment row={row} compact /> },
 ];
-
 // Overview: where requisitions are in approval, how many decided ones were
 // approved, and how many are requested each month.
 const CARDS = [

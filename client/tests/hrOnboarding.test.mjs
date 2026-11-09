@@ -1804,7 +1804,12 @@ test("report page: outside the flow, server rows and summary, column chooser, si
   );
   assert.match(
     page,
-    /new Blob\(\[withBom\(csv\)\], \{ type: 'text\/csv;charset=utf-8' \}\)/,
+    /downloadCsv\(all, exportColumns\(all\)/,
+    "CSV goes through the shared report export",
+  );
+  assert.match(
+    await readFile(new URL("../src/features/hr-recruitment/shared/reportExport.js", import.meta.url), "utf8"),
+    /new Blob\(\[withBom\(csv\)\], \{ type: "text\/csv;charset=utf-8" \}\)/,
   );
   for (const key of [
     "employeeNumber",
