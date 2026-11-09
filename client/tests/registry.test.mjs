@@ -160,7 +160,19 @@ const withoutSubgroups = (routes) => routes.map(({ subgroup, ...route }) => rout
 
 test('the derived routes, sections and permission names match the active modules', () => {
   assert.deepEqual(withoutSubgroups(plain(appRoutes)), withoutSubgroups(EXPECTED_ROUTES))
-  assert.deepEqual(withoutSubgroups(plain(navigationEntries)), withoutSubgroups(EXPECTED_ROUTES), 'no external or extra entries are active')
+  assert.deepEqual(
+    withoutSubgroups(plain(navigationEntries.filter((route) => route.type !== 'external'))),
+    withoutSubgroups(EXPECTED_ROUTES),
+    'internal navigation stays unchanged',
+  )
+  assert.deepEqual(
+    plain(navigationEntries.filter((route) => route.type === 'external')).map(({ id, href, implemented }) => ({ id, href, implemented })),
+    [
+      { id: 'training-hub', href: null, implemented: false },
+      { id: 'expense-hub', href: null, implemented: false },
+    ],
+    'only configured hub links are included, and unresolved links stay hidden',
+  )
   for (const [index, route] of withoutSubgroups(appRoutes).entries()) {
     assert.deepEqual(Object.keys(route), Object.keys(withoutSubgroups(EXPECTED_ROUTES)[index]), `${route.id}: same fields, same order`)
   }
@@ -174,6 +186,7 @@ test('the derived routes, sections and permission names match the active modules
         { id: 'hr-reports', label: 'Reports', icon: 'chart-column', description: 'HR reports' },
       ],
     },
+    { id: 'finance', label: 'Finance', icon: 'wallet-cards' },
     { id: 'workflow-manager', label: 'Workflow Manager', icon: 'workflow' },
     {
       id: 'security', label: 'Security administration', icon: 'shield-check',
