@@ -13,8 +13,8 @@ import {
 } from '../../lib/session';
 import { canSee, navItem, type NavId } from '../shell/navigation';
 import { Logo } from '../brand/Logo';
-import { Button } from '../ui/Button';
 import { Spinner } from '../ui/Spinner';
+import { LoginPage } from '../../features/auth/LoginPage';
 
 export function RequireAuth() {
   const { t } = useTranslation();
@@ -39,17 +39,7 @@ export function RequireAuth() {
   }
 
   if (me.isError) {
-    return (
-      <div className="grid min-h-dvh place-items-center bg-canvas px-4 text-center">
-        <div>
-          <p className="font-semibold">{t('app.loadError')}</p>
-          <p className="mt-1 text-sm text-muted">{me.error.message}</p>
-          <Button className="mt-4" variant="secondary" onClick={() => void me.refetch()}>
-            {t('app.retry')}
-          </Button>
-        </div>
-      </div>
-    );
+    return <LoginPage ssoNotice={me.error.message} />;
   }
 
   if (!me.data) {

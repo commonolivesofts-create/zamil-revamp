@@ -17,7 +17,7 @@ import { useLogin, useMe } from './hooks';
 // D-33: the quick-login picker is compiled out of production builds entirely.
 const DevQuickLogin = import.meta.env.DEV ? lazy(() => import('./DevQuickLogin')) : null;
 
-export function LoginPage() {
+export function LoginPage({ ssoNotice }: { ssoNotice?: string } = {}) {
   const { t } = useTranslation();
   const [params] = useSearchParams();
   const next = safeNext(params.get('next'));
@@ -43,6 +43,12 @@ export function LoginPage() {
     <AuthLayout>
       <h1 className="text-title font-semibold">{t('login.title')}</h1>
       <p className="mt-1.5 text-sm text-muted">{t('login.subtitle')}</p>
+
+      {ssoNotice && (
+        <p role="alert" className="mt-4 rounded-input bg-info/10 px-3 py-2.5 text-sm text-info">
+          {ssoNotice}
+        </p>
+      )}
 
       {expired && !login.error && (
         <p

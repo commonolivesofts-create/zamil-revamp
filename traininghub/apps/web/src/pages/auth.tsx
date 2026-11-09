@@ -14,7 +14,7 @@ interface QuickPerson {
   hint: string;
 }
 
-export function LoginPage() {
+export function LoginPage({ notice }: { notice?: string } = {}) {
   const qc = useQueryClient();
   const nav = useNavigate();
   const cfg = useQuery({ queryKey: ['auth-config'], queryFn: () => api.get<{ quickLogin: boolean; dataMode: string; fusionMode: string }>('/auth/config') });
@@ -72,6 +72,7 @@ export function LoginPage() {
         <div className="w-full max-w-sm">
           <h2 className="text-[22px] font-bold tracking-tight">Sign in</h2>
           <p className="mt-1 text-[12.5px] text-muted">Use your Fusion person number.</p>
+          {notice && <Alert tone="warn" className="mt-4">{notice}</Alert>}
           <form onSubmit={submit} className="mt-6 space-y-3">
             <Field label="Person number"><Input value={num} onChange={(e) => setNum(e.target.value)} autoComplete="username" required /></Field>
             <Field label="Password"><Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" required /></Field>

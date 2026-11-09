@@ -18,7 +18,17 @@ export function useMe() {
       try {
         return await api('/auth/me', meResponseSchema, { signal });
       } catch (err) {
-        if (err instanceof ApiError && err.code === 'UNAUTHENTICATED') return null;
+        if (err instanceof ApiError && err.code === 'UNAUTHENTICATED') {
+          // The API validates the HttpOnly Zamil cookie server-to-server, then gives ExpenseHub
+          // its own bounded session. Only a missing/expired Zamil session falls back to login;
+          // operational errors and missing ExpenseHub profiles must remain visible.
+          try {
+            return await api('/auth/sso', meResponseSchema, { method: 'POST', signal });
+          } catch (ssoError) {
+            if (ssoError instanceof ApiError && ssoError.code === 'UNAUTHENTICATED') return null;
+            throw ssoError;
+          }
+        }
         throw err;
       }
     },

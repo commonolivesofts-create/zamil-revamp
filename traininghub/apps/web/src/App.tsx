@@ -29,7 +29,7 @@ export function App() {
   if (me.isPending) return <Spinner label="Starting TrainingHub…" />;
   if (me.error) {
     if (me.error instanceof ApiError && me.error.status === 401) return <LoginPage />;
-    return <div className="p-10 text-center text-bad">{me.error.message}</div>;
+    return <LoginPage notice={me.error.message} />;
   }
   if (me.data.mustChangePassword) return <ChangePasswordPage forced />;
   return (
