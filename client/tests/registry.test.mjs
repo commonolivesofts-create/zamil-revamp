@@ -157,10 +157,16 @@ const WORKFLOW_MANAGER_ROUTES = [
 // Group order: workspace, human resources, workflow manager, security, account.
 const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], PRE_REGISTRY_ROUTES[1], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...HR_EMPLOYEE_CLEARANCE_ROUTES, ...HR_CHARTER_ROUTES, ...HR_SALARY_CERTIFICATE_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
 const withoutSubgroups = (routes) => routes.map(({ subgroup, ...route }) => route)
+// External hubs are navigation links only (no route); their address comes from the environment (unset in tests).
+const EXTERNAL_HUBS = [
+  { id: 'training-hub', type: 'external', href: null, label: 'Training Hub', icon: 'graduation-cap', section: HR, implemented: false },
+  { id: 'expense-hub', type: 'external', href: null, label: 'Expense Hub', icon: 'wallet-cards', section: 'finance', implemented: false },
+]
+const EXPECTED_NAVIGATION = [...EXPECTED_ROUTES.slice(0, -(WORKFLOW_MANAGER_ROUTES.length + PRE_REGISTRY_ROUTES.length - 2)), ...EXTERNAL_HUBS, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
 
 test('the derived routes, sections and permission names match the active modules', () => {
   assert.deepEqual(withoutSubgroups(plain(appRoutes)), withoutSubgroups(EXPECTED_ROUTES))
-  assert.deepEqual(withoutSubgroups(plain(navigationEntries)), withoutSubgroups(EXPECTED_ROUTES), 'no external or extra entries are active')
+  assert.deepEqual(withoutSubgroups(plain(navigationEntries)), withoutSubgroups(EXPECTED_NAVIGATION), 'the external hubs are the only entries without a route')
   for (const [index, route] of withoutSubgroups(appRoutes).entries()) {
     assert.deepEqual(Object.keys(route), Object.keys(withoutSubgroups(EXPECTED_ROUTES)[index]), `${route.id}: same fields, same order`)
   }
@@ -174,6 +180,7 @@ test('the derived routes, sections and permission names match the active modules
         { id: 'hr-reports', label: 'Reports', icon: 'chart-column', description: 'HR reports' },
       ],
     },
+    { id: 'finance', label: 'Finance', icon: 'wallet-cards' },
     { id: 'workflow-manager', label: 'Workflow Manager', icon: 'workflow' },
     {
       id: 'security', label: 'Security administration', icon: 'shield-check',
