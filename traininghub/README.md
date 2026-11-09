@@ -45,9 +45,15 @@ Open `http://<this-PC's-LAN-IP>:7384`; the API on 7383 is proxied by the web app
    HR Lead / HR admin / Finance roles in **Setup → Employees & roles**; map Fusion jobs to
    positions in **Job Skills Matrix → Fusion job mapping**.
 
-Sign-in: person number + password. HR issues one-time passwords (Setup → Employees → Reset
-password), or set `INITIAL_PASSWORD` for a pilot (must be changed at first sign-in). Keep
-`DEV_QUICK_LOGIN=true` only on test.
+Sign-in: when opened on the same hostname as Zamil Revamp, TrainingHub validates the existing
+Zamil session server-side and issues a bounded TrainingHub session. Signing out revokes the Zamil
+session too. Without an active Zamil session, person-number + password sign-in remains available.
+HR issues one-time passwords (Setup → Employees → Reset password), or set `INITIAL_PASSWORD` for a
+pilot (must be changed at first sign-in). Keep `DEV_QUICK_LOGIN=true` only on test. By default,
+SSO checks Zamil at `http://127.0.0.1:7381/api/v1` in both development and `APP_ENV=test`. Set
+`ZAMIL_AUTH_API_BASE_URL` if needed, and
+keep `ZAMIL_AUTH_SESSION_COOKIE_NAME`, `ZAMIL_AUTH_COOKIE_SECURE` and
+`ZAMIL_AUTH_COOKIE_SAMESITE` aligned with Zamil's cookie settings.
 
 ## The four corrections
 

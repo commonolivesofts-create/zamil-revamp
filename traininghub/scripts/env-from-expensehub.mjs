@@ -20,6 +20,7 @@ if (!existsSync(source)) {
 }
 const eh = parseEnv(readFileSync(source, 'utf8'));
 const SHARED = ['DB_USER', 'DB_PASSWORD', 'DB_CONNECT_STRING', 'DB_WALLET_PASSWORD', 'FUSION_BASE_URL', 'FUSION_USER', 'FUSION_PASSWORD', 'FUSION_BI_USER', 'FUSION_BI_PASSWORD', 'BOOTSTRAP_ADMINS'];
+const OPTIONAL_SHARED = ['ZAMIL_AUTH_API_BASE_URL', 'ZAMIL_AUTH_SESSION_COOKIE_NAME', 'ZAMIL_AUTH_COOKIE_SECURE', 'ZAMIL_AUTH_COOKIE_SAMESITE'];
 const values = {
   SESSION_SECRET: randomBytes(36).toString('base64url'),
   DATA_MODE: 'oracle',
@@ -28,6 +29,7 @@ const values = {
 };
 const copied = [];
 for (const k of SHARED) if (eh[k]) { values[k] = eh[k]; copied.push(k); }
+for (const k of OPTIONAL_SHARED) if (eh[k]) { values[k] = eh[k]; copied.push(k); }
 let out = readFileSync(path.join(root, '.env.example'), 'utf8');
 for (const [k, v] of Object.entries(values)) {
   // Quote only when needed, with a quote character the value does not contain (dotenv has no escapes).
