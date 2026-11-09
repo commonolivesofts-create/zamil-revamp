@@ -87,8 +87,9 @@ const deepFreeze = (value) => {
 
 /**
  * Returns the normalized URL for an approved external destination, or null.
- * Only absolute https URLs with a host name or IP address are accepted; URLs
- * with credentials, whitespace, control characters or backslashes are refused.
+ * Absolute https URLs are accepted. Plain http is accepted only for loopback
+ * development servers; URLs with credentials, whitespace, control characters
+ * or backslashes are refused.
  */
 export function validateExternalUrl(value) {
   if (typeof value !== 'string' || !value || value.length > MAX.url) return null
@@ -100,13 +101,14 @@ export function validateExternalUrl(value) {
   } catch {
     return null
   }
-  if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) return null
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname.toLowerCase())
+  if ((url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) || !url.hostname || url.username || url.password) return null
   return url.href
 }
 
 function normalizeHref(where, href) {
   if (typeof href === 'string') {
-    if (!validateExternalUrl(href)) fail(where, 'href must be an absolute https URL without credentials')
+    if (!validateExternalUrl(href)) fail(where, 'href must be an absolute https URL (or a loopback http URL for local development) without credentials')
     return href
   }
   assertObject(where, href, ['env'])

@@ -4,7 +4,8 @@
   "version": "2.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev-with-hubs.mjs",
+    "dev:web": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "test": "node --test \"tests/*.test.mjs\"",

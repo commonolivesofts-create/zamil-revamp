@@ -1,0 +1,13 @@
+video/out/
+video/node_modules/
+node_modules/
+dist/
+.env
+secrets/
+storage/
+coverage/
+.vite/
+test-results/
+playwright-report/
+backups/
+Wallet_*.zip

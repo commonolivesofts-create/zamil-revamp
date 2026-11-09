@@ -157,10 +157,29 @@ const WORKFLOW_MANAGER_ROUTES = [
 // Group order: workspace, human resources, workflow manager, security, account.
 const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], PRE_REGISTRY_ROUTES[1], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...HR_EMPLOYEE_CLEARANCE_ROUTES, ...HR_CHARTER_ROUTES, ...HR_SALARY_CERTIFICATE_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
 const withoutSubgroups = (routes) => routes.map(({ subgroup, ...route }) => route)
+// External hubs are navigation links only (no route); their address comes from the environment (unset in tests).
+const EXTERNAL_HUBS = [
+  { id: 'training-hub', type: 'external', href: null, label: 'Training Hub', icon: 'graduation-cap', section: HR, implemented: false },
+  { id: 'expense-hub', type: 'external', href: null, label: 'Expense Hub', icon: 'wallet-cards', section: 'finance', implemented: false },
+]
+const EXPECTED_NAVIGATION = [...EXPECTED_ROUTES.slice(0, -(WORKFLOW_MANAGER_ROUTES.length + PRE_REGISTRY_ROUTES.length - 2)), ...EXTERNAL_HUBS, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
 
 test('the derived routes, sections and permission names match the active modules', () => {
   assert.deepEqual(withoutSubgroups(plain(appRoutes)), withoutSubgroups(EXPECTED_ROUTES))
-  assert.deepEqual(withoutSubgroups(plain(navigationEntries)), withoutSubgroups(EXPECTED_ROUTES), 'no external or extra entries are active')
+  assert.deepEqual(withoutSubgroups(plain(navigationEntries)), withoutSubgroups(EXPECTED_NAVIGATION), 'the external hubs are the only entries without a route')
+  assert.deepEqual(
+    withoutSubgroups(plain(navigationEntries.filter((route) => route.type !== 'external'))),
+    withoutSubgroups(EXPECTED_ROUTES),
+    'internal navigation stays unchanged',
+  )
+  assert.deepEqual(
+    plain(navigationEntries.filter((route) => route.type === 'external')).map(({ id, href, implemented }) => ({ id, href, implemented })),
+    [
+      { id: 'training-hub', href: null, implemented: false },
+      { id: 'expense-hub', href: null, implemented: false },
+    ],
+    'only configured hub links are included, and unresolved links stay hidden',
+  )
   for (const [index, route] of withoutSubgroups(appRoutes).entries()) {
     assert.deepEqual(Object.keys(route), Object.keys(withoutSubgroups(EXPECTED_ROUTES)[index]), `${route.id}: same fields, same order`)
   }
@@ -174,6 +193,7 @@ test('the derived routes, sections and permission names match the active modules
         { id: 'hr-reports', label: 'Reports', icon: 'chart-column', description: 'HR reports' },
       ],
     },
+    { id: 'finance', label: 'Finance', icon: 'wallet-cards' },
     { id: 'workflow-manager', label: 'Workflow Manager', icon: 'workflow' },
     {
       id: 'security', label: 'Security administration', icon: 'shield-check',
@@ -318,18 +338,20 @@ test('common links need authentication only; Security Administration keeps permi
 
 // ---------------------------------------------------------------- external destinations
 
-test('external URLs: only absolute https with a host name or IP address and no credentials', () => {
+test('external URLs: absolute https or loopback http with a host name or IP address and no credentials', () => {
   for (const url of [
     'https://reports.example.com/production', 'https://10.20.30.40:8443/portal?plant=1', 'https://[2001:db8::1]/x',
+    'http://localhost:7384', 'http://127.0.0.1:7384', 'http://[::1]:7384',
   ]) assert.ok(validateExternalUrl(url), url)
   for (const url of [
-    'http://reports.example.com', 'javascript:alert(1)', 'data:text/html,x', '//reports.example.com',
+    'http://reports.example.com', 'http://localhost.evil.example', 'javascript:alert(1)', 'data:text/html,x', '//reports.example.com',
     'https://user:pass@reports.example.com', 'https://token@reports.example.com', 'https://reports.example.com/a b',
     'https://reports.example.com\\x', '/dashboard', 'ftp://files.example.com', '', null, 42,
   ]) assert.equal(validateExternalUrl(url), null, String(url))
   assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, { VITE_EXTERNAL_PORTAL: ' https://10.0.0.5/portal ' }), 'https://10.0.0.5/portal')
   assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, {}), null, 'unresolved')
   assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, { VITE_EXTERNAL_PORTAL: 'http://10.0.0.5' }), null, 'invalid')
+  assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, { VITE_EXTERNAL_PORTAL: 'http://localhost:7384' }), 'http://localhost:7384/', 'local development link')
 })
 
 function moduleWith(navigation, extra = {}) {

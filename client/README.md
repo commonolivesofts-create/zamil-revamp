@@ -15,8 +15,17 @@ HttpOnly cookies set by the backend, and CSRF tokens are kept in memory only.
 
 ```powershell
 npm install
-npm run dev        # http://localhost:7382, /api proxied to http://127.0.0.1:7381
+npm run dev        # starts Zamil web + TrainingHub + ExpenseHub; backend stays separate
 ```
+
+The client dev command starts the Zamil frontend on :7382 and both linked hubs on :7384 (TrainingHub)
+and :7386 (ExpenseHub). The hub APIs run on :7383 and :7385 and are reached through their web proxies.
+It inherits `APP_ENV` from the client/server environment files, so the Test (LAN) profile is applied
+to all three frontends and both hub APIs. Use `npm run dev:web` to run only the Zamil frontend.
+
+Install each hub's dependencies once with `npm install` from its folder. To stop all three frontends
+and both hubs, press Ctrl+C in the client terminal. The Zamil backend remains a separate process in
+`server/`.
 
 Copy `.env.example` to `.env.local` to set public client options. Set the same
 `APP_ENV` in `client/.env.local` and `server/.env`:
@@ -28,13 +37,15 @@ Copy `.env.example` to `.env.local` to set public client options. Set the same
 | empty | Production profile | Production profile |
 
 For LAN testing, run `npm run dev` in both `client` and `server`, and open
-`http://10.10.2.160:7382`. The frontend proxies `/api` to port 7381. Test mode
-uses HTTP-compatible session cookies; keep it on the trusted test network. Keep
-`VITE_AUTH_DEV_PREVIEW=false` for real integration testing.
+`http://10.10.2.160:7382`. The sidebar hub links use the same host at ports 7384
+and 7386; their APIs are proxied on 7383 and 7385. Test mode uses HTTP-compatible
+session cookies; keep it on the trusted test network. Keep `VITE_AUTH_DEV_PREVIEW=false`
+for real integration testing.
 
 | Script | Purpose |
 |---|---|
-| `npm run dev` | Development server on port 7382 with the same-origin `/api` proxy |
+| `npm run dev` | Zamil frontend on :7382 and TrainingHub/ExpenseHub on :7384/:7386 |
+| `npm run dev:web` | Zamil frontend only on port 7382 |
 | `npm run lint` | ESLint |
 | `npm test` | Node native tests (`tests/*.test.mjs`, mocked transport only) |
 | `npm run build` | Production build to `dist/` |

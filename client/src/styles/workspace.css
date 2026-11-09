@@ -502,6 +502,7 @@
   cursor: pointer;
   transition: background 0.14s ease, color 0.14s ease;
 }
+.zrv-sidebar-subgroup--link { text-decoration: none; }
 .zrv-sidebar-subgroup:hover,
 .zrv-sidebar-subgroup.is-open {
   background: color-mix(in srgb, var(--primary) 8%, transparent);

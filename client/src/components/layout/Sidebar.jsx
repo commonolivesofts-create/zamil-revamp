@@ -66,9 +66,10 @@ function StandaloneLink({ item, onNavigate }) {
 // A registry external destination inside a section (new tab, never "active").
 function ExternalSidebarLink({ item, onNavigate }) {
   return (
-    <ExternalNavigationLink href={item.href} className="sidebar-domain-link" onClick={onNavigate}>
-      <OrvexaIcon name={item.icon || 'circle'} />
-      <span className="sidebar-domain-link-label">{item.label}</span>
+    <ExternalNavigationLink href={item.href} className="zrv-sidebar-subgroup zrv-sidebar-subgroup--link" onClick={onNavigate}>
+      <span className="zrv-sidebar-subgroup__icon"><OrvexaIcon name={item.icon || 'circle'} /></span>
+      <span className="zrv-sidebar-subgroup__label"><b>{item.label}</b></span>
+      <OrvexaIcon name="chevron-right" className="zrv-sidebar-subgroup__arrow" />
     </ExternalNavigationLink>
   )
 }

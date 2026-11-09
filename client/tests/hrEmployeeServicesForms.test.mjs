@@ -438,10 +438,12 @@ test('sidebar: each form appears in Talent Management only with its switch on AN
   assert.equal(new Set(paths).size, paths.length, 'no two links share a page')
 })
 
-test('sidebar: every HR entry belongs to a sub-group of its section; the flyout lists them', async () => {
-  for (const entry of registry.entries.filter((item) => item.section === 'human-resources')) {
+test('sidebar: internal HR pages use sub-groups and the Training Hub stays a standalone link', async () => {
+  for (const entry of registry.entries.filter((item) => item.section === 'human-resources' && item.type !== 'external')) {
     assert.ok(['hr-recruitment', 'hr-employee-services', 'hr-letters', 'hr-reports'].includes(entry.subgroup), entry.id)
   }
+  const externalHrLinks = registry.entries.filter((item) => item.section === 'human-resources' && item.type === 'external')
+  assert.deepEqual(externalHrLinks.map((item) => [item.id, item.subgroup]), [['training-hub', undefined]])
   const sidebar = await read('../src/components/layout/Sidebar.jsx')
   const flyout = await read('../src/components/layout/SidebarFlyout.jsx')
   assert.match(sidebar, /item\.subgroup === subgroup\.id/)
