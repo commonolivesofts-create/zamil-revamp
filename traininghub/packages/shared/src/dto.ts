@@ -121,7 +121,14 @@ export interface PersonSkills {
   managerName: string | null;
   readiness: number;
   rows: SkillLevelRow[];
-  history: { skillId: number; fromLevel: number; toLevel: number; source: string; changedAt: string; byName: string }[];
+  history: {
+    skillId: number;
+    fromLevel: number;
+    toLevel: number;
+    source: string;
+    changedAt: string;
+    byName: string;
+  }[];
 }
 
 export interface Session {

@@ -26,7 +26,10 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
     res = await fetch(`/api/v1${url}`, {
       method,
       credentials: 'same-origin',
-      headers: { 'X-Requested-With': 'TrainingHub', ...(body !== undefined && { 'Content-Type': 'application/json' }) },
+      headers: {
+        'X-Requested-With': 'TrainingHub',
+        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -37,8 +40,14 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
   const data = text ? JSON.parse(text) : undefined;
   if (!res.ok) {
     const e = (data as ApiErrorBody | undefined)?.error;
-    const err = new ApiError(res.status, e?.code ?? 'INTERNAL', e?.message ?? `HTTP ${res.status}`, e?.details);
-    if (res.status === 401 && !url.startsWith('/auth/')) window.dispatchEvent(new CustomEvent('th:unauthenticated'));
+    const err = new ApiError(
+      res.status,
+      e?.code ?? 'INTERNAL',
+      e?.message ?? `HTTP ${res.status}`,
+      e?.details,
+    );
+    if (res.status === 401 && !url.startsWith('/auth/'))
+      window.dispatchEvent(new CustomEvent('th:unauthenticated'));
     throw err;
   }
   return data as T;

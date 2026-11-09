@@ -57,7 +57,8 @@ export function apiRouter(svc: Services): Router {
   const r = Router();
   const ctx = (req: Request) => req.ctx;
   const requireHr = async (req: Request) => {
-    if (!hasRole(await directory(req.ctx), req.personId!, 'HR_ADMIN')) throw forbidden('HR administrators only');
+    if (!hasRole(await directory(req.ctx), req.personId!, 'HR_ADMIN'))
+      throw forbidden('HR administrators only');
   };
 
   /* ------------------------------ public ------------------------------ */
@@ -65,14 +66,20 @@ export function apiRouter(svc: Services): Router {
     res.json({ ok: true, data: svc.config.data.mode, fusion: svc.config.fusion.mode });
   });
   r.get('/auth/config', (_req, res) => {
-    res.json({ quickLogin: svc.config.auth.quickLogin, dataMode: svc.config.data.mode, fusionMode: svc.config.fusion.mode });
+    res.json({
+      quickLogin: svc.config.auth.quickLogin,
+      dataMode: svc.config.data.mode,
+      fusionMode: svc.config.fusion.mode,
+    });
   });
   r.get('/auth/quick-list', async (req, res) => {
     if (!svc.config.auth.quickLogin) throw forbidden();
     const dir = await directory(ctx(req));
     const needle = q(req, 'q').toLowerCase();
     const pick = needle
-      ? [...dir.people.values()].filter((p) => p.active && `${p.fullName} ${p.personNumber}`.toLowerCase().includes(needle)).slice(0, 20)
+      ? [...dir.people.values()]
+          .filter((p) => p.active && `${p.fullName} ${p.personNumber}`.toLowerCase().includes(needle))
+          .slice(0, 20)
       : [
           ...DEMO_PERSONAS.map(([id]) => dir.people.get(id)).filter((p) => p?.active),
           ...svc.config.bootstrapAdmins.map((n) => dir.byNumber.get(n)).filter((p) => p?.active),
@@ -90,7 +97,12 @@ export function apiRouter(svc: Services): Router {
         })),
     );
   });
-  const loginLimit = rateLimit({ windowMs: 15 * 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
+  const loginLimit = rateLimit({
+    windowMs: 15 * 60_000,
+    limit: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
   r.post('/auth/login', loginLimit, async (req, res) => {
     const input = body(loginInput, req);
     const s = await login(svc, ctx(req), input.personNumber, input.password);
@@ -148,31 +160,56 @@ export function apiRouter(svc: Services): Router {
   r.get('/lookups', async (req, res) => {
     const c = ctx(req);
     const dir = await directory(c);
-    const [lib, positions] = await Promise.all([admin.library(c), c.store.find('positions', {}, { orderBy: ['name'] })]);
+    const [lib, positions] = await Promise.all([
+      admin.library(c),
+      c.store.find('positions', {}, { orderBy: ['name'] }),
+    ]);
     res.json({
       categories: lib.categories,
       skills: lib.skills,
-      positions: positions.map((p) => ({ id: p.id, name: p.name, grade: p.grade, status: p.statusCode, versionNo: p.versionNo, ownerPersonId: p.ownerPersonId })),
+      positions: positions.map((p) => ({
+        id: p.id,
+        name: p.name,
+        grade: p.grade,
+        status: p.statusCode,
+        versionNo: p.versionNo,
+        ownerPersonId: p.ownerPersonId,
+      })),
       people: [...dir.people.values()]
         .filter((p) => p.active)
-        .map((p) => ({ personId: p.personId, personNumber: p.personNumber, fullName: p.fullName, positionId: p.positionId, managerId: p.managerId, jobName: p.jobName })),
+        .map((p) => ({
+          personId: p.personId,
+          personNumber: p.personNumber,
+          fullName: p.fullName,
+          positionId: p.positionId,
+          managerId: p.managerId,
+          jobName: p.jobName,
+        })),
       roles: ROLES,
     });
   });
 
   /* ------------------------------ catalog & sessions ------------------------------ */
   r.get('/sessions', async (req, res) => {
-    res.json(await sessions.listSessions(ctx(req), { from: q(req, 'from') || undefined, to: q(req, 'to') || undefined }));
+    res.json(
+      await sessions.listSessions(ctx(req), {
+        from: q(req, 'from') || undefined,
+        to: q(req, 'to') || undefined,
+      }),
+    );
   });
   r.get('/catalog', async (req, res) => {
     const c = ctx(req);
     const personId = Number(q(req, 'personId')) || req.personId!;
-    const list = (await sessions.listSessions(c, { from: q(req, 'from') || undefined })).filter((s) => s.status === 'SCHEDULED');
+    const list = (await sessions.listSessions(c, { from: q(req, 'from') || undefined })).filter(
+      (s) => s.status === 'SCHEDULED',
+    );
     const rules = await loadRules(c);
     const dir = await directory(c);
     const canCheck = dir.people.get(personId)?.positionId != null || personId === req.personId;
     const out = [];
-    for (const s of list) out.push({ ...s, eligibility: canCheck ? await eligibility(c, personId, s.id, { rules }) : null });
+    for (const s of list)
+      out.push({ ...s, eligibility: canCheck ? await eligibility(c, personId, s.id, { rules }) : null });
     res.json(out);
   });
   r.get('/sessions/:id', async (req, res) => {
@@ -294,7 +331,13 @@ export function apiRouter(svc: Services): Router {
     res.json(await jsm.jobMapping(ctx(req)));
   });
   r.put('/jobs', async (req, res) => {
-    const input = body(z.object({ jobName: z.string().trim().min(1).max(240), positionId: z.coerce.number().int().positive().nullable() }), req);
+    const input = body(
+      z.object({
+        jobName: z.string().trim().min(1).max(240),
+        positionId: z.coerce.number().int().positive().nullable(),
+      }),
+      req,
+    );
     await jsm.mapJob(ctx(req), input.jobName, input.positionId);
     res.json(await jsm.jobMapping(ctx(req)));
   });
@@ -356,10 +399,19 @@ export function apiRouter(svc: Services): Router {
     res.json(await training.updateExam(ctx(req), intParam(req, 'id'), body(examInput, req)));
   });
   r.post('/trainer/sessions/:id/exam/questions', async (req, res) => {
-    res.status(201).json(await training.saveQuestion(ctx(req), intParam(req, 'id'), body(questionInput, req)));
+    res
+      .status(201)
+      .json(await training.saveQuestion(ctx(req), intParam(req, 'id'), body(questionInput, req)));
   });
   r.put('/trainer/sessions/:id/exam/questions/:qid', async (req, res) => {
-    res.json(await training.saveQuestion(ctx(req), intParam(req, 'id'), body(questionInput, req), intParam(req, 'qid')));
+    res.json(
+      await training.saveQuestion(
+        ctx(req),
+        intParam(req, 'id'),
+        body(questionInput, req),
+        intParam(req, 'qid'),
+      ),
+    );
   });
   r.delete('/trainer/sessions/:id/exam/questions/:qid', async (req, res) => {
     res.json(await training.deleteQuestion(ctx(req), intParam(req, 'id'), intParam(req, 'qid')));
@@ -380,7 +432,9 @@ export function apiRouter(svc: Services): Router {
     res.json(await training.myAssessments(ctx(req)));
   });
   r.post('/assessments/:sessionId/submit', async (req, res) => {
-    res.json(await training.submitExam(ctx(req), intParam(req, 'sessionId'), body(examSubmitInput, req).answers));
+    res.json(
+      await training.submitExam(ctx(req), intParam(req, 'sessionId'), body(examSubmitInput, req).answers),
+    );
   });
 
   /* ------------------------------ setup ------------------------------ */
@@ -446,7 +500,11 @@ export function apiRouter(svc: Services): Router {
   r.get('/integration/status', async (req, res) => {
     await requireHr(req);
     const c = ctx(req);
-    const [runs, total, active] = await Promise.all([syncRuns(c), c.store.count('employees'), c.store.count('employees', { activeFlag: true })]);
+    const [runs, total, active] = await Promise.all([
+      syncRuns(c),
+      c.store.count('employees'),
+      c.store.count('employees', { activeFlag: true }),
+    ]);
     res.json({
       fusionMode: svc.config.fusion.mode,
       dataMode: svc.config.data.mode,

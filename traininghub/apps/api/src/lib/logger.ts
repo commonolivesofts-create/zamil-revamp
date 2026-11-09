@@ -18,7 +18,10 @@ export function createLogger(config: Pick<AppConfig, 'logLevel' | 'isProduction'
     level: config.env === 'test' ? 'silent' : config.logLevel,
     redact: { paths: REDACT_PATHS, censor: '[redacted]' },
     ...(pretty && {
-      transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:HH:MM:ss', ignore: 'pid,hostname' } },
+      transport: {
+        target: 'pino-pretty',
+        options: { colorize: true, translateTime: 'SYS:HH:MM:ss', ignore: 'pid,hostname' },
+      },
     }),
   });
 }

@@ -31,7 +31,9 @@ export function canEditPosition(dir: Directory, actor: number, pos: R<'positions
   return hasRole(dir, actor, 'HR_ADMIN') || pos.ownerPersonId === actor;
 }
 export function canEditAnyJsm(dir: Directory, actor: number): boolean {
-  return hasRole(dir, actor, 'HR_ADMIN') || [...dir.positions.values()].some((p) => p.ownerPersonId === actor);
+  return (
+    hasRole(dir, actor, 'HR_ADMIN') || [...dir.positions.values()].some((p) => p.ownerPersonId === actor)
+  );
 }
 
 async function loadPosition(ctx: Ctx, id: number) {
@@ -43,7 +45,8 @@ async function loadPosition(ctx: Ctx, id: number) {
 async function editable(ctx: Ctx, id: number) {
   const dir = await directory(ctx);
   const pos = await loadPosition(ctx, id);
-  if (!canEditPosition(dir, ctx.actor!, pos)) throw forbidden('Only HR or the position owner can change this profile');
+  if (!canEditPosition(dir, ctx.actor!, pos))
+    throw forbidden('Only HR or the position owner can change this profile');
   return { dir, pos };
 }
 
@@ -150,7 +153,13 @@ export async function getPosition(ctx: Ctx, id: number): Promise<PositionDetail>
   const skills = draft.map(toPositionSkill);
   const approvedSkills = approved.map(toPositionSkill);
   return {
-    ...toPosition(dir, p, jobs.map((j) => j.jobName), skills, approvedSkills),
+    ...toPosition(
+      dir,
+      p,
+      jobs.map((j) => j.jobName),
+      skills,
+      approvedSkills,
+    ),
     skills,
     approvedSkills,
     validation: await validateProfile(ctx, skills),
@@ -189,7 +198,8 @@ export async function createPosition(ctx: Ctx, input: PositionInput) {
       return p;
     });
   } catch (e) {
-    if (e instanceof UniqueViolation) throw validation('A position with this name already exists', { name: 'Already exists' });
+    if (e instanceof UniqueViolation)
+      throw validation('A position with this name already exists', { name: 'Already exists' });
     throw e;
   }
 }
@@ -276,9 +286,17 @@ export async function updateSkill(ctx: Ctx, positionId: number, input: PositionS
   const { pos } = await editable(ctx, positionId);
   const s = await skillName(ctx, input.skillId);
   await ctx.store.tx(async () => {
-    const n = await ctx.store.update('positionSkills', { positionId, skillId: input.skillId }, normalise(input));
+    const n = await ctx.store.update(
+      'positionSkills',
+      { positionId, skillId: input.skillId },
+      normalise(input),
+    );
     if (!n) throw notFound(`${s.name} in this profile`);
-    await touched(ctx, pos, `Changed ${s.name} to ${input.requirement}${input.targetLevel}${input.critical ? ' ★' : ''}`);
+    await touched(
+      ctx,
+      pos,
+      `Changed ${s.name} to ${input.requirement}${input.targetLevel}${input.critical ? ' ★' : ''}`,
+    );
   });
 }
 
@@ -311,13 +329,22 @@ export async function replaceSkill(
     await ctx.store.insert('positionSkills', {
       positionId,
       skillId: input.toSkillId,
-      ...normalise({ requirement, targetLevel: input.targetLevel ?? cur.targetLevel, critical: cur.criticalFlag }),
+      ...normalise({
+        requirement,
+        targetLevel: input.targetLevel ?? cur.targetLevel,
+        critical: cur.criticalFlag,
+      }),
     });
     await touched(ctx, pos, `Replaced ${from.name} with ${to.name}`);
   });
 }
 
-export async function copyProfile(ctx: Ctx, positionId: number, fromPositionId: number, mode: 'merge' | 'replace') {
+export async function copyProfile(
+  ctx: Ctx,
+  positionId: number,
+  fromPositionId: number,
+  mode: 'merge' | 'replace',
+) {
   const { pos } = await editable(ctx, positionId);
   if (positionId === fromPositionId) throw validation('Choose another position');
   const src = await loadPosition(ctx, fromPositionId);
@@ -337,7 +364,11 @@ export async function copyProfile(ctx: Ctx, positionId: number, fromPositionId: 
       });
       added++;
     }
-    await touched(ctx, pos, `${mode === 'replace' ? 'Replaced profile with' : 'Merged'} ${src.name} (${added} skills)`);
+    await touched(
+      ctx,
+      pos,
+      `${mode === 'replace' ? 'Replaced profile with' : 'Merged'} ${src.name} (${added} skills)`,
+    );
   });
   return { added };
 }
@@ -347,7 +378,8 @@ export async function submitPosition(ctx: Ctx, id: number) {
   const detail = await getPosition(ctx, id);
   if (detail.validation.length) throw validation('Fix the profile first', { errors: detail.validation });
   if (pos.statusCode === 'PENDING') throw invalid('Already waiting for HR approval');
-  if (pos.versionNo > 0 && !detail.draftChanged && pos.statusCode === 'APPROVED') throw invalid('No changes to submit');
+  if (pos.versionNo > 0 && !detail.draftChanged && pos.statusCode === 'APPROVED')
+    throw invalid('No changes to submit');
   const s = await settings(ctx);
   // Without HR approval, HR (or the setting) approves straight away.
   // (A system admin who is not in HR still goes through HR.)
@@ -357,11 +389,22 @@ export async function submitPosition(ctx: Ctx, id: number) {
     await ctx.store.update(
       'positions',
       { id },
-      { statusCode: 'PENDING', submittedAt: nowIso(ctx), submittedBy: ctx.actor, returnComment: null, updatedAt: nowIso(ctx) },
+      {
+        statusCode: 'PENDING',
+        submittedAt: nowIso(ctx),
+        submittedBy: ctx.actor,
+        returnComment: null,
+        updatedAt: nowIso(ctx),
+      },
     );
     await audit(ctx, 'Submitted profile for HR approval', 'POSITION', pos.name);
     for (const hr of dir.roleHolders.get('HR_ADMIN') ?? [])
-      await notify(ctx, hr, `${nameOf(dir, ctx.actor)} submitted the ${pos.name} skill profile`, `/jsm?position=${id}`);
+      await notify(
+        ctx,
+        hr,
+        `${nameOf(dir, ctx.actor)} submitted the ${pos.name} skill profile`,
+        `/jsm?position=${id}`,
+      );
   });
   invalidateDirectory(ctx);
   return { status: 'PENDING' as const };
@@ -392,7 +435,13 @@ async function approve(ctx: Ctx, pos: R<'positions'>, skills: PositionSkill[], c
       },
     );
     await audit(ctx, `Approved profile v${version}`, 'POSITION', pos.name);
-    if (pos.submittedBy) await notify(ctx, pos.submittedBy, `HR approved the ${pos.name} profile (v${version})`, `/jsm?position=${pos.id}`);
+    if (pos.submittedBy)
+      await notify(
+        ctx,
+        pos.submittedBy,
+        `HR approved the ${pos.name} profile (v${version})`,
+        `/jsm?position=${pos.id}`,
+      );
   });
   invalidateDirectory(ctx);
   return { status: 'APPROVED' as const, versionNo: version };
@@ -405,14 +454,24 @@ export async function decidePosition(ctx: Ctx, id: number, action: 'approve' | '
   if (pos.statusCode !== 'PENDING') throw invalid('This profile is not waiting for approval');
   if (action === 'approve') {
     const detail = await getPosition(ctx, id);
-    if (detail.validation.length) throw validation('The profile no longer passes validation', { errors: detail.validation });
+    if (detail.validation.length)
+      throw validation('The profile no longer passes validation', { errors: detail.validation });
     return approve(ctx, pos, detail.skills, comment);
   }
   if (comment.length < 5) throw validation('Say what needs to change', { comment: 'At least 5 characters' });
   await ctx.store.tx(async () => {
-    await ctx.store.update('positions', { id }, { statusCode: 'RETURNED', returnComment: comment, updatedAt: nowIso(ctx) });
+    await ctx.store.update(
+      'positions',
+      { id },
+      { statusCode: 'RETURNED', returnComment: comment, updatedAt: nowIso(ctx) },
+    );
     await audit(ctx, 'Returned profile', 'POSITION', pos.name, { comment });
-    await notify(ctx, pos.submittedBy, `HR returned the ${pos.name} profile: “${comment}”`, `/jsm?position=${id}`);
+    await notify(
+      ctx,
+      pos.submittedBy,
+      `HR returned the ${pos.name} profile: “${comment}”`,
+      `/jsm?position=${id}`,
+    );
   });
   invalidateDirectory(ctx);
   return { status: 'RETURNED' as const };
@@ -472,7 +531,11 @@ export async function jobMapping(ctx: Ctx) {
   return [...tally.values()]
     .map((t) => {
       const positionId = map.get(t.jobName.toLowerCase()) ?? null;
-      return { ...t, positionId, positionName: positionId ? (dir.positions.get(positionId)?.name ?? null) : null };
+      return {
+        ...t,
+        positionId,
+        positionName: positionId ? (dir.positions.get(positionId)?.name ?? null) : null,
+      };
     })
     .sort((a, b) => b.employees - a.employees);
 }
@@ -486,7 +549,12 @@ export async function mapJob(ctx: Ctx, jobName: string, positionId: number | nul
       await loadPosition(ctx, positionId);
       await ctx.store.insert('positionJobs', { positionId, jobName });
     }
-    await audit(ctx, positionId ? `Mapped job to ${dir.positions.get(positionId)?.name}` : 'Unmapped job', 'POSITION', jobName);
+    await audit(
+      ctx,
+      positionId ? `Mapped job to ${dir.positions.get(positionId)?.name}` : 'Unmapped job',
+      'POSITION',
+      jobName,
+    );
   });
   invalidateDirectory(ctx);
 }
@@ -499,7 +567,12 @@ export async function setEmployeePosition(ctx: Ctx, personId: number, positionId
     if (positionId == null) await ctx.store.remove('employeeExt', { personId });
     else {
       await loadPosition(ctx, positionId);
-      await ctx.store.upsert('employeeExt', ['personId'], { personId, positionId, updatedBy: ctx.actor, updatedAt: nowIso(ctx) });
+      await ctx.store.upsert('employeeExt', ['personId'], {
+        personId,
+        positionId,
+        updatedBy: ctx.actor,
+        updatedAt: nowIso(ctx),
+      });
     }
     await audit(
       ctx,

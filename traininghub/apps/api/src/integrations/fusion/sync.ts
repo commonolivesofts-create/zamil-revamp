@@ -8,7 +8,11 @@ export async function syncEmployees(ctx: Ctx, source: EmployeeSource, opts: { fo
   const startedAt = nowIso(ctx);
   const run = await ctx.store.insert('syncRuns', { kind: 'EMPLOYEES', statusCode: 'RUNNING', startedAt });
   const finish = async (statusCode: string, counts: Partial<SyncRun>, message: string) => {
-    await ctx.store.update('syncRuns', { id: run.id }, { statusCode, finishedAt: nowIso(ctx), message: message.slice(0, 4000), ...counts });
+    await ctx.store.update(
+      'syncRuns',
+      { id: run.id },
+      { statusCode, finishedAt: nowIso(ctx), message: message.slice(0, 4000), ...counts },
+    );
     return { id: run.id, statusCode, message, ...counts };
   };
   try {
@@ -19,7 +23,8 @@ export async function syncEmployees(ctx: Ctx, source: EmployeeSource, opts: { fo
     const activeBefore = existing.filter((e) => e.activeFlag).length;
     const toDeactivate = existing.filter((e) => e.activeFlag && !seen.has(e.personId));
     const dropShare = activeBefore ? toDeactivate.length / activeBefore : 0;
-    if (!rows.length && activeBefore) return finish('FAILED', { rowsRead: 0 }, `${report} returned no employees — nothing changed.`);
+    if (!rows.length && activeBefore)
+      return finish('FAILED', { rowsRead: 0 }, `${report} returned no employees — nothing changed.`);
     if (dropShare > ctx.config.fusion.maxDrop && !opts.force)
       return finish(
         'BLOCKED',
@@ -54,13 +59,21 @@ export async function syncEmployees(ctx: Ctx, source: EmployeeSource, opts: { fo
           inserted++;
           continue;
         }
-        const changed = (Object.keys(row) as (keyof typeof row)[]).some((k) => k !== 'syncedAt' && cur[k] !== row[k]);
+        const changed = (Object.keys(row) as (keyof typeof row)[]).some(
+          (k) => k !== 'syncedAt' && cur[k] !== row[k],
+        );
         await ctx.store.update('employees', { personId: r.personId }, changed ? row : { syncedAt: at });
         if (changed) updated++;
       }
-      for (const e of toDeactivate) await ctx.store.update('employees', { personId: e.personId }, { activeFlag: false, syncedAt: at });
+      for (const e of toDeactivate)
+        await ctx.store.update('employees', { personId: e.personId }, { activeFlag: false, syncedAt: at });
       await bootstrapAdmins(ctx);
-      await audit({ ...ctx }, `Employee sync: ${inserted} new, ${updated} changed, ${toDeactivate.length} deactivated`, 'SYNC', report);
+      await audit(
+        { ...ctx },
+        `Employee sync: ${inserted} new, ${updated} changed, ${toDeactivate.length} deactivated`,
+        'SYNC',
+        report,
+      );
     });
     invalidateDirectory(ctx);
     return finish(
@@ -81,7 +94,11 @@ export async function bootstrapAdmins(ctx: Ctx) {
     const e = await ctx.store.one('employees', { personNumber: num });
     if (!e) continue;
     for (const roleCode of ['SYS_ADMIN', 'HR_ADMIN'])
-      await ctx.store.upsert('userRoles', ['personId', 'roleCode'], { personId: e.personId, roleCode, grantedAt: nowIso(ctx) });
+      await ctx.store.upsert('userRoles', ['personId', 'roleCode'], {
+        personId: e.personId,
+        roleCode,
+        grantedAt: nowIso(ctx),
+      });
   }
   invalidateDirectory(ctx);
 }

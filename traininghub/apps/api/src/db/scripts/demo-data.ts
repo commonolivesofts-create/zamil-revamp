@@ -14,7 +14,8 @@ void main(async () => {
   } else if (await hasDemoData(store)) {
     console.log('Demo data is already there. Remove it first with: npm run db:demo-data -- --remove');
   } else {
-    for (const line of await addDemoData(store, { bootstrap: config.bootstrapAdmins })) console.log(`✔ ${line}`);
+    for (const line of await addDemoData(store, { bootstrap: config.bootstrapAdmins }))
+      console.log(`✔ ${line}`);
     console.log('Restart npm run dev (or wait a minute) to see it.');
   }
   await store.close();

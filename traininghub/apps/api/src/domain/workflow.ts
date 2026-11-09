@@ -1,7 +1,13 @@
 // Approval workflow configuration (Setup → Workflow) and chain resolution.
 // Default: Direct manager → HR Lead. HR can add, remove, reorder and condition steps; changes
 // apply to new requests, requests in flight keep the route they were given.
-import type { ApproverType, RoleCode, StepCondition, WorkflowStep, WorkflowStepInput } from '@traininghub/shared';
+import type {
+  ApproverType,
+  RoleCode,
+  StepCondition,
+  WorkflowStep,
+  WorkflowStepInput,
+} from '@traininghub/shared';
 import { ROLE_LABEL } from '@traininghub/shared';
 import type { R } from '../db/tables';
 import { audit, directory, hasRole, nameOf, nowIso, type Ctx, type Directory } from './ctx';
@@ -9,8 +15,24 @@ import { forbidden } from '../lib/errors';
 import { sar } from './sessions';
 
 export const DEFAULT_WORKFLOW: WorkflowStepInput[] = [
-  { label: 'Direct manager', approverType: 'DIRECT_MANAGER', roleCode: null, personId: null, conditionType: 'ALWAYS', conditionValue: null, enabled: true },
-  { label: 'HR Lead', approverType: 'ROLE', roleCode: 'HR_LEAD', personId: null, conditionType: 'ALWAYS', conditionValue: null, enabled: true },
+  {
+    label: 'Direct manager',
+    approverType: 'DIRECT_MANAGER',
+    roleCode: null,
+    personId: null,
+    conditionType: 'ALWAYS',
+    conditionValue: null,
+    enabled: true,
+  },
+  {
+    label: 'HR Lead',
+    approverType: 'ROLE',
+    roleCode: 'HR_LEAD',
+    personId: null,
+    conditionType: 'ALWAYS',
+    conditionValue: null,
+    enabled: true,
+  },
 ];
 
 export async function getWorkflow(ctx: Ctx): Promise<WorkflowStep[]> {
@@ -51,7 +73,16 @@ export async function saveWorkflow(ctx: Ctx, steps: WorkflowStepInput[]) {
         updatedBy: ctx.actor,
         updatedAt: at,
       });
-    await audit(ctx, 'Updated approval workflow', 'WORKFLOW', steps.filter((s) => s.enabled).map((s) => s.label).join(' → '), steps);
+    await audit(
+      ctx,
+      'Updated approval workflow',
+      'WORKFLOW',
+      steps
+        .filter((s) => s.enabled)
+        .map((s) => s.label)
+        .join(' → '),
+      steps,
+    );
   });
 }
 
@@ -61,8 +92,14 @@ export async function workflowWarnings(ctx: Ctx): Promise<string[]> {
   const out: string[] = [];
   for (const s of await getWorkflow(ctx)) {
     if (!s.enabled) continue;
-    if (s.approverType === 'ROLE' && s.roleCode && !(dir.roleHolders.get(s.roleCode) ?? []).some((id) => dir.people.get(id)?.active))
-      out.push(`Nobody holds the ${ROLE_LABEL[s.roleCode]} role — requests will wait at "${s.label}". Assign it in Setup → Roles.`);
+    if (
+      s.approverType === 'ROLE' &&
+      s.roleCode &&
+      !(dir.roleHolders.get(s.roleCode) ?? []).some((id) => dir.people.get(id)?.active)
+    )
+      out.push(
+        `Nobody holds the ${ROLE_LABEL[s.roleCode]} role — requests will wait at "${s.label}". Assign it in Setup → Roles.`,
+      );
     if (s.approverType === 'PERSON' && s.personId && !dir.people.get(s.personId)?.active)
       out.push(`${s.personName ?? 'The named approver'} for "${s.label}" is not an active employee.`);
   }
@@ -89,10 +126,15 @@ function applies(s: WorkflowStep, session: R<'sessions'>): boolean {
 }
 
 /** The route for a new request. Steps that cannot apply are kept as SKIPPED with a reason. */
-export async function buildChain(ctx: Ctx, dir: Directory, personId: number, session: R<'sessions'>): Promise<NewStep[]> {
+export async function buildChain(
+  ctx: Ctx,
+  dir: Directory,
+  personId: number,
+  session: R<'sessions'>,
+): Promise<NewStep[]> {
   const person = dir.people.get(personId)!;
   const mgr = person.managerId && dir.people.get(person.managerId)?.active ? person.managerId : null;
-  const mgr2 = mgr ? dir.people.get(mgr)?.managerId ?? null : null;
+  const mgr2 = mgr ? (dir.people.get(mgr)?.managerId ?? null) : null;
   const steps: NewStep[] = [];
   let lastPerson: number | null = null;
   for (const s of await getWorkflow(ctx)) {
@@ -118,8 +160,16 @@ export async function buildChain(ctx: Ctx, dir: Directory, personId: number, ses
       lastPerson = null;
       continue;
     }
-    const who = s.approverType === 'DIRECT_MANAGER' ? mgr : s.approverType === 'SECOND_MANAGER' ? mgr2 : s.personId;
-    const skip = (why: string) => steps.push({ ...base, statusCode: 'SKIPPED', comments: why, approverPersonId: who, originalPersonId: who });
+    const who =
+      s.approverType === 'DIRECT_MANAGER' ? mgr : s.approverType === 'SECOND_MANAGER' ? mgr2 : s.personId;
+    const skip = (why: string) =>
+      steps.push({
+        ...base,
+        statusCode: 'SKIPPED',
+        comments: why,
+        approverPersonId: who,
+        originalPersonId: who,
+      });
     if (!who) skip(s.approverType === 'PERSON' ? 'No approver set' : 'No manager in Fusion');
     else if (who === personId) skip('Requester cannot approve their own request');
     else if (!dir.people.get(who)?.active) skip('Approver is not active');

@@ -122,7 +122,8 @@ export const sessionInput = z
     if (v.endTime <= v.startTime) add('endTime', 'Must be after the start time');
     if (v.bandFrom > v.bandTo) add('bandTo', '"To" level cannot be below "from" level');
     if (v.externalSeats > v.capacity) add('externalSeats', 'Cannot exceed capacity');
-    if (v.sessionType === 'INTERNAL' && !v.trainerPersonId) add('trainerPersonId', 'Choose an internal trainer');
+    if (v.sessionType === 'INTERNAL' && !v.trainerPersonId)
+      add('trainerPersonId', 'Choose an internal trainer');
     if (v.sessionType === 'EXTERNAL' && v.provider.length < 2) add('provider', 'Enter the provider name');
     if (v.sessionType === 'EXTERNAL' && v.costSar <= 0) add('costSar', 'External sessions need a cost');
   });
@@ -138,7 +139,10 @@ export const questionInput = z
     choices: z.array(text(1, 300)).min(2).max(6),
     correctIndex: z.coerce.number().int().min(0),
   })
-  .refine((v) => v.correctIndex < v.choices.length, { path: ['correctIndex'], message: 'Pick a correct answer' })
+  .refine((v) => v.correctIndex < v.choices.length, {
+    path: ['correctIndex'],
+    message: 'Pick a correct answer',
+  })
   .refine((v) => new Set(v.choices.map((c) => c.toLowerCase())).size === v.choices.length, {
     path: ['choices'],
     message: 'Choices must be different',

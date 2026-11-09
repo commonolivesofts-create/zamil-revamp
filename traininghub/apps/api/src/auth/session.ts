@@ -31,10 +31,7 @@ export class SessionService {
   private now() {
     return Math.floor(this.clock().getTime() / 1000);
   }
-  async issue(
-    res: Response,
-    c: { personId: number; ph: string; abs?: number; provider?: 'zamil' },
-  ) {
+  async issue(res: Response, c: { personId: number; ph: string; abs?: number; provider?: 'zamil' }) {
     const now = this.now();
     const abs = c.abs ?? now + SESSION_ABSOLUTE_SECONDS;
     const exp = Math.min(now + SESSION_IDLE_SECONDS, abs);
@@ -44,14 +41,30 @@ export class SessionService {
       .setIssuedAt(now)
       .setExpirationTime(exp)
       .sign(this.key);
-    res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'strict', secure: this.secure, path: '/', maxAge: (abs - now) * 1000 });
+    res.cookie(SESSION_COOKIE, token, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: this.secure,
+      path: '/',
+      maxAge: (abs - now) * 1000,
+    });
   }
   async verify(token: string): Promise<SessionClaims | null> {
     try {
-      const { payload } = await jwtVerify(token, this.key, { algorithms: ['HS256'], currentDate: this.clock() });
+      const { payload } = await jwtVerify(token, this.key, {
+        algorithms: ['HS256'],
+        currentDate: this.clock(),
+      });
       const personId = Number(payload.sub);
       const { abs, ph, provider, iat, exp } = payload as Record<string, unknown>;
-      if (!Number.isSafeInteger(personId) || typeof abs !== 'number' || typeof ph !== 'string' || (provider !== undefined && provider !== 'zamil') || typeof iat !== 'number' || typeof exp !== 'number')
+      if (
+        !Number.isSafeInteger(personId) ||
+        typeof abs !== 'number' ||
+        typeof ph !== 'string' ||
+        (provider !== undefined && provider !== 'zamil') ||
+        typeof iat !== 'number' ||
+        typeof exp !== 'number'
+      )
         return null;
       if (this.now() >= abs) return null;
       return { personId, abs, ph, ...(provider === 'zamil' && { provider }), iat, exp };

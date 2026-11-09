@@ -12,6 +12,8 @@ export function addDays(isoDate: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 export const daysBetween = (from: string, to: string) =>
-  Math.round((Date.parse(`${to.slice(0, 10)}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) / 864e5);
+  Math.round(
+    (Date.parse(`${to.slice(0, 10)}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) / 864e5,
+  );
 export type Clock = () => Date;
 export const systemClock: Clock = () => new Date();

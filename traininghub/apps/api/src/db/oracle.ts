@@ -96,7 +96,8 @@ export class OracleStore implements Store {
       }
     } catch (err) {
       const e = err as { errorNum?: number; message?: string };
-      if (e.errorNum === 1) throw new UniqueViolation(sql.match(/(?:INTO|UPDATE|MERGE INTO)\s+(\w+)/)?.[1] ?? '?', []);
+      if (e.errorNum === 1)
+        throw new UniqueViolation(sql.match(/(?:INTO|UPDATE|MERGE INTO)\s+(\w+)/)?.[1] ?? '?', []);
       throw err;
     }
   }
@@ -121,7 +122,8 @@ export class OracleStore implements Store {
           });
           // Oracle allows at most 1000 items per IN list.
           const chunks: string[] = [];
-          for (let s = 0; s < names.length; s += 900) chunks.push(`${c} IN (${names.slice(s, s + 900).join(', ')})`);
+          for (let s = 0; s < names.length; s += 900)
+            chunks.push(`${c} IN (${names.slice(s, s + 900).join(', ')})`);
           parts.push(`(${chunks.join(' OR ')})`);
         }
       } else {
@@ -135,7 +137,8 @@ export class OracleStore implements Store {
 
   private mapRow<K extends TableKey>(table: K, r: Row): R<K> {
     const out: Row = {};
-    for (const [col, spec] of Object.entries(T[table].cols as Record<string, Col>)) out[col] = fromDb(spec, r[toSnake(col)]);
+    for (const [col, spec] of Object.entries(T[table].cols as Record<string, Col>))
+      out[col] = fromDb(spec, r[toSnake(col)]);
     return out as R<K>;
   }
 
@@ -234,7 +237,8 @@ export class OracleStore implements Store {
     const upd = present.filter((c) => !keySet.has(c) && c !== def.pk);
     const ins = present.filter((c) => !(def.identity && c === def.pk));
     let sql = `MERGE INTO ${this.tableName(table)} t USING dual ON (${on})`;
-    if (upd.length) sql += ` WHEN MATCHED THEN UPDATE SET ${upd.map((c) => `t.${toSnake(c)} = ${bindExpr(specs[c]!, c)}`).join(', ')}`;
+    if (upd.length)
+      sql += ` WHEN MATCHED THEN UPDATE SET ${upd.map((c) => `t.${toSnake(c)} = ${bindExpr(specs[c]!, c)}`).join(', ')}`;
     sql += ` WHEN NOT MATCHED THEN INSERT (${ins.map(toSnake).join(', ')}) VALUES (${ins.map((c) => bindExpr(specs[c]!, c)).join(', ')})`;
     await this.exec(sql, binds);
   }

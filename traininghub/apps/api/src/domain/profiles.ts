@@ -2,17 +2,7 @@
 import type { PersonSkills, PositionSkill, Requirement, SkillLevelRow } from '@traininghub/shared';
 import type { R } from '../db/tables';
 import { forbidden, notFound } from '../lib/errors';
-import {
-  audit,
-  directory,
-  hasRole,
-  nameOf,
-  notify,
-  nowIso,
-  teamOf,
-  type Ctx,
-  type Directory,
-} from './ctx';
+import { audit, directory, hasRole, nameOf, notify, nowIso, teamOf, type Ctx, type Directory } from './ctx';
 
 export const toPositionSkill = (r: R<'positionSkills'> | R<'positionSkillsApproved'>): PositionSkill => ({
   skillId: r.skillId,
@@ -22,10 +12,16 @@ export const toPositionSkill = (r: R<'positionSkills'> | R<'positionSkillsApprov
 });
 
 /** The approved profile while one exists; the draft for a position that was never approved. */
-export async function effectiveProfile(ctx: Ctx, position: R<'positions'>): Promise<Map<number, PositionSkill>> {
+export async function effectiveProfile(
+  ctx: Ctx,
+  position: R<'positions'>,
+): Promise<Map<number, PositionSkill>> {
   const rows =
     position.versionNo > 0
-      ? await ctx.store.find('positionSkillsApproved', { positionId: position.id, versionNo: position.versionNo })
+      ? await ctx.store.find('positionSkillsApproved', {
+          positionId: position.id,
+          versionNo: position.versionNo,
+        })
       : await ctx.store.find('positionSkills', { positionId: position.id });
   return new Map(rows.map((r) => [r.skillId, toPositionSkill(r)]));
 }
@@ -35,7 +31,10 @@ export async function levelsOf(ctx: Ctx, personId: number): Promise<Map<number, 
   return new Map(rows.map((r) => [r.skillId, r]));
 }
 
-export function readiness(profile: Map<number, PositionSkill>, levels: Map<number, { skillLevel: number }>): number {
+export function readiness(
+  profile: Map<number, PositionSkill>,
+  levels: Map<number, { skillLevel: number }>,
+): number {
   let need = 0;
   let have = 0;
   for (const p of profile.values()) {
@@ -145,9 +144,15 @@ export async function setLevel(
   return { from, to: level };
 }
 
-export async function saveAssessment(ctx: Ctx, personId: number, levels: Record<string, number>, note: string) {
+export async function saveAssessment(
+  ctx: Ctx,
+  personId: number,
+  levels: Record<string, number>,
+  note: string,
+) {
   const dir = await directory(ctx);
-  if (!canAssess(dir, ctx.actor!, personId)) throw forbidden('Only managers (two levels up) and HR can assess');
+  if (!canAssess(dir, ctx.actor!, personId))
+    throw forbidden('Only managers (two levels up) and HR can assess');
   const skills = new Set((await ctx.store.find('skills')).map((s) => s.id));
   let changed = 0;
   await ctx.store.tx(async () => {
@@ -158,7 +163,12 @@ export async function saveAssessment(ctx: Ctx, personId: number, levels: Record<
     }
     if (changed) {
       await audit(ctx, `Assessed ${changed} skill(s)`, 'EMPLOYEE', nameOf(dir, personId) ?? String(personId));
-      await notify(ctx, personId, `${nameOf(dir, ctx.actor)} updated ${changed} of your skill levels`, '/skills');
+      await notify(
+        ctx,
+        personId,
+        `${nameOf(dir, ctx.actor)} updated ${changed} of your skill levels`,
+        '/skills',
+      );
     }
   });
   return { changed };

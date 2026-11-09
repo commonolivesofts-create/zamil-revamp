@@ -20,15 +20,28 @@ async function as(personId: number) {
   expect(r.status).toBe(200);
   return {
     get: (url: string) => agent.get(`/api/v1${url}`),
-    post: (url: string, body: unknown = {}) => agent.post(`/api/v1${url}`).set(H).send(body as object),
-    put: (url: string, body: unknown = {}) => agent.put(`/api/v1${url}`).set(H).send(body as object),
+    post: (url: string, body: unknown = {}) =>
+      agent
+        .post(`/api/v1${url}`)
+        .set(H)
+        .send(body as object),
+    put: (url: string, body: unknown = {}) =>
+      agent
+        .put(`/api/v1${url}`)
+        .set(H)
+        .send(body as object),
     del: (url: string) => agent.delete(`/api/v1${url}`).set(H),
   };
 }
 
 beforeEach(async () => {
   clock = NOW;
-  const config = loadConfig({ NODE_ENV: 'test', SESSION_SECRET: 'x'.repeat(40), BCRYPT_COST: '4', INITIAL_PASSWORD: 'Welcome-2026' });
+  const config = loadConfig({
+    NODE_ENV: 'test',
+    SESSION_SECRET: 'x'.repeat(40),
+    BCRYPT_COST: '4',
+    INITIAL_PASSWORD: 'Welcome-2026',
+  });
   const store = new MemoryStore(null);
   svc = createServices(config, createLogger(config), { store, clock: () => clock });
   await seedDemo(store, NOW);
@@ -46,12 +59,21 @@ describe('auth', () => {
   });
   it('signs in with the initial password and forces a change', async () => {
     const agent = request.agent(app);
-    const bad = await agent.post('/api/v1/auth/login').set(H).send({ personNumber: '2333', password: 'nope' });
+    const bad = await agent
+      .post('/api/v1/auth/login')
+      .set(H)
+      .send({ personNumber: '2333', password: 'nope' });
     expect(bad.status).toBe(401);
-    const ok = await agent.post('/api/v1/auth/login').set(H).send({ personNumber: '2333', password: 'Welcome-2026' });
+    const ok = await agent
+      .post('/api/v1/auth/login')
+      .set(H)
+      .send({ personNumber: '2333', password: 'Welcome-2026' });
     expect(ok.body.mustChangePassword).toBe(true);
     expect((await agent.get('/api/v1/requests')).status).toBe(403);
-    const ch = await agent.post('/api/v1/auth/change-password').set(H).send({ currentPassword: 'Welcome-2026', newPassword: 'Better-pass-2026' });
+    const ch = await agent
+      .post('/api/v1/auth/change-password')
+      .set(H)
+      .send({ currentPassword: 'Welcome-2026', newPassword: 'Better-pass-2026' });
     expect(ch.status).toBe(200);
     expect((await agent.get('/api/v1/requests')).status).toBe(200);
   });
@@ -64,21 +86,40 @@ describe('job skills matrix — add / update / replace / remove (correction 1)',
     const before = (await zaid.get(`/positions/${pid}`)).body;
     expect(before.status).toBe('APPROVED');
     const ai = await skillId('AI and machine learning');
-    const add = await zaid.post(`/positions/${pid}/skills`, { skillId: ai, requirement: 'O', targetLevel: 2, critical: false });
+    const add = await zaid.post(`/positions/${pid}/skills`, {
+      skillId: ai,
+      requirement: 'O',
+      targetLevel: 2,
+      critical: false,
+    });
     expect(add.status).toBe(201);
     expect(add.body.status).toBe('DRAFT');
     expect(add.body.draftChanged).toBe(true);
     expect(add.body.skills.some((s: { skillId: number }) => s.skillId === ai)).toBe(true);
     expect(add.body.approvedSkills.some((s: { skillId: number }) => s.skillId === ai)).toBe(false);
 
-    const dup = await zaid.post(`/positions/${pid}/skills`, { skillId: ai, requirement: 'R', targetLevel: 2 });
+    const dup = await zaid.post(`/positions/${pid}/skills`, {
+      skillId: ai,
+      requirement: 'R',
+      targetLevel: 2,
+    });
     expect(dup.status).toBe(409);
 
-    const upd = await zaid.put(`/positions/${pid}/skills/${ai}`, { requirement: 'R', targetLevel: 3, critical: true });
-    expect(upd.body.skills.find((s: { skillId: number }) => s.skillId === ai)).toMatchObject({ requirement: 'R', targetLevel: 3, critical: true });
+    const upd = await zaid.put(`/positions/${pid}/skills/${ai}`, {
+      requirement: 'R',
+      targetLevel: 3,
+      critical: true,
+    });
+    expect(upd.body.skills.find((s: { skillId: number }) => s.skillId === ai)).toMatchObject({
+      requirement: 'R',
+      targetLevel: 3,
+      critical: true,
+    });
 
     const rpa = await skillId('Automation / RPA');
-    const already = (await zaid.get(`/positions/${pid}`)).body.skills.some((s: { skillId: number }) => s.skillId === rpa);
+    const already = (await zaid.get(`/positions/${pid}`)).body.skills.some(
+      (s: { skillId: number }) => s.skillId === rpa,
+    );
     const target = already ? await skillId('Low-code (Oracle APEX)') : rpa;
     const rep = await zaid.post(`/positions/${pid}/skills/replace`, { fromSkillId: ai, toSkillId: target });
     expect(rep.status).toBe(200);
@@ -91,7 +132,10 @@ describe('job skills matrix — add / update / replace / remove (correction 1)',
 
     // Not the owner, not HR → forbidden.
     const ahmed = await as(2333);
-    expect((await ahmed.post(`/positions/${pid}/skills`, { skillId: ai, requirement: 'O', targetLevel: 1 })).status).toBe(403);
+    expect(
+      (await ahmed.post(`/positions/${pid}/skills`, { skillId: ai, requirement: 'O', targetLevel: 1 }))
+        .status,
+    ).toBe(403);
   });
 
   it('validates on submit and HR approval creates the next version', async () => {
@@ -133,10 +177,14 @@ describe('eligibility is configurable (correction 2)', () => {
 
     await noura.put('/setup/rules/YEARLY_LIMIT', { enabled: true, severity: 'BLOCK', paramValue: 1 });
     const e3 = (await ahmed.get(`/sessions/${sid}/eligibility`)).body;
-    expect(e3.errors.find((e: { code: string }) => e.code === 'YEARLY_LIMIT')?.message).toMatch(/limit reached/);
+    expect(e3.errors.find((e: { code: string }) => e.code === 'YEARLY_LIMIT')?.message).toMatch(
+      /limit reached/,
+    );
 
     // Employees cannot change rules.
-    expect((await ahmed.put('/setup/rules/YEARLY_LIMIT', { enabled: false, severity: 'BLOCK' })).status).toBe(403);
+    expect((await ahmed.put('/setup/rules/YEARLY_LIMIT', { enabled: false, severity: 'BLOCK' })).status).toBe(
+      403,
+    );
   });
 });
 
@@ -153,10 +201,17 @@ describe('workflow: Direct manager → HR Lead, editable (correction 3)', () => 
     await (await as(1190)).put('/setup/rules/LEVEL_BAND', { enabled: false, severity: 'BLOCK' });
     const sub = await karthik.post('/requests', { personId: 2381, sessionId: sid, reason: 'Short' });
     expect(sub.status).toBe(400);
-    const ok = await karthik.post('/requests', { personId: 2381, sessionId: sid, reason: 'Dashboards for DB capacity planning.' });
+    const ok = await karthik.post('/requests', {
+      personId: 2381,
+      sessionId: sid,
+      reason: 'Dashboards for DB capacity planning.',
+    });
     expect(ok.status).toBe(201);
     const req = ok.body;
-    expect(req.steps.map((s: { label: string; status: string }) => `${s.label}:${s.status}`)).toEqual(['Direct manager:PENDING', 'HR Lead:WAITING']);
+    expect(req.steps.map((s: { label: string; status: string }) => `${s.label}:${s.status}`)).toEqual([
+      'Direct manager:PENDING',
+      'HR Lead:WAITING',
+    ]);
     expect(req.steps[0].approverName).toBe('Zaid Sayyed');
 
     const reem = await as(2514);
@@ -176,7 +231,13 @@ describe('workflow: Direct manager → HR Lead, editable (correction 3)', () => 
     const save = await noura.put('/setup/workflow', {
       steps: [
         { label: 'Direct manager', approverType: 'DIRECT_MANAGER' },
-        { label: 'Finance', approverType: 'ROLE', roleCode: 'FINANCE', conditionType: 'COST_ABOVE', conditionValue: 5000 },
+        {
+          label: 'Finance',
+          approverType: 'ROLE',
+          roleCode: 'FINANCE',
+          conditionType: 'COST_ABOVE',
+          conditionValue: 5000,
+        },
         { label: 'HR Lead', approverType: 'ROLE', roleCode: 'HR_LEAD' },
       ],
     });
@@ -187,21 +248,40 @@ describe('workflow: Direct manager → HR Lead, editable (correction 3)', () => 
     await noura.put('/setup/rules/EXTERNAL_OUTSIDE_PROFILE', { enabled: false, severity: 'WARN' });
     await noura.put('/setup/rules/LEVEL_BAND', { enabled: false, severity: 'BLOCK' });
     await noura.put('/setup/rules/BELOW_TARGET', { enabled: false, severity: 'BLOCK' });
-    const r = await priya.post('/requests', { personId: 2418, sessionId: sid, reason: 'Interfaces between Fusion and the WMS need an owner in the functional team.' });
+    const r = await priya.post('/requests', {
+      personId: 2418,
+      sessionId: sid,
+      reason: 'Interfaces between Fusion and the WMS need an owner in the functional team.',
+    });
     expect(r.status).toBe(201);
-    expect(r.body.steps.map((s: { label: string }) => s.label)).toEqual(['Direct manager', 'Finance', 'HR Lead']);
+    expect(r.body.steps.map((s: { label: string }) => s.label)).toEqual([
+      'Direct manager',
+      'Finance',
+      'HR Lead',
+    ]);
   });
 
   it('honours delegation and lets the requester withdraw', async () => {
     const zaid = await as(2172);
-    await zaid.post('/delegations', { toPersonId: 2201, startDate: '2026-11-06', endDate: '2026-11-10', reason: 'Leave' });
+    await zaid.post('/delegations', {
+      toPersonId: 2201,
+      startDate: '2026-11-06',
+      endDate: '2026-11-10',
+      reason: 'Leave',
+    });
     const noura = await as(1190);
     await noura.put('/setup/rules/SKILL_IN_PROFILE', { enabled: false, severity: 'BLOCK' });
     await noura.put('/setup/rules/LEVEL_BAND', { enabled: false, severity: 'BLOCK' });
     await noura.put('/setup/rules/BELOW_TARGET', { enabled: false, severity: 'BLOCK' });
     const yusuf = await as(2501);
     const sid = await sessionId('Cybersecurity Essentials for IT');
-    const r = (await yusuf.post('/requests', { personId: 2501, sessionId: sid, reason: 'Secure coding for our internal apps.' })).body;
+    const r = (
+      await yusuf.post('/requests', {
+        personId: 2501,
+        sessionId: sid,
+        reason: 'Secure coding for our internal apps.',
+      })
+    ).body;
     expect(r.steps[0]).toMatchObject({ approverName: 'Rashid Al-Dossary', delegatedFromName: 'Zaid Sayyed' });
     const w = await yusuf.post(`/requests/${r.id}/withdraw`, {});
     expect(w.body.status).toBe('WITHDRAWN');
@@ -215,12 +295,16 @@ describe('trainer flow', () => {
     const roster = (await imran.get(`/trainer/sessions/${sid}/roster`)).body;
     expect(roster.rows).toHaveLength(4);
     expect((await imran.post(`/trainer/sessions/${sid}/lock`)).status).toBe(409);
-    const marks = Object.fromEntries(roster.rows.map((r: { personId: number }) => [r.personId, r.personId === 2418 ? 'ABSENT' : 'PRESENT']));
+    const marks = Object.fromEntries(
+      roster.rows.map((r: { personId: number }) => [r.personId, r.personId === 2418 ? 'ABSENT' : 'PRESENT']),
+    );
     await imran.put(`/trainer/sessions/${sid}/attendance`, { marks });
     expect((await imran.post(`/trainer/sessions/${sid}/lock`)).body).toEqual({ attended: 3, total: 4 });
 
     const ahmed = await as(2333);
-    const mine = (await ahmed.get('/assessments')).body.find((a: { session: { id: number } }) => a.session.id === sid);
+    const mine = (await ahmed.get('/assessments')).body.find(
+      (a: { session: { id: number } }) => a.session.id === sid,
+    );
     expect(mine.state).toBe('open');
     expect(mine.questions[0].correctIndex).toBeUndefined();
     const sub = await ahmed.post(`/assessments/${sid}/submit`, { answers: [1, 1, 1, 0, 0] });

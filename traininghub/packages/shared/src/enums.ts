@@ -55,7 +55,13 @@ export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
 /** Requests that still hold (or wait for) a place. */
 export const ACTIVE_STATUSES: RequestStatus[] = ['PENDING', 'APPROVED', 'WAITLISTED'];
 /** Requests that occupy a seat. */
-export const SEATED_STATUSES: RequestStatus[] = ['APPROVED', 'ATTENDED', 'COMPLETED', 'NOT_PASSED', 'NO_SHOW'];
+export const SEATED_STATUSES: RequestStatus[] = [
+  'APPROVED',
+  'ATTENDED',
+  'COMPLETED',
+  'NOT_PASSED',
+  'NO_SHOW',
+];
 
 export const STEP_STATUS = ['WAITING', 'PENDING', 'APPROVED', 'REJECTED', 'SKIPPED', 'CANCELLED'] as const;
 export type StepStatus = (typeof STEP_STATUS)[number];
@@ -117,7 +123,11 @@ export type EligibilityRuleCode = keyof typeof ELIGIBILITY_RULES;
 export const SETTINGS = {
   LEVEL_RAISE_ON_PASS: { label: 'Levels gained on passing', type: 'int', def: '1' },
   LEVEL_CAP_AT_TARGET: { label: 'Do not raise above the target level', type: 'flag', def: 'N' },
-  NO_EXAM_RAISES_LEVEL: { label: 'Attendance raises the level when a session has no exam', type: 'flag', def: 'N' },
+  NO_EXAM_RAISES_LEVEL: {
+    label: 'Attendance raises the level when a session has no exam',
+    type: 'flag',
+    def: 'N',
+  },
   WAITLIST_AUTO_PROMOTE: { label: 'Promote the waitlist when a seat frees up', type: 'flag', def: 'Y' },
   PASS_THEORY_DEFAULT: { label: 'Default theory pass mark (%)', type: 'int', def: '70' },
   PASS_PRACTICAL_DEFAULT: { label: 'Default practical pass mark (0–10)', type: 'int', def: '6' },
@@ -125,7 +135,11 @@ export const SETTINGS = {
   REMIND_AFTER_DAYS: { label: 'Remind approver after (days)', type: 'int', def: '2' },
   ANNUAL_BUDGET_SAR: { label: 'Annual training budget (SAR)', type: 'int', def: '300000' },
   JSM_MIN_REQUIRED: { label: 'Profile: minimum required skills', type: 'int', def: '5' },
-  JSM_REQUIRE_BEHAVIOURAL: { label: 'Profile: at least one behavioural skill required', type: 'flag', def: 'Y' },
+  JSM_REQUIRE_BEHAVIOURAL: {
+    label: 'Profile: at least one behavioural skill required',
+    type: 'flag',
+    def: 'Y',
+  },
   JSM_MANDATORY_SKILLS: { label: 'Profile: skill codes every position must require', type: 'text', def: '' },
   JSM_HR_APPROVAL: { label: 'Profile changes need HR approval', type: 'flag', def: 'Y' },
 } as const;

@@ -17,11 +17,16 @@ export function createApp(svc: Services) {
   app.use(pinoHttp({ logger: svc.log, autoLogging: { ignore: (req) => req.url === '/api/v1/health' } }));
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
-  app.use('/api/v1', requireAppHeader, (req, _res, next) => {
-    req.ctx = svc.ctx(null);
-    req.ctx.log = req.log;
-    next();
-  }, apiRouter(svc));
+  app.use(
+    '/api/v1',
+    requireAppHeader,
+    (req, _res, next) => {
+      req.ctx = svc.ctx(null);
+      req.ctx.log = req.log;
+      next();
+    },
+    apiRouter(svc),
+  );
   app.use('/api', notFoundRoute);
   // In production the API also serves the built web app.
   const dist = fromRepoRoot('apps/web/dist');

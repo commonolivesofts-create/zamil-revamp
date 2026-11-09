@@ -29,8 +29,7 @@ if (!FOLDER.startsWith('/Custom/')) {
   process.exit(1);
 }
 
-const esc = (s) =>
-  String(s).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]);
+const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]);
 const faultOf = (b) => /<faultstring>([\s\S]*?)<\/faultstring>/.exec(b)?.[1]?.slice(0, 400);
 
 async function catalog(op, inner) {
@@ -168,10 +167,7 @@ const all = readdirSync(dir)
 const wanted = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const reports = wanted.length ? wanted : all;
 
-const folder = await catalog(
-  'createFolder',
-  `<v2:folderAbsolutePath>${esc(FOLDER)}</v2:folderAbsolutePath>`,
-);
+const folder = await catalog('createFolder', `<v2:folderAbsolutePath>${esc(FOLDER)}</v2:folderAbsolutePath>`);
 say(
   `[bip-deploy] folder ${FOLDER}: ${folder.status === 200 ? 'created' : /Duplicate/.test(folder.body) ? 'exists' : faultOf(folder.body)}`,
 );
@@ -203,9 +199,5 @@ for (const name of reports) {
   say(`[bip-deploy] ${name}: ${columns.length} columns, params ${params.join(', ') || 'none'}`);
   say(`             data model ${dm} · report ${rep}`);
 }
-say(
-  failed
-    ? `[bip-deploy] ${failed} failed`
-    : '[bip-deploy] done — now run: npm run fusion:sync',
-);
+say(failed ? `[bip-deploy] ${failed} failed` : '[bip-deploy] done — now run: npm run fusion:sync');
 process.exitCode = failed ? 1 : 0;

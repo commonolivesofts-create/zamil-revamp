@@ -31,7 +31,10 @@ export async function login(svc: Services, ctx: Ctx, personNumber: string, passw
   const user = await ctx.store.one('users', { personId: person.personId });
   const now = ctx.clock();
   if (user?.lockedUntil && new Date(user.lockedUntil) > now)
-    throw new AppError('RATE_LIMITED', `Too many attempts — try again after ${new Date(user.lockedUntil).toLocaleTimeString('en-GB', { timeZone: 'Asia/Riyadh', hour: '2-digit', minute: '2-digit' })}`);
+    throw new AppError(
+      'RATE_LIMITED',
+      `Too many attempts — try again after ${new Date(user.lockedUntil).toLocaleTimeString('en-GB', { timeZone: 'Asia/Riyadh', hour: '2-digit', minute: '2-digit' })}`,
+    );
   let ok = false;
   let hash = user?.passwordHash ?? null;
   if (hash) ok = await verifyPassword(password, hash);
@@ -42,31 +45,65 @@ export async function login(svc: Services, ctx: Ctx, personNumber: string, passw
     if (initial && password === initial) {
       ok = true;
       hash = await hashPassword(password, cost);
-      await ctx.store.upsert('users', ['personId'], { personId: person.personId, passwordHash: hash, mustChangeFlag: true, failedCount: 0, createdAt: nowIso(ctx) });
+      await ctx.store.upsert('users', ['personId'], {
+        personId: person.personId,
+        passwordHash: hash,
+        mustChangeFlag: true,
+        failedCount: 0,
+        createdAt: nowIso(ctx),
+      });
     }
   }
   if (!ok) {
     if (user) {
       const failed = user.failedCount + 1;
-      await ctx.store.update('users', { personId: person.personId }, {
-        failedCount: failed >= LOCK_AFTER ? 0 : failed,
-        lockedUntil: failed >= LOCK_AFTER ? new Date(now.getTime() + LOCK_MINUTES * 60_000).toISOString() : null,
-      });
+      await ctx.store.update(
+        'users',
+        { personId: person.personId },
+        {
+          failedCount: failed >= LOCK_AFTER ? 0 : failed,
+          lockedUntil:
+            failed >= LOCK_AFTER ? new Date(now.getTime() + LOCK_MINUTES * 60_000).toISOString() : null,
+        },
+      );
     }
     throw BAD_LOGIN();
   }
-  await ctx.store.update('users', { personId: person.personId }, { failedCount: 0, lockedUntil: null, lastLoginAt: nowIso(ctx) });
+  await ctx.store.update(
+    'users',
+    { personId: person.personId },
+    { failedCount: 0, lockedUntil: null, lastLoginAt: nowIso(ctx) },
+  );
   const fresh = await ctx.store.one('users', { personId: person.personId });
-  return { personId: person.personId, ph: passwordFingerprint(hash), mustChange: fresh?.mustChangeFlag ?? false };
+  return {
+    personId: person.personId,
+    ph: passwordFingerprint(hash),
+    mustChange: fresh?.mustChangeFlag ?? false,
+  };
 }
 
-export async function changePassword(svc: Services, ctx: Ctx, personId: number, current: string, next: string) {
+export async function changePassword(
+  svc: Services,
+  ctx: Ctx,
+  personId: number,
+  current: string,
+  next: string,
+) {
   const user = await ctx.store.one('users', { personId });
   if (!user?.passwordHash || !(await verifyPassword(current, user.passwordHash)))
-    throw new AppError('VALIDATION', 'Current password is wrong', { fields: { currentPassword: 'Wrong password' } });
-  if (current === next) throw new AppError('VALIDATION', 'Choose a new password', { fields: { newPassword: 'Same as the current one' } });
+    throw new AppError('VALIDATION', 'Current password is wrong', {
+      fields: { currentPassword: 'Wrong password' },
+    });
+  if (current === next)
+    throw new AppError('VALIDATION', 'Choose a new password', {
+      fields: { newPassword: 'Same as the current one' },
+    });
   const hash = await hashPassword(next, svc.config.auth.bcryptCost);
-  await ctx.store.update('users', { personId }, { passwordHash: hash, mustChangeFlag: false, passwordChangedAt: nowIso(ctx) });
+  await ctx.store.update(
+    'users',
+    { personId },
+    { passwordHash: hash, mustChangeFlag: false, passwordChangedAt: nowIso(ctx) },
+  );
   return passwordFingerprint(hash);
 }
 
@@ -97,7 +134,10 @@ export function sessionMiddleware(svc: Services): RequestHandler {
         return next(new AppError('UNAUTHENTICATED', 'Please sign in'));
       }
     }
-    if (!zamilSso && (quick ? !svc.config.auth.quickLogin : passwordFingerprint(user?.passwordHash ?? null) !== claims.ph))
+    if (
+      !zamilSso &&
+      (quick ? !svc.config.auth.quickLogin : passwordFingerprint(user?.passwordHash ?? null) !== claims.ph)
+    )
       return next(new AppError('UNAUTHENTICATED', 'Your session has ended — please sign in again'));
     req.personId = claims.personId;
     req.quick = quick;
@@ -111,7 +151,8 @@ export function sessionMiddleware(svc: Services): RequestHandler {
         provider: claims.provider,
       });
     const allowed = req.path === '/me' || req.path.startsWith('/auth/');
-    if (req.mustChangePassword && !allowed) return next(new AppError('FORBIDDEN', 'Change your password first'));
+    if (req.mustChangePassword && !allowed)
+      return next(new AppError('FORBIDDEN', 'Change your password first'));
     next();
   };
 }

@@ -59,7 +59,9 @@ export class LiveEmployeeSource implements EmployeeSource {
 
   async fetchEmployees(asOf: string) {
     const conn = { baseUrl: this.f.baseUrl!, user: this.f.user!, password: this.f.password! };
-    const reports = [this.f.employeeReport, this.f.employeeReportFallback].filter((x, i, a) => x && a.indexOf(x) === i);
+    const reports = [this.f.employeeReport, this.f.employeeReportFallback].filter(
+      (x, i, a) => x && a.indexOf(x) === i,
+    );
     let last: Error | undefined;
     for (const report of reports) {
       try {
@@ -97,7 +99,9 @@ export class SqlEmployeeSource implements EmployeeSource {
   async fetchEmployees() {
     const res = await this.store.exec<Record<string, unknown>>(this.sql.trim().replace(/;\s*$/, ''));
     const mapped = (res.rows ?? []).map((r) =>
-      mapEmployeeRow(Object.fromEntries(Object.entries(r).map(([k, v]) => [k.toUpperCase(), v == null ? '' : String(v)]))),
+      mapEmployeeRow(
+        Object.fromEntries(Object.entries(r).map(([k, v]) => [k.toUpperCase(), v == null ? '' : String(v)])),
+      ),
     );
     const rows = mapped.filter((x): x is FusionEmployee => !!x);
     return { rows, report: 'EMPLOYEE_SQL', skipped: mapped.length - rows.length };

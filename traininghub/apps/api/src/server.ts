@@ -29,7 +29,9 @@ prepare()
   .finally(() => {
     const app = createApp(svc);
     const server = app.listen(config.api.port, config.api.host, () =>
-      log.info(`TrainingHub API on ${config.api.host}:${config.api.port} — data ${config.data.mode}, Fusion ${config.fusion.mode}`),
+      log.info(
+        `TrainingHub API on ${config.api.host}:${config.api.port} — data ${config.data.mode}, Fusion ${config.fusion.mode}`,
+      ),
     );
     const stopJobs = config.jobsEnabled ? startJobs(svc) : () => undefined;
     const shutdown = () => {

@@ -9,12 +9,36 @@ export default function Audit() {
   const list = useGet<AuditRow[]>(['audit', q], `/audit?q=${encodeURIComponent(q)}`);
   return (
     <>
-      <PageHeader eyebrow="Administration" title="Audit log" sub="Every decision and configuration change, newest first (last 500)." actions={<Input className="w-64" placeholder="Search who, what, reference…" value={q} onChange={(e) => setQ(e.target.value)} />} />
+      <PageHeader
+        eyebrow="Administration"
+        title="Audit log"
+        sub="Every decision and configuration change, newest first (last 500)."
+        actions={
+          <Input
+            className="w-64"
+            placeholder="Search who, what, reference…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        }
+      />
       <Card>
-        {!list.data ? <Spinner /> : (
+        {!list.data ? (
+          <Spinner />
+        ) : (
           <Table head={['When', 'Who', 'Action', 'Area', 'Reference']}>
             {list.data.map((a) => (
-              <tr key={a.id}><td className="whitespace-nowrap text-muted">{fmtDateTime(a.at)}</td><td><b>{a.byName}</b></td><td>{a.action}</td><td><Badge>{a.entity.toLowerCase()}</Badge></td><td className="text-muted">{a.ref}</td></tr>
+              <tr key={a.id}>
+                <td className="whitespace-nowrap text-muted">{fmtDateTime(a.at)}</td>
+                <td>
+                  <b>{a.byName}</b>
+                </td>
+                <td>{a.action}</td>
+                <td>
+                  <Badge>{a.entity.toLowerCase()}</Badge>
+                </td>
+                <td className="text-muted">{a.ref}</td>
+              </tr>
             ))}
           </Table>
         )}

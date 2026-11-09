@@ -19,8 +19,12 @@ void main(async () => {
   } else {
     const approve = process.argv.includes('--approve-profiles');
     await seedMaster(store, { approveProfiles: approve });
-    console.log(`✔ Master data loaded (profiles ${approve ? 'approved as version 1' : 'left as drafts for HR to approve'}).`);
-    console.log('  Next: start the app and run Setup → Integration → Sync employees (or npm run fusion:sync).');
+    console.log(
+      `✔ Master data loaded (profiles ${approve ? 'approved as version 1' : 'left as drafts for HR to approve'}).`,
+    );
+    console.log(
+      '  Next: start the app and run Setup → Integration → Sync employees (or npm run fusion:sync).',
+    );
   }
   await store.close();
 });

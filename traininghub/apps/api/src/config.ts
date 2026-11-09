@@ -26,7 +26,10 @@ const envSchema = z
     DB_POOL_MIN: z.coerce.number().int().min(0).default(1),
     DB_POOL_MAX: z.coerce.number().int().min(1).default(6),
     /** Every TrainingHub object in the shared schema starts with this prefix. */
-    DB_OBJECT_PREFIX: z.string().regex(/^[A-Z][A-Z0-9]{0,5}_$/).default('TH_'),
+    DB_OBJECT_PREFIX: z
+      .string()
+      .regex(/^[A-Z][A-Z0-9]{0,5}_$/)
+      .default('TH_'),
 
     FUSION_MODE: z.enum(['mock', 'live', 'sql']).default('mock'),
     /** FUSION_MODE=sql: a SELECT over an existing ADW table/view that returns the employee columns. */
@@ -66,10 +69,12 @@ const envSchema = z
     };
     if (env.DATA_MODE === 'oracle')
       need(['DB_USER', 'DB_PASSWORD', 'DB_CONNECT_STRING', 'DB_WALLET_DIR'], 'DATA_MODE=oracle');
-    if (env.FUSION_MODE === 'live') need(['FUSION_BASE_URL', 'FUSION_USER', 'FUSION_PASSWORD'], 'FUSION_MODE=live');
+    if (env.FUSION_MODE === 'live')
+      need(['FUSION_BASE_URL', 'FUSION_USER', 'FUSION_PASSWORD'], 'FUSION_MODE=live');
     if (env.FUSION_MODE === 'sql') {
       need(['EMPLOYEE_SQL'], 'FUSION_MODE=sql');
-      if (env.DATA_MODE !== 'oracle') ctx.addIssue({ code: 'custom', path: ['FUSION_MODE'], message: 'sql needs DATA_MODE=oracle' });
+      if (env.DATA_MODE !== 'oracle')
+        ctx.addIssue({ code: 'custom', path: ['FUSION_MODE'], message: 'sql needs DATA_MODE=oracle' });
       if (env.EMPLOYEE_SQL && !/^\s*(select|with)\b/i.test(env.EMPLOYEE_SQL))
         ctx.addIssue({ code: 'custom', path: ['EMPLOYEE_SQL'], message: 'must be a SELECT' });
     }
@@ -78,10 +83,7 @@ const envSchema = z
         ctx.addIssue({ code: 'custom', path: ['DATA_MODE'], message: 'must be oracle in production' });
       if (env.DEV_QUICK_LOGIN)
         ctx.addIssue({ code: 'custom', path: ['DEV_QUICK_LOGIN'], message: 'must be false in production' });
-      if (
-        env.ZAMIL_AUTH_API_BASE_URL &&
-        new URL(env.ZAMIL_AUTH_API_BASE_URL).protocol !== 'https:'
-      ) {
+      if (env.ZAMIL_AUTH_API_BASE_URL && new URL(env.ZAMIL_AUTH_API_BASE_URL).protocol !== 'https:') {
         ctx.addIssue({
           code: 'custom',
           path: ['ZAMIL_AUTH_API_BASE_URL'],
@@ -205,7 +207,9 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       syncHour: e.FUSION_SYNC_HOUR,
       maxDrop: e.FUSION_SYNC_MAX_DROP,
     },
-    bootstrapAdmins: e.BOOTSTRAP_ADMINS.split(',').map((s) => s.trim()).filter(Boolean),
+    bootstrapAdmins: e.BOOTSTRAP_ADMINS.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
     jobsEnabled: e.JOBS_ENABLED && e.NODE_ENV !== 'test',
     auth: {
       quickLogin: e.DEV_QUICK_LOGIN,
@@ -214,9 +218,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       zamil: {
         apiBaseUrl:
           e.ZAMIL_AUTH_API_BASE_URL?.replace(/\/+$/, '') ??
-          (e.NODE_ENV === 'production'
-            ? undefined
-            : 'http://127.0.0.1:7381/api/v1'),
+          (e.NODE_ENV === 'production' ? undefined : 'http://127.0.0.1:7381/api/v1'),
         sessionCookieName: e.ZAMIL_AUTH_SESSION_COOKIE_NAME,
         cookieSecure: e.ZAMIL_AUTH_COOKIE_SECURE,
         cookieSameSite: e.ZAMIL_AUTH_COOKIE_SAMESITE,

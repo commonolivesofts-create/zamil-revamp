@@ -1,10 +1,5 @@
 // Training sessions (catalog / schedule) and seat accounting.
-import {
-  SEATED_STATUSES,
-  type RequestStatus,
-  type Session,
-  type SessionInput,
-} from '@traininghub/shared';
+import { SEATED_STATUSES, type RequestStatus, type Session, type SessionInput } from '@traininghub/shared';
 import type { R } from '../db/tables';
 import { daysBetween } from '../lib/dates';
 import { forbidden, invalid, notFound, validation } from '../lib/errors';
@@ -14,7 +9,9 @@ import { effectiveProfile } from './profiles';
 export const sar = (halalas: number) => halalas / 100;
 export const halalas = (sarValue: number) => Math.round(sarValue * 100);
 
-export function sessionHours(s: Pick<R<'sessions'>, 'startDate' | 'endDate' | 'startTime' | 'endTime'>): number {
+export function sessionHours(
+  s: Pick<R<'sessions'>, 'startDate' | 'endDate' | 'startTime' | 'endTime'>,
+): number {
   const days = daysBetween(s.startDate, s.endDate) + 1;
   const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
   return Math.round(((days * (mins(s.endTime) - mins(s.startTime))) / 60) * 10) / 10;
@@ -24,7 +21,9 @@ export function overlaps(
   a: Pick<R<'sessions'>, 'startDate' | 'endDate' | 'startTime' | 'endTime'>,
   b: Pick<R<'sessions'>, 'startDate' | 'endDate' | 'startTime' | 'endTime'>,
 ) {
-  return a.startDate <= b.endDate && b.startDate <= a.endDate && a.startTime < b.endTime && b.startTime < a.endTime;
+  return (
+    a.startDate <= b.endDate && b.startDate <= a.endDate && a.startTime < b.endTime && b.startTime < a.endTime
+  );
 }
 
 export interface SessionLookups {
@@ -52,7 +51,8 @@ export async function sessionLookups(ctx: Ctx, sessionIds?: number[]): Promise<S
 export function seatsTaken(s: R<'sessions'>, requests: R<'requests'>[]): number {
   return (
     s.externalSeats +
-    requests.filter((r) => r.sessionId === s.id && SEATED_STATUSES.includes(r.statusCode as RequestStatus)).length
+    requests.filter((r) => r.sessionId === s.id && SEATED_STATUSES.includes(r.statusCode as RequestStatus))
+      .length
   );
 }
 
@@ -116,10 +116,11 @@ async function checkSession(ctx: Ctx, input: SessionInput, id: number | null) {
   if (input.sessionType === 'INTERNAL' && input.trainerPersonId) {
     const t = dir.people.get(input.trainerPersonId);
     if (!t?.active) fields.trainerPersonId = 'Trainer must be an active employee';
-    const clash = (await ctx.store.find('sessions', { trainerPersonId: input.trainerPersonId, statusCode: 'SCHEDULED' })).find(
-      (x) => x.id !== id && overlaps(x, input),
-    );
-    if (clash) fields.trainerPersonId = `${t?.fullName ?? 'Trainer'} is already training “${clash.title}” at that time`;
+    const clash = (
+      await ctx.store.find('sessions', { trainerPersonId: input.trainerPersonId, statusCode: 'SCHEDULED' })
+    ).find((x) => x.id !== id && overlaps(x, input));
+    if (clash)
+      fields.trainerPersonId = `${t?.fullName ?? 'Trainer'} is already training “${clash.title}” at that time`;
   }
   if (id) {
     const reqs = await ctx.store.find('requests', { sessionId: id });
@@ -190,8 +191,15 @@ export async function createSession(ctx: Ctx, input: SessionInput) {
     return row;
   });
   const matches = await matchingEmployees(ctx, s);
-  for (const pid of matches) await notify(ctx, pid, `New session matches your skill gap: ${s.title}`, `/catalog?session=${s.id}`);
-  if (s.trainerPersonId) await notify(ctx, s.trainerPersonId, `You are the trainer for ${s.title} (${s.startDate})`, '/attendance');
+  for (const pid of matches)
+    await notify(ctx, pid, `New session matches your skill gap: ${s.title}`, `/catalog?session=${s.id}`);
+  if (s.trainerPersonId)
+    await notify(
+      ctx,
+      s.trainerPersonId,
+      `You are the trainer for ${s.title} (${s.startDate})`,
+      '/attendance',
+    );
   return { id: s.id, notified: matches.length };
 }
 
@@ -218,15 +226,28 @@ export async function cancelSession(ctx: Ctx, id: number, comment: string) {
   if (!s) throw notFound('Session');
   if (s.attendanceLockedAt) throw invalid('Attendance is locked — the session took place');
   if (comment.length < 5) throw validation('Give a reason', { comment: 'At least 5 characters' });
-  const reqs = await ctx.store.find('requests', { sessionId: id, statusCode: ['PENDING', 'APPROVED', 'WAITLISTED'] });
+  const reqs = await ctx.store.find('requests', {
+    sessionId: id,
+    statusCode: ['PENDING', 'APPROVED', 'WAITLISTED'],
+  });
   await ctx.store.tx(async () => {
     await ctx.store.update('sessions', { id }, { statusCode: 'CANCELLED', updatedAt: nowIso(ctx) });
     for (const r of reqs) {
-      await ctx.store.update('requests', { id: r.id }, { statusCode: 'WITHDRAWN', currentStepNo: null, updatedAt: nowIso(ctx) });
-      await ctx.store.update('approvalSteps', { requestId: r.id, statusCode: ['WAITING', 'PENDING'] }, { statusCode: 'CANCELLED' });
+      await ctx.store.update(
+        'requests',
+        { id: r.id },
+        { statusCode: 'WITHDRAWN', currentStepNo: null, updatedAt: nowIso(ctx) },
+      );
+      await ctx.store.update(
+        'approvalSteps',
+        { requestId: r.id, statusCode: ['WAITING', 'PENDING'] },
+        { statusCode: 'CANCELLED' },
+      );
       await notify(ctx, r.personId, `${s.title} was cancelled: “${comment}”`, `/requests/${r.id}`);
     }
-    await audit(ctx, `Cancelled session (${reqs.length} requests withdrawn)`, 'SESSION', s.title, { comment });
+    await audit(ctx, `Cancelled session (${reqs.length} requests withdrawn)`, 'SESSION', s.title, {
+      comment,
+    });
   });
   return { withdrawn: reqs.length };
 }

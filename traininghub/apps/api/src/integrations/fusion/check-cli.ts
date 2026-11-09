@@ -12,13 +12,17 @@ void main(async () => {
   const config = cliConfig();
   const f = config.fusion;
   console.log(`Fusion pod: ${f.baseUrl ?? '(FUSION_BASE_URL not set)'}`);
-  console.log(`User: ${f.user ?? '(FUSION_USER not set)'} · password ${f.password ? `set (${f.password.length} characters)` : 'NOT SET'}`);
+  console.log(
+    `User: ${f.user ?? '(FUSION_USER not set)'} · password ${f.password ? `set (${f.password.length} characters)` : 'NOT SET'}`,
+  );
   const ehFile = path.resolve(REPO_ROOT, process.argv[2] ?? '../expensehub', '.env');
   if (existsSync(ehFile)) {
     const eh = parseEnv(readFileSync(ehFile, 'utf8'));
     for (const k of ['FUSION_BASE_URL', 'FUSION_USER', 'FUSION_PASSWORD'] as const) {
       const mine = process.env[k];
-      console.log(`  ${k}: ${!eh[k] ? 'not in ExpenseHub .env' : mine === eh[k] ? 'same as ExpenseHub' : 'DIFFERENT from ExpenseHub'}`);
+      console.log(
+        `  ${k}: ${!eh[k] ? 'not in ExpenseHub .env' : mine === eh[k] ? 'same as ExpenseHub' : 'DIFFERENT from ExpenseHub'}`,
+      );
     }
   } else console.log(`  (ExpenseHub .env not found at ${ehFile})`);
   if (!f.baseUrl || !f.user || !f.password) throw new Error('Fusion settings are incomplete in .env');
@@ -27,10 +31,14 @@ void main(async () => {
     process.stdout.write(`\n${report}\n  `);
     try {
       const r = await runBipReport(conn, report, { P_AS_OF_DATE: new Date().toISOString().slice(0, 10) });
-      console.log(`OK — ${r.body.length} rows; columns: ${Object.keys(r.body[0] ?? {}).join(', ') || '(none)'}`);
+      console.log(
+        `OK — ${r.body.length} rows; columns: ${Object.keys(r.body[0] ?? {}).join(', ') || '(none)'}`,
+      );
     } catch (e) {
       const x = e as FusionError;
-      console.log(`${x.httpStatus === 401 ? 'HTTP 401 — Fusion rejected the user name / password' : x.httpStatus === 403 ? 'HTTP 403 — signed in, but no access to BI Publisher' : x.message}`);
+      console.log(
+        `${x.httpStatus === 401 ? 'HTTP 401 — Fusion rejected the user name / password' : x.httpStatus === 403 ? 'HTTP 403 — signed in, but no access to BI Publisher' : x.message}`,
+      );
     }
   }
 });

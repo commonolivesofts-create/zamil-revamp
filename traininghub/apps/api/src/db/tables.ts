@@ -12,7 +12,9 @@ export interface Col {
 }
 type Val<C extends Col> = C['t'] extends 'int' | 'num' ? number : C['t'] extends 'flag' ? boolean : string;
 export type RowOf<D extends TableDef> = {
-  -readonly [K in keyof D['cols']]: D['cols'][K]['req'] extends true ? Val<D['cols'][K]> : Val<D['cols'][K]> | null;
+  -readonly [K in keyof D['cols']]: D['cols'][K]['req'] extends true
+    ? Val<D['cols'][K]>
+    : Val<D['cols'][K]> | null;
 };
 
 export interface TableDef {

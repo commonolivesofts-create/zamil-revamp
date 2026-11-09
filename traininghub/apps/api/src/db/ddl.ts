@@ -32,13 +32,17 @@ export function createTableSql(def: TableDef, prefix: string): string[] {
   const t = prefix + def.name;
   const lines = Object.entries(def.cols).map(([c, s]) => '  ' + columnSql(def, c, s));
   lines.push(`  CONSTRAINT ${t}_PK PRIMARY KEY (${toSnake(def.pk)})`);
-  (def.unique ?? []).forEach((u, i) => lines.push(`  CONSTRAINT ${t}_UK${i + 1} UNIQUE (${u.map(toSnake).join(', ')})`));
+  (def.unique ?? []).forEach((u, i) =>
+    lines.push(`  CONSTRAINT ${t}_UK${i + 1} UNIQUE (${u.map(toSnake).join(', ')})`),
+  );
   return [`CREATE TABLE ${t} (\n${lines.join(',\n')}\n)`, ...indexSql(def, prefix)];
 }
 
 export function indexSql(def: TableDef, prefix: string): string[] {
   const t = prefix + def.name;
-  return (def.indexes ?? []).map((ix, i) => `CREATE INDEX ${t}_IX${i + 1} ON ${t} (${ix.map(toSnake).join(', ')})`);
+  return (def.indexes ?? []).map(
+    (ix, i) => `CREATE INDEX ${t}_IX${i + 1} ON ${t} (${ix.map(toSnake).join(', ')})`,
+  );
 }
 
 export function fullSchemaSql(prefix: string): string {

@@ -3,7 +3,12 @@ import type { AppConfig } from './config';
 import { createStore } from './db';
 import type { Store } from './db/store';
 import type { Ctx } from './domain/ctx';
-import { LiveEmployeeSource, MockEmployeeSource, SqlEmployeeSource, type EmployeeSource } from './integrations/fusion/employees';
+import {
+  LiveEmployeeSource,
+  MockEmployeeSource,
+  SqlEmployeeSource,
+  type EmployeeSource,
+} from './integrations/fusion/employees';
 import { OracleStore } from './db/oracle';
 import { systemClock, type Clock } from './lib/dates';
 import { SessionService } from './auth/session';

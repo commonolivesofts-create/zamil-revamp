@@ -19,7 +19,9 @@ void main(async () => {
 
   const q = async <X>(sql: string, binds = like) => ((await store.exec<X>(sql, binds)).rows ?? []) as X[];
   const tables = new Set(
-    (await q<{ T: string }>(`SELECT table_name AS T FROM user_tables WHERE table_name LIKE :p ESCAPE '\\'`)).map((r) => r.T),
+    (
+      await q<{ T: string }>(`SELECT table_name AS T FROM user_tables WHERE table_name LIKE :p ESCAPE '\\'`)
+    ).map((r) => r.T),
   );
   const cols = new Set(
     (
@@ -30,7 +32,9 @@ void main(async () => {
   );
   const objects = new Set(
     [
-      ...(await q<{ N: string }>(`SELECT index_name AS N FROM user_indexes WHERE index_name LIKE :p ESCAPE '\\'`)),
+      ...(await q<{ N: string }>(
+        `SELECT index_name AS N FROM user_indexes WHERE index_name LIKE :p ESCAPE '\\'`,
+      )),
       ...(await q<{ N: string }>(
         `SELECT constraint_name AS N FROM user_constraints WHERE constraint_name LIKE :p ESCAPE '\\'`,
       )),
@@ -60,7 +64,8 @@ void main(async () => {
     }
     (def.unique ?? []).forEach((u, i) => {
       const n = `${t}_UK${i + 1}`;
-      if (!objects.has(n)) plan.push(`ALTER TABLE ${t} ADD CONSTRAINT ${n} UNIQUE (${u.map(toSnake).join(', ')})`);
+      if (!objects.has(n))
+        plan.push(`ALTER TABLE ${t} ADD CONSTRAINT ${n} UNIQUE (${u.map(toSnake).join(', ')})`);
     });
     (def.indexes ?? []).forEach((ix, i) => {
       const n = `${t}_IX${i + 1}`;
@@ -71,7 +76,8 @@ void main(async () => {
   // Guard: every statement must only name prefixed objects.
   for (const s of plan) {
     const target = s.match(/^(?:CREATE TABLE|ALTER TABLE|CREATE INDEX \S+ ON)\s+(\S+)/)?.[1] ?? '';
-    if (!target.startsWith(P)) throw new Error(`Refusing to run a statement outside ${P}*: ${s.slice(0, 80)}`);
+    if (!target.startsWith(P))
+      throw new Error(`Refusing to run a statement outside ${P}*: ${s.slice(0, 80)}`);
   }
 
   console.log(`${P}* objects: ${tables.size} tables found, ${plan.length} statement(s) to run.`);
@@ -87,9 +93,12 @@ void main(async () => {
     await store.exec(s);
     console.log('ok');
   }
-  const has = await q<{ N: number }>(`SELECT COUNT(*) AS N FROM ${P}SCHEMA_MIGRATIONS WHERE VERSION_NO = :v`, {
-    v: SCHEMA_VERSION,
-  } as never);
+  const has = await q<{ N: number }>(
+    `SELECT COUNT(*) AS N FROM ${P}SCHEMA_MIGRATIONS WHERE VERSION_NO = :v`,
+    {
+      v: SCHEMA_VERSION,
+    } as never,
+  );
   if (!Number(has[0]?.N))
     await store.exec(`INSERT INTO ${P}SCHEMA_MIGRATIONS (VERSION_NO, DESCRIPTION) VALUES (:v, :d)`, {
       v: SCHEMA_VERSION,

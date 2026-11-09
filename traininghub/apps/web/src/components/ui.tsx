@@ -1,6 +1,13 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { AlertTriangle, Check, Info, Loader2, X } from 'lucide-react';
-import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import {
+  forwardRef,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from 'react';
 import { REQUEST_STATUS_LABEL, type RequestStatus, type Requirement } from '@traininghub/shared';
 import { cn } from '../lib/cn';
 import { initials } from '../lib/format';
@@ -14,37 +21,60 @@ const VARIANTS: Record<Variant, string> = {
   danger: 'bg-bad text-white border-transparent hover:brightness-95',
   soft: 'bg-accent-soft text-brand dark:text-mint border-transparent hover:brightness-97',
 };
-export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: 'sm' | 'md'; loading?: boolean; icon?: ReactNode }>(
-  function Button({ variant = 'default', size = 'md', loading, icon, className, children, disabled, ...rest }, ref) {
-    return (
-      <button
-        ref={ref}
-        type="button"
-        disabled={disabled || loading}
-        className={cn(
-          'inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-[10px] border font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
-          size === 'sm' ? 'h-7 px-2.5 text-[11.5px]' : 'h-9 px-3.5 text-[12.5px]',
-          VARIANTS[variant],
-          className,
-        )}
-        {...rest}
-      >
-        {loading ? <Loader2 className="size-3.5 animate-spin" /> : icon}
-        {children}
-      </button>
-    );
-  },
-);
+export const Button = forwardRef<
+  HTMLButtonElement,
+  ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: Variant;
+    size?: 'sm' | 'md';
+    loading?: boolean;
+    icon?: ReactNode;
+  }
+>(function Button(
+  { variant = 'default', size = 'md', loading, icon, className, children, disabled, ...rest },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      disabled={disabled || loading}
+      className={cn(
+        'inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-[10px] border font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
+        size === 'sm' ? 'h-7 px-2.5 text-[11.5px]' : 'h-9 px-3.5 text-[12.5px]',
+        VARIANTS[variant],
+        className,
+      )}
+      {...rest}
+    >
+      {loading ? <Loader2 className="size-3.5 animate-spin" /> : icon}
+      {children}
+    </button>
+  );
+});
 
 /* ------------------------------ Layout ------------------------------ */
-export function Card({ className, children, ...rest }: { className?: string; children: ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
+export function Card({
+  className,
+  children,
+  ...rest
+}: { className?: string; children: ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div className={cn('rounded-card border border-line bg-surface shadow-card', className)} {...rest}>
       {children}
     </div>
   );
 }
-export function CardHead({ title, sub, actions, className }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; className?: string }) {
+export function CardHead({
+  title,
+  sub,
+  actions,
+  className,
+}: {
+  title: ReactNode;
+  sub?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cn('flex flex-wrap items-center gap-3 border-b border-line-2 px-4 py-3', className)}>
       <div className="min-w-0 flex-1">
@@ -55,11 +85,23 @@ export function CardHead({ title, sub, actions, className }: { title: ReactNode;
     </div>
   );
 }
-export function PageHeader({ eyebrow, title, sub, actions }: { eyebrow?: string; title: string; sub?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({
+  eyebrow,
+  title,
+  sub,
+  actions,
+}: {
+  eyebrow?: string;
+  title: string;
+  sub?: ReactNode;
+  actions?: ReactNode;
+}) {
   return (
     <div className="mb-5 flex flex-wrap items-end gap-3">
       <div className="min-w-0 flex-1">
-        {eyebrow && <div className="mb-1 text-[10.5px] font-bold uppercase tracking-[0.12em] text-req">{eyebrow}</div>}
+        {eyebrow && (
+          <div className="mb-1 text-[10.5px] font-bold uppercase tracking-[0.12em] text-req">{eyebrow}</div>
+        )}
         <h1 className="text-[22px] font-bold tracking-tight">{title}</h1>
         {sub && <p className="mt-1 max-w-3xl text-[12.5px] text-muted">{sub}</p>}
       </div>
@@ -70,7 +112,9 @@ export function PageHeader({ eyebrow, title, sub, actions }: { eyebrow?: string;
 export function Empty({ icon, title, children }: { icon?: ReactNode; title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
-      {icon && <div className="grid size-11 place-items-center rounded-2xl bg-accent-soft text-req">{icon}</div>}
+      {icon && (
+        <div className="grid size-11 place-items-center rounded-2xl bg-accent-soft text-req">{icon}</div>
+      )}
       <b className="text-[13px]">{title}</b>
       {children && <div className="max-w-md text-[12px] text-muted">{children}</div>}
     </div>
@@ -83,7 +127,17 @@ export function Spinner({ label = 'Loading…' }: { label?: string }) {
     </div>
   );
 }
-export function Alert({ tone = 'info', title, children, className }: { tone?: 'info' | 'warn' | 'bad' | 'ok'; title?: ReactNode; children?: ReactNode; className?: string }) {
+export function Alert({
+  tone = 'info',
+  title,
+  children,
+  className,
+}: {
+  tone?: 'info' | 'warn' | 'bad' | 'ok';
+  title?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}) {
   const t = {
     info: 'bg-und-bg text-und-ink border-und/20',
     warn: 'bg-opt-bg text-opt-ink border-opt/25',
@@ -101,18 +155,46 @@ export function Alert({ tone = 'info', title, children, className }: { tone?: 'i
     </div>
   );
 }
-export function Kpi({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: 'bad' | 'ok' }) {
+export function Kpi({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string;
+  value: ReactNode;
+  sub?: ReactNode;
+  tone?: 'bad' | 'ok';
+}) {
   return (
     <Card className="px-4 py-3.5">
       <div className="text-[11px] font-semibold text-muted">{label}</div>
-      <div className={cn('mt-1 text-[22px] font-bold tracking-tight tabular', tone === 'bad' && 'text-bad', tone === 'ok' && 'text-req')}>{value}</div>
+      <div
+        className={cn(
+          'mt-1 text-[22px] font-bold tracking-tight tabular',
+          tone === 'bad' && 'text-bad',
+          tone === 'ok' && 'text-req',
+        )}
+      >
+        {value}
+      </div>
       {sub && <div className="mt-0.5 text-[11px] text-fine">{sub}</div>}
     </Card>
   );
 }
 
 /* ------------------------------ Badges & chips ------------------------------ */
-export function Badge({ tone = 'neutral', children, className, dot }: { tone?: 'neutral' | 'ok' | 'warn' | 'info' | 'bad'; children: ReactNode; className?: string; dot?: boolean }) {
+export function Badge({
+  tone = 'neutral',
+  children,
+  className,
+  dot,
+}: {
+  tone?: 'neutral' | 'ok' | 'warn' | 'info' | 'bad';
+  children: ReactNode;
+  className?: string;
+  dot?: boolean;
+}) {
   const t = {
     neutral: 'bg-na-bg text-muted',
     ok: 'bg-req-bg text-req-ink',
@@ -121,7 +203,13 @@ export function Badge({ tone = 'neutral', children, className, dot }: { tone?: '
     bad: 'bg-bad-bg text-bad',
   }[tone];
   return (
-    <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-bold', t, className)}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-bold',
+        t,
+        className,
+      )}
+    >
       {dot && <i className="size-1.5 rounded-full bg-current" />}
       {children}
     </span>
@@ -143,22 +231,62 @@ export const StatusChip = ({ status }: { status: RequestStatus }) => (
     {REQUEST_STATUS_LABEL[status]}
   </Badge>
 );
-export function ReqChip({ r, level, critical }: { r: Requirement | null; level?: number; critical?: boolean }) {
-  if (!r) return <span className="inline-grid h-6 min-w-9 place-items-center rounded-md bg-na-bg px-1.5 text-[10.5px] font-bold text-na">—</span>;
+export function ReqChip({
+  r,
+  level,
+  critical,
+}: {
+  r: Requirement | null;
+  level?: number;
+  critical?: boolean;
+}) {
+  if (!r)
+    return (
+      <span className="inline-grid h-6 min-w-9 place-items-center rounded-md bg-na-bg px-1.5 text-[10.5px] font-bold text-na">
+        —
+      </span>
+    );
   const t = { R: 'bg-req-bg text-req-ink', O: 'bg-opt-bg text-opt-ink', U: 'bg-und-bg text-und-ink' }[r];
   return (
-    <span className={cn('inline-flex h-6 min-w-9 items-center justify-center gap-0.5 rounded-md px-1.5 text-[10.5px] font-bold tabular', t)}>
+    <span
+      className={cn(
+        'inline-flex h-6 min-w-9 items-center justify-center gap-0.5 rounded-md px-1.5 text-[10.5px] font-bold tabular',
+        t,
+      )}
+    >
       {critical && '★'}
       {r}
       {level != null && level > 0 ? level : ''}
     </span>
   );
 }
-const AV = ['bg-[#d7f2e4] text-[#0b5c3f]', 'bg-[#e6defb] text-[#4b2fa0]', 'bg-[#dceafa] text-[#1f5394]', 'bg-[#fbecd2] text-[#8a5a06]', 'bg-[#fbdde6] text-[#952a4f]'];
-export function Avatar({ name, id, size = 'sm' }: { name: string; id: number; size?: 'xs' | 'sm' | 'md' | 'lg' }) {
-  const s = { xs: 'size-6 text-[9.5px]', sm: 'size-7 text-[10.5px]', md: 'size-9 text-[12px]', lg: 'size-12 text-[15px]' }[size];
+const AV = [
+  'bg-[#d7f2e4] text-[#0b5c3f]',
+  'bg-[#e6defb] text-[#4b2fa0]',
+  'bg-[#dceafa] text-[#1f5394]',
+  'bg-[#fbecd2] text-[#8a5a06]',
+  'bg-[#fbdde6] text-[#952a4f]',
+];
+export function Avatar({
+  name,
+  id,
+  size = 'sm',
+}: {
+  name: string;
+  id: number;
+  size?: 'xs' | 'sm' | 'md' | 'lg';
+}) {
+  const s = {
+    xs: 'size-6 text-[9.5px]',
+    sm: 'size-7 text-[10.5px]',
+    md: 'size-9 text-[12px]',
+    lg: 'size-12 text-[15px]',
+  }[size];
   return (
-    <span title={name} className={cn('inline-grid shrink-0 place-items-center rounded-full font-bold', s, AV[id % 5])}>
+    <span
+      title={name}
+      className={cn('inline-grid shrink-0 place-items-center rounded-full font-bold', s, AV[id % 5])}
+    >
       {initials(name)}
     </span>
   );
@@ -181,32 +309,85 @@ export function LevelBar({ current, target }: { current: number; target: number 
 export function Meter({ value, className }: { value: number; className?: string }) {
   return (
     <div className={cn('h-1.5 overflow-hidden rounded-full bg-na-bg', className)}>
-      <div className={cn('h-full rounded-full', value >= 85 ? 'bg-req' : value >= 60 ? 'bg-opt' : 'bg-bad')} style={{ width: `${Math.min(100, value)}%` }} />
+      <div
+        className={cn('h-full rounded-full', value >= 85 ? 'bg-req' : value >= 60 ? 'bg-opt' : 'bg-bad')}
+        style={{ width: `${Math.min(100, value)}%` }}
+      />
     </div>
   );
 }
 
 /* ------------------------------ Forms ------------------------------ */
-export function Field({ label, error, hint, children, className }: { label: ReactNode; error?: string; hint?: ReactNode; children: ReactNode; className?: string }) {
+export function Field({
+  label,
+  error,
+  hint,
+  children,
+  className,
+}: {
+  label: ReactNode;
+  error?: string;
+  hint?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <label className={cn('block', className)}>
       <span className="mb-1 block text-[11.5px] font-semibold text-muted">{label}</span>
       {children}
-      {error ? <span className="mt-1 block text-[11px] font-semibold text-bad">{error}</span> : hint ? <span className="mt-1 block text-[11px] text-fine">{hint}</span> : null}
+      {error ? (
+        <span className="mt-1 block text-[11px] font-semibold text-bad">{error}</span>
+      ) : hint ? (
+        <span className="mt-1 block text-[11px] text-fine">{hint}</span>
+      ) : null}
     </label>
   );
 }
-const inputCls = 'w-full rounded-[9px] border border-line bg-surface px-2.5 py-2 text-[12.5px] outline-none transition placeholder:text-fine focus:border-req focus:ring-2 focus:ring-req/15 aria-[invalid=true]:border-bad';
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }>(function Input({ className, invalid, ...p }, ref) {
+const inputCls =
+  'w-full rounded-[9px] border border-line bg-surface px-2.5 py-2 text-[12.5px] outline-none transition placeholder:text-fine focus:border-req focus:ring-2 focus:ring-req/15 aria-[invalid=true]:border-bad';
+export const Input = forwardRef<
+  HTMLInputElement,
+  InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }
+>(function Input({ className, invalid, ...p }, ref) {
   return <input ref={ref} aria-invalid={invalid || undefined} className={cn(inputCls, className)} {...p} />;
 });
-export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }>(function Select({ className, invalid, ...p }, ref) {
-  return <select ref={ref} aria-invalid={invalid || undefined} className={cn(inputCls, 'pr-7', className)} {...p} />;
+export const Select = forwardRef<
+  HTMLSelectElement,
+  SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }
+>(function Select({ className, invalid, ...p }, ref) {
+  return (
+    <select
+      ref={ref}
+      aria-invalid={invalid || undefined}
+      className={cn(inputCls, 'pr-7', className)}
+      {...p}
+    />
+  );
 });
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }>(function Textarea({ className, invalid, ...p }, ref) {
-  return <textarea ref={ref} aria-invalid={invalid || undefined} className={cn(inputCls, 'min-h-20 resize-y', className)} {...p} />;
+export const Textarea = forwardRef<
+  HTMLTextAreaElement,
+  TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }
+>(function Textarea({ className, invalid, ...p }, ref) {
+  return (
+    <textarea
+      ref={ref}
+      aria-invalid={invalid || undefined}
+      className={cn(inputCls, 'min-h-20 resize-y', className)}
+      {...p}
+    />
+  );
 });
-export function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label?: string; disabled?: boolean }) {
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label?: string;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -215,13 +396,31 @@ export function Toggle({ checked, onChange, label, disabled }: { checked: boolea
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cn('relative h-5 w-9 shrink-0 rounded-full transition disabled:opacity-50', checked ? 'bg-req' : 'bg-line')}
+      className={cn(
+        'relative h-5 w-9 shrink-0 rounded-full transition disabled:opacity-50',
+        checked ? 'bg-req' : 'bg-line',
+      )}
     >
-      <i className={cn('absolute top-0.5 size-4 rounded-full bg-white shadow transition-all', checked ? 'left-[18px]' : 'left-0.5')} />
+      <i
+        className={cn(
+          'absolute top-0.5 size-4 rounded-full bg-white shadow transition-all',
+          checked ? 'left-[18px]' : 'left-0.5',
+        )}
+      />
     </button>
   );
 }
-export function Segmented<T extends string | number>({ value, options, onChange, size = 'md' }: { value: T; options: { value: T; label: ReactNode; title?: string }[]; onChange: (v: T) => void; size?: 'sm' | 'md' }) {
+export function Segmented<T extends string | number>({
+  value,
+  options,
+  onChange,
+  size = 'md',
+}: {
+  value: T;
+  options: { value: T; label: ReactNode; title?: string }[];
+  onChange: (v: T) => void;
+  size?: 'sm' | 'md';
+}) {
   return (
     <div className="inline-flex rounded-[10px] border border-line bg-surface-2 p-0.5">
       {options.map((o) => (
@@ -242,7 +441,15 @@ export function Segmented<T extends string | number>({ value, options, onChange,
     </div>
   );
 }
-export function Tabs<T extends string>({ value, tabs, onChange }: { value: T; tabs: { value: T; label: ReactNode; count?: number }[]; onChange: (v: T) => void }) {
+export function Tabs<T extends string>({
+  value,
+  tabs,
+  onChange,
+}: {
+  value: T;
+  tabs: { value: T; label: ReactNode; count?: number }[];
+  onChange: (v: T) => void;
+}) {
   return (
     <div className="mb-4 flex gap-1 overflow-x-auto border-b border-line scroll-thin" role="tablist">
       {tabs.map((t) => (
@@ -257,7 +464,11 @@ export function Tabs<T extends string>({ value, tabs, onChange }: { value: T; ta
           )}
         >
           {t.label}
-          {t.count != null && t.count > 0 && <span className="rounded-full bg-opt-bg px-1.5 text-[10px] font-bold text-opt-ink">{t.count}</span>}
+          {t.count != null && t.count > 0 && (
+            <span className="rounded-full bg-opt-bg px-1.5 text-[10px] font-bold text-opt-ink">
+              {t.count}
+            </span>
+          )}
         </button>
       ))}
     </div>
@@ -265,7 +476,23 @@ export function Tabs<T extends string>({ value, tabs, onChange }: { value: T; ta
 }
 
 /* ------------------------------ Modal ------------------------------ */
-export function Modal({ open, onClose, title, sub, children, footer, wide }: { open: boolean; onClose: () => void; title: ReactNode; sub?: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  sub,
+  children,
+  footer,
+  wide,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  sub?: ReactNode;
+  children: ReactNode;
+  footer?: ReactNode;
+  wide?: boolean;
+}) {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
@@ -279,14 +506,20 @@ export function Modal({ open, onClose, title, sub, children, footer, wide }: { o
           <div className="flex items-start gap-3 border-b border-line-2 px-5 py-4">
             <div className="min-w-0 flex-1">
               <Dialog.Title className="text-[15px] font-bold">{title}</Dialog.Title>
-              {sub ? <Dialog.Description className="mt-0.5 text-[12px] text-muted">{sub}</Dialog.Description> : <Dialog.Description className="sr-only">Dialog</Dialog.Description>}
+              {sub ? (
+                <Dialog.Description className="mt-0.5 text-[12px] text-muted">{sub}</Dialog.Description>
+              ) : (
+                <Dialog.Description className="sr-only">Dialog</Dialog.Description>
+              )}
             </div>
             <Dialog.Close className="rounded-lg p-1 text-muted hover:bg-hover" aria-label="Close">
               <X className="size-4" />
             </Dialog.Close>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 scroll-thin">{children}</div>
-          {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line-2 px-5 py-3">{footer}</div>}
+          {footer && (
+            <div className="flex flex-wrap justify-end gap-2 border-t border-line-2 px-5 py-3">{footer}</div>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -294,7 +527,15 @@ export function Modal({ open, onClose, title, sub, children, footer, wide }: { o
 }
 
 /* ------------------------------ Table ------------------------------ */
-export function Table({ head, children, className }: { head: ReactNode[]; children: ReactNode; className?: string }) {
+export function Table({
+  head,
+  children,
+  className,
+}: {
+  head: ReactNode[];
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cn('overflow-x-auto scroll-thin', className)}>
       <table className="w-full border-collapse text-left text-[12px]">
@@ -307,7 +548,9 @@ export function Table({ head, children, className }: { head: ReactNode[]; childr
             ))}
           </tr>
         </thead>
-        <tbody className="[&>tr]:border-b [&>tr]:border-line-2 [&>tr:last-child]:border-0 [&_td]:px-4 [&_td]:py-2.5">{children}</tbody>
+        <tbody className="[&>tr]:border-b [&>tr]:border-line-2 [&>tr:last-child]:border-0 [&_td]:px-4 [&_td]:py-2.5">
+          {children}
+        </tbody>
       </table>
     </div>
   );

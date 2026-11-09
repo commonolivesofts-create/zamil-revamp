@@ -19,6 +19,7 @@ db/schema.sql   generated DDL for review (npm run db:migrate writes it)
 npm install
 npm run dev            # API http://localhost:7383, web http://localhost:7384
 ```
+
 `.env` is created from `.env.example` on first start. `DATA_MODE=memory` + `FUSION_MODE=mock`
 loads a demo set (22 IT/HR people, 12 IT positions, 12 sessions, requests in every state). Use
 the quick sign-in on the login page; `npm run data:reset` starts over.

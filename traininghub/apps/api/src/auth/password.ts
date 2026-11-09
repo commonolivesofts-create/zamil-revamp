@@ -12,4 +12,7 @@ export async function burnPasswordCheck(password: string, cost: number) {
 }
 /** Short fingerprint of the stored hash, carried in the session: a new password signs out other sessions. */
 export const passwordFingerprint = (passwordHash: string | null) =>
-  createHash('sha256').update(passwordHash ?? 'none').digest('hex').slice(0, 16);
+  createHash('sha256')
+    .update(passwordHash ?? 'none')
+    .digest('hex')
+    .slice(0, 16);

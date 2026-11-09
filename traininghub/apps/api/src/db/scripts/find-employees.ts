@@ -15,14 +15,21 @@ void main(async () => {
   );
   if (!cands.rows?.length) console.log('No table with a person / employee number column found.');
   for (const { T, KIND } of cands.rows ?? []) {
-    const cols = await store.exec<{ C: string }>(`SELECT column_name AS C FROM user_tab_columns WHERE table_name = :t ORDER BY column_id`, { t: T });
+    const cols = await store.exec<{ C: string }>(
+      `SELECT column_name AS C FROM user_tab_columns WHERE table_name = :t ORDER BY column_id`,
+      { t: T },
+    );
     let n = '?';
     try {
-      n = String((await store.exec<{ N: number }>(`SELECT COUNT(*) AS N FROM "${T.replace(/"/g, '')}"`)).rows![0]!.N);
+      n = String(
+        (await store.exec<{ N: number }>(`SELECT COUNT(*) AS N FROM "${T.replace(/"/g, '')}"`)).rows![0]!.N,
+      );
     } catch {
       /* no access */
     }
-    console.log(`\n${T} (${KIND.toLowerCase()}, ${n} rows)\n  ${(cols.rows ?? []).map((c) => c.C).join(', ')}`);
+    console.log(
+      `\n${T} (${KIND.toLowerCase()}, ${n} rows)\n  ${(cols.rows ?? []).map((c) => c.C).join(', ')}`,
+    );
   }
   await store.close();
 });

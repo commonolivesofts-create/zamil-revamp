@@ -42,10 +42,7 @@ function signInRequired(): AppError {
 }
 
 /** The Zamil cookie stays HttpOnly; only the backend forwards it to Zamil's own auth endpoint. */
-export async function resolveZamilIdentity(
-  req: Request,
-  config: ZamilAuthConfig,
-): Promise<ZamilIdentity> {
+export async function resolveZamilIdentity(req: Request, config: ZamilAuthConfig): Promise<ZamilIdentity> {
   const cookies = sessionCookies(req, config);
   if (cookies.length === 0) {
     throw new AppError(
@@ -134,9 +131,7 @@ async function fetchZamilIdentity(
   };
   const personNumber = body.data?.user?.employeeNumber;
   const absoluteExpiresAt =
-    typeof body.data?.session?.expiresAt === 'string'
-      ? Date.parse(body.data.session.expiresAt)
-      : Number.NaN;
+    typeof body.data?.session?.expiresAt === 'string' ? Date.parse(body.data.session.expiresAt) : Number.NaN;
   if (
     body.success !== true ||
     typeof personNumber !== 'string' ||
@@ -195,7 +190,8 @@ export async function revokeZamilSession(
           typeof token !== 'string' ||
           !/^[A-Za-z0-9_-]{43}$/.test(token) ||
           headerName !== 'X-CSRF-Token'
-        ) continue;
+        )
+          continue;
 
         const logoutResponse = await fetch(`${config.apiBaseUrl}/auth/logout`, {
           method: 'POST',

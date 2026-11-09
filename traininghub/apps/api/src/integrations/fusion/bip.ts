@@ -23,10 +23,7 @@ export interface BipConnection {
 const NS = 'http://xmlns.oracle.com/oxp/service/PublicReportService';
 
 const xml = (s: string) =>
-  s.replace(
-    /[<>&'"]/g,
-    (c) => `&${{ '<': 'lt', '>': 'gt', '&': 'amp', "'": 'apos', '"': 'quot' }[c]};`,
-  );
+  s.replace(/[<>&'"]/g, (c) => `&${{ '<': 'lt', '>': 'gt', '&': 'amp', "'": 'apos', '"': 'quot' }[c]};`);
 
 /** SOAP 1.2 runReport request. Empty parameters are left out (the data model's default applies). */
 export function runReportEnvelope(reportPath: string, params: Record<string, string>): string {
@@ -69,9 +66,7 @@ const unescapeXml = (s: string) =>
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
     .replace(/&(lt|gt|amp|apos|quot|#\d+|#x[0-9a-f]+);/gi, (_, e: string) =>
       e[0] === '#'
-        ? String.fromCodePoint(
-            e[1]?.toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : Number(e.slice(1)),
-          )
+        ? String.fromCodePoint(e[1]?.toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : Number(e.slice(1)))
         : ENTITIES[e.toLowerCase()]!,
     );
 
@@ -90,9 +85,7 @@ export function parseDataXml(text: string): Record<string, string>[] {
   for (const [, name, inner] of text.matchAll(ROW)) {
     if (name === rootName) continue;
     const row: Record<string, string> = {};
-    for (const m of inner!.matchAll(
-      /<([A-Za-z_][\w.-]*)\s*\/>|<([A-Za-z_][\w.-]*)>([\s\S]*?)<\/\2>/g,
-    )) {
+    for (const m of inner!.matchAll(/<([A-Za-z_][\w.-]*)\s*\/>|<([A-Za-z_][\w.-]*)>([\s\S]*?)<\/\2>/g)) {
       if (m[1]) row[m[1]] = '';
       else row[m[2]!] = unescapeXml(m[3]!).trim();
     }

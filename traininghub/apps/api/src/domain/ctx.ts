@@ -122,7 +122,10 @@ export function nameOf(dir: Directory, id: number | null | undefined): string | 
 
 export async function settings(ctx: Ctx): Promise<Record<SettingKey, string>> {
   const rows = await ctx.store.find('settings');
-  const out = Object.fromEntries(Object.entries(SETTINGS).map(([k, v]) => [k, v.def])) as Record<SettingKey, string>;
+  const out = Object.fromEntries(Object.entries(SETTINGS).map(([k, v]) => [k, v.def])) as Record<
+    SettingKey,
+    string
+  >;
   for (const r of rows) if (r.settingKey in out) out[r.settingKey as SettingKey] = r.settingValue ?? '';
   return out;
 }
@@ -131,7 +134,13 @@ export const settingFlag = (s: Record<SettingKey, string>, k: SettingKey) => s[k
 
 /* ----------------------------- Audit & notifications ----------------------------- */
 
-export async function audit(ctx: Ctx, action: string, entityType: string, entityRef: string, details?: unknown) {
+export async function audit(
+  ctx: Ctx,
+  action: string,
+  entityType: string,
+  entityRef: string,
+  details?: unknown,
+) {
   await ctx.store.insert('audit', {
     loggedAt: nowIso(ctx),
     personId: ctx.actor,
