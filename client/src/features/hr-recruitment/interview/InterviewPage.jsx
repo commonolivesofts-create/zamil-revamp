@@ -175,6 +175,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
             required={rules.required}
             error={error}
             loading={lookupStatus === 'loading'}
+            loadingLabel="Loading requisitions…"
             placeholder="Search approved requisitions"
             noResults="No approved requisitions match your search"
           />
@@ -368,6 +369,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
                   onChange={(option) => setInterviewer(index)(option.code)}
                   onInputChange={setInterviewer(index)}
                   loading={lookupStatus === 'loading'}
+                  loadingLabel="Loading employees…"
                   placeholder="Search employees by name"
                   noResults="No employees match your search"
                   maxLength={index === 0 ? 50 : 200}

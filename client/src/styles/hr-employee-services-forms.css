@@ -975,6 +975,230 @@
   word-break: break-all;
 }
 
+/* The saved request in a report drawer: the language switch and the
+   permission-aware actions share one row above the paper, exactly as the
+   employment offer's saved letter does. */
+.zrv-ir-sick-leave-preview {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+/* The module class also matches the form layout rule in hr-recruitment.css,
+   which sets a two-column grid and centres its items. Inside a preview drawer
+   the letter must stay a full-width column instead of collapsing to a pipe. */
+.zrv-ir-drawer :is(.zrv-ir-sick-leave-preview, .zrv-ir-letter-preview) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  grid-template-columns: none;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+.zrv-ir-sick-leave-preview__bar {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -8px 0 0;
+  padding: 8px 0;
+  background: color-mix(in srgb, var(--surface-solid) 94%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.zrv-ir-sick-leave-preview .zrv-hr-seg {
+  grid-auto-columns: 46px;
+  padding: 3px;
+  border-radius: 11px;
+}
+.zrv-ir-sick-leave-preview .zrv-hr-seg__pill {
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: 46px;
+  border-radius: 9px;
+  transform: translateX(calc(var(--li) * 46px));
+}
+.zrv-ir-sick-leave-preview .zrv-hr-seg button {
+  min-height: 32px;
+  font-size: 12px;
+}
+.zrv-ir-sick-leave-preview__bar .zrv-hr-rp-drawer__x {
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: 1;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+@media (max-width: 460px) {
+  .zrv-ir-sick-leave-preview__bar {
+    flex-wrap: wrap;
+  }
+}
+.zrv-ir-sick-leave-actions {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.zrv-ir-sick-leave-actions .zrv-ir-btn {
+  gap: 5px;
+  min-height: 34px;
+  padding-inline: 10px;
+  white-space: nowrap;
+}
+.zrv-ir-sick-leave-print-error {
+  flex-basis: 100%;
+  color: var(--danger-text);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* The approval decision sits below the saved request, never in the toolbar. */
+.zrv-ir-sick-leave-workflow {
+  position: sticky;
+  z-index: 4;
+  bottom: -1px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-solid);
+}
+.zrv-ir-sick-leave-workflow__label {
+  color: var(--zrv-hr-fine);
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.zrv-ir-sick-leave-workflow__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.zrv-ir-sick-leave-workflow .zrv-ir-btn {
+  gap: 5px;
+  min-height: 34px;
+  padding-inline: 12px;
+}
+.zrv-ir-sick-leave-approve {
+  border-color: color-mix(in srgb, var(--mint) 55%, var(--line));
+  color: var(--zrv-hr-accent-text);
+}
+.zrv-ir-sick-leave-reject {
+  border-color: color-mix(in srgb, var(--danger-text) 45%, var(--line));
+  color: var(--danger-text);
+}
+
+/* Paper-shaped placeholder while the saved request loads, matching the
+   employment offer's letter skeleton. */
+.zrv-ir-sick-leave-skeleton {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: none;
+  min-height: 560px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface-solid);
+}
+.zrv-ir-sick-leave-skeleton i {
+  display: block;
+  border-radius: 5px;
+  background: linear-gradient(100deg,
+    color-mix(in srgb, var(--text) 8%, var(--surface-solid)) 20%,
+    color-mix(in srgb, var(--text) 3%, var(--surface-solid)) 38%,
+    color-mix(in srgb, var(--text) 8%, var(--surface-solid)) 56%);
+  background-size: 220% 100%;
+  animation: zrv-ir-sick-leave-skeleton-shine 1.35s ease-in-out infinite;
+}
+.zrv-ir-sick-leave-skeleton__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid color-mix(in srgb, var(--zrv-hr-accent) 45%, var(--line));
+}
+.zrv-ir-sick-leave-skeleton__header i:first-child {
+  width: 46%;
+  height: 26px;
+}
+.zrv-ir-sick-leave-skeleton__header i:last-child {
+  width: 22%;
+  height: 18px;
+  border-radius: 100px;
+}
+.zrv-ir-sick-leave-skeleton__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  margin-top: 2px;
+}
+.zrv-ir-sick-leave-skeleton__grid i {
+  height: 30px;
+}
+.zrv-ir-sick-leave-skeleton__grid .zrv-ir-sick-leave-skeleton__wide {
+  grid-column: 1 / -1;
+}
+.zrv-ir-sick-leave-skeleton__comments {
+  min-height: 74px;
+  margin-top: 4px;
+}
+.zrv-ir-sick-leave-skeleton__files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.zrv-ir-sick-leave-skeleton__files i {
+  width: 58%;
+  height: 12px;
+}
+.zrv-ir-sick-leave-skeleton__files i:last-child {
+  width: 41%;
+}
+.zrv-ir-sick-leave-skeleton__footer {
+  width: 34%;
+  height: 11px;
+  margin-top: auto;
+}
+@keyframes zrv-ir-sick-leave-skeleton-shine {
+  to { background-position-x: -220%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-ir-sick-leave-skeleton i { animation: none; }
+}
+
+/* Hidden on screen; the Print button fills it and then opens the dialog. */
+.zrv-hr.zrv-ir-sick-leave-print {
+  display: none;
+}
+
 @media (max-width: 700px) {
   .zrv-hr-esf-counts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1041,5 +1265,356 @@
   }
   .zrv-hr-esf-page:first-child {
     margin-top: 0;
+  }
+}
+
+/* Printing from the report drawer: only the hidden saved request is on paper,
+   with the same plain-page treatment as the employment offer. */
+@page sick-leave-request {
+  size: A4 portrait;
+  margin: 8mm;
+}
+@media print {
+  .zrv-ir-sick-leave-print {
+    display: block !important;
+  }
+  body:has(.zrv-ir-sick-leave-print),
+  body:has(.zrv-ir-sick-leave-print) *:has(.zrv-ir-sick-leave-print),
+  .zrv-ir-sick-leave-print,
+  .zrv-ir-sick-leave-print .zrv-hr-body,
+  .zrv-ir-sick-leave-print .zrv-hr-side {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    transform: none !important;
+    contain: none !important;
+    background: #fff !important;
+    page: sick-leave-request;
+  }
+  body:has(.zrv-ir-sick-leave-print) *:not(:has(.zrv-ir-sick-leave-print)):not(.zrv-ir-sick-leave-print):not(.zrv-ir-sick-leave-print *) {
+    display: none !important;
+  }
+  body:has(.zrv-ir-sick-leave-print) *:has(.zrv-ir-sick-leave-print) {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .zrv-ir-sick-leave-print .zrv-hr-esf-paper {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+    box-shadow: none;
+    page: sick-leave-request;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .zrv-ir-sick-leave-print .zrv-hr-esf-pages,
+  .zrv-ir-sick-leave-print .zrv-hr-esf-pageviewport {
+    overflow: visible;
+  }
+  .zrv-ir-sick-leave-print .zrv-hr-esf-pagetrack {
+    display: block;
+    transform: none !important;
+  }
+  .zrv-ir-sick-leave-print .zrv-hr-esf-page,
+  .zrv-ir-sick-leave-print .zrv-hr-esf-page[aria-hidden="true"] {
+    margin-top: 14px;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .zrv-ir-sick-leave-print .zrv-hr-esf-page:first-child {
+    margin-top: 0;
+  }
+}
+
+/* The shared letters report drawer (salary certificate, business visa request,
+   business visa letter, tourist visa and warning letter): the same toolbar,
+   paper-shaped skeleton, approval decision and hidden print target as the sick
+   leave drawer above. */
+.zrv-ir-letter-preview {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+.zrv-ir-letter-preview__bar {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -8px 0 0;
+  padding: 8px 0;
+  background: color-mix(in srgb, var(--surface-solid) 94%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.zrv-ir-letter-preview .zrv-hr-seg {
+  grid-auto-columns: 46px;
+  padding: 3px;
+  border-radius: 11px;
+}
+.zrv-ir-letter-preview .zrv-hr-seg__pill {
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: 46px;
+  border-radius: 9px;
+  transform: translateX(calc(var(--li) * 46px));
+}
+.zrv-ir-letter-preview .zrv-hr-seg button {
+  min-height: 32px;
+  font-size: 12px;
+}
+.zrv-ir-letter-preview__bar .zrv-hr-rp-drawer__x {
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: 1;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+@media (max-width: 460px) {
+  .zrv-ir-letter-preview__bar {
+    flex-wrap: wrap;
+  }
+}
+.zrv-ir-letter-actions {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.zrv-ir-letter-actions .zrv-ir-btn {
+  gap: 5px;
+  min-height: 34px;
+  padding-inline: 10px;
+  white-space: nowrap;
+}
+.zrv-ir-letter-print-error {
+  flex-basis: 100%;
+  color: var(--danger-text);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* The approval decision sits below the saved letter, never in the toolbar. */
+.zrv-ir-letter-workflow {
+  position: sticky;
+  z-index: 4;
+  bottom: -1px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-solid);
+}
+.zrv-ir-letter-workflow__label {
+  color: var(--zrv-hr-fine);
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.zrv-ir-letter-workflow__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.zrv-ir-letter-workflow .zrv-ir-btn {
+  gap: 5px;
+  min-height: 34px;
+  padding-inline: 12px;
+}
+.zrv-ir-letter-approve {
+  border-color: color-mix(in srgb, var(--mint) 55%, var(--line));
+  color: var(--zrv-hr-accent-text);
+}
+.zrv-ir-letter-reject {
+  border-color: color-mix(in srgb, var(--danger-text) 45%, var(--line));
+  color: var(--danger-text);
+}
+
+/* Paper-shaped placeholder while the saved letter loads. */
+.zrv-ir-letter-skeleton {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: none;
+  min-height: 560px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface-solid);
+}
+.zrv-ir-letter-skeleton i {
+  display: block;
+  border-radius: 5px;
+  background: linear-gradient(100deg,
+    color-mix(in srgb, var(--text) 8%, var(--surface-solid)) 20%,
+    color-mix(in srgb, var(--text) 3%, var(--surface-solid)) 38%,
+    color-mix(in srgb, var(--text) 8%, var(--surface-solid)) 56%);
+  background-size: 220% 100%;
+  animation: zrv-ir-letter-skeleton-shine 1.35s ease-in-out infinite;
+}
+.zrv-ir-letter-skeleton__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid color-mix(in srgb, var(--zrv-hr-accent) 45%, var(--line));
+}
+.zrv-ir-letter-skeleton__header i:first-child {
+  width: 46%;
+  height: 26px;
+}
+.zrv-ir-letter-skeleton__header i:last-child {
+  width: 22%;
+  height: 18px;
+  border-radius: 100px;
+}
+.zrv-ir-letter-skeleton__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  margin-top: 2px;
+}
+.zrv-ir-letter-skeleton__grid i {
+  height: 30px;
+}
+.zrv-ir-letter-skeleton__grid .zrv-ir-letter-skeleton__wide {
+  grid-column: 1 / -1;
+}
+.zrv-ir-letter-skeleton__comments {
+  min-height: 74px;
+  margin-top: 4px;
+}
+.zrv-ir-letter-skeleton__files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.zrv-ir-letter-skeleton__files i {
+  width: 58%;
+  height: 12px;
+}
+.zrv-ir-letter-skeleton__files i:last-child {
+  width: 41%;
+}
+.zrv-ir-letter-skeleton__footer {
+  width: 34%;
+  height: 11px;
+  margin-top: auto;
+}
+@keyframes zrv-ir-letter-skeleton-shine {
+  to { background-position-x: -220%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-ir-letter-skeleton i { animation: none; }
+}
+
+/* Hidden on screen; the Print button fills it and then opens the dialog. */
+.zrv-hr.zrv-ir-letter-print {
+  display: none;
+}
+
+/* Printing from a letters report drawer: only the hidden saved letter is on
+   paper, with the same plain-page treatment as the employment offer. */
+@page letter-report {
+  size: A4 portrait;
+  margin: 8mm;
+}
+@media print {
+  .zrv-ir-letter-print {
+    display: block !important;
+  }
+  body:has(.zrv-ir-letter-print),
+  body:has(.zrv-ir-letter-print) *:has(.zrv-ir-letter-print),
+  .zrv-ir-letter-print,
+  .zrv-ir-letter-print .zrv-hr-body,
+  .zrv-ir-letter-print .zrv-hr-side {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    transform: none !important;
+    contain: none !important;
+    background: #fff !important;
+    page: letter-report;
+  }
+  body:has(.zrv-ir-letter-print) *:not(:has(.zrv-ir-letter-print)):not(.zrv-ir-letter-print):not(.zrv-ir-letter-print *) {
+    display: none !important;
+  }
+  body:has(.zrv-ir-letter-print) *:has(.zrv-ir-letter-print) {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .zrv-ir-letter-print .zrv-hr-esf-paper {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+    box-shadow: none;
+    page: letter-report;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .zrv-ir-letter-print .zrv-hr-esf-pages,
+  .zrv-ir-letter-print .zrv-hr-esf-pageviewport {
+    overflow: visible;
+  }
+  .zrv-ir-letter-print .zrv-hr-esf-pagetrack {
+    display: block;
+    transform: none !important;
+  }
+  .zrv-ir-letter-print .zrv-hr-esf-page,
+  .zrv-ir-letter-print .zrv-hr-esf-page[aria-hidden="true"] {
+    margin-top: 14px;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .zrv-ir-letter-print .zrv-hr-esf-page:first-child {
+    margin-top: 0;
+  }
+  .zrv-ir-letter-print .zrv-hr-esf-pagearrow {
+    display: none !important;
   }
 }

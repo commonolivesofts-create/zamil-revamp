@@ -297,12 +297,12 @@ test("parity: choosing a form type loads its criteria (legacy showDropInfo) and 
 test("parity: each criterion shows English and Arabic text, Allocated 5 and Points 1–5", async () => {
   assert.equal(ALLOCATED_POINTS, 5);
   const source = await page();
-  assert.match(source, /<b>\{line\.param\}<\/b>/);
+  assert.match(source, /<span className="zrv-hr-row__l zrv-hr-probation-row__label">\{line\.param\}/);
   assert.match(source, /<small lang="ar" dir="rtl">\{line\.paramAr\}<\/small>/);
-  assert.match(source, /zrv-hr-criterion__alloc">\{ALLOCATED_POINTS\}/);
+  assert.match(source, /zrv-hr-probation-row__alloc"[^>]*>\{ALLOCATED_POINTS\}/);
   assert.match(source, /\{\[1, 2, 3, 4, 5\]\.map/);
   assert.match(source, /type="radio"/);
-  assert.match(source, /معايير التقييم/);
+  assert.match(source, /aria-label="Evaluation Criteria"/);
 });
 
 test("parity: the page previews the total as the sum of the points (max 20 x 5 = 100)", () => {

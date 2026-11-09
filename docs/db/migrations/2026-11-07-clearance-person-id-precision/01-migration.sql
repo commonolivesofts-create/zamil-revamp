@@ -1,0 +1,95 @@
+-- EMPLOYEE-CLEARANCE-PERSON-ID-001: widen PERSON_ID to match XX_DIGI_EMP_MASTER.
+-- Applied and verified in TEST on 2026-11-07 after user approval and CI3 compatibility review.
+-- Retained as the versioned migration record. The guard below rejects an already-changed schema.
+
+DECLARE
+  v_source_count       PLS_INTEGER;
+  v_target_count       PLS_INTEGER;
+  v_wrong_type_count   PLS_INTEGER;
+  v_wide_id_count      PLS_INTEGER;
+  v_key_constraint_count PLS_INTEGER;
+BEGIN
+  SELECT COUNT(*)
+    INTO v_source_count
+    FROM ALL_TAB_COLUMNS
+   WHERE OWNER = 'XXZP'
+     AND TABLE_NAME = 'XX_DIGI_EMP_MASTER'
+     AND COLUMN_NAME = 'PERSON_ID'
+     AND DATA_TYPE = 'NUMBER'
+     AND DATA_PRECISION = 18
+     AND DATA_SCALE = 0;
+
+  IF v_source_count <> 1 THEN
+    RAISE_APPLICATION_ERROR(-20101, 'Employee master PERSON_ID must be NUMBER(18,0)');
+  END IF;
+
+  SELECT COUNT(*)
+    INTO v_target_count
+    FROM ALL_TAB_COLUMNS
+   WHERE OWNER = 'XXZP'
+     AND TABLE_NAME IN (
+       'XX_CLEARANCE_HEADER', 'XX_CLEARANCE_IT', 'XX_CLEARANCE_EMPLOYEES',
+       'XX_CLEARANCE_QUALITY', 'XX_CLEARANCE_WH', 'XX_CLEARANCE_ACCOUNTS',
+       'XX_CLEARANCE_ADMIN'
+     )
+     AND COLUMN_NAME = 'PERSON_ID';
+
+  IF v_target_count <> 7 THEN
+    RAISE_APPLICATION_ERROR(-20102, 'Expected PERSON_ID on all seven clearance tables');
+  END IF;
+
+  SELECT COUNT(*)
+    INTO v_wrong_type_count
+    FROM ALL_TAB_COLUMNS
+   WHERE OWNER = 'XXZP'
+     AND TABLE_NAME IN (
+       'XX_CLEARANCE_HEADER', 'XX_CLEARANCE_IT', 'XX_CLEARANCE_EMPLOYEES',
+       'XX_CLEARANCE_QUALITY', 'XX_CLEARANCE_WH', 'XX_CLEARANCE_ACCOUNTS',
+       'XX_CLEARANCE_ADMIN'
+     )
+     AND COLUMN_NAME = 'PERSON_ID'
+     AND (DATA_TYPE <> 'NUMBER'
+          OR NVL(DATA_PRECISION, -1) <> 10
+          OR NVL(DATA_SCALE, -1) <> 0);
+
+  IF v_wrong_type_count <> 0 THEN
+    RAISE_APPLICATION_ERROR(-20103, 'A clearance PERSON_ID column differs from NUMBER(10,0); inspect before migration');
+  END IF;
+
+  SELECT COUNT(*)
+    INTO v_wide_id_count
+    FROM XXZP.XX_DIGI_EMP_MASTER
+   WHERE ABS(PERSON_ID) >= 10000000000;
+
+  IF v_wide_id_count = 0 THEN
+    RAISE_APPLICATION_ERROR(-20104, 'No source ID exceeds ten digits; review whether this migration is still needed');
+  END IF;
+
+  SELECT COUNT(*)
+    INTO v_key_constraint_count
+    FROM ALL_CONSTRAINTS C
+    JOIN ALL_CONS_COLUMNS CC
+      ON CC.OWNER = C.OWNER
+     AND CC.CONSTRAINT_NAME = C.CONSTRAINT_NAME
+   WHERE C.OWNER = 'XXZP'
+     AND C.TABLE_NAME IN (
+       'XX_CLEARANCE_HEADER', 'XX_CLEARANCE_IT', 'XX_CLEARANCE_EMPLOYEES',
+       'XX_CLEARANCE_QUALITY', 'XX_CLEARANCE_WH', 'XX_CLEARANCE_ACCOUNTS',
+       'XX_CLEARANCE_ADMIN'
+     )
+     AND CC.COLUMN_NAME = 'PERSON_ID'
+     AND C.CONSTRAINT_TYPE IN ('P', 'R', 'U');
+
+  IF v_key_constraint_count <> 0 THEN
+    RAISE_APPLICATION_ERROR(-20105, 'PERSON_ID participates in a key constraint; review before widening');
+  END IF;
+END;
+/
+
+ALTER TABLE XXZP.XX_CLEARANCE_HEADER MODIFY (PERSON_ID NUMBER(18,0));
+ALTER TABLE XXZP.XX_CLEARANCE_IT MODIFY (PERSON_ID NUMBER(18,0));
+ALTER TABLE XXZP.XX_CLEARANCE_EMPLOYEES MODIFY (PERSON_ID NUMBER(18,0));
+ALTER TABLE XXZP.XX_CLEARANCE_QUALITY MODIFY (PERSON_ID NUMBER(18,0));
+ALTER TABLE XXZP.XX_CLEARANCE_WH MODIFY (PERSON_ID NUMBER(18,0));
+ALTER TABLE XXZP.XX_CLEARANCE_ACCOUNTS MODIFY (PERSON_ID NUMBER(18,0));
+ALTER TABLE XXZP.XX_CLEARANCE_ADMIN MODIFY (PERSON_ID NUMBER(18,0));

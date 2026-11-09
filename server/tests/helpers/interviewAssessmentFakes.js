@@ -116,7 +116,8 @@ export function installInterviewAssessments(
     },
     async insertEvaluation(_c, e) {
       if (store.failures.interviewInsert) throw new Error('simulated evaluation insert failure');
-      table().evaluations.push({ ...e });
+      const { evalComment, ...fields } = e;
+      table().evaluations.push({ ...fields, comment: evalComment });
     },
 
     async findHeader(_c, headerId) {
@@ -285,8 +286,20 @@ export function installInterviewAssessments(
     },
     async mergeEvaluation(_c, { headerId, createdBy, updatedBy, ...fields }) {
       const row = evalOf(headerId);
-      if (row) Object.assign(row, fields, { updatedAt: store.now(), updatedBy });
-      else table().evaluations.push({ headerId, createdBy, ...fields });
+      const { evalComment, ...evaluationFields } = fields;
+      if (row)
+        Object.assign(row, evaluationFields, {
+          comment: evalComment,
+          updatedAt: store.now(),
+          updatedBy,
+        });
+      else
+        table().evaluations.push({
+          headerId,
+          createdBy,
+          ...evaluationFields,
+          comment: evalComment,
+        });
     },
     async updateHeaderMirror(
       _c,

@@ -487,6 +487,7 @@ describe('API documentation', () => {
       ['get', ''],
       ['post', ''],
       ['get', '/lookups/employees'],
+      ['get', '/lookups/capabilities'],
       ['get', '/lookups/employees/{empNumber}'],
       ['get', '/{headerId}'],
       ['put', '/{headerId}'],

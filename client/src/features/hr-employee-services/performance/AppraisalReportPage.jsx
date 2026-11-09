@@ -1,4 +1,9 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
+import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import usePermissions from '@/features/access/usePermissions.js'
+import { useAdminAction } from '@/features/security-administration/useAdminData.js'
+import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import { monthRanges } from '@/features/hr-recruitment/shared/insightDates.js'
 import { Pill } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '@/features/hr-recruitment/shared/components/InsightReport.jsx'
@@ -91,6 +96,42 @@ function insight(appraisals) {
   ]
 }
 const GROUPS = [{ key: 'grade', title: R.breakdown.title, tone: 'primary', items: GRADES.map((grade) => ({ key: grade, label: grade, patch: { grade } })) }]
+const DELETE_PERMISSION = 'HR.PERFORMANCE_APPRAISALS:DELETE'
+
+function AppraisalReportActions({ row, onClose, onChanged }) {
+  const permissions = usePermissions()
+  const action = useAdminAction()
+  const [confirming, setConfirming] = useState(false)
+  if (!permissions.can(DELETE_PERMISSION)) return null
+
+  const remove = async () => {
+    const outcome = await action.run(() => hrEmployeeServices.appraisals.delete(row.appraisalId), { success: R.deleted })
+    if (outcome.status === 'success') {
+      setConfirming(false)
+      action.setFeedback(null)
+      onChanged({})
+      onClose()
+    }
+  }
+  const closeConfirmation = () => {
+    if (action.pending) return
+    setConfirming(false)
+    action.setFeedback(null)
+  }
+
+  return <>
+    <div className="zrv-ir-drawer__actions">
+      <button type="button" className="zrv-ir-btn zrv-ir-btn--danger" onClick={() => setConfirming(true)} disabled={action.pending}>
+        <OrvexaIcon name="trash-2" size={16} />{R.deleteAction}
+      </button>
+    </div>
+    {confirming && createPortal(
+      <ConfirmDialog title={R.deleteTitle} description={R.deleteBody(row.appraisalNumber)} confirmLabel={R.deleteAction} danger
+        pending={action.pending} feedback={action.feedback} onConfirm={remove} onClose={closeConfirmation} />,
+      document.body,
+    )}
+  </>
+}
 
 // Appraisal report: this year's appraisals the user may see; one opens by its number.
 export default function AppraisalReportPage() {
@@ -106,6 +147,7 @@ export default function AppraisalReportPage() {
         heading: row.employeeName,
         pill: statusPill(row),
         facts: [[R.columns.period, row.periodCode], [R.columns.rating, rating(row)], [R.columns.grade, row.grade]],
-      })} />
+      })}
+      renderDetail={(row, { onClose, onChanged }) => <AppraisalReportActions row={row} onClose={onClose} onChanged={onChanged} />} />
   )
 }

@@ -9,14 +9,15 @@ import {
 } from './personalStatusChange.rules.js';
 
 export class PersonalStatusError extends AppError {
-  constructor(status, code, message = 'Validation failed') {
-    super(status, code, message);
+  constructor(status, code, message = 'Validation failed', details) {
+    super(status, code, message, details);
     this.name = 'PersonalStatusError';
   }
 }
 
-const invalid = (code, message = 'Validation failed') => {
-  throw new PersonalStatusError(400, code, message);
+const invalid = (code, message = 'Validation failed', field) => {
+  const details = field ? [{ field, message: `"${field}" is invalid` }] : undefined;
+  throw new PersonalStatusError(400, code, message, details);
 };
 
 const isMissing = (value) => value === null || value === undefined;
@@ -35,30 +36,30 @@ const isValidDate = (value) => {
   );
 };
 
-const validPositiveId = (value, code) => {
+const validPositiveId = (value, code, field) => {
   const text = String(value);
 
   if (!/^[1-9]\d{0,18}$/.test(text)) {
-    invalid(code);
+    invalid(code, 'Validation failed', field);
   }
 
   return text;
 };
 
-export const positiveId = (value) => validPositiveId(value, 'INVALID_ID');
+export const positiveId = (value) => validPositiveId(value, 'INVALID_ID', 'headerId');
 
-export const employeeNumber = (value) => validPositiveId(value, 'EMP_NOT_FOUND');
+export const employeeNumber = (value) => validPositiveId(value, 'EMP_NOT_FOUND', 'empNo');
 
 const optionalText = (value) => {
   if (isMissing(value)) return null;
   return String(value);
 };
 
-const optionalLimitedText = (value, max) => {
+const optionalLimitedText = (value, max, field) => {
   if (isMissing(value) || value === '') return null;
 
   if (typeof value !== 'string' || value.length > max) {
-    invalid('TEXT_TOO_LONG');
+    invalid('TEXT_TOO_LONG', 'Validation failed', field);
   }
 
   return value;
@@ -255,13 +256,13 @@ export const validateWrite = (body) => {
   const empNo = employeeNumber(body.empNo);
 
   if (!isValidDate(body.effectiveDate)) {
-    invalid('EFFECTIVE_DATE_REQUIRED');
+    invalid('EFFECTIVE_DATE_REQUIRED', 'Validation failed', 'effectiveDate');
   }
 
   const revised = body.new;
 
   if (!revised || typeof revised !== 'object' || Array.isArray(revised)) {
-    invalid('POSITION_INVALID');
+    invalid('POSITION_INVALID', 'Validation failed', 'new.position');
   }
 
   // NEW_POSITION is VARCHAR2(100).
@@ -270,24 +271,24 @@ export const validateWrite = (body) => {
     revised.position.trim() === '' ||
     revised.position.trim().length > 100
   ) {
-    invalid('POSITION_INVALID');
+    invalid('POSITION_INVALID', 'Validation failed', 'new.position');
   }
 
   for (const field of PAY_FIELDS) {
     if (!isValidAmount(revised[field])) {
-      invalid('ALLOWANCE_INVALID');
+      invalid('ALLOWANCE_INVALID', 'Validation failed', `new.${field}`);
     }
   }
 
   if (!MARITAL_STATUSES.includes(revised.maritalStatus)) {
-    invalid('MARITAL_STATUS_INVALID');
+    invalid('MARITAL_STATUS_INVALID', 'Validation failed', 'new.maritalStatus');
   }
 
   for (const field of ['remarks', 'views']) {
     const value = body[field];
 
     if (!isMissing(value) && (typeof value !== 'string' || value.length > 2000)) {
-      invalid('TEXT_TOO_LONG');
+      invalid('TEXT_TOO_LONG', 'Validation failed', field);
     }
   }
 
@@ -301,7 +302,7 @@ export const validateWrite = (body) => {
     oldMaritalStatus = null;
   } else if (old.maritalStatus !== undefined) {
     if (!MARITAL_STATUSES.includes(old.maritalStatus)) {
-      invalid('MARITAL_STATUS_INVALID');
+      invalid('MARITAL_STATUS_INVALID', 'Validation failed', 'old.maritalStatus');
     }
 
     oldMaritalStatus = old.maritalStatus;
@@ -325,8 +326,8 @@ export const validateWrite = (body) => {
     newTotal: payTotal(amounts),
     newMaritalStatus: revised.maritalStatus,
     // NEW_GRADE / NEW_LEVEL (VARCHAR2(50)): new-only and optional; legacy shows empty labels.
-    newGrade: optionalLimitedText(revised.grade, 50),
-    newLevel: optionalLimitedText(revised.level, 50),
+    newGrade: optionalLimitedText(revised.grade, 50, 'new.grade'),
+    newLevel: optionalLimitedText(revised.level, 50, 'new.level'),
 
     remarks: optionalText(body.remarks),
     views: optionalText(body.views),

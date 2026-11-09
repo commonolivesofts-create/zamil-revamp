@@ -4,6 +4,7 @@ import { InsightReport } from '@/features/hr-recruitment/shared/components/Insig
 import { Card, Columns, Foot, Hero } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
 import { LETTERS_BREADCRUMB, SALARY_CERTIFICATE_PATHS as PATHS } from '../employeeServicesPaths.js'
 import { LANGUAGES, salaryCertificateService as service } from './salaryCertificateService.js'
+import { SalaryCertificateReportPreview } from './SalaryCertificateReportPreview.jsx'
 
 // The legacy salary_certificate_report.php (English) and its Arabic twin as one
 // report; each language is its own table and API, so one is always selected.
@@ -74,17 +75,10 @@ export default function SalaryCertificateReportPage() {
   return (
     <InsightReport variant="salary-certificate-report" title="Salary certificate report" heading="Certificates" breadcrumb={LETTERS_BREADCRUMB}
       resourceKey="hr-salary-certificate-report" list={list} create={{ permission: 'HR.SALARY_CERTIFICATES:CREATE', path: PATHS.form, label: 'New certificate' }}
-      openLabel="Open certificate" empty="No salary certificates match these filters." initial={INITIAL} required={['language']}
+      empty="No salary certificates match these filters." initial={INITIAL} required={['language']}
       fields={FIELDS} columns={COLUMNS} cards={CARDS} groups={groups} defaultSort={{ key: '', order: '' }}
-      numberOf={(row) => row.refNo || row.certificateId} rowKey={(row) => row.certificateId} pathOf={(row) => `${PATHS.form}/${row.certificateId}`}
+      numberOf={(row) => row.refNo || row.certificateId} rowKey={(row) => row.certificateId} closeInDetail
       validate={(draft) => (draft.language ? {} : { language: 'Choose a language.' })}
-      summary={(row) => ({
-        heading: row.employeeName,
-        facts: [
-          ['Language', LANGUAGES[row.language].native], ['Ref. no.', row.refNo], ['Employee no.', row.employeeNo], ['Nationality', row.nationality],
-          ['ID / passport no.', row.nationalIdentifier], ['Joined', row.joiningDate ? date(row.joiningDate) : ''], ['Division', row.division],
-          ['Total salary', row.totalSalary == null ? '' : money(row.totalSalary)], ['To', row.toEmpName], ['Certificate date', row.certDate ? date(row.certDate) : ''],
-        ],
-      })} />
+      renderDetail={(row, { onClose }) => <SalaryCertificateReportPreview row={row} onClose={onClose} />} />
   )
 }

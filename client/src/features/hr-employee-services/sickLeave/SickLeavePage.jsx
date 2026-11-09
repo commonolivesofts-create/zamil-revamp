@@ -41,17 +41,23 @@ const monthEnd = (iso) => addDays(`${addDays(`${iso.slice(0, 7)}-28`, 4).slice(0
 export default function SickLeavePage() {
   return (
     <RecruitmentLoader current="sick-leave" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={sickLeaveDemo}
-      title={TITLE} param="leaveId" load={sickLeaveService.getById} loadLookups={(signal) => {
+      title={TITLE} param="leaveId" load={sickLeaveService.getById} loadLookups={async (signal) => {
         // Opening Emp# lists employees without a request.
         warmEmployeeList(sickLeaveService, { signal })
-        return {}
+        if (sickLeaveDemo) return { halfDays: true }
+        try {
+          return await sickLeaveService.capabilities({ signal })
+        } catch (error) {
+          if (signal?.aborted) throw error
+          return { halfDays: false }
+        }
       }}>
-      {({ record, editorKey }) => <SickLeaveEditor key={editorKey} initial={record} />}
+      {({ record, editorKey, lookups }) => <SickLeaveEditor key={editorKey} initial={record} halfDaysSupported={lookups?.halfDays === true} />}
     </RecruitmentLoader>
   )
 }
 
-function SickLeaveEditor({ initial }) {
+function SickLeaveEditor({ initial, halfDaysSupported }) {
   const navigate = useNavigate()
   const permissions = usePermissions()
   const today = businessToday()
@@ -82,6 +88,7 @@ function SickLeaveEditor({ initial }) {
   const days = leaveDays({ ...form, toDayType: single ? form.fromDayType : form.toDayType })
   const files = [...(record?.attachments ?? []), ...newFiles]
   const hasFile = files.length > 0
+  const dayTypeOptions = Object.entries(DAY_TYPE_TEXT).filter(([value]) => halfDaysSupported || value === 'FULL')
 
   const clear = (...keys) => setErrors((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !keys.includes(key))))
   const set = (key) => (event) => { editor.set(key)(event); clear(key) }
@@ -181,16 +188,17 @@ function SickLeaveEditor({ initial }) {
           </HrField>
           <HrField id="sl-from-type" label={single ? 'Day type' : 'First day'}>
             <select id="sl-from-type" className="ux-select zrv-hr-input" value={form.fromDayType} onChange={(event) => { set('fromDayType')(event); clear('toDayType') }}>
-              {Object.entries(DAY_TYPE_TEXT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              {dayTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </HrField>
           {!single && <HrField id="sl-to-type" label="Last day" error={errors.toDayType}>
             <select {...fieldProps('sl-to-type', { error: errors.toDayType })} className="ux-select zrv-hr-input" value={form.toDayType} onChange={set('toDayType')}>
-              {Object.entries(DAY_TYPE_TEXT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              {dayTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </HrField>}
         </div>
         {overlap && <p className="zrv-auth-field-error zrv-hr-mt" role="status">These dates overlap request {overlap.leaveId} ({enDate(overlap.fromDate)} – {enDate(overlap.toDate)}).</p>}
+        {!halfDaysSupported && <p className="zrv-hr-esf-note" role="status">Half-day requests are not enabled for this database. Select full days.</p>}
         {others.status === 'error' && <p className="zrv-hr-esf-note" role="status">Other requests of this employee could not be checked.</p>}
       </section>
 

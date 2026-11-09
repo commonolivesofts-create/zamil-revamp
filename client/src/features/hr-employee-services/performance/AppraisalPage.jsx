@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ConfirmDialog, ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
+import usePermissions from '@/features/access/usePermissions.js'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { businessToday, enDate, initials } from '@/features/hr-recruitment/shared/hrFormat.js'
@@ -26,6 +27,7 @@ import SignaturePad from './SignaturePad.jsx'
 
 const BASE = ES_PATHS.appraisal
 const service = hrEmployeeServices.appraisals
+const DELETE_PERMISSION = 'HR.PERFORMANCE_APPRAISALS:DELETE'
 const loadLookups = (signal) => hrEmployeeServices.performance.lookups({ signal })
 
 // A signature is stored as a drawn image with its date. Records made before
@@ -70,6 +72,7 @@ function AppraisalEditor({ lookups, record }) {
 
 function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   const navigate = useNavigate()
+  const permissions = usePermissions()
   const editor = useRecruitmentForm({
     basePath: BASE, idKey: 'appraisalId', record,
     initialForm: record ? {
@@ -81,6 +84,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   })
   const { form, set, patch, step, setStep } = editor
   const saved = editor.record
+  const canDelete = Boolean(saved && permissions.can(DELETE_PERMISSION))
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
   const [tab, setTab] = useState('goals')
@@ -169,7 +173,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   const save = () => {
     if (locked || !check(true)) return
     editor.perform(async ({ saved: keep }) => {
-      const value = await service.save(editor.recordId, appraisalPayload(form, criteria), employee)
+      const value = await service.save(editor.recordId, appraisalPayload(form, criteria), employee, appraiser)
       keep(value)
       return value
     }, { success: (value) => T.saved(value.appraisalNumber) })
@@ -180,11 +184,17 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   const submit = () => {
     setDialog(null)
     editor.perform(async ({ saved: keep }) => {
-      const value = await service.save(editor.recordId, appraisalPayload(form, criteria), employee)
+      const value = await service.save(editor.recordId, appraisalPayload(form, criteria), employee, appraiser)
       keep(value)
       return value
     }, { success: (value) => T.submitted(value.appraisalNumber) })
   }
+  const deleteRecord = () => editor.perform(async () => {
+    await service.delete(saved.appraisalId)
+    return true
+  }, { success: T.deleted }).then((outcome) => {
+    if (outcome.status === 'success') navigate(BASE, { replace: true })
+  })
   const leave = (path) => (editor.dirty && !locked ? setDialog({ path }) : navigate(path))
   const onTabKey = (event) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
@@ -195,6 +205,7 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
   }
 
   const tools = [
+    ...(canDelete ? [{ icon: 'trash-2', label: T.deleteAction, onClick: () => setDialog('delete'), disabled: editor.pending }] : []),
     { icon: 'house', label: T.common.home, onClick: () => leave('/dashboard') },
     { icon: 'chart-column', label: T.tools.report, onClick: () => leave(ES_PATHS.appraisalReport) },
     { icon: 'languages', label: arabic ? 'English' : 'العربية', onClick: () => setLanguage(arabic ? 'en' : 'ar') },
@@ -401,6 +412,8 @@ function AppraisalForm({ lookups, record, initialTeam, initialPeriod }) {
       <ConfirmDialog title={T.confirm.title} confirmLabel={T.confirm.action} pending={editor.pending} onClose={() => setDialog(null)} onConfirm={submit}
         description={T.confirm.body(employee.name, period.label, average, result.band.grade, band.title, goals.length)} />
     )}
+    {dialog === 'delete' && <ConfirmDialog title={T.deleteTitle} description={T.deleteBody(saved?.appraisalNumber)} confirmLabel={T.deleteAction}
+      pending={editor.pending} feedback={editor.feedback} onConfirm={deleteRecord} onClose={() => setDialog(null)} />}
     {dialog?.path && <NewFormDialog onConfirm={() => { const { path } = dialog; setDialog(null); navigate(path) }} onClose={() => setDialog(null)} />}
   </>
 }

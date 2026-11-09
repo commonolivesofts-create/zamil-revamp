@@ -33,6 +33,12 @@ const noEmployee = () =>
 const forbidden = () =>
   new PersonalStatusError(403, 'FORBIDDEN', 'You do not have permission for this action.');
 
+const normalizedPosition = (value) =>
+  String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toUpperCase();
+
 const notDraft = (action) =>
   new PersonalStatusError(
     409,
@@ -239,7 +245,7 @@ export const createPersonalStatusService = ({
   };
 
   /** Validated answers plus, when `withSnapshot`, the server-computed employee snapshot. */
-  const checkWrite = async (connection, body, { withSnapshot }) => {
+  const checkWrite = async (connection, body, { withSnapshot, currentPosition = null }) => {
     const values = validateWrite(body);
 
     let prefill = null;
@@ -256,10 +262,19 @@ export const createPersonalStatusService = ({
       }
     }
 
-    const positionExists = await repository.positionExists(connection, values.newPosition);
+    // Keep an employee's current position valid even when it is a historical approved title
+    // missing from today's master lookup. New position choices still must exist in the lookup.
+    const unchangedCurrentPosition =
+      normalizedPosition(values.newPosition) &&
+      normalizedPosition(values.newPosition) ===
+        normalizedPosition(prefill?.old.position ?? currentPosition);
+    const positionExists =
+      unchangedCurrentPosition || (await repository.positionExists(connection, values.newPosition));
 
     if (!positionExists) {
-      throw new PersonalStatusError(400, 'POSITION_INVALID', 'Validation failed');
+      throw new PersonalStatusError(400, 'POSITION_INVALID', 'Validation failed', [
+        { field: 'new.position', message: 'Position is invalid' },
+      ]);
     }
 
     if (!prefill) return values;
@@ -374,7 +389,10 @@ export const createPersonalStatusService = ({
 
         const employeeChanged = String(facts.EMP_NO ?? '') !== String(body?.empNo ?? '');
 
-        const values = await checkWrite(connection, body, { withSnapshot: employeeChanged });
+        const values = await checkWrite(connection, body, {
+          withSnapshot: employeeChanged,
+          currentPosition: facts.OLD_POSITION,
+        });
 
         if (values.oldMaritalStatus === undefined) {
           values.oldMaritalStatus = facts.OLD_MARITAL_STATUS ?? null;

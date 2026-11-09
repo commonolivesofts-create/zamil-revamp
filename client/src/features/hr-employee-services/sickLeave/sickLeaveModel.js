@@ -48,6 +48,16 @@ export function overlapOf(existing, { leaveId, fromDate, toDate }) {
   return existing.find((item) => item.leaveId !== leaveId && item.status !== 'REJECTED' && item.fromDate <= toDate && fromDate <= item.toDate) ?? null
 }
 
+// A saved request in the form's shape, so the same paper preview renders it.
+export const sickLeaveFormFromRecord = (record) => ({
+  employee: record?.employee ?? null,
+  fromDate: record?.fromDate ?? '',
+  toDate: record?.toDate ?? '',
+  fromDayType: record?.fromDayType ?? 'FULL',
+  toDayType: record?.toDayType ?? 'FULL',
+  comments: record?.comments ?? '',
+})
+
 export const extensionOf = (name) => String(name ?? '').split('.').pop().toLowerCase()
 export const badFile = (file) => !FILE_EXTENSIONS.includes(extensionOf(file.fileName)) || file.sizeBytes > MAX_FILE_BYTES || file.sizeBytes === 0
 

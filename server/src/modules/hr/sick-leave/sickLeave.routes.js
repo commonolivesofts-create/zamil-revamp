@@ -60,6 +60,9 @@ export function createSickLeaveRouter({ service, authenticate, authorize, auditS
   // Employee lookup.
   r.get('/lookups/employees', ...read({ query: employeesQuery }), ctl.employees);
 
+  // Exposes optional day-type support so the form can avoid unavailable HALF choices.
+  r.get('/lookups/capabilities', ...read({ query: empty }), ctl.capabilities);
+
   // Employee autofill.
   r.get(
     '/lookups/employees/:empNumber',

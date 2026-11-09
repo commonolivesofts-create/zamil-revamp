@@ -171,7 +171,8 @@ export function createInterviewAssessmentService({
       adminManager: text(evaluation.adminManager),
       managningDirector: text(evaluation.managningDirector),
       hrRep: text(evaluation.hrRep),
-      comment: text(evaluation.comment),
+      // COMMENT is reserved in Oracle bind names (ORA-01745).
+      evalComment: text(evaluation.comment),
       deptRep: text(evaluation.deptRep),
     };
 

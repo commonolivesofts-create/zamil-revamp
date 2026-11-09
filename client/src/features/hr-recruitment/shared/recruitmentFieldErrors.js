@@ -1,8 +1,9 @@
 const valuesOf = (form, fields) => JSON.stringify(fields.map((field) => field.split('.').reduce((value, key) => value?.[key], form)))
 
 export function recruitmentValidation(error, definitions, form) {
-  if (error?.code !== 'VALIDATION_ERROR') return null
-  const issues = (error.details || []).flatMap(({ field, message }) => {
+  const details = Array.isArray(error?.details) ? error.details : []
+  if (error?.code !== 'VALIDATION_ERROR' && !details.some(({ field }) => definitions[String(field ?? '').replace(/^body\./, '')])) return null
+  const issues = details.flatMap(({ field, message }) => {
     const apiField = String(field ?? '').replace(/^body\./, '')
     const target = definitions[apiField]
     if (!target) return []

@@ -98,6 +98,23 @@ describe('HR identity-column IDs', () => {
     assert.doesNotMatch(insert.sql, /MAX\(/);
   });
 
+  it('interview evaluation insert avoids Oracle reserved bind name COMMENT', async () => {
+    const connection = recordingConnection();
+    const binds = {
+      headerId: '1590',
+      evalStatus: 'Passed',
+      evalComment: 'Recommended',
+      createdBy: '9',
+    };
+    await interviewRepository.insertEvaluation(connection, binds);
+    await interviewRepository.mergeEvaluation(connection, { ...binds, updatedBy: '9' });
+    for (const { sql, binds: usedBinds } of connection.statements) {
+      assert.doesNotMatch(sql, /:comment\b/i);
+      assert.match(sql, /:evalComment\b/);
+      assert.equal(usedBinds.evalComment, 'Recommended');
+    }
+  });
+
   it('no MAX-based ID helpers remain for requisitions, interviews or attachments', () => {
     for (const name of ['generateRequisitionId', 'generateAttachmentId']) {
       assert.equal(name in requisitionRepository, false, name);
