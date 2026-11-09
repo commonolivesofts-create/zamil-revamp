@@ -46,6 +46,10 @@ export function createSickLeaveService({ client }) {
     async employeeDetails(employeeNumber, { signal } = {}) {
       return readSickLeaveEmployee((await client.get(`${SICK_LEAVE_BASE}/lookups/employees/${encodeURIComponent(employeeNumber)}`, { signal })).data)
     },
+    async capabilities({ signal } = {}) {
+      const { data } = await client.get(`${SICK_LEAVE_BASE}/lookups/capabilities`, { signal })
+      return { halfDays: data?.halfDays === true }
+    },
     list,
     // The employee's requests that overlap the period (within what the user may see).
     async overlapping(employeeNumber, fromDate, toDate, { signal } = {}) {

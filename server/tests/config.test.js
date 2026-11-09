@@ -196,7 +196,7 @@ describe('Oracle configuration', () => {
     assert.deepEqual(pools.LOW, {
       alias: 'example_low',
       poolMin: 1,
-      poolMax: 4,
+      poolMax: 8,
       queueMax: 50,
       queueTimeout: 10000,
     });

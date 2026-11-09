@@ -122,21 +122,12 @@ export async function capabilities(connection) {
 
 /**
  * Prevent writes when required Oracle capabilities
- * cannot be verified.
+ * cannot be verified. Day-type columns and fractional precision are checked
+ * separately before accepting a half-day request.
  */
 
 export async function ensureWriteSchema(connection) {
   const result = await capabilities(connection);
-
-  if (!result.dayTypes) {
-    throw schemaError(
-      'FROM_DAY_TYPE and TO_DAY_TYPE columns are not verified in XXZP.XXZP_SICK_LEAVE',
-    );
-  }
-
-  if (!result.fractional) {
-    throw schemaError('LEAVE_DAYS fractional NUMBER support is not verified');
-  }
 
   if (!result.headerGenerated) {
     throw schemaError('Safe HEADER_ID generation is not verified for XXZP.XXZP_SICK_LEAVE');
@@ -441,11 +432,33 @@ export async function attachment(connection, headerId, attachmentId) {
  *
  * Never use MAX(HEADER_ID) + 1.
  *
- * Requires a verified database-generated HEADER_ID
- * and existing FROM_DAY_TYPE / TO_DAY_TYPE columns.
+ * Requires a verified database-generated HEADER_ID.
+ * The half-day columns are included only when present.
  */
 
-export async function insert(connection, data) {
+export async function insert(connection, data, { dayTypes = true } = {}) {
+  const dayTypeColumns = dayTypes ? ', FROM_DAY_TYPE, TO_DAY_TYPE' : '';
+  const dayTypeValues = dayTypes ? ', :fromDayType, :toDayType' : '';
+  const binds = {
+    uuid: data.uuid,
+    fromDate: data.fromDate,
+    toDate: data.toDate,
+    empNumber: data.empNumber,
+    empName: data.empName,
+    leaveType: data.leaveType,
+    days: data.days,
+    comments: data.comments,
+    createdBy: data.createdBy,
+    outId: {
+      dir: oracledb.BIND_OUT,
+      type: oracledb.NUMBER,
+    },
+  };
+  if (dayTypes) {
+    binds.fromDayType = data.fromDayType;
+    binds.toDayType = data.toDayType;
+  }
+
   const sql = `
     INSERT INTO XXZP.XXZP_SICK_LEAVE
     (
@@ -459,9 +472,7 @@ export async function insert(connection, data) {
       COMMENTS,
       STATUS,
       CREATED_BY,
-      CREATED_AT,
-      FROM_DAY_TYPE,
-      TO_DAY_TYPE
+      CREATED_AT${dayTypeColumns}
     )
     VALUES
     (
@@ -475,37 +486,14 @@ export async function insert(connection, data) {
       :comments,
       'Draft',
       :createdBy,
-      SYSDATE,
-      :fromDayType,
-      :toDayType
+      SYSDATE${dayTypeValues}
     )
     RETURNING HEADER_ID INTO :outId
   `;
 
-  const result = await connection.execute(
-    sql,
-    {
-      uuid: data.uuid,
-      fromDate: data.fromDate,
-      toDate: data.toDate,
-      empNumber: data.empNumber,
-      empName: data.empName,
-      leaveType: data.leaveType,
-      days: data.days,
-      comments: data.comments,
-      createdBy: data.createdBy,
-      fromDayType: data.fromDayType,
-      toDayType: data.toDayType,
-
-      outId: {
-        dir: oracledb.BIND_OUT,
-        type: oracledb.NUMBER,
-      },
-    },
-    {
-      autoCommit: false,
-    },
-  );
+  const result = await connection.execute(sql, binds, {
+    autoCommit: false,
+  });
 
   const headerId = result.outBinds?.outId?.[0];
 
@@ -531,7 +519,24 @@ export async function insert(connection, data) {
  *   CREATED_AT
  */
 
-export async function update(connection, data) {
+export async function update(connection, data, { dayTypes = true } = {}) {
+  const dayTypeAssignments = dayTypes
+    ? ',\n        FROM_DAY_TYPE = :fromDayType,\n        TO_DAY_TYPE = :toDayType'
+    : '';
+  const binds = {
+    headerId: data.headerId,
+    fromDate: data.fromDate,
+    toDate: data.toDate,
+    empNumber: data.empNumber,
+    empName: data.empName,
+    days: data.days,
+    comments: data.comments,
+  };
+  if (dayTypes) {
+    binds.fromDayType = data.fromDayType;
+    binds.toDayType = data.toDayType;
+  }
+
   const result = await connection.execute(
     `
       UPDATE XXZP.XXZP_SICK_LEAVE
@@ -545,24 +550,12 @@ export async function update(connection, data) {
         EMP_ID = :empNumber,
         EMP_NAME = :empName,
         LEAVE_DAYS = :days,
-        COMMENTS = :comments,
-        FROM_DAY_TYPE = :fromDayType,
-        TO_DAY_TYPE = :toDayType
+        COMMENTS = :comments${dayTypeAssignments}
 
       WHERE HEADER_ID = :headerId
         AND STATUS IN ('Draft', 'REJECTED')
     `,
-    {
-      headerId: data.headerId,
-      fromDate: data.fromDate,
-      toDate: data.toDate,
-      empNumber: data.empNumber,
-      empName: data.empName,
-      days: data.days,
-      comments: data.comments,
-      fromDayType: data.fromDayType,
-      toDayType: data.toDayType,
-    },
+    binds,
     {
       autoCommit: false,
     },

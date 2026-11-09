@@ -7,6 +7,7 @@ import { BUSINESS_VISA_PATHS as PATHS, LETTERS_BREADCRUMB } from '../employeeSer
 import { REQUEST_STATUSES as RECORD_STATUSES, REQUEST_STATUS_TEXT as STATUS_TEXT } from './businessVisaStatus.js'
 import { NATIONALITIES } from './nationalities.js'
 import { RESOURCE, businessVisaService as service } from './businessVisaService.js'
+import { BusinessVisaReportPreview } from './BusinessVisaReportPreview.jsx'
 
 // The legacy visa_report.php: every request, newest first.
 const MONTHS = 6
@@ -74,17 +75,9 @@ export default function BusinessVisaReportPage() {
   return (
     <InsightReport variant="business-visa-report" title="Business visa report" heading="Requests" breadcrumb={LETTERS_BREADCRUMB}
       resourceKey="hr-business-visa-report" list={list} create={{ permission: `${RESOURCE}:CREATE`, path: PATHS.form, label: 'New request' }}
-      openLabel="Open request" empty="No business visa requests match these filters." initial={INITIAL}
+      empty="No business visa requests match these filters." initial={INITIAL}
       fields={fields} columns={COLUMNS} cards={CARDS} groups={groups} defaultSort={{ key: '', order: '' }}
-      numberOf={(row) => row.requestNo || row.requestId} rowKey={(row) => row.requestId} pathOf={(row) => `${PATHS.form}/${row.requestId}`}
-      summary={(row) => ({
-        heading: row.visitorName,
-        facts: [
-          ['Request no.', row.requestNo], ['Status', STATUS_TEXT[row.status]], ['Date', row.requestDate ? date(row.requestDate) : ''],
-          ['Nationality', nationality(row.nationality)], ['Passport no.', row.passportNo], ['Company', row.companyName],
-          ['Purpose', row.visitPurpose], ['Arrival', row.arrivalDate ? date(row.arrivalDate) : ''], ['Visa', visaType(row)],
-          ['Requested by', row.requestedBy], ['Noted by', row.notedBy], ['Approved by', row.approvedBy],
-        ],
-      })} />
+      numberOf={(row) => row.requestNo || row.requestId} rowKey={(row) => row.requestId} closeInDetail
+      renderDetail={(row, { onClose }) => <BusinessVisaReportPreview row={row} onClose={onClose} />} />
   )
 }

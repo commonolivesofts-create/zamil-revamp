@@ -68,7 +68,7 @@ describe('initializeDatabase', () => {
       stmtCacheSize: 30,
       enableStatistics: true,
       pools: {
-        LOW: { alias: 'db_low', poolMin: 1, poolMax: 4, queueMax: 50, queueTimeout: 10000 },
+        LOW: { alias: 'db_low', poolMin: 1, poolMax: 8, queueMax: 50, queueTimeout: 10000 },
         HIGH: { alias: 'db_high', poolMin: 0, poolMax: 2, queueMax: 10, queueTimeout: 30000 },
       },
     };
@@ -87,7 +87,7 @@ describe('initializeDatabase', () => {
     const [low, high] = createPool.mock.calls.map((call) => call.arguments[0]);
     assert.deepEqual(
       { alias: low.poolAlias, connectString: low.connectString, max: low.poolMax },
-      { alias: 'LOW', connectString: 'db_low', max: 4 },
+      { alias: 'LOW', connectString: 'db_low', max: 8 },
     );
     assert.deepEqual(
       { alias: high.poolAlias, connectString: high.connectString, max: high.poolMax },

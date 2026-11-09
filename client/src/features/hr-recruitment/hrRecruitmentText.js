@@ -1347,7 +1347,7 @@ export const DASHBOARD_TEXT = Object.freeze({
   title: "Recruitment",
   subtitle: "What is happening across requisitions, interviews, offers and onboarding.",
   noAccess: "You do not have access to any recruitment form yet.",
-  unavailable: "This could not be loaded.",
+  unavailable: "Some figures are temporarily unavailable.",
   retry: "Try again",
   period: "Period",
   periods: Object.freeze({ "30d": "30D", "90d": "90D", year: "YTD", "12m": "12M", all: "All" }),

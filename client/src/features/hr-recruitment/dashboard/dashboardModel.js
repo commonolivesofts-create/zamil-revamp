@@ -8,7 +8,10 @@ export const PERIODS = Object.freeze(['30d', '90d', 'year', '12m', 'all'])
 export const DEFAULT_PERIOD = '12m'
 export const TREND_MONTHS = 12
 // Count requests in flight at once, so a dashboard load never floods the API.
-export const MAX_IN_FLIGHT = 6
+// The dashboard needs several independent counts. Keep the request fan-out
+// bounded, but allow enough parallel work that the initial load does not turn
+// into many slow waves of list requests.
+export const MAX_IN_FLIGHT = 12
 
 // The inclusive date window of a period ending today; null for all time.
 export function periodRange(period, today) {
@@ -87,5 +90,23 @@ export function niceMax(value) {
   return Math.ceil(step * power)
 }
 
-// A source's total: the pagination total of a one-row page.
-export const totalOf = (list) => async (query) => (await list({ ...query, page: 1, limit: 1 })).pagination.total
+const isTransientFailure = (error) =>
+  ['NETWORK_ERROR', 'TIMEOUT', 'INVALID_RESPONSE'].includes(error?.code) ||
+  error?.status === 500 || [502, 503, 504].includes(error?.status)
+
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+
+// A source's total: the pagination total of a one-row page. Retry transient
+// connection and server failures; validation and authorization errors are
+// returned immediately. Sharing happens in createCounter, so concurrent
+// panels still share the same retry sequence for an equal query.
+export const totalOf = (list, { attempts = 3, retryDelay = 250 } = {}) => async (query) => {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return (await list({ ...query, page: 1, limit: 1 })).pagination.total
+    } catch (error) {
+      if (!isTransientFailure(error) || attempt >= attempts) throw error
+      await wait(retryDelay * attempt)
+    }
+  }
+}

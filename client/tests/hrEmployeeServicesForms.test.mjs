@@ -22,7 +22,7 @@ import { createIdeaDemoClient } from '../src/features/hr-employee-services/demo/
 import { createSickLeaveService } from '../src/features/hr-employee-services/sickLeave/sickLeaveService.js'
 import { readSickLeaveRecord, sickLeaveFields } from '../src/features/hr-employee-services/sickLeave/sickLeaveContract.js'
 import {
-  backToWork, leaveDays, overlapOf, validateSickLeave, workingDays,
+  backToWork, leaveDays, overlapOf, sickLeaveFormFromRecord, validateSickLeave, workingDays,
 } from '../src/features/hr-employee-services/sickLeave/sickLeaveModel.js'
 import { createSickLeaveDemoClient } from '../src/features/hr-employee-services/demo/sickLeaveDemoClient.js'
 import { errorsInStep } from '../src/features/hr-employee-services/shared/stepGating.js'
@@ -253,6 +253,49 @@ test('sick leave page: one compact page with a live preview and tabs that scroll
   assert.match(preview, /Comments/)
 })
 
+test('sick leave report: a row opens the saved request like the employment offer drawer', async () => {
+  const report = await read('../src/features/hr-employee-services/sickLeave/SickLeaveReportPage.jsx')
+  assert.match(report, /<SickLeaveReportPreview /, 'the drawer shows the saved request preview')
+  assert.match(report, /closeInDetail/, 'the preview owns the close button, as the offer drawer does')
+  assert.match(report, /renderDetail=\{\(row, \{ onClose \}\)/)
+  assert.doesNotMatch(report, /summary=/, 'the old facts cards are gone')
+  assert.doesNotMatch(report, /pathOf=|openLabel=|Open request/, 'the Open link and copy number are gone')
+
+  const preview = await read('../src/features/hr-employee-services/sickLeave/SickLeaveReportPreview.jsx')
+  assert.match(preview, /sickLeaveService\.getById\(row\.leaveId/, 'the drawer loads the saved record, not the list row')
+  assert.match(preview, /<SickLeavePreview/, 'the same paper preview as the form')
+  assert.match(preview, /<PreviewLanguageSwitch/, 'the language switch prints EN, both or Arabic')
+  assert.match(preview, /<SickLeaveReportActions/)
+  assert.match(preview, /zrv-ir-sick-leave-preview__bar[\s\S]*zrv-hr-rp-drawer__x/, 'the close button sits in the toolbar')
+  assert.match(preview, /hr-employee-services-forms\.css/, 'the lazily loaded report brings its paper styles')
+  assert.match(preview, /SickLeaveSkeleton/, 'loading inherits the employment offer letter skeleton')
+  assert.match(preview, /<SickLeavePreview[\s\S]*<SickLeaveWorkflowActions/, 'the approval decision sits below the paper')
+
+  const actions = await read('../src/features/hr-employee-services/sickLeave/SickLeaveReportActions.jsx')
+  assert.match(actions, /to=\{path\}/, 'Edit opens the request form')
+  assert.match(actions, /usePrintSickLeave/)
+  assert.match(actions, /<RecruitmentToast feedback=\{notice\}/, 'the workflow notice is the recruitment toast')
+  assert.match(actions, /kind: 'info'/)
+  assert.match(actions, /approval workflow is pending setup/)
+  assert.match(actions, /Approve[\s\S]*Reject/)
+  assert.match(actions, /zrv-ir-sick-leave-print/, 'printing renders the request in a hidden target')
+
+  const print = await read('../src/features/hr-employee-services/sickLeave/printSickLeave.js')
+  assert.match(print, /document\.fonts\?\.ready/)
+  assert.match(print, /PRINT_TARGET = '\.zrv-ir-sick-leave-print \.zrv-hr-esf-preview'/)
+  assert.match(print, /window\.print\(\)/)
+  assert.match(print, /afterprint/)
+
+  const form = sickLeaveFormFromRecord({
+    employee: { employeeNumber: '9200', name: 'Demo Requester' }, fromDate: '2026-10-05', toDate: '2026-10-06',
+    fromDayType: 'FULL', toDayType: 'HALF', comments: 'Fever',
+  })
+  assert.deepEqual(form, {
+    employee: { employeeNumber: '9200', name: 'Demo Requester' }, fromDate: '2026-10-05', toDate: '2026-10-06',
+    fromDayType: 'FULL', toDayType: 'HALF', comments: 'Fever',
+  })
+})
+
 test('sick leave: the service runs unchanged on the demo adapter (multipart create, uploads, 409)', async () => {
   const service = createSickLeaveService({ client: createSickLeaveDemoClient(fast) })
   const employees = await service.searchEmployees('')
@@ -276,8 +319,101 @@ test('sick leave: the service runs unchanged on the demo adapter (multipart crea
   assert.deepEqual((await service.overlapping('9201', '2026-10-20', '2026-10-21')).map((item) => item.leaveId), ['3'])
 })
 
-// ---------- sidebar: HR → Talent Management ----------
+// ---------- letters reports: the saved record drawer ----------
 
+const LETTER_REPORTS = [
+  {
+    name: 'salary certificate', module: 'salaryCertificate', page: 'SalaryCertificateReportPage.jsx', preview: 'SalaryCertificateReportPreview.jsx',
+    id: 'certificateId', css: 'hr-salary-certificate.css', languageSwitch: false,
+  },
+  {
+    name: 'business visa request', module: 'businessVisa', page: 'BusinessVisaReportPage.jsx', preview: 'BusinessVisaReportPreview.jsx',
+    id: 'requestId', css: 'hr-business-visa.css', languageSwitch: true,
+  },
+  {
+    name: 'business visa letter', module: 'businessVisaLetter', page: 'BusinessVisaLetterReportPage.jsx', preview: 'BusinessVisaLetterReportPreview.jsx',
+    id: 'letterId', css: 'hr-business-visa-letter.css', languageSwitch: true,
+  },
+  {
+    name: 'tourist visa letter', module: 'touristVisa', page: 'TouristVisaReportPage.jsx', preview: 'TouristVisaReportPreview.jsx',
+    id: 'letterId', css: 'hr-tourist-visa.css', languageSwitch: true,
+  },
+  {
+    name: 'warning letter', module: 'warningLetter', page: 'WarningLetterReportPage.jsx', preview: 'WarningLetterReportPreview.jsx',
+    id: 'letterId', css: 'hr-warning-letter.css', languageSwitch: true,
+  },
+]
+
+test('letters reports: a row opens the saved record like the sick leave drawer', async () => {
+  for (const item of LETTER_REPORTS) {
+    const report = await read(`../src/features/hr-employee-services/${item.module}/${item.page}`)
+    assert.match(report, /closeInDetail/, `${item.name}: the preview owns the close button`)
+    assert.match(report, /renderDetail=\{\(row, \{ onClose \}\)/, `${item.name}: the drawer renders the saved record`)
+    assert.doesNotMatch(report, /summary=/, `${item.name}: the old facts cards are gone`)
+    assert.doesNotMatch(report, /pathOf=|openLabel=/, `${item.name}: the Open link is gone`)
+
+    const preview = await read(`../src/features/hr-employee-services/${item.module}/${item.preview}`)
+    assert.match(preview, /<LetterReportPreview/, `${item.name}: uses the shared drawer preview`)
+    assert.match(preview, new RegExp(`service\\.getById\\(row\\.${item.id}`), `${item.name}: loads the saved record, not the list row`)
+    assert.match(preview, /<LetterReportActions/, `${item.name}: Edit and Print are permission-aware`)
+    assert.match(preview, new RegExp(item.css.replaceAll('.', '\\.')), `${item.name}: the lazily loaded report brings its paper styles`)
+    if (item.languageSwitch) {
+      assert.doesNotMatch(preview, /languageSwitch=\{false\}/, `${item.name}: has the EN/Both/Arabic switch`)
+    } else {
+      assert.match(preview, /languageSwitch=\{false\}/, `${item.name}: prints in its stored language`)
+    }
+  }
+})
+
+test('letters reports: only the business visa request has the approval decision', async () => {
+  const shared = await read('../src/features/hr-employee-services/shared/LetterReportActions.jsx')
+  assert.match(shared, /zrv-ir-letter-print/, 'printing renders the saved letter in a hidden target')
+  assert.match(shared, /approval workflow is pending setup/)
+  assert.match(shared, /Approve[\s\S]*Reject/)
+
+  const businessVisa = await read('../src/features/hr-employee-services/businessVisa/BusinessVisaReportPreview.jsx')
+  assert.match(businessVisa, /<LetterWorkflowActions/, 'the legacy request workflow gets Approve/Reject')
+  assert.match(businessVisa, /workflow=\{/, 'the decision sits below the paper')
+  for (const item of LETTER_REPORTS.filter((entry) => entry.module !== 'businessVisa')) {
+    const preview = await read(`../src/features/hr-employee-services/${item.module}/${item.preview}`)
+    assert.doesNotMatch(preview, /LetterWorkflowActions|Approve|Reject/, `${item.name}: no approval workflow in the legacy project`)
+  }
+
+  const print = await read('../src/features/hr-employee-services/shared/printLetter.js')
+  assert.match(print, /document\.fonts\?\.ready/)
+  assert.match(print, /PRINT_TARGET = '\.zrv-ir-letter-print'/)
+  assert.match(print, /window\.print\(\)/)
+  assert.match(print, /afterprint/)
+
+  const css = await read('../src/styles/hr-employee-services-forms.css')
+  assert.match(css, /\.zrv-ir-letter-preview__bar/)
+  assert.match(css, /\.zrv-ir-letter-skeleton/)
+  assert.match(css, /\.zrv-ir-letter-workflow/)
+  assert.match(css, /@page letter-report/)
+  assert.match(css, /\.zrv-ir-letter-print/)
+})
+
+test('letters reports: the skeleton fills the drawer and the decision stays at the bottom', async () => {
+  const css = await read('../src/styles/hr-employee-services-forms.css')
+  // The module class also matches the form's two-column grid rule. The drawer
+  // resets it to a full-width flex column so the paper and the skeleton fill
+  // every pixel the drawer offers instead of shrinking to a narrow pipe.
+  assert.match(css, /\.zrv-ir-drawer :is\(\.zrv-ir-sick-leave-preview, \.zrv-ir-letter-preview\) \{[\s\S]*?display: flex;[\s\S]*?align-items: stretch;[\s\S]*?width: 100%;[\s\S]*?max-width: none;/)
+  for (const selector of ['.zrv-ir-letter-skeleton', '.zrv-ir-sick-leave-skeleton']) {
+    const rule = new RegExp(`\\${selector} \\{[\\s\\S]*?\\}`)
+    const block = css.match(rule)?.[0] ?? ''
+    assert.match(block, /width: 100%/, `${selector}: spans the drawer width`)
+    assert.match(block, /max-width: none/, `${selector}: no max-width caps the drawer`)
+  }
+  for (const selector of ['.zrv-ir-letter-workflow', '.zrv-ir-sick-leave-workflow']) {
+    const block = css.match(new RegExp(`\\${selector} \\{[\\s\\S]*?\\}`))?.[0] ?? ''
+    assert.match(block, /position: sticky/, `${selector}: pinned to the drawer`)
+    assert.match(block, /bottom:/, `${selector}: pinned to the drawer bottom`)
+    assert.match(block, /margin-top: auto/, `${selector}: pushed below the paper`)
+  }
+})
+
+// ---------- sidebar: HR → Talent Management ----------
 test('sidebar: each form appears in Talent Management only with its switch on AND its VIEW permission', () => {
   const hrGroup = NAVIGATION_GROUPS.find((group) => group.id === 'human-resources')
   assert.deepEqual(hrGroup.subgroups.map((item) => item.id), ['hr-recruitment', 'hr-employee-services', 'hr-letters', 'hr-reports'])

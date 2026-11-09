@@ -605,23 +605,30 @@ export function SearchableLookup({
   error,
   disabled = false,
   loading = false,
+  loadingLabel = "Loading options…",
   searchPending = false,
   describedBy,
   maxLength = 200,
   noResults = "No matching options",
 }) {
   const listId = useId();
+  const statusId = useId();
   const controlRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [active, setActive] = useState(0);
   const selected = options.find((option) => option.code === value);
-  const matches = searching
+  const busy = loading || searchPending;
+  const statusText = loading ? loadingLabel : searchPending ? "Searching options…" : "";
+  const matches = busy ? [] : searching
     ? options.filter((option) =>
         `${option.name} ${option.description ?? ''} ${option.searchText ?? ''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
       )
     : options;
+  const maxVisibleMatches = 80;
+  const visibleMatches = matches.slice(0, maxVisibleMatches);
+  const hasMoreMatches = matches.length > visibleMatches.length;
   const displayedValue = open && searching
     ? query
     : selected?.name ?? customValue;
@@ -679,14 +686,14 @@ export function SearchableLookup({
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setOpen(true);
-      setActive((index) => open ? Math.max(0, Math.min(matches.length - 1, index + 1)) : 0);
+      setActive((index) => open ? Math.max(0, Math.min(visibleMatches.length - 1, index + 1)) : 0);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setOpen(true);
-      setActive((index) => open ? Math.max(0, index - 1) : Math.max(0, matches.length - 1));
-    } else if (event.key === "Enter" && open && matches[active]) {
+      setActive((index) => open ? Math.max(0, index - 1) : Math.max(0, visibleMatches.length - 1));
+    } else if (event.key === "Enter" && open && visibleMatches[active]) {
       event.preventDefault();
-      choose(matches[active]);
+      choose(visibleMatches[active]);
     } else if (event.key === "Escape" && open) {
       event.preventDefault();
       event.stopPropagation();
@@ -702,7 +709,7 @@ export function SearchableLookup({
         <span aria-hidden="true" className="zrv-hr-search-select__icon" />
         <input
           {...fieldProps(id, { error })}
-          aria-describedby={[error ? `${id}-error` : null, describedBy].filter(Boolean).join(" ") || undefined}
+          aria-describedby={[error ? `${id}-error` : null, describedBy, statusText ? statusId : null].filter(Boolean).join(" ") || undefined}
           role="combobox"
           className="ux-input zrv-hr-input"
           autoComplete="off"
@@ -712,9 +719,9 @@ export function SearchableLookup({
           aria-controls={listId}
           aria-autocomplete="list"
           aria-required={required || undefined}
-          aria-busy={loading || searchPending || undefined}
+          aria-busy={busy || undefined}
           maxLength={maxLength}
-          aria-activedescendant={open && matches[active] ? `${listId}-${active}` : undefined}
+          aria-activedescendant={open && visibleMatches[active] ? `${listId}-${active}` : undefined}
           disabled={disabled || loading}
           onFocus={(event) => {
             setOpen(true);
@@ -749,7 +756,7 @@ export function SearchableLookup({
       </div>
       {open && popupStyle && createPortal(
         <ul className="zrv-hr-search-select__list" style={popupStyle} id={listId} role="listbox" aria-label="Available options">
-          {matches.map((option, index) => (
+          {visibleMatches.map((option, index) => (
             <li
               key={`${option.code}-${index}`}
               id={`${listId}-${index}`}
@@ -769,10 +776,13 @@ export function SearchableLookup({
               {option.code === value && <OrvexaIcon name="check" size={15} />}
             </li>
           ))}
-          {!matches.length && <li className="zrv-hr-search-select__empty" role="presentation">{noResults}</li>}
+          {busy && <li className="zrv-hr-search-select__empty" role="presentation">{statusText}</li>}
+          {!busy && !matches.length && <li className="zrv-hr-search-select__empty" role="presentation">{noResults}</li>}
+          {!busy && hasMoreMatches && <li className="zrv-hr-search-select__empty" role="presentation">Showing the first {maxVisibleMatches} of {matches.length}. Type to narrow the list.</li>}
         </ul>,
         document.body,
       )}
+      {statusText && <small id={statusId} className="zrv-hr-field-loading" role="status" aria-live="polite"><i aria-hidden="true" />{statusText}</small>}
     </div>
   );
 }

@@ -80,13 +80,15 @@ export const totalGoesDown = (current, revised) => Boolean(current && revised) &
 
 export const blankRecordChange = (today) => ({ requestDate: today, effectiveDate: '', revised: null, currentFamilyStatus: '', remarks: '', views: '', attachments: [] })
 
-// Legacy auto-fill on employee selection: the revised position and family status take the
-// current ones; the revised amounts keep what the form holds (0 on a new form), grade and level
-// too. Returns the new revised record.
+// Start a newly selected employee's revised record from their current values. This keeps a new
+// draft from accidentally saving zero salary/allowances when the employee already has pay data.
 export function revisedAfterPick(revised, current) {
   const kept = revised ?? {}
   return {
-    ...Object.fromEntries(PAY_KEYS.map((key) => [key, filled(kept[key]) ? String(kept[key]) : '0'])),
+    ...Object.fromEntries(PAY_KEYS.map((key) => {
+      const value = filled(kept[key]) ? kept[key] : current?.[key]
+      return [key, filled(value) ? String(value) : '0']
+    })),
     gradeCode: kept.gradeCode ?? '',
     levelCode: kept.levelCode ?? '',
     positionCode: current?.positionCode ?? '',
@@ -106,9 +108,14 @@ export function recordChangePayload(form, employee) {
   return {
     employeeId: employee?.employeeId ?? null,
     effectiveDate: form.effectiveDate || null,
-    revised: Object.fromEntries(RECORD_KEYS.map((key) => [key, PAY_KEYS.includes(key)
-      ? (filled(revised[key]) && AMOUNT.test(String(revised[key])) ? toCents(revised[key]) / 100 : null)
-      : (revised[key] || null)])),
+    revised: {
+      ...Object.fromEntries(RECORD_KEYS.map((key) => [key, PAY_KEYS.includes(key)
+        ? (filled(revised[key]) && AMOUNT.test(String(revised[key])) ? toCents(revised[key]) / 100 : null)
+        : (revised[key] || null)])),
+      // Position names keep the current employee's canonical value when it is absent from the
+      // active positions lookup (for example, an older approved position still in use).
+      positionName: revised.positionName || null,
+    },
     currentFamilyStatus: form.currentFamilyStatus ?? '',
     remarks: form.remarks,
     views: form.views,

@@ -10,6 +10,29 @@ const ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/
 const MAX_MESSAGE_LENGTH = 500
 const MAX_DETAILS = 50
+const READ_RETRY_DELAYS_MS = [150, 400]
+
+function isRetryableReadError(error) {
+  return error?.code === 'NETWORK_ERROR' || error?.code === 'INVALID_RESPONSE' ||
+    [500, 502, 503, 504].includes(error?.status)
+}
+
+function waitForRetry(delay, signal) {
+  if (signal?.aborted) return Promise.reject(new ApiError('The API request was cancelled.', { code: 'ABORTED' }))
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      signal?.removeEventListener('abort', cancel)
+      resolve()
+    }
+    const timer = setTimeout(finish, delay)
+    const cancel = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', cancel)
+      reject(new ApiError('The API request was cancelled.', { code: 'ABORTED' }))
+    }
+    signal?.addEventListener('abort', cancel, { once: true })
+  })
+}
 
 // `message` is only taken from the backend's error envelope, whose messages are
 // documented as safe to display; anything else gets a generic message.
@@ -225,7 +248,7 @@ async function parseError(response) {
 export function createApiClient({
   baseUrl, timeoutMs = 15000, onUnauthorized = () => {}, fetchImpl = fetch, csrfStore = null,
 }) {
-  async function request(path, {
+  async function requestOnce(path, {
     method = 'GET', params, body, headers: additionalHeaders,
     signal, responseType = 'json', timeout = timeoutMs,
     csrf = 'session', notifyUnauthorized = true,
@@ -297,6 +320,23 @@ export function createApiClient({
     } finally {
       clearTimeout(timer)
       signal?.removeEventListener('abort', cancel)
+    }
+  }
+
+  async function request(path, options = {}) {
+    const method = String(options.method ?? 'GET').toUpperCase()
+    // GET is safe to repeat. Mutations deliberately keep the single-attempt
+    // behavior so a lost response can never apply a write twice. Callers with
+    // their own bounded retry policy can disable these transport-level retries.
+    if (method !== 'GET' || options.retryRead === false) return requestOnce(path, options)
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await requestOnce(path, options)
+      } catch (error) {
+        const delay = READ_RETRY_DELAYS_MS[attempt]
+        if (delay === undefined || !isRetryableReadError(error) || options.signal?.aborted) throw error
+        await waitForRetry(delay, options.signal)
+      }
     }
   }
 

@@ -170,10 +170,12 @@ export function createAuthSession({
         try {
           const current = await service.getCurrentUser({
             signal: controller.signal,
+            retryRead: false,
           });
           if (!isCurrent()) return;
           const token = await service.getCsrfToken({
             signal: controller.signal,
+            retryRead: false,
           });
           if (!isCurrent()) return;
           csrfStore.setSessionToken(token);

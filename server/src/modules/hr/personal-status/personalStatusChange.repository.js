@@ -369,6 +369,7 @@ export const createPersonalStatusRepository = () => {
          STATUS,
          TO_CHAR(CREATED_BY) CREATED_BY,
          TO_CHAR(EMP_NO) EMP_NO,
+         OLD_POSITION,
          OLD_MARITAL_STATUS
        FROM ${TABLE}
        WHERE HEADER_ID = :headerId
@@ -476,7 +477,8 @@ export const createPersonalStatusRepository = () => {
     const result = await connection.execute(
       `SELECT 1 FOUND
        FROM XX_DIGI_EMP_MASTER
-       WHERE (POSITION_NAME = :name OR JOB_TITLE = :name)
+       WHERE (UPPER(TRIM(POSITION_NAME)) = UPPER(TRIM(:name))
+              OR UPPER(TRIM(JOB_TITLE)) = UPPER(TRIM(:name)))
          AND ROWNUM = 1`,
       { name },
       options,

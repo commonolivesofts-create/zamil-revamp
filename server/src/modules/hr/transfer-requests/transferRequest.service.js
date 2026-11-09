@@ -45,9 +45,11 @@ export function createTransferRequestService({
     }
     if (!DEPARTMENTS.includes(transfer.dept))
       throw fail('DEPT_INVALID', 'transfer.dept', 'Department is invalid');
+    const sectionIsDepartment = transfer.section === transfer.dept;
     if (
       !required(transfer.section) ||
-      !(await repository.listSections(connection)).some((x) => x.name === transfer.section)
+      (!sectionIsDepartment &&
+        !(await repository.listSections(connection)).some((x) => x.name === transfer.section))
     ) {
       throw fail('SECTION_INVALID', 'transfer.section', 'Section is invalid');
     }

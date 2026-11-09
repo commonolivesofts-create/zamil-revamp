@@ -43,10 +43,11 @@ export function createAuthService({ client }) {
       return readLoginResult(data);
     },
 
-    async getCurrentUser({ signal } = {}) {
+    async getCurrentUser({ signal, retryRead } = {}) {
       const { data } = await client.get(authEndpoints.currentUser, {
         ...ownUnauthorized,
         signal,
+        retryRead,
       });
       return readCurrentUser(data);
     },
@@ -71,10 +72,11 @@ export function createAuthService({ client }) {
       return `${profileImagePath}?v=${Date.now()}`;
     },
 
-    async getCsrfToken({ signal } = {}) {
+    async getCsrfToken({ signal, retryRead } = {}) {
       const { data } = await client.get(authEndpoints.csrf, {
         ...ownUnauthorized,
         signal,
+        retryRead,
       });
       return readCsrfToken(data);
     },

@@ -7,6 +7,7 @@ import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
 import { RECORD_STATUSES, STATUS_TEXT, STATUS_TONE } from '../shared/formRecords.js'
 import { sickLeaveDemo, sickLeaveService } from './sickLeaveService.js'
+import { SickLeaveReportPreview } from './SickLeaveReportPreview.jsx'
 
 const MONTHS = 6
 const CREATE = Object.freeze({ permission: 'HR.SICK_LEAVE:CREATE', path: FORM_PATHS.sickLeave, label: 'New request' })
@@ -103,17 +104,9 @@ function dateGroups(today) {
 export default function SickLeaveReportPage() {
   return (
     <InsightReport variant="sick-leave-report" title="Sick leave report" heading="Requests" breadcrumb={C.breadcrumb} demo={sickLeaveDemo}
-      resourceKey="hr-sick-leave-report" list={list} create={CREATE} openLabel="Open request" empty="No requests match these filters."
+      resourceKey="hr-sick-leave-report" list={list} create={CREATE} empty="No requests match these filters."
       initial={INITIAL} fields={FIELDS} columns={COLUMNS} cards={CARDS} groups={dateGroups} defaultSort={{ key: '', order: '' }}
-      numberOf={(row) => row.leaveId} rowKey={(row) => row.leaveId} pathOf={(row) => `${FORM_PATHS.sickLeave}/${row.leaveId}`}
-      summary={(row) => ({
-        heading: row.employeeName,
-        pill: statusPill(row),
-        facts: [
-          ['Employee number', row.employeeNumber], ['Leave', `${date(row.fromDate)} – ${date(row.toDate)}`],
-          ['No. of days', row.days == null ? '' : String(row.days)], ['Total leave days', row.totalLeaveDays == null ? '' : String(row.totalLeaveDays)],
-          ['Pending at', row.pendingAt],
-        ],
-      })} />
+      numberOf={(row) => row.leaveId} rowKey={(row) => row.leaveId} closeInDetail
+      renderDetail={(row, { onClose }) => <SickLeaveReportPreview row={row} onClose={onClose} />} />
   )
 }
