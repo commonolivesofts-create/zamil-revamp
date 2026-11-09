@@ -43,18 +43,26 @@ describe('LoginPage', () => {
   it('validates before calling the API', async () => {
     const fetchMock = mockApi({
       'GET /api/v1/auth/me': unauthenticated,
+      'POST /api/v1/auth/sso': unauthenticated,
       'GET /api/v1/auth/dev-users': () => devUsers,
     });
     renderRoutes(routes, '/login');
     await userEvent.click(await screen.findByRole('button', { name: 'Sign in' }));
     expect(await screen.findByText('Enter your person number')).toBeInTheDocument();
     expect(screen.getByText('Enter your password')).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) =>
+          init?.method === 'POST' &&
+          new URL(String(input), 'http://localhost').pathname === '/api/v1/auth/login',
+      ),
+    ).toBe(false);
   });
 
   it('shows the API message when sign-in fails', async () => {
     mockApi({
       'GET /api/v1/auth/me': unauthenticated,
+      'POST /api/v1/auth/sso': unauthenticated,
       'GET /api/v1/auth/dev-users': () => devUsers,
       'POST /api/v1/auth/login': () =>
         json(401, {
@@ -73,6 +81,7 @@ describe('LoginPage', () => {
   it('signs in with the CSRF header and goes to the page asked for', async () => {
     const fetchMock = mockApi({
       'GET /api/v1/auth/me': unauthenticated,
+      'POST /api/v1/auth/sso': unauthenticated,
       'GET /api/v1/auth/dev-users': () => devUsers,
       'POST /api/v1/auth/login': () => json(200, meFixture()),
     });
@@ -82,7 +91,11 @@ describe('LoginPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(await screen.findByText('Reports page')).toBeInTheDocument();
 
-    const [, init] = fetchMock.mock.calls.find(([, i]) => i?.method === 'POST')!;
+    const [, init] = fetchMock.mock.calls.find(
+      ([input, request]) =>
+        request?.method === 'POST' &&
+        new URL(String(input), 'http://localhost').pathname === '/api/v1/auth/login',
+    )!;
     expect(JSON.parse(String(init!.body))).toEqual({
       username: '1011',
       password: 'ExpenseHub2026',
@@ -90,9 +103,26 @@ describe('LoginPage', () => {
     expect(new Headers(init!.headers).get('X-Requested-With')).toBe('ExpenseHub');
   });
 
+  it('uses an existing Zamil session without asking for a password', async () => {
+    const fetchMock = mockApi({
+      'GET /api/v1/auth/me': unauthenticated,
+      'POST /api/v1/auth/sso': () => json(200, meFixture()),
+    });
+    renderRoutes(routes, '/reports');
+    expect(await screen.findByText('Reports page')).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) =>
+          init?.method === 'POST' &&
+          new URL(String(input), 'http://localhost').pathname === '/api/v1/auth/sso',
+      ),
+    ).toBe(true);
+  });
+
   it('offers dev quick sign-in in dev builds (D-33)', async () => {
     mockApi({
       'GET /api/v1/auth/me': unauthenticated,
+      'POST /api/v1/auth/sso': unauthenticated,
       'GET /api/v1/auth/dev-users': () => devUsers,
       'POST /api/v1/auth/dev-login': () =>
         json(200, meFixture({ capabilities: ['EMPLOYEE', 'SYS_ADMIN'] })),
@@ -108,6 +138,7 @@ describe('RequireAuth', () => {
   it('sends a signed-out visitor to sign-in, remembering the page', async () => {
     mockApi({
       'GET /api/v1/auth/me': unauthenticated,
+      'POST /api/v1/auth/sso': unauthenticated,
       'GET /api/v1/auth/dev-users': () => devUsers,
     });
     const { router } = renderRoutes(routes, '/reports');

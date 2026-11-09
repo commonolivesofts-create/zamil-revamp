@@ -291,9 +291,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       zamil: {
         apiBaseUrl:
           e.ZAMIL_AUTH_API_BASE_URL?.replace(/\/+$/, '') ??
-          (isProduction
-            ? undefined
-            : 'http://127.0.0.1:7381/api/v1'),
+          (isProduction ? undefined : 'http://127.0.0.1:7381/api/v1'),
         sessionCookieName: e.ZAMIL_AUTH_SESSION_COOKIE_NAME,
         cookieSecure: e.ZAMIL_AUTH_COOKIE_SECURE,
         cookieSameSite: e.ZAMIL_AUTH_COOKIE_SAMESITE,

@@ -96,7 +96,8 @@ async function resolveCookieIdentity(
     }
     return identity;
   } catch (error) {
-    if (validatedSessions.get(cookie.key)?.pending === pending) validatedSessions.delete(cookie.key);
+    if (validatedSessions.get(cookie.key)?.pending === pending)
+      validatedSessions.delete(cookie.key);
     throw error;
   }
 }
@@ -119,13 +120,19 @@ async function fetchZamilIdentity(
       signal: AbortSignal.timeout(5000),
     });
   } catch {
-    throw new AppError('INTERNAL', 'Zamil sign-in could not be checked. Try again or sign in here.');
+    throw new AppError(
+      'INTERNAL',
+      'Zamil sign-in could not be checked. Try again or sign in here.',
+    );
   }
 
   if (response.status === 401 || response.status === 403) throw signInRequired();
   const envelope: unknown = await response.json().catch(() => null);
   if (!response.ok || !envelope || typeof envelope !== 'object') {
-    throw new AppError('INTERNAL', 'Zamil sign-in could not be checked. Try again or sign in here.');
+    throw new AppError(
+      'INTERNAL',
+      'Zamil sign-in could not be checked. Try again or sign in here.',
+    );
   }
 
   const body = envelope as {
@@ -147,7 +154,10 @@ async function fetchZamilIdentity(
     throw new AppError('INTERNAL', 'Zamil returned an invalid sign-in response.');
   }
 
-  return { personNumber: personNumber.trim(), absoluteExpiresAt: Math.floor(absoluteExpiresAt / 1000) };
+  return {
+    personNumber: personNumber.trim(),
+    absoluteExpiresAt: Math.floor(absoluteExpiresAt / 1000),
+  };
 }
 
 export function clearZamilCookie(res: Response, config: ZamilAuthConfig): void {
@@ -195,7 +205,8 @@ export async function revokeZamilSession(
           typeof token !== 'string' ||
           !/^[A-Za-z0-9_-]{43}$/.test(token) ||
           headerName !== 'X-CSRF-Token'
-        ) continue;
+        )
+          continue;
 
         const logoutResponse = await fetch(`${config.apiBaseUrl}/auth/logout`, {
           method: 'POST',
