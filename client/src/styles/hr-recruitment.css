@@ -806,8 +806,6 @@
 .zrv-hr-rp-name:hover { text-decoration-color: var(--zrv-hr-accent); }
 .zrv-hr-rp-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); }
 .zrv-hr-rp-empty { padding: 30px !important; color: var(--zrv-hr-fine); text-align: center; }
-.zrv-hr-rp-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; color: var(--muted); font-size: 13px; }
-.zrv-hr-rp-pager > div { display: flex; align-items: center; gap: 10px; }
 .zrv-hr-rp-drawer .zrv-dialog-backdrop { justify-content: flex-end; padding: 0; }
 .zrv-hr-rp-drawer .zrv-dialog { position: relative; display: flex; flex-direction: column; gap: 14px; width: min(440px, 100%); min-height: 100%; margin: 0; border-radius: 0; border-width: 0 0 0 1px; overflow-y: auto; animation: zrv-hr-slide .45s var(--zrv-hr-ease); }
 @keyframes zrv-hr-slide { from { transform: translateX(100%); } }
@@ -1107,7 +1105,7 @@
   .zrv-hr-stage { box-shadow: none; }
   .zrv-hr-side { position: static; }
   .zrv-hr--offer .zrv-hr-paper, .zrv-hr--offer .zrv-hr-paper * { visibility: visible; }
-  .zrv-hr--report :is(.zrv-hr-rp-setup, .zrv-hr-rp-charts, .zrv-hr-rp-tbar, .zrv-hr-rp-chips, .zrv-hr-rp-pager, .zrv-hr-rp-drawer) { display: none !important; }
+  .zrv-hr--report :is(.zrv-hr-rp-setup, .zrv-hr-rp-charts, .zrv-hr-rp-tbar, .zrv-hr-rp-chips, .zrv-hr-rp-drawer) { display: none !important; }
   .zrv-hr--report .zrv-hr-rp-tablewrap { max-height: none; overflow: visible; }
   .zrv-hr--report .zrv-hr-rp-table th { position: static; }
   .zrv-hr--report .zrv-hr-rp-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }

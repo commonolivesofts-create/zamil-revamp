@@ -5,9 +5,10 @@ import usePermissions from "@/features/access/usePermissions.js";
 import {
   Badge,
   Dialog,
-  Pagination,
   ResourceState,
 } from "@/features/security-administration/components/AdminUi.jsx";
+import { cellText, downloadCsv, loadAllRows, printPdf } from "../reportExport.js";
+import { ReportPager } from "./ReportPager.jsx";
 import { useResource } from "@/features/security-administration/useAdminData.js";
 import { COMMON_TEXT, INSIGHT_TEXT as T } from "../../hrRecruitmentText.js";
 import { businessToday } from "../hrFormat.js";
@@ -91,7 +92,10 @@ function counter(list, signal) {
 //     or omit it when the drawer shows only the row's detail component;
 //   breadcrumb, demo (the demo-data badge), tools (extra header buttons),
 //   onRefresh (runs before Refresh reloads), validate(draft) → { key: message }
-//   (checked on Apply) and pathOf (without it the summary has no Open link) are optional.
+//   (checked on Apply) and pathOf (without it the summary has no Open link) are optional;
+//   CSV and PDF export every filtered row with the table's columns (a column's
+//   text(row) overrides its rendered text, export: false leaves it out, subLabel
+//   exports its sub line as a column of its own); exportable={false} hides them.
 export function InsightReport({
   variant,
   title,
@@ -122,6 +126,7 @@ export function InsightReport({
   printLabel = T.print,
   onRefresh,
   validate,
+  exportable = true,
 }) {
   const id = useId();
   const navigate = useNavigate();
@@ -139,6 +144,8 @@ export function InsightReport({
   const [selected, setSelected] = useState(null);
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef(0);
+  const [exporting, setExporting] = useState(null);
+  const [exportError, setExportError] = useState(null);
   const today = businessToday();
   const groups = typeof groupsOf === "function" ? groupsOf(today) : groupsOf;
   const activeFilters = Object.entries(query).filter(
@@ -244,6 +251,30 @@ export function InsightReport({
     setQuery({ ...initial, ...only(query, required) });
     setPage(1);
   };
+  const exportColumns = columns
+    .filter((column) => column.export !== false)
+    .flatMap((column) => [
+      { label: column.label, value: (row) => column.text?.(row) ?? cellText(column.render(row)) },
+      ...(column.sub && column.subLabel ? [{ label: column.subLabel, value: (row) => cellText(column.sub(row)) }] : []),
+    ]);
+  // Exports every row of the current filter and sort (paged from the server).
+  const runExport = async (kind) => {
+    setExporting(kind);
+    setExportError(null);
+    try {
+      const rows = await loadAllRows(list, {
+        ...query,
+        sortBy: sort.key,
+        sortDir: sort.order,
+      });
+      if (kind === "csv") downloadCsv(rows, exportColumns, resourceKey);
+      else printPdf(rows, exportColumns, title);
+    } catch (error) {
+      setExportError(error?.message || T.exportFailed);
+    } finally {
+      setExporting(null);
+    }
+  };
   const sortBy = (key) => {
     setSort((current) => ({
       key,
@@ -347,6 +378,28 @@ export function InsightReport({
             <OrvexaIcon name="printer" size={16} />
             {printLabel}
           </button>
+          {exportable && (
+            <>
+              <button
+                type="button"
+                className="zrv-ir-btn"
+                onClick={() => runExport("csv")}
+                disabled={Boolean(exporting) || !records.data?.pagination?.total}
+              >
+                <OrvexaIcon name="download" size={16} />
+                {exporting === "csv" ? T.exporting : T.exportCsv}
+              </button>
+              <button
+                type="button"
+                className="zrv-ir-btn"
+                onClick={() => runExport("pdf")}
+                disabled={Boolean(exporting) || !records.data?.pagination?.total}
+              >
+                <OrvexaIcon name="file-text" size={16} />
+                {exporting === "pdf" ? T.exporting : T.exportPdf}
+              </button>
+            </>
+          )}
           {tools}
           {canCreate && (
             <button
@@ -360,6 +413,14 @@ export function InsightReport({
           )}
         </div>
       </header>
+      {exportError && (
+        <p className="zrv-ir-error" role="alert">
+          {exportError}{" "}
+          <button type="button" onClick={() => setExportError(null)}>
+            {T.close}
+          </button>
+        </p>
+      )}
 
       <div
         id={`${id}-filters`}
@@ -591,8 +652,10 @@ export function InsightReport({
                     </tbody>
                   </table>
                 </div>
-                <Pagination
-                  pagination={data.pagination}
+                <ReportPager
+                  page={data.pagination.page}
+                  pages={data.pagination.totalPages}
+                  total={data.pagination.total}
                   disabled={records.refreshing}
                   label={T.pages(heading)}
                   onPage={setPage}
