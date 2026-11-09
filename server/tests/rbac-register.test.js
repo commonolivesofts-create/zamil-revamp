@@ -66,6 +66,14 @@ const ACTIVE_REGISTRY_RECORDS = registeredModules
       module.resources.reduce((count, resource) => count + resource.actions.length, 0),
     0,
   );
+// WORKFLOW_MANAGER catalogue records from the live client registry: M1 (module + OVERVIEW,
+// FORM_REGISTRY, DATA_SOURCE_REGISTRY = 15) plus M2-A SOURCE_MAPPING (1 resource + 4
+// permissions) = 20. In the fixtures the module is unregistered, so all of them are MISSING.
+const workflowModule = registeredModules.find((module) => module.code === 'WORKFLOW_MANAGER');
+const WORKFLOW_MANAGER_RECORDS =
+  1 +
+  workflowModule.resources.length +
+  workflowModule.resources.reduce((count, resource) => count + resource.actions.length, 0);
 
 function seedSecurityCatalog() {
   const state = { modules: [], resources: [], permissions: [], nextId: 1000 };
@@ -970,7 +978,16 @@ describe('RBAC catalogue registration CLI', () => {
       });
       assert.equal(scoped.code, EXIT.OK, scoped.out);
       assert.match(scoped.out, /Module scope: WORKFLOW_MANAGER/);
-      assert.match(scoped.out, /MISSING 15, CONFLICT 0, UNREGISTERED 0/);
+      assert.equal(
+        WORKFLOW_MANAGER_RECORDS,
+        15 + 5,
+        'M1 records plus the M2-A SOURCE_MAPPING delta',
+      );
+      assert.match(scoped.out, /\[MISSING\] RESOURCE WORKFLOW_MANAGER\.SOURCE_MAPPING/);
+      assert.match(
+        scoped.out,
+        new RegExp(`MISSING ${WORKFLOW_MANAGER_RECORDS}, CONFLICT 0, UNREGISTERED 0`),
+      );
       assert.doesNotMatch(scoped.out, /HR.EMPLOYEE_OF_THE_MONTH/);
       assert.doesNotMatch(scoped.out, /\[MISSING\].*(HR|REQUISITIONS|EMPLOYMENT_OFFERS)/);
       assert.match(scoped.out, /node --env-file-if-exists=/);
@@ -989,7 +1006,7 @@ describe('RBAC catalogue registration CLI', () => {
       assert.equal(writes(refused.fake.log).length, 0);
     });
 
-    it('applies only 15 Workflow Manager records, preserving unrelated HR rows', async () => {
+    it('applies only the Workflow Manager records, preserving unrelated HR rows', async () => {
       const data = withUnrelatedHrConflict();
       const originalHr = structuredClone(data.resources.find((resource) => resource.id === '9001'));
       const preview = await run(scopeArgs, {
@@ -1001,12 +1018,12 @@ describe('RBAC catalogue registration CLI', () => {
       const applied = await run([...scopeArgs, '--apply', `--fingerprint=${fp}`], {
         modules: registeredModules,
         scenario: { data },
-        io: fakeIo({ typed: `REGISTER TEST 15 ${fp.slice(0, 12)}` }),
+        io: fakeIo({ typed: `REGISTER TEST ${WORKFLOW_MANAGER_RECORDS} ${fp.slice(0, 12)}` }),
       });
       assert.equal(applied.code, EXIT.OK, applied.out);
-      assert.match(applied.out, /Committed 15 record/);
+      assert.match(applied.out, new RegExp(`Committed ${WORKFLOW_MANAGER_RECORDS} record`));
       assert.equal(applied.fake.log.commits, 1);
-      assert.equal(applied.fake.log.audit.length, 15);
+      assert.equal(applied.fake.log.audit.length, WORKFLOW_MANAGER_RECORDS);
       assert.deepEqual(
         applied.fake.data().resources.find((resource) => resource.id === '9001'),
         originalHr,
@@ -1062,7 +1079,7 @@ describe('RBAC catalogue registration CLI', () => {
       const applied = await run([...scopeArgs, '--apply', `--fingerprint=${fp}`], {
         modules: registeredModules,
         scenario: { onLock: change },
-        io: fakeIo({ typed: `REGISTER TEST 15 ${fp.slice(0, 12)}` }),
+        io: fakeIo({ typed: `REGISTER TEST ${WORKFLOW_MANAGER_RECORDS} ${fp.slice(0, 12)}` }),
       });
       assert.equal(applied.code, EXIT.REFUSED);
       assert.match(applied.out, /plan no longer matches the reviewed fingerprint/);

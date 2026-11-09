@@ -1,6 +1,6 @@
 # Workflow Manager — Current Development Handoff
 
-**As of 07 November 2026.** The original v3.0 requirements, the repository's `REQUIREMENTS-v3.1-LOCKED.md`, and `REQUIREMENTS-v3.2-LOCKED.md` jointly govern functional scope; v3.2 is the owner's final RFI/comments/FYI/portal clarification. Preserve all. Exactly two functional phases, with the M1–M7 and E1–E7 delivery packages in `DEVELOPMENT-ROADMAP.md`.
+**As of 09 November 2026.** The original v3.0 requirements, the repository's `REQUIREMENTS-v3.1-LOCKED.md`, and `REQUIREMENTS-v3.2-LOCKED.md` jointly govern functional scope; v3.2 is the owner's final RFI/comments/FYI/portal clarification. Preserve all. Exactly two functional phases, with the M1–M7 and E1–E7 delivery packages in `DEVELOPMENT-ROADMAP.md`.
 
 Owner-reported TEST ADW structural validation: 21 tables, 50 FKs, 48 valid explicitly named indexes, 16 enabled triggers, one-open-RFI unique index and all required constraints. Runtime smoke/integration of the later (M2–E7) tables is still outstanding. The locked v3.2 requirements, roadmap and standards were merged in PR #54; the M1 physical table reference is in `schema-reference/` (PR #57). Never bundle all 14 packages into one PR.
 
@@ -11,11 +11,17 @@ Owner-reported TEST ADW structural validation: 21 tables, 50 FKs, 48 valid expli
 - **Acceptance (7 November 2026):** **Workflow Manager M1 has passed the agreed owner-executed functional acceptance checks in Oracle TEST** — Overview counts, form registration/edit/persistence/record-version/deactivate/reactivate/search/filters/version display (`SICK_LEAVE`), data source registration/autocomplete/identity edit/deactivate/reactivate (`WF_M1_TEST_SOURCE`, `XXZP.XXZP_MDF_HEADER`), page-level denial for an account without permissions, and optimistic-locking rejection with reload across two tabs. TEST data left Active, no versions created. This is **not** a production deployment or release approval. Evidence: `docs/handoffs/FEATURE-WORKFLOW-MANAGER-M1.md` §10A.
 - **Open M1 follow-ups:** the `SICK_LEAVE` registration's detail route has been corrected on TEST to `/hr/talent-management/sick-leave/:leaveId` (owner, after PR #67); `WF_M1_TEST_SOURCE` is a test registration and is **not** mapped to the Sick Leave Form; guides 01–04, the guide index and matrix still say live verification is pending and need a status update; optional G2 decision on security-audit codes for configuration changes.
 
-## M2-0 — Universal mapping foundation (implemented, under review)
+## M2-0 — Universal mapping foundation: MERGED
 
-Backend library only, G3-approved 7 November 2026: canonical JSON and record keys, precise Oracle values, `zrv.wf.source/1` and `zrv.wf.form/1` contracts, key assurance, read-only dictionary verification and the form-owned RecordAccessProvider / SourceHandler contracts composed only in `integrations/index.js` (empty). No routes, screens, database writes or RBAC changes; form-independent. Details: `docs/handoffs/FEATURE-WORKFLOW-MANAGER-M2-0.md`. Next: M2-A, M2-B, M2-C (G2), then M6 governance.
+Merged into `main` via [PR #74](https://github.com/commonolivesofts-create/zamil-revamp/pull/74) (squash commit `1e99898`). Backend library only, G3-approved 7 November 2026: canonical JSON and record keys, precise Oracle values, `zrv.wf.source/1` and `zrv.wf.form/1` contracts, key assurance, read-only dictionary verification and the form-owned RecordAccessProvider / SourceHandler contracts composed only in `integrations/index.js` (empty). No routes, screens, database writes or RBAC changes; form-independent. Details: `docs/handoffs/FEATURE-WORKFLOW-MANAGER-M2-0.md`.
 
-## Next: M2 — Versioned form and data source mapping (M2-A onward not started)
+## M2-A — Universal data source version mapping: IMPLEMENTED (feature PR), not accepted on TEST
+
+Owner-approved for code on 9 November 2026. Branch `feat/workflow-manager-m2-a-source-mapping` (from `main` `4bb0588`): nine `SOURCE_MAPPING` endpoints (dictionary, list/detail, create, edit, re-validate, drift, clone, restricted delete) writing **DRAFT** rows of `XX_ZRV_WF_SOURCE_VERSIONS` only, the Source versions / Source version screens reached from **Manage mapping** in the Data source registry, guide 05, OpenAPI and automated tests. Fixes the first-version vs. source-identity race: M1 identity updates and every M2-A write take the same parent `SELECT … FOR UPDATE` lock. Details and evidence: `docs/handoffs/FEATURE-WORKFLOW-MANAGER-M2-A.md`.
+
+**Pending, owner-gated:** G1 registration of `WORKFLOW_MANAGER.SOURCE_MAPPING` (expected scoped TEST preview: MISSING 5) and a role grant — until then every M2-A route denies; read-only verification of the deployed `XX_ZRV_WF_SOURCE_VERSIONS` / `XX_ZRV_WF_FORM_VERSIONS` dictionary (constraints, `TR_WF_SV_IMM`, foreign keys) — not performed in this package; owner-executed TEST acceptance. Next after M2-A: M2-B (form mapping), M2-C (secure preview, G2), then M6 governance.
+
+## M2 — Versioned form and data source mapping (remaining: M2-B, M2-C)
 
 Deliverable per the roadmap: source version builder; verified header/line keys including composite keys; organization and employee scope; field catalogue; statuses and permitted transitions mapped to verified stored values; form-owned status-handler contract; validated preview; draft/published immutability. Primary tables `XX_ZRV_WF_SOURCE_VERSIONS` and `XX_ZRV_WF_FORM_VERSIONS` (write), with the M1 registries read. Guides 05–07 and a `forms/<verified-code>.md` for each form actually onboarded.
 

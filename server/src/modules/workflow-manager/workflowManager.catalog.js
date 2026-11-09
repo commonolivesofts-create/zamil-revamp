@@ -1,5 +1,5 @@
 /*
- * Workflow Manager M1 constants (docs/workflow-manager/DEVELOPMENT-ROADMAP.md, package M1).
+ * Workflow Manager constants (docs/workflow-manager/DEVELOPMENT-ROADMAP.md, packages M1 and M2-A).
  *
  * Permission keys mirror the WORKFLOW_MANAGER module of the client registry
  * (client/src/config/registry/modules/workflowManager.module.js), which is the source the RBAC
@@ -19,6 +19,9 @@ export const PERMISSIONS = Object.freeze({
   OVERVIEW: `${WORKFLOW_MODULE_CODE}.OVERVIEW`,
   FORM_REGISTRY: `${WORKFLOW_MODULE_CODE}.FORM_REGISTRY`,
   DATA_SOURCE_REGISTRY: `${WORKFLOW_MODULE_CODE}.DATA_SOURCE_REGISTRY`,
+  // M2-A source version mapping (column allowlist, classification, key candidates). Every
+  // SOURCE_MAPPING route also requires DATA_SOURCE_REGISTRY:VIEW (client `alsoRequires`).
+  SOURCE_MAPPING: `${WORKFLOW_MODULE_CODE}.SOURCE_MAPPING`,
 });
 
 // Physical CHECK ZWF_CK_SRC_1 (deployed TEST dictionary, 2026-11-02).

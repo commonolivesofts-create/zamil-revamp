@@ -35,9 +35,16 @@ node --env-file-if-exists=.env .\scripts\rbac-register.js --target=TEST --module
 node --env-file-if-exists=.env .\scripts\rbac-register.js --target=TEST --module=WORKFLOW_MANAGER --apply --fingerprint=<approved-SHA256-from-scoped-preview>
 ```
 
-The scoped preview should show the 1 module, 3 resources and 11 permissions still
-missing on TEST (15 total), **0 conflicts** and only matched security-catalogue entries.
-Verify the exact live plan; do not rely on a historical count or fingerprint. The scoped
+The `WORKFLOW_MANAGER` definition now holds 1 module, 4 resources and 15 permissions
+(20 records): the M1 catalogue (1 module, 3 resources, 11 permissions — registered on TEST
+on 7 November 2026) plus the M2-A resource `SOURCE_MAPPING` with `VIEW`, `CREATE`, `UPDATE`
+and `DELETE` (5 records). On TEST the scoped preview is therefore expected to show the 15 M1
+records as MATCH and **MISSING 5** (`RESOURCE WORKFLOW_MANAGER.SOURCE_MAPPING` and its four
+permissions), **0 conflicts** and only matched security-catalogue entries; an environment
+without the M1 registration shows MISSING 20.
+Verify the exact live plan; do not rely on a historical count or fingerprint. Registering
+`SOURCE_MAPPING` and granting it to a role are separate G1 decisions; until then every M2-A
+route denies (default deny). The scoped
 fingerprint includes `WORKFLOW_MANAGER` and **cannot be reused for a full-catalogue apply**.
 Unscoped fingerprints likewise cannot authorize a scoped apply.
 

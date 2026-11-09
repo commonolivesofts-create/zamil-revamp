@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import { checkSearch, fieldProps } from '@/features/security-administration/adminForms.js'
@@ -10,7 +10,7 @@ import SourceFormDialog from '../components/SourceFormDialog.jsx'
 import { ActivationDialog, ActiveBadge, VersionTable } from '../components/WorkflowUi.jsx'
 import useWorkflowAction from '../useWorkflowAction.js'
 import {
-  PAGE_SIZE, SOURCE_FILTER_DEFAULTS, SOURCE_SORTS, WORKFLOW_ACTIONS, filterParams, readSourceFilters, sourceObjectLabel,
+  PAGE_SIZE, PATHS, SOURCE_FILTER_DEFAULTS, SOURCE_SORTS, WORKFLOW_ACTIONS, filterParams, readSourceFilters, sourceObjectLabel,
 } from '../workflowManagerModel.js'
 import { workflowManagerService } from '../workflowManagerService.js'
 
@@ -155,7 +155,9 @@ export default function DataSourceRegistryPage() {
                         <td>{formatInstant(source.updatedAt)}</td>
                         <td>
                           <span className="zwf-row-actions">
-                            <button type="button" className="zrv-admin-link" onClick={() => setDialog({ type: 'versions', source })}>Versions<span className="sr-only"> of {source.sourceCode}</span></button>
+                            {can(WORKFLOW_ACTIONS.MAPPING_VIEW)
+                              ? <Link className="zrv-admin-link" to={PATHS.sourceVersions(source.sourceId)}>Manage mapping<span className="sr-only"> of {source.sourceCode}</span></Link>
+                              : <button type="button" className="zrv-admin-link" onClick={() => setDialog({ type: 'versions', source })}>Versions<span className="sr-only"> of {source.sourceCode}</span></button>}
                             {can(WORKFLOW_ACTIONS.SOURCES_UPDATE) && policyReady && (
                               <button type="button" className="zrv-admin-link" onClick={() => open({ type: 'edit', source })}>Edit<span className="sr-only"> {source.sourceCode}</span></button>
                             )}

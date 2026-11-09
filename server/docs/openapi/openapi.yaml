@@ -168,7 +168,10 @@ tags:
     description: >-
       Master Workflow Manager, Phase 1 package M1: Form Registry and Data Source
       Registry over XX_ZRV_WF_FORMS and XX_ZRV_WF_DATA_SOURCES, with read-only
-      version metadata (XX_ZRV_WF_SOURCE_VERSIONS, XX_ZRV_WF_FORM_VERSIONS).
+      version metadata (XX_ZRV_WF_SOURCE_VERSIONS, XX_ZRV_WF_FORM_VERSIONS); package
+      M2-A: source version mapping (DRAFT source versions in XX_ZRV_WF_SOURCE_VERSIONS:
+      column allowlist, data classes, key candidates, validation, drift, clone and
+      restricted delete; never publication).
       Configuration only: no workflow instances, tasks or notifications are created.
       Requires WORKFLOW_MANAGER.* permissions (default deny until the catalogue is
       registered and granted).
@@ -10886,6 +10889,421 @@ paths:
           $ref: '#/components/responses/WorkflowNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/data-sources/{sourceId}/dictionary:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowSourceId'
+    get:
+      operationId: getWorkflowSourceDictionary
+      tags: [Workflow Manager]
+      summary: Live dictionary facts of a registered source (M2-A)
+      description: >-
+        Read-only Oracle dictionary snapshot of the registered TABLE/VIEW (columns with
+        type, length, precision, nullability and identity; enabled primary/unique
+        constraints and unique indexes; a columns fingerprint), or the registered handler
+        contract of a HANDLER source. Read on the LOW pool inside SET TRANSACTION READ
+        ONLY with a call timeout, then rolled back. Only allowlisted owners outside the
+        protected XX_ZRV_ prefix are inspected. No business rows are ever returned. An
+        object that is missing, INVALID, of another type or no longer allowed is reported
+        as `available: false` with a finding. Requires
+        `WORKFLOW_MANAGER.SOURCE_MAPPING:VIEW` and `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Dictionary facts (or handler contract) of the source.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkflowSourceDictionary'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/WorkflowDictionaryTimeout'
+  /api/v1/workflow-manager/data-sources/{sourceId}/mapping-versions:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowSourceId'
+    get:
+      operationId: listWorkflowSourceMappingVersions
+      tags: [Workflow Manager]
+      summary: Source mapping versions (paginated metadata)
+      description: >-
+        Stable page of XX_ZRV_WF_SOURCE_VERSIONS metadata for the source, ordered by
+        VERSION_NO then SOURCE_VERSION_ID, newest first (at most 100 per page).
+        CONFIG_JSON is not returned; read one version for its configuration. Requires
+        `WORKFLOW_MANAGER.SOURCE_MAPPING:VIEW` and `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/WorkflowPage'
+        - $ref: '#/components/parameters/WorkflowPageSize'
+      responses:
+        '200':
+          description: A page of version metadata.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    required: [pagination]
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkflowSourceMappingVersion'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createWorkflowSourceMappingVersion
+      tags: [Workflow Manager]
+      summary: Create a validated DRAFT source version
+      description: >-
+        Validates the author draft (exposed columns, data classes, key candidates and
+        their assurance) against fresh, read-only dictionary evidence with the M2-0
+        contract `zrv.wf.source/1`, and stores it as a new DRAFT (IS_DEFAULT 'N', no
+        publication fields) with canonical CONFIG_JSON, a server SHA-256 and the next
+        VERSION_NO, allocated under the parent source row lock. Declared (not
+        database-enforced) keys are observed for null and duplicate keys (aggregate
+        counts only) and remain provisional (publication blocker `PROVISIONAL_KEY`).
+        Lifecycle, default, publication, fingerprint, audit and source identity fields are
+        server-owned and rejected. An invalid draft is refused with
+        `SOURCE_MAPPING_INVALID` and its findings; nothing is stored. Requires
+        `WORKFLOW_MANAGER.SOURCE_MAPPING:CREATE` and `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowSourceMappingCreate'
+            example:
+              draft:
+                columns:
+                  - { name: REQUEST_ID, exposed: true, dataClass: INTERNAL }
+                  - { name: REQUESTER_NO, exposed: true, dataClass: PERSONAL }
+                keyCandidates:
+                  - { code: REQUEST_PK, columns: [REQUEST_ID], assurance: null }
+      responses:
+        '201':
+          $ref: '#/components/responses/WorkflowSourceMappingResult'
+        '400':
+          $ref: '#/components/responses/WorkflowSourceMappingInvalid'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowSourceMappingConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/WorkflowDictionaryTimeout'
+  /api/v1/workflow-manager/data-sources/{sourceId}/mapping-versions/{versionId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowSourceId'
+      - $ref: '#/components/parameters/WorkflowSourceVersionId'
+    get:
+      operationId: getWorkflowSourceMappingVersion
+      tags: [Workflow Manager]
+      summary: One source version with its canonical configuration
+      description: >-
+        Version metadata, the stored canonical configuration, its integrity
+        (`VERIFIED` when the stored JSON matches CONFIG_SHA256, `MISMATCH` or
+        `UNREADABLE` otherwise) and the publication blockers it implies. A version of
+        another source is 404. Requires `WORKFLOW_MANAGER.SOURCE_MAPPING:VIEW` and
+        `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: The version and its source.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkflowSourceMappingDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: updateWorkflowSourceMappingVersion
+      tags: [Workflow Manager]
+      summary: Replace the configuration of a DRAFT
+      description: >-
+        Re-validates the submitted draft with fresh evidence and replaces the DRAFT's
+        configuration when the caller's `rowVersion` still matches (ROW_VERSION is
+        incremented). Unchanged key assurances keep their attestation; changed ones are
+        re-attested by the caller. Versions in any other lifecycle state are read-only
+        (`SOURCE_VERSION_NOT_DRAFT`). Requires `WORKFLOW_MANAGER.SOURCE_MAPPING:UPDATE` and
+        `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowSourceMappingUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/WorkflowSourceMappingResult'
+        '400':
+          $ref: '#/components/responses/WorkflowSourceMappingInvalid'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowSourceMappingConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/WorkflowDictionaryTimeout'
+    delete:
+      operationId: deleteWorkflowSourceMappingVersion
+      tags: [Workflow Manager]
+      summary: Delete an unreferenced DRAFT (restricted delete)
+      description: >-
+        Deletes a DRAFT that nothing references. Inside one transaction the parent
+        source row and the version row are locked, the caller's `rowVersion`, the
+        lifecycle and default flag are checked, and references are verified
+        structurally: form versions whose HEADER_SOURCE_VERSION_ID is the version, and
+        whose `zrv.wf.form/1` configuration names it as a line source (JSON path, never
+        a text scan). Unreadable form configurations, referencing foreign keys that are
+        not ENABLED + NO ACTION, and a dictionary that does not show the documented
+        XX_ZRV_WF_FORM_VERSIONS header foreign key fail closed
+        (`SOURCE_VERSION_DEPENDENCY_UNVERIFIED`).
+        An enforced foreign key (ORA-02292) is the final guard (`SOURCE_VERSION_REFERENCED`).
+        The body carries the row version. Requires `WORKFLOW_MANAGER.SOURCE_MAPPING:DELETE`
+        and `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRowVersion'
+      responses:
+        '200':
+          description: The DRAFT was deleted.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [sourceId, sourceVersionId, deleted]
+                        properties:
+                          sourceId:
+                            type: string
+                          sourceVersionId:
+                            type: string
+                          deleted:
+                            const: true
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowSourceMappingConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workflow-manager/data-sources/{sourceId}/mapping-versions/{versionId}/revalidate:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowSourceId'
+      - $ref: '#/components/parameters/WorkflowSourceVersionId'
+    post:
+      operationId: revalidateWorkflowSourceMappingVersion
+      tags: [Workflow Manager]
+      summary: Re-validate a DRAFT against the live source
+      description: >-
+        Re-runs validation of the stored DRAFT choices with fresh dictionary evidence and
+        uniqueness observations. When valid, the configuration, fingerprint and
+        VALIDATED_AT/BY are refreshed and ROW_VERSION is incremented. When no longer
+        valid, nothing is written and the findings are returned with
+        `SOURCE_VERSION_REVALIDATION_FAILED` (409), so a previously valid draft is never
+        corrupted. Requires `WORKFLOW_MANAGER.SOURCE_MAPPING:UPDATE` and
+        `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRowVersion'
+      responses:
+        '200':
+          $ref: '#/components/responses/WorkflowSourceMappingResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowSourceMappingConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/WorkflowDictionaryTimeout'
+  /api/v1/workflow-manager/data-sources/{sourceId}/mapping-versions/{versionId}/drift:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowSourceId'
+      - $ref: '#/components/parameters/WorkflowSourceVersionId'
+    get:
+      operationId: getWorkflowSourceMappingDrift
+      tags: [Workflow Manager]
+      summary: Read-only drift check of any version
+      description: >-
+        Compares the stored configuration of a version in any lifecycle state with the
+        live dictionary (or handler contract): missing or changed columns (type, length,
+        precision, scale, nullability, identity), object type or status changes, loss of
+        database key enforcement, changed columns fingerprint, an unregistered handler and
+        a stored configuration that does not match its fingerprint. Nothing is written.
+        Requires `WORKFLOW_MANAGER.SOURCE_MAPPING:VIEW` and
+        `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Drift findings for the version.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkflowSourceMappingDrift'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/WorkflowDictionaryTimeout'
+  /api/v1/workflow-manager/data-sources/{sourceId}/mapping-versions/{versionId}/clone:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowSourceId'
+      - $ref: '#/components/parameters/WorkflowSourceVersionId'
+    post:
+      operationId: cloneWorkflowSourceMappingVersion
+      tags: [Workflow Manager]
+      summary: Clone a version into a new validated DRAFT
+      description: >-
+        Copies the author choices of any version of the same source (whose stored
+        configuration is VERIFIED) into a new DRAFT with the next VERSION_NO. Evidence is
+        taken fresh and declared key assurances are re-attested by the caller now; the
+        clone must validate (`SOURCE_MAPPING_INVALID` otherwise). The original version is
+        never modified. The request body is empty. Requires
+        `WORKFLOW_MANAGER.SOURCE_MAPPING:CREATE` and `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '201':
+          $ref: '#/components/responses/WorkflowSourceMappingResult'
+        '400':
+          $ref: '#/components/responses/WorkflowSourceMappingInvalid'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '404':
+          $ref: '#/components/responses/WorkflowNotFound'
+        '409':
+          $ref: '#/components/responses/WorkflowSourceMappingConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/WorkflowDictionaryTimeout'
 components:
   securitySchemes:
     sessionCookie:
@@ -10919,6 +11337,14 @@ components:
       in: path
       required: true
       description: SOURCE_ID (NUMBER(19,0)) as a decimal string.
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+    WorkflowSourceVersionId:
+      name: versionId
+      in: path
+      required: true
+      description: SOURCE_VERSION_ID (NUMBER(19,0)) of a version of this source, as a decimal string.
       schema:
         type: string
         pattern: '^[1-9][0-9]{0,18}$'
@@ -11059,6 +11485,357 @@ components:
           type: integer
           minimum: 1
           description: The ROW_VERSION the caller last read (optimistic lock).
+    WorkflowFinding:
+      type: object
+      required: [severity, code, path, message]
+      properties:
+        severity:
+          enum: [ERROR, WARNING]
+        code:
+          type: string
+          description: Stable reason code, for example COLUMN_NOT_IN_SOURCE or KEY_NULLS_OBSERVED.
+        path:
+          type: string
+          description: Location in the draft or configuration, for example keyCandidates[0].columns[1].
+        message:
+          type: string
+    WorkflowPublicationBlocker:
+      type: object
+      required: [code, path]
+      properties:
+        code:
+          type: string
+          description: For example PROVISIONAL_KEY or SOURCE_INACTIVE. Reported for M6; never acted on.
+        path:
+          type: string
+    WorkflowSourceMappingDraft:
+      type: object
+      additionalProperties: false
+      required: [columns]
+      description: >-
+        Author choices only (M2-0 contract `zrv.wf.source/1`). Column types, dictionary
+        facts, enforcement, observations and attestation are derived by the server.
+      properties:
+        columns:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, exposed, dataClass]
+            properties:
+              name:
+                type: string
+                pattern: '^[A-Z][A-Z0-9_$#]{0,127}$'
+              exposed:
+                type: boolean
+              dataClass:
+                enum: [PUBLIC, INTERNAL, PERSONAL, SENSITIVE]
+        keyCandidates:
+          type: array
+          maxItems: 20
+          default: []
+          items:
+            type: object
+            additionalProperties: false
+            required: [code, columns]
+            properties:
+              code:
+                type: string
+                pattern: '^[A-Z][A-Z0-9_]{0,79}$'
+              columns:
+                type: array
+                minItems: 1
+                maxItems: 32
+                uniqueItems: true
+                items:
+                  type: string
+                  pattern: '^[A-Z][A-Z0-9_$#]{0,127}$'
+              assurance:
+                description: Required when the database does not enforce the key (DECLARED).
+                oneOf:
+                  - type: 'null'
+                  - type: object
+                    additionalProperties: false
+                    required: [basis, evidenceRef, rationale]
+                    properties:
+                      basis:
+                        enum:
+                          - GENERATED_ALWAYS_IDENTITY
+                          - GENERATED_BY_DEFAULT_IDENTITY
+                          - APPLICATION_GENERATED
+                          - OWNER_ATTESTED
+                      evidenceRef:
+                        type: string
+                        maxLength: 500
+                      rationale:
+                        type: string
+                        maxLength: 1000
+    WorkflowSourceMappingCreate:
+      type: object
+      additionalProperties: false
+      required: [draft]
+      properties:
+        draft:
+          $ref: '#/components/schemas/WorkflowSourceMappingDraft'
+    WorkflowSourceMappingUpdate:
+      type: object
+      additionalProperties: false
+      required: [rowVersion, draft]
+      properties:
+        rowVersion:
+          type: integer
+          minimum: 1
+        draft:
+          $ref: '#/components/schemas/WorkflowSourceMappingDraft'
+    WorkflowSourceMappingVersion:
+      type: object
+      description: Version metadata (no configuration).
+      properties:
+        sourceVersionId:
+          type: string
+          pattern: '^[1-9][0-9]{0,18}$'
+        sourceId:
+          type: string
+        versionNo:
+          type: integer
+          minimum: 1
+        lifecycleState:
+          enum: [DRAFT, REVIEW, APPROVED, PUBLISHED, RETIRED]
+        isDefault:
+          type: boolean
+        configSha256:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        schemaVersion:
+          type: integer
+        validatedAt:
+          type: [string, 'null']
+          format: date-time
+        validatedBy:
+          type: [string, 'null']
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: [string, 'null']
+        rowVersion:
+          type: integer
+        editable:
+          type: boolean
+          description: True only for DRAFT versions.
+    WorkflowSourceMappingConfig:
+      type: object
+      description: >-
+        Canonical stored configuration `zrv.wf.source/1` (server-derived): source
+        identity, dictionary snapshot reference, chosen columns with dictionary types,
+        exposure and data class, and key candidates with enforcement, assurance
+        (server-attested) and aggregate observation.
+      properties:
+        schema:
+          const: zrv.wf.source/1
+        source:
+          type: object
+        dictionary:
+          type: [object, 'null']
+        handler:
+          type: [object, 'null']
+        columns:
+          type: array
+          items:
+            type: object
+        keyCandidates:
+          type: array
+          items:
+            type: object
+    WorkflowSourceMappingDetail:
+      type: object
+      properties:
+        source:
+          type: object
+          properties:
+            sourceId:
+              type: string
+            sourceCode:
+              type: string
+            sourceName:
+              type: string
+            sourceKind:
+              enum: [TABLE, VIEW, HANDLER]
+            ownerName:
+              type: [string, 'null']
+            objectName:
+              type: [string, 'null']
+            handlerCode:
+              type: [string, 'null']
+            isActive:
+              type: boolean
+            rowVersion:
+              type: integer
+        version:
+          allOf:
+            - $ref: '#/components/schemas/WorkflowSourceMappingVersion'
+            - type: object
+              properties:
+                createdByName:
+                  type: [string, 'null']
+                updatedByName:
+                  type: [string, 'null']
+                validatedByName:
+                  type: [string, 'null']
+                configIntegrity:
+                  enum: [VERIFIED, MISMATCH, UNREADABLE]
+                config:
+                  oneOf:
+                    - type: 'null'
+                    - $ref: '#/components/schemas/WorkflowSourceMappingConfig'
+                publicationBlockers:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/WorkflowPublicationBlocker'
+    WorkflowSourceMappingWriteResult:
+      allOf:
+        - $ref: '#/components/schemas/WorkflowSourceMappingDetail'
+        - type: object
+          properties:
+            validation:
+              type: object
+              required: [valid, findings, publicationBlockers]
+              properties:
+                valid:
+                  const: true
+                findings:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/WorkflowFinding'
+                publicationBlockers:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/WorkflowPublicationBlocker'
+    WorkflowDictionaryColumn:
+      type: object
+      properties:
+        name:
+          type: string
+        oracleType:
+          type: string
+        dataLength:
+          type: [integer, 'null']
+        charLength:
+          type: [integer, 'null']
+        precision:
+          type: [integer, 'null']
+        scale:
+          type: [integer, 'null']
+        nullable:
+          type: boolean
+        identity:
+          enum: [ALWAYS, BY DEFAULT, null]
+        supported:
+          type: boolean
+          description: False for types that can never be exposed (for example BLOB).
+        keyEligible:
+          type: boolean
+    WorkflowSourceDictionary:
+      type: object
+      required: [source, available, findings]
+      properties:
+        source:
+          type: object
+        available:
+          type: boolean
+        snapshot:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                objectType:
+                  enum: [TABLE, VIEW]
+                status:
+                  type: string
+                capturedAt:
+                  type: string
+                  format: date-time
+                columnsSha256:
+                  type: string
+                columns:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/WorkflowDictionaryColumn'
+                constraints:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      type:
+                        enum: [P, U]
+                      status:
+                        type: string
+                      validated:
+                        type: string
+                      columns:
+                        type: array
+                        items:
+                          type: string
+                uniqueIndexes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      status:
+                        type: string
+                      functionBased:
+                        type: boolean
+                      columns:
+                        type: array
+                        items:
+                          type: string
+        handler:
+          type: [object, 'null']
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowFinding'
+    WorkflowSourceMappingDrift:
+      type: object
+      properties:
+        sourceVersionId:
+          type: string
+        versionNo:
+          type: integer
+        lifecycleState:
+          enum: [DRAFT, REVIEW, APPROVED, PUBLISHED, RETIRED]
+        configIntegrity:
+          enum: [VERIFIED, MISMATCH, UNREADABLE]
+        checkedAt:
+          type: string
+          format: date-time
+        drifted:
+          type: boolean
+        saved:
+          type: [object, 'null']
+        current:
+          type: [object, 'null']
+          description: Live object type, status, capture time and columns fingerprint.
+        handler:
+          type: [object, 'null']
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowFinding'
     WorkflowAuditFields:
       type: object
       properties:
@@ -17043,6 +17820,85 @@ components:
                 properties:
                   data:
                     $ref: '#/components/schemas/WorkflowDataSource'
+    WorkflowSourceMappingResult:
+      description: >-
+        The stored DRAFT, its source and the validation result (warnings and
+        publication blockers; errors never reach storage).
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WorkflowSourceMappingWriteResult'
+    WorkflowSourceMappingInvalid:
+      description: >-
+        `VALIDATION_ERROR`: the request does not match the schema (unknown or
+        server-owned fields included). `SOURCE_MAPPING_INVALID`: the draft does not
+        validate against the live source; `details` lists every finding as
+        `{ field, message, code, severity }`. Nothing was stored.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: SOURCE_MAPPING_INVALID
+              message: The source mapping is not valid. Correct the errors and save again.
+              details:
+                - field: keyCandidates[0]
+                  message: The database does not enforce this key; document its assurance
+                  code: KEY_ASSURANCE_REQUIRED
+                  severity: ERROR
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    WorkflowSourceMappingConflict:
+      description: >-
+        `STALE_RECORD`: the version changed since it was read. `SOURCE_VERSION_NOT_DRAFT`:
+        only DRAFT versions can be changed or deleted. `SOURCE_IDENTITY_CHANGED`: the
+        source object changed during validation. `SOURCE_VERSION_CONFLICT`: a concurrent
+        version took the number. `SOURCE_BUSY`: another change of the source is running.
+        `SOURCE_OBJECT_UNAVAILABLE`: the registered object cannot be inspected.
+        `SOURCE_VERSION_REVALIDATION_FAILED`: the draft no longer validates (findings in
+        `details`; nothing written). `SOURCE_VERSION_UNREADABLE`: the stored configuration
+        cannot be verified for cloning. `SOURCE_VERSION_REFERENCED` /
+        `SOURCE_VERSION_DEPENDENCY_UNVERIFIED`: delete refused. `SOURCE_VERSION_IMMUTABLE`:
+        the database refused a change to a non-draft version. `CSRF_REJECTED` is a 403.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: STALE_RECORD
+              message: The source version was changed by someone else. Reload it and apply your change again.
+            meta:
+              requestId: 3f8b2c1e-6a4d-4e2b-9b7a-1c2d3e4f5a6b
+    WorkflowDictionaryTimeout:
+      description: >-
+        `DICTIONARY_TIMEOUT`: the read-only dictionary or uniqueness observation did not
+        finish within the call timeout. Nothing was written. `SERVICE_UNAVAILABLE`: the
+        database is unreachable.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     WorkflowNotFound:
       description: The form or data source does not exist.
       headers:
