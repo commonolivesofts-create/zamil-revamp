@@ -11,6 +11,8 @@
  * may name only a server-side handler registered in SOURCE_HANDLERS. Nothing here reads business
  * data or executes caller-supplied SQL: object names are bound into dictionary queries only.
  */
+import { sourceHandlerRegistry } from './integrations/index.js';
+
 export const WORKFLOW_MODULE_CODE = 'WORKFLOW_MANAGER';
 
 export const PERMISSIONS = Object.freeze({
@@ -35,11 +37,12 @@ export const PROTECTED_MODULE_CODES = Object.freeze([
 ]);
 
 /**
- * Server-side source handlers a HANDLER data source may reference: `{ code, name, description }`.
- * Empty in M1 — the form-owned handler contract is delivered with M2 (versioned form/source
- * mapping). While it is empty, HANDLER sources are refused with SOURCE_HANDLER_NOT_ALLOWED.
+ * Server-side source handlers a HANDLER data source may reference: a frozen array of
+ * `{ code, name, description }` (unchanged M1 shape). Since M2-0 it is derived from the form-owned
+ * SourceHandler registry composed in integrations/index.js (mapping/sourceHandlers.js). That list
+ * is empty, so HANDLER sources are still refused with SOURCE_HANDLER_NOT_ALLOWED.
  */
-export const SOURCE_HANDLERS = Object.freeze([]);
+export const SOURCE_HANDLERS = sourceHandlerRegistry.descriptors();
 
 export const isProtectedObjectName = (objectName) =>
   PROTECTED_OBJECT_PREFIXES.some((prefix) => objectName.startsWith(prefix));
