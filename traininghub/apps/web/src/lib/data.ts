@@ -48,7 +48,11 @@ export const useMe = () =>
   });
 export const useLookups = () =>
   useQuery({ queryKey: ['lookups'], queryFn: () => api.get<Lookups>('/lookups'), staleTime: 60_000 });
-export function useGet<T>(key: QueryKey, url: string | null, opts: { refetchInterval?: number } = {}) {
+export function useGet<T>(
+  key: QueryKey,
+  url: string | null,
+  opts: { refetchInterval?: number; staleTime?: number } = {},
+) {
   return useQuery({ queryKey: key, queryFn: () => api.get<T>(url!), enabled: !!url, ...opts });
 }
 

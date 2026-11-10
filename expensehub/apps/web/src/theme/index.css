@@ -16,6 +16,7 @@
 
   body {
     min-height: 100dvh;
+    font-size: 14px;
   }
 
   /* UI-UX §8 — visible focus ring for keyboard users only. */

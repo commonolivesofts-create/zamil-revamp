@@ -12,8 +12,6 @@ import {
   Avatar,
   Badge,
   Button,
-  Card,
-  CardHead,
   Empty,
   Field,
   Input,
@@ -145,16 +143,21 @@ export default function Approvals() {
       onSuccess: () => setSel(new Set()),
     },
   );
-  if (!inbox.data) return <Spinner />;
-  const free = inbox.data.waiting.filter((r) => !r.session.costSar);
+  const waiting = inbox.data?.waiting ?? [];
+  const decided = inbox.data?.decided ?? [];
+  const free = waiting.filter((r) => !r.session.costSar);
   return (
-    <>
+    <div className="th-approvals">
       <PageHeader
-        eyebrow="Manage"
+        animatedTitle
+        breadcrumb="Learning & development"
         title="Approvals"
-        sub="Approve, reject (with a reason) or forward. Role steps such as HR Lead can be taken by anyone who holds the role. Bulk approve is limited to no-cost sessions."
         actions={
-          <Button onClick={() => setDeleg(true)} icon={<Repeat2 className="size-4" />}>
+          <Button
+            className="th-approvals__delegate-button"
+            onClick={() => setDeleg(true)}
+            icon={<Repeat2 className="size-4" />}
+          >
             Delegate while away
           </Button>
         }
@@ -169,7 +172,7 @@ export default function Approvals() {
         </Alert>
       )}
       {sel.size > 0 && (
-        <Card className="sticky top-16 z-10 mb-3 flex items-center gap-3 px-4 py-2.5">
+        <div className="th-approvals__bulk-bar" role="status">
           <b className="flex-1 text-[12.5px]">{sel.size} selected</b>
           <Button
             variant="primary"
@@ -183,109 +186,156 @@ export default function Approvals() {
           <Button size="sm" onClick={() => setSel(new Set())}>
             Clear
           </Button>
-        </Card>
+        </div>
       )}
-      <Card className="mb-4">
-        <CardHead
-          title={`Waiting for you · ${inbox.data.waiting.length}`}
-          sub="Oldest first"
-          actions={
-            free.length > 1 && (
+      {!inbox.data && inbox.isPending && (
+        <div className="th-approvals__loading" aria-label="Loading approvals">
+          <Spinner />
+        </div>
+      )}
+      {!inbox.data && inbox.error && <Alert tone="bad">{inbox.error.message}</Alert>}
+      {inbox.data && (
+        <section className="th-approvals__section" aria-labelledby="th-approvals-waiting-title">
+          <header className="th-approvals__section-head">
+            <div>
+              <h2 id="th-approvals-waiting-title">
+                Waiting for you <span>{waiting.length}</span>
+              </h2>
+              <p>Oldest requests first</p>
+            </div>
+            {free.length > 1 && (
               <Button size="sm" variant="ghost" onClick={() => setSel(new Set(free.map((r) => r.id)))}>
                 Select all no-cost
               </Button>
-            )
-          }
-        />
-        {inbox.data.waiting.map((r) => {
-          const cur = r.steps.find((s) => s.status === 'PENDING')!;
-          return (
-            <div
-              key={r.id}
-              className="grid gap-3 border-b border-line-2 px-4 py-3.5 last:border-0 lg:grid-cols-[24px_1.3fr_1fr_auto] lg:items-center"
-            >
-              <input
-                type="checkbox"
-                className="size-4 accent-[var(--color-req)]"
-                disabled={!!r.session.costSar}
-                checked={sel.has(r.id)}
-                onChange={(e) => {
-                  const n = new Set(sel);
-                  if (e.target.checked) n.add(r.id);
-                  else n.delete(r.id);
-                  setSel(n);
-                }}
-                aria-label={`Select ${r.requestNo}`}
-                title={r.session.costSar ? 'Paid sessions are approved one by one' : 'Select'}
-              />
-              <div className="flex min-w-0 gap-2.5">
-                <Avatar name={r.personName} id={r.personId} size="md" />
-                <div className="min-w-0">
-                  <b className="text-[12.5px]">{r.personName}</b>{' '}
-                  <small className="text-[11px] text-muted">· {r.positionName ?? '—'}</small>
-                  <Link
-                    to={`/requests/${r.id}`}
-                    className="block truncate text-[12px] font-semibold text-req"
-                  >
-                    {r.session.title}
-                  </Link>
-                  <div className="text-[11px] text-muted">
-                    {fmtDate(r.session.startDate)} · {sar(r.session.costSar)} · {r.requestNo}
-                  </div>
-                </div>
+            )}
+          </header>
+          {waiting.length > 0 && (
+            <div className="th-approvals__rows">
+              <div className="th-approvals__columns" aria-hidden="true">
+                <span />
+                <span>Employee</span>
+                <span>Training request</span>
+                <span>Approval step</span>
+                <span>Decision</span>
               </div>
-              <div className="min-w-0 text-[11.5px]">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge tone="warn">
-                    Step {cur.stepNo} of {r.steps.length} · {cur.label}
-                  </Badge>
-                  {cur.delegatedFromName && <Badge tone="info">for {cur.delegatedFromName}</Badge>}
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1 text-[11px]',
-                      r.waitingDays >= 2 ? 'font-semibold text-bad' : 'text-muted',
-                    )}
+              {waiting.map((r, index) => {
+                const cur = r.steps.find((s) => s.status === 'PENDING') ?? r.steps[r.steps.length - 1];
+                return (
+                  <article
+                    key={r.id}
+                    className={`th-approvals__row${r.waitingDays >= 2 ? ' is-overdue' : ''}`}
+                    style={{ '--th-approval-index': index } as React.CSSProperties}
                   >
-                    <Clock className="size-3" />
-                    {r.waitingDays ? `${r.waitingDays} day${r.waitingDays > 1 ? 's' : ''}` : 'today'}
-                  </span>
-                </div>
-                <p className="mt-1 line-clamp-2 text-muted">“{r.reason}”</p>
-                {r.eligibilityNow?.map((e) => (
-                  <p key={e.code} className="mt-0.5 text-[11px] font-semibold text-bad">
-                    ⚠ {e.message}
-                  </p>
-                ))}
-              </div>
-              <DecisionBar r={r} compact />
+                    <input
+                      type="checkbox"
+                      className="th-approvals__checkbox"
+                      disabled={!!r.session.costSar}
+                      checked={sel.has(r.id)}
+                      onChange={(e) => {
+                        const n = new Set(sel);
+                        if (e.target.checked) n.add(r.id);
+                        else n.delete(r.id);
+                        setSel(n);
+                      }}
+                      aria-label={`Select ${r.requestNo}`}
+                      title={r.session.costSar ? 'Paid sessions are approved one by one' : 'Select'}
+                    />
+                    <div className="th-approvals__person">
+                      <Avatar name={r.personName} id={r.personId} size="md" />
+                      <div className="min-w-0">
+                        <div className="th-approvals__person-name">
+                          <b>{r.personName}</b>
+                          <small>{r.positionName ?? 'Position not set'}</small>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="th-approvals__request">
+                      <Link to={`/requests/${r.id}`} className="th-approvals__session-link">
+                        {r.session.title}
+                      </Link>
+                      <div className="th-approvals__meta">
+                        <span>{r.requestNo}</span>
+                        <i />
+                        <span>{fmtDate(r.session.startDate)}</span>
+                        <i />
+                        <span>{sar(r.session.costSar)}</span>
+                      </div>
+                    </div>
+                    <div className="th-approvals__details">
+                      <div className="th-approvals__badges">
+                        <Badge tone="warn">
+                          Step {cur?.stepNo ?? '—'}/{r.steps.length}
+                          {cur?.label ? ` · ${cur.label}` : ''}
+                        </Badge>
+                        {cur?.delegatedFromName && <Badge tone="info">for {cur.delegatedFromName}</Badge>}
+                        <span className={cn('th-approvals__wait', r.waitingDays >= 2 && 'is-overdue')}>
+                          <Clock className="size-3" />
+                          {r.waitingDays ? `${r.waitingDays}d waiting` : 'Received today'}
+                        </span>
+                      </div>
+                      <p className="th-approvals__reason">{r.reason}</p>
+                      {r.eligibilityNow?.map((e) => (
+                        <p key={e.code} className="th-approvals__eligibility">
+                          {e.message}
+                        </p>
+                      ))}
+                    </div>
+                    <DecisionBar r={r} compact className="th-approvals__decisions" />
+                  </article>
+                );
+              })}
             </div>
-          );
-        })}
-        {!inbox.data.waiting.length && (
-          <Empty icon={<Inbox className="size-5" />} title="Inbox zero">
-            Nothing is waiting for your decision.
-          </Empty>
-        )}
-      </Card>
-      <Card>
-        <CardHead title="Recently decided by you" />
-        {inbox.data.decided.map((r) => (
-          <Link
-            key={r.id}
-            to={`/requests/${r.id}`}
-            className="flex items-center gap-3 border-b border-line-2 px-4 py-2.5 last:border-0 hover:bg-hover"
-          >
-            <span className="min-w-0 flex-1">
-              <b className="text-[12.5px]">{r.personName}</b>{' '}
-              <small className="text-muted">· {r.session.title}</small>
-            </span>
-            <StatusChip status={r.status} />
-          </Link>
-        ))}
-        {!inbox.data.decided.length && <Empty title="No decisions yet" />}
-      </Card>
+          )}
+          {!waiting.length && (
+            <Empty icon={<Inbox className="size-5" />} title="Inbox zero">
+              Nothing is waiting for your decision.
+            </Empty>
+          )}
+        </section>
+      )}
+      {inbox.data && (
+        <section
+          className="th-approvals__section th-approvals__recent"
+          aria-labelledby="th-approvals-recent-title"
+        >
+          <header className="th-approvals__section-head">
+            <div>
+              <h2 id="th-approvals-recent-title">
+                Recently decided <span>{decided.length}</span>
+              </h2>
+              <p>Requests you have already reviewed</p>
+            </div>
+          </header>
+          {decided.length > 0 ? (
+            <div className="th-approvals__recent-rows">
+              {decided.map((r, index) => (
+                <Link
+                  key={r.id}
+                  to={`/requests/${r.id}`}
+                  className="th-approvals__recent-row"
+                  style={{ '--th-approval-index': index } as React.CSSProperties}
+                >
+                  <span className="th-approvals__recent-person">
+                    <Avatar name={r.personName} id={r.personId} size="sm" />
+                    <b>{r.personName}</b>
+                  </span>
+                  <span className="th-approvals__recent-session">
+                    {r.session.title}
+                    <small>
+                      {r.requestNo} · {fmtDate(r.session.startDate)}
+                    </small>
+                  </span>
+                  <StatusChip status={r.status} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Empty title="No decisions yet" />
+          )}
+        </section>
+      )}
       {deleg && <DelegationModal onClose={() => setDeleg(false)} />}
-    </>
+    </div>
   );
 }
 

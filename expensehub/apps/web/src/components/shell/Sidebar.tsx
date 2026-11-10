@@ -13,10 +13,10 @@ export function Sidebar() {
   const items = visibleNav(me, devToolsEnabled(me));
 
   return (
-    <aside className="sticky top-0 hidden h-dvh shrink-0 flex-col border-e border-border bg-surface md:flex md:w-[72px] lg:w-64">
-      <div className="flex h-16 shrink-0 items-center px-5 md:justify-center lg:justify-start">
+    <aside className="sticky top-0 hidden h-dvh shrink-0 flex-col border-e border-border bg-surface md:flex md:w-72">
+      <div className="flex h-[72px] shrink-0 items-center px-5">
         <Link to="/" aria-label={t('app.name')} className="rounded-input">
-          <Logo variant="responsive" />
+          <Logo variant="full" />
         </Link>
       </div>
 
@@ -26,13 +26,9 @@ export function Sidebar() {
           if (sectionItems.length === 0) return null;
           return (
             <div key={section} className="mb-4 last:mb-0">
-              <p className="mb-1 hidden px-3 pt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted lg:block">
+              <p className="mb-1 px-3 pt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
                 {t(`nav.sections.${section}`)}
               </p>
-              <div
-                aria-hidden
-                className="mx-auto mb-2 hidden h-px w-6 bg-border md:block lg:hidden"
-              />
               <ul className="space-y-0.5">
                 {sectionItems.map((item) => (
                   <li key={item.id}>
@@ -45,9 +41,9 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="flex items-center gap-3 border-t border-border p-4 md:justify-center lg:justify-start">
+      <div className="flex items-center gap-3 border-t border-border p-4">
         <Avatar name={me.user.fullName} />
-        <div className="hidden min-w-0 lg:block">
+        <div className="min-w-0">
           <p className="truncate text-sm font-medium">{me.user.fullName}</p>
           <p className="truncate text-xs text-muted">
             {me.user.jobName ?? t('roles.EMPLOYEE')} · {me.user.businessUnit}
@@ -70,7 +66,7 @@ function SidebarLink({ item }: { item: NavItem }) {
       className={({ isActive }) =>
         cn(
           'group relative flex h-10 items-center gap-3 rounded-input px-3 text-sm font-medium transition-colors',
-          'md:justify-center lg:justify-start',
+          'justify-start',
           isActive
             ? 'bg-brand/10 text-brand-solid dark:text-brand'
             : 'text-muted hover:bg-surface-2 hover:text-ink',
@@ -86,7 +82,7 @@ function SidebarLink({ item }: { item: NavItem }) {
             />
           )}
           <Icon aria-hidden className="size-[18px] shrink-0" strokeWidth={isActive ? 2 : 1.75} />
-          <span className="truncate md:sr-only lg:not-sr-only">{label}</span>
+          <span className="truncate">{label}</span>
           {item.milestone && (
             <span className="ms-auto hidden rounded-pill bg-surface-2 px-1.5 py-px text-[10px] font-medium text-muted lg:inline">
               {item.milestone}

@@ -1,5 +1,4 @@
-// App shell. The navigation is hidden and slides in when the pointer touches the left edge
-// (or on keyboard focus / the menu button). It can be pinned open; the choice is remembered.
+// App shell. The desktop navigation keeps a compact icon rail and expands over content on hover/focus.
 import { useQueryClient } from '@tanstack/react-query';
 import {
   BarChart3,
@@ -19,13 +18,12 @@ import {
   Menu,
   Moon,
   PenSquare,
-  Pin,
-  PinOff,
   Plus,
   Settings2,
   Sun,
   Target,
   Users,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -93,41 +91,31 @@ export function navModel(me: Me): [string, NavItem[]][] {
   return g;
 }
 
-const PIN_KEY = 'th.navPinned';
-const readPin = () => {
-  try {
-    return localStorage.getItem(PIN_KEY) === '1';
-  } catch {
-    return false;
-  }
-};
-
 export function AppShell({ me, children }: { me: Me; children: ReactNode }) {
-  const [pinned, setPinned] = useState(readPin);
   const [open, setOpen] = useState(false);
-  const closeTimer = useRef<number | undefined>(undefined);
+  const [collapseAfterNav, setCollapseAfterNav] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
+  const mobileWasOpen = useRef(false);
   const location = useLocation();
-  const shown = pinned || open;
-
-  const show = () => {
-    window.clearTimeout(closeTimer.current);
-    setOpen(true);
-  };
-  const hideSoon = () => {
-    window.clearTimeout(closeTimer.current);
-    closeTimer.current = window.setTimeout(() => setOpen(false), 280);
-  };
-  const togglePin = () => {
-    const v = !pinned;
-    setPinned(v);
-    setOpen(false);
-    try {
-      localStorage.setItem(PIN_KEY, v ? '1' : '0');
-    } catch {
-      /* private mode */
-    }
-  };
   useEffect(() => setOpen(false), [location.pathname]);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1023px)');
+    const update = () => {
+      setIsMobile(media.matches);
+      if (!media.matches) setOpen(false);
+    };
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    if (isMobile && open) {
+      mobileWasOpen.current = true;
+      document.getElementById('th-sidebar-close')?.focus();
+    } else if (mobileWasOpen.current) {
+      mobileWasOpen.current = false;
+      if (isMobile) document.getElementById('th-mobile-nav-trigger')?.focus();
+    }
+  }, [isMobile, open]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
     window.addEventListener('keydown', onKey);
@@ -135,67 +123,51 @@ export function AppShell({ me, children }: { me: Me; children: ReactNode }) {
   }, []);
 
   return (
-    <div className="min-h-dvh">
-      {/* Edge hot zone + visible handle: touching the left edge reveals the navigation. */}
-      {!pinned && (
+    <div className="th-shell min-h-dvh">
+      {open && (
         <div
-          className="fixed inset-y-0 left-0 z-40 w-3"
-          onMouseEnter={show}
-          onMouseLeave={hideSoon}
-          aria-hidden
-          data-testid="nav-hotzone"
-        >
-          <div
-            className={cn(
-              'absolute left-1 top-1/2 h-16 w-1 -translate-y-1/2 rounded-full bg-mint/60 transition-opacity',
-              shown && 'opacity-0',
-            )}
-          />
-        </div>
-      )}
-      {open && !pinned && (
-        <div
-          className="fixed inset-0 z-40 bg-[#03140d]/10 lg:bg-transparent"
+          className="th-sidebar-backdrop fixed inset-0 z-40 bg-black/45 backdrop-blur-sm lg:hidden"
           onClick={() => setOpen(false)}
           aria-hidden
         />
       )}
       <aside
+        id="th-sidebar"
         aria-label="Main navigation"
-        data-open={shown}
-        onMouseEnter={show}
-        onMouseLeave={() => !pinned && hideSoon()}
-        onFocus={show}
-        onBlur={(e) => !pinned && !e.currentTarget.contains(e.relatedTarget as Node) && hideSoon()}
-        className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-brand-2 text-[#d7efe3] transition-transform duration-300 ease-[cubic-bezier(.16,1,.3,1)]',
-          shown ? 'translate-x-0' : '-translate-x-full',
-          open && !pinned && 'shadow-pop',
-        )}
+        aria-hidden={isMobile && !open}
+        role={isMobile && open ? 'dialog' : undefined}
+        aria-modal={isMobile && open ? 'true' : undefined}
+        inert={isMobile && !open}
+        data-mobile-open={open}
+        data-collapse-after-nav={collapseAfterNav}
+        onMouseEnter={() => setCollapseAfterNav(false)}
+        onMouseLeave={() => setCollapseAfterNav(false)}
+        className="th-sidebar fixed inset-y-0 left-0 z-50 flex flex-col border-r border-line bg-surface text-ink"
       >
-        <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
-          <div className="grid size-9 place-items-center rounded-xl bg-mint/15 text-mint">
+        <div className="th-sidebar__brand flex h-[72px] shrink-0 items-center gap-3 border-b border-line px-4">
+          <div className="th-sidebar__brand-mark grid size-11 shrink-0 place-items-center rounded-2xl bg-brand/10 text-brand-solid">
             <GraduationCap className="size-5" />
           </div>
-          <div className="min-w-0 flex-1">
-            <b className="block text-[14px] font-bold text-white">TrainingHub</b>
-            <small className="text-[10.5px] text-[#8fb9a6]">Zamil Plastic Industries</small>
+          <div className="th-sidebar__brand-copy min-w-0 flex-1">
+            <b className="block text-[15px] font-bold tracking-tight">TrainingHub</b>
+            <small className="text-[10.5px] text-muted">Zamil Plastic Industries</small>
           </div>
           <button
-            onClick={togglePin}
-            title={
-              pinned ? 'Unpin — hide until the pointer touches the left edge' : 'Pin the navigation open'
-            }
-            aria-label={pinned ? 'Unpin navigation' : 'Pin navigation'}
-            className="rounded-lg p-1.5 text-[#8fb9a6] hover:bg-white/10 hover:text-white"
+            id="th-sidebar-close"
+            onClick={() => setOpen(false)}
+            aria-label="Close navigation"
+            className="th-sidebar__close rounded-lg p-1.5 text-muted transition hover:bg-hover hover:text-ink lg:hidden"
           >
-            {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
+            <X className="size-4" />
           </button>
         </div>
-        <nav className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-4 scroll-thin">
+        <nav
+          aria-label="Training Hub pages"
+          className="th-sidebar__nav min-h-0 flex-1 overflow-y-auto scroll-thin"
+        >
           {navModel(me).map(([label, items]) => (
-            <div key={label} className="mt-3">
-              <div className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#6f9a86]">
+            <div key={label} className="th-sidebar__section">
+              <div className="th-sidebar__heading text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
                 {label}
               </div>
               {items.map((i) => (
@@ -203,44 +175,47 @@ export function AppShell({ me, children }: { me: Me; children: ReactNode }) {
                   key={i.to}
                   to={i.to}
                   end={i.to === '/'}
-                  className={({ isActive }) =>
-                    cn(
-                      'group flex items-center gap-2.5 rounded-[10px] px-2.5 py-[7px] text-[12.5px] font-medium transition',
-                      isActive ? 'bg-mint/15 text-white' : 'text-[#c4e0d2] hover:bg-white/6 hover:text-white',
-                    )
-                  }
+                  aria-label={i.label}
+                  title={i.label}
+                  onClick={(event) => {
+                    if (isMobile) setOpen(false);
+                    else {
+                      if (event.detail > 0) setCollapseAfterNav(true);
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  className={({ isActive }) => cn('th-sidebar__link', isActive && 'is-active')}
                 >
-                  <i.icon className="size-4 shrink-0 opacity-80" />
-                  <span className="flex-1 truncate">{i.label}</span>
-                  {!!i.count && (
-                    <b
-                      className={cn(
-                        'rounded-full px-1.5 text-[10px]',
-                        i.tone === 'warn' ? 'bg-[#f0b84f]/20 text-[#f7d08a]' : 'bg-mint/20 text-mint',
+                  {() => (
+                    <>
+                      <span className="th-sidebar__icon">
+                        <i.icon aria-hidden className="size-[19px]" />
+                      </span>
+                      <span className="th-sidebar__label">{i.label}</span>
+                      {!!i.count && (
+                        <b className={cn('th-sidebar__count', i.tone === 'warn' && 'is-warn')}>{i.count}</b>
                       )}
-                    >
-                      {i.count}
-                    </b>
+                    </>
                   )}
                 </NavLink>
               ))}
             </div>
           ))}
         </nav>
-        <div className="border-t border-white/8 px-4 py-3 text-[10.5px] text-[#6f9a86]">
-          Hover the left edge to open · <kbd className="rounded bg-white/10 px-1">Esc</kbd> to close
+        <div className="th-sidebar__footer border-t border-line px-5 py-3 text-[10.5px] text-muted">
+          Training and development workspace
         </div>
       </aside>
 
-      <div className={cn('transition-[padding] duration-300', pinned && 'lg:pl-64')}>
-        <TopBar me={me} onMenu={() => (open ? setOpen(false) : show())} pinned={pinned} />
+      <div className="th-shell__main min-h-dvh">
+        <TopBar me={me} onMenu={() => setOpen(true)} open={open} />
         <main className="w-full px-4 pb-16 pt-5 sm:px-6">{children}</main>
       </div>
     </div>
   );
 }
 
-function TopBar({ me, onMenu, pinned }: { me: Me; onMenu: () => void; pinned: boolean }) {
+function TopBar({ me, onMenu, open }: { me: Me; onMenu: () => void; open: boolean }) {
   const qc = useQueryClient();
   const nav = useNavigate();
   const [dark, setDark] = useState(() => document.documentElement.dataset.theme === 'dark');
@@ -280,18 +255,21 @@ function TopBar({ me, onMenu, pinned }: { me: Me; onMenu: () => void; pinned: bo
         : 'Employee';
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-canvas/85 backdrop-blur">
-      <div className="flex h-14 w-full items-center gap-3 px-4 sm:px-6">
+    <header className="sticky top-0 z-30 border-b border-line bg-canvas/85 backdrop-blur-xl">
+      <div className="flex h-[72px] w-full items-center gap-3 px-4 sm:px-6">
         <button
+          id="th-mobile-nav-trigger"
           onClick={onMenu}
-          className={cn('rounded-lg p-2 text-muted hover:bg-hover', pinned && 'lg:hidden')}
+          className="rounded-lg p-2 text-muted hover:bg-hover lg:hidden"
           aria-label="Open navigation"
+          aria-controls="th-sidebar"
+          aria-expanded={open}
           data-testid="nav-menu"
         >
           <Menu className="size-[18px]" />
         </button>
         <NavLink to="/" className="flex items-center gap-2 font-bold">
-          <span className="grid size-7 place-items-center rounded-lg bg-brand text-mint">
+          <span className="grid size-8 place-items-center rounded-xl bg-accent-soft text-brand-text">
             <GraduationCap className="size-4" />
           </span>
           <span className="hidden text-[14px] sm:inline">TrainingHub</span>

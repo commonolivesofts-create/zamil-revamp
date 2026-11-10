@@ -1,9 +1,9 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { ApiError } from './lib/api';
 import { useMe } from './lib/data';
 import { AppShell } from './components/shell';
-import { Spinner } from './components/ui';
+import { Spinner, StartupLoading } from './components/ui';
 import { ChangePasswordPage, LoginPage } from './pages/auth';
 
 const Dashboard = lazy(() => import('./pages/dashboard'));
@@ -25,8 +25,12 @@ const Reports = lazy(() => import('./pages/reports'));
 const Audit = lazy(() => import('./pages/audit'));
 
 export function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const backgroundLocation = (location.state as { backgroundLocation?: typeof location } | null)
+    ?.backgroundLocation;
   const me = useMe();
-  if (me.isPending) return <Spinner label="Starting TrainingHub…" />;
+  if (me.isPending) return <StartupLoading />;
   if (me.error) {
     if (me.error instanceof ApiError && me.error.status === 401) return <LoginPage />;
     return <LoginPage notice={me.error.message} />;
@@ -35,7 +39,7 @@ export function App() {
   return (
     <AppShell me={me.data}>
       <Suspense fallback={<Spinner />}>
-        <Routes>
+        <Routes location={backgroundLocation || location}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/catalog" element={<Catalog />} />
           <Route path="/calendar" element={<Calendar />} />
@@ -56,6 +60,11 @@ export function App() {
           <Route path="/password" element={<ChangePasswordPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {backgroundLocation && (
+          <Routes>
+            <Route path="/requests/:id" element={<RequestDetail drawer onClose={() => navigate(-1)} />} />
+          </Routes>
+        )}
       </Suspense>
     </AppShell>
   );

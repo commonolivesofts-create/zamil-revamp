@@ -1,49 +1,54 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/inter';
+@import './shell.css';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-/* Emerald theme from the Job Skills Matrix sample. Tailwind turns each --color-* into utilities. */
+/* Shared Zamil green theme. Training statuses keep their semantic colors. */
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --color-canvas: #f5f8f6;
+  /* Match the signed-in Zamil workspace canvas and soft panel palette. */
+  --color-canvas: #f4faf6;
   --color-surface: #ffffff;
-  --color-surface-2: #f3f7f4;
+  --color-surface-2: #e8f7ee;
   --color-ink: #12352a;
   --color-muted: #5c766a;
-  --color-fine: #83998e;
+  --color-fine: #718c7f;
   --color-line: rgb(13 74 56 / 0.12);
   --color-line-2: rgb(13 74 56 / 0.07);
-  --color-hover: rgb(38 158 108 / 0.065);
-  --color-brand: #0d4a38;
-  --color-brand-2: #083328;
+  --color-hover: rgb(14 159 110 / 0.065);
+  --color-brand: #0e9f6e;
+  --color-brand-2: #111827;
+  --color-brand-solid: #047857;
+  --color-brand-solid-hover: #065f46;
   --color-brand-fg: #ffffff;
-  --color-mint: #2dd4a0;
-  --color-accent-soft: #e3f6ea;
-  --color-req: #17a673;
-  --color-req-bg: #dcf5e8;
-  --color-req-ink: #0b5c3f;
-  --color-opt: #c98712;
-  --color-opt-bg: #fdf1d8;
-  --color-opt-ink: #8a5a06;
+  --color-brand-text: #047857;
+  --color-mint: #31c48d;
+  --color-accent-soft: #e8f7ee;
+  --color-req: #0e9f6e;
+  --color-req-bg: #dcfce7;
+  --color-req-ink: #047857;
+  --color-opt: #b45309;
+  --color-opt-bg: #fef3c7;
+  --color-opt-ink: #92400e;
   --color-und: #3178c6;
   --color-und-bg: #e4eefb;
   --color-und-ink: #1f5394;
-  --color-na: #9aa8a1;
-  --color-na-bg: #f0f3f1;
-  --color-bad: #c0483e;
-  --color-bad-bg: #fcebe9;
-  --color-c1: #17a673;
+  --color-na: #9ca3af;
+  --color-na-bg: #e8f7ee;
+  --color-bad: #b91c1c;
+  --color-bad-bg: #fee2e2;
+  --color-c1: #047857;
   --color-c2: #7c5cd6;
   --color-c3: #2f7fd3;
-  --color-c4: #d08a16;
+  --color-c4: #d97706;
   --color-c5: #d4507a;
-  --color-c6: #0f9fb0;
+  --color-c6: #0891b2;
   --color-c7: #6b7a2f;
   --color-c8: #8d5a3b;
-  --radius-card: 14px;
-  --shadow-card: 0 1px 2px rgb(8 59 36 / 0.04), 0 6px 20px rgb(8 59 36 / 0.04);
-  --shadow-pop: 0 30px 90px rgb(0 32 16 / 0.22);
+  --radius-card: 12px;
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-pop: 0 8px 24px -8px rgb(16 24 40 / 0.18);
   --animate-pop: pop 160ms cubic-bezier(0.16, 1, 0.3, 1);
   @keyframes pop {
     from {
@@ -55,30 +60,45 @@
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --color-canvas: #07140f;
-  --color-surface: #0d231b;
-  --color-surface-2: #12301f;
-  --color-ink: #eef7f1;
-  --color-muted: #93ae9f;
-  --color-fine: #67887a;
-  --color-line: rgb(174 254 211 / 0.11);
-  --color-line-2: rgb(174 254 211 / 0.06);
-  --color-hover: rgb(73 220 164 / 0.08);
-  --color-brand: #1f7a5b;
-  --color-brand-2: #0a2a20;
-  --color-accent-soft: rgb(45 212 160 / 0.12);
-  --color-req: #2dd4a0;
-  --color-req-bg: rgb(45 212 160 / 0.16);
-  --color-req-ink: #8af3c9;
-  --color-opt: #f0b84f;
-  --color-opt-bg: rgb(240 184 79 / 0.15);
-  --color-opt-ink: #f7d08a;
-  --color-und: #6aa8ef;
-  --color-und-bg: rgb(106 168 239 / 0.15);
-  --color-und-ink: #a9cdf7;
+  --color-canvas: #0b0f17;
+  --color-surface: #111827;
+  --color-surface-2: #1a2333;
+  --color-ink: #f9fafb;
+  --color-muted: #9ca3af;
+  --color-fine: #6b7280;
+  --color-line: #1f2937;
+  --color-line-2: rgb(255 255 255 / 0.06);
+  --color-hover: rgb(49 196 141 / 0.08);
+  --color-brand: #31c48d;
+  --color-brand-2: #151d2b;
+  --color-brand-solid: #31c48d;
+  --color-brand-solid-hover: #5ad3a4;
+  --color-brand-fg: #04261a;
+  --color-brand-text: #31c48d;
+  --color-accent-soft: rgb(49 196 141 / 0.14);
+  --color-req: #31c48d;
+  --color-req-bg: rgb(49 196 141 / 0.16);
+  --color-req-ink: #31c48d;
+  --color-opt: #f59e0b;
+  --color-opt-bg: rgb(245 158 11 / 0.15);
+  --color-opt-ink: #fbbf24;
+  --color-und: #60a5fa;
+  --color-und-bg: rgb(96 165 250 / 0.15);
+  --color-und-ink: #93c5fd;
+  --color-na: #9ca3af;
   --color-na-bg: rgb(255 255 255 / 0.05);
-  --color-bad: #ef7d73;
-  --color-bad-bg: rgb(239 125 115 / 0.14);
+  --color-bad: #f87171;
+  --color-bad-bg: rgb(248 113 113 / 0.14);
+  --color-c1: #34d399;
+  --color-c2: #a78bfa;
+  --color-c3: #60a5fa;
+  --color-c4: #fbbf24;
+  --color-c5: #f472b6;
+  --color-c6: #22d3ee;
+  --color-c7: #a3b367;
+  --color-c8: #c08465;
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02);
+  --shadow-pop: 0 8px 24px -8px rgb(0 0 0 / 0.6);
 }
 
 @layer base {
@@ -86,18 +106,25 @@
     background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body,
+  #root {
+    background-color: var(--color-canvas);
   }
   body {
     min-height: 100dvh;
-    font-size: 13px;
+    font-size: 14px;
   }
   :focus-visible {
-    outline: 2px solid var(--color-mint);
+    outline: 2px solid var(--color-brand);
     outline-offset: 2px;
   }
   ::selection {
-    background: color-mix(in oklab, var(--color-mint) 30%, transparent);
+    background: color-mix(in oklab, var(--color-brand) 25%, transparent);
   }
   input,
   select,
