@@ -5319,77 +5319,23 @@
 }
 
 .th-dashboard__welcome {
-  position: relative;
-  display: flex;
-  min-height: 128px;
-  align-items: center;
-  gap: 18px;
-  overflow: hidden;
-  padding: 22px 24px;
-  border: 1px solid color-mix(in srgb, var(--th-dashboard-brand) 16%, var(--color-line));
-  border-radius: 22px;
-  background:
-    radial-gradient(
-      circle at 88% 10%,
-      color-mix(in srgb, var(--th-dashboard-brand) 13%, transparent),
-      transparent 34%
-    ),
-    linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--color-surface) 96%, white),
-      color-mix(in srgb, var(--th-dashboard-soft) 72%, var(--color-surface))
-    );
-  box-shadow:
-    0 14px 34px rgb(31 83 55 / 0.07),
-    inset 0 1px 0 rgb(255 255 255 / 0.8);
+  padding: 0 2px 13px;
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
-
-.th-dashboard__welcome-mark {
-  display: grid;
-  width: 54px;
-  height: 54px;
-  flex: none;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--th-dashboard-brand) 22%, transparent);
-  border-radius: 17px;
-  background: linear-gradient(145deg, #a3e6bf, #37a66e);
-  color: #103e29;
-  box-shadow:
-    0 10px 24px rgb(21 125 75 / 0.15),
-    inset 0 1px 0 rgb(255 255 255 / 0.55);
-}
-
-.th-dashboard__welcome-mark svg {
-  width: 25px;
-  height: 25px;
-}
-.th-dashboard__welcome-copy {
-  min-width: 0;
-  flex: 1;
-}
-.th-dashboard__welcome-copy > div {
+.th-dashboard__welcome > div {
   margin: 0;
 }
-.th-dashboard__welcome-copy h1 {
+.th-dashboard__welcome h1 {
   color: var(--color-ink);
   font-size: 20px;
   letter-spacing: -0.04em;
 }
-.th-dashboard__welcome-copy [class*='uppercase'] {
+.th-dashboard__welcome [class*='uppercase'] {
   color: var(--th-dashboard-deep);
-}
-.th-dashboard__welcome-tag {
-  align-self: flex-start;
-  margin-inline-start: auto;
-  padding: 7px 11px;
-  border: 1px solid color-mix(in srgb, var(--th-dashboard-brand) 18%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
-  color: var(--th-dashboard-deep);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
 }
 
 .th-dashboard__stats {
@@ -5475,22 +5421,7 @@
     gap: 14px;
   }
   .th-dashboard__welcome {
-    min-height: 0;
-    gap: 12px;
-    padding: 17px;
-    border-radius: 18px;
-  }
-  .th-dashboard__welcome-mark {
-    width: 44px;
-    height: 44px;
-    border-radius: 14px;
-  }
-  .th-dashboard__welcome-mark svg {
-    width: 21px;
-    height: 21px;
-  }
-  .th-dashboard__welcome-tag {
-    display: none;
+    padding-bottom: 11px;
   }
   .th-dashboard__stats {
     gap: 9px;
@@ -5505,25 +5436,11 @@
   }
 }
 
-[data-theme='dark'] .th-dashboard__welcome {
-  border-color: rgb(88 199 142 / 0.2);
-  background:
-    radial-gradient(circle at 88% 8%, rgb(55 166 110 / 0.18), transparent 36%),
-    linear-gradient(145deg, #172923, #14221d);
-  box-shadow:
-    0 14px 34px rgb(0 0 0 / 0.18),
-    inset 0 1px 0 rgb(255 255 255 / 0.035);
-}
 [data-theme='dark'] .th-shell__main:has(.th-dashboard, .th-catalog, .th-calendar) {
   background:
     radial-gradient(circle at 52% 12%, rgb(48 155 90 / 0.09), transparent 34%),
     radial-gradient(circle at 20% 42%, rgb(66 142 110 / 0.08), transparent 36%),
     linear-gradient(145deg, #101b18, #111e1a);
-}
-[data-theme='dark'] .th-dashboard__welcome-tag {
-  border-color: rgb(88 199 142 / 0.24);
-  background: rgb(10 20 15 / 0.35);
-  color: #9aeabf;
 }
 [data-theme='dark'] .th-dashboard__stats > div,
 [data-theme='dark'] .th-dashboard__panel {

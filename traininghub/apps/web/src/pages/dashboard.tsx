@@ -96,25 +96,19 @@ export default function Dashboard() {
   return (
     <div className="th-dashboard">
       <section className="th-dashboard__welcome">
-        <span className="th-dashboard__welcome-mark" aria-hidden="true">
-          <GraduationCap />
-        </span>
-        <div className="th-dashboard__welcome-copy">
-          <PageHeader
-            eyebrow={new Date().toLocaleDateString('en-GB', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-            })}
-            title={`Good ${new Date().getHours() < 12 ? 'morning' : 'afternoon'}, ${first}`}
-            sub={
-              me.positionName
-                ? `${me.positionName} · reports to ${me.managerName ?? '—'}`
-                : 'Your position is not mapped in the Job Skills Matrix yet.'
-            }
-          />
-        </div>
-        <span className="th-dashboard__welcome-tag">Learning &amp; development</span>
+        <PageHeader
+          eyebrow={new Date().toLocaleDateString('en-GB', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+          })}
+          title={`Good ${new Date().getHours() < 12 ? 'morning' : 'afternoon'}, ${first}`}
+          sub={
+            me.positionName
+              ? `${me.positionName} · reports to ${me.managerName ?? '—'}`
+              : 'Your position is not mapped in the Job Skills Matrix yet.'
+          }
+        />
       </section>
       <div className="th-dashboard__stats mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi
