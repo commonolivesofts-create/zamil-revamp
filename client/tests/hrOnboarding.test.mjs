@@ -1831,7 +1831,7 @@ test("report page: outside the flow, server rows and summary, column chooser, si
   const css = await read("../src/styles/hr-recruitment.css");
   assert.match(
     css,
-    /\.zrv-hr-rp-table th \{ position: sticky;/,
+    /\.zrv-hr-rp-table th\s*\{\s*position:\s*sticky;/,
     "sticky header",
   );
 });
