@@ -19,6 +19,7 @@ import {
   PageHeader,
   Spinner,
   StatusChip,
+  Skeleton,
   Table,
 } from '../components/ui';
 
@@ -36,13 +37,15 @@ export function SessionStrip({
   status: (s: TS) => string;
 }) {
   return (
-    <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scroll-thin">
+    <div className="th-attendance__sessions" role="group" aria-label="Training sessions">
       {list.map((s) => (
         <button
           key={s.id}
+          type="button"
+          aria-pressed={sel === s.id}
           onClick={() => onSelect(s.id)}
           className={cn(
-            'min-w-52 rounded-xl border px-3 py-2 text-left',
+            'th-attendance__session rounded-xl border px-3 py-2 text-left',
             sel === s.id ? 'border-req bg-accent-soft' : 'border-line bg-surface hover:bg-hover',
           )}
         >
@@ -67,41 +70,66 @@ export default function Attendance() {
     withLearners.find((s) => s.startDate <= t && !s.resultsReleased)?.id ||
     withLearners[0]?.id ||
     null;
-  if (!list.data) return <Spinner />;
+  if (!list.data && list.isPending) return <AttendanceLoading />;
   return (
-    <>
-      <PageHeader
-        eyebrow="Trainer"
-        title="Attendance & marks"
-        sub="1 · mark and lock attendance → 2 · learners take the theory test → 3 · enter practical marks and release. Released passes raise skill levels."
-      />
-      {!withLearners.length ? (
-        <Card>
+    <div className="th-attendance">
+      <PageHeader animatedTitle breadcrumb="Trainer" title="Attendance & marks" />
+      {list.error && <Alert tone="bad">{list.error.message}</Alert>}
+      {list.data && !withLearners.length ? (
+        <Card className="th-attendance__empty">
           <Empty
             icon={<ClipboardCheck className="size-5" />}
             title="No sessions with confirmed learners yet"
           />
         </Card>
       ) : (
-        <>
-          <SessionStrip
-            list={withLearners}
-            sel={sel}
-            onSelect={(id) => setParams({ session: String(id) })}
-            status={(s) =>
-              s.resultsReleased
-                ? 'Results released'
-                : s.attendanceLocked
-                  ? 'Attendance locked'
-                  : s.startDate <= t
-                    ? 'Mark attendance'
-                    : 'Upcoming'
-            }
-          />
-          {sel && <Roster id={sel} />}
-        </>
+        list.data && (
+          <>
+            <SessionStrip
+              list={withLearners}
+              sel={sel}
+              onSelect={(id) => setParams({ session: String(id) })}
+              status={(s) =>
+                s.resultsReleased
+                  ? 'Results released'
+                  : s.attendanceLocked
+                    ? 'Attendance locked'
+                    : s.startDate <= t
+                      ? 'Mark attendance'
+                      : 'Upcoming'
+              }
+            />
+            {sel && <Roster id={sel} />}
+          </>
+        )
       )}
-    </>
+    </div>
+  );
+}
+
+function AttendanceLoading() {
+  return (
+    <div className="th-attendance">
+      <PageHeader animatedTitle breadcrumb="Trainer" title="Attendance & marks" />
+      <div className="th-attendance__loading-sessions">
+        {Array.from({ length: 3 }, (_, i) => (
+          <Skeleton key={i} className="h-[74px] rounded-xl" />
+        ))}
+      </div>
+      <Card className="th-attendance__loading-panel">
+        <div className="th-attendance__loading-head">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-8 w-56" />
+        </div>
+        {Array.from({ length: 5 }, (_, i) => (
+          <div className="th-attendance__loading-row" key={i}>
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-7 w-36" />
+          </div>
+        ))}
+      </Card>
+    </div>
   );
 }
 
@@ -146,17 +174,23 @@ function Roster({ id }: { id: number }) {
     },
   );
   const [errMsg, alertErr] = useState('');
-  if (!r.data) return <Spinner />;
+  if (!r.data && r.isPending)
+    return (
+      <div className="th-attendance__loading-roster">
+        <Spinner />
+      </div>
+    );
+  if (!r.data) return <Alert tone="bad">{r.error?.message ?? 'Unable to load this session roster.'}</Alert>;
   const { session: s, rows, canMark } = r.data;
   const pending = rows.filter((x) => x.status === 'APPROVED');
   const unmarked = pending.filter((x) => !(marks[x.personId] ?? x.mark));
   const attendees = rows.filter((x) => ['ATTENDED', 'COMPLETED', 'NOT_PASSED'].includes(x.status));
   return (
-    <div className="space-y-4">
+    <div className="th-attendance__roster">
       {!canMark && !s.attendanceLocked && (
         <Alert tone="info">Attendance opens on {fmtDate(s.startDate)}. You can review the roster now.</Alert>
       )}
-      <Card>
+      <Card className="th-attendance__panel th-attendance__attendance-panel">
         <CardHead
           title={`1 · Attendance · ${rows.length} learners`}
           sub={s.attendanceLocked ? 'Locked' : `${pending.length - unmarked.length}/${pending.length} marked`}
@@ -193,7 +227,11 @@ function Roster({ id }: { id: number }) {
             )
           }
         />
-        <Table head={['Learner', 'Position', 'Request', 'Attendance', 'Status']}>
+        <Table
+          pageSize={10}
+          pagerLabel="Attendance roster pages"
+          head={['Learner', 'Position', 'Request', 'Attendance', 'Status']}
+        >
           {rows.map((x) => {
             const m = marks[x.personId] ?? x.mark;
             return (
@@ -207,13 +245,17 @@ function Roster({ id }: { id: number }) {
                 <td className="text-muted">{x.positionName}</td>
                 <td className="text-[11px] text-fine">{x.requestNo}</td>
                 <td>
-                  <div className="inline-flex overflow-hidden rounded-lg border border-line">
+                  <div className="th-attendance__mark-group inline-flex overflow-hidden rounded-lg border border-line">
                     {(['PRESENT', 'LATE', 'ABSENT'] as const).map((k) => (
                       <button
                         key={k}
                         disabled={!canMark || x.status !== 'APPROVED'}
+                        type="button"
+                        aria-pressed={m === k}
+                        aria-label={`${x.personName}: ${k.toLowerCase()}`}
                         onClick={() => setMarks({ ...marks, [x.personId]: k })}
                         className={cn(
+                          'th-attendance__mark-option',
                           'h-7 border-r border-line px-2.5 text-[11px] font-semibold last:border-0 disabled:cursor-default',
                           m === k
                             ? k === 'ABSENT'
@@ -238,13 +280,17 @@ function Roster({ id }: { id: number }) {
         </Table>
       </Card>
       {s.attendanceLocked && (
-        <Card>
+        <Card className="th-attendance__panel th-attendance__results-panel">
           <CardHead
-            title="2–3 · Theory test, practical marks and release"
+            title="Theory test, practical marks and release"
             sub={
               exam.data
                 ? `Pass: theory ≥ ${exam.data.passTheory}%${exam.data.hasPractical ? `, practical ≥ ${exam.data.passPractical}/10` : ''} · exam ${exam.data.status.toLowerCase()}`
-                : 'No exam for this session — attendance completed it.'
+                : exam.isPending
+                  ? 'Loading this session’s assessment…'
+                  : exam.error
+                    ? 'Assessment details could not be loaded.'
+                    : 'No exam for this session — attendance completed it.'
             }
             actions={
               exam.data &&
@@ -281,7 +327,11 @@ function Roster({ id }: { id: number }) {
             </Alert>
           )}
           {exam.data && (
-            <Table head={['Learner', 'Theory', 'Practical (0–10)', 'Result']}>
+            <Table
+              pageSize={10}
+              pagerLabel="Exam result pages"
+              head={['Learner', 'Theory', 'Practical (0–10)', 'Result']}
+            >
               {attendees.map((x) => (
                 <tr key={x.requestId}>
                   <td>

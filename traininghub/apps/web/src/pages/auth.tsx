@@ -55,9 +55,9 @@ export function LoginPage({ notice }: { notice?: string } = {}) {
   };
   return (
     <div className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
-      <section className="relative hidden overflow-hidden bg-brand-2 p-12 text-[#d7efe3] lg:flex lg:flex-col">
+      <section className="relative hidden overflow-hidden bg-brand-2 p-12 text-[#f5f7f9] lg:flex lg:flex-col">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-mint/15 text-mint">
+          <span className="grid size-10 place-items-center rounded-xl bg-brand/15 text-brand">
             <GraduationCap className="size-5" />
           </span>
           <b className="text-[17px] text-white">TrainingHub</b>
@@ -66,19 +66,19 @@ export function LoginPage({ notice }: { notice?: string } = {}) {
           <h1 className="text-[34px] font-bold leading-tight tracking-tight text-white">
             Close skill gaps with the right training, approved the right way.
           </h1>
-          <p className="mt-4 text-[14px] text-[#9cc5b2]">
+          <p className="mt-4 text-[14px] text-[#aebbc7]">
             Job Skills Matrix, eligibility, approvals, attendance and assessments — one flow for Zamil Plastic
             Industries.
           </p>
           <div className="mt-8 grid grid-cols-3 gap-3 text-[12px]">
             {['Profiles per position', 'Rules HR controls', 'Manager → HR Lead'].map((t) => (
-              <div key={t} className="rounded-xl border border-white/10 bg-white/5 p-3 text-[#cfe9dc]">
+              <div key={t} className="rounded-xl border border-white/10 bg-white/5 p-3 text-[#d5dbe0]">
                 {t}
               </div>
             ))}
           </div>
         </div>
-        <div className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-mint/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-brand/10 blur-3xl" />
       </section>
       <section className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">

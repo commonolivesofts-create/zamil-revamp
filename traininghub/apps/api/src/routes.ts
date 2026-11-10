@@ -207,9 +207,12 @@ export function apiRouter(svc: Services): Router {
     const rules = await loadRules(c);
     const dir = await directory(c);
     const canCheck = dir.people.get(personId)?.positionId != null || personId === req.personId;
-    const out = [];
-    for (const s of list)
-      out.push({ ...s, eligibility: canCheck ? await eligibility(c, personId, s.id, { rules }) : null });
+    const out = await Promise.all(
+      list.map(async (s) => ({
+        ...s,
+        eligibility: canCheck ? await eligibility(c, personId, s.id, { rules }) : null,
+      })),
+    );
     res.json(out);
   });
   r.get('/sessions/:id', async (req, res) => {

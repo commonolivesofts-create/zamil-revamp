@@ -66,41 +66,45 @@ export default function Jsm() {
   }, [sel, params, setParams]);
   const pending = positions.data?.filter((p) => p.status === 'PENDING').length ?? 0;
   return (
-    <>
-      <PageHeader
-        eyebrow="Manage"
-        title="Job Skills Matrix"
-        sub="Each position lists only the skills it needs: add, change, replace or remove them. Changes become effective for employees when HR approves the new version."
-      />
-      <Tabs
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { value: 'profiles', label: 'Position profiles', count: hr ? pending : 0 },
-          { value: 'matrix', label: 'Matrix' },
-          { value: 'gaps', label: 'Gap analysis' },
-          ...(hr
-            ? [
-                { value: 'library' as const, label: 'Skills library' },
-                { value: 'jobs' as const, label: 'Fusion job mapping' },
-              ]
-            : []),
-        ]}
-      />
-      {tab === 'profiles' &&
-        (positions.data ? <Profiles positions={positions.data} sel={sel} onSelect={select} /> : <Spinner />)}
-      {tab === 'matrix' && (
-        <Matrix
-          onOpen={(id) => {
-            select(id);
-            setTab('profiles');
-          }}
+    <div className="th-jsm">
+      <PageHeader animatedTitle breadcrumb="Manage" title="Job Skills Matrix" />
+      <div className="th-jsm__tabs">
+        <Tabs
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { value: 'profiles', label: 'Position profiles', count: hr ? pending : 0 },
+            { value: 'matrix', label: 'Matrix' },
+            { value: 'gaps', label: 'Gap analysis' },
+            ...(hr
+              ? [
+                  { value: 'library' as const, label: 'Skills library' },
+                  { value: 'jobs' as const, label: 'Fusion job mapping' },
+                ]
+              : []),
+          ]}
         />
-      )}
-      {tab === 'gaps' && positions.data && <Gaps positions={positions.data} />}
-      {tab === 'library' && <Library />}
-      {tab === 'jobs' && positions.data && <Jobs positions={positions.data} />}
-    </>
+      </div>
+      <div className="th-jsm__content">
+        {tab === 'profiles' &&
+          (positions.data ? (
+            <Profiles positions={positions.data} sel={sel} onSelect={select} />
+          ) : (
+            <Spinner />
+          ))}
+        {tab === 'matrix' && (
+          <Matrix
+            onOpen={(id) => {
+              select(id);
+              setTab('profiles');
+            }}
+          />
+        )}
+        {tab === 'gaps' && positions.data && <Gaps positions={positions.data} />}
+        {tab === 'library' && <Library />}
+        {tab === 'jobs' && positions.data && <Jobs positions={positions.data} />}
+      </div>
+    </div>
   );
 }
 
@@ -120,9 +124,9 @@ function Profiles({
   const [create, setCreate] = useState(false);
   const list = positions.filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()));
   return (
-    <div className="grid gap-4 lg:grid-cols-[290px_1fr]">
-      <Card className="h-fit">
-        <div className="flex gap-2 border-b border-line-2 p-3">
+    <div className="th-jsm__profiles grid gap-4 lg:grid-cols-[290px_1fr]">
+      <Card className="th-jsm__position-list h-fit">
+        <div className="th-jsm__position-search flex gap-2 border-b border-line-2 p-3">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 size-3.5 text-fine" />
             <Input
@@ -145,9 +149,10 @@ function Profiles({
             return (
               <button
                 key={p.id}
+                aria-pressed={sel === p.id}
                 onClick={() => onSelect(p.id)}
                 className={cn(
-                  'block w-full border-b border-line-2 px-3 py-2.5 text-left last:border-0',
+                  'th-jsm__position-option block w-full border-b border-line-2 px-3 py-2.5 text-left last:border-0',
                   sel === p.id ? 'bg-accent-soft' : 'hover:bg-hover',
                 )}
               >
@@ -226,7 +231,7 @@ function Editor({ id, positions }: { id: number; positions: Position[] }) {
   const [tone, label] = STATUS[p.status]!;
   return (
     <div className="min-w-0 space-y-4">
-      <Card className="p-4">
+      <Card className="th-jsm__profile-summary p-4">
         <div className="flex flex-wrap items-start gap-3">
           <div className="min-w-56 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -330,7 +335,7 @@ function Editor({ id, positions }: { id: number; positions: Position[] }) {
           </Alert>
         )}
       </Card>
-      <Card>
+      <Card className="th-jsm__skills-panel">
         <CardHead
           title={`Skills in this profile · ${p.skills.length}`}
           sub="Only the skills listed here apply to the position. Change requirement, target level or critical inline."
@@ -364,6 +369,8 @@ function Editor({ id, positions }: { id: number; positions: Position[] }) {
           </Empty>
         ) : (
           <Table
+            pageSize={10}
+            pagerLabel="Position skill pages"
             head={['Skill', 'Requirement', 'Target level', 'Critical', 'Approved', ...(canEdit ? [''] : [])]}
           >
             {rows.map((s) => {
@@ -949,6 +956,7 @@ function Matrix({ onOpen }: { onOpen: (id: number) => void }) {
   const L = useLookups();
   const [cat, setCat] = useState<number | 0>(0);
   if (!m.data || !L.data) return <Spinner />;
+  const cats = catMap(L.data);
   const skills = L.data.skills.filter(
     (s) =>
       s.active &&
@@ -956,7 +964,7 @@ function Matrix({ onOpen }: { onOpen: (id: number) => void }) {
       m.data!.positions.some((p) => m.data!.cells[p.id]?.[s.id]),
   );
   return (
-    <Card>
+    <Card className="th-jsm__matrix-panel">
       <CardHead
         title="Position × skill matrix (drafts)"
         sub="Click a position to edit its profile"
@@ -971,18 +979,19 @@ function Matrix({ onOpen }: { onOpen: (id: number) => void }) {
           </Select>
         }
       />
-      <div className="max-h-[70dvh] overflow-auto scroll-thin">
-        <table className="border-collapse text-[11.5px]">
+      <div className="th-jsm__matrix-scroll max-h-[70dvh] overflow-y-auto scroll-thin">
+        <table className="th-jsm__matrix-table border-collapse text-[11.5px]">
           <thead className="sticky top-0 z-10 bg-surface">
             <tr>
               <th className="sticky left-0 z-20 min-w-56 bg-surface px-3 py-2 text-left text-[10.5px] uppercase text-fine">
                 Skill
               </th>
               {m.data.positions.map((p) => (
-                <th key={p.id} className="h-40 w-10 align-bottom">
+                <th key={p.id} className="th-jsm__matrix-position">
                   <button
                     onClick={() => onOpen(p.id)}
-                    className="mx-auto block w-6 whitespace-nowrap pb-2 text-left text-[11px] font-semibold [writing-mode:vertical-rl] rotate-180 hover:text-req"
+                    className="th-jsm__matrix-position-link"
+                    title={`Open ${p.name} profile`}
                   >
                     {p.name}
                   </button>
@@ -992,16 +1001,33 @@ function Matrix({ onOpen }: { onOpen: (id: number) => void }) {
           </thead>
           <tbody>
             {skills.map((s) => (
-              <tr key={s.id} className="border-t border-line-2 hover:bg-hover">
-                <td className="sticky left-0 bg-surface px-3 py-1.5 font-semibold">{s.name}</td>
+              <tr key={s.id} className="th-jsm__matrix-row border-t border-line-2 hover:bg-hover">
+                <td className="th-jsm__matrix-skill sticky left-0 bg-surface px-3 py-1.5">
+                  <span className="th-jsm__matrix-skill-info">
+                    <i className={CAT_COLORS[(cats.get(s.categoryId)?.colorIndex ?? 1) - 1]} />
+                    <span>
+                      <b>{s.name}</b>
+                      <small>{cats.get(s.categoryId)?.name ?? 'Uncategorized'}</small>
+                    </span>
+                  </span>
+                </td>
                 {m.data!.positions.map((p) => {
                   const c = m.data!.cells[p.id]?.[s.id];
                   return (
                     <td key={p.id} className="px-0.5 py-1 text-center">
                       {c ? (
-                        <ReqChip r={c.requirement} level={c.targetLevel} critical={c.critical} />
+                        <span
+                          className={`th-jsm__matrix-cell is-${c.requirement.toLowerCase()}`}
+                          title={`${REQUIREMENT_LABEL[c.requirement]}, level ${c.targetLevel}${c.critical ? ', critical' : ''}`}
+                        >
+                          {c.requirement}
+                          {c.targetLevel}
+                          {c.critical ? '★' : ''}
+                        </span>
                       ) : (
-                        <span className="text-fine">·</span>
+                        <span className="th-jsm__matrix-empty" aria-label="Not required">
+                          —
+                        </span>
                       )}
                     </td>
                   );
@@ -1042,8 +1068,8 @@ function Gaps({ positions }: { positions: Position[] }) {
     return [...t.entries()].sort((a, b) => b[1].crit - a[1].crit || b[1].n - a[1].n).slice(0, 10);
   }, [g.data]);
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-      <Card>
+    <div className="th-jsm__gaps grid gap-4 lg:grid-cols-[1fr_340px]">
+      <Card className="th-jsm__gaps-table">
         <CardHead
           title="People and their gaps"
           sub="Measured against each position's approved profile"
@@ -1061,7 +1087,11 @@ function Gaps({ positions }: { positions: Position[] }) {
         {!g.data ? (
           <Spinner />
         ) : (
-          <Table head={['Employee', 'Position', 'Readiness', 'Gaps']}>
+          <Table
+            pageSize={10}
+            pagerLabel="Readiness report pages"
+            head={['Employee', 'Position', 'Readiness', 'Gaps']}
+          >
             {g.data
               .sort((a, b) => a.readiness - b.readiness)
               .map((p) => (
@@ -1094,7 +1124,7 @@ function Gaps({ positions }: { positions: Position[] }) {
           </Table>
         )}
       </Card>
-      <Card className="h-fit">
+      <Card className="th-jsm__common-gaps h-fit">
         <CardHead title="Most common gaps" sub="Where training would help most" />
         {tally.map(([id, v]) => (
           <div
@@ -1122,8 +1152,8 @@ function Library() {
   if (!L.data) return <Spinner />;
   const cats = catMap(L.data);
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
-      <Card>
+    <div className="th-jsm__library grid gap-4 lg:grid-cols-[1fr_300px]">
+      <Card className="th-jsm__library-table">
         <CardHead
           title={`Skills · ${L.data.skills.length}`}
           sub="Retire a skill instead of deleting it once it is used"
@@ -1146,7 +1176,11 @@ function Library() {
             </>
           }
         />
-        <Table head={['Skill', 'Category', 'Code', 'Used by', 'Status', '']}>
+        <Table
+          pageSize={10}
+          pagerLabel="Skill library pages"
+          head={['Skill', 'Category', 'Code', 'Used by', 'Status', '']}
+        >
           {L.data.skills
             .filter((s) => !q || `${s.name} ${s.code}`.toLowerCase().includes(q.toLowerCase()))
             .map((s) => (
@@ -1178,7 +1212,7 @@ function Library() {
             ))}
         </Table>
       </Card>
-      <Card className="h-fit">
+      <Card className="th-jsm__categories h-fit">
         <CardHead
           title="Categories"
           actions={
@@ -1397,7 +1431,7 @@ function Jobs({ positions }: { positions: Position[] }) {
   if (!jobs.data) return <Spinner />;
   const unmapped = jobs.data.filter((j) => !j.positionId);
   return (
-    <Card>
+    <Card className="th-jsm__jobs-panel">
       <CardHead
         title="Fusion jobs → positions"
         sub="Employees are mapped to a position through their Fusion job. One-off exceptions are set per employee in Setup → Employees."
@@ -1415,7 +1449,11 @@ function Jobs({ positions }: { positions: Position[] }) {
           )
         }
       />
-      <Table head={['Fusion job', 'Department', 'Employees', 'Position']}>
+      <Table
+        pageSize={10}
+        pagerLabel="Fusion job pages"
+        head={['Fusion job', 'Department', 'Employees', 'Position']}
+      >
         {jobs.data.map((j) => (
           <tr key={j.jobName}>
             <td>

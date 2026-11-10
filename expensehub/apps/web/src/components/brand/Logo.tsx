@@ -14,7 +14,12 @@ export function Logo({
   const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2.5">
-      <span className="grid size-8 shrink-0 place-items-center rounded-input bg-brand-solid text-brand-fg shadow-card">
+      <span
+        className={cn(
+          'grid size-8 shrink-0 place-items-center rounded-xl',
+          inverse ? 'bg-white/10 text-hero-fg' : 'bg-brand/10 text-brand-solid',
+        )}
+      >
         <ReceiptText aria-hidden className="size-[18px]" strokeWidth={2} />
       </span>
       {variant !== 'mark' && (

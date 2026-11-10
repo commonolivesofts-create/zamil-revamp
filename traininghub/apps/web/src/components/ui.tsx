@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { AlertTriangle, Check, Info, Loader2, X } from 'lucide-react';
+import { useState } from 'react';
 import {
   forwardRef,
   type ButtonHTMLAttributes,
@@ -11,15 +12,16 @@ import {
 import { REQUEST_STATUS_LABEL, type RequestStatus, type Requirement } from '@traininghub/shared';
 import { cn } from '../lib/cn';
 import { initials } from '../lib/format';
+import { ReportPager } from './ReportPager';
 
 /* ------------------------------ Button ------------------------------ */
 type Variant = 'primary' | 'default' | 'ghost' | 'danger' | 'soft';
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-brand text-brand-fg hover:bg-brand-2 border-transparent shadow-sm',
+  primary: 'bg-brand-solid text-brand-fg hover:bg-brand-solid-hover border-transparent shadow-sm',
   default: 'bg-surface border-line hover:bg-hover',
   ghost: 'bg-transparent border-transparent hover:bg-hover',
   danger: 'bg-bad text-white border-transparent hover:brightness-95',
-  soft: 'bg-accent-soft text-brand dark:text-mint border-transparent hover:brightness-97',
+  soft: 'bg-accent-soft text-brand-text border-transparent hover:brightness-97',
 };
 export const Button = forwardRef<
   HTMLButtonElement,
@@ -87,22 +89,48 @@ export function CardHead({
 }
 export function PageHeader({
   eyebrow,
+  breadcrumb,
   title,
   sub,
   actions,
+  animatedTitle = false,
 }: {
   eyebrow?: string;
+  breadcrumb?: string;
   title: string;
   sub?: ReactNode;
   actions?: ReactNode;
+  animatedTitle?: boolean;
 }) {
   return (
     <div className="mb-5 flex flex-wrap items-end gap-3">
       <div className="min-w-0 flex-1">
+        {breadcrumb && (
+          <nav className="th-page-breadcrumb" aria-label="Breadcrumb">
+            {breadcrumb}
+            <span aria-hidden="true"> / </span>
+            {title}
+          </nav>
+        )}
         {eyebrow && (
           <div className="mb-1 text-[10.5px] font-bold uppercase tracking-[0.12em] text-req">{eyebrow}</div>
         )}
-        <h1 className="text-[22px] font-bold tracking-tight">{title}</h1>
+        <h1
+          className={`text-[20px] font-bold tracking-tight${animatedTitle ? ' th-page-title--animated' : ''}`}
+          aria-label={animatedTitle ? title : undefined}
+        >
+          {animatedTitle
+            ? [...title].map((character, index) => (
+                <span
+                  key={index}
+                  aria-hidden="true"
+                  style={{ '--th-title-index': index } as React.CSSProperties}
+                >
+                  {character === ' ' ? '\u00a0' : character}
+                </span>
+              ))
+            : title}
+        </h1>
         {sub && <p className="mt-1 max-w-3xl text-[12.5px] text-muted">{sub}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
@@ -120,10 +148,33 @@ export function Empty({ icon, title, children }: { icon?: ReactNode; title: stri
     </div>
   );
 }
+export function Skeleton({ className }: { className?: string }) {
+  return <span aria-hidden className={cn('th-skeleton', className)} />;
+}
+
 export function Spinner({ label = 'Loading…' }: { label?: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-16 text-[12px] text-muted">
-      <Loader2 className="size-4 animate-spin" /> {label}
+    <div className="th-content-skeleton" role="status" aria-live="polite">
+      <span className="sr-only">{label}</span>
+      <Skeleton className="h-5 w-1/3" />
+      <Skeleton className="h-3.5 w-2/3" />
+      <div className="th-content-skeleton__rows">
+        <Skeleton className="h-12 w-full rounded-xl" />
+        <Skeleton className="h-12 w-full rounded-xl" />
+        <Skeleton className="h-12 w-full rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+export function StartupLoading() {
+  return (
+    <div className="th-startup-loading" role="status" aria-live="polite">
+      <span className="sr-only">Loading application</span>
+      <div className="th-startup-loading__visual" aria-hidden="true">
+        <span className="th-startup-loading__brand">Zamil Digitalization</span>
+        <span className="th-startup-loading__track" />
+      </div>
     </div>
   );
 }
@@ -160,11 +211,13 @@ export function Kpi({
   value,
   sub,
   tone,
+  loading = false,
 }: {
   label: string;
   value: ReactNode;
   sub?: ReactNode;
   tone?: 'bad' | 'ok';
+  loading?: boolean;
 }) {
   return (
     <Card className="px-4 py-3.5">
@@ -176,9 +229,13 @@ export function Kpi({
           tone === 'ok' && 'text-req',
         )}
       >
-        {value}
+        {loading ? <Skeleton className="h-7 w-16" /> : value}
       </div>
-      {sub && <div className="mt-0.5 text-[11px] text-fine">{sub}</div>}
+      {loading ? (
+        <Skeleton className="mt-1 h-3 w-24" />
+      ) : (
+        sub && <div className="mt-0.5 text-[11px] text-fine">{sub}</div>
+      )}
     </Card>
   );
 }
@@ -484,6 +541,8 @@ export function Modal({
   children,
   footer,
   wide,
+  drawer = false,
+  aboveDrawer = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -492,15 +551,25 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  drawer?: boolean;
+  aboveDrawer?: boolean;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#03140d]/45 backdrop-blur-[2px]" />
+        <Dialog.Overlay
+          className={cn(
+            'fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px]',
+            drawer && 'th-drawer-overlay',
+            aboveDrawer && 'z-[70]',
+          )}
+        />
         <Dialog.Content
           className={cn(
             'fixed left-1/2 top-1/2 z-50 flex max-h-[90dvh] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 animate-pop flex-col rounded-[18px] border border-line bg-surface shadow-pop',
             wide ? 'max-w-3xl' : 'max-w-lg',
+            drawer && 'th-drawer-content',
+            aboveDrawer && 'z-[71]',
           )}
         >
           <div className="flex items-start gap-3 border-b border-line-2 px-5 py-4">
@@ -531,27 +600,52 @@ export function Table({
   head,
   children,
   className,
+  pageSize,
+  pagerLabel,
 }: {
   head: ReactNode[];
   children: ReactNode;
   className?: string;
+  pageSize?: number;
+  pagerLabel?: string;
 }) {
+  const [page, setPage] = useState(1);
+  const rows = Array.isArray(children)
+    ? children.filter((child) => child != null && typeof child !== 'boolean')
+    : children == null
+      ? []
+      : [children];
+  const pages = pageSize ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1;
+  const currentPage = Math.min(page, pages);
+  const visibleRows = pageSize ? rows.slice((currentPage - 1) * pageSize, currentPage * pageSize) : rows;
   return (
-    <div className={cn('overflow-x-auto scroll-thin', className)}>
-      <table className="w-full border-collapse text-left text-[12px]">
-        <thead>
-          <tr className="border-b border-line text-[10.5px] uppercase tracking-wide text-fine">
-            {head.map((h, i) => (
-              <th key={i} className="whitespace-nowrap px-4 py-2.5 font-bold">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="[&>tr]:border-b [&>tr]:border-line-2 [&>tr:last-child]:border-0 [&_td]:px-4 [&_td]:py-2.5">
-          {children}
-        </tbody>
-      </table>
+    <div className={cn('th-report-table', className)}>
+      <div className="overflow-x-auto scroll-thin">
+        <table className="w-full border-collapse text-left text-[12px]">
+          <thead>
+            <tr className="border-b border-line text-[10.5px] uppercase tracking-wide text-fine">
+              {head.map((h, i) => (
+                <th key={i} className="whitespace-nowrap px-4 py-2.5 font-bold">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="[&>tr]:border-b [&>tr]:border-line-2 [&>tr:last-child]:border-0 [&_td]:px-4 [&_td]:py-2.5">
+            {visibleRows}
+          </tbody>
+        </table>
+      </div>
+      {pageSize && rows.length > 0 && (
+        <ReportPager
+          page={currentPage}
+          pages={pages}
+          total={rows.length}
+          pageSize={pageSize}
+          onPage={setPage}
+          label={pagerLabel}
+        />
+      )}
     </div>
   );
 }

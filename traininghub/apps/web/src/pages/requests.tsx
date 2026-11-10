@@ -1,13 +1,28 @@
-import { ListChecks } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Clock3, ListChecks, Search, Send } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import type { TrainingRequest } from '@traininghub/shared';
 import { hasRole, useGet, useMe } from '../lib/data';
 import { fmtDate, fmtDateY, sar } from '../lib/format';
-import { Card, Empty, PageHeader, Spinner, StatusChip, Table, Tabs } from '../components/ui';
+import {
+  Alert,
+  Button,
+  Card,
+  Empty,
+  Input,
+  PageHeader,
+  Skeleton,
+  StatusChip,
+  Table,
+  Tabs,
+} from '../components/ui';
 
 export default function MyRequests() {
   const me = useMe().data!;
+  const location = useLocation();
+  const navigate = useNavigate();
+  const openRequest = (id: number) =>
+    navigate(`/requests/${id}`, { state: { backgroundLocation: location } });
   const scopes = [
     { value: 'mine' as const, label: 'Mine' },
     ...(me.hasTeam ? [{ value: 'team' as const, label: 'My team' }] : []),
@@ -17,93 +32,230 @@ export default function MyRequests() {
   ];
   const [scope, setScope] = useState<'mine' | 'team' | 'all'>('mine');
   const [status, setStatus] = useState('open');
+  const [query, setQuery] = useState('');
   const list = useGet<TrainingRequest[]>(['requests', scope], `/requests?scope=${scope}`);
-  const OPEN = ['PENDING', 'APPROVED', 'WAITLISTED'];
-  const rows = (list.data ?? []).filter(
-    (r) => status === 'all' || (status === 'open' ? OPEN.includes(r.status) : !OPEN.includes(r.status)),
-  );
+  const openStatuses = ['PENDING', 'APPROVED', 'WAITLISTED'];
+  const allRows = list.data ?? [];
+  const rows = allRows.filter((r) => {
+    const matchesStatus =
+      status === 'all' ||
+      (status === 'open' ? openStatuses.includes(r.status) : !openStatuses.includes(r.status));
+    const matchesQuery =
+      !query ||
+      `${r.requestNo} ${r.session.title} ${r.session.skillName} ${r.personName}`
+        .toLowerCase()
+        .includes(query.toLowerCase());
+    return matchesStatus && matchesQuery;
+  });
+  const stats = [
+    { label: 'Total requests', value: allRows.length, icon: <ListChecks />, tone: 'total' },
+    {
+      label: 'Open',
+      value: allRows.filter((r) => openStatuses.includes(r.status)).length,
+      icon: <Clock3 />,
+      tone: 'open',
+    },
+    {
+      label: 'Awaiting review',
+      value: allRows.filter((r) => r.status === 'PENDING').length,
+      icon: <Send />,
+      tone: 'review',
+    },
+    {
+      label: 'Completed',
+      value: allRows.filter((r) => ['COMPLETED', 'ATTENDED'].includes(r.status)).length,
+      icon: <CheckCircle2 />,
+      tone: 'done',
+    },
+  ];
+
   return (
-    <>
+    <div className="th-requests">
       <PageHeader
-        eyebrow="My learning"
-        title="Requests"
-        sub="Track every request from submission to result. Open a request to see its approval route."
+        animatedTitle
+        breadcrumb="Learning & development"
+        title="My requests"
         actions={
-          <Link
-            to="/new"
-            className="inline-flex h-9 items-center rounded-[10px] bg-brand px-3.5 text-[12.5px] font-semibold text-white"
-          >
-            New request
+          <Link to="/new">
+            <Button variant="primary" icon={<Send className="size-3.5" />}>
+              New request
+            </Button>
           </Link>
         }
       />
-      {scopes.length > 1 && <Tabs value={scope} onChange={setScope} tabs={scopes} />}
-      <div className="mb-3 flex gap-1.5">
-        {[
-          ['open', 'Open'],
-          ['closed', 'Closed'],
-          ['all', 'All'],
-        ].map(([v, l]) => (
-          <button
-            key={v}
-            onClick={() => setStatus(v!)}
-            className={`rounded-full px-3 py-1 text-[12px] font-semibold ${status === v ? 'bg-brand text-white' : 'bg-surface-2 text-muted'}`}
-          >
-            {l}
-          </button>
+
+      <div className="th-requests__stats">
+        {stats.map((stat) => (
+          <Card className={`th-requests__stat is-${stat.tone}`} key={stat.label}>
+            <span>{stat.icon}</span>
+            <div>
+              <small>{stat.label}</small>
+              {list.isPending ? <Skeleton className="h-6 w-12" /> : <b>{stat.value}</b>}
+            </div>
+          </Card>
         ))}
       </div>
-      <Card>
-        {!list.data ? (
-          <Spinner />
+
+      <Card className="th-requests__panel">
+        <div className="th-requests__toolbar">
+          <div className="th-requests__scope">
+            {scopes.length > 1 && <Tabs value={scope} onChange={setScope} tabs={scopes} />}
+          </div>
+          <div className="th-requests__tools">
+            <label className="th-requests__search">
+              <Search aria-hidden="true" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search requests"
+                aria-label="Search by request, employee, or session"
+              />
+            </label>
+            <div className="th-requests__status" role="group" aria-label="Filter requests by status">
+              {[
+                ['open', 'Open'],
+                ['closed', 'Closed'],
+                ['all', 'All'],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={status === value}
+                  onClick={() => setStatus(value!)}
+                >
+                  {label}
+                  {value === 'open' && list.data && (
+                    <small>{allRows.filter((r) => openStatuses.includes(r.status)).length}</small>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {list.error ? (
+          <Alert tone="bad" className="m-4">
+            {list.error.message}
+          </Alert>
+        ) : !list.data ? (
+          <div className="th-requests__loading" role="status" aria-live="polite">
+            <span className="sr-only">Loading requests</span>
+            <div className="th-requests__loading-head">
+              {Array.from({ length: 7 }, (_, i) => (
+                <Skeleton key={i} className="h-3 w-20" />
+              ))}
+            </div>
+            {Array.from({ length: 5 }, (_, i) => (
+              <div className="th-requests__loading-row" key={i}>
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
         ) : rows.length ? (
           <Table
+            className="th-requests__table"
+            pageSize={10}
+            pagerLabel="Training request pages"
             head={[
               'Request',
               ...(scope !== 'mine' ? ['Employee'] : []),
               'Session',
-              'Dates',
+              'Training date',
               'Cost',
-              'Step',
+              'Current step',
               'Status',
+              '',
             ]}
           >
             {rows.map((r) => {
-              const cur = r.steps.find((s) => s.status === 'PENDING');
+              const current = r.steps.find((s) => s.status === 'PENDING');
               return (
-                <tr key={r.id} className="hover:bg-hover">
+                <tr
+                  key={r.id}
+                  className={`th-requests__row is-${r.status.toLowerCase()}`}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`View request ${r.requestNo}`}
+                  onClick={() => openRequest(r.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openRequest(r.id);
+                    }
+                  }}
+                >
                   <td>
-                    <Link to={`/requests/${r.id}`} className="font-semibold text-req">
+                    <Link
+                      to={`/requests/${r.id}`}
+                      state={{ backgroundLocation: location }}
+                      onClick={(event) => event.stopPropagation()}
+                      className="th-requests__number"
+                    >
                       {r.requestNo}
                     </Link>
-                    <div className="text-[10.5px] text-fine">{fmtDateY(r.createdAt)}</div>
+                    <small>{fmtDateY(r.createdAt)}</small>
                   </td>
                   {scope !== 'mine' && (
                     <td>
                       <b>{r.personName}</b>
-                      <div className="text-[10.5px] text-muted">{r.positionName}</div>
+                      <small>{r.positionName || 'Position not listed'}</small>
                     </td>
                   )}
-                  <td className="max-w-72">
-                    <b className="block truncate">{r.session.title}</b>
-                    <span className="text-[10.5px] text-muted">{r.session.skillName}</span>
+                  <td className="th-requests__session">
+                    <b>{r.session.title}</b>
+                    <small>
+                      {r.session.skillName} · {r.session.provider}
+                    </small>
                   </td>
-                  <td className="whitespace-nowrap">{fmtDate(r.session.startDate)}</td>
+                  <td className="whitespace-nowrap">
+                    {fmtDate(r.session.startDate)}
+                    {r.session.endDate !== r.session.startDate && (
+                      <small>to {fmtDate(r.session.endDate)}</small>
+                    )}
+                  </td>
                   <td className="whitespace-nowrap tabular">{sar(r.session.costSar)}</td>
-                  <td className="text-[11.5px] text-muted">
-                    {cur ? `${cur.label} · ${cur.approverName ?? 'pool'}` : '—'}
+                  <td>
+                    {current ? (
+                      <>
+                        <b>{current.label}</b>
+                        <small>{current.approverName ?? 'Approval pool'}</small>
+                      </>
+                    ) : (
+                      <span className="text-fine">Complete</span>
+                    )}
                   </td>
                   <td>
                     <StatusChip status={r.status} />
+                  </td>
+                  <td>
+                    <Link
+                      to={`/requests/${r.id}`}
+                      state={{ backgroundLocation: location }}
+                      onClick={(event) => event.stopPropagation()}
+                      className="th-requests__open"
+                      aria-label={`Open request ${r.requestNo}`}
+                    >
+                      <ArrowUpRight />
+                    </Link>
                   </td>
                 </tr>
               );
             })}
           </Table>
         ) : (
-          <Empty icon={<ListChecks className="size-5" />} title="No requests here" />
+          <Empty
+            icon={<ListChecks className="size-5" />}
+            title={query ? 'No matching requests' : 'No requests here'}
+          >
+            {query
+              ? 'Try a different request number, employee, or session.'
+              : 'New learning requests and nominations will appear here.'}
+          </Empty>
         )}
       </Card>
-    </>
+    </div>
   );
 }

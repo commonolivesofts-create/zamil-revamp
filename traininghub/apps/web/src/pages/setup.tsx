@@ -34,7 +34,7 @@ import {
   PageHeader,
   Segmented,
   Select,
-  Spinner,
+  Skeleton,
   Table,
   Tabs,
   Toggle,
@@ -46,31 +46,71 @@ type Tab = 'rules' | 'workflow' | 'delegations' | 'people' | 'settings' | 'integ
 export default function Setup() {
   const [tab, setTab] = useState<Tab>('rules');
   return (
-    <>
+    <div className="th-setup">
       <PageHeader
-        eyebrow="Administration"
+        animatedTitle
+        breadcrumb="Administration"
         title="Setup"
         sub="Everything here is data, not code. Changes apply to new requests; requests already in approval keep their route. Every change is audited."
       />
-      <Tabs
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { value: 'rules', label: 'Eligibility rules' },
-          { value: 'workflow', label: 'Approval workflow' },
-          { value: 'delegations', label: 'Delegations' },
-          { value: 'people', label: 'Employees & roles' },
-          { value: 'settings', label: 'Settings' },
-          { value: 'integration', label: 'Fusion integration' },
-        ]}
-      />
-      {tab === 'rules' && <Rules />}
-      {tab === 'workflow' && <Workflow />}
-      {tab === 'delegations' && <Delegations />}
-      {tab === 'people' && <People />}
-      {tab === 'settings' && <Settings />}
-      {tab === 'integration' && <Integration />}
-    </>
+      <div className="th-setup__tabs">
+        <Tabs
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { value: 'rules', label: 'Eligibility rules' },
+            { value: 'workflow', label: 'Approval workflow' },
+            { value: 'delegations', label: 'Delegations' },
+            { value: 'people', label: 'Employees & roles' },
+            { value: 'settings', label: 'Settings' },
+            { value: 'integration', label: 'Fusion integration' },
+          ]}
+        />
+      </div>
+      <div className={`th-setup__content th-setup__content--${tab}`}>
+        {tab === 'rules' && <Rules />}
+        {tab === 'workflow' && <Workflow />}
+        {tab === 'delegations' && <Delegations />}
+        {tab === 'people' && <People />}
+        {tab === 'settings' && <Settings />}
+        {tab === 'integration' && <Integration />}
+      </div>
+    </div>
+  );
+}
+
+function SetupLoading({ rows = 5 }: { rows?: number }) {
+  return (
+    <Card className="th-setup__loading-panel" role="status" aria-live="polite">
+      <span className="sr-only">Loading setup data</span>
+      <div className="th-setup__loading-head">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-7 w-24" />
+      </div>
+      {Array.from({ length: rows }, (_, index) => (
+        <div className="th-setup__loading-row" key={index}>
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-7 w-24" />
+          <Skeleton className="h-7 w-36" />
+          <Skeleton className="h-7 w-20" />
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+function SetupInlineLoading() {
+  return (
+    <div className="th-setup__inline-loading" role="status" aria-live="polite">
+      <span className="sr-only">Loading employees</span>
+      {Array.from({ length: 5 }, (_, index) => (
+        <div key={index}>
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-7 w-28" />
+          <Skeleton className="h-7 w-32" />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -78,14 +118,18 @@ export default function Setup() {
 
 function Rules() {
   const rules = useGet<EligibilityRule[]>(['rules'], '/setup/rules');
-  if (!rules.data) return <Spinner />;
+  if (!rules.data) return rules.error ? <Alert tone="bad">{rules.error.message}</Alert> : <SetupLoading />;
   return (
     <Card>
       <CardHead
         title="Eligibility rules"
         sub="Block stops a request; Warn lets it through with a visible warning for the approver; Off ignores the rule."
       />
-      <Table head={['Rule', 'Mode', 'Parameter', 'Custom message (optional)', '']}>
+      <Table
+        pageSize={10}
+        pagerLabel="Eligibility rule pages"
+        head={['Rule', 'Mode', 'Parameter', 'Custom message (optional)', '']}
+      >
         {rules.data.map((r) => (
           <RuleRow key={r.code} r={r} />
         ))}
@@ -201,7 +245,8 @@ function Workflow() {
     onSuccess: () => setErr({}),
     onError: (e) => setErr({ ...e.fields, _: e.message }),
   });
-  if (!wf.data || !steps) return <Spinner />;
+  if (!wf.data || !steps)
+    return wf.error ? <Alert tone="bad">{wf.error.message}</Alert> : <SetupLoading rows={4} />;
   const dirty = JSON.stringify(steps) !== JSON.stringify(wf.data.steps.map(toInput));
   const set = (i: number, p: Partial<WorkflowStepInput>) =>
     setSteps(steps.map((s, j) => (j === i ? { ...s, ...p } : s)));
@@ -253,7 +298,13 @@ function Workflow() {
         />
         <div className="space-y-2 p-4">
           {steps.map((s, i) => (
-            <div key={i} className={cn('rounded-xl border border-line p-3', !s.enabled && 'opacity-60')}>
+            <div
+              key={i}
+              className={cn(
+                'th-setup__workflow-step rounded-xl border border-line p-3',
+                !s.enabled && 'opacity-60',
+              )}
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <span className="grid size-7 place-items-center rounded-lg bg-brand text-[12px] font-bold text-white">
                   {i + 1}
@@ -496,9 +547,19 @@ function People() {
           }
         />
         {!list.data ? (
-          <Spinner />
+          list.error ? (
+            <Alert tone="bad" className="m-4">
+              {list.error.message}
+            </Alert>
+          ) : (
+            <SetupInlineLoading />
+          )
         ) : (
-          <Table head={['Employee', 'Fusion job / manager', 'Position', 'Roles', 'Sign-in', '']}>
+          <Table
+            pageSize={10}
+            pagerLabel="Employee setup pages"
+            head={['Employee', 'Fusion job / manager', 'Position', 'Roles', 'Sign-in', '']}
+          >
             {rows.slice(0, 300).map((p) => (
               <tr key={p.personId} className={cn(!p.active && 'opacity-50')}>
                 <td>
@@ -665,7 +726,7 @@ function Settings() {
     onSuccess: () => setErr({}),
     onError: (e) => setErr(e.fields),
   });
-  if (!s.data || !v) return <Spinner />;
+  if (!s.data || !v) return s.error ? <Alert tone="bad">{s.error.message}</Alert> : <SetupLoading rows={4} />;
   const groups: [string, SettingKey[]][] = [
     [
       'Skill levels & results',
@@ -756,7 +817,7 @@ function Integration() {
       invalidate: [['integration'], ['employees'], ['lookups'], ['jobs']],
     },
   );
-  if (!st.data) return <Spinner />;
+  if (!st.data) return st.error ? <Alert tone="bad">{st.error.message}</Alert> : <SetupLoading rows={4} />;
   const d = st.data;
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
@@ -806,7 +867,11 @@ function Integration() {
       </Card>
       <Card>
         <CardHead title="Sync history" />
-        <Table head={['Started', 'Status', 'Read', 'New', 'Changed', 'Deactivated', 'Message']}>
+        <Table
+          pageSize={10}
+          pagerLabel="Fusion sync history pages"
+          head={['Started', 'Status', 'Read', 'New', 'Changed', 'Deactivated', 'Message']}
+        >
           {d.runs.map((r) => (
             <tr key={r.id}>
               <td className="whitespace-nowrap">{fmtDateTime(r.startedAt)}</td>

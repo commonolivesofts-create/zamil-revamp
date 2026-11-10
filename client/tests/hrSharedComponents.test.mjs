@@ -47,11 +47,11 @@ test("page titles wrap between words only, on every HR page (one shared header)"
   const css = await read(CSS);
   assert.match(
     css,
-    /\.zrv-hr-word \{ display: inline-block; white-space: nowrap; \}/,
+    /\.zrv-hr-word\s*\{\s*display:\s*inline-block;\s*white-space:\s*nowrap;\s*\}/,
   );
   assert.match(
     css,
-    /\.zrv-hr-word > span \{ display: inline-block; animation: zrv-hr-char/,
+    /\.zrv-hr-word\s*>\s*span\s*\{\s*display:\s*inline-block;\s*animation:\s*zrv-hr-char/,
   );
 });
 
@@ -114,7 +114,7 @@ test("RecruitmentShell options: flow, compact and banner default to the earlier 
   }
   assert.match(
     css,
-    /\.zrv-hr--compact \.zrv-hr-track__fill \{[^}]*width: calc\(\(100% - 12px - \(var\(--n, 4\) - 1\) \* 6px\) \/ var\(--n, 4\)\); transform: translateX\(calc\(var\(--step\) \* \(100% \+ 6px\)\)\);/,
+    /\.zrv-hr--compact \.zrv-hr-track__fill\s*\{[^}]*width:\s*calc\(\(100% - 12px - \(var\(--n, 4\) - 1\) \* 6px\) \/ var\(--n, 4\)\);\s*transform:\s*translateX\(calc\(var\(--step\) \* \(100% \+ 6px\)\)\);/,
   );
   // Every compact rule is scoped to the opt-in class.
   const compactBlock = css.slice(

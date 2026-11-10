@@ -454,7 +454,7 @@ test('sidebar: internal HR pages use sub-groups and the Training Hub stays a sta
   assert.match(flyout, /<NavLink to=\{item\.path\}/, 'flyout entries are real links to their own page')
   // sidebar.css clips #sidebar on desktop; an open flyout lifts the clip.
   assert.match(sidebar, /has-flyout/)
-  assert.match(await read('../src/styles/workspace.css'), /#sidebar\.has-flyout \{ overflow: visible !important; \}/)
+  assert.match(await read('../src/styles/workspace.css'), /#sidebar\.has-flyout\s*\{\s*overflow:\s*visible !important;\s*\}/)
 })
 
 // ---------- source rules ----------

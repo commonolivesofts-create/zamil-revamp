@@ -16,9 +16,9 @@ import {
   Input,
   Modal,
   PageHeader,
+  Skeleton,
   Segmented,
   Select,
-  Spinner,
   Textarea,
 } from '../components/ui';
 
@@ -30,15 +30,14 @@ export default function Catalog() {
   const skills = skillMap(L.data);
   const cats = catMap(L.data);
   const [params] = useSearchParams();
-  const list = useGet<Row[]>(['catalog'], `/catalog?from=${todayIso()}`);
+  const list = useGet<Row[]>(['catalog'], `/catalog?from=${todayIso()}`, { staleTime: 30_000 });
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
   const [show, setShow] = useState<'all' | 'eligible' | 'gaps'>('all');
   const [req, setReq] = useState<Row | null>(null);
   const focus = Number(params.get('session')) || null;
 
-  if (!list.data) return <Spinner />;
-  const rows = list.data.filter((s) => {
+  const rows = (list.data ?? []).filter((s) => {
     const skill = skills.get(s.skillId);
     if (
       q &&
@@ -58,20 +57,20 @@ export default function Catalog() {
   });
 
   return (
-    <>
-      <PageHeader
-        eyebrow="Workspace"
-        title="Training catalog"
-        sub="Every scheduled session with your eligibility checked live against your approved position profile and HR's rules."
-        actions={
-          me.hasTeam && (
+    <div className="th-catalog" aria-busy={list.isPending || undefined}>
+      <section className="th-catalog__intro">
+        <div className="th-catalog__intro-copy">
+          <PageHeader animatedTitle breadcrumb="Learning & development" title="Training catalog" />
+        </div>
+        {me.hasTeam && (
+          <div className="th-catalog__header-action">
             <Link to="/new">
               <Button icon={<UserPlus className="size-4" />}>Nominate team member</Button>
             </Link>
-          )
-        }
-      />
-      <Card className="mb-4 flex flex-wrap items-center gap-2 p-3">
+          </div>
+        )}
+      </section>
+      <Card className="th-catalog__filters flex flex-wrap items-center gap-2 p-3">
         <div className="relative min-w-56 flex-1">
           <Search className="absolute left-2.5 top-2.5 size-3.5 text-fine" />
           <Input
@@ -89,72 +88,136 @@ export default function Catalog() {
             </option>
           ))}
         </Select>
-        <Segmented
-          value={show}
-          onChange={setShow}
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'gaps', label: 'My gaps' },
-            { value: 'eligible', label: 'Eligible' },
-          ]}
-        />
+        <div className="th-catalog__segments">
+          <Segmented
+            value={show}
+            onChange={setShow}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'gaps', label: 'My gaps' },
+              { value: 'eligible', label: 'Eligible' },
+            ]}
+          />
+        </div>
       </Card>
-      {!rows.length && (
+      <div className="th-catalog__results" aria-live="polite">
+        <span>Available sessions</span>
+        <small>
+          {cat || q || show !== 'all' ? 'Filtered by your selection' : 'Upcoming learning opportunities'}
+        </small>
+      </div>
+      {list.error && <Alert tone="bad">{list.error.message}</Alert>}
+      {!list.isPending && !rows.length && (
         <Card>
           <Empty icon={<BookOpen className="size-5" />} title="No sessions match">
             Try another filter.
           </Empty>
         </Card>
       )}
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[2200px]:grid-cols-5">
-        {rows.map((s) => {
-          const c = cats.get(skills.get(s.skillId)?.categoryId ?? 0);
-          return (
-            <Card key={s.id} className={cn('flex flex-col p-4', focus === s.id && 'ring-2 ring-req')}>
-              <div
-                className={cn(
-                  'mb-1 text-[10.5px] font-bold uppercase tracking-wider',
-                  CAT_TEXT[(c?.colorIndex ?? 1) - 1],
-                )}
-              >
-                {s.skillName}
+      {list.isPending && (
+        <span className="sr-only" role="status">
+          Loading training sessions
+        </span>
+      )}
+      <div className="th-catalog__grid grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[2200px]:grid-cols-5">
+        {list.isPending
+          ? Array.from({ length: 6 }, (_, i) => (
+              <div className="th-catalog__loading-card" key={`loading-${i}`} aria-hidden="true">
+                <div className="th-catalog__loading-top">
+                  <Skeleton className="size-[38px] rounded-xl" />
+                  <div className="grid flex-1 gap-1.5">
+                    <Skeleton className="h-2 w-16" />
+                    <Skeleton className="h-3.5 w-28" />
+                  </div>
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                </div>
+                <div className="grid min-h-10 content-start gap-1.5">
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+                <div className="grid gap-2 pt-2">
+                  <Skeleton className="h-3 w-11/12" />
+                  <Skeleton className="h-3 w-3/5" />
+                </div>
+                <div className="th-catalog__loading-tags">
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                  <Skeleton className="h-5 w-11 rounded-full" />
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                </div>
+                <div className="th-catalog__loading-seats">
+                  <Skeleton className="h-1.5 flex-1 rounded-full" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <div className="th-catalog__loading-eligibility">
+                  <Skeleton className="h-3 w-2/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+                <div className="th-catalog__loading-actions">
+                  <Skeleton className="h-8 w-24 rounded-lg" />
+                  <Skeleton className="h-8 w-20 rounded-lg" />
+                </div>
               </div>
-              <h3 className="text-[14px] font-bold leading-snug">{s.title}</h3>
-              <div className="mt-1.5">
-                <SessionMeta s={s} />
-              </div>
-              <div className="mt-2.5">
-                <SessionTags s={s} />
-              </div>
-              <div className="mt-3">
-                <SeatBar s={s} />
-              </div>
-              <div className="mt-3 flex-1 border-t border-line-2 pt-3">
-                {s.eligibility ? (
-                  <EligibilityList e={s.eligibility} />
-                ) : (
-                  <small className="text-muted">No position profile — eligibility cannot be checked.</small>
-                )}
-              </div>
-              <div className="mt-3 flex gap-2">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={!s.eligibility?.ok}
-                  onClick={() => setReq(s)}
-                  icon={<Send className="size-3.5" />}
+            ))
+          : rows.map((s) => {
+              const c = cats.get(skills.get(s.skillId)?.categoryId ?? 0);
+              return (
+                <Card
+                  key={s.id}
+                  className={cn('th-catalog__card flex flex-col p-4', focus === s.id && 'ring-2 ring-req')}
                 >
-                  {s.eligibility?.willWaitlist ? 'Request (waitlist)' : 'Request'}
-                </Button>
-                {me.hasTeam && (
-                  <Link to={`/new?session=${s.id}`}>
-                    <Button size="sm">Nominate</Button>
-                  </Link>
-                )}
-              </div>
-            </Card>
-          );
-        })}
+                  <div className="th-catalog__card-top">
+                    <span className="th-catalog__course-icon" aria-hidden="true">
+                      <BookOpen />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <small>SKILL AREA</small>
+                      <div className={cn('th-catalog__skill truncate', CAT_TEXT[(c?.colorIndex ?? 1) - 1])}>
+                        {s.skillName}
+                      </div>
+                    </div>
+                    <span className="th-catalog__session-type">
+                      {s.sessionType === 'EXTERNAL' ? 'External' : 'Internal'}
+                    </span>
+                  </div>
+                  <h3 className="th-catalog__title text-[14px] font-bold leading-snug">{s.title}</h3>
+                  <div className="mt-1.5">
+                    <SessionMeta s={s} />
+                  </div>
+                  <div className="mt-2.5">
+                    <SessionTags s={s} />
+                  </div>
+                  <div className="mt-3">
+                    <SeatBar s={s} />
+                  </div>
+                  <div className="th-catalog__eligibility mt-3 flex-1 border-t border-line-2 pt-3">
+                    {s.eligibility ? (
+                      <EligibilityList e={s.eligibility} />
+                    ) : (
+                      <small className="text-muted">
+                        No position profile — eligibility cannot be checked.
+                      </small>
+                    )}
+                  </div>
+                  <div className="th-catalog__actions mt-3 flex gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={!s.eligibility?.ok}
+                      onClick={() => setReq(s)}
+                      icon={<Send className="size-3.5" />}
+                    >
+                      {s.eligibility?.willWaitlist ? 'Request (waitlist)' : 'Request'}
+                    </Button>
+                    {me.hasTeam && (
+                      <Link to={`/new?session=${s.id}`}>
+                        <Button size="sm">Nominate</Button>
+                      </Link>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
       </div>
       {req && (
         <RequestModal
@@ -164,7 +227,7 @@ export default function Catalog() {
           onClose={() => setReq(null)}
         />
       )}
-    </>
+    </div>
   );
 }
 
