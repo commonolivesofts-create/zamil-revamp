@@ -116,7 +116,7 @@ test('sidebar: charter (Talent Management) and survey report (Reports) need thei
   assert.deepEqual(ids(on, []), [])
   assert.deepEqual(ids({ DEV: false }, ['HR.PROJECT_CHARTERS:VIEW', 'HR.SURVEY_REPORTS:VIEW']), [], 'unset is off in production builds')
   const entry = (id) => registry.entries.find((item) => item.id === id)
-  assert.deepEqual([entry('hr-charter').subgroup, entry('hr-survey-report').subgroup], ['hr-employee-services', 'hr-reports'])
+  assert.deepEqual([entry('hr-charter').subgroup, entry('hr-survey-report').subgroup], ['hr-talent-management', 'hr-reports'])
 })
 
 test('source: live APIs only, no browser storage, routed', async () => {

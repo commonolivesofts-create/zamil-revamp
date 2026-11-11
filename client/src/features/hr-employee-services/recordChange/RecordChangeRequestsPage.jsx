@@ -6,7 +6,7 @@ import { Pill } from '@/features/hr-recruitment/shared/components/RecruitmentShe
 import { InsightReport } from '@/features/hr-recruitment/shared/components/InsightReport.jsx'
 import { Card, Compare, Distribution, Hero, Hint, Rank } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
 import { toCsv, withBom } from '@/features/hr-recruitment/report/periodwiseModel.js'
-import { ES_COMMON_TEXT as C, RECORD_CHANGE_TEXT as T } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB, ES_COMMON_TEXT as C, RECORD_CHANGE_TEXT as T } from '../hrEmployeeServicesText.js'
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { inRange, localList } from '../shared/localList.js'
 import { useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
@@ -159,7 +159,7 @@ export default function RecordChangeRequestsPage() {
   const [cards] = useState(() => insight(requests))
   const exportAll = async () => exportCsv(await requests.rows())
   return (
-    <InsightReport variant="record-change-list" title={L.title} heading={L.heading} breadcrumb={C.breadcrumb}
+    <InsightReport variant="record-change-list" title={L.title} heading={L.heading} breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
       resourceKey="hr-record-change-requests" list={requests.list} onRefresh={requests.reset} create={CREATE} openLabel={L.open} empty={L.empty}
       tools={<button type="button" className="zrv-ir-btn" onClick={exportAll}><OrvexaIcon name="download" size={16} />{L.export}</button>}
       initial={INITIAL} fields={FIELDS} columns={COLUMNS} cards={cards} groups={dateGroups} defaultSort={{ key: 'requestId', order: 'desc' }}

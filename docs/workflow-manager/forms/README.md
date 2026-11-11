@@ -11,7 +11,7 @@ The entries below are **frontend-registry discovery candidates**, **not proof th
 | Employment offer | `/hr/recruitment/offer` | Not verified/onboarded |
 | Probation evaluation | `/hr/recruitment/probation-evaluation` | Not verified/onboarded |
 | Orientation training | `/hr/recruitment/orientation` | Not verified/onboarded |
-| Personal status change | `/hr/talent-management/record-change` | Not verified/onboarded |
+| Personal status change | `/hr/employee-services/record-change` | Not verified/onboarded |
 | Transfer request | `/hr/talent-management/transfer` | Not verified/onboarded |
 | Performance appraisal | `/hr/performance/appraisal` | Not verified/onboarded; its current registry module is session-only (`rbac: false`) |
 | Salary certificates, EN/AR | HR resources with no navigation in examined registry | Not verified/onboarded; workflow suitability not assumed |

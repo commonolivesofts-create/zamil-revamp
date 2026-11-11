@@ -450,9 +450,9 @@ test('routes: transfers use HR permissions and list paths win over record ids', 
     ['hr-appraisal-report', '/hr/performance/appraisal/report', false, undefined],
     ['hr-appraisal-record', '/hr/performance/appraisal/:appraisalId', false, undefined],
   ])
-  assert.equal(findAppRoute('/hr/talent-management/record-change/requests')?.id, 'hr-record-change-requests')
-  assert.equal(findAppRoute('/hr/talent-management/record-change/12')?.id, 'hr-record-change-record')
-  assert.equal(findAppRoute('/hr/talent-management/record-change')?.id, 'hr-record-change')
+  assert.equal(findAppRoute('/hr/employee-services/record-change/requests')?.id, 'hr-record-change-requests')
+  assert.equal(findAppRoute('/hr/employee-services/record-change/12')?.id, 'hr-record-change-record')
+  assert.equal(findAppRoute('/hr/employee-services/record-change')?.id, 'hr-record-change')
   assert.equal(findAppRoute('/hr/talent-management/transfer/report')?.id, 'hr-transfer-report')
   assert.equal(findAppRoute('/hr/talent-management/transfer/3')?.id, 'hr-transfer-record')
 })

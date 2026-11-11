@@ -214,7 +214,7 @@ test('sidebar: the form appears in Talent Management only with its switch on AND
   assert.deepEqual(items({ DEV: false }, [VIEW]), [], 'unset is off in production builds')
   assert.deepEqual(items({ DEV: true }, [VIEW]), ['hr-clearance'], 'unset is on in development builds')
   const route = entries(on).find((item) => item.id === 'hr-clearance')
-  assert.equal(route.subgroup, 'hr-employee-services')
+  assert.equal(route.subgroup, 'hr-talent-management')
   assert.ok(NAVIGATION_GROUPS.find((group) => group.id === route.section).subgroups.some((group) => group.id === route.subgroup))
   assert.deepEqual(registry.permissions.filter((item) => item.key.startsWith('HR.EMPLOYEE_CLEARANCE:')).map((item) => item.key),
     ['VIEW', 'CREATE', 'UPDATE', 'DELETE'].map((action) => `HR.EMPLOYEE_CLEARANCE:${action}`))

@@ -14,8 +14,8 @@ export default defineModule({
   name: 'HR employee services',
   rbac: false,
   navigation: [
-    { id: 'hr-appraisal', path: '/hr/performance/appraisal', title: 'Performance appraisal', icon: 'star', group: 'human-resources', subgroup: 'hr-employee-services', order: 120, enabledBy: SWITCH },
-    { id: 'hr-appraisal-report', path: '/hr/performance/appraisal/report', title: 'Appraisal report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 121, hidden: true, enabledBy: SWITCH },
-    { id: 'hr-appraisal-record', path: '/hr/performance/appraisal/:appraisalId', title: 'Performance appraisal', icon: 'star', group: 'human-resources', subgroup: 'hr-employee-services', order: 122, hidden: true, enabledBy: SWITCH },
+    { id: 'hr-appraisal', path: '/hr/performance/appraisal', title: 'Performance appraisal', icon: 'star', group: 'human-resources', subgroup: 'hr-talent-management', order: 120, enabledBy: SWITCH },
+    { id: 'hr-appraisal-report', path: '/hr/performance/appraisal/report', title: 'Appraisal report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-talent-management', order: 121, hidden: true, enabledBy: SWITCH },
+    { id: 'hr-appraisal-record', path: '/hr/performance/appraisal/:appraisalId', title: 'Performance appraisal', icon: 'star', group: 'human-resources', subgroup: 'hr-talent-management', order: 122, hidden: true, enabledBy: SWITCH },
   ],
 })

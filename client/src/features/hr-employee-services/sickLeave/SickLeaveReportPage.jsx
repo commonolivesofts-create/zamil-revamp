@@ -3,7 +3,7 @@ import { addDays, dayWindows, monthRanges } from '@/features/hr-recruitment/shar
 import { Pill } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '@/features/hr-recruitment/shared/components/InsightReport.jsx'
 import { Card, Columns, Delta, Distribution, Foot, Hero, Hint, Lanes } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
-import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
 import { RECORD_STATUSES, STATUS_TEXT, STATUS_TONE } from '../shared/formRecords.js'
 import { sickLeaveDemo, sickLeaveService } from './sickLeaveService.js'
@@ -103,7 +103,7 @@ function dateGroups(today) {
 // employee's total leave days in the period.
 export default function SickLeaveReportPage() {
   return (
-    <InsightReport variant="sick-leave-report" title="Sick leave report" heading="Requests" breadcrumb={C.breadcrumb} demo={sickLeaveDemo}
+    <InsightReport variant="sick-leave-report" title="Sick leave report" heading="Requests" breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB} demo={sickLeaveDemo}
       resourceKey="hr-sick-leave-report" list={list} create={CREATE} empty="No requests match these filters."
       initial={INITIAL} fields={FIELDS} columns={COLUMNS} cards={CARDS} groups={dateGroups} defaultSort={{ key: '', order: '' }}
       numberOf={(row) => row.leaveId} rowKey={(row) => row.leaveId} closeInDetail

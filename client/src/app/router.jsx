@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, Navigate, useLocation, useParams } from 'react-router'
 import {
   AppRouteAccess, GuestOnlyRoute, MfaChallengeRoute, ProtectedRoute, RootRedirect, TemplateDemoRoute,
 } from '@/routes/RouteGuards.jsx'
@@ -89,6 +89,13 @@ import {
 const implementedRouteIds = new Set(implementedRoutes.map((route) => route.id))
 const implementedOnly = (routes) => routes.filter((route) => implementedRouteIds.has(route.handle.routeId))
 
+function LegacyEmployeeServicesRedirect({ to, param }) {
+  const params = useParams()
+  const location = useLocation()
+  const pathname = param ? `${to}/${encodeURIComponent(params[param] ?? '')}` : to
+  return <Navigate to={`${pathname}${location.search}${location.hash}`} replace />
+}
+
 export const router = createBrowserRouter([
   {
     element: <RouterShell />,
@@ -171,24 +178,33 @@ export const router = createBrowserRouter([
                   { path: 'hr/recruitment/probation-evaluation/:evaluationId', handle: { routeId: 'hr-probation-record' }, element: <ProbationPage /> },
                   { path: 'hr/reports/contractor-employees', handle: { routeId: 'hr-employee-report' }, element: <EmployeeReportPage /> },
                   { path: 'hr/reports/periodwise-employees', handle: { routeId: 'hr-periodwise-report' }, element: <PeriodwiseEmployeesPage /> },
-                  { path: 'hr/talent-management/record-change', handle: { routeId: 'hr-record-change' }, element: <RecordChangePage /> },
-                  { path: 'hr/talent-management/record-change/requests', handle: { routeId: 'hr-record-change-requests' }, element: <RecordChangeRequestsPage /> },
-                  { path: 'hr/talent-management/record-change/:requestId', handle: { routeId: 'hr-record-change-record' }, element: <RecordChangePage /> },
+                  { path: 'hr/employee-services/record-change', handle: { routeId: 'hr-record-change' }, element: <RecordChangePage /> },
+                  { path: 'hr/employee-services/record-change/requests', handle: { routeId: 'hr-record-change-requests' }, element: <RecordChangeRequestsPage /> },
+                  { path: 'hr/employee-services/record-change/:requestId', handle: { routeId: 'hr-record-change-record' }, element: <RecordChangePage /> },
                   { path: 'hr/talent-management/transfer', handle: { routeId: 'hr-transfer' }, element: <TransferPage /> },
                   { path: 'hr/talent-management/transfer/report', handle: { routeId: 'hr-transfer-report' }, element: <TransferReportPage /> },
                   { path: 'hr/talent-management/transfer/:transferId', handle: { routeId: 'hr-transfer-record' }, element: <TransferPage /> },
                   { path: 'hr/performance/appraisal', handle: { routeId: 'hr-appraisal' }, element: <AppraisalPage /> },
                   { path: 'hr/performance/appraisal/report', handle: { routeId: 'hr-appraisal-report' }, element: <AppraisalReportPage /> },
                   { path: 'hr/performance/appraisal/:appraisalId', handle: { routeId: 'hr-appraisal-record' }, element: <AppraisalPage /> },
-                  { path: 'hr/talent-management/sick-leave', handle: { routeId: 'hr-sick-leave' }, element: <SickLeavePage /> },
-                  { path: 'hr/talent-management/sick-leave/report', handle: { routeId: 'hr-sick-leave-report' }, element: <SickLeaveReportPage /> },
-                  { path: 'hr/talent-management/sick-leave/:leaveId', handle: { routeId: 'hr-sick-leave-record' }, element: <SickLeavePage /> },
+                  { path: 'hr/employee-services/sick-leave', handle: { routeId: 'hr-sick-leave' }, element: <SickLeavePage /> },
+                  { path: 'hr/employee-services/sick-leave/report', handle: { routeId: 'hr-sick-leave-report' }, element: <SickLeaveReportPage /> },
+                  { path: 'hr/employee-services/sick-leave/:leaveId', handle: { routeId: 'hr-sick-leave-record' }, element: <SickLeavePage /> },
                   { path: 'hr/talent-management/reward-nomination', handle: { routeId: 'hr-reward' }, element: <RewardPage /> },
                   { path: 'hr/talent-management/reward-nomination/report', handle: { routeId: 'hr-reward-report' }, element: <RewardReportPage /> },
                   { path: 'hr/talent-management/reward-nomination/:nominationId', handle: { routeId: 'hr-reward-record' }, element: <RewardPage /> },
-                  { path: 'hr/talent-management/ideas', handle: { routeId: 'hr-idea' }, element: <IdeaPage /> },
-                  { path: 'hr/talent-management/ideas/report', handle: { routeId: 'hr-idea-report' }, element: <IdeaReportPage /> },
-                  { path: 'hr/talent-management/ideas/:ideaId', handle: { routeId: 'hr-idea-record' }, element: <IdeaPage /> },
+                  { path: 'hr/employee-services/ideas', handle: { routeId: 'hr-idea' }, element: <IdeaPage /> },
+                  { path: 'hr/employee-services/ideas/report', handle: { routeId: 'hr-idea-report' }, element: <IdeaReportPage /> },
+                  { path: 'hr/employee-services/ideas/:ideaId', handle: { routeId: 'hr-idea-record' }, element: <IdeaPage /> },
+                  { path: 'hr/talent-management/record-change', handle: { routeId: 'hr-record-change' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/record-change" /> },
+                  { path: 'hr/talent-management/record-change/requests', handle: { routeId: 'hr-record-change-requests' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/record-change/requests" /> },
+                  { path: 'hr/talent-management/record-change/:requestId', handle: { routeId: 'hr-record-change-record' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/record-change" param="requestId" /> },
+                  { path: 'hr/talent-management/sick-leave', handle: { routeId: 'hr-sick-leave' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/sick-leave" /> },
+                  { path: 'hr/talent-management/sick-leave/report', handle: { routeId: 'hr-sick-leave-report' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/sick-leave/report" /> },
+                  { path: 'hr/talent-management/sick-leave/:leaveId', handle: { routeId: 'hr-sick-leave-record' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/sick-leave" param="leaveId" /> },
+                  { path: 'hr/talent-management/ideas', handle: { routeId: 'hr-idea' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/ideas" /> },
+                  { path: 'hr/talent-management/ideas/report', handle: { routeId: 'hr-idea-report' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/ideas/report" /> },
+                  { path: 'hr/talent-management/ideas/:ideaId', handle: { routeId: 'hr-idea-record' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/ideas" param="ideaId" /> },
                   { path: 'hr/talent-management/clearance', handle: { routeId: 'hr-clearance' }, element: <ClearancePage /> },
                   { path: 'hr/talent-management/clearance/report', handle: { routeId: 'hr-clearance-report' }, element: <ClearanceReportPage /> },
                   { path: 'hr/talent-management/clearance/:clearanceId', handle: { routeId: 'hr-clearance-record' }, element: <ClearancePage /> },

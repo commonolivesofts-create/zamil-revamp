@@ -66,9 +66,9 @@
 
 | Route id | Path | Permission | `alsoRequires` | MFA | In sidebar? |
 |---|---|---|---|---|---|
-| `hr-record-change` | `/hr/talent-management/record-change` | None (session-only) | | No | Yes |
-| `hr-record-change-requests` | `/hr/talent-management/record-change/requests` | None | | No | Yes |
-| `hr-record-change-record` | `/hr/talent-management/record-change/:requestId` | None | | No | No (`hidden`) |
+| `hr-record-change` | `/hr/employee-services/record-change` | None (session-only) | | No | Yes |
+| `hr-record-change-requests` | `/hr/employee-services/record-change/requests` | None | | No | Yes |
+| `hr-record-change-record` | `/hr/employee-services/record-change/:requestId` | None | | No | No (`hidden`) |
 | `hr-transfer` | `/hr/talent-management/transfer` | None | | No | Yes |
 | `hr-transfer-report` | `/hr/talent-management/transfer/report` | None | | No | Yes |
 | `hr-transfer-record` | `/hr/talent-management/transfer/:transferId` | None | | No | No (`hidden`) |

@@ -194,7 +194,7 @@ real account names); guides 01–04 can receive sanitized screenshots with ficti
   (`SUPER_ADMINISTRATOR` only); not done on UAT or production.
 - **Stale detail route on TEST:** the accepted `SICK_LEAVE` registration stores
   `/hr/employee-services/sick-leave/:leaveId`, but PR #67 (merged 4 November 2026) moved the Sick
-  Leave record page to `/hr/talent-management/sick-leave/:leaveId`. M1 only displays the value
+  Leave record page to `/hr/employee-services/sick-leave/:leaveId`. M1 only displays the value
   (nothing navigates with it yet), so acceptance is unaffected; correct it through **Form
   registry → Open → Edit details** before M2/M3 rely on it.
 - `WF_M1_TEST_SOURCE` (`XXZP.XXZP_MDF_HEADER`) is an acceptance-test registration, not a verified
