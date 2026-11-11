@@ -6,7 +6,6 @@ import { appConfig } from "@/config/appConfig.js";
 import DashboardMeta from "@/features/dashboard/components/DashboardMeta.jsx";
 import FolioBook from "@/features/dashboard/components/FolioBook.jsx";
 import EmployeeSpotlightFireworks from "@/features/dashboard/components/EmployeeSpotlightFireworks.jsx";
-import usePermissions from "@/features/access/usePermissions.js";
 import { useResource } from "@/features/security-administration/useAdminData.js";
 import { rewardService } from "@/features/hr-employee-services/reward/rewardService.js";
 import { enDate } from "@/features/hr-recruitment/shared/hrFormat.js";
@@ -198,23 +197,9 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
   const [quickPanelChanged, setQuickPanelChanged] = useState(false);
   const [hrUsage, setHrUsage] = useState(readHrUsage);
   const { updateProfileImage, removeProfileImage } = useAuth();
-  const permissions = usePermissions();
   const employeeOfMonth = useResource(
-    permissions.can("HR.EMPLOYEE_OF_THE_MONTH:VIEW") ? "dashboard-employee-of-month" : null,
-    async (signal) => {
-      const result = await rewardService.list(
-        {
-          status: "APPROVED",
-          page: 1,
-          pageSize: 25,
-          sort: "activityDate",
-          order: "desc",
-        },
-        { signal },
-      );
-      const latest = result.items.find((item) => item.status === "APPROVED");
-      return latest ? rewardService.getById(latest.nominationId, { signal }) : null;
-    },
+    "dashboard-employee-of-month",
+    (signal) => rewardService.spotlight({ signal }),
   );
   const [imageBusy, setImageBusy] = useState(false);
   const [imageFeedback, setImageFeedback] = useState("");
@@ -497,7 +482,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
       </div>
       <section className="employee-spotlight" data-zrv-reveal aria-label="Employee of the month">
         {employeeOfMonth.status === "idle" && (
-          <div className="employee-spotlight-empty">Employee recognition is available to authorised team members.</div>
+          <div className="employee-spotlight-empty">Employee recognition will appear here for everyone.</div>
         )}
         {employeeOfMonth.status === "loading" && (
           <div className="employee-spotlight-empty" role="status">

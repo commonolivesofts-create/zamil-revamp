@@ -6248,15 +6248,41 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/hr/employee-of-the-month/spotlight:
+    get:
+      operationId: getEmployeeOfTheMonthSpotlight
+      tags: [HR Employee of the Month]
+      summary: Get the latest approved employee recognition for the dashboard
+      description: >-
+        Available to every authenticated user; does not require HR.EMPLOYEE_OF_THE_MONTH:VIEW.
+        Returns the latest approved nomination and its criteria lines, or null if none is approved.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Latest approved recognition, or null.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { const: true }
+                  data:
+                    oneOf:
+                      - { $ref: '#/components/schemas/EmployeeOfTheMonthNomination' }
+                      - { type: 'null' }
+                  meta: { $ref: '#/components/schemas/ResponseMeta' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /api/v1/hr/employee-of-the-month:
     get:
       operationId: listEmployeeOfTheMonthNominations
       tags: [HR Employee of the Month]
       summary: List nominations with filters and pagination
       description: >-
-        Requires HR.EMPLOYEE_OF_THE_MONTH:VIEW. Non-HR users see nominations they created;
-        HR users see all nominations. The response uses the standard pagination object
-        (pageSize is reported as pagination.limit).
+        Requires HR.EMPLOYEE_OF_THE_MONTH:VIEW. All users with this permission can see all
+        nominations. The response uses the standard pagination object (pageSize is reported
+        as pagination.limit).
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: search, in: query, schema: { type: string, maxLength: 200 } }
@@ -6413,8 +6439,8 @@ paths:
       tags: [HR Employee of the Month]
       summary: Read a nomination and its criteria lines
       description: >-
-        Requires HR.EMPLOYEE_OF_THE_MONTH:VIEW. Non-HR users can access only nominations
-        they created; HR users can access all nominations.
+        Requires HR.EMPLOYEE_OF_THE_MONTH:VIEW. Users with this permission can access all
+        nominations.
       security: [{ sessionCookie: [] }]
       parameters:
         - {
@@ -6438,10 +6464,9 @@ paths:
       tags: [HR Employee of the Month]
       summary: Update an editable nomination and its criteria lines
       description: >-
-        Requires HR.EMPLOYEE_OF_THE_MONTH:UPDATE. Non-HR users can update only nominations
-        they created; HR users can update all nominations. Only DRAFT and REJECTED nominations
-        can be updated (409 otherwise); the status is never changed by an update. Department
-        cannot change.
+        Requires HR.EMPLOYEE_OF_THE_MONTH:UPDATE. Users with this permission can update any
+        nomination. Only DRAFT and REJECTED nominations can be updated (409 otherwise); the
+        status is never changed by an update. Department cannot change.
       security: [{ sessionCookie: [] }]
       parameters:
         - {
@@ -6472,9 +6497,8 @@ paths:
       tags: [HR Employee of the Month]
       summary: Delete a Draft or Rejected nomination
       description: >-
-        Requires HR.EMPLOYEE_OF_THE_MONTH:DELETE. Non-HR users can delete only nominations
-        they created; HR users can delete all nominations. Only Draft or Rejected nominations
-        can be deleted.
+        Requires HR.EMPLOYEE_OF_THE_MONTH:DELETE. Users with this permission can delete any
+        nomination. Only Draft or Rejected nominations can be deleted.
       security: [{ sessionCookie: [] }]
       parameters:
         - {

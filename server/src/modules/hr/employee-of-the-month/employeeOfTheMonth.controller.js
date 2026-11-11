@@ -9,6 +9,10 @@ export function createEmployeeOfTheMonthController({ service }) {
       sendPaginated(res, items, { page: req.query.page, limit: req.query.pageSize, total });
     },
 
+    async spotlight(_req, res) {
+      sendSuccess(res, await service.spotlight());
+    },
+
     async get(req, res) {
       sendSuccess(res, await service.get(req.auth, req.params.headerId));
     },

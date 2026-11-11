@@ -10,25 +10,6 @@ const rows = async (c, sql, binds = {}) =>
 const header = 'XXZP.XX_EMP_RATING_EOM_HEADER';
 const lines = 'XXZP.XX_EMP_RATING_EOM_LINES';
 
-export async function isHrUser(c, userId) {
-  return Boolean(
-    (
-      await rows(
-        c,
-        `SELECT 1 AS FOUND
-         FROM XX_DIGI_LOOKUP_VALUES
-         WHERE LOOKUP_TYPE = 'XXZP_HR'
-           AND TAG = (SELECT TO_CHAR(MAX(E.USER_ID)) FROM XX_DIGI_EMP_MASTER E
-                 JOIN XX_ZRV_USERS U ON U.EMPLOYEE_NUMBER = E.EMPLOYEE_NUMBER
-                WHERE U.USER_ID = :userId AND E.CURRENT_EMP_FLAG = 'Y'
-                HAVING COUNT(DISTINCT E.USER_ID) = 1 AND COUNT(*) = COUNT(E.USER_ID))
-         FETCH FIRST 1 ROWS ONLY`,
-        { userId },
-      )
-    ).length,
-  );
-}
-
 export async function requestor(c, employeeNumber) {
   return (
     await rows(
@@ -130,6 +111,37 @@ export async function get(c, id, lock = false) {
       { id },
     )
   )[0];
+}
+
+export async function latestApproved(c) {
+  return (
+    (
+      await rows(
+        c,
+        `SELECT HEADER_ID,
+              UUID,
+              REQUEST_NO,
+              DEPT_TYPE,
+              EMPLOYEE_NUMBER,
+              EMPLOYEE_NAME,
+              EMPLOYEE_EMAIL,
+              EMPLOYEE_POSITION,
+              EMPLOYEE_DEPARTMENT,
+              TO_CHAR(ACTIVITY_DATE, 'YYYY-MM-DD') ACTIVITY_DATE,
+              OVERALL_RATING,
+              REMARK,
+              UPPER(STATUS) STATUS,
+              CREATED_BY,
+              CREATED_BY_EMP_NUM,
+              TO_CHAR(CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS') CREATED_AT,
+              UPDATED_BY
+         FROM ${header}
+        WHERE UPPER(STATUS) = 'APPROVED'
+        ORDER BY ACTIVITY_DATE DESC, CREATED_AT DESC, HEADER_ID DESC
+        FETCH FIRST 1 ROWS ONLY`,
+      )
+    )[0] ?? null
+  );
 }
 
 export async function getLines(c, id) {
@@ -308,14 +320,9 @@ const SORT = {
   createdAt: 'h.CREATED_AT',
 };
 
-export async function list(c, f, userId, isHr) {
+export async function list(c, f) {
   const binds = {};
   const conditions = [];
-
-  if (!isHr) {
-    conditions.push('h.CREATED_BY = :userId');
-    binds.userId = userId;
-  }
 
   const filters = {
     status: 'UPPER(h.STATUS) = :status',
