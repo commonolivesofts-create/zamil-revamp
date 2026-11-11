@@ -12,7 +12,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
 export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
   const { t } = useTranslation();
   return (
-    <header className="sticky top-0 z-30 flex h-[72px] shrink-0 items-center gap-3 border-b border-border bg-canvas/85 px-4 backdrop-blur-xl sm:px-6 lg:px-6">
+    <header className="eh-topbar sticky top-0 z-30 flex h-[72px] shrink-0 items-center gap-3 border-b border-border bg-canvas/85 px-4 backdrop-blur-xl sm:px-6 lg:px-6">
       <Link to="/" aria-label={t('app.name')} className="shrink-0 rounded-input">
         <span className="flex items-center gap-2 font-semibold">
           <Logo variant="mark" />

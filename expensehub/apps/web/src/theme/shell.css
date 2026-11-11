@@ -1,0 +1,315 @@
+/*
+ * Zamil green shell alignment for Expense Hub.
+ * Keep hub-specific layout and loading styles scoped to .eh-* so they do not leak
+ * into the parent application; shared colors and typography live in tokens.css.
+ */
+.eh-shell {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 78% 0%, rgb(14 159 110 / 0.055), transparent 38%),
+    radial-gradient(circle at 0% 38%, rgb(14 159 110 / 0.035), transparent 36%),
+    var(--color-canvas);
+  color: var(--color-ink);
+}
+
+.eh-main {
+  min-width: 0;
+  transition: padding 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.eh-topbar {
+  border-color: var(--color-border);
+  background: color-mix(in srgb, var(--color-canvas) 90%, transparent);
+}
+
+.eh-sidebar {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.eh-sidebar__brand {
+  justify-content: flex-start;
+  border-color: var(--color-border);
+}
+
+.eh-sidebar__icon {
+  border: 1px solid color-mix(in srgb, var(--color-border) 86%, transparent);
+  background: linear-gradient(145deg, var(--color-surface), var(--color-surface-2));
+  color: color-mix(in srgb, var(--color-muted) 82%, var(--color-brand));
+  box-shadow:
+    0 8px 20px rgb(42 50 47 / 0.045),
+    inset 0 1px 0 rgb(255 255 255 / 0.2);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.eh-sidebar__link {
+  height: auto;
+  min-height: 46px;
+  color: var(--color-muted);
+  text-decoration: none;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.eh-sidebar__link:hover {
+  background: color-mix(in srgb, var(--color-brand) 7%, transparent);
+  color: var(--color-ink);
+}
+
+.eh-sidebar__link:hover .eh-sidebar__icon {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 22%, var(--color-border));
+}
+
+.eh-sidebar__link[aria-current='page'] {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-brand) 13%, transparent), transparent);
+  color: var(--color-ink);
+  font-weight: 760;
+}
+
+.eh-sidebar__link[aria-current='page'] .eh-sidebar__icon {
+  border-color: color-mix(in srgb, #248759 38%, var(--color-border));
+  background: linear-gradient(145deg, #a3e6bf, #37a66e);
+  color: #103e29;
+  box-shadow:
+    0 10px 25px rgb(21 125 75 / 0.14),
+    inset 0 1px 0 rgb(255 255 255 / 0.34);
+}
+
+.eh-page-header {
+  margin-bottom: 20px;
+}
+
+.eh-page-header h1 {
+  color: var(--color-ink);
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+}
+
+.eh-page-header__eyebrow {
+  color: var(--color-brand-solid);
+}
+
+.eh-page-header__description {
+  max-width: 62ch;
+  color: var(--color-muted);
+  font-size: 12.5px;
+}
+
+.eh-startup-loading {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+  background: #edf4ef;
+  color: #173c2c;
+}
+
+.eh-startup-loading__visual {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  opacity: 0;
+  animation: eh-startup-reveal 160ms ease-out 160ms forwards;
+}
+
+.eh-startup-loading__brand {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.eh-startup-loading__track {
+  position: relative;
+  width: 120px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(36 135 89 / 0.12);
+}
+
+.eh-startup-loading__track::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  border-radius: inherit;
+  background: #248759;
+  animation: eh-startup-progress 1.4s ease-in-out infinite;
+  content: '';
+}
+
+@keyframes eh-startup-reveal {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes eh-startup-progress {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+[data-theme='dark'] .eh-startup-loading {
+  background: #0b1515;
+  color: #d9f4e2;
+}
+
+[data-theme='dark'] .eh-startup-loading__track {
+  background: rgb(88 199 142 / 0.15);
+}
+
+[data-theme='dark'] .eh-startup-loading__track::after {
+  background: #58c78e;
+}
+
+@media (min-width: 1024px) {
+  .eh-sidebar {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 40;
+    width: 78px;
+    overflow: hidden;
+    box-shadow: none;
+    transition:
+      width 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 240ms ease;
+  }
+
+  .eh-main {
+    padding-inline-start: 78px;
+  }
+
+  .eh-sidebar__brand {
+    padding-inline: 16px;
+  }
+
+  .eh-sidebar__logo > div > span:last-child {
+    width: 0;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-4px);
+    transition:
+      opacity 140ms ease,
+      transform 180ms ease,
+      width 180ms ease;
+  }
+
+  .eh-sidebar__nav {
+    overflow-x: hidden;
+    padding: 12px 10px 18px;
+  }
+
+  .eh-sidebar__heading {
+    display: none;
+  }
+
+  .eh-sidebar__link {
+    display: grid;
+    grid-template-columns: 44px 0 0;
+    gap: 0;
+    width: 58px;
+    min-width: 58px;
+    min-height: 50px;
+    padding: 3px 7px;
+    border-radius: 14px;
+  }
+
+  .eh-sidebar__label,
+  .eh-sidebar__meta {
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity 130ms ease;
+  }
+
+  .eh-sidebar__user {
+    justify-content: center;
+    padding: 12px 8px;
+    border-color: var(--color-border);
+  }
+
+  .eh-sidebar__user-copy {
+    display: none;
+  }
+
+  .eh-sidebar:not([data-collapse-after-nav='true']):hover,
+  .eh-sidebar:not([data-collapse-after-nav='true']):focus-within {
+    width: 288px;
+    box-shadow: 26px 0 72px rgb(42 50 47 / 0.16);
+  }
+
+  .eh-sidebar:not([data-collapse-after-nav='true']):hover .eh-sidebar__logo > div > span:last-child,
+  .eh-sidebar:not([data-collapse-after-nav='true']):focus-within .eh-sidebar__logo > div > span:last-child {
+    width: 180px;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  .eh-sidebar:not([data-collapse-after-nav='true']):hover .eh-sidebar__heading,
+  .eh-sidebar:not([data-collapse-after-nav='true']):focus-within .eh-sidebar__heading {
+    display: block;
+  }
+
+  .eh-sidebar:not([data-collapse-after-nav='true']):hover .eh-sidebar__link,
+  .eh-sidebar:not([data-collapse-after-nav='true']):focus-within .eh-sidebar__link {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 10px;
+    width: 100%;
+    padding-inline: 5px;
+  }
+
+  .eh-sidebar:not([data-collapse-after-nav='true']):hover .eh-sidebar__label,
+  .eh-sidebar:not([data-collapse-after-nav='true']):focus-within .eh-sidebar__label,
+  .eh-sidebar:not([data-collapse-after-nav='true']):hover .eh-sidebar__meta,
+  .eh-sidebar:not([data-collapse-after-nav='true']):focus-within .eh-sidebar__meta {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .eh-sidebar:not([data-collapse-after-nav='true']):hover .eh-sidebar__user,
+  .eh-sidebar:not([data-collapse-after-nav='true']):focus-within .eh-sidebar__user {
+    justify-content: flex-start;
+    padding: 12px 16px;
+  }
+
+  .eh-sidebar:not([data-collapse-after-nav='true']):hover .eh-sidebar__user-copy,
+  .eh-sidebar:not([data-collapse-after-nav='true']):focus-within .eh-sidebar__user-copy {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eh-sidebar,
+  .eh-sidebar__icon,
+  .eh-sidebar__link,
+  .eh-sidebar__logo > div > span:last-child {
+    transition: none;
+  }
+
+  .eh-startup-loading__visual {
+    opacity: 1;
+    animation: none;
+  }
+
+  .eh-startup-loading__track::after {
+    transform: scaleX(0.4);
+    animation: none;
+  }
+}
