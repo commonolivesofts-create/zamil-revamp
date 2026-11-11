@@ -12,7 +12,8 @@ export const NAVIGATION_GROUPS = Object.freeze([
     id: 'human-resources', label: 'Human resources', icon: 'users-round',
     subgroups: Object.freeze([
       subgroup('hr-recruitment', 'Recruitment', 'user-plus', 'From requisition to probation'),
-      subgroup('hr-employee-services', 'Talent Management', 'layers', 'Changes, leave and recognition'),
+      subgroup('hr-talent-management', 'Talent Management', 'layers', 'Transfers, recognition and performance'),
+      subgroup('hr-employee-services', 'Employee Services', 'briefcase-business', 'Personal status, leave and ideas'),
       subgroup('hr-letters', 'Letters', 'mail', 'Salary certificates and letters'),
       subgroup('hr-reports', 'Reports', 'chart-column', 'HR reports'),
     ]),

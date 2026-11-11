@@ -62,6 +62,11 @@ import { ReceiptPane } from './ReceiptPane';
 import { TypeTiles } from './TypeTiles';
 
 const PREFILL_TINT = 'border-brand/50 bg-brand/5';
+const EXPENSE_ENTRY_STEPS = [
+  { id: 'expense-entry-type', key: 'type' },
+  { id: 'expense-entry-details', key: 'details' },
+  { id: 'expense-entry-receipt', key: 'receipt' },
+] as const;
 
 export function ExpenseEntryPage() {
   const { t } = useTranslation();
@@ -73,9 +78,15 @@ export function ExpenseEntryPage() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-          <Skeleton className="h-96" />
-          <Skeleton className="h-[560px]" />
+        <div className="eh-expense-entry__skeleton">
+          <div className="space-y-4">
+            <Skeleton className="h-44" />
+            <Skeleton className="h-[560px]" />
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-72" />
+            <Skeleton className="h-64" />
+          </div>
         </div>
       </div>
     );
@@ -117,13 +128,14 @@ function ExpenseEditor({ expense }: { expense: ExpenseDto | null }) {
     defaultValues: expense ? formFromExpense(expense) : emptyForm(),
   });
   const { register, control, watch, setValue, getValues, handleSubmit, setError, reset } = form;
-  const { errors, dirtyFields, isSubmitted } = form.formState;
+  const { errors, dirtyFields, isSubmitted, isDirty } = form.formState;
 
   const [receipt, setReceipt] = useState<AttachedReceipt | null>(
     expense ? receiptFromExpense(expense) : null,
   );
   const [prefilled, setPrefilled] = useState<Set<PrefillField>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [activeStep, setActiveStep] = useState(0);
   // DB-06 / OQ-06: NONE = on a submitted report; LIMITED = info requested (amount, type, date,
   // currency locked). Lines of a report go back to that report after saving.
   const readOnly = expense?.editMode === 'NONE';
@@ -248,6 +260,34 @@ function ExpenseEditor({ expense }: { expense: ExpenseDto | null }) {
     !!values.justification ||
     ev?.results.some((r) => r.rule === 'LIMIT' && r.level !== 'PASS');
   const defaultCostCenter = ev?.segments.find((s) => s.segment === 'COST_CENTER');
+  const selectedTrip = trips.data?.find((trip) => String(trip.tripId) === values.tripId);
+  const previewTitle =
+    values.merchant.trim() || type?.name || t('expenses.entry.preview.titlePlaceholder');
+  const previewSubtitle =
+    values.description.trim() || t('expenses.entry.preview.purposePlaceholder');
+  const previewAmountIsSar = !!ev?.amountSar;
+  const previewAmount = previewAmountIsSar
+    ? formatSar(ev!.amountSar)
+    : category === 'STANDARD' && values.amount.trim()
+      ? `${values.currency} ${values.amount}`
+      : t('expenses.entry.preview.noValue');
+  const detailsComplete = Boolean(
+    input &&
+    type &&
+    values.expenseDate &&
+    values.description.trim() &&
+    (category === 'STANDARD'
+      ? values.merchant.trim() && Number(values.amount) > 0
+      : category === 'MILEAGE' && Number(values.quantity) > 0),
+  );
+  const completedSteps = [Boolean(type), detailsComplete, Boolean(receipt)];
+
+  const goToStep = (index: number) => {
+    setActiveStep(index);
+    document
+      .getElementById(EXPENSE_ENTRY_STEPS[index]!.id)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <div>
@@ -269,340 +309,412 @@ function ExpenseEditor({ expense }: { expense: ExpenseDto | null }) {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <div className="lg:col-start-1 lg:row-start-1">
-          <ReceiptPane
-            receipt={receipt}
-            uploading={upload.isPending}
-            readOnly={readOnly}
-            onFile={(f) => void onFile(f)}
-            onRemove={() => {
-              setReceipt(null);
-              setPrefilled(new Set());
+      <nav className="eh-expense-entry__steps" aria-label={t('expenses.entry.stepsLabel')}>
+        {EXPENSE_ENTRY_STEPS.map((step, index) => (
+          <button
+            key={step.id}
+            type="button"
+            aria-current={activeStep === index ? 'step' : undefined}
+            aria-controls={step.id}
+            onClick={() => goToStep(index)}
+          >
+            <span className="eh-expense-entry__step-number">{index + 1}</span>
+            <span className="eh-expense-entry__step-copy">
+              <b>{t(`expenses.entry.steps.${step.key}`)}</b>
+              <small>
+                {t(completedSteps[index] ? 'expenses.entry.stepDone' : 'expenses.entry.stepTodo')}
+              </small>
+            </span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="eh-expense-entry__layout">
+        <div className="eh-expense-entry__form-column">
+          <form
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              void save(false);
             }}
-          />
-        </div>
-
-        <form
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save(false);
-          }}
-          className="space-y-6 lg:col-start-2 lg:row-span-2 lg:row-start-1"
-          aria-label={expense ? t('expenses.entry.editTitle') : t('expenses.entry.newTitle')}
-        >
-          <Card className="p-5 sm:p-6">
-            <fieldset disabled={readOnly} className="space-y-6">
-              {types.isPending ? (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {Array.from({ length: 6 }, (_, i) => (
-                    <Skeleton key={i} className="h-14" />
-                  ))}
-                </div>
-              ) : (
-                <Controller
-                  control={control}
-                  name="typeId"
-                  render={({ field }) => (
-                    <TypeTiles
-                      types={types.data ?? []}
-                      value={field.value}
-                      onChange={(v) => field.onChange(v)}
-                      disabled={readOnly || limited}
-                      error={fieldError('typeId')}
-                    />
-                  )}
-                />
-              )}
-
-              {type && (
-                <div className="space-y-5 motion-safe:animate-fade-in">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label={t('expenses.form.date')} error={fieldError('expenseDate')}>
-                      <Input
-                        type="date"
-                        readOnly={limited}
-                        max={riyadhDate()}
-                        className={cn(prefilled.has('expenseDate') && PREFILL_TINT)}
-                        {...register('expenseDate', { onChange: () => untint('expenseDate') })}
-                      />
-                    </Field>
-                    {category === 'STANDARD' && (
-                      <Field label={t('expenses.form.merchant')} error={fieldError('merchant')}>
-                        <Input
-                          autoComplete="off"
-                          className={cn(prefilled.has('merchant') && PREFILL_TINT)}
-                          {...register('merchant', { onChange: () => untint('merchant') })}
-                        />
-                      </Field>
-                    )}
-                    {category === 'MILEAGE' && (
-                      <Field
-                        label={t('expenses.form.km')}
-                        error={fieldError('quantity')}
-                        hint={
-                          type.unitRateSar &&
-                          t('expenses.form.kmRate', { rate: formatSar(trimRate(type.unitRateSar)) })
-                        }
-                      >
-                        <Input
-                          inputMode="decimal"
-                          readOnly={limited}
-                          className="tabular"
-                          {...register('quantity')}
-                        />
-                      </Field>
-                    )}
-                  </div>
-
-                  {category === 'STANDARD' && (
-                    <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                      <Field
-                        label={t('expenses.form.amount')}
-                        error={fieldError('amount')}
-                        hint={
-                          values.currency !== 'SAR' && ev?.amountSar && ev.fxRateDate ? (
-                            <span className="tabular">
-                              {t('expenses.form.sarEquivalent', {
-                                amount: formatSar(ev.amountSar),
-                                rate: Number(ev.fxRate).toString(),
-                                date: formatDate(ev.fxRateDate),
-                              })}
-                            </span>
-                          ) : undefined
-                        }
-                      >
-                        <Input
-                          inputMode="decimal"
-                          placeholder="0.00"
-                          readOnly={limited}
-                          className={cn(
-                            'h-12 text-lg font-semibold tabular',
-                            prefilled.has('amount') && PREFILL_TINT,
-                          )}
-                          {...register('amount', { onChange: () => untint('amount') })}
-                        />
-                      </Field>
-                      <Field label={t('expenses.form.currency')} error={fieldError('currency')}>
-                        {limited ? (
-                          <Input className="h-12" readOnly {...register('currency')} />
-                        ) : (
-                          <Select className="h-12" {...register('currency')}>
-                            {(currencies.data ?? ['SAR']).map((c) => (
-                              <option key={c} value={c}>
-                                {c}
-                              </option>
-                            ))}
-                          </Select>
-                        )}
-                      </Field>
+            className="eh-expense-entry__form"
+            aria-label={expense ? t('expenses.entry.editTitle') : t('expenses.entry.newTitle')}
+          >
+            <Card className="eh-expense-entry__details-card p-3.5 sm:p-4">
+              <fieldset disabled={readOnly} className="space-y-3">
+                <section
+                  id="expense-entry-type"
+                  className="eh-expense-entry__section eh-expense-entry__type-section"
+                >
+                  {types.isPending ? (
+                    <div className="eh-expense-entry__type-skeleton">
+                      {Array.from({ length: 6 }, (_, i) => (
+                        <Skeleton key={i} className="h-11" />
+                      ))}
                     </div>
-                  )}
-
-                  {category === 'MILEAGE' && (
-                    <CalculatedAmount
-                      quantity={ev?.quantity ?? null}
-                      unitRateSar={ev?.unitRateSar ?? null}
-                      amountSar={ev?.amountSar ?? null}
-                    />
-                  )}
-
-                  <Field label={t('expenses.form.purpose')} error={fieldError('description')}>
-                    <Input
-                      placeholder={t('expenses.form.purposePlaceholder')}
-                      {...register('description')}
-                    />
-                  </Field>
-
-                  {type.attendeesReq && (
-                    <Field
-                      label={t('expenses.form.attendees')}
-                      error={fieldError('attendees')}
-                      hint={t('expenses.form.attendeesHint')}
-                    >
-                      <Input {...register('attendees')} />
-                    </Field>
-                  )}
-
-                  {showJustification && (
-                    <Field
-                      label={
-                        type.justificationReq
-                          ? t('expenses.form.justification')
-                          : t('expenses.form.justificationOptional')
-                      }
-                      error={fieldError('justification')}
-                    >
-                      <textarea
-                        rows={3}
-                        className="w-full rounded-input border border-border bg-surface px-3 py-2 text-sm shadow-card focus-visible:border-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 aria-[invalid=true]:border-block"
-                        {...register('justification')}
-                      />
-                    </Field>
-                  )}
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field
-                      label={t('expenses.form.costCenter')}
-                      error={fieldError('costCenter')}
-                      hint={t('expenses.form.costCenterHint')}
-                    >
-                      <Select {...register('costCenter')}>
-                        <option value="">
-                          {defaultCostCenter && !values.costCenter
-                            ? t('expenses.form.costCenterDefaultIs', {
-                                value: defaultCostCenter.value,
-                                name: defaultCostCenter.description ?? '',
-                              })
-                            : t('expenses.form.costCenterDefault')}
-                        </option>
-                        {costCenters.data?.map((c) => (
-                          <option key={c.value} value={c.value}>
-                            {c.value} · {c.description}
-                          </option>
-                        ))}
-                        {values.costCenter &&
-                          costCenters.data &&
-                          !costCenters.data.some((c) => c.value === values.costCenter) && (
-                            <option value={values.costCenter}>{values.costCenter}</option>
-                          )}
-                      </Select>
-                    </Field>
-                    <TripField
-                      label={t('expenses.form.trip')}
-                      register={register}
-                      trips={trips.data ?? []}
-                      error={fieldError('tripId')}
-                    />
-                  </div>
-
-                  {(quickPays.data?.length ?? 0) > 0 && (
-                    <Field
-                      label={t('expenses.form.quickPay')}
-                      error={fieldError('quickPayId')}
-                      hint={t('expenses.form.quickPayHint')}
-                    >
-                      <Select {...register('quickPayId')}>
-                        <option value="">{t('expenses.form.none')}</option>
-                        {quickPays.data?.map((q) => (
-                          <option key={q.quickPayId} value={q.quickPayId}>
-                            {q.elementName} · {formatSar(q.amountSar)} ·{' '}
-                            {formatDate(q.effectiveDate)}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                  )}
-
-                  {category === 'STANDARD' && type.vatEligible && ev?.vatRecovery && (
+                  ) : (
                     <Controller
                       control={control}
-                      name="taxInvoice"
+                      name="typeId"
                       render={({ field }) => (
-                        <div className="flex items-center justify-between gap-4 rounded-input border border-border px-4 py-3">
-                          <div>
-                            <label htmlFor="tax-invoice" className="text-sm font-medium">
-                              {t('expenses.form.taxInvoice')}
-                            </label>
-                            <p className="text-xs text-muted">
-                              {t('expenses.form.taxInvoiceHint')}
-                            </p>
-                          </div>
-                          <Switch
-                            id="tax-invoice"
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            disabled={readOnly}
-                          />
-                        </div>
+                        <TypeTiles
+                          types={types.data ?? []}
+                          value={field.value}
+                          onChange={(v) => field.onChange(v)}
+                          disabled={readOnly || limited}
+                          error={fieldError('typeId')}
+                        />
                       )}
                     />
                   )}
+                </section>
+
+                <section id="expense-entry-details" className="eh-expense-entry__section">
+                  <h2 className="eh-expense-entry__section-title">
+                    {t('expenses.entry.steps.details')}
+                  </h2>
+                  {type ? (
+                    <div className="eh-expense-entry__details-fields motion-safe:animate-fade-in">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label={t('expenses.form.date')} error={fieldError('expenseDate')}>
+                          <Input
+                            type="date"
+                            readOnly={limited}
+                            max={riyadhDate()}
+                            className={cn(prefilled.has('expenseDate') && PREFILL_TINT)}
+                            {...register('expenseDate', { onChange: () => untint('expenseDate') })}
+                          />
+                        </Field>
+                        {category === 'STANDARD' && (
+                          <Field label={t('expenses.form.merchant')} error={fieldError('merchant')}>
+                            <Input
+                              autoComplete="off"
+                              className={cn(prefilled.has('merchant') && PREFILL_TINT)}
+                              {...register('merchant', { onChange: () => untint('merchant') })}
+                            />
+                          </Field>
+                        )}
+                        {category === 'MILEAGE' && (
+                          <Field
+                            label={t('expenses.form.km')}
+                            error={fieldError('quantity')}
+                            hint={
+                              type.unitRateSar &&
+                              t('expenses.form.kmRate', {
+                                rate: formatSar(trimRate(type.unitRateSar)),
+                              })
+                            }
+                          >
+                            <Input
+                              inputMode="decimal"
+                              readOnly={limited}
+                              className="tabular"
+                              {...register('quantity')}
+                            />
+                          </Field>
+                        )}
+                      </div>
+
+                      {category === 'STANDARD' && (
+                        <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                          <Field
+                            label={t('expenses.form.amount')}
+                            error={fieldError('amount')}
+                            hint={
+                              values.currency !== 'SAR' && ev?.amountSar && ev.fxRateDate ? (
+                                <span className="tabular">
+                                  {t('expenses.form.sarEquivalent', {
+                                    amount: formatSar(ev.amountSar),
+                                    rate: Number(ev.fxRate).toString(),
+                                    date: formatDate(ev.fxRateDate),
+                                  })}
+                                </span>
+                              ) : undefined
+                            }
+                          >
+                            <Input
+                              inputMode="decimal"
+                              placeholder="0.00"
+                              readOnly={limited}
+                              className={cn(
+                                'h-12 text-lg font-semibold tabular',
+                                prefilled.has('amount') && PREFILL_TINT,
+                              )}
+                              {...register('amount', { onChange: () => untint('amount') })}
+                            />
+                          </Field>
+                          <Field label={t('expenses.form.currency')} error={fieldError('currency')}>
+                            {limited ? (
+                              <Input className="h-12" readOnly {...register('currency')} />
+                            ) : (
+                              <Select className="h-12" {...register('currency')}>
+                                {(currencies.data ?? ['SAR']).map((c) => (
+                                  <option key={c} value={c}>
+                                    {c}
+                                  </option>
+                                ))}
+                              </Select>
+                            )}
+                          </Field>
+                        </div>
+                      )}
+
+                      {category === 'MILEAGE' && (
+                        <CalculatedAmount
+                          quantity={ev?.quantity ?? null}
+                          unitRateSar={ev?.unitRateSar ?? null}
+                          amountSar={ev?.amountSar ?? null}
+                        />
+                      )}
+
+                      <Field label={t('expenses.form.purpose')} error={fieldError('description')}>
+                        <Input
+                          placeholder={t('expenses.form.purposePlaceholder')}
+                          {...register('description')}
+                        />
+                      </Field>
+
+                      {type.attendeesReq && (
+                        <Field
+                          label={t('expenses.form.attendees')}
+                          error={fieldError('attendees')}
+                          hint={t('expenses.form.attendeesHint')}
+                        >
+                          <Input {...register('attendees')} />
+                        </Field>
+                      )}
+
+                      {showJustification && (
+                        <Field
+                          label={
+                            type.justificationReq
+                              ? t('expenses.form.justification')
+                              : t('expenses.form.justificationOptional')
+                          }
+                          error={fieldError('justification')}
+                        >
+                          <textarea
+                            rows={3}
+                            className="w-full rounded-input border border-border bg-surface px-3 py-2 text-sm shadow-card focus-visible:border-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 aria-[invalid=true]:border-block"
+                            {...register('justification')}
+                          />
+                        </Field>
+                      )}
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field
+                          label={t('expenses.form.costCenter')}
+                          error={fieldError('costCenter')}
+                          hint={t('expenses.form.costCenterHint')}
+                        >
+                          <Select {...register('costCenter')}>
+                            <option value="">
+                              {defaultCostCenter && !values.costCenter
+                                ? t('expenses.form.costCenterDefaultIs', {
+                                    value: defaultCostCenter.value,
+                                    name: defaultCostCenter.description ?? '',
+                                  })
+                                : t('expenses.form.costCenterDefault')}
+                            </option>
+                            {costCenters.data?.map((c) => (
+                              <option key={c.value} value={c.value}>
+                                {c.value} · {c.description}
+                              </option>
+                            ))}
+                            {values.costCenter &&
+                              costCenters.data &&
+                              !costCenters.data.some((c) => c.value === values.costCenter) && (
+                                <option value={values.costCenter}>{values.costCenter}</option>
+                              )}
+                          </Select>
+                        </Field>
+                        <TripField
+                          label={t('expenses.form.trip')}
+                          register={register}
+                          trips={trips.data ?? []}
+                          error={fieldError('tripId')}
+                        />
+                      </div>
+
+                      {(quickPays.data?.length ?? 0) > 0 && (
+                        <Field
+                          label={t('expenses.form.quickPay')}
+                          error={fieldError('quickPayId')}
+                          hint={t('expenses.form.quickPayHint')}
+                        >
+                          <Select {...register('quickPayId')}>
+                            <option value="">{t('expenses.form.none')}</option>
+                            {quickPays.data?.map((q) => (
+                              <option key={q.quickPayId} value={q.quickPayId}>
+                                {q.elementName} · {formatSar(q.amountSar)} ·{' '}
+                                {formatDate(q.effectiveDate)}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                      )}
+
+                      {category === 'STANDARD' && type.vatEligible && ev?.vatRecovery && (
+                        <Controller
+                          control={control}
+                          name="taxInvoice"
+                          render={({ field }) => (
+                            <div className="flex items-center justify-between gap-4 rounded-input border border-border px-4 py-3">
+                              <div>
+                                <label htmlFor="tax-invoice" className="text-sm font-medium">
+                                  {t('expenses.form.taxInvoice')}
+                                </label>
+                                <p className="text-xs text-muted">
+                                  {t('expenses.form.taxInvoiceHint')}
+                                </p>
+                              </div>
+                              <Switch
+                                id="tax-invoice"
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                disabled={readOnly}
+                              />
+                            </div>
+                          )}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted">{t('expenses.policy.chooseType')}</p>
+                  )}
+                </section>
+              </fieldset>
+
+              {ev && ev.segments.length > 0 && (
+                <div className="mt-6">
+                  <ChargeAccountLine segments={ev.segments} />
                 </div>
               )}
-            </fieldset>
+            </Card>
 
-            {ev && ev.segments.length > 0 && (
-              <div className="mt-6">
-                <ChargeAccountLine segments={ev.segments} />
-              </div>
-            )}
-          </Card>
+            <section
+              id="expense-entry-receipt"
+              className="eh-expense-entry__section eh-expense-entry__receipt-section"
+            >
+              <ReceiptPane
+                receipt={receipt}
+                uploading={upload.isPending}
+                readOnly={readOnly}
+                onFile={(file) => void onFile(file)}
+                onRemove={() => {
+                  setReceipt(null);
+                  setPrefilled(new Set());
+                }}
+              />
+            </section>
 
-          {/* UI-UX §5.2 footer: Save · Save & add another · Cancel. Sticky above the tab bar. */}
-          {!readOnly && (
-            <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 md:bottom-4">
-              <Card className="flex items-center gap-2 p-2.5 shadow-raised sm:gap-3 sm:p-3">
-                <div
-                  className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm sm:flex-row sm:items-center sm:gap-2"
-                  aria-live="polite"
-                >
-                  {ev && blocked && (
-                    <Tag tone="block" className="w-fit whitespace-nowrap">
-                      {t('expenses.policy.overall.BLOCK')}
-                      <span className="sr-only"> — {t('expenses.entry.fixBlocks')}</span>
-                    </Tag>
+            {/* UI-UX §5.2 footer: Save · Save & add another · Cancel. Sticky above the tab bar. */}
+            {!readOnly && (
+              <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 md:bottom-4">
+                <Card className="flex items-center gap-2 p-2.5 shadow-raised sm:gap-3 sm:p-3">
+                  <div
+                    className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm sm:flex-row sm:items-center sm:gap-2"
+                    aria-live="polite"
+                  >
+                    {ev && blocked && (
+                      <Tag tone="block" className="w-fit whitespace-nowrap">
+                        {t('expenses.policy.overall.BLOCK')}
+                        <span className="sr-only"> — {t('expenses.entry.fixBlocks')}</span>
+                      </Tag>
+                    )}
+                    {ev && !blocked && warnings > 0 && (
+                      <Tag tone="warn" className="w-fit whitespace-nowrap">
+                        {t('expenses.entry.warnings', { count: warnings })}
+                      </Tag>
+                    )}
+                    {ev && !blocked && warnings === 0 && (
+                      <Tag tone="pass" className="w-fit whitespace-nowrap">
+                        {t('expenses.entry.allClear')}
+                      </Tag>
+                    )}
+                    {ev?.amountSar && (
+                      <span className="whitespace-nowrap font-semibold tabular">
+                        {formatSar(ev.amountSar)}
+                      </span>
+                    )}
+                  </div>
+                  {expense && expense.reportId === null && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-block"
+                      aria-label={t('expenses.entry.delete')}
+                      title={t('expenses.entry.delete')}
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      <Trash2 aria-hidden />
+                    </Button>
                   )}
-                  {ev && !blocked && warnings > 0 && (
-                    <Tag tone="warn" className="w-fit whitespace-nowrap">
-                      {t('expenses.entry.warnings', { count: warnings })}
-                    </Tag>
-                  )}
-                  {ev && !blocked && warnings === 0 && (
-                    <Tag tone="pass" className="w-fit whitespace-nowrap">
-                      {t('expenses.entry.allClear')}
-                    </Tag>
-                  )}
-                  {ev?.amountSar && (
-                    <span className="whitespace-nowrap font-semibold tabular">
-                      {formatSar(ev.amountSar)}
-                    </span>
-                  )}
-                </div>
-                {expense && expense.reportId === null && (
                   <Button
                     variant="ghost"
-                    size="icon"
-                    className="text-block"
-                    aria-label={t('expenses.entry.delete')}
-                    title={t('expenses.entry.delete')}
-                    onClick={() => setConfirmDelete(true)}
-                  >
-                    <Trash2 aria-hidden />
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  className="hidden sm:inline-flex"
-                  onClick={() => void navigate(backTo)}
-                >
-                  {t('setup.cancel')}
-                </Button>
-                {!expense && (
-                  <Button
-                    variant="secondary"
                     className="hidden sm:inline-flex"
-                    disabled={!canSave || saving}
-                    onClick={() => void save(true)}
+                    onClick={() => void navigate(backTo)}
                   >
-                    {t('expenses.entry.saveAnother')}
+                    {t('setup.cancel')}
                   </Button>
-                )}
-                <Button
-                  type="submit"
-                  loading={saving}
-                  disabled={!canSave}
-                  title={blocked ? t('expenses.entry.fixBlocks') : undefined}
-                >
-                  {t('expenses.entry.save')}
-                </Button>
-              </Card>
-            </div>
-          )}
-        </form>
+                  {!expense && (
+                    <Button
+                      variant="secondary"
+                      className="hidden sm:inline-flex"
+                      disabled={!canSave || saving}
+                      onClick={() => void save(true)}
+                    >
+                      {t('expenses.entry.saveAnother')}
+                    </Button>
+                  )}
+                  <Button
+                    type="submit"
+                    loading={saving}
+                    disabled={!canSave}
+                    title={blocked ? t('expenses.entry.fixBlocks') : undefined}
+                  >
+                    {t('expenses.entry.save')}
+                  </Button>
+                </Card>
+              </div>
+            )}
+          </form>
+        </div>
 
-        <div className="lg:sticky lg:top-20 lg:col-start-1 lg:row-start-2 lg:self-start">
+        <aside className="eh-expense-entry__aside">
+          <ExpenseDraftPreview
+            number={
+              expense
+                ? t('expenses.entry.preview.recordNumber', { id: expense.expenseId })
+                : t('expenses.entry.preview.draftNumber')
+            }
+            status={t(
+              expense
+                ? isDirty
+                  ? 'expenses.entry.preview.editing'
+                  : 'expenses.entry.preview.saved'
+                : 'expenses.entry.preview.notSaved',
+            )}
+            title={previewTitle}
+            titleIsPlaceholder={!values.merchant.trim() && !type}
+            subtitle={previewSubtitle}
+            typeName={type?.name ?? t('expenses.form.type')}
+            date={
+              values.expenseDate
+                ? formatDate(values.expenseDate)
+                : t('expenses.entry.preview.noValue')
+            }
+            amountLabel={t(
+              previewAmountIsSar ? 'expenses.policy.totalSar' : 'expenses.form.amount',
+            )}
+            amount={previewAmount}
+            costCenter={
+              values.costCenter || defaultCostCenter?.value || t('expenses.entry.preview.noValue')
+            }
+            trip={selectedTrip?.destination || t('expenses.form.none')}
+            receiptAttached={!!receipt}
+            policyLevel={ev?.level}
+          />
           <PolicyChecklist
             evaluation={ev}
             checking={!!input && !settled}
@@ -610,7 +722,7 @@ function ExpenseEditor({ expense }: { expense: ExpenseDto | null }) {
             currency={values.currency}
             amount={values.amount}
           />
-        </div>
+        </aside>
       </div>
 
       <ConfirmDialog
@@ -623,6 +735,78 @@ function ExpenseEditor({ expense }: { expense: ExpenseDto | null }) {
         pending={remove.isPending}
       />
     </div>
+  );
+}
+
+function ExpenseDraftPreview({
+  number,
+  status,
+  title,
+  titleIsPlaceholder,
+  subtitle,
+  typeName,
+  date,
+  amountLabel,
+  amount,
+  costCenter,
+  trip,
+  receiptAttached,
+  policyLevel,
+}: {
+  number: string;
+  status: string;
+  title: string;
+  titleIsPlaceholder: boolean;
+  subtitle: string;
+  typeName: string;
+  date: string;
+  amountLabel: string;
+  amount: string;
+  costCenter: string;
+  trip: string;
+  receiptAttached: boolean;
+  policyLevel?: 'PASS' | 'WARN' | 'BLOCK';
+}) {
+  const { t } = useTranslation();
+  const fields = [
+    [t('expenses.form.date'), date],
+    [amountLabel, amount],
+    [t('expenses.form.costCenter'), costCenter],
+    [t('expenses.form.trip'), trip],
+  ];
+
+  return (
+    <article className="eh-expense-preview" aria-label={number}>
+      <div className="eh-expense-preview__top">
+        <span>{number}</span>
+        <span className="eh-expense-preview__status">{status}</span>
+      </div>
+      <div className="eh-expense-preview__heading">
+        <p>{typeName}</p>
+        <h2 className={titleIsPlaceholder ? 'is-empty' : undefined}>{title}</h2>
+        <span>{subtitle}</span>
+      </div>
+      <div className="eh-expense-preview__badges">
+        <span>
+          {receiptAttached
+            ? t('expenses.entry.preview.receiptAttached')
+            : t('expenses.entry.preview.receiptMissing')}
+        </span>
+        {policyLevel && (
+          <span className={`is-${policyLevel.toLowerCase()}`}>
+            {t(`expenses.policy.overall.${policyLevel}`)}
+          </span>
+        )}
+      </div>
+      <dl className="eh-expense-preview__grid">
+        {fields.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </article>
   );
 }
 

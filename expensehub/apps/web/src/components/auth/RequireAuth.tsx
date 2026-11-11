@@ -10,9 +10,9 @@ import {
   isSigningOut,
   useCurrentUser,
 } from '../../lib/session';
+import { redirectToZamilLogin } from '../../lib/zamil-login';
 import { canSee, navItem, type NavId } from '../shell/navigation';
 import { StartupLoading } from '../ui/StartupLoading';
-import { LoginPage } from '../../features/auth/LoginPage';
 
 export function RequireAuth() {
   const me = useMe();
@@ -23,12 +23,24 @@ export function RequireAuth() {
     if (me.data) wasSignedIn.current = true;
   }, [me.data]);
 
+  const shouldHandoffToZamil = !me.isPending && !me.data && wasSignedIn.current && !isSigningOut();
+
+  useEffect(() => {
+    if (shouldHandoffToZamil) redirectToZamilLogin();
+  }, [shouldHandoffToZamil]);
+
+  // Keep the hub shell on its startup screen while the full-page parent redirect begins.
+  if (shouldHandoffToZamil || (isSigningOut() && import.meta.env.MODE !== 'test')) {
+    return <StartupLoading />;
+  }
+
   if (me.isPending) {
     return <StartupLoading />;
   }
 
   if (me.isError) {
-    return <LoginPage ssoNotice={me.error.message} />;
+    const next = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?next=${next}`} replace state={{ ssoNotice: me.error.message }} />;
   }
 
   if (!me.data) {

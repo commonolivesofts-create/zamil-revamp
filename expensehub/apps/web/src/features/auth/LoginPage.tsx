@@ -5,7 +5,7 @@ import { CircleAlert, Info } from 'lucide-react';
 import { lazy, Suspense, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Button } from '../../components/ui/Button';
 import { Field } from '../../components/ui/Field';
 import { Input } from '../../components/ui/Input';
@@ -20,6 +20,9 @@ const DevQuickLogin = import.meta.env.DEV ? lazy(() => import('./DevQuickLogin')
 export function LoginPage({ ssoNotice }: { ssoNotice?: string } = {}) {
   const { t } = useTranslation();
   const [params] = useSearchParams();
+  const location = useLocation();
+  const routeNotice = (location.state as { ssoNotice?: string } | null)?.ssoNotice;
+  const notice = ssoNotice ?? routeNotice;
   const next = safeNext(params.get('next'));
   const expired = params.get('expired') === '1';
   const navigate = useNavigate();
@@ -44,9 +47,9 @@ export function LoginPage({ ssoNotice }: { ssoNotice?: string } = {}) {
       <h1 className="text-title font-semibold">{t('login.title')}</h1>
       <p className="mt-1.5 text-sm text-muted">{t('login.subtitle')}</p>
 
-      {ssoNotice && (
+      {notice && (
         <p role="alert" className="mt-4 rounded-input bg-info/10 px-3 py-2.5 text-sm text-info">
-          {ssoNotice}
+          {notice}
         </p>
       )}
 

@@ -8,7 +8,7 @@ import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/R
 import { ChoiceCards, HrField, SearchableLookup } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { Orbit, RecruitmentShell, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
-import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
 import { STATUS_TEXT, isEditable } from '../shared/formRecords.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
@@ -24,7 +24,7 @@ const SECTIONS = ['Idea', 'Impact']
 
 export default function IdeaPage() {
   return (
-    <RecruitmentLoader current="idea" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={ideaDemo}
+    <RecruitmentLoader current="idea" flow={false} identify={NO_IDENTIFY} breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB} demo={ideaDemo}
       title={TITLE} param="ideaId" load={ideaService.getById} loadLookups={(signal) => {
         // Opening Emp# lists employees without a request.
         warmEmployeeList(ideaService, { signal })
@@ -131,7 +131,7 @@ function IdeaEditor({ lookups, initial }) {
     Boolean(form.hasInvestment && (form.hasInvestment === 'no' || Number(form.investmentValue) > 0)),
   ]
   return <>
-    <RecruitmentShell current="idea" flow={false} compact singlePage breadcrumb={C.breadcrumb} title={TITLE} demo={ideaDemo}
+    <RecruitmentShell current="idea" flow={false} compact singlePage breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB} title={TITLE} demo={ideaDemo}
       tools={tools} primary={{ label: 'Save draft', icon: 'save', onClick: save }} locked={locked} pending={editor.pending} focusError={editor.focusError}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss}
       steps={SECTIONS.map((name, index) => [name, doneSteps[index] ? C.step.done : C.step.open])} step={step} onStep={goToSection} doneSteps={doneSteps}

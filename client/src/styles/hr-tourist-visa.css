@@ -1,14 +1,39 @@
 /* Tourist Visa Letter: the live letter beside the form, English with the
    Arabic under each value. Scoped to .zrv-hr; colours from the Orvexa and HR
    tokens (hr-recruitment.css). */
-.zrv-hr--tourist-visa .zrv-hr-esf-preview__grid dd small { display: inline-block; margin-top: 2px; color: var(--muted); font-size: 10.5px; font-weight: 500; line-height: 1.6; }
-.zrv-hr--tourist-visa .zrv-hr-esf-preview__comments p small { color: var(--muted); font-size: 10.5px; line-height: 1.6; }
-.zrv-hr--tourist-visa .zrv-hr-esf-preview__comments dl { margin-top: 6px; }
+.zrv-hr--tourist-visa .zrv-hr-esf-preview__grid dd small {
+  display: inline-block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.zrv-hr--tourist-visa .zrv-hr-esf-preview__comments p small {
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+.zrv-hr--tourist-visa .zrv-hr-esf-preview__comments dl {
+  margin-top: 6px;
+}
 
 /* Print the letter itself (the preview), not the form. */
 @media print {
-  .zrv-hr--tourist-visa .zrv-hr-form-header, .zrv-hr--tourist-visa .zrv-hr-stage { display: none !important; }
-  .zrv-hr--tourist-visa .zrv-hr-body { display: block; }
-  .zrv-hr--tourist-visa .zrv-hr-side { display: block; width: 100%; }
-  .zrv-hr--tourist-visa .zrv-hr-esf-paper { padding: 0; border: 0; box-shadow: none; }
+  .zrv-hr--tourist-visa .zrv-hr-form-header,
+  .zrv-hr--tourist-visa .zrv-hr-stage {
+    display: none !important;
+  }
+  .zrv-hr--tourist-visa .zrv-hr-body {
+    display: block;
+  }
+  .zrv-hr--tourist-visa .zrv-hr-side {
+    display: block;
+    width: 100%;
+  }
+  .zrv-hr--tourist-visa .zrv-hr-esf-paper {
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
 }

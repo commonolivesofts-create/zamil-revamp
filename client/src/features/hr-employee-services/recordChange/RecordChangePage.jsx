@@ -12,7 +12,7 @@ import { NewFormDialog } from '@/features/hr-recruitment/shared/components/Recru
 import { Orbit, Pill, RecruitmentShell, StepHead, RouteCard, Ticket, Tilt } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { FileDrop, HrField, Review, SearchableLookup } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
-import { ES_COMMON_TEXT as C, RECORD_CHANGE_TEXT as T } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB, ES_COMMON_TEXT as C, RECORD_CHANGE_TEXT as T } from '../hrEmployeeServicesText.js'
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { hijriDate } from '../shared/esFormat.js'
@@ -51,7 +51,7 @@ const editable = (values) => Object.fromEntries(Object.entries(values).map(([key
 export default function RecordChangePage() {
   useEmployeeServicesUser()
   return (
-    <RecruitmentLoader current="record-change" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb}
+    <RecruitmentLoader current="record-change" flow={false} identify={NO_IDENTIFY} breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
       title={T.title} param="requestId" load={service.getById} loadLookups={loadLookups}>
       {({ lookups, record, editorKey }) => <RecordChangeEditor key={editorKey} lookups={lookups} record={record} />}
     </RecruitmentLoader>
@@ -310,7 +310,7 @@ function RecordChangeEditor({ lookups, record }) {
   }
 
   return <>
-    <RecruitmentShell current="record-change" flow={false} compact breadcrumb={C.breadcrumb} title={T.title}
+    <RecruitmentShell current="record-change" flow={false} compact breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB} title={T.title}
       tools={tools} primary={{ label: T.submit, icon: 'save', onClick: requestSubmit, disabled: !canSave }}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss} locked={locked} pending={editor.pending} focusError={editor.focusError}
       ticket={<Ticket avatar={initials(employee?.name)} code={T.formCode} items={[

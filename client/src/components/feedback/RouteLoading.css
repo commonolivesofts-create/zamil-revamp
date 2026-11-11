@@ -12,7 +12,7 @@
   }
 }
 
-html[data-motion='reduced'] .zrv-route-loading {
+html[data-motion="reduced"] .zrv-route-loading {
   opacity: 1;
   animation: none;
 }

@@ -10,7 +10,7 @@ import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/R
 import { FileDrop, HrField } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { RecruitmentShell } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
-import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
 import { isEditable } from '../shared/formRecords.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
@@ -40,7 +40,7 @@ const monthEnd = (iso) => addDays(`${addDays(`${iso.slice(0, 7)}-28`, 4).slice(0
 
 export default function SickLeavePage() {
   return (
-    <RecruitmentLoader current="sick-leave" flow={false} identify={NO_IDENTIFY} breadcrumb={C.breadcrumb} demo={sickLeaveDemo}
+    <RecruitmentLoader current="sick-leave" flow={false} identify={NO_IDENTIFY} breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB} demo={sickLeaveDemo}
       title={TITLE} param="leaveId" load={sickLeaveService.getById} loadLookups={async (signal) => {
         // Opening Emp# lists employees without a request.
         warmEmployeeList(sickLeaveService, { signal })
@@ -154,7 +154,7 @@ function SickLeaveEditor({ initial, halfDaysSupported }) {
   const doneSteps = [Boolean(form.employee && form.fromDate && form.toDate && form.toDate >= form.fromDate && !overlap), hasFile, Boolean(form.comments.trim())]
 
   return <>
-    <RecruitmentShell current="sick-leave" flow={false} compact singlePage breadcrumb={C.breadcrumb} title={TITLE} demo={sickLeaveDemo}
+    <RecruitmentShell current="sick-leave" flow={false} compact singlePage breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB} title={TITLE} demo={sickLeaveDemo}
       tools={tools} primary={{ label: 'Save draft', icon: 'save', onClick: save }} locked={locked} pending={editor.pending} focusError={editor.focusError}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss}
       steps={SECTIONS.map((name, index) => [name, index === 1 && hasFile ? C.step.files(files.length) : doneSteps[index] ? C.step.done : C.step.open])}

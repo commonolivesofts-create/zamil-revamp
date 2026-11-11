@@ -53,7 +53,7 @@ export function ReportsPage() {
   );
 
   return (
-    <div>
+    <div className="eh-reports">
       <PageHeader
         eyebrow={t('expenses.list.eyebrow')}
         title={t('reports.title')}
@@ -68,11 +68,11 @@ export function ReportsPage() {
         }
       />
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="eh-reports__toolbar">
         <div
           role="radiogroup"
           aria-label={t('reports.filterLabel')}
-          className="flex flex-wrap gap-1.5"
+          className="eh-reports__filters"
         >
           {(Object.keys(REPORT_FILTERS) as ReportFilter[]).map((f) => (
             <button
@@ -81,19 +81,14 @@ export function ReportsPage() {
               role="radio"
               aria-checked={filter === f}
               onClick={() => setFilter(f)}
-              className={cn(
-                'inline-flex h-8 items-center gap-1.5 rounded-pill border px-3 text-sm font-medium transition-colors',
-                filter === f
-                  ? 'border-brand bg-brand/10 text-ink'
-                  : 'border-border bg-surface text-muted hover:text-ink',
-              )}
+              className={cn('eh-reports__filter', filter === f && 'is-active')}
             >
               {t(`reports.filters.${f}`)}
-              <span className="text-xs text-muted tabular">{counts[f]}</span>
+              <span className="eh-reports__filter-count tabular">{counts[f]}</span>
             </button>
           ))}
         </div>
-        <div className="relative sm:w-64">
+        <div className="eh-reports__search">
           <Search
             aria-hidden
             className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted"
@@ -104,17 +99,24 @@ export function ReportsPage() {
             onChange={(e) => setQ(e.target.value)}
             placeholder={t('reports.search')}
             aria-label={t('reports.search')}
-            className="ps-9"
+            className="eh-reports__search-input ps-9"
           />
         </div>
       </div>
 
-      <Card className="overflow-hidden">
+      <Card className="eh-reports__list overflow-hidden">
         {reports.isPending ? (
-          <ul className="divide-y divide-border">
+          <ul className="eh-reports__rows divide-y divide-border">
             {Array.from({ length: 3 }, (_, i) => (
-              <li key={i} className="px-5 py-4">
-                <Skeleton className="h-12" />
+              <li key={i} className="eh-reports__loading-row">
+                <Skeleton className="size-10 rounded-input" />
+                <span className="eh-reports__loading-copy">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-4 w-48 max-w-full" />
+                  <Skeleton className="h-3 w-36 max-w-full" />
+                </span>
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="eh-reports__loading-progress h-1.5 w-full" />
               </li>
             ))}
           </ul>
@@ -132,26 +134,34 @@ export function ReportsPage() {
         ) : shown.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-muted">{t('reports.noMatch')}</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="eh-reports__rows divide-y divide-border">
             {shown.map((r) => (
               <li key={r.reportId}>
                 <button
                   type="button"
                   onClick={() => void navigate(`/reports/${r.reportId}`)}
-                  className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-4 text-start transition-colors hover:bg-surface-2/40 focus-visible:bg-surface-2/60 focus-visible:outline-none sm:px-5"
+                  className={cn(
+                    'eh-reports__row group w-full text-start focus-visible:outline-none',
+                    `is-${r.status.toLowerCase().replaceAll('_', '-')}`,
+                  )}
                 >
-                  <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs text-muted">
+                  <span className="eh-reports__icon" aria-hidden="true">
+                    <FileText className="size-[18px]" strokeWidth={1.8} />
+                  </span>
+                  <span className="eh-reports__main">
+                    <span className="eh-reports__meta">
+                      <span className="eh-reports__number font-mono">
                         {r.reportNumber ?? t('reports.draftTitle')}
                       </span>
-                      <StatusPill status={r.status} />
-                      {r.infoRequested && <Tag tone="warn">{t('reports.infoRequested')}</Tag>}
+                      <StatusPill status={r.status} className="eh-reports__status" />
+                      {r.infoRequested && (
+                        <Tag tone="warn" className="eh-reports__info">
+                          {t('reports.infoRequested')}
+                        </Tag>
+                      )}
                     </span>
-                    <span className="mt-1 block truncate font-medium group-hover:underline">
-                      {r.purpose}
-                    </span>
-                    <span className="block truncate text-xs text-muted">
+                    <span className="eh-reports__purpose group-hover:underline">{r.purpose}</span>
+                    <span className="eh-reports__detail">
                       {r.currentStep
                         ? t('reports.holder', {
                             name: r.currentStep.assigneeName,
@@ -164,12 +174,11 @@ export function ReportsPage() {
                           })}
                     </span>
                   </span>
-                  <span className="text-end">
-                    <span className="block text-lg font-semibold tabular">
-                      {formatSar(r.totalSar)}
-                    </span>
+                  <span className="eh-reports__amount">
+                    <span>{formatSar(r.totalSar)}</span>
+                    <span>{formatDate(r.reportDate)}</span>
                   </span>
-                  <ProgressBar status={r.status} className="col-span-2 max-w-md" />
+                  <ProgressBar status={r.status} className="eh-reports__progress" />
                 </button>
               </li>
             ))}

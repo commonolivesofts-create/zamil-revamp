@@ -5,7 +5,7 @@ import { addDays, dayWindows } from '@/features/hr-recruitment/shared/insightDat
 import { Pill } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '@/features/hr-recruitment/shared/components/InsightReport.jsx'
 import { Card, Delta, Hero, Hint, Rank, Sparkline, Steps } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
-import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
 import { STATUS_TEXT, STATUS_TONE } from '../shared/formRecords.js'
 import { formatSar } from './ideaModel.js'
@@ -123,7 +123,7 @@ export default function IdeaReportPage() {
       {(options) => {
         const report = insight(options)
         return (
-          <InsightReport variant="idea-report" title="Idea report" heading="Ideas" breadcrumb={C.breadcrumb} demo={ideaDemo}
+          <InsightReport variant="idea-report" title="Idea report" heading="Ideas" breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB} demo={ideaDemo}
             resourceKey="hr-idea-report" list={list} create={CREATE} openLabel="Open idea" empty="No ideas match these filters."
             initial={INITIAL} fields={report.fields} columns={report.columns} cards={report.cards} groups={report.groups} summary={report.summary}
             defaultSort={{ key: '', order: '' }} numberOf={(row) => row.idNo} rowKey={(row) => row.ideaId} pathOf={(row) => `${FORM_PATHS.idea}/${row.ideaId}`} />

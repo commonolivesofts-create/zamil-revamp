@@ -30,7 +30,7 @@ const FORM = {
   formCode: 'SICK_LEAVE',
   formName: 'Sick Leave Request',
   moduleCode: 'HR_FORMS',
-  detailRoute: '/hr/talent-management/sick-leave/:leaveId',
+  detailRoute: '/hr/employee-services/sick-leave/:leaveId',
   description: 'Employee sick leave request form.',
 };
 

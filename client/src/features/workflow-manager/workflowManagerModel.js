@@ -57,7 +57,7 @@ export function checkDetailRoute(value) {
   if (!route) return null
   if (route.length > 500) return 'The detail route must be at most 500 characters.'
   if (!DETAIL_ROUTE.test(route)) {
-    return 'Enter an application route such as /hr/talent-management/sick-leave/:leaveId (lower-case segments, :parameters, no web address).'
+    return 'Enter an application route such as /hr/employee-services/sick-leave/:leaveId (lower-case segments, :parameters, no web address).'
   }
   return null
 }

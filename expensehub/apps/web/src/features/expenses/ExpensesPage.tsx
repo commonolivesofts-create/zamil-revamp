@@ -61,7 +61,7 @@ export function ExpensesPage() {
   };
 
   return (
-    <div>
+    <div className="eh-expenses">
       <PageHeader
         eyebrow={t('expenses.list.eyebrow')}
         title={t('expenses.list.title')}
@@ -77,7 +77,7 @@ export function ExpensesPage() {
       />
 
       {items.length > 0 && (
-        <div className="mb-3 flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-card bg-surface-2/60 px-4 py-2">
+        <div className="eh-expenses__selection mb-3 flex min-h-11 flex-wrap items-center justify-between gap-3 px-4 py-2">
           <label className="flex items-center gap-2.5 text-sm">
             <input
               type="checkbox"
@@ -122,7 +122,7 @@ export function ExpensesPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden">
+      <Card className="eh-expenses__list overflow-hidden">
         {expenses.isPending ? (
           <ul className="divide-y divide-border">
             {Array.from({ length: 4 }, (_, i) => (
@@ -157,7 +157,10 @@ export function ExpensesPage() {
             }
           />
         ) : (
-          <ul className="divide-y divide-border" aria-label={t('expenses.list.title')}>
+          <ul
+            className="eh-expenses__rows divide-y divide-border"
+            aria-label={t('expenses.list.title')}
+          >
             {items.map((e) => {
               const Icon = EXPENSE_ICONS[e.typeIcon as keyof typeof EXPENSE_ICONS] ?? Receipt; // icon names are the shared enum
               const isSelected = selected.has(e.expenseId);
@@ -165,8 +168,9 @@ export function ExpensesPage() {
                 <li
                   key={e.expenseId}
                   className={cn(
-                    'group flex items-center gap-3 px-4 py-3.5 transition-colors sm:gap-4 sm:px-5',
-                    isSelected ? 'bg-brand/5' : 'hover:bg-surface-2/40',
+                    'eh-expenses__row group flex items-center gap-3 px-4 py-3.5 sm:gap-4 sm:px-5',
+                    `is-${e.policyLevel.toLowerCase()}`,
+                    isSelected && 'is-selected',
                   )}
                 >
                   <input
@@ -179,13 +183,18 @@ export function ExpensesPage() {
                       date: formatDate(e.expenseDate),
                     })}
                   />
-                  <span className="hidden size-10 shrink-0 place-items-center rounded-input bg-brand/10 text-brand-solid sm:grid dark:text-brand">
+                  <span
+                    className={cn(
+                      'eh-expenses__type-icon hidden size-10 shrink-0 place-items-center rounded-input sm:grid',
+                      `is-${e.policyLevel.toLowerCase()}`,
+                    )}
+                  >
                     <Icon aria-hidden className="size-[18px]" strokeWidth={1.75} />
                   </span>
                   <button
                     type="button"
                     onClick={() => void navigate(`/expenses/${e.expenseId}`)}
-                    className="min-w-0 flex-1 rounded-input text-start outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    className="eh-expenses__expense min-w-0 flex-1 rounded-input text-start outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   >
                     <span className="block truncate font-medium group-hover:underline">
                       {e.merchant ?? e.typeName}
@@ -211,7 +220,9 @@ export function ExpensesPage() {
                     )}
                   </div>
                   <div className="shrink-0 text-end">
-                    <p className="font-semibold tabular">{formatSar(e.amountSar)}</p>
+                    <p className="eh-expenses__amount font-semibold tabular">
+                      {formatSar(e.amountSar)}
+                    </p>
                     {e.currency !== 'SAR' && (
                       <p className="text-xs text-muted tabular">
                         {e.currency} {e.amount}

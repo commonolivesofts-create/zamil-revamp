@@ -1,12 +1,12 @@
 # HR employee services: Personnel Record Change (1110), Transfer Request (ZPI.TCN.FM.01), Performance Appraisal
 
-Three screens under **Human resources** in the sidebar. They are not part of the recruitment flow
-(no step bar). Personal Status Change, Transfer Request and Performance Appraisal connect to their
-existing backend APIs.
+These screens are under **Human resources** and are not part of the recruitment flow (no step bar).
+Personal Status Change appears in the **Employee Services** submodule; Transfer Request and
+Performance Appraisal remain in **Talent Management**. Each connects to its existing backend API.
 
 | Screen | Route | Record route | List view |
 |---|---|---|---|
-| Personnel Record Change (form 1110) | `/hr/talent-management/record-change` | `/hr/talent-management/record-change/:requestId` | `/hr/talent-management/record-change/requests` (Change requests) |
+| Personnel Record Change (form 1110) | `/hr/employee-services/record-change` | `/hr/employee-services/record-change/:requestId` | `/hr/employee-services/record-change/requests` (Change requests) |
 | Transfer Request (ZPI.TCN.FM.01) | `/hr/talent-management/transfer` | `/hr/talent-management/transfer/:transferId` | `/hr/talent-management/transfer/report` (Transfer report) |
 | Performance Appraisal (annual) | `/hr/performance/appraisal` | `/hr/performance/appraisal/:appraisalId` | `/hr/performance/appraisal/report` |
 
@@ -91,7 +91,7 @@ employee numbers and positions, the employee auto-fill, the list (legacy report 
 requestor and pending-at), read, and draft-only create, update and delete. The request body carries
 only the answers (employee number, effective date, the editable current family status, the revised
 record, remarks and views); the server computes the employee snapshot, `FORM_DATE`, the Hijri
-`ARB_DATE`, the Ref # and the totals. The `/hr/talent-management/record-change/requests` rows below
+`ARB_DATE`, the Ref # and the totals. The `/hr/employee-services/record-change/requests` rows below
 are the earlier proposed contract that only the demo adapter serves.
 Performance Appraisal uses its existing backend-specific contract below.
 
@@ -173,14 +173,15 @@ and create/update controls use the corresponding actions. Performance Appraisal 
 
 ## Reward Nomination (1113), Share an Idea (1097) and Sick Leave (1076)
 
-Three more screens under **Human resources → Talent Management** (the sidebar sub-group flyout).
-Each uses its existing backend; handoff: `docs/handoffs/FEATURE-HR-EMPLOYEE-SERVICES-BATCH1.md`.
+Personal Status Change, Sick Leave and Share an Idea appear under **Human resources → Employee Services**.
+Reward Nomination remains under **Talent Management**. Each form uses its existing backend; handoff:
+`docs/handoffs/FEATURE-HR-EMPLOYEE-SERVICES-BATCH1.md`.
 
 | Screen | Form route | Report | Record | API | Permission |
 |---|---|---|---|---|---|
-| Sick Leave | `/hr/talent-management/sick-leave` | `…/sick-leave/report` | `…/sick-leave/:leaveId` | `/hr/sick-leave` | `HR.SICK_LEAVE` |
+| Sick Leave | `/hr/employee-services/sick-leave` | `…/sick-leave/report` | `…/sick-leave/:leaveId` | `/hr/sick-leave` | `HR.SICK_LEAVE` |
 | Reward Nomination | `/hr/talent-management/reward-nomination` | `…/reward-nomination/report` | `…/reward-nomination/:nominationId` | `/hr/employee-of-the-month` | `HR.EMPLOYEE_OF_THE_MONTH` |
-| Share an Idea | `/hr/talent-management/ideas` | `…/ideas/report` | `…/ideas/:ideaId` | `/ideas` | `HR.IDEAS` |
+| Share an Idea | `/hr/employee-services/ideas` | `…/ideas/report` | `…/ideas/:ideaId` | `/ideas` | `HR.IDEAS` |
 
 Only the form is listed in the sidebar; the report and record pages are reached from it (`hidden`).
 

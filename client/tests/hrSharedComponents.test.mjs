@@ -185,7 +185,7 @@ test("EmployeePicker options: tight variant and a separate cache-key prefix", as
   const css = await read(CSS);
   assert.match(
     css,
-    /\.zrv-hr-combo--tight \.zrv-hr-combo__list \{ left: 0; \}/,
+    /\.zrv-hr-combo--tight \.zrv-hr-combo__list\s*\{\s*left:\s*0;\s*\}/,
   );
 });
 

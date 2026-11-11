@@ -25,7 +25,7 @@ export function AppShell() {
         <main
           id="main"
           tabIndex={-1}
-          className="eh-main w-full min-w-0 flex-1 px-4 pb-28 pt-5 outline-none sm:px-6 md:pb-16 lg:px-6"
+          className="eh-main w-full min-w-0 flex-1 pb-28 pt-5 outline-none md:pb-16"
         >
           <Outlet />
         </main>

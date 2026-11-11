@@ -1130,10 +1130,12 @@
 .zrv-ir-sick-leave-skeleton i {
   display: block;
   border-radius: 5px;
-  background: linear-gradient(100deg,
+  background: linear-gradient(
+    100deg,
     color-mix(in srgb, var(--text) 8%, var(--surface-solid)) 20%,
     color-mix(in srgb, var(--text) 3%, var(--surface-solid)) 38%,
-    color-mix(in srgb, var(--text) 8%, var(--surface-solid)) 56%);
+    color-mix(in srgb, var(--text) 8%, var(--surface-solid)) 56%
+  );
   background-size: 220% 100%;
   animation: zrv-ir-sick-leave-skeleton-shine 1.35s ease-in-out infinite;
 }
@@ -1143,7 +1145,8 @@
   justify-content: space-between;
   gap: 16px;
   padding-bottom: 12px;
-  border-bottom: 2px solid color-mix(in srgb, var(--zrv-hr-accent) 45%, var(--line));
+  border-bottom: 2px solid
+    color-mix(in srgb, var(--zrv-hr-accent) 45%, var(--line));
 }
 .zrv-ir-sick-leave-skeleton__header i:first-child {
   width: 46%;
@@ -1188,10 +1191,14 @@
   margin-top: auto;
 }
 @keyframes zrv-ir-sick-leave-skeleton-shine {
-  to { background-position-x: -220%; }
+  to {
+    background-position-x: -220%;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .zrv-ir-sick-leave-skeleton i { animation: none; }
+  .zrv-ir-sick-leave-skeleton i {
+    animation: none;
+  }
 }
 
 /* Hidden on screen; the Print button fills it and then opens the dialog. */
@@ -1296,7 +1303,10 @@
     background: #fff !important;
     page: sick-leave-request;
   }
-  body:has(.zrv-ir-sick-leave-print) *:not(:has(.zrv-ir-sick-leave-print)):not(.zrv-ir-sick-leave-print):not(.zrv-ir-sick-leave-print *) {
+  body:has(.zrv-ir-sick-leave-print)
+    *:not(:has(.zrv-ir-sick-leave-print)):not(.zrv-ir-sick-leave-print):not(
+      .zrv-ir-sick-leave-print *
+    ) {
     display: none !important;
   }
   body:has(.zrv-ir-sick-leave-print) *:has(.zrv-ir-sick-leave-print) {
@@ -1479,10 +1489,12 @@
 .zrv-ir-letter-skeleton i {
   display: block;
   border-radius: 5px;
-  background: linear-gradient(100deg,
+  background: linear-gradient(
+    100deg,
     color-mix(in srgb, var(--text) 8%, var(--surface-solid)) 20%,
     color-mix(in srgb, var(--text) 3%, var(--surface-solid)) 38%,
-    color-mix(in srgb, var(--text) 8%, var(--surface-solid)) 56%);
+    color-mix(in srgb, var(--text) 8%, var(--surface-solid)) 56%
+  );
   background-size: 220% 100%;
   animation: zrv-ir-letter-skeleton-shine 1.35s ease-in-out infinite;
 }
@@ -1492,7 +1504,8 @@
   justify-content: space-between;
   gap: 16px;
   padding-bottom: 12px;
-  border-bottom: 2px solid color-mix(in srgb, var(--zrv-hr-accent) 45%, var(--line));
+  border-bottom: 2px solid
+    color-mix(in srgb, var(--zrv-hr-accent) 45%, var(--line));
 }
 .zrv-ir-letter-skeleton__header i:first-child {
   width: 46%;
@@ -1537,10 +1550,14 @@
   margin-top: auto;
 }
 @keyframes zrv-ir-letter-skeleton-shine {
-  to { background-position-x: -220%; }
+  to {
+    background-position-x: -220%;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .zrv-ir-letter-skeleton i { animation: none; }
+  .zrv-ir-letter-skeleton i {
+    animation: none;
+  }
 }
 
 /* Hidden on screen; the Print button fills it and then opens the dialog. */
@@ -1576,7 +1593,10 @@
     background: #fff !important;
     page: letter-report;
   }
-  body:has(.zrv-ir-letter-print) *:not(:has(.zrv-ir-letter-print)):not(.zrv-ir-letter-print):not(.zrv-ir-letter-print *) {
+  body:has(.zrv-ir-letter-print)
+    *:not(:has(.zrv-ir-letter-print)):not(.zrv-ir-letter-print):not(
+      .zrv-ir-letter-print *
+    ) {
     display: none !important;
   }
   body:has(.zrv-ir-letter-print) *:has(.zrv-ir-letter-print) {

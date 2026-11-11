@@ -1,32 +1,39 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export function PageHeader({
   eyebrow,
   title,
-  description,
   actions,
 }: {
   eyebrow?: ReactNode;
   title: string;
+  /** Retained for existing callers; shared headers follow Zamil's title-only pattern. */
   description?: ReactNode;
   actions?: ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
-    <header className="eh-page-header mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
-        {eyebrow && (
-          <p className="eh-page-header__eyebrow text-xs font-semibold uppercase tracking-[0.08em] text-brand">
-            {eyebrow}
-          </p>
-        )}
-        <h1 className="mt-1 text-title font-semibold sm:text-display">{title}</h1>
-        {description && (
-          <p className="eh-page-header__description mt-2 max-w-2xl text-sm text-muted sm:text-base">
-            {description}
-          </p>
-        )}
+    <header className="eh-page-header mb-5">
+      <div className="eh-page-header__copy">
+        <nav className="eh-page-header__breadcrumb" aria-label={t('app.breadcrumb')}>
+          {eyebrow ?? t('nav.home')}
+          <span aria-hidden="true"> / </span>
+          <span aria-current="page">{title}</span>
+        </nav>
+        <h1 className="eh-page-header__title" aria-label={title}>
+          {[...title].map((character, index) => (
+            <span
+              key={`${character}-${index}`}
+              aria-hidden="true"
+              style={{ '--eh-title-index': index } as CSSProperties}
+            >
+              {character === ' ' ? '\u00a0' : character}
+            </span>
+          ))}
+        </h1>
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="eh-page-header__actions">{actions}</div>}
     </header>
   );
 }

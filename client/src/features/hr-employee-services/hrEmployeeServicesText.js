@@ -5,6 +5,8 @@
 const money = (value) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value) || 0)
 const signed = (value, format = money) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${format(Math.abs(value))}`
 
+export const EMPLOYEE_SERVICES_BREADCRUMB = Object.freeze(['Human resources', 'Employee Services'])
+
 export const ES_COMMON_TEXT = Object.freeze({
   breadcrumb: Object.freeze(['Human resources', 'Talent Management']),
   performanceBreadcrumb: Object.freeze(['Human resources', 'Performance']),

@@ -46,7 +46,9 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
       e?.message ?? `HTTP ${res.status}`,
       e?.details,
     );
-    if (res.status === 401 && !url.startsWith('/auth/'))
+    // /me is the auth query itself; invalidating it from inside its own request can restart
+    // authentication repeatedly. Other protected requests refresh the cached user normally.
+    if (res.status === 401 && !url.startsWith('/auth/') && url !== '/me')
       window.dispatchEvent(new CustomEvent('th:unauthenticated'));
     throw err;
   }
