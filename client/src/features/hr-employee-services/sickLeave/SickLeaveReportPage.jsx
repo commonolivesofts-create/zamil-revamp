@@ -3,7 +3,7 @@ import { addDays, dayWindows, monthRanges } from '@/features/hr-recruitment/shar
 import { Pill } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '@/features/hr-recruitment/shared/components/InsightReport.jsx'
 import { Card, Columns, Delta, Distribution, Foot, Hero, Hint, Lanes } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
-import { EMPLOYEE_SERVICES_BREADCRUMB, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
 import { RECORD_STATUSES, STATUS_TEXT, STATUS_TONE } from '../shared/formRecords.js'
 import { sickLeaveDemo, sickLeaveService } from './sickLeaveService.js'

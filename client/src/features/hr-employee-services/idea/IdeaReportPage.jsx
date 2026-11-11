@@ -5,7 +5,7 @@ import { addDays, dayWindows } from '@/features/hr-recruitment/shared/insightDat
 import { Pill } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '@/features/hr-recruitment/shared/components/InsightReport.jsx'
 import { Card, Delta, Hero, Hint, Rank, Sparkline, Steps } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
-import { EMPLOYEE_SERVICES_BREADCRUMB, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB } from '../hrEmployeeServicesText.js'
 import { FORM_PATHS } from '../employeeServicesPaths.js'
 import { STATUS_TEXT, STATUS_TONE } from '../shared/formRecords.js'
 import { formatSar } from './ideaModel.js'

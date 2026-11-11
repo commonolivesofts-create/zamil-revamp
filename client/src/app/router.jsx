@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, useLocation, useParams } from 'react-router'
+import { createBrowserRouter } from 'react-router'
 import {
   AppRouteAccess, GuestOnlyRoute, MfaChallengeRoute, ProtectedRoute, RootRedirect, TemplateDemoRoute,
 } from '@/routes/RouteGuards.jsx'
@@ -79,6 +79,7 @@ import {
   RouterShell,
   RouteErrorBoundary,
 } from '@/routes/RouteComponents.jsx'
+import { LegacyEmployeeServicesRedirect } from '@/routes/LegacyEmployeeServicesRedirect.jsx'
 
 // Centralized route table. Application pages are declared in
 // config/appNavigation.js and guarded by AppRouteAccess. Template demo entries
@@ -88,13 +89,6 @@ import {
 // off (`enabledBy`) is left out of this build's route table.
 const implementedRouteIds = new Set(implementedRoutes.map((route) => route.id))
 const implementedOnly = (routes) => routes.filter((route) => implementedRouteIds.has(route.handle.routeId))
-
-function LegacyEmployeeServicesRedirect({ to, param }) {
-  const params = useParams()
-  const location = useLocation()
-  const pathname = param ? `${to}/${encodeURIComponent(params[param] ?? '')}` : to
-  return <Navigate to={`${pathname}${location.search}${location.hash}`} replace />
-}
 
 export const router = createBrowserRouter([
   {
