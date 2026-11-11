@@ -16,6 +16,10 @@ const LIST_SORT = Object.freeze(['headerId', 'requestNo', 'employeeName', 'activ
 
 export function createRewardService({ client }) {
   const getById = async (id, { signal } = {}) => readRewardRecord((await client.get(`${REWARD_BASE}/${segment(id)}`, { signal })).data)
+  const spotlight = async ({ signal } = {}) => {
+    const { data } = await client.get(`${REWARD_BASE}/spotlight`, { signal })
+    return data == null ? null : readRewardRecord(data)
+  }
   // The picker's list, loaded with the form.
   const employees = createEmployeeList({
     load: ({ signal } = {}) => client.get(`${REWARD_BASE}/lookups/employees`, { params: params({ limit: 50 }), signal }).then(({ data }) => data),
@@ -51,6 +55,7 @@ export function createRewardService({ client }) {
       return employeePage(data.map(readRewardEmployee))
     },
     list,
+    spotlight,
     // Nominations of one employee in the month of `activityDate` that the user can see.
     async sameMonth(employeeNumber, activityDate, { signal } = {}) {
       const range = monthRange(activityDate)
