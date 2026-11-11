@@ -478,7 +478,7 @@ test('record change page: not in the recruitment flow, services only, linked err
     'sickLeave/SickLeaveReportPage.jsx', 'reward/RewardReportPage.jsx', 'idea/IdeaReportPage.jsx']) {
     const source = await read(`${FEATURE}${report}`)
     assert.match(source, /<InsightReport /, report)
-    assert.match(source, /breadcrumb=\{C\.(breadcrumb|performanceBreadcrumb)\}/, report)
+    assert.match(source, /breadcrumb=\{(?:C\.(?:breadcrumb|performanceBreadcrumb)|EMPLOYEE_SERVICES_BREADCRUMB)\}/, report)
     assert.doesNotMatch(source, /zrv-hr-toolbar/, `${report}: the header actions come from InsightReport`)
   }
   const insight = await read('../src/features/hr-recruitment/shared/components/InsightReport.jsx')

@@ -224,8 +224,11 @@ test('the derived routes, sections and permission names match the active modules
 
 test('every implemented internal route has exactly one React Router entry with the same path, and back', async () => {
   const router = await read('../src/app/router.jsx')
-  const routerRoutes = [...router.matchAll(/path: '([^']+)', handle: \{ routeId: '([^']+)' \}/g)]
+  const routeMatches = [...router.matchAll(/path: '([^']+)', handle: \{ routeId: '([^']+)' \}, element: <([A-Za-z][A-Za-z0-9]*)/g)]
+  const routerRoutes = routeMatches
+    .filter(([, , , component]) => component !== 'LegacyEmployeeServicesRedirect')
     .map(([, path, id]) => ({ id, path: `/${path}` }))
+  const legacyRedirects = routeMatches.filter(([, , , component]) => component === 'LegacyEmployeeServicesRedirect')
   // The source lists every page that is implemented with all feature switches
   // on; the router keeps only this build's implemented pages (implementedOnly).
   const allSwitchesOn = Object.fromEntries(registry.entries.filter((e) => e.enabledBy).map((e) => [e.enabledBy.env, 'true']))
@@ -235,6 +238,7 @@ test('every implemented internal route has exactly one React Router entry with t
     switchable.map((r) => `${r.id} ${r.path}`).sort(),
   )
   assert.ok(implementedRoutes.every((r) => routerRoutes.some((line) => line.id === r.id)))
+  assert.equal(legacyRedirects.length, 9, 'legacy Talent Management links redirect to Employee Services')
   assert.match(router, /children: implementedOnly\(\[/)
   assert.ok(!routerRoutes.some((r) => r.id === 'security-audit'), 'unimplemented pages are never routed')
 })
