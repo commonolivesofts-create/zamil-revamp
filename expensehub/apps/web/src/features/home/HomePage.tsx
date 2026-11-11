@@ -2,7 +2,7 @@
 // approver and finance blocks for those who hold the roles (stacked — no role switcher). Every
 // figure is real (dashboard API); FR-SET-02 says what blocks a submit and who fixes it.
 import { hasAnyCapability, isApprover } from '@expensehub/shared';
-import { ArrowRight, CircleX, FileText, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CircleX, FileText, ShieldAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { visibleNav } from '../../components/shell/navigation';
@@ -39,13 +39,13 @@ export function HomePage() {
   const recent = (useMyReports().data ?? []).slice(0, 5);
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="eh-dashboard">
+      <header className="eh-dashboard__header flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-title font-semibold sm:text-display">
+          <h1 className="eh-dashboard__title font-semibold">
             {t(greetingKey(new Date()), { name: firstName })}
           </h1>
-          <p className="mt-1.5 text-sm text-muted">
+          <p className="eh-dashboard__subtitle mt-1.5 text-sm text-muted">
             {t('home.subtitle', {
               job: me.user.jobName ?? t('roles.EMPLOYEE'),
               bu: me.user.businessUnit,
@@ -54,8 +54,7 @@ export function HomePage() {
           </p>
         </div>
         {me.prerequisites.ok && (
-          <Tag tone="pass" className="py-1">
-            <ShieldCheck aria-hidden className="hidden" />
+          <Tag tone="pass" className="eh-dashboard__ready py-1">
             {t('home.readyTitle')}
           </Tag>
         )}
@@ -96,8 +95,8 @@ export function HomePage() {
 
       <EmployeeSection />
 
-      <Card>
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+      <Card className="eh-dashboard__reports">
+        <div className="eh-dashboard__section-heading flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="font-semibold">{t('home.claimsTitle')}</h2>
           {recent.length > 0 && (
             <Link
@@ -125,7 +124,7 @@ export function HomePage() {
               <li key={r.reportId}>
                 <Link
                   to={`/reports/${r.reportId}`}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-3.5 hover:bg-surface-2/40"
+                  className="eh-dashboard__report-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-3.5"
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">{r.purpose}</span>
@@ -151,7 +150,7 @@ export function HomePage() {
       <section aria-labelledby="shortcuts">
         <h2
           id="shortcuts"
-          className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted"
+          className="eh-dashboard__shortcut-heading mb-3 text-sm font-semibold uppercase tracking-wide text-muted"
         >
           {t('home.shortcutsTitle')}
         </h2>
@@ -162,7 +161,7 @@ export function HomePage() {
               <li key={item.id}>
                 <Link
                   to={item.to}
-                  className="group flex items-center gap-3 rounded-card border border-border bg-surface p-4 shadow-card transition-shadow hover:shadow-raised"
+                  className="eh-dashboard__shortcut group flex items-center gap-3 rounded-card border border-border bg-surface p-4 shadow-card transition-shadow hover:shadow-raised"
                 >
                   <span className="grid size-9 place-items-center rounded-input bg-surface-2 text-muted transition-colors group-hover:text-brand">
                     <Icon aria-hidden className="size-[18px]" strokeWidth={1.75} />

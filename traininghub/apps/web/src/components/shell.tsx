@@ -33,6 +33,7 @@ import { api } from '../lib/api';
 import { cn } from '../lib/cn';
 import { hasRole, useAction, useGet } from '../lib/data';
 import { fmtDateTime } from '../lib/format';
+import { redirectToZamilLogin } from '../lib/zamil-login';
 import { Avatar, Badge } from './ui';
 
 interface NavItem {
@@ -226,9 +227,13 @@ function TopBar({ me, onMenu, open }: { me: Me; onMenu: () => void; open: boolea
   );
   const markAll = useAction(() => api.post('/notifications/read', {}), { invalidate: [['notifications']] });
   const logout = async () => {
-    await api.post('/auth/logout');
-    qc.clear();
-    window.location.href = '/';
+    try {
+      await api.post('/auth/logout');
+    } finally {
+      // This is a full-page handoff. Leave the current shell mounted until navigation starts so
+      // clearing ['me'] cannot make TrainingHub render its own login screen first.
+      redirectToZamilLogin();
+    }
   };
   const flip = () => {
     const v = !dark;
@@ -255,7 +260,7 @@ function TopBar({ me, onMenu, open }: { me: Me; onMenu: () => void; open: boolea
         : 'Employee';
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-canvas/85 backdrop-blur-xl">
+    <header className="th-topbar sticky top-0 z-30 border-b border-line bg-surface backdrop-blur-xl">
       <div className="flex h-[72px] w-full items-center gap-3 px-4 sm:px-6">
         <button
           id="th-mobile-nav-trigger"

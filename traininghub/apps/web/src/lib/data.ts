@@ -25,14 +25,21 @@ export interface Lookups {
   roles: RoleCode[];
 }
 
-export const useMe = () =>
-  useQuery({
+export const useMe = () => {
+  const queryClient = useQueryClient();
+
+  return useQuery({
     queryKey: ['me'],
     queryFn: async () => {
+      const hadSignedInUser = Boolean(queryClient.getQueryData<Me>(['me']));
       try {
         return await api.get<Me>('/me');
       } catch (error) {
         if (!(error instanceof ApiError) || error.status !== 401) throw error;
+        // When an established TrainingHub session expires, send the user through Zamil login.
+        // Do not silently exchange a still-active parent cookie and keep this hub session alive.
+        if (hadSignedInUser) throw error;
+
         // If no TrainingHub cookie exists, the API validates the HttpOnly Zamil cookie and issues
         // a bounded local session. A failed handoff leaves the existing local login flow available.
         try {
@@ -44,8 +51,9 @@ export const useMe = () =>
       }
     },
     staleTime: 15_000,
-    refetchInterval: 60_000,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : 60_000),
   });
+};
 export const useLookups = () =>
   useQuery({ queryKey: ['lookups'], queryFn: () => api.get<Lookups>('/lookups'), staleTime: 60_000 });
 export function useGet<T>(

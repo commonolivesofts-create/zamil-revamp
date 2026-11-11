@@ -4664,7 +4664,9 @@
   margin-bottom: 5px;
   font-weight: 700;
 }
-.zrv-hr-combo--tight .zrv-hr-combo__list { left: 0; }
+.zrv-hr-combo--tight .zrv-hr-combo__list {
+  left: 0;
+}
 
 /* Recruitment and employee services forms: the same design, denser and
    full width. The title and the toolbar share the first row; only sizes and spacing change. */

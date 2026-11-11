@@ -1,7 +1,8 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { ApiError } from './lib/api';
 import { useMe } from './lib/data';
+import { redirectToZamilLogin } from './lib/zamil-login';
 import { AppShell } from './components/shell';
 import { Spinner, StartupLoading } from './components/ui';
 import { ChangePasswordPage, LoginPage } from './pages/auth';
@@ -30,6 +31,19 @@ export function App() {
   const backgroundLocation = (location.state as { backgroundLocation?: typeof location } | null)
     ?.backgroundLocation;
   const me = useMe();
+
+  const wasSignedIn = useRef(false);
+  useEffect(() => {
+    if (me.data) wasSignedIn.current = true;
+  }, [me.data]);
+
+  const sessionExpired =
+    wasSignedIn.current && me.isError && me.error instanceof ApiError && me.error.status === 401;
+  useEffect(() => {
+    if (sessionExpired) redirectToZamilLogin();
+  }, [sessionExpired]);
+
+  if (sessionExpired) return <StartupLoading />;
   if (me.isPending) return <StartupLoading />;
   if (me.error) {
     if (me.error instanceof ApiError && me.error.status === 401) return <LoginPage />;

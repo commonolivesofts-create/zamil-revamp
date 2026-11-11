@@ -1,7 +1,6 @@
 import { Bell, BellOff, Plus, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { Logo } from '../brand/Logo';
 import { Button } from '../ui/Button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '../ui/DropdownMenu';
 import { EmptyState } from '../ui/EmptyState';
@@ -12,14 +11,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
 export function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
   const { t } = useTranslation();
   return (
-    <header className="eh-topbar sticky top-0 z-30 flex h-[72px] shrink-0 items-center gap-3 border-b border-border bg-canvas/85 px-4 backdrop-blur-xl sm:px-6 lg:px-6">
-      <Link to="/" aria-label={t('app.name')} className="shrink-0 rounded-input">
-        <span className="flex items-center gap-2 font-semibold">
-          <Logo variant="mark" />
-          <span className="hidden text-sm sm:inline">{t('app.name')}</span>
-        </span>
-      </Link>
-
+    <header className="eh-topbar sticky top-0 z-30 flex h-[72px] shrink-0 items-center gap-3 border-b border-border bg-canvas/85 backdrop-blur-xl">
       <button
         type="button"
         onClick={onOpenPalette}

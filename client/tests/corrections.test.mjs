@@ -147,6 +147,9 @@ test('#4 login focuses the first invalid field and reuses the shared password in
 
 test('#5 account panels space consecutive fields like the login form, not the first one', async () => {
   const css = await read('../src/styles/auth.css')
-  assert.match(css, /\.zrv-mfa-panel \.field\+\.field,\.zrv-mfa-panel \.zrv-policy-list\+\.field\{margin-top:16px\}/)
+  assert.match(
+    css,
+    /\.zrv-mfa-panel\s+\.field\s*\+\s*\.field\s*,\s*\.zrv-mfa-panel\s+\.zrv-policy-list\s*\+\s*\.field\s*\{\s*margin-top:\s*16px;\s*\}/,
+  )
   assert.equal(/\.zrv-mfa-panel \.field\{/.test(css), false, 'no spacing before the first field')
 })

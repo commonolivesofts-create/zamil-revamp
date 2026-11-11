@@ -20,7 +20,9 @@ Open `http://<this-PC's-LAN-IP>:7386`; the API on 7385 is proxied by the web app
 ## Sign-in
 
 When opened on the same hostname as Zamil Revamp, ExpenseHub validates the existing Zamil session
-server-side and issues a bounded ExpenseHub session. Signing out revokes the Zamil session too.
+server-side and issues a bounded ExpenseHub session. Signing out revokes the Zamil session too and
+redirects to the Zamil `/login` page. Local development redirects to port 7382; if production apps
+use different origins, set `VITE_ZAMIL_LOGIN_URL` to the full parent login URL.
 Without an active Zamil session, local password sign-in and development quick-login remain
 available. By default, SSO checks Zamil at `http://127.0.0.1:7381/api/v1` in both development
 and `APP_ENV=test`. Set `ZAMIL_AUTH_API_BASE_URL` if needed, and

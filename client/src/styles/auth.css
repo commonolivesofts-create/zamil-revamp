@@ -1,39 +1,183 @@
 /* Phase 06: scoped React form feedback; original Orvexa auth selectors remain intact. */
-.zrv-auth-page .zrv-auth-feedback{padding:11px 12px;margin:16px 0 0;border:1px solid var(--line-strong);border-radius:11px;background:var(--surface-2);color:var(--text);font-size:12px;line-height:1.55}
-.zrv-auth-page .zrv-auth-feedback--error{border-color:color-mix(in srgb,var(--danger) 38%,var(--line));color:var(--danger-text)}
-.zrv-auth-page .zrv-auth-feedback--success{border-color:color-mix(in srgb,var(--mint) 38%,var(--line));color:var(--mint-text)}
-.zrv-auth-page .zrv-auth-field-error{display:block;margin-top:5px;color:var(--danger-text);font-size:11px}
-.zrv-auth-page .zrv-auth-submit{display:flex;align-items:center;justify-content:center;gap:8px}
-.zrv-auth-page button:disabled{opacity:.56;cursor:not-allowed;transform:none;filter:none}
-.zrv-auth-page .auth-visual{color:#f5f7f9}
-.zrv-auth-page .auth-form-wrap{min-width:0}
-@media(max-width:640px){.zrv-auth-page .auth-form h2{font-size:26px}}
+.zrv-auth-page .zrv-auth-feedback {
+  padding: 11px 12px;
+  margin: 16px 0 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.zrv-auth-page .zrv-auth-feedback--error {
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--line));
+  color: var(--danger-text);
+}
+.zrv-auth-page .zrv-auth-feedback--success {
+  border-color: color-mix(in srgb, var(--mint) 38%, var(--line));
+  color: var(--mint-text);
+}
+.zrv-auth-page .zrv-auth-field-error {
+  display: block;
+  margin-top: 5px;
+  color: var(--danger-text);
+  font-size: 11px;
+}
+.zrv-auth-page .zrv-auth-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.zrv-auth-page button:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+.zrv-auth-page .auth-visual {
+  color: #f5f7f9;
+}
+.zrv-auth-page .auth-form-wrap {
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .zrv-auth-page .auth-form h2 {
+    font-size: 26px;
+  }
+}
 /* Batch B: MFA screens. The QR code keeps a white tile so scanners read it in both themes. */
-.zrv-auth-page .zrv-mfa-qr{display:block;width:min(100%,208px);height:auto;margin:6px auto 0;border:1px solid var(--line);border-radius:14px}
-.zrv-auth-page .zrv-mfa-key{display:block;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--surface-2);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:.06em;text-align:center;word-break:break-all;user-select:all}
-.zrv-auth-page .zrv-mfa-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:20px;letter-spacing:.4em;text-align:center}
-.zrv-auth-page .zrv-mfa-meta{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.6}
-.zrv-mfa-panel{max-width:680px}
-.zrv-mfa-panel .ux-panel-body>.zrv-mfa-meta:first-child{margin-top:0}
-.zrv-mfa-panel .zrv-mfa-form{max-width:360px}
-.zrv-mfa-panel .zrv-mfa-qr{margin-left:0}
-.zrv-mfa-panel .btn-secondary{display:inline-flex;align-items:center;gap:8px}
+.zrv-auth-page .zrv-mfa-qr {
+  display: block;
+  width: min(100%, 208px);
+  height: auto;
+  margin: 6px auto 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.zrv-auth-page .zrv-mfa-key {
+  display: block;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  word-break: break-all;
+  user-select: all;
+}
+.zrv-auth-page .zrv-mfa-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 20px;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+.zrv-auth-page .zrv-mfa-meta {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.zrv-mfa-panel {
+  max-width: 680px;
+}
+.zrv-mfa-panel .ux-panel-body > .zrv-mfa-meta:first-child {
+  margin-top: 0;
+}
+.zrv-mfa-panel .zrv-mfa-form {
+  max-width: 360px;
+}
+.zrv-mfa-panel .zrv-mfa-qr {
+  margin-left: 0;
+}
+.zrv-mfa-panel .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 /* Field spacing inside account panels, matching .auth-form .field (16px); none before the first field. */
-.zrv-mfa-panel .field+.field,.zrv-mfa-panel .zrv-policy-list+.field{margin-top:16px}
+.zrv-mfa-panel .field + .field,
+.zrv-mfa-panel .zrv-policy-list + .field {
+  margin-top: 16px;
+}
 /* Batch C: password fields and live policy checklist. */
-.zrv-auth-page .zrv-password-input{position:relative}
-.zrv-auth-page .zrv-password-input .ux-input{padding-right:44px}
-.zrv-auth-page .zrv-password-toggle{position:absolute;top:50%;right:6px;display:flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:9px;color:var(--muted);transform:translateY(-50%)}
-.zrv-auth-page .zrv-password-toggle:hover,.zrv-auth-page .zrv-password-toggle:focus-visible{color:var(--text);background:var(--surface-2)}
-[dir="rtl"] .zrv-auth-page .zrv-password-toggle{right:auto;left:6px}
-[dir="rtl"] .zrv-auth-page .zrv-password-input .ux-input{padding-right:13px;padding-left:44px}
-.zrv-auth-page .zrv-policy-list{display:grid;gap:4px;margin:10px 0 0;padding:0;list-style:none;color:var(--muted);font-size:12px;text-align:left}
-.zrv-auth-page .zrv-policy-list li{display:flex;align-items:center;gap:7px}
-.zrv-auth-page .zrv-policy-list li.is-met{color:var(--mint-text)}
-.zrv-auth-page .zrv-auth-link{color:var(--primary-text);font-size:12px;font-weight:700}
-.zrv-auth-page .zrv-auth-link:hover,.zrv-auth-page .zrv-auth-link:focus-visible{text-decoration:underline}
-.zrv-mfa-panel h1{font-size:16px;line-height:1.3;font-weight:800;letter-spacing:-.02em}
-.zrv-auth-page .zrv-app-version{margin-top:14px;color:var(--muted);font-size:11px;font-weight:600;text-align:center;letter-spacing:.02em}
+.zrv-auth-page .zrv-password-input {
+  position: relative;
+}
+.zrv-auth-page .zrv-password-input .ux-input {
+  padding-right: 44px;
+}
+.zrv-auth-page .zrv-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  color: var(--muted);
+  transform: translateY(-50%);
+}
+.zrv-auth-page .zrv-password-toggle:hover,
+.zrv-auth-page .zrv-password-toggle:focus-visible {
+  color: var(--text);
+  background: var(--surface-2);
+}
+[dir="rtl"] .zrv-auth-page .zrv-password-toggle {
+  right: auto;
+  left: 6px;
+}
+[dir="rtl"] .zrv-auth-page .zrv-password-input .ux-input {
+  padding-right: 13px;
+  padding-left: 44px;
+}
+.zrv-auth-page .zrv-policy-list {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+}
+.zrv-auth-page .zrv-policy-list li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.zrv-auth-page .zrv-policy-list li.is-met {
+  color: var(--mint-text);
+}
+.zrv-auth-page .zrv-auth-link {
+  color: var(--primary-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+.zrv-auth-page .zrv-auth-link:hover,
+.zrv-auth-page .zrv-auth-link:focus-visible {
+  text-decoration: underline;
+}
+.zrv-mfa-panel h1 {
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.zrv-auth-page .zrv-app-version {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
 
 /* Full-screen photo backdrop and login-only dark emerald presentation. */
 .zrv-auth-page.auth-shell {
@@ -59,16 +203,42 @@
 }
 
 .zrv-auth-page.auth-shell::before {
-  background: url("/assets/zamil-plastics-login-bg.png") 38% center / cover no-repeat;
+  background: url("/assets/zamil-plastics-login-bg.png") 38% center / cover
+    no-repeat;
 }
 
 .zrv-auth-page.auth-shell::after {
   background:
-    radial-gradient(ellipse 70% 15% at 108% 108%, transparent 45%, rgba(50, 207, 111, .55) 46% 49%, rgba(13, 116, 71, .45) 52%, transparent 57%),
-    radial-gradient(ellipse 62% 18% at 68% 115%, transparent 44%, rgba(32, 158, 91, .38) 45% 49%, rgba(5, 65, 48, .42) 53%, transparent 57%),
-    radial-gradient(ellipse 54% 17% at 29% 117%, transparent 44%, rgba(31, 131, 80, .3) 46% 50%, rgba(4, 48, 37, .48) 54%, transparent 58%),
-    linear-gradient(0deg, rgba(0, 34, 28, .42), transparent 28%),
-    linear-gradient(90deg, rgba(0, 25, 31, 0) 38%, rgba(0, 35, 32, .06) 50%, rgba(0, 42, 37, .22) 60%, rgba(0, 42, 35, .58) 75%, rgba(0, 30, 26, .82) 100%);
+    radial-gradient(
+      ellipse 70% 15% at 108% 108%,
+      transparent 45%,
+      rgba(50, 207, 111, 0.55) 46% 49%,
+      rgba(13, 116, 71, 0.45) 52%,
+      transparent 57%
+    ),
+    radial-gradient(
+      ellipse 62% 18% at 68% 115%,
+      transparent 44%,
+      rgba(32, 158, 91, 0.38) 45% 49%,
+      rgba(5, 65, 48, 0.42) 53%,
+      transparent 57%
+    ),
+    radial-gradient(
+      ellipse 54% 17% at 29% 117%,
+      transparent 44%,
+      rgba(31, 131, 80, 0.3) 46% 50%,
+      rgba(4, 48, 37, 0.48) 54%,
+      transparent 58%
+    ),
+    linear-gradient(0deg, rgba(0, 34, 28, 0.42), transparent 28%),
+    linear-gradient(
+      90deg,
+      rgba(0, 25, 31, 0) 38%,
+      rgba(0, 35, 32, 0.06) 50%,
+      rgba(0, 42, 37, 0.22) 60%,
+      rgba(0, 42, 35, 0.58) 75%,
+      rgba(0, 30, 26, 0.82) 100%
+    );
 }
 
 .zrv-auth-page.auth-shell > .auth-form-wrap {
@@ -111,7 +281,13 @@
   width: 40px;
   height: 34px;
   flex: 0 0 auto;
-  background: linear-gradient(140deg, #18c56b 12%, #168e58 48%, #65d52e 50%, #b4e533 100%);
+  background: linear-gradient(
+    140deg,
+    #18c56b 12%,
+    #168e58 48%,
+    #65d52e 50%,
+    #b4e533 100%
+  );
   clip-path: polygon(0 100%, 33% 0, 100% 0, 66% 100%);
 }
 
@@ -126,7 +302,7 @@
   font-size: 19px;
   font-weight: 750;
   line-height: 1.15;
-  letter-spacing: -.025em;
+  letter-spacing: -0.025em;
 }
 
 .zrv-auth-page.auth-shell .zrv-login-brand-copy > span {
@@ -143,8 +319,17 @@
   padding: 22px 22px 17px;
   border: 1px solid rgba(190, 255, 225, 0.28);
   border-radius: 26px;
-  background: linear-gradient(135deg, rgba(23, 77, 70, 0.47) 0%, rgba(7, 47, 43, 0.62) 55%, rgba(3, 35, 33, 0.70) 100%);
-  box-shadow: 0 28px 75px rgba(0, 0, 0, 0.28), 0 8px 28px rgba(0, 35, 25, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 0 28px rgba(135, 255, 210, 0.025);
+  background: linear-gradient(
+    135deg,
+    rgba(23, 77, 70, 0.47) 0%,
+    rgba(7, 47, 43, 0.62) 55%,
+    rgba(3, 35, 33, 0.7) 100%
+  );
+  box-shadow:
+    0 28px 75px rgba(0, 0, 0, 0.28),
+    0 8px 28px rgba(0, 35, 25, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 0 28px rgba(135, 255, 210, 0.025);
   color: #f4f8f6;
   backdrop-filter: blur(24px) saturate(150%);
   -webkit-backdrop-filter: blur(24px) saturate(150%);
@@ -155,7 +340,12 @@
   z-index: 0;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.022) 38%, transparent 68%);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.085) 0%,
+    rgba(255, 255, 255, 0.022) 38%,
+    transparent 68%
+  );
   content: "";
   pointer-events: none;
 }
@@ -173,7 +363,7 @@
   color: #18d58a;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: .05em;
+  letter-spacing: 0.05em;
 }
 
 .zrv-auth-page.auth-shell .auth-form h2 {
@@ -181,7 +371,7 @@
   font-size: clamp(22px, 1.7vw, 26px);
   font-weight: 700;
   line-height: 1.22;
-  letter-spacing: -.03em;
+  letter-spacing: -0.03em;
 }
 
 .zrv-auth-page.auth-shell .auth-form > p {
@@ -200,7 +390,7 @@
   color: #f1f5f3;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: .01em;
+  letter-spacing: 0.01em;
 }
 
 .zrv-auth-page.auth-shell .auth-form .field label a {
@@ -234,8 +424,13 @@
   background: linear-gradient(180deg, #f0f4f8, #e3ebf2);
   color: #1f2d36;
   font-size: 13px;
-  box-shadow: inset 0 1px 2px rgba(22, 43, 53, 0.06), inset 0 0 0 1px rgba(255, 255, 255, 0.15);
-  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+  box-shadow:
+    inset 0 1px 2px rgba(22, 43, 53, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
 }
 
 .zrv-auth-page.auth-shell .ux-input::placeholder {
@@ -248,7 +443,10 @@
   border-color: #31c878;
   outline: 2px solid rgba(80, 230, 155, 0.85);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(49, 200, 120, 0.16), inset 0 1px 2px rgba(22, 43, 53, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 0 0 4px rgba(49, 200, 120, 0.16),
+    inset 0 1px 2px rgba(22, 43, 53, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
   background: linear-gradient(180deg, #f5faf7, #eaf3ed);
 }
 
@@ -282,23 +480,32 @@
   border: 1px solid rgba(148, 255, 188, 0.16);
   border-radius: 11px;
   background: linear-gradient(100deg, #1bc55b 0%, #0fac59 48%, #008d49 100%);
-  box-shadow: 0 5px 18px rgba(0, 125, 60, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 5px 18px rgba(0, 125, 60, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
   color: #fff !important;
   font-size: 12.5px;
   font-weight: 750;
-  letter-spacing: .01em;
-  transition: filter 180ms ease, box-shadow 180ms ease, transform 120ms ease;
+  letter-spacing: 0.01em;
+  transition:
+    filter 180ms ease,
+    box-shadow 180ms ease,
+    transform 120ms ease;
 }
 
 .zrv-auth-page.auth-shell .zrv-auth-submit:not(:disabled):hover {
   filter: brightness(1.04);
-  box-shadow: 0 7px 22px rgba(0, 125, 60, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 7px 22px rgba(0, 125, 60, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(-1px);
 }
 
 .zrv-auth-page.auth-shell .zrv-auth-submit:not(:disabled):active {
   filter: brightness(0.98);
-  box-shadow: 0 3px 10px rgba(0, 125, 60, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 3px 10px rgba(0, 125, 60, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transform: translateY(0);
 }
 
@@ -379,8 +586,17 @@
 
   .zrv-auth-page.auth-shell::after {
     background:
-      radial-gradient(ellipse 100% 24% at 100% 110%, rgba(31, 205, 105, .48), transparent 70%),
-      linear-gradient(0deg, rgba(0, 30, 26, .92) 0%, rgba(0, 42, 35, .78) 48%, rgba(0, 25, 31, .42) 100%);
+      radial-gradient(
+        ellipse 100% 24% at 100% 110%,
+        rgba(31, 205, 105, 0.48),
+        transparent 70%
+      ),
+      linear-gradient(
+        0deg,
+        rgba(0, 30, 26, 0.92) 0%,
+        rgba(0, 42, 35, 0.78) 48%,
+        rgba(0, 25, 31, 0.42) 100%
+      );
   }
 
   .zrv-auth-page.auth-shell > .auth-form-wrap {

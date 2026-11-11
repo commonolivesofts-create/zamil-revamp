@@ -27,6 +27,11 @@ const proxy = { '/api': { target: `http://127.0.0.1:${apiPort}` } };
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    'import.meta.env.VITE_ZAMIL_LOGIN_URL': JSON.stringify(
+      process.env.VITE_ZAMIL_LOGIN_URL ?? env.VITE_ZAMIL_LOGIN_URL ?? '',
+    ),
+  },
   server: { host, port: webPort, strictPort: true, proxy },
   preview: { host, port: webPort, strictPort: true, proxy },
   build: {

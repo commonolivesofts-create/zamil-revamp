@@ -1,25 +1,87 @@
 /* Business Visa Request: the visa type and expense check boxes. Scoped to
    .zrv-hr; colours from the Orvexa and HR tokens (hr-recruitment.css). */
-.zrv-hr-bv-rows { display: grid; gap: 12px; }
-.zrv-hr-bv-row { display: grid; grid-template-columns: minmax(150px, 200px) minmax(0, 1fr); align-items: center; gap: 6px 16px; }
-.zrv-hr-bv-row > small { grid-column: 2; }
-.zrv-hr-bv-checks { display: flex; flex-wrap: wrap; gap: 8px; }
-.zrv-hr-bv-check { display: inline-flex; align-items: center; gap: 8px; min-width: 150px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--zrv-hr-soft); color: var(--muted); font-size: 13.5px; cursor: pointer; }
-.zrv-hr-bv-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--zrv-hr-accent); }
-.zrv-hr-bv-check.zrv-hr-is-on { border-color: var(--zrv-hr-accent); color: var(--text); font-weight: 700; }
-.zrv-hr-bv-check:has(input:disabled) { cursor: default; opacity: .75; }
-.zrv-hr-bv-check:has(input:focus-visible) { outline: 2px solid var(--zrv-hr-accent-text); outline-offset: 2px; }
-.zrv-hr-is-bad .zrv-hr-bv-check { border-color: var(--danger); }
+.zrv-hr-bv-rows {
+  display: grid;
+  gap: 12px;
+}
+.zrv-hr-bv-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 200px) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 16px;
+}
+.zrv-hr-bv-row > small {
+  grid-column: 2;
+}
+.zrv-hr-bv-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.zrv-hr-bv-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--zrv-hr-soft);
+  color: var(--muted);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.zrv-hr-bv-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--zrv-hr-accent);
+}
+.zrv-hr-bv-check.zrv-hr-is-on {
+  border-color: var(--zrv-hr-accent);
+  color: var(--text);
+  font-weight: 700;
+}
+.zrv-hr-bv-check:has(input:disabled) {
+  cursor: default;
+  opacity: 0.75;
+}
+.zrv-hr-bv-check:has(input:focus-visible) {
+  outline: 2px solid var(--zrv-hr-accent-text);
+  outline-offset: 2px;
+}
+.zrv-hr-is-bad .zrv-hr-bv-check {
+  border-color: var(--danger);
+}
 @media (max-width: 760px) {
-  .zrv-hr-bv-row { grid-template-columns: minmax(0, 1fr); }
-  .zrv-hr-bv-row > small { grid-column: 1; }
-  .zrv-hr-bv-check { flex: 1 1 140px; min-width: 0; }
+  .zrv-hr-bv-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zrv-hr-bv-row > small {
+    grid-column: 1;
+  }
+  .zrv-hr-bv-check {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
 }
 
 /* Print the request itself (the preview), not the form. */
 @media print {
-  .zrv-hr--business-visa .zrv-hr-form-header, .zrv-hr--business-visa .zrv-hr-stage { display: none !important; }
-  .zrv-hr--business-visa .zrv-hr-body { display: block; }
-  .zrv-hr--business-visa .zrv-hr-side { display: block; width: 100%; }
-  .zrv-hr--business-visa .zrv-hr-esf-paper { padding: 0; border: 0; box-shadow: none; }
+  .zrv-hr--business-visa .zrv-hr-form-header,
+  .zrv-hr--business-visa .zrv-hr-stage {
+    display: none !important;
+  }
+  .zrv-hr--business-visa .zrv-hr-body {
+    display: block;
+  }
+  .zrv-hr--business-visa .zrv-hr-side {
+    display: block;
+    width: 100%;
+  }
+  .zrv-hr--business-visa .zrv-hr-esf-paper {
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
 }

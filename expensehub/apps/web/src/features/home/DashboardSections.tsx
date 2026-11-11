@@ -64,22 +64,25 @@ export function EmployeeSection() {
   const d = useEmployeeDashboard().data;
 
   return (
-    <section aria-labelledby="dash-employee" className="space-y-4">
+    <section aria-labelledby="dash-employee" className="eh-dashboard__employee space-y-4">
       <h2 id="dash-employee" className="sr-only">
         {t('dashboard.employeeTitle')}
       </h2>
-      {/* UI-UX §5.1: dark summary card — "On its way". */}
-      <div className="flex flex-col gap-5 rounded-card bg-hero p-6 text-hero-fg shadow-raised sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm text-hero-muted">{t('dashboard.onItsWay')}</p>
+      {/* UI-UX §5.1: prominent summary — "On its way". */}
+      <div className="eh-dashboard__hero flex flex-col gap-5 rounded-card p-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="eh-dashboard__hero-copy">
+          <p className="eh-dashboard__hero-label text-sm">{t('dashboard.onItsWay')}</p>
           {d ? (
-            <p className="mt-1 text-display font-semibold tabular" data-testid="on-its-way">
+            <p
+              className="eh-dashboard__hero-value mt-1 font-semibold tabular"
+              data-testid="on-its-way"
+            >
               {formatSar(d.onItsWay.amountSar)}
             </p>
           ) : (
-            <Skeleton className="mt-2 h-9 w-48 bg-white/10" />
+            <Skeleton className="eh-dashboard__hero-skeleton mt-2 h-9 w-48" />
           )}
-          <p className="mt-1 text-sm text-hero-muted">
+          <p className="eh-dashboard__hero-sub mt-1 text-sm">
             {d ? t('dashboard.onItsWaySub', { count: d.onItsWay.count }) : ' '}
             {d && d.paidLast90Days.count > 0 && (
               <>
@@ -89,8 +92,8 @@ export function EmployeeSection() {
             )}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="inverse">
+        <div className="eh-dashboard__hero-actions flex flex-wrap gap-2">
+          <Button asChild variant="secondary">
             <Link to="/expenses/new">
               <Camera aria-hidden />
               {t('dashboard.scanReceipt')}
@@ -105,7 +108,7 @@ export function EmployeeSection() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="eh-dashboard__stats grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={Receipt}
           label={t('dashboard.unreported')}
@@ -135,8 +138,8 @@ export function EmployeeSection() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-5">
+      <div className="eh-dashboard__charts grid gap-4 lg:grid-cols-2">
+        <Card className="eh-dashboard__chart p-5">
           <h3 className="mb-4 font-semibold">{t('dashboard.byCategory')}</h3>
           {!d ? (
             <Skeleton className="h-36" />
@@ -151,7 +154,7 @@ export function EmployeeSection() {
             />
           )}
         </Card>
-        <Card className="p-5">
+        <Card className="eh-dashboard__chart p-5">
           <h3 className="mb-4 font-semibold">{t('dashboard.trend')}</h3>
           {!d ? (
             <Skeleton className="h-36" />

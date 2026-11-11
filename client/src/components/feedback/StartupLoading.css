@@ -35,7 +35,7 @@
 .zrv-startup-loading__track::after {
   position: absolute;
   inset: 0;
-  content: '';
+  content: "";
   border-radius: inherit;
   background: var(--primary, #21835b);
   transform: translateX(-100%);
@@ -53,11 +53,11 @@
   }
 }
 
-html[data-motion='reduced'] .zrv-startup-loading__visual {
+html[data-motion="reduced"] .zrv-startup-loading__visual {
   opacity: 1;
   animation: none;
 }
-html[data-motion='reduced'] .zrv-startup-loading__track::after {
+html[data-motion="reduced"] .zrv-startup-loading__track::after {
   animation: none;
   transform: scaleX(0.4);
 }

@@ -48,7 +48,9 @@ Open `http://<this-PC's-LAN-IP>:7384`; the API on 7383 is proxied by the web app
 
 Sign-in: when opened on the same hostname as Zamil Revamp, TrainingHub validates the existing
 Zamil session server-side and issues a bounded TrainingHub session. Signing out revokes the Zamil
-session too. Without an active Zamil session, person-number + password sign-in remains available.
+session too and redirects to the Zamil `/login` page. Local development redirects to port 7382;
+if production apps use different origins, set `VITE_ZAMIL_LOGIN_URL` to the full parent login URL.
+Without an active Zamil session, person-number + password sign-in remains available.
 HR issues one-time passwords (Setup → Employees → Reset password), or set `INITIAL_PASSWORD` for a
 pilot (must be changed at first sign-in). Keep `DEV_QUICK_LOGIN=true` only on test. By default,
 SSO checks Zamil at `http://127.0.0.1:7381/api/v1` in both development and `APP_ENV=test`. Set

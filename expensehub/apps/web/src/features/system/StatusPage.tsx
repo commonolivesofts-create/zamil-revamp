@@ -37,23 +37,44 @@ export function StatusPage() {
         eyebrow={t('status.eyebrow')}
         title={t('status.title')}
         description={t('status.subtitle', { seconds: HEALTH_REFRESH_MS / 1000 })}
+        actions={
+          <div className="eh-health__header-actions">
+            <Tag tone={overall === 'ok' ? 'pass' : overall === 'degraded' ? 'warn' : 'block'}>
+              {t(
+                overall === 'ok'
+                  ? 'status.operational'
+                  : overall === 'degraded'
+                    ? 'status.degraded'
+                    : 'status.unreachable',
+              )}
+            </Tag>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={health.isFetching}
+              onClick={() => void health.refetch()}
+            >
+              {!health.isFetching && <RefreshCw aria-hidden />}
+              {t('status.checkNow')}
+            </Button>
+          </div>
+        }
       />
       <div>
         {health.isPending ? (
           <HeroSkeleton />
         ) : (
-          <Hero
-            overall={overall}
-            data={online ? data : undefined}
-            fetching={health.isFetching}
-            onRefresh={() => void health.refetch()}
-          />
+          <Hero overall={overall} data={online ? data : undefined} />
         )}
       </div>
 
+      <div className="mb-3 mt-6">
+        <h2 className="text-sm font-bold">{t('status.servicesTitle')}</h2>
+        <p className="mt-1 text-xs text-muted">{t('status.servicesDescription')}</p>
+      </div>
       <section
         aria-label={t('status.eyebrow')}
-        className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
       >
         {health.isPending ? (
           Array.from({ length: 6 }, (_, i) => <ServiceCardSkeleton key={i} />)
@@ -62,7 +83,7 @@ export function StatusPage() {
         )}
       </section>
 
-      <p className="mt-10 flex items-center gap-2 text-xs text-muted">
+      <p className="eh-health__note mt-6 flex items-center gap-2 text-xs text-muted">
         <FlaskConical aria-hidden className="size-3.5" />
         {t('status.footer')}
       </p>
@@ -70,17 +91,7 @@ export function StatusPage() {
   );
 }
 
-function Hero({
-  overall,
-  data,
-  fetching,
-  onRefresh,
-}: {
-  overall: Overall;
-  data: HealthSnapshot | undefined;
-  fetching: boolean;
-  onRefresh: () => void;
-}) {
+function Hero({ overall, data }: { overall: Overall; data: HealthSnapshot | undefined }) {
   const { t } = useTranslation();
   const title = {
     ok: t('status.operational'),
@@ -94,18 +105,18 @@ function Hero({
   return (
     <section
       aria-live="polite"
-      className="relative overflow-hidden rounded-card bg-hero p-6 text-hero-fg shadow-raised sm:p-8"
+      className={cn('eh-health__hero', overall === 'ok' && 'is-operational')}
     >
       <div
         aria-hidden
         className={cn(
-          'pointer-events-none absolute -top-28 -end-24 size-80 rounded-full opacity-30 blur-3xl',
+          'eh-health__glow pointer-events-none absolute -top-28 -end-24 size-80 rounded-full opacity-20 blur-3xl',
           dotClass[overall],
         )}
       />
       <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <span className="relative flex size-3">
               {overall === 'ok' && (
                 <span
@@ -117,27 +128,23 @@ function Hero({
               )}
               <span className={cn('relative inline-flex size-3 rounded-full', dotClass[overall])} />
             </span>
-            <h2 className="text-title font-semibold">{title}</h2>
+            <h2 className="text-xl font-bold tracking-tight">{title}</h2>
           </div>
-          <p className="mt-2 text-sm text-hero-muted">{meta}</p>
+          <p className="mt-2 text-sm text-muted">{meta}</p>
         </div>
 
-        <div className="flex items-end justify-between gap-6 sm:justify-end">
+        <div className="flex items-end gap-5 sm:justify-end">
           {data && (
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-hero-muted">
+            <div className="eh-health__latency">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted">
                 {t('status.latency')}
               </p>
-              <p className="tabular text-display font-semibold">
+              <p className="tabular text-2xl font-bold tracking-tight">
                 {data.latencyMs}
-                <span className="ms-1 text-base font-medium text-hero-muted">{t('status.ms')}</span>
+                <span className="ms-1 text-sm font-semibold text-muted">{t('status.ms')}</span>
               </p>
             </div>
           )}
-          <Button variant="inverse" onClick={onRefresh} loading={fetching}>
-            {!fetching && <RefreshCw aria-hidden />}
-            {t('status.checkNow')}
-          </Button>
         </div>
       </div>
     </section>
@@ -256,9 +263,9 @@ function ServiceCard({
   tag?: ReactNode;
 }) {
   return (
-    <Card className="group p-5 transition-shadow duration-200 hover:shadow-raised">
+    <Card className="eh-health__service-card group p-4 transition-shadow duration-200 hover:shadow-raised">
       <div className="flex items-start justify-between gap-3">
-        <span className="grid size-9 place-items-center rounded-input bg-surface-2 text-muted transition-colors group-hover:text-brand">
+        <span className="eh-health__service-icon grid size-9 place-items-center rounded-input bg-surface-2 text-brand-solid transition-colors">
           <Icon aria-hidden className="size-[18px]" strokeWidth={1.75} />
         </span>
         {tag}
@@ -272,16 +279,21 @@ function ServiceCard({
 
 function HeroSkeleton() {
   return (
-    <div className="rounded-card bg-hero p-6 shadow-raised sm:p-8" aria-busy="true">
-      <div className="h-8 w-64 rounded-input bg-white/10 motion-safe:animate-pulse" />
-      <div className="mt-3 h-4 w-48 rounded-input bg-white/10 motion-safe:animate-pulse" />
+    <div className="eh-health__hero" aria-busy="true">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="h-7 w-64 rounded-input bg-brand/10 motion-safe:animate-pulse" />
+          <div className="mt-3 h-4 w-48 rounded-input bg-brand/10 motion-safe:animate-pulse" />
+        </div>
+        <div className="h-11 w-24 rounded-input bg-brand/10 motion-safe:animate-pulse" />
+      </div>
     </div>
   );
 }
 
 function ServiceCardSkeleton() {
   return (
-    <Card className="p-5" aria-busy="true">
+    <Card className="eh-health__service-card p-4" aria-busy="true">
       <Skeleton className="size-9" />
       <Skeleton className="mt-4 h-3 w-20" />
       <Skeleton className="mt-2 h-5 w-32" />

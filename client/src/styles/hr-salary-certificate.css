@@ -4,32 +4,118 @@
    (hr-recruitment.css). */
 
 /* the language of a saved certificate */
-.zrv-hr-sc-lang { margin: 0 0 8px; color: var(--muted); font-size: 12.5px; }
-.zrv-hr-sc-lang b { color: var(--text); }
-.zrv-hr-sc-lang small { color: var(--zrv-hr-fine); }
+.zrv-hr-sc-lang {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.zrv-hr-sc-lang b {
+  color: var(--text);
+}
+.zrv-hr-sc-lang small {
+  color: var(--zrv-hr-fine);
+}
 
 /* the certificate notes: English, with the Arabic under it (not side by side) */
-.zrv-hr-sc-notes { display: grid; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
-.zrv-hr-sc-notes li { display: grid; gap: 3px; padding: 7px 10px; border-radius: 10px; background: var(--zrv-hr-soft); color: var(--muted); font-size: 11.5px; line-height: 1.5; }
-.zrv-hr-sc-notes li span[lang='ar'] { color: var(--zrv-hr-fine); text-align: right; }
+.zrv-hr-sc-notes {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.zrv-hr-sc-notes li {
+  display: grid;
+  gap: 3px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--zrv-hr-soft);
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.zrv-hr-sc-notes li span[lang="ar"] {
+  color: var(--zrv-hr-fine);
+  text-align: right;
+}
 
 /* the paper preview */
-.zrv-hr-sc-preview__salary { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
-.zrv-hr-sc-preview__salary > span { color: var(--zrv-hr-fine); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.zrv-hr-sc-preview__salary dl { display: grid; gap: 2px; margin: 8px 0 0; }
-.zrv-hr-sc-preview__salary dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 3px 8px; border-radius: 8px; font-size: 12.5px; }
-.zrv-hr-sc-preview__salary dt { color: var(--muted); }
-.zrv-hr-sc-preview__salary dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
-.zrv-hr-sc-preview__total { background: color-mix(in srgb, var(--zrv-hr-accent) 10%, transparent); }
-.zrv-hr-sc-preview__total dt { color: var(--text); font-weight: 700; }
-.zrv-hr-sc-preview__total dd { color: var(--zrv-hr-accent-text); }
-.zrv-hr-sc-preview__foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
-.zrv-hr-sc-preview__notes { display: grid; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+.zrv-hr-sc-preview__salary {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.zrv-hr-sc-preview__salary > span {
+  color: var(--zrv-hr-fine);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.zrv-hr-sc-preview__salary dl {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0 0;
+}
+.zrv-hr-sc-preview__salary dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+.zrv-hr-sc-preview__salary dt {
+  color: var(--muted);
+}
+.zrv-hr-sc-preview__salary dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.zrv-hr-sc-preview__total {
+  background: color-mix(in srgb, var(--zrv-hr-accent) 10%, transparent);
+}
+.zrv-hr-sc-preview__total dt {
+  color: var(--text);
+  font-weight: 700;
+}
+.zrv-hr-sc-preview__total dd {
+  color: var(--zrv-hr-accent-text);
+}
+.zrv-hr-sc-preview__foot {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.zrv-hr-sc-preview__notes {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
 
 /* Print the certificate itself (the preview), not the form. */
 @media print {
-  .zrv-hr--salary-certificate .zrv-hr-form-header, .zrv-hr--salary-certificate .zrv-hr-stage { display: none !important; }
-  .zrv-hr--salary-certificate .zrv-hr-body { display: block; }
-  .zrv-hr--salary-certificate .zrv-hr-side { display: block; width: 100%; }
-  .zrv-hr--salary-certificate .zrv-hr-esf-paper { padding: 0; border: 0; box-shadow: none; }
+  .zrv-hr--salary-certificate .zrv-hr-form-header,
+  .zrv-hr--salary-certificate .zrv-hr-stage {
+    display: none !important;
+  }
+  .zrv-hr--salary-certificate .zrv-hr-body {
+    display: block;
+  }
+  .zrv-hr--salary-certificate .zrv-hr-side {
+    display: block;
+    width: 100%;
+  }
+  .zrv-hr--salary-certificate .zrv-hr-esf-paper {
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
 }
