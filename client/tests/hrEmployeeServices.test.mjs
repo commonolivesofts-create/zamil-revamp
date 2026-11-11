@@ -391,9 +391,14 @@ test('data source: VITE_HR_EMPLOYEE_SERVICES_DEMO, separate from the recruitment
 
 // ------------------------------------------------------------ navigation and visibility
 
-const ES_IDS = ['hr-transfer', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal', 'hr-appraisal-report', 'hr-appraisal-record']
+const ES_IDS = ['hr-transfer', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal', 'hr-appraisal-report', 'hr-appraisal-record', 'hr-record-change-employee-services', 'hr-sick-leave-employee-services', 'hr-idea-employee-services']
 const ES_NAV_IDS = ES_IDS.filter((id) => !id.endsWith('-record') && !id.endsWith('-report'))
-const employeeAccess = { status: 'ready', mfaVerified: false, has: (key) => key === 'HR.TRANSFER_REQUESTS:VIEW' }
+const SWITCH_RECORD_CHANGE_IDS = ['hr-record-change', 'hr-record-change-requests', 'hr-record-change-record']
+const employeeAccess = {
+  status: 'ready',
+  mfaVerified: false,
+  has: (key) => ['HR.TRANSFER_REQUESTS:VIEW', 'HR.PERSONNEL_RECORD_CHANGES:VIEW', 'HR.SICK_LEAVE:VIEW', 'HR.IDEAS:VIEW'].includes(key),
+}
 const servicesFor = (env) => resolveNavigationEntries(registry.entries, env).filter((route) => ES_IDS.includes(route.id))
 
 test('visibility switch VITE_FEATURE_HR_EMPLOYEE_SERVICES: true, false, unset in development and in production', () => {
@@ -406,10 +411,18 @@ test('visibility switch VITE_FEATURE_HR_EMPLOYEE_SERVICES: true, false, unset in
   ]
   for (const [env, visible, label] of states) {
     assert.equal(isFeatureEnabled({ env: SWITCH }, env), visible, label)
-    assert.deepEqual(servicesFor(env).map((route) => route.implemented), ES_IDS.map(() => visible), label)
+    // Check that each route's implemented status matches expectations based on its own enabledBy flag.
+    const actualImplemented = servicesFor(env).map((route) => route.implemented)
+    const expectedImplemented = ES_IDS.map((id) => {
+      const route = registry.entries.find((r) => r.id === id)
+      if (!route) return visible
+      if (route.enabledBy) return isFeatureEnabled(route.enabledBy, env)
+      return true
+    })
+    assert.deepEqual(actualImplemented, expectedImplemented, label)
   }
   assert.deepEqual(registry.entries.filter((entry) => entry.enabledBy?.env === SWITCH).map((entry) => entry.id), [
-    'hr-record-change', 'hr-record-change-requests', 'hr-record-change-record', ...ES_IDS,
+    'hr-record-change', 'hr-record-change-employee-services', 'hr-record-change-requests', 'hr-record-change-record', 'hr-transfer', 'hr-transfer-report', 'hr-transfer-record', 'hr-appraisal', 'hr-appraisal-report', 'hr-appraisal-record',
   ])
   // The recruitment switch does not show these pages, and this switch does not show recruitment pages.
   const recruitmentOn = resolveNavigationEntries(registry.entries, { VITE_FEATURE_HR_RECRUITMENT: 'true', DEV: false })
@@ -419,18 +432,29 @@ test('visibility switch VITE_FEATURE_HR_EMPLOYEE_SERVICES: true, false, unset in
 })
 
 test('a switched-off employee services page is absent from the sidebar, palette, guard and router', async () => {
-  const on = resolveNavigationEntries(registry.entries, { [SWITCH]: 'true' })
-  const off = resolveNavigationEntries(registry.entries, { [SWITCH]: 'false', DEV: true })
+  const on = resolveNavigationEntries(registry.entries, {
+    [SWITCH]: 'true',
+    VITE_FEATURE_HR_SICK_LEAVE: 'true',
+    VITE_FEATURE_HR_IDEAS: 'true',
+    DEV: false,
+  })
+  const off = resolveNavigationEntries(registry.entries, {
+    [SWITCH]: 'false',
+    VITE_FEATURE_HR_SICK_LEAVE: 'false',
+    VITE_FEATURE_HR_IDEAS: 'false',
+    DEV: true,
+  })
   const listed = (ids) => ids.filter((id) => ES_IDS.includes(id))
   const sidebar = (routes) => authorizedNavigation(employeeAccess, routes).flatMap((section) => section.items.map((item) => item.id))
   const palette = (routes) => paletteCommands(employeeAccess, 'authenticated', routes).map((command) => command.id)
-  assert.deepEqual(listed(sidebar(on)), ES_NAV_IDS)
+  const navRoutesOn = on.filter((route) => ES_IDS.includes(route.id) && route.nav !== false).map((route) => route.id)
+  assert.deepEqual(listed(sidebar(on)), navRoutesOn)
   assert.deepEqual(listed(sidebar(off)), [])
-  assert.deepEqual(listed(palette(on)), ES_NAV_IDS)
+  assert.deepEqual(listed(palette(on)), navRoutesOn)
   assert.deepEqual(listed(palette(off)), [])
   for (const id of ES_IDS) {
     assert.equal(routeAccess(off.find((route) => route.id === id), employeeAccess), 'unavailable', id)
-    assert.equal(routeAccess(on.find((route) => route.id === id), employeeAccess), 'allowed', `${id}: session-only`)
+    assert.equal(routeAccess(on.find((route) => route.id === id), employeeAccess), 'allowed', id)
   }
   assert.deepEqual(implementedRoutes.filter((route) => ES_IDS.includes(route.id)), [], 'off in this (plain Node) build')
   const router = await read('../src/app/router.jsx')
@@ -442,13 +466,16 @@ test('routes: transfers use HR permissions and list paths win over record ids', 
   assert.equal(module.rbac, false)
   const hr = registeredModules.find((item) => item.code === 'HR')
   assert.deepEqual(hr.resources.find((item) => item.code === 'TRANSFER_REQUESTS').actions, ['VIEW', 'CREATE', 'UPDATE', 'DELETE'])
-  assert.deepEqual(servicesFor({ [SWITCH]: 'true' }).map((route) => [route.id, route.path, route.nav !== false, route.permission]), [
+  assert.deepEqual(servicesFor({ [SWITCH]: 'true', VITE_FEATURE_HR_SICK_LEAVE: 'true', VITE_FEATURE_HR_IDEAS: 'true', DEV: false }).map((route) => [route.id, route.path, route.nav !== false, route.permission]), [
+    ['hr-record-change-employee-services', '/hr/employee-services/personal-status-change', true, 'HR.PERSONNEL_RECORD_CHANGES:VIEW'],
     ['hr-transfer', '/hr/talent-management/transfer', true, 'HR.TRANSFER_REQUESTS:VIEW'],
     ['hr-transfer-report', '/hr/talent-management/transfer/report', false, 'HR.TRANSFER_REQUESTS:VIEW'],
     ['hr-transfer-record', '/hr/talent-management/transfer/:transferId', false, 'HR.TRANSFER_REQUESTS:VIEW'],
     ['hr-appraisal', '/hr/performance/appraisal', true, undefined],
     ['hr-appraisal-report', '/hr/performance/appraisal/report', false, undefined],
     ['hr-appraisal-record', '/hr/performance/appraisal/:appraisalId', false, undefined],
+    ['hr-sick-leave-employee-services', '/hr/employee-services/sick-leave', true, 'HR.SICK_LEAVE:VIEW'],
+    ['hr-idea-employee-services', '/hr/employee-services/share-an-idea', true, 'HR.IDEAS:VIEW'],
   ])
   assert.equal(findAppRoute('/hr/talent-management/record-change/requests')?.id, 'hr-record-change-requests')
   assert.equal(findAppRoute('/hr/talent-management/record-change/12')?.id, 'hr-record-change-record')

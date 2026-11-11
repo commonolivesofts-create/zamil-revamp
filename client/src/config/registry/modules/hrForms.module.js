@@ -48,8 +48,9 @@ export default defineModule({
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
     navigation: [
       { id: 'hr-record-change', path: '/hr/talent-management/record-change', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', subgroup: 'hr-employee-services', order: 100, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
-      { id: 'hr-record-change-requests', path: '/hr/talent-management/record-change/requests', title: 'Personal status report', icon: 'layers', group: 'human-resources', subgroup: 'hr-employee-services', order: 101, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
-      { id: 'hr-record-change-record', path: '/hr/talent-management/record-change/:requestId', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', subgroup: 'hr-employee-services', order: 102, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-record-change-employee-services', path: '/hr/employee-services/personal-status-change', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', subgroup: 'hr-employee-services-canonical', order: 101, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-record-change-requests', path: '/hr/talent-management/record-change/requests', title: 'Personal status report', icon: 'layers', group: 'human-resources', subgroup: 'hr-employee-services', order: 102, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
+      { id: 'hr-record-change-record', path: '/hr/talent-management/record-change/:requestId', title: 'Personal status change', icon: 'user-pen', group: 'human-resources', subgroup: 'hr-employee-services', order: 103, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES' } },
     ],
   }, {
     code: 'CONTRACTOR_EMPLOYEES',
@@ -92,8 +93,9 @@ export default defineModule({
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_ATTACHMENTS'],
     navigation: [
       { id: 'hr-sick-leave', path: '/hr/talent-management/sick-leave', title: 'Sick leave', icon: 'heart-pulse', group: 'human-resources', subgroup: 'hr-employee-services', order: 130, enabledBy: { env: 'VITE_FEATURE_HR_SICK_LEAVE' } },
-      { id: 'hr-sick-leave-report', path: '/hr/talent-management/sick-leave/report', title: 'Sick leave report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 131, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_SICK_LEAVE' } },
-      { id: 'hr-sick-leave-record', path: '/hr/talent-management/sick-leave/:leaveId', title: 'Sick leave', icon: 'heart-pulse', group: 'human-resources', subgroup: 'hr-employee-services', order: 132, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_SICK_LEAVE' } },
+      { id: 'hr-sick-leave-employee-services', path: '/hr/employee-services/sick-leave', title: 'Sick leave', icon: 'heart-pulse', group: 'human-resources', subgroup: 'hr-employee-services-canonical', order: 131, enabledBy: { env: 'VITE_FEATURE_HR_SICK_LEAVE' } },
+      { id: 'hr-sick-leave-report', path: '/hr/talent-management/sick-leave/report', title: 'Sick leave report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 132, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_SICK_LEAVE' } },
+      { id: 'hr-sick-leave-record', path: '/hr/talent-management/sick-leave/:leaveId', title: 'Sick leave', icon: 'heart-pulse', group: 'human-resources', subgroup: 'hr-employee-services', order: 133, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_SICK_LEAVE' } },
     ],
   }, {
     // Form 1113 (Employee of the Month): /api/v1/hr/employee-of-the-month.
@@ -112,8 +114,9 @@ export default defineModule({
     actions: ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'MANAGE_ATTACHMENTS'],
     navigation: [
       { id: 'hr-idea', path: '/hr/talent-management/ideas', title: 'Share an idea', icon: 'lightbulb', group: 'human-resources', subgroup: 'hr-employee-services', order: 150, enabledBy: { env: 'VITE_FEATURE_HR_IDEAS' } },
-      { id: 'hr-idea-report', path: '/hr/talent-management/ideas/report', title: 'Idea report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 151, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_IDEAS' } },
-      { id: 'hr-idea-record', path: '/hr/talent-management/ideas/:ideaId', title: 'Share an idea', icon: 'lightbulb', group: 'human-resources', subgroup: 'hr-employee-services', order: 152, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_IDEAS' } },
+      { id: 'hr-idea-employee-services', path: '/hr/employee-services/share-an-idea', title: 'Share an idea', icon: 'lightbulb', group: 'human-resources', subgroup: 'hr-employee-services-canonical', order: 151, enabledBy: { env: 'VITE_FEATURE_HR_IDEAS' } },
+      { id: 'hr-idea-report', path: '/hr/talent-management/ideas/report', title: 'Idea report', icon: 'chart-column', group: 'human-resources', subgroup: 'hr-employee-services', order: 152, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_IDEAS' } },
+      { id: 'hr-idea-record', path: '/hr/talent-management/ideas/:ideaId', title: 'Share an idea', icon: 'lightbulb', group: 'human-resources', subgroup: 'hr-employee-services', order: 153, hidden: true, enabledBy: { env: 'VITE_FEATURE_HR_IDEAS' } },
     ],
   }, {
     // Form 1063: /api/v1/hr/employee-clearance. The backend's VIEW_ALL (every employee instead of
