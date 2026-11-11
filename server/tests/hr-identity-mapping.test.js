@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import * as employeeClearance from '../src/modules/hr/employee-clearance/employee_clearance_repository.js';
-import * as employeeOfTheMonth from '../src/modules/hr/employee-of-the-month/employeeOfTheMonth.repository.js';
 import * as employmentOffer from '../src/modules/hr/employment-offers/employmentOffer.repository.js';
 import * as idea from '../src/modules/hr/ideas/idea form repository.js';
 import * as interviewAssessment from '../src/modules/hr/interview-assessments/interviewAssessment.repository.js';
@@ -27,7 +26,6 @@ function fakeConnection() {
 // XX_ZRV_USERS.EMPLOYEE_NUMBER.
 const hrChecks = [
   ['employee clearance actor', (c) => employeeClearance.actor(c, '9')],
-  ['employee of the month HR check', (c) => employeeOfTheMonth.isHrUser(c, '9')],
   ['employment offer HR check', (c) => employmentOffer.isHrUser(c, '9')],
   ['idea HR check', (c) => idea.isHr(c, '9')],
   ['interview assessment HR check', (c) => interviewAssessment.isHrUser(c, '9')],

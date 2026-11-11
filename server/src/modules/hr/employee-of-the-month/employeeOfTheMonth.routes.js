@@ -93,6 +93,8 @@ export function createEmployeeOfTheMonthRouter({ service, authenticate, authoriz
   });
 
   // Register lookup routes BEFORE /:headerId.
+  router.get('/spotlight', authenticate, controller.spotlight);
+
   router.get('/lookups/employees', ...read({ query: employeeQuerySchema }), controller.employees);
 
   router.get('/lookups/requestor', ...read(), controller.requestor);

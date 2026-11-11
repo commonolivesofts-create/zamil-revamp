@@ -12,7 +12,7 @@ export function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   return (
-    <div className="min-h-dvh bg-canvas text-ink md:flex">
+    <div className="eh-shell min-h-dvh bg-canvas text-ink md:flex">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50 focus:rounded-input focus:bg-surface focus:px-3 focus:py-2 focus:shadow-raised"
@@ -25,7 +25,7 @@ export function AppShell() {
         <main
           id="main"
           tabIndex={-1}
-          className="w-full min-w-0 flex-1 px-4 pb-28 pt-5 outline-none sm:px-6 md:pb-16 lg:px-6"
+          className="eh-main w-full min-w-0 flex-1 px-4 pb-28 pt-5 outline-none sm:px-6 md:pb-16 lg:px-6"
         >
           <Outlet />
         </main>

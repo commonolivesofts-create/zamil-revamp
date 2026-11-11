@@ -1,7 +1,7 @@
 /*
- * ExpenseHub design tokens (UI-UX §2). All colours live here so the ZPI brand (OQ-34) is a
- * one-file change. Tailwind v4 turns each --color-* / --radius-* / --shadow-* into utilities
- * (bg-brand, rounded-card, shadow-card …); dark mode overrides the same variables.
+ * ExpenseHub design tokens. Keep these aligned with the approved Zamil green hub palette.
+ * Tailwind v4 turns each --color-* / --radius-* / --shadow-* into utilities; dark mode
+ * overrides the same variables.
  *
  * Additions to the UI-UX table, for WCAG AA (UI-UX §8):
  *   --color-brand-solid   filled buttons; the placeholder brand green on white text is only 3.4:1
@@ -15,18 +15,18 @@
   --color-brand-solid: #047857;
   --color-brand-solid-hover: #065f46;
   --color-brand-fg: #ffffff;
-  --color-ink: #111827;
-  --color-muted: #6b7280;
+  --color-ink: #12352a;
+  --color-muted: #5c766a;
   --color-surface: #ffffff;
-  --color-surface-2: #f3f4f6;
-  --color-canvas: #f7f8fa;
-  --color-border: #e5e7eb;
+  --color-surface-2: #e8f7ee;
+  --color-canvas: #f4faf6;
+  --color-border: rgb(13 74 56 / 0.12);
   --color-pass: #0e9f6e;
   --color-pass-text: #047857;
   --color-warn: #b45309;
   --color-block: #b91c1c;
   --color-info: #1d4ed8;
-  --color-hero: #111827;
+  --color-hero: #151d2b;
   --color-hero-fg: #f9fafb;
   --color-hero-muted: #9ca3af;
 

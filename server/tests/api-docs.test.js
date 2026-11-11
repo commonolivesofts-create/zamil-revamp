@@ -422,6 +422,7 @@ describe('API documentation', () => {
     const { paths } = loadOpenApiSpec();
     const base = '/api/v1/hr/employee-of-the-month';
     const expected = [
+      ['get', '/spotlight'],
       ['get', ''],
       ['post', ''],
       ['get', '/lookups/employees'],

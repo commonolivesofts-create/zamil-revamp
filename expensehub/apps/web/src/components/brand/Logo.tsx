@@ -25,7 +25,7 @@ export function Logo({
       {variant !== 'mark' && (
         <span
           className={cn(
-            'flex-col leading-none',
+            'flex flex-col leading-none',
             variant === 'responsive' ? 'hidden lg:flex' : 'flex',
           )}
         >

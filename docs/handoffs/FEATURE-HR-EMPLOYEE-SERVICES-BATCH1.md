@@ -30,7 +30,7 @@
 
 | Form | Prototype files | Existing backend (before this branch) | Existing frontend | Oracle objects |
 |---|---|---|---|---|
-| Reward Nomination 1113 | `forms/reward/RewardForm.jsx`, `rewardData.js`, `styles/reward.css` | `server/src/modules/hr/employee-of-the-month/*` at `/api/v1/hr/employee-of-the-month`: list, get, create, update, delete, lookups (employees, requestor, criteria). Uses `HR.EMPLOYEE_OF_THE_MONTH`. HR check through the `XXZP_HR` lookup. | None | `XXZP.XX_EMP_RATING_EOM_HEADER`, `XXZP.XX_EMP_RATING_EOM_LINES`, `XX_DIGI_EMP_MASTER`, `XX_DIGI_LOOKUP_VALUES` (`XXZP_HR`), `XX_ZRV_USERS` |
+| Reward Nomination 1113 | `forms/reward/RewardForm.jsx`, `rewardData.js`, `styles/reward.css` | `server/src/modules/hr/employee-of-the-month/*` at `/api/v1/hr/employee-of-the-month`: list, get, create, update, delete, lookups (employees, requestor, criteria), and authenticated dashboard spotlight. Management uses `HR.EMPLOYEE_OF_THE_MONTH` permissions; nominations are not scoped by an HR lookup. | None | `XXZP.XX_EMP_RATING_EOM_HEADER`, `XXZP.XX_EMP_RATING_EOM_LINES`, `XX_DIGI_EMP_MASTER`, `XX_ZRV_USERS` |
 | Share an Idea 1097 | `forms/idea/IdeaForm.jsx`, `ideaData.js`, `styles/idea.css` | `server/src/modules/hr/ideas/idea form *.js` at `/api/v1/ideas`: list, get, create, update, feasibility, lookups (employees, divisions, categories). Delete and attachments always return 409. **No permission check.** HR check through `XXZP_HR`. | None | `XXZP.XXZP_IDEA`, `XXZP.XXZP_ALL_ATTACHMENTS` (`FORM_NAME='IDEA'`, read only), `XX_DIGI_EMP_MASTER`, `XX_DIGI_LOOKUP_VALUES`, `XXPHP_WORKFLOW` (pending-at, read) |
 | Sick Leave 1076 | `forms/sickleave/SickLeaveForm.jsx`, `sickData.js`, `styles/sickleave.css` | `server/src/modules/hr/sick-leave/*` at `/api/v1/hr/sick-leave`: list, get, create (multipart), update, delete, attachments upload/delete, lookups (employees). Resource came from `SICK_LEAVE_RESOURCE_KEY` (otherwise 503). The leave type had to exist under `SICK_LEAVE_LOOKUP_TYPE` (otherwise 503). | None | `XXZP.XXZP_SICK_LEAVE`, `XXZP.XXZP_ALL_ATTACHMENTS` (`FORM_NAME='SICKLEAVE'`), `XX_DIGI_EMP_MASTER`, `XX_ZRV_USERS`; files on disk storage |
 
@@ -159,7 +159,7 @@ Not changed:
 |---|---|
 | New permission codes (code registry) | `HR.SICK_LEAVE:{VIEW,CREATE,UPDATE,DELETE,MANAGE_ATTACHMENTS}` ("Sick Leave Form"); `HR.EMPLOYEE_OF_THE_MONTH:{VIEW,CREATE,UPDATE,DELETE}` ("Employee Reward Nomination Form"); `HR.IDEAS:{VIEW,CREATE,UPDATE,DELETE,MANAGE_ATTACHMENTS}` ("Idea Form") |
 | Created in the catalogue | **Not yet.** The registration commands are below; they were not run. |
-| Record-level rules | Owner or HR (`XXZP_HR` lookup) for reward and idea. Sick leave: the employee, the creator, or HR through `SICK_LEAVE_HR_RESOURCE_KEY` (fail-closed when unset). Same-department access is not implemented (§13). |
+| Record-level rules | Reward access is controlled by its VIEW/UPDATE/DELETE permissions; the dashboard spotlight is available to every authenticated user. Idea: owner or HR (`XXZP_HR` lookup). Sick leave: the employee, the creator, or HR through `SICK_LEAVE_HR_RESOURCE_KEY` (fail-closed when unset). Same-department access is not implemented (§13). |
 
 Registration (from `server/`, see `server/docs/RBAC-REGISTRATION.md`):
 

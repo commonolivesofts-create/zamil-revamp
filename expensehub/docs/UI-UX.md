@@ -16,12 +16,13 @@ All colours are CSS variables so ZPI brand (OQ-34) is a one-file change.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--color-brand` | `#0E9F6E` (placeholder) | `#31C48D` | primary buttons, links, progress |
-| `--color-ink` | `#111827` | `#F9FAFB` | text, dark summary card bg (light mode) |
-| `--color-muted` | `#6B7280` | `#9CA3AF` | secondary text |
+| `--color-brand` | `#0E9F6E` | `#31C48D` | primary buttons, links, progress; matches the approved Training Hub green palette |
+| `--color-ink` | `#12352A` | `#F9FAFB` | text, dark summary card bg (light mode) |
+| `--color-muted` | `#5C766A` | `#9CA3AF` | secondary text |
 | `--color-surface` | `#FFFFFF` | `#111827` | cards |
-| `--color-canvas` | `#F7F8FA` | `#0B0F17` | page bg |
-| `--color-border` | `#E5E7EB` | `#1F2937` | |
+| `--color-surface-2` | `#E8F7EE` | `#1A2333` | soft green surfaces and hover states |
+| `--color-canvas` | `#F4FAF6` | `#0B0F17` | page bg |
+| `--color-border` | `rgb(13 74 56 / 12%)` | `#1F2937` | |
 | `--color-pass` | `#0E9F6E` | `#31C48D` | policy pass |
 | `--color-warn` | `#B45309` | `#F59E0B` | policy warn |
 | `--color-block` | `#B91C1C` | `#F87171` | policy block, reject |
@@ -29,12 +30,15 @@ All colours are CSS variables so ZPI brand (OQ-34) is a one-file change.
 | Radius | 12 px cards, 8 px inputs, 999 px pills | | |
 | Spacing | 4 px scale | | |
 
+The green palette is the approved hub visual alignment; official ZPI identity assets remain subject to OQ-34.
+
 Typography: **Inter** (Latin), **IBM Plex Sans Arabic** (Arabic, phase 3), self-hosted via `@fontsource` (no external CDN at runtime). Money: `font-variant-numeric: tabular-nums`. Sizes: 32/24/18/16/14/12. Icons: `lucide-react`, 20 px, stroke 1.75. Dark mode: follows OS, toggle in user menu.
 
 ## 3. App shell
-- **Desktop ≥ 1024 px:** left sidebar (logo, menu by role, user + BU at bottom), sticky top bar (global search by report number/merchant, notifications bell, "New expense" button).
-- **Tablet 640–1023:** collapsible sidebar.
-- **Mobile < 640:** bottom tab bar — Home · Expenses · **＋** · Reports · More.
+- **Desktop ≥ 1024 px:** the Zamil-style icon rail is closed by default and expands on hover or keyboard focus; pointer navigation closes it again. Keep the role-based menu, user + BU footer, and sticky top bar (global search by report number/merchant, notifications bell, "New expense" button).
+- **Tablet 768–1023:** full sidebar remains visible beside the workspace.
+- **Mobile < 768:** bottom tab bar — Home · Expenses · **＋** · Reports · More.
+- Session startup uses the shared **Zamil Digitalization** loading treatment; in-app ExpenseHub product names remain unchanged.
 - Menu items shown only for roles the user holds; a user with several roles sees all their sections (no role switcher).
 
 ## 4. Screen inventory (routes)

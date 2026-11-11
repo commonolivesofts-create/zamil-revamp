@@ -104,6 +104,14 @@ export function createRewardDemoClient({ latencyMs = 300, now = () => new Date()
   return createDemoTransport({
     latencyMs,
     routes: [
+      [/^\/hr\/employee-of-the-month\/spotlight$/, {
+        get: ({ respond }) => {
+          const latest = store
+            .filter((record) => record.status === 'APPROVED')
+            .sort((a, b) => String(b.activityDate).localeCompare(String(a.activityDate)) || b.headerId - a.headerId)[0]
+          return respond(latest ? detail(latest) : null)
+        },
+      }],
       [/^\/hr\/employee-of-the-month\/lookups\/criteria$/, {
         get: ({ params, respond, fail }) => (LABELS[params.department]
           ? respond({ department: params.department, criteria: LABELS[params.department].map((criterion, lineNumber) => ({ lineNumber, criterion })), ratingScale: SCALE })

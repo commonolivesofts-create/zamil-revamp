@@ -3,7 +3,8 @@
     "name": "ExpenseHub",
     "company": "Zamil Plastic Industries",
     "skipToContent": "Skip to content",
-    "loading": "Loading ExpenseHub…",
+    "loading": "Loading Zamil Digitalization…",
+    "loadingBrand": "Zamil Digitalization",
     "loadError": "ExpenseHub could not load",
     "retry": "Try again"
   },

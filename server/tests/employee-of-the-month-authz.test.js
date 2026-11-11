@@ -4,7 +4,7 @@ import test from 'node:test';
 import { createEmployeeOfTheMonthController } from '../src/modules/hr/employee-of-the-month/employeeOfTheMonth.controller.js';
 import { createEmployeeOfTheMonthService } from '../src/modules/hr/employee-of-the-month/employeeOfTheMonth.service.js';
 
-function createService({ creatorId = 7, isHrUser = false } = {}) {
+function createService({ creatorId = 7 } = {}) {
   const repository = {
     get: async () => ({
       HEADER_ID: 42,
@@ -12,7 +12,6 @@ function createService({ creatorId = 7, isHrUser = false } = {}) {
       CREATED_BY: creatorId,
     }),
     getLines: async () => [],
-    isHrUser: async () => isHrUser,
   };
 
   return createEmployeeOfTheMonthService({
@@ -21,13 +20,10 @@ function createService({ creatorId = 7, isHrUser = false } = {}) {
   });
 }
 
-test('Employee of the Month GET denies a non-HR user access to another creator’s nomination', async () => {
+test('Employee of the Month GET allows a user with VIEW permission to read another creator nomination', async () => {
   const service = createService({ creatorId: 7 });
-
-  await assert.rejects(
-    service.get({ userId: 8 }, '42'),
-    (error) => error.statusCode === 404 && error.code === 'RESOURCE_NOT_FOUND',
-  );
+  const result = await service.get({ userId: 8 }, '42');
+  assert.equal(result.headerId, 42);
 });
 
 test('Employee of the Month GET allows the nomination creator', async () => {
@@ -38,60 +34,26 @@ test('Employee of the Month GET allows the nomination creator', async () => {
   assert.equal(result.headerId, 42);
 });
 
-test('Employee of the Month GET allows HR to read another creator’s nomination', async () => {
-  const service = createService({ creatorId: 7, isHrUser: true });
+test('Employee of the Month dashboard spotlight returns the latest approved nomination', async () => {
+  const service = createEmployeeOfTheMonthService({
+    repository: {
+      latestApproved: async () => ({
+        HEADER_ID: 42,
+        DEPT_TYPE: 'Production',
+        EMPLOYEE_NUMBER: '1001',
+        EMPLOYEE_NAME: 'Recognized Employee',
+        STATUS: 'APPROVED',
+      }),
+      getLines: async () => [],
+    },
+    withConnection: async (_pool, callback) => callback({}),
+  });
 
-  const result = await service.get({ userId: 8 }, '42');
+  const result = await service.spotlight();
 
   assert.equal(result.headerId, 42);
-});
-
-test('Employee of the Month UPDATE denies a non-HR user access to another creator’s nomination', async () => {
-  let updated = false;
-  const service = createEmployeeOfTheMonthService({
-    repository: {
-      get: async () => ({
-        HEADER_ID: 42,
-        CREATED_BY: 7,
-        STATUS: 'DRAFT',
-      }),
-      isHrUser: async () => false,
-      update: async () => {
-        updated = true;
-      },
-    },
-    withTransaction: async (_pool, callback) => callback({}),
-  });
-
-  await assert.rejects(
-    service.update({ userId: 8 }, '42', {}),
-    (error) => error.statusCode === 404 && error.code === 'RESOURCE_NOT_FOUND',
-  );
-  assert.equal(updated, false);
-});
-
-test('Employee of the Month DELETE denies a non-HR user access to another creator’s nomination', async () => {
-  let deleted = false;
-  const service = createEmployeeOfTheMonthService({
-    repository: {
-      get: async () => ({
-        HEADER_ID: 42,
-        CREATED_BY: 7,
-        STATUS: 'DRAFT',
-      }),
-      isHrUser: async () => false,
-      remove: async () => {
-        deleted = true;
-      },
-    },
-    withTransaction: async (_pool, callback) => callback({}),
-  });
-
-  await assert.rejects(
-    service.remove({ userId: 8 }, '42'),
-    (error) => error.statusCode === 404 && error.code === 'RESOURCE_NOT_FOUND',
-  );
-  assert.equal(deleted, false);
+  assert.equal(result.status, 'APPROVED');
+  assert.equal(result.employeeName, 'Recognized Employee');
 });
 
 test('Employee of the Month controller passes the authenticated actor to GET and DELETE', async () => {
