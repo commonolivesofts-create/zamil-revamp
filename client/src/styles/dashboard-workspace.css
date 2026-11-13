@@ -6369,6 +6369,318 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   background: rgba(var(--grn-rgb), 0.16);
   transform: translateY(-2px);
 }
+.zrv-ws .book-leaf--hr .book-leaf-title {
+  max-width: 330px;
+  font-size: clamp(23px, 2.2vw, 30px);
+  line-height: 1.02;
+  margin: 12px 0 5px;
+}
+.zrv-ws .book-leaf--hr .book-leaf-desc {
+  margin-bottom: 10px;
+}
+.zrv-ws .book-leaf--hr .book-leaf-body {
+  display: flex;
+  flex-direction: column;
+}
+.zrv-ws .book-hr-flip {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.62s cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+.zrv-ws .book-hr-flip.is-flipped {
+  transform: rotateY(180deg);
+}
+.zrv-ws .book-hr-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  backface-visibility: hidden;
+}
+.zrv-ws .book-hr-front {
+  justify-content: flex-start;
+  gap: 7px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  padding: 1px 2px 3px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--grn-rgb), 0.38) transparent;
+}
+.zrv-ws .book-hr-back {
+  transform: rotateY(180deg);
+}
+.zrv-ws .book-hr-submodule {
+  display: flex;
+  align-items: center;
+  flex: 1 0 clamp(39px, 5.6vh, 48px);
+  gap: 10px;
+  width: 100%;
+  min-height: 39px;
+  padding: 6px 11px;
+  border: 1px solid rgba(var(--grn-pale-rgb), 0.28);
+  border-radius: 13px;
+  color: var(--grn-wash);
+  background:
+    radial-gradient(ellipse at 0 0, rgba(var(--grn-rgb), 0.14), transparent 68%),
+    linear-gradient(105deg, rgba(255, 255, 255, 0.045), rgba(0, 0, 0, 0.11));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  text-align: left;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+.zrv-ws .book-hr-submodule:hover,
+.zrv-ws .book-hr-submodule:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(var(--grn-rgb), 0.78);
+  background:
+    radial-gradient(ellipse at 0 0, rgba(var(--grn-rgb), 0.23), transparent 72%),
+    linear-gradient(105deg, rgba(var(--grn-rgb), 0.14), rgba(0, 0, 0, 0.08));
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  outline: 2px solid rgba(var(--grn-rgb), 0.55);
+  outline-offset: 1px;
+}
+.zrv-ws .book-hr-submodule-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 31px;
+  height: 31px;
+  border: 1px solid rgba(var(--grn-rgb), 0.24);
+  border-radius: 10px;
+  color: var(--grn);
+  background: rgba(var(--grn-rgb), 0.09);
+}
+.zrv-ws .book-hr-submodule-icon .ic {
+  width: 21px;
+  height: 21px;
+}
+.zrv-ws .book-hr-submodule-copy {
+  flex: 1;
+  min-width: 0;
+}
+.zrv-ws .book-hr-submodule-copy strong,
+.zrv-ws .book-hr-submodule-copy small {
+  display: block;
+}
+.zrv-ws .book-hr-submodule-copy strong {
+  overflow: hidden;
+  font-size: clamp(10px, 1.1vw, 12px);
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zrv-ws .book-hr-submodule-copy small {
+  margin-top: 3px;
+  color: var(--grn-soft);
+  font-size: 9px;
+  line-height: 1.1;
+}
+.zrv-ws .book-hr-submodule-arrow {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 4px;
+  border: 1px solid rgba(var(--grn-rgb), 0.18);
+  border-radius: 50%;
+  color: var(--grn-soft);
+  background: rgba(var(--grn-rgb), 0.07);
+  transition: transform 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.zrv-ws .book-hr-submodule:hover .book-hr-submodule-arrow,
+.zrv-ws .book-hr-submodule:focus-visible .book-hr-submodule-arrow {
+  transform: translateX(2px);
+  color: var(--grn-wash);
+  background: rgba(var(--grn-rgb), 0.2);
+}
+.zrv-ws .book-hr-back-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(var(--grn-pale-rgb), 0.22);
+}
+.zrv-ws .book-hr-back-controls {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 7px;
+  border-top: 1px solid rgba(var(--grn-pale-rgb), 0.22);
+}
+.zrv-ws .book-hr-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  min-height: 29px;
+  padding: 4px 9px;
+  border: 1px solid rgba(var(--grn-rgb), 0.6);
+  border-radius: 9px;
+  color: var(--grn-wash);
+  background: rgba(var(--grn-rgb), 0.1);
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.zrv-ws .book-hr-back-button:hover,
+.zrv-ws .book-hr-back-button:focus-visible {
+  background: rgba(var(--grn-rgb), 0.22);
+  outline: 2px solid rgba(var(--grn-rgb), 0.65);
+  outline-offset: 1px;
+}
+.zrv-ws .book-hr-back-button .ic {
+  width: 14px;
+  height: 14px;
+}
+.zrv-ws .book-hr-form-count {
+  justify-self: end;
+  padding: 5px 8px;
+  border: 1px solid rgba(var(--grn-rgb), 0.55);
+  border-radius: 9px;
+  color: var(--grn-wash);
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.zrv-ws .book-hr-active-group {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.zrv-ws .book-hr-active-group > .ic {
+  flex: none;
+  width: 27px;
+  height: 27px;
+  color: var(--grn-wash);
+}
+.zrv-ws .book-hr-active-group strong,
+.zrv-ws .book-hr-active-group small {
+  display: block;
+}
+.zrv-ws .book-hr-active-group strong {
+  font-size: 15px;
+  line-height: 1.1;
+}
+.zrv-ws .book-hr-active-group small {
+  margin-top: 2px;
+  color: var(--grn-soft);
+  font-size: 9px;
+}
+.zrv-ws .book-hr-form-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 5px;
+  min-height: 0;
+  overflow: auto;
+  padding: 7px 1px 1px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--grn-rgb), 0.48) transparent;
+}
+.zrv-ws .book-hr-form {
+  display: grid;
+  grid-template-columns: 27px 15px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 4px 7px;
+  border: 1px solid rgba(var(--grn-pale-rgb), 0.18);
+  border-radius: 10px;
+  color: var(--grn-wash);
+  background: rgba(255, 255, 255, 0.045);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+.zrv-ws .book-hr-form:hover,
+.zrv-ws .book-hr-form:focus-visible {
+  transform: translateX(2px);
+  border-color: rgba(var(--grn-rgb), 0.75);
+  background: rgba(var(--grn-rgb), 0.17);
+  outline: none;
+}
+.zrv-ws .book-hr-form-index {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(var(--grn-pale-rgb), 0.2);
+  border-radius: 50%;
+  color: var(--grn-wash);
+  font-size: 9px;
+  font-weight: 750;
+}
+.zrv-ws .book-hr-form-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--grn-soft);
+}
+.zrv-ws .book-hr-form-label {
+  min-width: 0;
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.zrv-ws .book-hr-form-open {
+  width: 14px;
+  height: 14px;
+  color: var(--grn-soft);
+}
+.zrv-ws .book-hr-empty {
+  margin: auto 5px;
+  color: var(--grn-soft);
+  font-size: 10px;
+  text-align: center;
+}
+.zrv-ws .book-leaf--hr .book-leaf-bottom {
+  display: none;
+}
+@media (max-width: 650px) {
+  .zrv-ws .book-leaf--hr .book-leaf-title {
+    font-size: 22px;
+    margin: 8px 0 4px;
+  }
+  .zrv-ws .book-leaf--hr .book-leaf-desc {
+    font-size: 9px;
+    margin-bottom: 7px;
+  }
+  .zrv-ws .book-hr-submodule {
+    flex-basis: clamp(37px, 6vh, 44px);
+    min-height: 37px;
+    padding: 5px 8px;
+    gap: 8px;
+  }
+  .zrv-ws .book-hr-submodule-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .zrv-ws .book-hr-submodule-copy strong {
+    font-size: 10px;
+  }
+  .zrv-ws .book-hr-form {
+    min-height: 30px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-ws .book-hr-flip {
+    transition: none;
+  }
+}
 .zrv-ws .folio-manage-favorites {
   display: inline-flex;
   align-items: center;
@@ -8007,6 +8319,102 @@ html:not(.dark) .zrv-ws .book-chapter:not(.is-current) small {
 html:not(.dark) .zrv-ws .book-chapter.is-current small {
   color: #e2f8eb;
 }
+
+/* HR folio refinements: compact heading, readable form rows, bounded scrolling. */
+.zrv-ws .book-leaf--hr .book-leaf-title {
+  margin: 4px 0 3px;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: clamp(18px, 4.8vw, 26px);
+  font-weight: 560;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zrv-ws .book-leaf--hr .book-leaf-desc {
+  margin-bottom: 6px;
+  color: #c99b38;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.zrv-ws .book-hr-back {
+  overflow: hidden;
+  gap: 5px;
+}
+.zrv-ws .book-hr-form-list {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  gap: 6px;
+  padding: 3px 2px;
+}
+.zrv-ws .book-hr-form {
+  flex: none;
+  min-height: 37px;
+  grid-template-columns: 18px minmax(0, 1fr) 16px;
+  gap: 7px;
+  padding: 5px 8px;
+}
+.zrv-ws .book-hr-form-index {
+  width: 27px;
+  height: 27px;
+  font-size: 10px;
+}
+.zrv-ws .book-hr-form-icon,
+.zrv-ws .book-hr-form-open {
+  width: 17px;
+  height: 17px;
+}
+.zrv-ws .book-hr-form-label {
+  font-size: clamp(11px, 1.05vw, 13px);
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+@media (max-width: 650px) {
+  .zrv-ws .book-leaf--hr .book-leaf-title {
+    font-size: clamp(18px, 5vw, 23px);
+  }
+  .zrv-ws .book-leaf--hr .book-leaf-desc {
+    font-size: 10px;
+  }
+  .zrv-ws .book-leaf--hr .book-leaf-desc {
+    margin-bottom: 5px;
+    font-size: 11px;
+  }
+  .zrv-ws .book-hr-form-label {
+    font-size: 11px;
+  }
+}
+
+/* Anchor the reset confirmation over the avatar instead of at the page end. */
+.zrv-ws .hero-photo-reset-backdrop {
+  position: absolute;
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  z-index: 8;
+  display: flex;
+  width: min(350px, calc(100vw - 24px));
+  height: max-content;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  backdrop-filter: none;
+}
+.zrv-ws .hero-photo-reset-backdrop .zrv-dialog {
+  width: 100%;
+  margin: 0;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.36);
+}
 @media (max-width: 650px) {
   .zrv-ws .book-chapter strong {
     font-size: 9px;
@@ -8029,5 +8437,105 @@ html:not(.dark) .zrv-ws .book-chapter.is-current small {
   }
   .zrv-ws .book-chapters {
     width: 136px;
+  }
+}
+@media (max-width: 650px) {
+  .zrv-ws .book-visual.is-hr-workspace {
+    height: 520px;
+  }
+}
+@media (min-width: 386px) and (max-width: 650px) {
+  .zrv-ws .book-visual .book-stack {
+    top: 66px;
+    right: 122px;
+    height: 367px;
+  }
+  .zrv-ws .book-visual .book-chapters {
+    top: 66px;
+    right: 0;
+    bottom: auto;
+    left: auto;
+    width: 112px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .zrv-ws .book-visual .book-chapter {
+    min-height: 48px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 4px 2px;
+    text-align: center;
+  }
+  .zrv-ws .book-visual .book-chapter small {
+    display: none;
+  }
+  .zrv-ws .book-visual .book-chapter:hover,
+  .zrv-ws .book-visual .book-chapter:focus-visible,
+  .zrv-ws .book-visual .book-chapter.is-current {
+    transform: translateX(-3px);
+  }
+}
+@media (max-width: 385px) {
+  .zrv-ws .book-visual.is-hr-workspace {
+    height: 505px;
+  }
+  .zrv-ws .book-visual.is-hr-workspace .book-chapters {
+    bottom: 15px;
+  }
+}
+@media (max-width: 650px) {
+  .zrv-ws .book-leaf--insights .book-chart {
+    height: 68px;
+    margin: 3px 0 2px;
+  }
+  .zrv-ws .book-leaf--insights .book-big-metric {
+    font-size: 23px;
+    line-height: 1.05;
+  }
+  .zrv-ws .book-leaf--insights .book-leaf-bottom {
+    gap: 5px;
+    padding-top: 8px;
+  }
+}
+@media (min-width: 651px) and (max-width: 1180px) {
+  .zrv-ws .book-visual .book-stack {
+    top: 66px;
+    left: 12px;
+    right: 126px;
+    height: 392px;
+  }
+  .zrv-ws .book-visual .book-chapters {
+    top: 61px;
+    right: 4px;
+    width: 116px;
+    gap: 7px;
+  }
+  .zrv-ws .book-visual .book-chapter {
+    min-height: 53px;
+    padding: 6px 7px;
+  }
+  .zrv-ws .book-leaf:not(.book-leaf--hr) {
+    padding: 16px 16px 13px;
+  }
+  .zrv-ws .book-leaf:not(.book-leaf--hr) .book-leaf-title {
+    font-size: 24px;
+    margin: 10px 0 5px;
+  }
+  .zrv-ws .book-leaf:not(.book-leaf--hr) .book-leaf-desc {
+    margin-bottom: 8px;
+  }
+  .zrv-ws .book-leaf:not(.book-leaf--hr) .book-leaf-bottom {
+    gap: 5px;
+    padding-top: 8px;
+  }
+  .zrv-ws .book-leaf--insights .book-chart {
+    height: 74px;
+    margin: 4px 0 2px;
+  }
+  .zrv-ws .book-leaf--insights .book-big-metric {
+    font-size: 24px;
+    line-height: 1.05;
   }
 }

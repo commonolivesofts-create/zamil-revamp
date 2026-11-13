@@ -9,6 +9,7 @@ import EmployeeSpotlightFireworks from "@/features/dashboard/components/Employee
 import { useResource } from "@/features/security-administration/useAdminData.js";
 import { rewardService } from "@/features/hr-employee-services/reward/rewardService.js";
 import { enDate } from "@/features/hr-recruitment/shared/hrFormat.js";
+import { ConfirmDialog } from "@/features/security-administration/components/AdminUi.jsx";
 import {
   ATTENTION_ITEMS,
   FOOTER_COUNTS,
@@ -203,6 +204,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
   );
   const [imageBusy, setImageBusy] = useState(false);
   const [imageFeedback, setImageFeedback] = useState("");
+  const [photoResetOpen, setPhotoResetOpen] = useState(false);
   const [imageTarget, setImageTarget] = useState("");
   const imageTargetRef = useRef("");
   const loadedImageRef = useRef("");
@@ -277,15 +279,22 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
       const source = await removeProfileImage();
       waitForImage(source);
       setImageFeedback("Default photo restored");
+      return true;
     } catch (error) {
       setImageFeedback(error.message || "Could not restore the default photo");
+      return false;
     } finally {
       setImageBusy(false);
     }
   }
 
+  async function confirmPhotoReset() {
+    if (await resetProfileImage()) setPhotoResetOpen(false);
+  }
+
   const hrPages = pages.filter((page) => page.sectionLabel === "Human resources" || page.section === "human-resources");
   const openHrPage = (page) => {
+    if (!page?.id || !page.path) return;
     const next = { ...hrUsage, [page.id]: (hrUsage[page.id] || 0) + 1 };
     setHrUsage(next);
     window.localStorage.setItem(HR_USAGE_KEY, JSON.stringify(next));
@@ -332,6 +341,18 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
                   />
                 </label>
               )}
+              {photoResetOpen && !profile?.isPreview && (
+                <ConfirmDialog
+                  className="hero-photo-reset-backdrop"
+                  title="Reset profile photo?"
+                  description="This restores the default profile photo. You can upload a new photo at any time."
+                  confirmLabel="Reset photo"
+                  pending={imageBusy}
+                  feedback={imageFeedback && !imageBusy ? { kind: "error", message: imageFeedback } : null}
+                  onConfirm={confirmPhotoReset}
+                  onClose={() => setPhotoResetOpen(false)}
+                />
+              )}
             </div>
             <div className="hero-profile-copy">
               {/* <span className="hero-profile-kicker">
@@ -369,7 +390,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
               {!profile?.isPreview && (
                 <div className="hero-profile-photo-actions">
                   <span className="hero-profile-photo-hint">Make it yours</span>
-                  <button className="hero-profile-reset" type="button" onClick={resetProfileImage} disabled={imageBusy}>
+                  <button className="hero-profile-reset" type="button" onClick={() => { setImageFeedback(""); setPhotoResetOpen(true); }} disabled={imageBusy}>
                     Reset photo
                   </button>
                   {imageBusy && <span role="status">Saving photo...</span>}
@@ -413,7 +434,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
             Start here, or use the sidebar or <kbd>Ctrl K</kbd> at any time.
           </div>
         </div>
-        <FolioBook onNavigate={onNavigate} hrPages={hrPages} onOpenPage={onOpenPage} />
+        <FolioBook onNavigate={onNavigate} hrPages={hrPages} onOpenPage={openHrPage} />
       </section>
 
       <div className="section-line section-quick" id="quickStart">
