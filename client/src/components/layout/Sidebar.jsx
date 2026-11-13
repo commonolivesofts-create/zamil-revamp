@@ -2,7 +2,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -351,13 +350,9 @@ export default function Sidebar({
   const processedReveal = useRef(null)
 
   // Authorized navigation remains the source of truth.
-  const sections = useMemo(
-    () => authorizedNavigation(access),
-    [access],
-  )
+  const sections = authorizedNavigation(access)
 
-  const demoSections = templateDemosAvailable(status)
-    ? orvexaNavigation.filter(
+  const demoSections = templateDemosAvailable(status) ? orvexaNavigation.filter(
         (section) => section.items?.length,
       )
     : []
@@ -943,12 +938,7 @@ export default function Sidebar({
         )}
 
         {/* Existing application version */}
-        <p
-          className="zrv-sidebar-version"
-          title="Application version"
-        >
-          {appConfig.displayVersion}
-        </p>
+        <p className="zrv-sidebar-version" title="Application version">{appConfig.displayVersion}</p>
       </aside>
     </>
   )
