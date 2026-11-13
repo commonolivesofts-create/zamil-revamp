@@ -384,6 +384,10 @@ export default function Sidebar({
   // Existing flyout state.
   const [flyoutState, setFlyoutState] = useState(null)
   const flyoutAnchor = useRef(null)
+  const sidebarCloseTimer = useRef(null)
+  const [hoverOpen, setHoverOpen] = useState(false)
+
+  useEffect(() => () => window.clearTimeout(sidebarCloseTimer.current), [])
 
   const flyout =
     flyoutState?.pathname === pathname &&
@@ -653,18 +657,28 @@ export default function Sidebar({
         id="sidebar"
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r transition-[width,transform] duration-300 lg:translate-x-0 ${
           mobileOpen ? 'mobile-open' : ''
-        }${flyoutItems.length ? ' has-flyout' : ''}`}
+        }${hoverOpen ? ' is-hover-open' : ''}${flyoutItems.length ? ' has-flyout' : ''}`}
         aria-label="Primary navigation"
+        onPointerEnter={(event) => {
+          if (event.pointerType === 'mouse') {
+            window.clearTimeout(sidebarCloseTimer.current)
+            setHoverOpen(true)
+          }
+        }}
         onPointerLeave={(event) => {
           if (isMobile || event.pointerType !== 'mouse') return
+          const sidebarNode = event.currentTarget
+          window.clearTimeout(sidebarCloseTimer.current)
+          sidebarCloseTimer.current = window.setTimeout(() => {
+            setHoverOpen(false)
+            closeFlyout(false)
+            setSelection({ pathname, domain: '' })
 
-          closeFlyout(false)
-          setSelection({ pathname, domain: '' })
-
-          const focused = document.activeElement
-          if (focused && event.currentTarget.contains(focused)) {
-            focused.blur()
-          }
+            const focused = document.activeElement
+            if (focused && sidebarNode.contains(focused)) {
+              focused.blur()
+            }
+          }, 650)
         }}
         aria-hidden={isMobile && !mobileOpen}
         role={
@@ -767,26 +781,22 @@ export default function Sidebar({
                   </section>
                 ))
               ) : section.id === 'human-resources' ? (
-                <section
+                <CollapsibleSection
                   key={section.id}
-                  data-sidebar-domain={section.id}
-                  className={`sidebar-domain sidebar-domain-standalone ${activeDomain === section.id ? 'is-active' : ''}`.trim()}
+                  section={section}
+                  isOpen={openDomain === section.id}
+                  panelOpen={openDomain === section.id}
+                  isActive={activeDomain === section.id}
+                  onToggle={() => toggleDomain(section.id)}
                 >
-                  <NavLink
-                    to="/dashboard"
-                    end
-                    className="sidebar-domain-toggle sidebar-domain-standalone-link"
-                    aria-label="Human resources workspace"
-                    title="Open the HR workspace card"
-                    onClick={navigate}
-                  >
-                    <span className="sidebar-domain-icon">
-                      <OrvexaIcon name={section.icon || 'users-round'} />
-                    </span>
-                    <span className="sidebar-domain-label">{section.label}</span>
-                    <span className="sidebar-domain-chevron sidebar-domain-placeholder" aria-hidden="true" />
-                  </NavLink>
-                </section>
+                  <SectionItems
+                    section={section}
+                    currentRoute={currentRoute}
+                    flyout={flyout}
+                    onFlyout={openFlyout}
+                    onNavigate={navigate}
+                  />
+                </CollapsibleSection>
               ) : (
                 <CollapsibleSection
                   key={section.id}

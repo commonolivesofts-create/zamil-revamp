@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
 import ProfileAvatar from "@/components/profile/ProfileAvatar.jsx";
 import useAuth from "@/features/auth/useAuth.js";
@@ -341,18 +342,6 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
                   />
                 </label>
               )}
-              {photoResetOpen && !profile?.isPreview && (
-                <ConfirmDialog
-                  className="hero-photo-reset-backdrop"
-                  title="Reset profile photo?"
-                  description="This restores the default profile photo. You can upload a new photo at any time."
-                  confirmLabel="Reset photo"
-                  pending={imageBusy}
-                  feedback={imageFeedback && !imageBusy ? { kind: "error", message: imageFeedback } : null}
-                  onConfirm={confirmPhotoReset}
-                  onClose={() => setPhotoResetOpen(false)}
-                />
-              )}
             </div>
             <div className="hero-profile-copy">
               {/* <span className="hero-profile-kicker">
@@ -436,6 +425,19 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
         </div>
         <FolioBook onNavigate={onNavigate} hrPages={hrPages} onOpenPage={openHrPage} />
       </section>
+      {photoResetOpen && !profile?.isPreview && createPortal(
+        <ConfirmDialog
+          className="hero-photo-reset-backdrop"
+          title="Reset profile photo?"
+          description="This restores the default profile photo. You can upload a new photo at any time."
+          confirmLabel="Reset photo"
+          pending={imageBusy}
+          feedback={imageFeedback && !imageBusy ? { kind: "error", message: imageFeedback } : null}
+          onConfirm={confirmPhotoReset}
+          onClose={() => setPhotoResetOpen(false)}
+        />,
+        document.body,
+      )}
 
       <div className="section-line section-quick" id="quickStart">
         <div>

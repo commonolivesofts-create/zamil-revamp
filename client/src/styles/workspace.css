@@ -495,7 +495,8 @@
   }
 
   html:not([data-sidebar-mode="full"]) #sidebar:hover,
-  html:not([data-sidebar-mode="full"]) #sidebar:has(:focus-visible) {
+  html:not([data-sidebar-mode="full"]) #sidebar:has(:focus-visible),
+  html:not([data-sidebar-mode="full"]) #sidebar.is-hover-open {
     width: 18rem !important;
   }
 
@@ -536,6 +537,51 @@
 
   html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-domain-toggle {
     padding-inline: 0;
+  }
+
+  /* Keep the icon rail balanced in collapsed mode. */
+  html:not([data-sidebar-mode="full"])
+    #sidebar:not(:hover):not(:has(:focus-visible))
+    > .min-h-0.flex-1 {
+    padding-inline: 8px !important;
+  }
+
+  html:not([data-sidebar-mode="full"])
+    #sidebar:not(:hover):not(:has(:focus-visible))
+    .sidebar-domain {
+    display: flex;
+    justify-content: center;
+    margin-inline: 0 !important;
+  }
+
+  html:not([data-sidebar-mode="full"])
+    #sidebar:not(:hover):not(:has(:focus-visible))
+    .sidebar-domain-toggle {
+    display: flex !important;
+    justify-content: center;
+    width: 48px !important;
+    min-height: 48px !important;
+    margin-inline: auto;
+    padding: 2px !important;
+    gap: 0 !important;
+  }
+
+  html:not([data-sidebar-mode="full"])
+    #sidebar:not(:hover):not(:has(:focus-visible))
+    .sidebar-domain-icon {
+    flex: none;
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  html:not([data-sidebar-mode="full"])
+    #sidebar:not(:hover):not(:has(:focus-visible))
+    .zrv-sidebar-subgroup {
+    justify-content: center;
+    width: 48px;
+    min-height: 48px;
+    margin-inline: auto;
+    padding: 0;
   }
 
   html[dir="rtl"]:not([data-sidebar-mode="full"]) #app-main {
