@@ -1,48 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
-import { navigationSections } from "@/config/appNavigation.js";
 import { BOOK_PAGES } from "@/features/dashboard/dashboardExperience.js";
 import { shouldReduceMotion } from "@/features/dashboard/useDashboardMotion.js";
 
+const FAVORITES_KEY = "zrv-dashboard-hr-favorites";
 const TURN_DURATION = 620;
-const HR_SUBMODULES = navigationSections.find((section) => section.id === "human-resources")?.subgroups ?? [];
+const readFavorites = () => {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "[]");
+    return Array.isArray(value) ? value.filter((id) => typeof id === "string").slice(0, 6) : [];
+  } catch {
+    return [];
+  }
+};
 
-function BookBody({ page, onOpenPage, hrGroups, selectedHrSubmodule, onSelectHrSubmodule, onBackToHrGroups }) {
+function BookBody({ page, onOpenPage }) {
   const body = page.body;
 
   if (body.kind === "people") {
-    const activeGroup = hrGroups.find((group) => group.id === selectedHrSubmodule);
     return (
-      <div className={`book-hr-flip${activeGroup ? " is-flipped" : ""}`}>
-        <div className="book-hr-face book-hr-front" aria-hidden={Boolean(activeGroup)}>
-          {hrGroups.map((group) => (
-            <button className="book-hr-submodule" key={group.id} type="button" onClick={() => onSelectHrSubmodule(group.id)} tabIndex={activeGroup ? -1 : 0}>
-              <span className="book-hr-submodule-icon"><OrvexaIcon name={group.icon} /></span>
-              <span className="book-hr-submodule-copy"><strong>{group.label}</strong><small>{String(group.forms.length).padStart(2, "0")} forms</small></span>
-              <OrvexaIcon name="arrow-right" className="book-hr-submodule-arrow" />
-            </button>
-          ))}
-        </div>
-        <div className="book-hr-face book-hr-back" aria-hidden={!activeGroup}>
-          {activeGroup && (
-            <>
-              <div className="book-hr-form-list">
-                {activeGroup.forms.map((form) => (
-                  <button className="book-hr-form" key={form.id} type="button" onClick={() => onOpenPage(form)} tabIndex={activeGroup ? 0 : -1}>
-                    <OrvexaIcon name={form.icon || "file-text"} className="book-hr-form-icon" />
-                    <span className="book-hr-form-label">{form.label}</span>
-                    <OrvexaIcon name="arrow-up-right" className="book-hr-form-open" />
-                  </button>
-                ))}
-                {!activeGroup.forms.length && <p className="book-hr-empty">No forms in this area are available to your account.</p>}
-              </div>
-              <footer className="book-hr-back-controls">
-                <button className="book-hr-back-button" type="button" onClick={onBackToHrGroups} tabIndex={activeGroup ? 0 : -1}><OrvexaIcon name="arrow-left" /> Back</button>
-                <span className="book-hr-form-count">{String(activeGroup.forms.length).padStart(2, "0")} forms</span>
-              </footer>
-            </>
-          )}
-        </div>
+      <div className="book-form-list">
+        {body.rows.map((row) => (
+          <button className="book-mini-link" key={row.id} type="button" onClick={() => onOpenPage(row)} aria-label={`Open ${row.label}`}>
+            <OrvexaIcon name={row.icon || "file-text"} />
+            <span>{row.label}</span>
+          </button>
+        ))}
       </div>
     );
   }
@@ -103,11 +87,8 @@ function BookBody({ page, onOpenPage, hrGroups, selectedHrSubmodule, onSelectHrS
   return null;
 }
 
-function LeafContents({ page, index, onOpenPage, hrGroups, selectedHrSubmodule, onSelectHrSubmodule, onBackToHrGroups }) {
+function LeafContents({ page, index, onOpenPage }) {
   const number = String(index + 1).padStart(2, "0");
-  const selectedGroup = page.id === "people"
-    ? hrGroups.find((group) => group.id === selectedHrSubmodule)
-    : null;
   return (
     <>
       <div className="book-leaf-top">
@@ -118,17 +99,13 @@ function LeafContents({ page, index, onOpenPage, hrGroups, selectedHrSubmodule, 
       </div>
       <div className="book-leaf-contents">
         <h3 className="book-leaf-title">
-          {page.id === "people"
-            ? `${selectedGroup?.label ?? "HR forms"} workspace.`
-            : <>{page.name}<br />workspace.</>}
+          {page.name}
+          <br />
+          workspace.
         </h3>
-        <p className="book-leaf-desc">
-          {page.id === "people" && selectedGroup
-            ? "Select a form to open"
-            : page.description}
-        </p>
+        <p className="book-leaf-desc">{page.description}</p>
         <div className="book-leaf-body">
-          <BookBody page={page} onOpenPage={onOpenPage} hrGroups={hrGroups} selectedHrSubmodule={selectedHrSubmodule} onSelectHrSubmodule={onSelectHrSubmodule} onBackToHrGroups={onBackToHrGroups} />
+          <BookBody page={page} onOpenPage={onOpenPage} />
         </div>
       </div>
     </>
@@ -142,14 +119,26 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [flip, setFlip] = useState(null);
   const [announcement, setAnnouncement] = useState("");
-  const [selectedHrSubmodule, setSelectedHrSubmodule] = useState(null);
+  const [favorites, setFavorites] = useState(readFavorites);
+  const [hasSavedFavorites, setHasSavedFavorites] = useState(() => window.localStorage.getItem(FAVORITES_KEY) !== null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const availableHrPages = useMemo(() => hrPages.filter((page) => page.path && !page.external), [hrPages]);
-  const hrGroups = useMemo(() => HR_SUBMODULES.map((submodule) => ({
-    ...submodule,
-    forms: availableHrPages.filter((page) => page.subgroup === submodule.id),
-  })), [availableHrPages]);
-  const hrPage = useMemo(() => ({ ...BOOK_PAGES[0], subtitle: "Five HR areas", description: "Choose an HR area to view its forms", action: "Open HR workspace", body: { kind: "people", rows: [] } }), []);
+  const initialFavorites = useMemo(() => availableHrPages.slice(0, 6).map((page) => page.id), [availableHrPages]);
+  const effectiveFavorites = hasSavedFavorites ? favorites : initialFavorites;
+  const selectedHrPages = useMemo(
+    () => effectiveFavorites.map((id) => availableHrPages.find((page) => page.id === id)).filter(Boolean),
+    [availableHrPages, effectiveFavorites],
+  );
+  const hrPage = useMemo(() => ({ ...BOOK_PAGES[0], body: { kind: "people", rows: selectedHrPages } }), [selectedHrPages]);
   const pages = useMemo(() => BOOK_PAGES.map((page) => page.id === "people" ? hrPage : page), [hrPage]);
+  const toggleFavorite = (page) => {
+    const next = effectiveFavorites.includes(page.id)
+      ? effectiveFavorites.filter((id) => id !== page.id)
+      : effectiveFavorites.length < 6 ? [...effectiveFavorites, page.id] : effectiveFavorites;
+    setFavorites(next);
+    setHasSavedFavorites(true);
+    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+  };
   const visualRef = useRef(null);
   const chapterRefs = useRef([]);
   const turningRef = useRef(false);
@@ -165,7 +154,6 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
       const total = pages.length;
       const normalized = ((nextIndex % total) + total) % total;
       if (normalized === activeIndex || turningRef.current) return;
-      setSelectedHrSubmodule(null);
 
       if (!reduceMotion) {
         const forwardDistance = (normalized - activeIndex + total) % total;
@@ -260,7 +248,7 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
 
   return (
     <aside
-      className={`command-visual book-visual${activeIndex === 0 ? " is-hr-workspace" : ""}`}
+      className="command-visual book-visual"
       ref={visualRef}
       aria-label="Interactive workspace library with five preview pages"
       onKeyDown={onKeyDown}
@@ -287,7 +275,7 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
               (index - activeIndex + pages.length) % pages.length;
             return (
               <article
-                className={`book-leaf ${page.id === "people" ? "book-leaf--hr " : ""}${page.id === "insights" ? "book-leaf--insights " : ""}${active ? "is-active" : "is-behind"}`}
+                className={`book-leaf ${active ? "is-active" : "is-behind"}`}
                 key={page.id}
                 aria-label={`${page.name} workspace preview`}
                 aria-hidden={active ? undefined : "true"}
@@ -297,8 +285,8 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
                   "--sheet-z": pages.length - depth,
                 }}
               >
-                <LeafContents page={page} index={index} onOpenPage={onOpenPage} hrGroups={hrGroups} selectedHrSubmodule={selectedHrSubmodule} onSelectHrSubmodule={setSelectedHrSubmodule} onBackToHrGroups={() => setSelectedHrSubmodule(null)} />
-                {active && page.id !== "people" && (
+                <LeafContents page={page} index={index} onOpenPage={onOpenPage} />
+                {active && (
                   <div className="book-leaf-bottom">
                     <div className="folio-turn-actions">
                       <button
@@ -327,9 +315,11 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
                     <button
                       className="book-leaf-open"
                       type="button"
-                      onClick={page.view ? () => onNavigate(page.view) : undefined}
+                      onClick={
+                        page.id === "people" ? () => setPickerOpen(true) : page.view ? () => onNavigate(page.view) : undefined
+                      }
                     >
-                      {page.action} <OrvexaIcon name="arrow-right" />
+                      {page.id === "people" ? "Choose HR forms" : page.action} <OrvexaIcon name="arrow-right" />
                     </button>
                   </div>
                 )}
@@ -338,14 +328,14 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
           })}
           {flip && (
             <article className={`book-leaf folio-recede folio-recede-${flip.direction}`} aria-hidden="true">
-              <LeafContents page={flip.page} index={flip.index} onOpenPage={onOpenPage} hrGroups={hrGroups} selectedHrSubmodule={selectedHrSubmodule} onSelectHrSubmodule={setSelectedHrSubmodule} onBackToHrGroups={() => setSelectedHrSubmodule(null)} />
+              <LeafContents page={flip.page} index={flip.index} onOpenPage={onOpenPage} />
             </article>
           )}
         </div>
         <div
           className="book-chapters"
           role="group"
-          aria-label="Choose a workspace: click to preview or open"
+          aria-label="Choose a workspace: hover to preview, click to open"
         >
           {pages.map((page, index) => (
             <button
@@ -358,6 +348,9 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
               onClick={() => {
                 selectPage(index);
                 if (page.view) onNavigate(page.view);
+              }}
+              onPointerEnter={(event) => {
+                if (event.pointerType !== "touch") selectPage(index);
               }}
               onFocus={() => selectPage(index)}
               onKeyDown={(event) => onChapterKeyDown(event, index)}
@@ -387,6 +380,14 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
       <span className="sr-only" aria-live="polite">
         {announcement}
       </span>
+      {pickerOpen && createPortal(<div className="folio-picker-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPickerOpen(false); }}>
+        <section className="folio-picker" role="dialog" aria-modal="true" aria-labelledby="folio-picker-title">
+          <header><div><span className="folio-picker-kicker">PERSONAL SHORTCUTS</span><h2 id="folio-picker-title">Choose your six HR forms</h2><p>Pick up to six forms to keep on your Folio page.</p></div><button type="button" aria-label="Close" onClick={() => setPickerOpen(false)}>×</button></header>
+          <div className="folio-picker-list">{availableHrPages.map((page) => <label key={page.id} className="folio-picker-option"><input type="checkbox" checked={effectiveFavorites.includes(page.id)} disabled={!effectiveFavorites.includes(page.id) && effectiveFavorites.length >= 6} onChange={() => toggleFavorite(page)} /><OrvexaIcon name={page.icon || "file-text"} /><span>{page.label}</span><small>{page.group}</small></label>)}</div>
+          {!availableHrPages.length && <p className="folio-picker-empty">No HR forms are currently available to your account.</p>}
+          <footer><span>{effectiveFavorites.filter((id) => availableHrPages.some((page) => page.id === id)).length} of 6 selected</span><button type="button" onClick={() => setPickerOpen(false)}>Done</button></footer>
+        </section>
+      </div>, document.body)}
     </aside>
   );
 }

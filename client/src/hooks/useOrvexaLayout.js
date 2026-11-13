@@ -32,31 +32,9 @@ function persist(key, value) {
   }
 }
 
-function readSidebarMode() {
-  let mode = readPreference('mode', 'icon', ['icon', 'full'])
-
-  // Earlier dashboard reveal behavior saved "full" while opening a route in
-  // the sidebar. Migrate that accidental expanded state back to hover mode
-  // once so the sidebar can collapse automatically again.
-  try {
-    const migrationKey = 'orvexa-sidebar-hover-mode-migrated-v1'
-    if (!localStorage.getItem(migrationKey)) {
-      if (mode === 'full') {
-        mode = 'icon'
-        localStorage.setItem(KEYS.mode, mode)
-      }
-      localStorage.setItem(migrationKey, 'true')
-    }
-  } catch {
-    // The preference still works for this session without storage.
-  }
-
-  return mode
-}
-
 export default function useOrvexaLayout() {
   const [theme, setThemeState] = useState(() => readPreference('theme', 'light', ['light', 'dark']))
-  const [sidebarMode, setSidebarModeState] = useState(readSidebarMode)
+  const [sidebarMode, setSidebarModeState] = useState(() => readPreference('mode', 'icon', ['icon', 'full']))
   const [sidebarTone, setSidebarToneState] = useState(() => readPreference('tone', 'pearl', ['pearl', 'warm', 'dark']))
   const [density, setDensityState] = useState(() => readPreference('density', 'comfortable', ['comfortable', 'compact']))
   const [motion, setMotionState] = useState(() => readPreference('motion', 'standard', ['standard', 'reduced']))

@@ -133,7 +133,7 @@ export function DetailList({ items }) {
 // Modal dialog: focus moves in (first [data-autofocus] or focusable element),
 // Tab stays inside, Escape and the backdrop close it unless an action is
 // pending, and focus returns to the element that opened it.
-export function Dialog({ title, description, onClose, busy = false, wide = false, className = '', children }) {
+export function Dialog({ title, description, onClose, busy = false, wide = false, children }) {
   const ref = useRef(null)
   const titleId = useId()
   const descriptionId = useId()
@@ -169,7 +169,7 @@ export function Dialog({ title, description, onClose, busy = false, wide = false
   }
 
   return (
-    <div className={`zrv-dialog-backdrop ${className}`.trim()} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}>
+    <div className="zrv-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}>
       <div
         ref={ref}
         className={`zrv-dialog ${wide ? 'zrv-dialog--wide' : ''}`.trim()}
@@ -206,9 +206,9 @@ export function DialogActions({ onCancel, pending, confirmLabel, pendingLabel = 
 }
 
 // Confirmation for a sensitive change. `feedback` shows a failure inside the dialog.
-export function ConfirmDialog({ title, description, confirmLabel, danger = false, pending, feedback, onConfirm, onClose, children, confirmDisabled, className }) {
+export function ConfirmDialog({ title, description, confirmLabel, danger = false, pending, feedback, onConfirm, onClose, children, confirmDisabled }) {
   return (
-    <Dialog title={title} description={description} onClose={onClose} busy={pending} className={className}>
+    <Dialog title={title} description={description} onClose={onClose} busy={pending}>
       {children}
       <Feedback feedback={feedback?.kind === 'success' ? null : feedback} />
       <DialogActions onCancel={onClose} pending={pending} confirmLabel={confirmLabel} danger={danger} confirmDisabled={confirmDisabled} onConfirm={onConfirm} />
