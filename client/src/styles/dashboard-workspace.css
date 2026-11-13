@@ -8396,17 +8396,17 @@ html:not(.dark) .zrv-ws .book-chapter.is-current small {
   position: absolute;
   inset: auto;
   top: 50%;
-  left: 50%;
+  left: calc(100% + 14px);
   z-index: 8;
   display: flex;
-  width: min(350px, calc(100vw - 24px));
+  width: min(350px, calc(100vw - 180px));
   height: max-content;
   min-height: 0;
   align-items: center;
   justify-content: center;
   overflow: visible;
   padding: 0;
-  transform: translate(-50%, -50%);
+  transform: translateY(-50%);
   background: transparent;
   backdrop-filter: none;
 }
