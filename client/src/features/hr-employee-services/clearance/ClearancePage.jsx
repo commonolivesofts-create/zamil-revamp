@@ -98,6 +98,7 @@ function ClearanceEditor({ lookups, initial }) {
   const permissions = usePermissions()
   const { destinations, approvers } = lookups
   const managers = approvers.department
+  const [saveUnknown, setSaveUnknown] = useState(false)
   const editor = useRecruitmentForm({
     basePath: CLEARANCE_PATHS.form, idKey: 'clearanceId', record: initial,
     initialForm: initial ? formOf(initial, destinations) : (() => {
@@ -181,7 +182,7 @@ function ClearanceEditor({ lookups, initial }) {
     return false
   }
 
-  const save = () => {
+  const save = async () => {
     if (locked) return
     const problems = validateClearance(form, { managers, destinations })
     setErrors(Object.fromEntries(problems.map((problem) => [problem.field, problem.message])))
@@ -192,11 +193,15 @@ function ClearanceEditor({ lookups, initial }) {
         problems.length === 1 ? [] : problems.map((problem) => problem.message))
       return
     }
-    editor.perform(async ({ saved: keep }) => {
-      const result = await clearanceService.save(editor.recordId, form)
+    const outcome = await editor.perform(async ({ saved: keep }) => {
+      const result = await clearanceService.save(editor.recordId, form, record)
       keep(result)
       return result
-    }, { success: (result) => `Employee clearance ${result.referenceNo || result.clearanceId} saved.` })
+    }, {
+      success: (result) => `Employee clearance ${result.referenceNo || result.clearanceId} saved.`,
+      navigateOnCreate: false,
+    })
+    if (outcome.status === 'unknown') setSaveUnknown(true)
   }
   const leave = (path) => (editor.dirty && !locked ? setDialog({ path }) : navigate(path))
   const tools = [
@@ -226,7 +231,9 @@ function ClearanceEditor({ lookups, initial }) {
   )
   const textField = (id, key, label, max, hint) => (
     <HrField id={id} label={label} required error={errors[key]} hint={hint}>
-      <input {...fieldProps(id, { error: errors[key], hint })} className="ux-input zrv-hr-input" aria-required="true" maxLength={max} value={form[key]} onChange={set(key)} />
+      <input {...fieldProps(id, { error: errors[key], hint })} className="ux-input zrv-hr-input" type={key === 'contact' ? 'tel' : 'text'}
+        inputMode={key === 'contact' ? 'tel' : undefined} autoComplete={key === 'contact' ? 'tel' : undefined}
+        aria-required="true" maxLength={max} value={form[key]} onChange={set(key)} />
     </HrField>
   )
   const active = SECTIONS.find((section) => section.key === tab)
@@ -243,7 +250,7 @@ function ClearanceEditor({ lookups, initial }) {
 
   return <>
     <RecruitmentShell current="clearance" flow={false} compact breadcrumb={C.breadcrumb} title={TITLE}
-      tools={tools} primary={{ label: SAVE, icon: 'save', onClick: save }} locked={locked} pending={editor.pending} focusError={editor.focusError}
+      tools={tools} primary={{ label: SAVE, icon: 'save', onClick: save, disabled: saveUnknown || editor.feedback?.kind === 'unknown' }} locked={locked} pending={editor.pending} focusError={editor.focusError}
       feedback={editor.feedback} onDismissFeedback={editor.dismiss}
       steps={[
         [STEPS[0], `${firstRequired}/3 required`], [STEPS[1], `${itDone}/${IT_SUBJECTS.length} chosen`],

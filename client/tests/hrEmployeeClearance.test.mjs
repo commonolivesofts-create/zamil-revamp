@@ -161,7 +161,7 @@ test('legacy rules: access-to kind follows the action; tab approvers come from t
   assert.deepEqual(SECTIONS.map((section) => section.items.length), [12, 4, 2, 2, 9], 'the legacy checkbox count of each tab')
 })
 
-test('service: the API paths, scoped and all-employee lookups, list filters, create then reload', async () => {
+test('service: API paths, scoped lookups, list filters, and confirmed mutation responses', async () => {
   const calls = []
   const respond = (method, path, options) => {
     if (path === '/hr/employee-clearance/lookups/computer-destinations') return DESTINATIONS
@@ -170,12 +170,12 @@ test('service: the API paths, scoped and all-employee lookups, list filters, cre
     if (path === '/hr/employee-clearance/lookups/employees/1001') return { empNo: 1001, fullName: 'Employee A', directManager: 'Direct Manager' }
     if (path === '/hr/employee-clearance' && method === 'GET') return { page: 1, pageSize: 20, total: 1, items: [{ headerId: '42', status: 'Draft' }] }
     if (path === '/hr/employee-clearance' && method === 'POST') return { headerId: '42', referenceNo: 'DIV/26/042', status: 'Draft' }
-    if (path === '/hr/employee-clearance/42') return method === 'GET' ? RECORD : { headerId: '42', updated: true }
+    if (path === '/hr/employee-clearance/42') return method === 'GET' ? RECORD : { updated: true }
     throw new Error(`unexpected ${method} ${path}`)
   }
   const call = (method) => async (path, ...rest) => {
     const options = method === 'GET' ? rest[0] ?? {} : rest[1] ?? {}
-    calls.push({ method, path, params: options.params, body: method === 'GET' ? undefined : rest[0] })
+    calls.push({ method, path, params: options.params, timeout: options.timeout, body: method === 'GET' ? undefined : rest[0] })
     return { data: respond(method, path, options) }
   }
   const service = createClearanceService({ client: { get: call('GET'), post: call('POST'), put: call('PUT') } })
@@ -196,10 +196,14 @@ test('service: the API paths, scoped and all-employee lookups, list filters, cre
   assert.equal(page.items[0].status, 'DRAFT')
 
   const created = await service.save(null, validForm())
-  assert.deepEqual(calls.slice(-2).map((item) => [item.method, item.path]), [['POST', '/hr/employee-clearance'], ['GET', '/hr/employee-clearance/42']])
+  assert.deepEqual(calls.slice(-1).map((item) => [item.method, item.path]), [['POST', '/hr/employee-clearance']])
+  assert.equal(calls.at(-1).timeout, 60000)
   assert.equal(created.referenceNo, 'DIV/26/042')
+  assert.equal(created.purpose, 'Annual vacation')
+  assert.equal(created.employee.name, 'Employee A')
   await service.save('42', validForm())
-  assert.deepEqual(calls.slice(-2).map((item) => [item.method, item.path]), [['PUT', '/hr/employee-clearance/42'], ['GET', '/hr/employee-clearance/42']])
+  assert.deepEqual(calls.slice(-1).map((item) => [item.method, item.path]), [['PUT', '/hr/employee-clearance/42']])
+  assert.equal(calls.at(-1).timeout, 60000)
   await assert.rejects(service.getById('../1'), { code: 'INVALID_ID' })
 })
 
@@ -232,6 +236,8 @@ test('source: live API only, no browser storage, routed, permission-gated writes
   const service = await read('../src/features/hr-employee-services/clearance/clearanceService.js')
   assert.match(service, /createClearanceService\(\{ client: apiClient \}\)/)
   const page = await read('../src/features/hr-employee-services/clearance/ClearancePage.jsx')
+  assert.match(page, /type=\{key === 'contact' \? 'tel' : 'text'\}/, 'contact uses phone input normalization')
+  assert.match(page, /inputMode=\{key === 'contact' \? 'tel' : undefined\}/)
   assert.match(page, /permissions\.can\(`\$\{PERMISSION\}:\$\{record \? 'UPDATE' : 'CREATE'\}`\)/)
   assert.match(page, /disabled=\{!saved\}/, 'the tabs and signatures stay disabled until the first save')
   const router = await read('../src/app/router.jsx')

@@ -2,6 +2,7 @@
 // backend contracts without changing server-owned schemas or workflows.
 // Relative imports keep this module loadable by the Node-native tests.
 import { ApiError, apiClient } from "../../services/api/apiClient.js";
+import { createListReadLimit } from "../../services/api/listReadLimit.js";
 import { hrRecruitmentConfig } from "./hrRecruitmentConfig.js";
 import { createDemoClient } from "./demo/demoClient.js";
 import {
@@ -918,18 +919,31 @@ export function createInterviewService({ client }) {
       });
     },
     getById,
-    async save(id, body) {
+    async save(id, body, existingRecord = null) {
       const payload = backendInterviewPayload(body);
       const result = id
         ? await client.put(`${INTERVIEWS_BASE}/${segment(id)}`, payload)
         : await client.post(INTERVIEWS_BASE, payload);
-      const savedId = String(id ?? result.data?.headerId ?? "");
+      const response = result.data ?? {};
+      const savedId = String(id ?? response.headerId ?? "");
       if (!ID_PATTERN.test(savedId))
         throw new ApiError(
           "The server did not return an interview assessment ID.",
           { code: "INVALID_RESPONSE" },
         );
-      return getById(savedId);
+      // A successful POST/PUT is already the server's commit confirmation. Do
+      // not make that confirmation depend on a second GET, which can fail after
+      // the transaction committed and incorrectly invite a duplicate retry.
+      const confirmedAt = response.updatedAt ?? response.createdAt ?? existingRecord?.updatedAt ?? new Date().toISOString();
+      return interviewRecord({
+        ...payload,
+        ...response,
+        headerId: savedId,
+        intNo: response.intNo ?? existingRecord?.assessmentNumber ?? null,
+        status: response.status ?? existingRecord?.status ?? "Incomplete",
+        createdAt: response.createdAt ?? confirmedAt,
+        updatedAt: confirmedAt,
+      });
     },
     async remove(id) {
       await client.delete(`${INTERVIEWS_BASE}/${segment(id)}`);
@@ -1345,6 +1359,9 @@ export function createOrientationService({ client }) {
 }
 
 export function createEmployeeReportService({ client }) {
+  // The report's overview and breakdown issue many filtered list requests
+  // together. Keep them from exhausting the shared LOW Oracle pool.
+  const runListRead = createListReadLimit(4);
   // Legacy XX_CON_EMPLOYEE_INFO rows may lack an id, employee number, name, contractor or
   // status, and some have EMP_ID 0; they are listed with empty values instead of failing the
   // whole page (the id is only a row key here). A value that is present must be well-formed.
@@ -1421,7 +1438,7 @@ export function createEmployeeReportService({ client }) {
       });
     },
     async list(params = {}, { signal } = {}) {
-      const result = await client.get(CONTRACTOR_EMPLOYEES_BASE, {
+      const result = await runListRead(() => client.get(CONTRACTOR_EMPLOYEES_BASE, {
         params: query({
           division: params.division,
           department: params.department,
@@ -1435,7 +1452,7 @@ export function createEmployeeReportService({ client }) {
           order: params.order ?? "asc",
         }),
         signal,
-      });
+      }), signal);
       if (!Array.isArray(result.data) || !result.pagination)
         throw new ApiError(
           "The server returned an unexpected employee report.",

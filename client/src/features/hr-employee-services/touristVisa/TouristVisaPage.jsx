@@ -17,7 +17,7 @@ import { warmEmployeeList } from '../shared/employeeList.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import '@/styles/hr-tourist-visa.css'
 import {
-  DATE_FIELDS, DIVISIONS, EMPLOYEE_FIELDS, RESOURCE, blankLetter, letterFormOf, touristVisaService as service, validateLetter,
+  DATE_FIELDS, DIVISIONS, EMPLOYEE_FIELDS, RESOURCE, blankLetter, employeeMasterProblem, letterFormOf, touristVisaService as service, validateLetter,
 } from './touristVisaService.js'
 import PreviewLanguageSwitch from '../shared/PreviewLanguageSwitch.jsx'
 import TouristVisaPreview from './TouristVisaPreview.jsx'
@@ -33,12 +33,6 @@ const money = (value) => {
   const number = Number(String(value ?? '').replace(/,/g, ''))
   return value === '' || !Number.isFinite(number) ? String(value ?? '') : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(number)
 }
-// Server messages for an employee who cannot get a letter.
-const EMPLOYEE_PROBLEM = Object.freeze({
-  FIELD_REQUIRED: 'This employee’s name, nationality, passport, national ID or position is missing in the master.',
-  SALARY_INVALID: 'This employee has no valid salary in the master.',
-})
-
 export default function TouristVisaPage() {
   return (
     <RecruitmentLoader current="tourist-visa" flow={false} breadcrumb={LETTERS_BREADCRUMB} identify={NO_IDENTIFY}
@@ -113,8 +107,9 @@ function LetterEditor({ lookups, initial }) {
         patch({ employee: result.employee })
         return result
       } catch (error) {
-        if (EMPLOYEE_PROBLEM[error?.code]) {
-          setErrors((current) => ({ ...current, employee: EMPLOYEE_PROBLEM[error.code] }))
+        const employeeProblem = employeeMasterProblem(error)
+        if (employeeProblem) {
+          setErrors((current) => ({ ...current, employee: employeeProblem }))
           setStep(1)
           scrollToSection(1)
         }
