@@ -28,6 +28,8 @@ import * as defaultRepository from './workflowManager.repository.js';
  *     allowlisted schema and outside the protected XX_ZRV_ prefix; a HANDLER source must name a
  *     registered server-side handler. Only names are checked; no business data is read.
  *   - A source's identity (kind/owner/object/handler) is locked once a source version exists.
+ *     Updates take the parent source row lock (SELECT ... FOR UPDATE) that M2-A version creation
+ *     also takes, so the first version and an identity change can never interleave.
  *   - Every change carries the caller's ROW_VERSION; a mismatch is 409 STALE_RECORD.
  *   - Records are deactivated, never deleted (configuration history is kept).
  *   - Nothing here creates workflow instances, tasks or notifications.
@@ -52,6 +54,16 @@ const invalid = (field, message) =>
   new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', [{ field, message }]);
 
 const isUniqueViolation = (error) => error?.errorNum === UNIQUE_VIOLATION;
+
+// ORA-30006 (FOR UPDATE WAIT expired) / ORA-00054 (resource busy): another change of the same
+// data source is still running. Nothing was changed; the caller may retry.
+export const isLockTimeout = (error) => error?.errorNum === 30006 || error?.errorNum === 54;
+export const sourceBusy = () =>
+  new AppError(
+    409,
+    'SOURCE_BUSY',
+    'Another change to this data source is in progress. Wait a moment and try again.',
+  );
 
 export function createWorkflowManagerService({
   repository = defaultRepository,
@@ -278,6 +290,9 @@ export function createWorkflowManagerService({
 
     async updateSource(actor, sourceId, { rowVersion, ...body }) {
       await withTransaction(POOLS.LOW, async (c) => {
+        // Parent-row lock shared with M2-A version creation: the version count read below is
+        // current, and no first version can be inserted until this identity change commits.
+        if (!(await repository.lockSource(c, sourceId))) throw notFound('Data source');
         const existing = await repository.findSource(c, sourceId);
         if (!existing) throw notFound('Data source');
         if (!sameIdentity(existing, body)) {
@@ -302,6 +317,8 @@ export function createWorkflowManagerService({
           (cc) => repository.findSource(cc, sourceId),
           'Data source',
         );
+      }).catch((error) => {
+        throw isLockTimeout(error) ? sourceBusy() : error;
       });
       audit('WORKFLOW_DATA_SOURCE_UPDATED', { sourceId, actorUserId: actor.userId });
       return getSource(sourceId);

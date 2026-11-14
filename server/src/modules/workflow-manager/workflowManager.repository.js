@@ -300,6 +300,24 @@ export async function findSource(connection, sourceId) {
   return row ? mapSource(row) : null;
 }
 
+/**
+ * Locks the parent data source row for the rest of the transaction (bounded wait, ORA-30006 when
+ * it expires). Every source-identity change (M1) and every source version creation, change or
+ * deletion (M2-A) takes this lock first, so "identity is locked once a version exists" holds even
+ * for the first version and concurrent writers. Returns the SOURCE_ID, or null when missing.
+ */
+export async function lockSource(connection, sourceId) {
+  const [row] = await rows(
+    connection,
+    `SELECT s.source_id FROM xx_zrv_wf_data_sources s
+      WHERE s.source_id = :sourceId
+        FOR UPDATE WAIT 10`,
+    { sourceId },
+    { SOURCE_ID: ID },
+  );
+  return row ? row.SOURCE_ID : null;
+}
+
 export async function findSourceIdByCode(connection, sourceCode) {
   const [row] = await rows(
     connection,

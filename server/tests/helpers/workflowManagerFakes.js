@@ -7,6 +7,8 @@
  * Oracle-like error. It does NOT prove the SQL; it proves routes, guards, validation, rules and
  * transaction boundaries.
  */
+import { createSourceMappingFakeRepository, instrument } from './sourceMappingFakes.js';
+
 const uniqueViolation = (constraint) =>
   Object.assign(new Error(`ORA-00001: unique constraint (XXZP.${constraint}) violated`), {
     errorNum: 1,
@@ -232,6 +234,12 @@ export function installWorkflowManager(store, { dictionary = [] } = {}) {
       const s = t().sources.find((row) => row.sourceId === sourceId);
       return s ? sourceView(s) : null;
     },
+    // Parent-row lock: the store's transactions already run one at a time (helpers/authFakes.js),
+    // so here it only reports existence; tests/workflow-source-mapping-concurrency.test.js proves
+    // the lock ordering with a row-locking simulator.
+    async lockSource(_c, sourceId) {
+      return t().sources.some((s) => s.sourceId === sourceId) ? sourceId : null;
+    },
     async findSourceIdByCode(_c, sourceCode) {
       return t().sources.find((s) => s.sourceCode === sourceCode)?.sourceId ?? null;
     },
@@ -355,8 +363,19 @@ export function installWorkflowManager(store, { dictionary = [] } = {}) {
   );
 
   store.workflowManagerRepository = wrapped;
+
+  // M2-A source version mapping over the same tables (same snapshot/rollback transactions).
+  const mappingCalls = [];
+  const sourceMapping = instrument(
+    createSourceMappingFakeRepository(() => t(), { now: () => store.now(), nextId: newId }),
+    { calls: mappingCalls, failures },
+  );
+  store.sourceMappingRepository = sourceMapping;
+
   return {
     repository: wrapped,
+    sourceMapping,
+    mappingCalls,
     tables: t,
     calls,
     failNext: (name) => failures.add(name),

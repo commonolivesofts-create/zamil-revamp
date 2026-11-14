@@ -1,6 +1,6 @@
 # Workflow Manager — Required Screen / Feature User-Guide Matrix
 
-**Status:** Planned coverage inventory; rows 01–04 are implemented by package M1 (see links), all others remain planned. This is **not proof these screens exist**; every item becomes a verified user guide when its real API+UI implementation ships. Exact routes, permissions, buttons and screenshots must be verified from production code and the actual running application. No generic one-guide-for-everything substitution.
+**Status:** Planned coverage inventory; rows 01–04 are implemented by package M1 and row 05 by package M2-A (see links), all others remain planned. This is **not proof these screens exist**; every item becomes a verified user guide when its real API+UI implementation ships. Exact routes, permissions, buttons and screenshots must be verified from production code and the actual running application. No generic one-guide-for-everything substitution.
 
 | ID | Package | Feature / screen | Required screen-specific guide (under `user-guides/`) | Audience |
 |---|---|---|---|---|
@@ -8,7 +8,7 @@
 | 02 | M1 | Form Registry list and lookup | [`02-form-registry.md`](user-guides/02-form-registry.md) — **Implemented (M1)**, tests verified; live check pending G1 | Configuration administrator |
 | 03 | M1 | Register/edit form and organization scope | [`03-form-registration.md`](user-guides/03-form-registration.md) — **Implemented (M1)**, tests verified; live check pending G1. Organization scope is held in the M2 versioned mapping (no column on `XX_ZRV_WF_FORMS`) | Configuration administrator |
 | 04 | M1 | Data Source Registry | [`04-data-source-registry.md`](user-guides/04-data-source-registry.md) — **Implemented (M1)**, tests verified; live check pending G1 | Source administrator |
-| 05 | M2 | Data source versions and approved allowlist | `05-data-source-version.md` | Source administrator |
+| 05 | M2-A | Data source versions and approved allowlist | [`05-data-source-version.md`](user-guides/05-data-source-version.md) — **Implemented (M2-A)**, tests verified (branch `feat/workflow-manager-m2-a-source-mapping`, 2026-11-09); `SOURCE_MAPPING` registration (G1) and live check pending | Source administrator |
 | 06 | M2 | Header/detail/PK/FK field mapping | `06-form-field-mapping.md` | Form integrator |
 | 07 | M2 | Business status, submit-event and ownership mapping | `07-form-status-mapping.md` | Form integrator |
 | 08 | M3 | Workflow definitions, list and drafts | `08-workflow-list.md` | Workflow designer |

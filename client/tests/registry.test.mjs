@@ -155,6 +155,10 @@ const WORKFLOW_MANAGER_ROUTES = [
   { id: 'workflow-form-new', path: '/workflow-manager/forms/new', label: 'Register form', icon: 'file-plus', ...wf, permission: `${WF}.FORM_REGISTRY:CREATE`, requiresMfa: false, implemented: true, nav: false },
   { id: 'workflow-form', path: '/workflow-manager/forms/:formId', label: 'Registered form', icon: 'file-text', ...wf, permission: `${WF}.FORM_REGISTRY:VIEW`, requiresMfa: false, implemented: true, nav: false },
   { id: 'workflow-data-sources', path: '/workflow-manager/data-sources', label: 'Data source registry', icon: 'database', ...wf, permission: `${WF}.DATA_SOURCE_REGISTRY:VIEW`, requiresMfa: false, implemented: true },
+  // M2-A source mapping: reached from the registry (no sidebar entry); also needs DATA_SOURCE_REGISTRY:VIEW.
+  { id: 'workflow-source-versions', path: '/workflow-manager/data-sources/:sourceId/mapping-versions', label: 'Source versions', icon: 'layers', ...wf, permission: `${WF}.SOURCE_MAPPING:VIEW`, alsoRequires: [`${WF}.DATA_SOURCE_REGISTRY:VIEW`], requiresMfa: false, implemented: true, nav: false },
+  { id: 'workflow-source-version-new', path: '/workflow-manager/data-sources/:sourceId/mapping-versions/new', label: 'New source version', icon: 'file-plus', ...wf, permission: `${WF}.SOURCE_MAPPING:CREATE`, alsoRequires: [`${WF}.DATA_SOURCE_REGISTRY:VIEW`], requiresMfa: false, implemented: true, nav: false },
+  { id: 'workflow-source-version', path: '/workflow-manager/data-sources/:sourceId/mapping-versions/:versionId', label: 'Source version', icon: 'file-text', ...wf, permission: `${WF}.SOURCE_MAPPING:VIEW`, alsoRequires: [`${WF}.DATA_SOURCE_REGISTRY:VIEW`], requiresMfa: false, implemented: true, nav: false },
 ]
 // Group order: workspace, human resources, workflow manager, security, account.
 const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], PRE_REGISTRY_ROUTES[1], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...HR_EMPLOYEE_CLEARANCE_ROUTES, ...HR_CHARTER_ROUTES, ...HR_SALARY_CERTIFICATE_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
