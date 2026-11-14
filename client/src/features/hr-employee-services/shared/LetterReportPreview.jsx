@@ -44,10 +44,10 @@ export function LetterReportPreview({
       .then((loaded) => {
         if (!controller.signal.aborted) setRecord({ status: 'ready', data: loaded })
       })
-      .catch(() => {
-        if (!controller.signal.aborted) setRecord({ status: 'error' })
+      .catch((error) => {
+        if (!controller.signal.aborted) setRecord({ status: 'error', message: error?.message || failed })
       })
-  }, [])
+  }, [failed])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -77,7 +77,7 @@ export function LetterReportPreview({
       </div>
       {ready ? paper(saved, language) : isFailed ? (
         <div className="zrv-admin-state zrv-admin-state--error" role="alert">
-          <p>{failed}</p>
+          <p>{record.message || failed}</p>
           <button type="button" className="btn-secondary" onClick={retry}>{retryText}</button>
         </div>
       ) : (

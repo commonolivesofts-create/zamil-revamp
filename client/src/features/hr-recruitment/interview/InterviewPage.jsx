@@ -122,7 +122,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
 
   const saveRecord = async ({ saved }) => {
     // The backend requires the position name; it is derived from the linked requisition.
-    const result = await service.save(editor.recordId, { ...interviewPayload(form), positionTitle: position })
+    const result = await service.save(editor.recordId, { ...interviewPayload(form), positionTitle: position }, record)
     saved(result)
     return result
   }
@@ -132,7 +132,10 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
     if (!navigation.validateAll()) return
     setSaving(true)
     try {
-      const outcome = await editor.perform(saveRecord, { success: (result) => `${T.saved(result.assessmentNumber)} Status: ${T.status[result.status] || result.status}.` })
+      const outcome = await editor.perform(saveRecord, {
+        success: (result) => `${T.saved(result.assessmentNumber)} Status: ${T.status[result.status] || result.status}.`,
+        navigateOnCreate: false,
+      })
       if (outcome.status === 'success') editor.resetToSaved(outcome.value, interviewFormFromRecord(outcome.value))
       return outcome
     } finally {
@@ -251,7 +254,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
       <RecruitmentShell
         current="interview" title={T.title}
         flowStatus={record ? `${record.assessmentNumber} · ${T.status[record.status]}` : null}
-        tools={tools} primary={{ label: saveLabel, icon: 'save', onClick: save, disabled: !canSave }}
+        tools={tools} primary={{ label: saveLabel, icon: 'save', onClick: save, disabled: !canSave || editor.feedback?.kind === 'unknown' }}
         secondaryAction={canSave && (!record || ['INCOMPLETE', 'REJECTED'].includes(record.status)) ? { label: 'Submit for Approval', icon: 'send', onClick: () => editor.showNotice('The approval workflow is pending setup. This assessment has not been submitted.') } : null}
         feedback={editor.feedback} feedbackMode="toast" pendingMessage={saving ? "Saving interview assessment" : editor.pending ? "Updating interview assessment" : null} onDismissFeedback={editor.dismiss} lookupNotice={lookupNotice} locked={locked} pending={editor.pending} focusError={editor.focusError}
         banner={<><p className="zrv-hr-draft-note"><OrvexaIcon name="info" size={17} /><span><strong>{record ? 'Save changes' : T.primary}</strong> stores the assessment without submitting it for approval. New assessments are saved as Incomplete.</span></p>{!record && sourceRequisition ? <p className="zrv-hr-draft-note"><OrvexaIcon name="info" size={17} /><span>Requisition <strong>{sourceRequisition.requisitionNumber}</strong> and position have been filled from the approved requisition. Complete the candidate details and assessment below.</span></p> : null}</>}

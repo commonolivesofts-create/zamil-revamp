@@ -74,6 +74,8 @@ import {
   FormRegistrationPage,
   FormRecordPage,
   DataSourceRegistryPage,
+  SourceVersionListPage,
+  SourceVersionEditorPage,
   DeniedPage,
   NotFoundPage,
   RouterShell,
@@ -227,6 +229,9 @@ export const router = createBrowserRouter([
                   { path: 'workflow-manager/forms/new', handle: { routeId: 'workflow-form-new' }, element: <FormRegistrationPage /> },
                   { path: 'workflow-manager/forms/:formId', handle: { routeId: 'workflow-form' }, element: <FormRecordPage /> },
                   { path: 'workflow-manager/data-sources', handle: { routeId: 'workflow-data-sources' }, element: <DataSourceRegistryPage /> },
+                  { path: 'workflow-manager/data-sources/:sourceId/mapping-versions', handle: { routeId: 'workflow-source-versions' }, element: <SourceVersionListPage /> },
+                  { path: 'workflow-manager/data-sources/:sourceId/mapping-versions/new', handle: { routeId: 'workflow-source-version-new' }, element: <SourceVersionEditorPage /> },
+                  { path: 'workflow-manager/data-sources/:sourceId/mapping-versions/:versionId', handle: { routeId: 'workflow-source-version' }, element: <SourceVersionEditorPage /> },
                 ]),
               },
               {

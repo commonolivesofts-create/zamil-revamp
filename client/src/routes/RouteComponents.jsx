@@ -83,6 +83,8 @@ export const FormRegistryPage = lazy(() => import('@/features/workflow-manager/p
 export const FormRegistrationPage = lazy(() => import('@/features/workflow-manager/pages/FormRegistrationPage.jsx'))
 export const FormRecordPage = lazy(() => import('@/features/workflow-manager/pages/FormRecordPage.jsx'))
 export const DataSourceRegistryPage = lazy(() => import('@/features/workflow-manager/pages/DataSourceRegistryPage.jsx'))
+export const SourceVersionListPage = lazy(() => import('@/features/workflow-manager/pages/SourceVersionListPage.jsx'))
+export const SourceVersionEditorPage = lazy(() => import('@/features/workflow-manager/pages/SourceVersionEditorPage.jsx'))
 export const DeniedPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessDeniedPage })))
 export const AccessUnavailablePage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.AccessUnavailablePage })))
 export const NotFoundPage = lazy(() => import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.NotFoundPage })))

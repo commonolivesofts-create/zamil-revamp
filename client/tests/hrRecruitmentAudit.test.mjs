@@ -144,8 +144,7 @@ const INTERVIEW = Object.freeze({
 
 test("interview save sends the required position name and the admin manager entered on the form", async () => {
   const client = fakeClient({
-    "POST /hr/interview-assessments": { data: { headerId: "700" } },
-    "GET /hr/interview-assessments/700": { data: INTERVIEW },
+    "POST /hr/interview-assessments": { data: { headerId: "700", intNo: "300000003618177-700" } },
   });
   const rated = (keys) =>
     Object.fromEntries(keys.map((key) => [key, { rating: 4, remark: "" }]));
@@ -161,10 +160,15 @@ test("interview save sends the required position name and the admin manager ente
     outcome: "PASSED",
     adminManagerName: "Sample Manager A",
   };
-  await services(client).interviews.save(null, {
+  const saved = await services(client).interviews.save(null, {
     ...interviewPayload(form),
     positionTitle: "Quality Inspector",
   });
+  assert.equal(client.calls.length, 1, "a confirmed POST must not depend on a follow-up GET");
+  assert.equal(saved.assessmentId, "700");
+  assert.equal(saved.assessmentNumber, "300000003618177-700");
+  assert.equal(saved.candidateName, "Test Applicant A");
+  assert.equal(saved.adminManagerName, "Sample Manager A");
   const body = client.calls[0].body;
   assert.equal(body.positionName, "Quality Inspector");
   assert.equal(body.evaluation.adminManager, "Sample Manager A");

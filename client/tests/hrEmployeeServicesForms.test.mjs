@@ -196,6 +196,34 @@ test('idea: the service runs unchanged on the demo adapter (parity with the back
   await assert.rejects(service.save(null, { ...form, investmentValue: '0' }), { status: 400 })
 })
 
+test('idea report list requests are capped to protect the shared database pool', async () => {
+  const pending = []
+  let active = 0
+  let peak = 0
+  const service = createIdeaService({ client: {
+    get: () => new Promise((resolve) => {
+      active += 1
+      peak = Math.max(peak, active)
+      pending.push(() => {
+        active -= 1
+        resolve({ data: { items: [], page: 1, pageSize: 1, total: 0 } })
+      })
+    }),
+  } })
+  const reads = Array.from({ length: 10 }, () => service.list({ pageSize: 1 }))
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(pending.length, 4, 'only four list calls start before a connection is released')
+  let finished = 0
+  while (finished < reads.length) {
+    const batch = pending.splice(0)
+    finished += batch.length
+    batch.forEach((complete) => complete())
+    await new Promise((resolve) => setImmediate(resolve))
+  }
+  await Promise.all(reads)
+  assert.equal(peak, 4)
+})
+
 // ---------- Sick Leave (1076) ----------
 
 test('sick leave: days follow the server rule; working days and back-to-work skip Friday and Saturday', () => {

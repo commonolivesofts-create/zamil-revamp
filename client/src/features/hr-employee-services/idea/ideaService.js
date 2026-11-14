@@ -10,7 +10,52 @@ import { ideaBody, readIdeaEmployee, readIdeaEmployeeDetails, readIdeaLookups, r
 
 export const IDEA_BASE = '/ideas'
 
+// IdeaReport fans out page, overview and breakdown list queries together. Keep
+// these reads below the LOW-pool limit so the analytics cards do not exhaust
+// database connections needed by the report page or other active forms.
+function createListReadLimit(limit = 4) {
+  let active = 0
+  const queue = []
+  const drain = () => {
+    while (active < limit && queue.length) {
+      const entry = queue.shift()
+      entry.signal?.removeEventListener('abort', entry.cancel)
+      if (entry.signal?.aborted) {
+        entry.reject(entry.signal.reason ?? new DOMException('Aborted', 'AbortError'))
+        continue
+      }
+      active += 1
+      entry.resolve(() => {
+        active -= 1
+        drain()
+      })
+    }
+  }
+  return (operation, signal) => new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+      return
+    }
+    const entry = { signal, resolve, reject, cancel: null }
+    entry.cancel = () => {
+      const index = queue.indexOf(entry)
+      if (index !== -1) queue.splice(index, 1)
+      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+    }
+    signal?.addEventListener('abort', entry.cancel, { once: true })
+    queue.push(entry)
+    drain()
+  }).then(async (release) => {
+    try {
+      return await operation()
+    } finally {
+      release()
+    }
+  })
+}
+
 export function createIdeaService({ client }) {
+  const runListRead = createListReadLimit()
   const getById = async (id, { signal } = {}) => readIdeaRecord((await client.get(`${IDEA_BASE}/${segment(id)}`, { signal })).data)
   // The picker's list, loaded with the form.
   const employees = createEmployeeList({
@@ -39,7 +84,10 @@ export function createIdeaService({ client }) {
     },
     // The ideas API has no sort parameter: rows come newest first.
     async list({ page = 1, pageSize = 25, q, status, division, category, invCategory, from, to } = {}, { signal } = {}) {
-      const { data } = await client.get(IDEA_BASE, { params: params({ page, pageSize, q, status, division, category, invCategory, from, to }), signal })
+      const { data } = await runListRead(
+        () => client.get(IDEA_BASE, { params: params({ page, pageSize, q, status, division, category, invCategory, from, to }), signal }),
+        signal,
+      )
       return readIdeaPage(data)
     },
     getById,

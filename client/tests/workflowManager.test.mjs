@@ -195,8 +195,8 @@ test('Workflow Manager pages are listed and opened only with their backend permi
 test('client permission keys equal the backend permission catalogue of the module', async () => {
   const backend = await read('../../server/src/modules/workflow-manager/workflowManager.catalog.js')
   const routes = await read('../../server/src/modules/workflow-manager/workflowManager.routes.js')
-  const used = [...routes.matchAll(/(?:read|write)\((OVERVIEW|FORMS|SOURCES), '([A-Z_]+)'/g)]
-    .map(([, resource, action]) => `WORKFLOW_MANAGER.${{ OVERVIEW: 'OVERVIEW', FORMS: 'FORM_REGISTRY', SOURCES: 'DATA_SOURCE_REGISTRY' }[resource]}:${action}`)
+  const used = [...routes.matchAll(/(?:read|write)\(\s*(OVERVIEW|FORMS|SOURCES|MAPPING),\s*'([A-Z_]+)'/g)]
+    .map(([, resource, action]) => `WORKFLOW_MANAGER.${{ OVERVIEW: 'OVERVIEW', FORMS: 'FORM_REGISTRY', SOURCES: 'DATA_SOURCE_REGISTRY', MAPPING: 'SOURCE_MAPPING' }[resource]}:${action}`)
   assert.match(backend, /WORKFLOW_MODULE_CODE = 'WORKFLOW_MANAGER'/)
   const registered = registry.permissions.filter((p) => p.moduleCode === 'WORKFLOW_MANAGER').map((p) => p.key)
   assert.deepEqual([...new Set(used)].sort(), [...registered].sort(), 'every backend route permission is registered, and no extra ones')

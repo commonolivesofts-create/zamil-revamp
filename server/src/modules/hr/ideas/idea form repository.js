@@ -151,8 +151,8 @@ export async function list(c, userId, f) {
     bu: f.division || null,
     cat: f.category || null,
     inv: f.invCategory || null,
-    from: f.from || null,
-    to: f.to || null,
+    createdFrom: f.from || null,
+    createdTo: f.to || null,
     q: f.q || null,
   };
 
@@ -167,14 +167,14 @@ export async function list(c, userId, f) {
       AND (:cat IS NULL OR I.CATERGORY = :cat)
       AND (:inv IS NULL OR I.INV_CATEGORY = :inv)
       AND (
-        :from IS NULL
+        :createdFrom IS NULL
         OR TRUNC(I.CREATION_DATE) >=
-           TO_DATE(:from,'YYYY-MM-DD')
+           TO_DATE(:createdFrom,'YYYY-MM-DD')
       )
       AND (
-        :to IS NULL
+        :createdTo IS NULL
         OR TRUNC(I.CREATION_DATE) <=
-           TO_DATE(:to,'YYYY-MM-DD')
+           TO_DATE(:createdTo,'YYYY-MM-DD')
       )
       AND (
         :q IS NULL
@@ -191,16 +191,12 @@ export async function list(c, userId, f) {
   const page = f.page || 1;
   const pageSize = f.pageSize || 25;
 
-  const selectedColumns = cols
-    .split(', ')
-    .map((s) =>
-      s === 'HEADER_ID'
-        ? 'I.HEADER_ID'
-        : s.includes(' AS ')
-          ? s.replace('CREATION_DATE', 'I.CREATION_DATE')
-          : 'I.' + s,
-    )
-    .join(', ');
+  const selectedColumns = `
+    I.HEADER_ID, I.UUID, I.ID_NO, I.EMP_NO, I.EMP_NAME,
+    I.DIVISION, I.DEPARTMENT, I.TITLE, I.IDEA, I.CATERGORY,
+    I.INV_CATEGORY, I.VALUE, I.AMOUNT, I.SAVING, I.DEP_VAL,
+    I.ATTRIBUTE1, I.NPV_VAL, I.ROI_VAL, I.STATUS, I.APPROVED_BY,
+    I.CREATED_BY, TO_CHAR(I.CREATION_DATE, 'YYYY-MM-DD') AS CREATION_DATE`;
 
   const items = await rows(
     c,

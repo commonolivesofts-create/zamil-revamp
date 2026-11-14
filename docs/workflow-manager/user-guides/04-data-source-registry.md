@@ -51,7 +51,7 @@ but cannot be selected. Handlers are introduced with the form mapping package (M
 | **Status** | All, Active or Inactive. |
 | **Sort by** | Source code, Source name, Kind or Last updated, ↑ / ↓. |
 | Columns | **Source** (name and code), **Kind**, **Object or handler** (`OWNER.OBJECT` or handler code), **Versions**, **Status**, **Last updated** |
-| **Versions** (row) | Read-only list of the source's versions (created by package M2). |
+| **Versions** (row) | Read-only list of the source's versions. Users with `SOURCE_MAPPING:VIEW` see **Manage mapping** instead, which opens the source versions screen ([guide 05](05-data-source-version.md)). |
 | **Edit** (row) | Opens the edit dialog. With `UPDATE`. |
 | **Activate** / **Deactivate** (row) | Confirmation dialog. With `ACTIVATE` / `DEACTIVATE`. |
 

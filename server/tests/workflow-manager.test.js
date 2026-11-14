@@ -685,6 +685,16 @@ describe('workflow manager M1 OpenAPI contract', () => {
       ['post', '/data-sources/{sourceId}/activate'],
       ['post', '/data-sources/{sourceId}/deactivate'],
       ['get', '/data-sources/{sourceId}/versions'],
+      // M2-A source version mapping (detailed in workflow-source-mapping.test.js).
+      ['get', '/data-sources/{sourceId}/dictionary'],
+      ['get', '/data-sources/{sourceId}/mapping-versions'],
+      ['post', '/data-sources/{sourceId}/mapping-versions'],
+      ['get', '/data-sources/{sourceId}/mapping-versions/{versionId}'],
+      ['put', '/data-sources/{sourceId}/mapping-versions/{versionId}'],
+      ['delete', '/data-sources/{sourceId}/mapping-versions/{versionId}'],
+      ['post', '/data-sources/{sourceId}/mapping-versions/{versionId}/revalidate'],
+      ['get', '/data-sources/{sourceId}/mapping-versions/{versionId}/drift'],
+      ['post', '/data-sources/{sourceId}/mapping-versions/{versionId}/clone'],
     ];
     const documented = Object.keys(paths).filter((path) => path.startsWith(base));
     assert.equal(

@@ -7,6 +7,7 @@ import { ApiError, apiClient } from '../../services/api/apiClient.js'
 import {
   ID_PATTERN, readForm, readFormVersion, readList, readModuleOption, readOverview, readPage, readSource,
   readSourceObject, readSourcePolicy, readSourceVersion,
+  readSourceDictionary, readSourceMappingDeleted, readSourceMappingDetail, readSourceMappingDrift, readSourceMappingVersion,
 } from './workflowManagerContract.js'
 
 const BASE = '/workflow-manager'
@@ -34,6 +35,8 @@ function rowVersionBody(rowVersion) {
 export function createWorkflowManagerService({ client }) {
   const forms = (formId) => `${BASE}/forms/${segment(formId)}`
   const sources = (sourceId) => `${BASE}/data-sources/${segment(sourceId)}`
+  const mappings = (sourceId) => `${sources(sourceId)}/mapping-versions`
+  const mapping = (sourceId, versionId) => `${mappings(sourceId)}/${segment(versionId)}`
 
   return Object.freeze({
     async getOverview({ signal } = {}) {
@@ -104,7 +107,62 @@ export function createWorkflowManagerService({ client }) {
       const { data } = await client.get(`${BASE}/lookups/source-objects`, { params: query({ objectType, search }), signal })
       return readList(data, readSourceObject)
     },
+
+    // --- Source mapping (SOURCE_MAPPING, M2-A) -------------------------------------------------
+    // The server derives every fact; only author choices are sent: columns { name, exposed,
+    // dataClass } and keyCandidates { code, columns, assurance }.
+    async getSourceDictionary(sourceId, { signal } = {}) {
+      const { data } = await client.get(`${sources(sourceId)}/dictionary`, { signal })
+      return readSourceDictionary(data)
+    },
+    async listSourceMappingVersions(sourceId, { page, pageSize } = {}, { signal } = {}) {
+      const result = await client.get(mappings(sourceId), { params: query({ page, pageSize }), signal })
+      return readPage(result, readSourceMappingVersion)
+    },
+    async getSourceMappingVersion(sourceId, versionId, { signal } = {}) {
+      const { data } = await client.get(mapping(sourceId, versionId), { signal })
+      return readSourceMappingDetail(data)
+    },
+    async createSourceMappingVersion(sourceId, draft) {
+      const { data } = await client.post(mappings(sourceId), { draft: draftBody(draft) })
+      return readSourceMappingDetail(data)
+    },
+    async updateSourceMappingVersion(sourceId, versionId, { rowVersion, draft }) {
+      const { data } = await client.put(mapping(sourceId, versionId), { ...rowVersionBody(rowVersion), draft: draftBody(draft) })
+      return readSourceMappingDetail(data)
+    },
+    async revalidateSourceMappingVersion(sourceId, versionId, rowVersion) {
+      const { data } = await client.post(`${mapping(sourceId, versionId)}/revalidate`, rowVersionBody(rowVersion))
+      return readSourceMappingDetail(data)
+    },
+    async getSourceMappingDrift(sourceId, versionId, { signal } = {}) {
+      const { data } = await client.get(`${mapping(sourceId, versionId)}/drift`, { signal })
+      return readSourceMappingDrift(data)
+    },
+    async cloneSourceMappingVersion(sourceId, versionId) {
+      const { data } = await client.post(`${mapping(sourceId, versionId)}/clone`, {})
+      return readSourceMappingDetail(data)
+    },
+    async deleteSourceMappingVersion(sourceId, versionId, rowVersion) {
+      const { data } = await client.delete(mapping(sourceId, versionId), { body: rowVersionBody(rowVersion) })
+      return readSourceMappingDeleted(data)
+    },
   })
+}
+
+// Exactly the documented author fields, in a fixed shape (no server-owned values).
+function draftBody(draft) {
+  if (!draft || !Array.isArray(draft.columns) || !Array.isArray(draft.keyCandidates)) {
+    throw new ApiError('The source mapping is incomplete.', { code: 'INVALID_REQUEST' })
+  }
+  return {
+    columns: draft.columns.map(({ name, exposed, dataClass }) => ({ name, exposed, dataClass })),
+    keyCandidates: draft.keyCandidates.map(({ code, columns, assurance }) => ({
+      code,
+      columns: [...columns],
+      assurance: assurance ? { basis: assurance.basis, evidenceRef: assurance.evidenceRef, rationale: assurance.rationale } : null,
+    })),
+  }
 }
 
 export const workflowManagerService = createWorkflowManagerService({ client: apiClient })

@@ -18,6 +18,10 @@ export const WORKFLOW_ACTIONS = Object.freeze({
   SOURCES_UPDATE: key('DATA_SOURCE_REGISTRY', 'UPDATE'),
   SOURCES_ACTIVATE: key('DATA_SOURCE_REGISTRY', 'ACTIVATE'),
   SOURCES_DEACTIVATE: key('DATA_SOURCE_REGISTRY', 'DEACTIVATE'),
+  MAPPING_VIEW: key('SOURCE_MAPPING', 'VIEW'),
+  MAPPING_CREATE: key('SOURCE_MAPPING', 'CREATE'),
+  MAPPING_UPDATE: key('SOURCE_MAPPING', 'UPDATE'),
+  MAPPING_DELETE: key('SOURCE_MAPPING', 'DELETE'),
 })
 
 export const PATHS = Object.freeze({
@@ -26,6 +30,9 @@ export const PATHS = Object.freeze({
   newForm: '/workflow-manager/forms/new',
   form: (formId) => `/workflow-manager/forms/${formId}`,
   sources: '/workflow-manager/data-sources',
+  sourceVersions: (sourceId) => `/workflow-manager/data-sources/${sourceId}/mapping-versions`,
+  newSourceVersion: (sourceId) => `/workflow-manager/data-sources/${sourceId}/mapping-versions/new`,
+  sourceVersion: (sourceId, versionId) => `/workflow-manager/data-sources/${sourceId}/mapping-versions/${versionId}`,
 })
 
 const CONTROL_CHARACTERS = /\p{Cc}/u
@@ -206,19 +213,34 @@ const CONFLICTS = Object.freeze({
   FORM_CODE_EXISTS: 'A form with this code is already registered. Choose another code or open the existing form.',
   SOURCE_CODE_EXISTS: 'A data source with this code is already registered. Choose another code.',
   SOURCE_IDENTITY_LOCKED: 'This source already has versions, so its kind and object can no longer change. Register a new data source instead.',
+  SOURCE_BUSY: 'Another change to this data source is in progress. Wait a moment, reload and try again.',
+  SOURCE_VERSION_NOT_DRAFT: 'This version is no longer a draft, so it is read-only. Clone it to start a new draft.',
+  SOURCE_IDENTITY_CHANGED: 'The data source object changed while your mapping was being validated. Reload and check the mapping again.',
+  SOURCE_VERSION_CONFLICT: 'Another version was created at the same moment. Reload the version list and try again.',
+  SOURCE_VERSION_REFERENCED: 'A form mapping uses this source version, so it cannot be deleted.',
+  SOURCE_VERSION_DEPENDENCY_UNVERIFIED: 'The references to this version cannot be verified safely, so it was not deleted. Ask the system owner to check the form mappings.',
+  SOURCE_VERSION_IMMUTABLE: 'The database refused the change because the version is no longer a draft. Reload to see its current state.',
+  SOURCE_VERSION_UNREADABLE: 'The stored configuration of this version cannot be verified, so it cannot be cloned.',
+  SOURCE_OBJECT_UNAVAILABLE: 'The registered table or view cannot be inspected in the database right now (missing, invalid or no longer allowed).',
+  SOURCE_VERSION_REVALIDATION_FAILED: 'The draft no longer validates against the live source. It was left unchanged; see the findings below.',
 })
+
+// Conflicts that mean "reload before trying again" (the editor keeps unsaved input).
+export const RELOAD_CONFLICTS = Object.freeze(['STALE_RECORD', 'SOURCE_BUSY', 'SOURCE_VERSION_NOT_DRAFT', 'SOURCE_IDENTITY_CHANGED', 'SOURCE_VERSION_CONFLICT', 'SOURCE_VERSION_IMMUTABLE'])
 
 // describeFailure() plus the Workflow Manager reason and conflict codes.
 export function describeWorkflowFailure(error) {
   const failure = describeFailure(error)
-  if (CONFLICTS[error?.code]) return { ...failure, message: CONFLICTS[error.code], stale: error.code === 'STALE_RECORD' }
+  if (CONFLICTS[error?.code]) return { ...failure, message: CONFLICTS[error.code], stale: RELOAD_CONFLICTS.includes(error.code) }
+  // Findings of an invalid source mapping are shown by the validation panel, not as a list here.
+  if (error?.code === 'SOURCE_MAPPING_INVALID') return { ...failure, details: [] }
   const details = (error?.details || []).map((item) => REASONS[item.message] || describeReason(item.message) || item.message)
   return { ...failure, details }
 }
 
 // Field errors from a 400 response, keyed by field, for inline display.
 export function fieldErrorsFrom(error) {
-  if (error?.status !== 400 || !Array.isArray(error.details)) return {}
+  if (error?.status !== 400 || !Array.isArray(error.details) || error.code === 'SOURCE_MAPPING_INVALID') return {}
   return Object.fromEntries(error.details.map((item) => [item.field, REASONS[item.message] || item.message]))
 }
 

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { authorizedNavigation, resolveNavigationEntries } from '../src/config/appNavigation.js'
 import { registry } from '../src/config/registry/index.js'
 import {
-  blankLetter, createTouristVisaService, letterBody, letterFormOf, readLetter, validateLetter,
+  blankLetter, createTouristVisaService, employeeMasterProblem, letterBody, letterFormOf, readLetter, validateLetter,
 } from '../src/features/hr-employee-services/touristVisa/touristVisaService.js'
 
 const UUID = '1b4e28ba-2fa1-41d2-883f-0016d3cca427'
@@ -47,6 +47,17 @@ test('validation: every required answer and an approver from the list', () => {
   assert.equal(validateLetter({ ...letterFormOf(readLetter(ROW)), approvalName: 'Someone' }, { approvers: APPROVERS }).approvalName, 'Choose the approver from the list.')
 })
 
+test('master validation names the exact missing employee field without bypassing it', () => {
+  assert.equal(employeeMasterProblem({ code: 'FIELD_REQUIRED', message: 'passport_no is missing from employee master' }),
+    'Passport number is missing from the employee master. Ask HR to update the employee record.')
+  assert.equal(employeeMasterProblem({ code: 'FIELD_REQUIRED', message: 'national_id is missing from employee master' }),
+    'National ID is missing from the employee master. Ask HR to update the employee record.')
+  assert.equal(employeeMasterProblem({ code: 'FIELD_REQUIRED', message: 'unexpected field is missing from employee master' }),
+    'A required employee detail is missing from the master. Ask HR to review the employee record.')
+  assert.equal(employeeMasterProblem({ code: 'SALARY_INVALID' }), 'This employee has no valid salary in the master.')
+  assert.equal(employeeMasterProblem({ code: 'NETWORK_ERROR' }), '')
+})
+
 test('service: lookups, a two-character search, create and update by UUID', async () => {
   const calls = []
   const call = (method) => async (path, ...rest) => {
@@ -68,6 +79,8 @@ test('service: lookups, a two-character search, create and update by UUID', asyn
   assert.equal((await service.searchEmployees('')).items[0].name, 'Employee')
   assert.equal(calls.length, 1, 'the opening list does not search again')
   assert.equal((await service.searchEmployees('10')).items[0].name, 'Employee')
+  assert.equal((await service.employee('1001')).employee_no, '1001')
+  assert.deepEqual(calls.at(-1).slice(0, 2), ['GET', '/hr/tourist-visa-letters/lookups/employees/1001'])
   const form = letterFormOf(readLetter(ROW))
   assert.equal((await service.save(null, form, APPROVERS)).letterId, UUID)
   assert.equal(calls.at(-1)[0], 'POST')

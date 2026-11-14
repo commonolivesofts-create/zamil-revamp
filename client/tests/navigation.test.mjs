@@ -113,6 +113,10 @@ test("only pages backed by a working backend contract are implemented; no placeh
       "/workflow-manager/forms/new",
       "/workflow-manager/forms/:formId",
       "/workflow-manager/data-sources",
+      // Workflow Manager M2-A: source version mapping (real contract).
+      "/workflow-manager/data-sources/:sourceId/mapping-versions",
+      "/workflow-manager/data-sources/:sourceId/mapping-versions/new",
+      "/workflow-manager/data-sources/:sourceId/mapping-versions/:versionId",
       "/security/users",
       "/security/users/:userId",
       "/security/roles",
