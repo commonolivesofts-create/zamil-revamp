@@ -128,6 +128,15 @@ Covered: nine endpoints × auth, CSRF, RBAC action separation, prerequisite, def
 
 Mocks are not proof of Oracle SQL: no statement was executed against Oracle.
 
+### 10A. Independent review and re-validation after merging `main` (2026-11-14)
+
+`main` (`03aa9f3`) was merged into the branch (only conflict: `workflow-manager.css`, which `main` had reformatted without rule changes). An independent code review found and this branch fixed:
+
+1. **Unverified stored configuration reused (medium).** Update and revalidate passed the stored config as attestation evidence even when its SHA-256 did not match (`MISMATCH`), so an out-of-band edit of `attestedBy/attestedAt` could be carried into a newly fingerprinted row. Now only a `VERIFIED` config carries attestations forward; revalidation of a non-`VERIFIED` config is refused (`CONFIG_FINGERPRINT_MISMATCH`, nothing written); structurally malformed configs are `UNREADABLE` instead of causing a 500 on detail/drift. Three tests added (each fails without the fix).
+2. **Editor finding labels (low).** Findings, blockers and drift were labelled with the key/column at the right index of the wrong array (submitted vs. stored sorted order). Save results now use the submitted order (also across the create navigation); drift and stored blockers use the stored order. Client test added.
+
+Noted, not changed: `updateVersionConfig` runs a plain `UPDATE`; if a future writer (M2-B) holds a version row lock, it should be preceded by `lockVersion` (`WAIT`) to keep waits bounded.
+
 ## 11. Screenshots
 
 None. The screens cannot be opened on TEST until `SOURCE_MAPPING` is registered and granted (G1); no runtime capture was made.

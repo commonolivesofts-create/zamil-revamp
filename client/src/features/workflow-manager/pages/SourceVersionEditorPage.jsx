@@ -55,7 +55,7 @@ function SourceVersionEditor() {
   const [seed, setSeed] = useState(0)
   const [editor, setEditor] = useState(null)
   const [showErrors, setShowErrors] = useState(false)
-  const [result, setResult] = useState(location.state?.validation ? { ...location.state.validation, source: 'saved', order: null } : null)
+  const [result, setResult] = useState(location.state?.validation ? { ...location.state.validation, source: 'saved', order: location.state.order ?? null } : null)
   const [drift, setDrift] = useState(null)
   const [notice, setNotice] = useState(location.state?.notice ?? null)
   const [confirm, setConfirm] = useState(null)
@@ -104,9 +104,9 @@ function SourceVersionEditor() {
     setSeed((value) => value + 1)
   }
 
-  const applySaved = (saved, message) => {
+  const applySaved = (saved, message, order) => {
     setLatest(saved)
-    setResult({ ...saved.validation, source: 'saved', order: draftOrder(storedDraft(saved.version.config)) })
+    setResult({ ...saved.validation, source: 'saved', order: order ?? draftOrder(storedDraft(saved.version.config)) })
     setEditor((value) => ({ ...value, state: editorState({ liveColumns: liveColumnsOf(dictionary.data, saved.version.config), config: saved.version.config }) }))
     setShowErrors(false)
     setNotice(message)
@@ -131,7 +131,7 @@ function SourceVersionEditor() {
       if (outcome.status === 'success') {
         navigate(PATHS.sourceVersion(sourceId, outcome.value.version.sourceVersionId), {
           replace: true,
-          state: { notice: `Draft version ${outcome.value.version.versionNo} saved.`, validation: outcome.value.validation },
+          state: { notice: `Draft version ${outcome.value.version.versionNo} saved.`, validation: outcome.value.validation, order },
         })
       } else if (outcome.status === 'unknown') {
         // The draft may or may not exist: reconcile on the version list instead of retrying.
@@ -142,7 +142,7 @@ function SourceVersionEditor() {
       return
     }
     const outcome = await save.run(() => workflowManagerService.updateSourceMappingVersion(sourceId, version.sourceVersionId, { rowVersion: version.rowVersion, draft: checked.payload }))
-    if (outcome.status === 'success') applySaved(outcome.value, `Draft version ${outcome.value.version.versionNo} saved.`)
+    if (outcome.status === 'success') applySaved(outcome.value, `Draft version ${outcome.value.version.versionNo} saved.`, order)
     else if (outcome.status === 'failed') refused(outcome.error, order)
     // Unknown outcome: keep the input and reload the stored metadata to reconcile.
     else if (outcome.status === 'unknown') detail.reload()
@@ -152,7 +152,7 @@ function SourceVersionEditor() {
     setNotice(null)
     const order = draftOrder(storedDraft(config))
     const outcome = await check.run(() => workflowManagerService.revalidateSourceMappingVersion(sourceId, version.sourceVersionId, version.rowVersion))
-    if (outcome.status === 'success') applySaved(outcome.value, 'The draft is still valid. Its evidence and validation time were refreshed.')
+    if (outcome.status === 'success') applySaved(outcome.value, 'The draft is still valid. Its evidence and validation time were refreshed.', order)
     else if (outcome.status === 'failed') refused(outcome.error, order)
     else if (outcome.status === 'unknown') detail.reload()
   }
@@ -188,8 +188,12 @@ function SourceVersionEditor() {
 
   const failure = save.feedback?.kind !== 'success' ? save.feedback : null
   const checkFailure = check.feedback?.kind !== 'success' ? check.feedback : null
-  const blockers = result?.publicationBlockers?.length ? result.publicationBlockers : version?.publicationBlockers ?? []
-  const order = result?.order ?? (checked ? draftOrder(checked.payload) : null)
+  // Finding paths index the draft they were computed from: a save's findings follow the order
+  // that was submitted; drift and the stored blockers follow the stored configuration (sorted).
+  const storedOrder = draftOrder(storedDraft(config))
+  const resultOrder = result?.order ?? storedOrder
+  const fromResult = Boolean(result?.publicationBlockers?.length)
+  const blockers = fromResult ? result.publicationBlockers : version?.publicationBlockers ?? []
   const title = isNew ? 'New source version' : version ? `Source version ${version.versionNo}` : 'Source version'
 
   return (
@@ -260,7 +264,7 @@ function SourceVersionEditor() {
             </Panel>
 
             <Panel title="Validation" description="Errors stop a save. Warnings and publication blockers are recorded with the draft.">
-              <SourceValidationPanel validation={result} blockers={blockers} drift={drift} order={order} pending={busy} />
+              <SourceValidationPanel validation={result} blockers={blockers} drift={drift} order={resultOrder} blockerOrder={fromResult ? resultOrder : storedOrder} driftOrder={storedOrder} pending={busy} />
             </Panel>
           </div>
 

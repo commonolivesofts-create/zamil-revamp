@@ -221,9 +221,15 @@ function readStoredConfig(version) {
   } catch {
     return { config: null, configIntegrity: 'UNREADABLE' };
   }
-  if (config?.schema !== SOURCE_SCHEMA || !Array.isArray(config.columns)) {
-    return { config: null, configIntegrity: 'UNREADABLE' };
-  }
+  const isRecord = (item) => Boolean(item) && typeof item === 'object' && !Array.isArray(item);
+  const wellFormed =
+    config?.schema === SOURCE_SCHEMA &&
+    Array.isArray(config.columns) &&
+    config.columns.every(isRecord) &&
+    (config.keyCandidates === undefined ||
+      (Array.isArray(config.keyCandidates) &&
+        config.keyCandidates.every((key) => isRecord(key) && Array.isArray(key.columns))));
+  if (!wellFormed) return { config: null, configIntegrity: 'UNREADABLE' };
   const verified = sha256Hex(version.configJson) === version.configSha256;
   return { config, configIntegrity: verified ? 'VERIFIED' : 'MISMATCH' };
 }
@@ -424,9 +430,17 @@ export function createSourceMappingService({
 
   /** Replaces a DRAFT's configuration (update and revalidate). */
   async function replaceDraft(actor, sourceId, sourceVersionId, rowVersion, draft, onInvalid) {
-    const { source, version, config } = await requireVersion(sourceId, sourceVersionId);
+    const {
+      source,
+      version,
+      config: stored,
+      configIntegrity,
+    } = await requireVersion(sourceId, sourceVersionId);
     if (version.lifecycleState !== STATE.DRAFT) throw notDraft();
     if (version.rowVersion !== rowVersion) throw stale();
+    // Only a VERIFIED stored config may carry attestations forward; otherwise every declared key
+    // is re-attested by the current user.
+    const config = configIntegrity === 'VERIFIED' ? stored : null;
     const evidence = await gatherEvidence(source, draft);
     const prepared = prepare(draft, source, evidence, actor, config);
     if (!prepared.valid) throw onInvalid(prepared);
@@ -634,15 +648,24 @@ export function createSourceMappingService({
     async revalidateVersion(actor, sourceId, sourceVersionId, { rowVersion }) {
       const { version, config, configIntegrity } = await requireVersion(sourceId, sourceVersionId);
       if (version.lifecycleState !== STATE.DRAFT) throw notDraft();
-      if (!config) {
+      // A stored config that is unreadable or does not match its fingerprint is never re-used
+      // as input (as for clone); the author can still replace it with an explicit edit.
+      if (!config || configIntegrity !== 'VERIFIED') {
         throw revalidationFailed({
           findings: [
-            {
-              severity: 'ERROR',
-              code: 'CONFIG_UNREADABLE',
-              path: '$',
-              message: 'The stored configuration cannot be read',
-            },
+            config
+              ? {
+                  severity: 'ERROR',
+                  code: 'CONFIG_FINGERPRINT_MISMATCH',
+                  path: '$',
+                  message: 'The stored configuration does not match its fingerprint',
+                }
+              : {
+                  severity: 'ERROR',
+                  code: 'CONFIG_UNREADABLE',
+                  path: '$',
+                  message: 'The stored configuration cannot be read',
+                },
           ],
         });
       }

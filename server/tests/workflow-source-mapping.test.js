@@ -800,7 +800,8 @@ describe('workflow manager M2-A source mapping API', () => {
       assert.equal(f.dictionary.stats.observations, 2, 'uniqueness observed again');
 
       const before = JSON.stringify(stored()[0]);
-      f.dictionary.object().columns.find((c) => c.name === 'ORG_ID').precision = 18;
+      // Revalidation adopts the current dictionary types (as an edit does); what makes it fail
+      // here is the live data: a duplicated declared key value.
       f.dictionary.object().observations['ORG_ID,LINE_NO'] = {
         rowCount: 12,
         nullKeyRows: 0,
@@ -813,6 +814,71 @@ describe('workflow manager M2-A source mapping API', () => {
       assert.equal(failed.body.error.code, 'SOURCE_VERSION_REVALIDATION_FAILED');
       assert.ok(failed.body.error.details.some((d) => d.code === 'KEY_DUPLICATES_OBSERVED'));
       assert.equal(JSON.stringify(stored()[0]), before, 'stored version untouched');
+    });
+  });
+
+  describe('stored configuration integrity', () => {
+    // Simulates CONFIG_JSON changed outside the application while CONFIG_SHA256 stayed.
+    const forgeAttestation = () => {
+      const row = stored()[0];
+      const config = JSON.parse(row.configJson);
+      config.keyCandidates[0].assurance.attestedBy = '999';
+      config.keyCandidates[0].assurance.attestedAt = '2020-01-01T00:00:00.000Z';
+      row.configJson = canonicalize(config);
+    };
+
+    it('never revalidates a config that does not match its fingerprint', async () => {
+      const { version: v } = await create({ draft: draft({ keyCandidates: [composite()] }) });
+      forgeAttestation();
+      const before = JSON.stringify(stored()[0]);
+      const res = await send('post', `${version(v.sourceVersionId)}/revalidate`, { rowVersion: 1 });
+      assert.equal(res.status, 409);
+      assert.equal(res.body.error.code, 'SOURCE_VERSION_REVALIDATION_FAILED');
+      assert.deepEqual(
+        res.body.error.details.map((d) => d.code),
+        ['CONFIG_FINGERPRINT_MISMATCH'],
+      );
+      assert.equal(JSON.stringify(stored()[0]), before, 'nothing written');
+    });
+
+    it('re-attests instead of carrying attestations of an unverified config into an edit', async () => {
+      const { version: v } = await create({ draft: draft({ keyCandidates: [composite()] }) });
+      forgeAttestation();
+      const res = await send(
+        'put',
+        version(v.sourceVersionId),
+        { rowVersion: 1, draft: draft({ keyCandidates: [composite()] }) },
+        s.other,
+      );
+      assert.equal(res.status, 200, JSON.stringify(res.body));
+      const assurance = res.body.data.version.config.keyCandidates[0].assurance;
+      assert.equal(assurance.attestedBy, f.users.other.userId);
+      assert.notEqual(assurance.attestedAt, '2020-01-01T00:00:00.000Z');
+      assert.equal(res.body.data.version.configIntegrity, 'VERIFIED');
+    });
+
+    it('reports a malformed stored config as UNREADABLE instead of failing', async () => {
+      const { version: v } = await create();
+      for (const mutate of [
+        (c) => ({ ...c, keyCandidates: { REQUEST_PK: true } }),
+        (c) => ({ ...c, columns: [null, ...c.columns] }),
+        (c) => ({ ...c, keyCandidates: [{ code: 'X', columns: 'REQUEST_ID' }] }),
+      ]) {
+        const row = stored()[0];
+        row.configJson = canonicalize(mutate(JSON.parse(row.configJson)));
+        row.configSha256 = sha256Hex(row.configJson);
+        const detail = await get(version(v.sourceVersionId));
+        assert.equal(detail.status, 200, JSON.stringify(detail.body));
+        assert.equal(detail.body.data.version.configIntegrity, 'UNREADABLE');
+        assert.equal(detail.body.data.version.config, null);
+        const drift = await get(`${version(v.sourceVersionId)}/drift`);
+        assert.equal(drift.status, 200);
+        assert.deepEqual(codes(drift.body.data.findings), ['CONFIG_UNREADABLE']);
+        // Restore a valid row for the next case.
+        f.wm.tables().sourceVersions.length = 0;
+        await create();
+        v.sourceVersionId = stored()[0].sourceVersionId;
+      }
     });
   });
 

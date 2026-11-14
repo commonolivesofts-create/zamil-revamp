@@ -352,3 +352,18 @@ test('mapping pages use the shared service, real API data and accessible control
   assert.match(files.validation, /aria-live="polite"/)
   assert.match(files.columns, /<th scope="row">/)
 })
+
+test('findings are labelled in the order of the draft they came from', async () => {
+  const editor = await read('../src/features/workflow-manager/pages/SourceVersionEditorPage.jsx')
+  // Saves label by the submitted order (also carried across the create navigation) …
+  assert.match(editor, /validation: outcome\.value\.validation, order \}/)
+  assert.match(editor, /saved\.`, order\)/)
+  // … while drift and stored blockers index the stored, sorted configuration.
+  assert.match(editor, /driftOrder=\{storedOrder\}/)
+  assert.match(editor, /blockerOrder=\{fromResult \? resultOrder : storedOrder\}/)
+  // The same path names different keys in the two orders, so the choice matters.
+  const submitted = draftOrder({ columns: [], keyCandidates: [{ code: 'Z_KEY' }, { code: 'A_KEY' }] })
+  const sorted = draftOrder(storedDraft({ columns: [], keyCandidates: [{ code: 'A_KEY', columns: [] }, { code: 'Z_KEY', columns: [] }] }))
+  assert.equal(describePath('keyCandidates[1]', submitted), 'Key candidate A_KEY')
+  assert.equal(describePath('keyCandidates[1]', sorted), 'Key candidate Z_KEY')
+})
