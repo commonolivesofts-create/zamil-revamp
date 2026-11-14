@@ -43,6 +43,8 @@ const PRE_REGISTRY_ROUTES = [
 // HR forms use backend-owned resource permissions; the periodwise report
 // remains session-only. All are switched by VITE_FEATURE_HR_RECRUITMENT.
 const HR = 'human-resources'
+const EMPLOYEE_SERVICES = 'hr-employee-services'
+const TALENT_MANAGEMENT = 'hr-talent-management'
 const REQ = 'HR.REQUISITIONS'
 const INTERVIEW = 'HR.INTERVIEW_ASSESSMENTS'
 const OFFER = 'HR.EMPLOYMENT_OFFERS'
@@ -78,24 +80,24 @@ const HR_RECRUITMENT_ROUTES = [
   { id: 'hr-periodwise-report', path: '/hr/reports/periodwise-employees', label: 'Periodwise employees', icon: 'chart-column', section: HR, subgroup: 'hr-reports', permission: 'HR.PERIODWISE_EMPLOYEES:VIEW', requiresMfa: false, implemented: false, enabledBy: HR_SWITCH },
   { id: 'hr-survey-report', path: '/hr/reports/survey', label: 'Survey report', icon: 'chart-bar', section: HR, subgroup: 'hr-reports', permission: 'HR.SURVEY_REPORTS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_SURVEY_REPORT' } },
   { id: 'hr-survey-responses', path: '/hr/reports/survey/responses', label: 'Survey responses', icon: 'table', section: HR, subgroup: 'hr-reports', permission: 'HR.SURVEY_REPORTS:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_SURVEY_REPORT' }, nav: false },
-  { id: 'hr-record-change', path: '/hr/talent-management/record-change', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-record-change-requests', path: '/hr/talent-management/record-change/requests', label: 'Personal status report', icon: 'layers', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
-  { id: 'hr-record-change-record', path: '/hr/talent-management/record-change/:requestId', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: 'hr-employee-services', permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
-  { id: 'hr-transfer', path: '/hr/talent-management/transfer', label: 'Transfer request', icon: 'arrow-left-right', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-transfer-report', path: '/hr/talent-management/transfer/report', label: 'Transfer report', icon: 'chart-column', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
-  { id: 'hr-transfer-record', path: '/hr/talent-management/transfer/:transferId', label: 'Transfer request', icon: 'arrow-left-right', section: HR, subgroup: 'hr-employee-services', permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-record-change', path: '/hr/employee-services/record-change', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: EMPLOYEE_SERVICES, permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-record-change-requests', path: '/hr/employee-services/record-change/requests', label: 'Personal status report', icon: 'layers', section: HR, subgroup: EMPLOYEE_SERVICES, permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-record-change-record', path: '/hr/employee-services/record-change/:requestId', label: 'Personal status change', icon: 'user-pen', section: HR, subgroup: EMPLOYEE_SERVICES, permission: `${PERSONNEL_RECORD_CHANGES}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-transfer', path: '/hr/talent-management/transfer', label: 'Transfer request', icon: 'arrow-left-right', section: HR, subgroup: TALENT_MANAGEMENT, permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-transfer-report', path: '/hr/talent-management/transfer/report', label: 'Transfer report', icon: 'chart-column', section: HR, subgroup: TALENT_MANAGEMENT, permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-transfer-record', path: '/hr/talent-management/transfer/:transferId', label: 'Transfer request', icon: 'arrow-left-right', section: HR, subgroup: TALENT_MANAGEMENT, permission: `${TRANSFER_REQUESTS}:VIEW`, requiresMfa: false, implemented: false, enabledBy: ES_SWITCH, nav: false },
 ]
 // Performance appraisal remains in the session-only HR_EMPLOYEE_SERVICES module.
 const HR_EMPLOYEE_SERVICES_ROUTES = [
-  { id: 'hr-appraisal', path: '/hr/performance/appraisal', label: 'Performance appraisal', icon: 'star', section: HR, subgroup: 'hr-employee-services', implemented: false, enabledBy: ES_SWITCH },
-  { id: 'hr-appraisal-report', path: '/hr/performance/appraisal/report', label: 'Appraisal report', icon: 'chart-column', section: HR, subgroup: 'hr-employee-services', implemented: false, enabledBy: ES_SWITCH, nav: false },
-  { id: 'hr-appraisal-record', path: '/hr/performance/appraisal/:appraisalId', label: 'Performance appraisal', icon: 'star', section: HR, subgroup: 'hr-employee-services', implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-appraisal', path: '/hr/performance/appraisal', label: 'Performance appraisal', icon: 'star', section: HR, subgroup: TALENT_MANAGEMENT, implemented: false, enabledBy: ES_SWITCH },
+  { id: 'hr-appraisal-report', path: '/hr/performance/appraisal/report', label: 'Appraisal report', icon: 'chart-column', section: HR, subgroup: TALENT_MANAGEMENT, implemented: false, enabledBy: ES_SWITCH, nav: false },
+  { id: 'hr-appraisal-record', path: '/hr/performance/appraisal/:appraisalId', label: 'Performance appraisal', icon: 'star', section: HR, subgroup: TALENT_MANAGEMENT, implemented: false, enabledBy: ES_SWITCH, nav: false },
 ]
 // Sick Leave (1076), Reward Nomination (1113) and Share an Idea (1097): one
 // switch each; the report and record pages are reached from the form.
-const ES = 'hr-employee-services'
-const formRoutes = (id, path, label, icon, resource, env, param) => {
-  const base = { section: HR, subgroup: ES, permission: `HR.${resource}:VIEW`, requiresMfa: false, implemented: false, enabledBy: { env } }
+const ES = TALENT_MANAGEMENT
+const formRoutes = (id, path, label, icon, resource, env, param, subgroup = ES) => {
+  const base = { section: HR, subgroup, permission: `HR.${resource}:VIEW`, requiresMfa: false, implemented: false, enabledBy: { env } }
   return [
     { id, path, label, icon, ...base },
     { id: `${id}-report`, path: `${path}/report`, label: { 'hr-sick-leave': 'Sick leave report', 'hr-reward': 'Reward nominations', 'hr-idea': 'Idea report' }[id], icon: 'chart-column', ...base, nav: false },
@@ -103,9 +105,9 @@ const formRoutes = (id, path, label, icon, resource, env, param) => {
   ]
 }
 const HR_EMPLOYEE_SERVICES_FORM_ROUTES = [
-  ...formRoutes('hr-sick-leave', '/hr/talent-management/sick-leave', 'Sick leave', 'heart-pulse', 'SICK_LEAVE', 'VITE_FEATURE_HR_SICK_LEAVE', 'leaveId'),
+  ...formRoutes('hr-sick-leave', '/hr/employee-services/sick-leave', 'Sick leave', 'heart-pulse', 'SICK_LEAVE', 'VITE_FEATURE_HR_SICK_LEAVE', 'leaveId', EMPLOYEE_SERVICES),
   ...formRoutes('hr-reward', '/hr/talent-management/reward-nomination', 'Reward nomination', 'trophy', 'EMPLOYEE_OF_THE_MONTH', 'VITE_FEATURE_HR_REWARD_NOMINATION', 'nominationId'),
-  ...formRoutes('hr-idea', '/hr/talent-management/ideas', 'Share an idea', 'lightbulb', 'IDEAS', 'VITE_FEATURE_HR_IDEAS', 'ideaId'),
+  ...formRoutes('hr-idea', '/hr/employee-services/ideas', 'Share an idea', 'lightbulb', 'IDEAS', 'VITE_FEATURE_HR_IDEAS', 'ideaId', EMPLOYEE_SERVICES),
 ]
 // Employee Clearance (1063): the HR.EMPLOYEE_CLEARANCE resource, as the backend guards it.
 const CLEARANCE = { section: HR, subgroup: ES, permission: 'HR.EMPLOYEE_CLEARANCE:VIEW', requiresMfa: false, implemented: false, enabledBy: { env: 'VITE_FEATURE_HR_EMPLOYEE_CLEARANCE' } }
@@ -161,10 +163,29 @@ const WORKFLOW_MANAGER_ROUTES = [
 // Group order: workspace, human resources, workflow manager, security, account.
 const EXPECTED_ROUTES = [PRE_REGISTRY_ROUTES[0], PRE_REGISTRY_ROUTES[1], ...HR_RECRUITMENT_ROUTES, ...HR_EMPLOYEE_SERVICES_ROUTES, ...HR_EMPLOYEE_SERVICES_FORM_ROUTES, ...HR_EMPLOYEE_CLEARANCE_ROUTES, ...HR_CHARTER_ROUTES, ...HR_SALARY_CERTIFICATE_ROUTES, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
 const withoutSubgroups = (routes) => routes.map(({ subgroup, ...route }) => route)
+// External hubs are navigation links only (no route); their address comes from the environment (unset in tests).
+const EXTERNAL_HUBS = [
+  { id: 'training-hub', type: 'external', href: null, label: 'Training Hub', icon: 'graduation-cap', section: HR, implemented: false },
+  { id: 'expense-hub', type: 'external', href: null, label: 'Expense Hub', icon: 'wallet-cards', section: 'finance', implemented: false },
+]
+const EXPECTED_NAVIGATION = [...EXPECTED_ROUTES.slice(0, -(WORKFLOW_MANAGER_ROUTES.length + PRE_REGISTRY_ROUTES.length - 2)), ...EXTERNAL_HUBS, ...WORKFLOW_MANAGER_ROUTES, ...PRE_REGISTRY_ROUTES.slice(2)]
 
 test('the derived routes, sections and permission names match the active modules', () => {
   assert.deepEqual(withoutSubgroups(plain(appRoutes)), withoutSubgroups(EXPECTED_ROUTES))
-  assert.deepEqual(withoutSubgroups(plain(navigationEntries)), withoutSubgroups(EXPECTED_ROUTES), 'no external or extra entries are active')
+  assert.deepEqual(withoutSubgroups(plain(navigationEntries)), withoutSubgroups(EXPECTED_NAVIGATION), 'the external hubs are the only entries without a route')
+  assert.deepEqual(
+    withoutSubgroups(plain(navigationEntries.filter((route) => route.type !== 'external'))),
+    withoutSubgroups(EXPECTED_ROUTES),
+    'internal navigation stays unchanged',
+  )
+  assert.deepEqual(
+    plain(navigationEntries.filter((route) => route.type === 'external')).map(({ id, href, implemented }) => ({ id, href, implemented })),
+    [
+      { id: 'training-hub', href: null, implemented: false },
+      { id: 'expense-hub', href: null, implemented: false },
+    ],
+    'only configured hub links are included, and unresolved links stay hidden',
+  )
   for (const [index, route] of withoutSubgroups(appRoutes).entries()) {
     assert.deepEqual(Object.keys(route), Object.keys(withoutSubgroups(EXPECTED_ROUTES)[index]), `${route.id}: same fields, same order`)
   }
@@ -173,11 +194,13 @@ test('the derived routes, sections and permission names match the active modules
     {
       id: HR, label: 'Human resources', icon: 'users-round', subgroups: [
         { id: 'hr-recruitment', label: 'Recruitment', icon: 'user-plus', description: 'From requisition to probation' },
-        { id: 'hr-employee-services', label: 'Talent Management', icon: 'layers', description: 'Changes, leave and recognition' },
+        { id: TALENT_MANAGEMENT, label: 'Talent Management', icon: 'layers', description: 'Transfers, recognition and performance' },
+        { id: EMPLOYEE_SERVICES, label: 'Employee Services', icon: 'briefcase-business', description: 'Personal status, leave and ideas' },
         { id: 'hr-letters', label: 'Letters', icon: 'mail', description: 'Salary certificates and letters' },
         { id: 'hr-reports', label: 'Reports', icon: 'chart-column', description: 'HR reports' },
       ],
     },
+    { id: 'finance', label: 'Finance', icon: 'wallet-cards' },
     { id: 'workflow-manager', label: 'Workflow Manager', icon: 'workflow' },
     {
       id: 'security', label: 'Security administration', icon: 'shield-check',
@@ -205,8 +228,11 @@ test('the derived routes, sections and permission names match the active modules
 
 test('every implemented internal route has exactly one React Router entry with the same path, and back', async () => {
   const router = await read('../src/app/router.jsx')
-  const routerRoutes = [...router.matchAll(/path: '([^']+)', handle: \{ routeId: '([^']+)' \}/g)]
+  const routeMatches = [...router.matchAll(/path: '([^']+)', handle: \{ routeId: '([^']+)' \}, element: <([A-Za-z][A-Za-z0-9]*)/g)]
+  const routerRoutes = routeMatches
+    .filter(([, , , component]) => component !== 'LegacyEmployeeServicesRedirect')
     .map(([, path, id]) => ({ id, path: `/${path}` }))
+  const legacyRedirects = routeMatches.filter(([, , , component]) => component === 'LegacyEmployeeServicesRedirect')
   // The source lists every page that is implemented with all feature switches
   // on; the router keeps only this build's implemented pages (implementedOnly).
   const allSwitchesOn = Object.fromEntries(registry.entries.filter((e) => e.enabledBy).map((e) => [e.enabledBy.env, 'true']))
@@ -216,6 +242,7 @@ test('every implemented internal route has exactly one React Router entry with t
     switchable.map((r) => `${r.id} ${r.path}`).sort(),
   )
   assert.ok(implementedRoutes.every((r) => routerRoutes.some((line) => line.id === r.id)))
+  assert.equal(legacyRedirects.length, 9, 'legacy Talent Management links redirect to Employee Services')
   assert.match(router, /children: implementedOnly\(\[/)
   assert.ok(!routerRoutes.some((r) => r.id === 'security-audit'), 'unimplemented pages are never routed')
 })
@@ -322,18 +349,20 @@ test('common links need authentication only; Security Administration keeps permi
 
 // ---------------------------------------------------------------- external destinations
 
-test('external URLs: only absolute https with a host name or IP address and no credentials', () => {
+test('external URLs: absolute https or loopback http with a host name or IP address and no credentials', () => {
   for (const url of [
     'https://reports.example.com/production', 'https://10.20.30.40:8443/portal?plant=1', 'https://[2001:db8::1]/x',
+    'http://localhost:7384', 'http://127.0.0.1:7384', 'http://[::1]:7384',
   ]) assert.ok(validateExternalUrl(url), url)
   for (const url of [
-    'http://reports.example.com', 'javascript:alert(1)', 'data:text/html,x', '//reports.example.com',
+    'http://reports.example.com', 'http://localhost.evil.example', 'javascript:alert(1)', 'data:text/html,x', '//reports.example.com',
     'https://user:pass@reports.example.com', 'https://token@reports.example.com', 'https://reports.example.com/a b',
     'https://reports.example.com\\x', '/dashboard', 'ftp://files.example.com', '', null, 42,
   ]) assert.equal(validateExternalUrl(url), null, String(url))
   assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, { VITE_EXTERNAL_PORTAL: ' https://10.0.0.5/portal ' }), 'https://10.0.0.5/portal')
   assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, {}), null, 'unresolved')
   assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, { VITE_EXTERNAL_PORTAL: 'http://10.0.0.5' }), null, 'invalid')
+  assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_PORTAL' }, { VITE_EXTERNAL_PORTAL: 'http://localhost:7384' }), 'http://localhost:7384/', 'local development link')
 })
 
 function moduleWith(navigation, extra = {}) {

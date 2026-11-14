@@ -12,7 +12,9 @@ import { useSettled } from '../shared/useSettled.js'
 import { RecruitmentHeader } from '../shared/components/RecruitmentShell.jsx'
 import { HrField } from '../shared/components/RecruitmentInputs.jsx'
 import { Bars, Donut, Flow } from './ReportCharts.jsx'
-import { ALL_DEPARTMENTS, RETIREMENT_AGE, csvFileName, quickRanges, toCsv, validateParams, withBom } from './periodwiseModel.js'
+import { ReportPager } from '../shared/components/ReportPager.jsx'
+import { downloadCsv, printPdf } from '../shared/reportExport.js'
+import { ALL_DEPARTMENTS, RETIREMENT_AGE, csvFileName, quickRanges, validateParams } from './periodwiseModel.js'
 import '@/styles/hr-recruitment.css'
 
 // Rows, KPIs and chart data come from GET /hr/reports/periodwise-employees: the server derives
@@ -145,17 +147,24 @@ function Report({ departments }) {
       setBusy(null)
     }
   }
+  // The row number column numbers the exported rows in order.
+  const exportColumns = (all) => {
+    const numbers = new Map(all.map((row, index) => [row, index + 1]))
+    return columns.map((column) => ({ label: column.label, value: (row) => (column.key === 'index' ? numbers.get(row) : valueOf(column, row)) }))
+  }
   const exportCsv = async () => {
     try {
       const all = await loadAll(T.exporting)
-      const csv = toCsv(all, columns.map((column) => ({ label: column.label, value: (row, index) => (column.key === 'index' ? index + 1 : valueOf(column, row)) })))
-      const url = URL.createObjectURL(new Blob([withBom(csv)], { type: 'text/csv;charset=utf-8' }))
-      const link = document.createElement('a')
-      link.href = url
-      link.download = csvFileName(ran)
-      link.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      downloadCsv(all, exportColumns(all), csvFileName(ran).replace(/\.csv$/, ''))
       setNotice({ kind: 'success', message: T.exported(all.length), details: [] })
+    } catch (error) {
+      setNotice({ kind: 'error', message: error?.message || T.exportFailed, details: [] })
+    }
+  }
+  const exportPdf = async () => {
+    try {
+      const all = await loadAll(T.exporting)
+      printPdf(all, exportColumns(all), T.title)
     } catch (error) {
       setNotice({ kind: 'error', message: error?.message || T.exportFailed, details: [] })
     }
@@ -177,6 +186,7 @@ function Report({ departments }) {
           <button type="button" onClick={() => navigate('/dashboard')} title={T.tools.home}><OrvexaIcon name="house" size={17} /><span>{T.tools.home}</span></button>
           <button type="button" onClick={() => setEditing(true)} disabled={!ran || editing} title={T.tools.change}><OrvexaIcon name="sliders-horizontal" size={17} /><span>{T.tools.change}</span></button>
           <button type="button" onClick={exportCsv} disabled={!ready || !total || Boolean(busy)} title={T.tools.export}><OrvexaIcon name="download" size={17} /><span>{T.tools.export}</span></button>
+          <button type="button" onClick={exportPdf} disabled={!ready || !total || Boolean(busy)} title={T.tools.exportPdf}><OrvexaIcon name="file-text" size={17} /><span>{T.tools.exportPdf}</span></button>
           <button type="button" onClick={printAll} disabled={!ready || Boolean(busy)} title={T.tools.print}><OrvexaIcon name="printer" size={17} /><span>{T.tools.print}</span></button>
         </div>
         {ran && !editing && (
@@ -347,14 +357,7 @@ function Report({ departments }) {
               </tbody>
             </table>
           </div>
-          <nav className="zrv-hr-rp-pager" aria-label={T.table.title}>
-            <span role="status">{T.table.showing(total ? current * PAGE_SIZE + 1 : 0, Math.min(total, current * PAGE_SIZE + PAGE_SIZE), total)}</span>
-            <div>
-              <button type="button" className="btn-secondary zrv-hr-btn" disabled={current === 0} onClick={() => setPage(current - 1)}><OrvexaIcon name="arrow-left" size={15} /> {T.table.previous}</button>
-              <b>{T.table.page(current + 1, pages)}</b>
-              <button type="button" className="btn-secondary zrv-hr-btn" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}>{T.table.next} <OrvexaIcon name="arrow-right" size={15} /></button>
-            </div>
-          </nav>
+          <ReportPager page={current + 1} pages={pages} total={total} label={T.table.title} onPage={(next) => setPage(next - 1)} />
         </section>
       </>}
 

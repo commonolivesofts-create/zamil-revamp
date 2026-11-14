@@ -12,5 +12,7 @@ export default defineModule({
     { id: 'pending-worklist', path: '/worklist/pending', title: 'Pending Worklist', icon: 'list-checks', group: 'workspace', order: 20 },
     { id: 'account-password', path: '/account/password', title: 'Password', icon: 'key-round', group: 'account', subgroup: 'account-settings', order: 10 },
     { id: 'account-authenticator', path: '/account/authenticator', title: 'Authenticator app', icon: 'smartphone', group: 'account', subgroup: 'account-settings', order: 20 },
+    { id: 'training-hub', type: 'external', href: { env: 'VITE_EXTERNAL_TRAINING_HUB' }, title: 'Training Hub', icon: 'graduation-cap', group: 'human-resources', order: 999 },
+    { id: 'expense-hub', type: 'external', href: { env: 'VITE_EXTERNAL_EXPENSE_HUB' }, title: 'Expense Hub', icon: 'wallet-cards', group: 'finance', order: 10 },
   ],
 })

@@ -450,9 +450,9 @@ test('routes: transfers use HR permissions and list paths win over record ids', 
     ['hr-appraisal-report', '/hr/performance/appraisal/report', false, undefined],
     ['hr-appraisal-record', '/hr/performance/appraisal/:appraisalId', false, undefined],
   ])
-  assert.equal(findAppRoute('/hr/talent-management/record-change/requests')?.id, 'hr-record-change-requests')
-  assert.equal(findAppRoute('/hr/talent-management/record-change/12')?.id, 'hr-record-change-record')
-  assert.equal(findAppRoute('/hr/talent-management/record-change')?.id, 'hr-record-change')
+  assert.equal(findAppRoute('/hr/employee-services/record-change/requests')?.id, 'hr-record-change-requests')
+  assert.equal(findAppRoute('/hr/employee-services/record-change/12')?.id, 'hr-record-change-record')
+  assert.equal(findAppRoute('/hr/employee-services/record-change')?.id, 'hr-record-change')
   assert.equal(findAppRoute('/hr/talent-management/transfer/report')?.id, 'hr-transfer-report')
   assert.equal(findAppRoute('/hr/talent-management/transfer/3')?.id, 'hr-transfer-record')
 })
@@ -478,7 +478,7 @@ test('record change page: not in the recruitment flow, services only, linked err
     'sickLeave/SickLeaveReportPage.jsx', 'reward/RewardReportPage.jsx', 'idea/IdeaReportPage.jsx']) {
     const source = await read(`${FEATURE}${report}`)
     assert.match(source, /<InsightReport /, report)
-    assert.match(source, /breadcrumb=\{C\.(breadcrumb|performanceBreadcrumb)\}/, report)
+    assert.match(source, /breadcrumb=\{(?:C\.(?:breadcrumb|performanceBreadcrumb)|EMPLOYEE_SERVICES_BREADCRUMB)\}/, report)
     assert.doesNotMatch(source, /zrv-hr-toolbar/, `${report}: the header actions come from InsightReport`)
   }
   const insight = await read('../src/features/hr-recruitment/shared/components/InsightReport.jsx')

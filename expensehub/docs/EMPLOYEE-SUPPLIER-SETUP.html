@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Employee Supplier Setup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f8fa; --surface: #ffffff; --surface-2: #f1f3f6; --ink: #0f1729; --muted: #5b6475;
+  --border: #e3e6ec; --primary: #1d4ed8; --primary-soft: #e8efff; --warn: #9a5b00; --warn-soft: #fff4dc;
+  --ok: #0f7a4a; --ok-soft: #e3f6ec; --danger: #b42318; --danger-soft: #fdecea; --code-bg: #f1f3f6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c111b; --surface: #121a28; --surface-2: #192234; --ink: #e7ebf3; --muted: #9aa4b6;
+    --border: #253047; --primary: #7aa2ff; --primary-soft: #1a2747; --warn: #f5b649; --warn-soft: #33270f;
+    --ok: #4ed29a; --ok-soft: #0f2c22; --danger: #ff8a80; --danger-soft: #3a1714; --code-bg: #192234;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c111b; --surface: #121a28; --surface-2: #192234; --ink: #e7ebf3; --muted: #9aa4b6;
+  --border: #253047; --primary: #7aa2ff; --primary-soft: #1a2747; --warn: #f5b649; --warn-soft: #33270f;
+  --ok: #4ed29a; --ok-soft: #0f2c22; --danger: #ff8a80; --danger-soft: #3a1714; --code-bg: #192234;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 Inter, system-ui, sans-serif; }
+.wrap { max-width: 920px; margin: 0 auto; padding: 40px 16px 80px; }
+header.top { margin-bottom: 28px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); }
+h1 { font-size: 30px; line-height: 1.2; margin: 6px 0 10px; letter-spacing: -.01em; }
+h2 { font-size: 20px; margin: 0 0 12px; letter-spacing: -.005em; }
+h3 { font-size: 16px; margin: 20px 0 8px; }
+p { margin: 0 0 12px; }
+.lede { color: var(--muted); font-size: 16px; max-width: 70ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+section.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 18px 0; }
+.step-no { display: inline-grid; place-items: center; inline-size: 26px; block-size: 26px; border-radius: 8px; background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: 13px; margin-inline-end: 10px; vertical-align: 2px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.kv { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; }
+.kv .k { font-size: 12px; color: var(--muted); }
+.kv .v { font-weight: 600; margin-top: 2px; word-break: break-word; }
+.table-scroll { overflow-x: auto; margin: 8px 0 4px; border: 1px solid var(--border); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: start; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: var(--surface-2); font-weight: 600; font-size: 13px; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+code, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13px; background: var(--code-bg); padding: 1px 6px; border-radius: 5px; }
+.path { font-size: 13px; color: var(--muted); }
+.path b { color: var(--ink); font-weight: 600; }
+.note { border-radius: 10px; padding: 12px 14px; margin: 12px 0; font-size: 14px; border: 1px solid transparent; }
+.note.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.note.ok { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+.note.danger { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+.note strong { display: block; margin-bottom: 2px; }
+.verify { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--warn); background: var(--warn-soft); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+ol, ul { padding-inline-start: 22px; margin: 6px 0 12px; }
+li { margin: 4px 0; }
+.checklist { list-style: none; padding-inline-start: 0; }
+.checklist li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed var(--border); }
+.checklist li:last-child { border-bottom: 0; }
+.checklist input { margin-top: 5px; inline-size: 16px; block-size: 16px; accent-color: var(--primary); flex: none; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+nav.toc a { color: var(--primary); text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
+@media (max-width: 560px) { h1 { font-size: 24px; } section.card { padding: 18px; } }
+@media print { body { background: #fff; } section.card { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Zamil Plastic Industries · Oracle Fusion Payables</div>
+  <h1>Setting up employees as suppliers</h1>
+  <p class="lede">ExpenseHub pays approved expense claims and Quick Pays through Oracle Fusion Payables. Because Fusion Expenses is not licensed, every employee who claims must exist as a <b>Payables supplier</b> with a site in their business unit and an active bank account. This guide covers the one-time setup, the record for each employee, a bulk load, and how to check the result.</p>
+  <div class="meta">
+    <span class="chip">For: Finance (AP) and the Fusion administrator</span>
+    <span class="chip">Version 1 · 19 Oct 2026</span>
+    <span class="chip">Decisions D-40, D-41, D-42</span>
+  </div>
+</header>
+
+<section class="card">
+  <h2>The agreed settings</h2>
+  <div class="summary">
+    <div class="kv"><div class="k">Supplier type</div><div class="v">Employee</div></div>
+    <div class="kv"><div class="k">Supplier number</div><div class="v">HCM person number</div></div>
+    <div class="kv"><div class="k">Sites (one per BU)</div><div class="v">IPP-EMP · FPP-EMP · APP-EMP</div></div>
+    <div class="kv"><div class="k">Payment method</div><div class="v">Electronic (EFT)</div></div>
+    <div class="kv"><div class="k">Payment terms</div><div class="v">Immediate</div></div>
+    <div class="kv"><div class="k">Pay group</div><div class="v">EMPLOYEES</div></div>
+    <div class="kv"><div class="k">Invoice type / source</div><div class="v">Standard / EXPENSEHUB</div></div>
+    <div class="kv"><div class="k">VAT</div><div class="v">None on these invoices</div></div>
+  </div>
+  <div class="note warn"><strong>About the <span class="verify">VERIFY</span> tags</strong>Menu paths and field names vary between Fusion releases. Each item tagged <span class="verify">VERIFY</span> must be checked in the <b>test pod</b> (iaeskf-test) before anything is done in production.</div>
+  <nav class="toc" aria-label="Contents">
+    <a href="#prereq">1. One-time setup</a>
+    <a href="#record">2. One employee</a>
+    <a href="#bulk">3. Bulk load</a>
+    <a href="#vat">4. No VAT</a>
+    <a href="#check">5. Checks</a>
+    <a href="#change">6. Joiners, movers, leavers</a>
+  </nav>
+</section>
+
+<section class="card" id="prereq">
+  <h2><span class="step-no">1</span>One-time setup</h2>
+  <p>Do these once, in the test pod first and then in production. All tasks are under <span class="path"><b>Setup and Maintenance</b> → search the task name</span>.</p>
+
+  <div class="table-scroll"><table>
+    <thead><tr><th>#</th><th>What</th><th>Task / where</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>1.1</td><td>Payment terms</td><td><b>Manage Payment Terms</b></td><td><code>Immediate</code> (normally seeded). Check that it is assigned to the reference data set used by the IPP, FPP and APP business units.</td></tr>
+      <tr><td>1.2</td><td>Payment method</td><td><b>Manage Payment Methods</b> (Disbursements)</td><td><code>Electronic</code> (code <code>EFT</code>). Check that its usage rules allow the three business units, and that a payment process profile exists for SAR bank transfers. <span class="verify">VERIFY</span></td></tr>
+      <tr><td>1.3</td><td>Pay group</td><td><b>Manage Payables Lookups</b> → lookup type <code>PAY GROUP</code></td><td>Add <code>EMPLOYEES</code>, meaning "Employee expense reimbursements". Payment process requests can then select employee payments on their own.</td></tr>
+      <tr><td>1.4</td><td>Invoice source</td><td><b>Manage Payables Lookups</b> → lookup type <code>SOURCE</code></td><td>Add <code>EXPENSEHUB</code>, meaning "ExpenseHub expense claims". ExpenseHub sets this source on every invoice it creates.</td></tr>
+      <tr><td>1.5</td><td>Supplier numbering</td><td><b>Specify Supplier Numbering</b> (Procurement) <span class="verify">VERIFY</span></td><td>The supplier number must equal the person number. The supplier page usually generates numbers automatically. The supplier import (section 3) is the safe way to set your own number. See the note below.</td></tr>
+      <tr><td>1.6</td><td>Banks and branches</td><td><b>Manage Banks</b>, <b>Manage Bank Branches</b></td><td>Every bank the employees use (SAB, SNB, Al Rajhi, Riyad Bank, …) needs a bank and a branch record before an IBAN can be added.</td></tr>
+      <tr><td>1.7</td><td>Integration user</td><td>Security Console</td><td><code>ERP_INTEGRATION_USER</code> needs to create and query Payables invoices, add attachments and run BI reports in <code>/Custom/ExpenseHub</code>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note warn"><strong>Supplier number = person number</strong>Fusion supplier numbers share one sequence across all suppliers. Before loading, check that <b>no existing supplier</b> already has a number equal to an employee's person number. Also set the next automatic number above the highest person number, so normal suppliers never collide with employees. If Fusion will not accept your own numbers, tell the ExpenseHub team: the fallback is to put the person number in the supplier's <b>Alternate Name</b>, and ExpenseHub will match on that instead. <span class="verify">VERIFY</span></div>
+</section>
+
+<section class="card" id="record">
+  <h2><span class="step-no">2</span>Setting up one employee (manual)</h2>
+  <p class="path"><b>Procurement → Suppliers → Tasks → Create Supplier</b></p>
+
+  <h3>2.1 Supplier: the header</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Field</th><th>Value</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Supplier</td><td>Employee's full name, as in HCM</td><td>For example <i>Ahmed Al-Subaie</i>.</td></tr>
+      <tr><td>Supplier Number</td><td><b>Person number</b></td><td>For example <code>1011</code>. See 1.5.</td></tr>
+      <tr><td>Business Relationship</td><td>Spend Authorized</td><td></td></tr>
+      <tr><td>Supplier Type</td><td><b>Employee</b></td><td></td></tr>
+      <tr><td>Tax Organization Type</td><td>Individual</td><td><span class="verify">VERIFY</span></td></tr>
+      <tr><td>Tax Registration / VAT number</td><td><b>Leave blank</b></td><td>Employees are not VAT registered (see section 4).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>2.2 Address</h3>
+  <p>Add one address, for example the plant location (Dammam 2nd Industrial City), with <b>Address Purpose = Payment</b> (Ordering is optional). Country: Saudi Arabia.</p>
+
+  <h3>2.3 Site: one per business unit the employee claims in</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Field</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>Procurement BU</td><td>The employee's BU (IPP, FPP or APP)</td></tr>
+      <tr><td>Address</td><td>The address from 2.2</td></tr>
+      <tr><td>Supplier Site</td><td><code>IPP-EMP</code>, <code>FPP-EMP</code> or <code>APP-EMP</code>. The name must match exactly.</td></tr>
+      <tr><td>Site Purpose</td><td><b>Pay</b> only. Untick Purchasing.</td></tr>
+      <tr><td>Invoicing tab → Pay Group</td><td><code>EMPLOYEES</code></td></tr>
+      <tr><td>Invoicing tab → Payment Terms</td><td><code>Immediate</code></td></tr>
+      <tr><td>Invoicing tab → Invoice Currency / Payment Currency</td><td>SAR / SAR</td></tr>
+      <tr><td>Payments tab → Payment Methods</td><td><code>Electronic</code>, set as default</td></tr>
+      <tr><td>Site Assignments</td><td>Add the <b>Client BU</b> = same BU, with its Bill-to BU and the default liability account. Without a site assignment, invoices for that BU are rejected.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>2.4 Bank account (payee)</h3>
+  <p>On the supplier: <span class="path"><b>Payments → Bank Accounts → Create</b></span>. Add the country, bank, branch, account number and <b>IBAN</b> (SA + 22 digits). Assign the account at the supplier level, or at the site, as the primary account.</p>
+  <div class="note warn"><strong>The employee's payroll account already exists: link it, don't create it</strong>Employees paid through HCM payroll already have their bank account in Fusion, so <b>Create Bank Account</b> fails with "A record with this combination of values already exists". Instead, add the supplier as a <b>joint owner</b> of that existing account and assign it as the supplier's primary payment account. This is how the test suppliers 10023 and 10035–10038 were set up on 24 Oct 2026, through the Fusion REST API (external bank account owners plus instrument assignments). One account then serves both payroll and Payables.</div>
+  <div class="note danger"><strong>Bank data is sensitive</strong>Take IBANs from the payroll bank list or the employee's signed bank letter. Never take them from email. Do not send spreadsheets with IBANs by email or Teams. ExpenseHub never stores or shows bank details. It only receives a yes/no flag saying that an active bank account exists.</div>
+</section>
+
+<section class="card" id="bulk">
+  <h2><span class="step-no">3</span>Bulk load for all ~170 employees (recommended)</h2>
+  <p>Loading by file is faster and is the reliable way to set supplier numbers. Use the File-Based Data Import (FBDI) templates for suppliers from the Oracle Help Center (<i>File-Based Data Import for Procurement</i>), and use the template for <b>your</b> release. <span class="verify">VERIFY</span></p>
+  <ol>
+    <li><b>Export the employee list from HCM</b> (person number, name, BU, bank details from payroll). The ExpenseHub employee report <code>EH_HCM_EMPLOYEES</code> can provide the first three columns.</li>
+    <li><b>Fill the templates in this order.</b> Each one is uploaded, then processed with its own scheduled process:
+      <div class="table-scroll"><table>
+        <thead><tr><th>Order</th><th>Template / interface</th><th>Key values</th><th>Scheduled process</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Suppliers (<code>POZ_SUPPLIERS_INT</code>)</td><td>Name, <b>Supplier Number = person number</b>, Type = Employee, Business Relationship = Spend Authorized</td><td>Import Suppliers</td></tr>
+          <tr><td>2</td><td>Supplier Addresses (<code>POZ_SUP_ADDRESSES_INT</code>)</td><td>Address name, country SA, Payment purpose</td><td>Import Supplier Addresses</td></tr>
+          <tr><td>3</td><td>Supplier Sites (<code>POZ_SUPPLIER_SITES_INT</code>)</td><td>Procurement BU, site <code>&lt;BU&gt;-EMP</code>, Pay purpose, Pay Group <code>EMPLOYEES</code>, Terms <code>Immediate</code>, Payment Method <code>EFT</code></td><td>Import Supplier Sites</td></tr>
+          <tr><td>4</td><td>Site Assignments (<code>POZ_SITE_ASSIGNMENTS_INT</code>)</td><td>Client BU = same BU, Bill-to BU, liability account</td><td>Import Supplier Site Assignments</td></tr>
+          <tr><td>5</td><td>Supplier Bank Accounts (Payments FBDI)</td><td>Supplier number, site, bank, branch, IBAN, primary flag</td><td>Import Supplier Bank Accounts <span class="verify">VERIFY</span></td></tr>
+        </tbody>
+      </table></div>
+    </li>
+    <li>Run each process in <b>Import</b> mode, then <b>Review</b> its output report. Fix any rejected rows and reload only those.</li>
+    <li>Interface table names and column headings differ slightly between releases. Always use the template that matches your pod. <span class="verify">VERIFY</span></li>
+  </ol>
+  <div class="note ok"><strong>Tip</strong>Load 3 to 5 employees in the test pod first, run the checks in section 5, and send one test invoice from ExpenseHub. Load everyone only after that works.</div>
+</section>
+
+<section class="card" id="vat">
+  <h2><span class="step-no">4</span>No VAT on these invoices</h2>
+  <p>It is agreed that ExpenseHub invoices carry <b>no VAT</b> (D-41). ExpenseHub sends every line at the full amount the employee paid, with <b>no tax classification code</b>. Fusion must not add tax either.</p>
+  <ul>
+    <li>Leave the supplier's tax registration number blank, and do not enable tax applicability on the employee sites (supplier → <b>Transaction Tax</b> / tax profile: <i>Allow tax applicability</i> unticked). <span class="verify">VERIFY</span></li>
+    <li>Check with the tax team that no tax rule applies VAT by default to invoices from source <code>EXPENSEHUB</code> or from suppliers of type <i>Employee</i>.</li>
+    <li><b>Test:</b> after one test invoice from ExpenseHub, open it in Payables. <i>Total Tax</i> must be 0, and the invoice total must equal what the employee is owed.</li>
+  </ul>
+  <p class="path">The VAT the employee paid stays in the expense account, which is the agreed treatment. ExpenseHub still reads the ZATCA QR on receipts, as evidence and to catch typing mistakes.</p>
+</section>
+
+<section class="card" id="check">
+  <h2><span class="step-no">5</span>Checks before go-live</h2>
+  <ul class="checklist">
+    <li><input type="checkbox" aria-label="done">Lookups exist: pay group <code>EMPLOYEES</code> and invoice source <code>EXPENSEHUB</code>.</li>
+    <li><input type="checkbox" aria-label="done">Every active employee has a supplier with <b>Supplier Number = person number</b> and type Employee.</li>
+    <li><input type="checkbox" aria-label="done">Each employee has an <b>active site named for their BU</b> (IPP-EMP / FPP-EMP / APP-EMP), with Pay purpose and a site assignment to that BU.</li>
+    <li><input type="checkbox" aria-label="done">Each site has Pay Group EMPLOYEES, Terms Immediate, Payment Method Electronic.</li>
+    <li><input type="checkbox" aria-label="done">Each employee has an <b>active primary bank account</b> (IBAN).</li>
+    <li><input type="checkbox" aria-label="done">A test invoice from ExpenseHub validates with <b>no tax lines</b>, and a test payment (EFT) completes.</li>
+    <li><input type="checkbox" aria-label="done">In ExpenseHub, <b>Setup → Integration monitor → INT-07</b> shows every employee as a valid payee. Anyone flagged is missing a supplier, a site for their BU or a bank account.</li>
+  </ul>
+  <h3>How ExpenseHub checks this</h3>
+  <p>Every night, the BI report <code>EH_AP_EMPLOYEE_PAYEES</code> returns one row per employee: <code>PERSON_ID</code>, <code>SUPPLIER_NUMBER</code>, <code>SUPPLIER_SITE</code>, <code>BU_CODE</code>, <code>SITE_ACTIVE_FLAG</code>, <code>HAS_ACTIVE_BANK_FLAG</code>. It returns flags only, never bank details. An employee counts as a valid payee only when all three exist. If an employee has no valid payee record, ExpenseHub does not let Finance send their claim to Payables, and shows the reason instead.</p>
+</section>
+
+<section class="card" id="change">
+  <h2><span class="step-no">6</span>Joiners, movers and leavers</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Event</th><th>What Finance does</th></tr></thead>
+    <tbody>
+      <tr><td>New joiner</td><td>Create the supplier, site and bank account (section 2) before their first claim. ExpenseHub reports missing payees after its nightly sync.</td></tr>
+      <tr><td>Moves to another BU</td><td>Add a site for the new BU (for example FPP-EMP). Keep the old site active until claims already sent under the old BU are paid, then end-date it.</td></tr>
+      <tr><td>Changes bank</td><td>Add the new account as primary and end-date the old one. Do this after any payment already in progress has finished.</td></tr>
+      <tr><td>Leaver</td><td>After the final settlement is paid, end-date the site(s) and set the supplier to inactive. Do not delete it, because its payment history must stay.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>ExpenseHub · Fusion Payables integration (INT-07, INT-08, INT-09) · Questions: the ExpenseHub project team.</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,71 @@
+{
+  "items": [
+    {
+      "FromCurrency": "USD",
+      "ToCurrency": "SAR",
+      "UserConversionType": "Corporate",
+      "ConversionDate": "2026-10-01",
+      "ConversionRate": 3.75
+    },
+    {
+      "FromCurrency": "USD",
+      "ToCurrency": "SAR",
+      "UserConversionType": "Corporate",
+      "ConversionDate": "2026-10-08",
+      "ConversionRate": 3.75
+    },
+    {
+      "FromCurrency": "USD",
+      "ToCurrency": "SAR",
+      "UserConversionType": "Corporate",
+      "ConversionDate": "2026-10-15",
+      "ConversionRate": 3.75
+    },
+    {
+      "FromCurrency": "EUR",
+      "ToCurrency": "SAR",
+      "UserConversionType": "Corporate",
+      "ConversionDate": "2026-10-01",
+      "ConversionRate": 4.0812
+    },
+    {
+      "FromCurrency": "EUR",
+      "ToCurrency": "SAR",
+      "UserConversionType": "Corporate",
+      "ConversionDate": "2026-10-05",
+      "ConversionRate": 4.0655
+    },
+    {
+      "FromCurrency": "AED",
+      "ToCurrency": "SAR",
+      "UserConversionType": "Corporate",
+      "ConversionDate": "2026-10-01",
+      "ConversionRate": 1.0211
+    },
+    {
+      "FromCurrency": "AED",
+      "ToCurrency": "SAR",
+      "UserConversionType": "Corporate",
+      "ConversionDate": "2026-10-15",
+      "ConversionRate": 1.021
+    },
+    {
+      "FromCurrency": "BHD",
+      "ToCurrency": "SAR",
+      "UserConversionType": "Corporate",
+      "ConversionDate": "2026-10-15",
+      "ConversionRate": 9.9469
+    },
+    {
+      "FromCurrency": "INR",
+      "ToCurrency": "SAR",
+      "UserConversionType": "Corporate",
+      "ConversionDate": "2026-10-15",
+      "ConversionRate": 0.04463
+    }
+  ],
+  "count": 9,
+  "hasMore": false,
+  "limit": 500,
+  "offset": 0
+}

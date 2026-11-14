@@ -35,9 +35,9 @@ const ready = (keys) => {
   return { status: 'ready', mfaVerified: false, has: (key) => set.has(key) }
 }
 const FORMS = [
-  { id: 'hr-sick-leave', env: 'VITE_FEATURE_HR_SICK_LEAVE', permission: 'HR.SICK_LEAVE:VIEW', path: '/hr/talent-management/sick-leave' },
-  { id: 'hr-reward', env: 'VITE_FEATURE_HR_REWARD_NOMINATION', permission: 'HR.EMPLOYEE_OF_THE_MONTH:VIEW', path: '/hr/talent-management/reward-nomination' },
-  { id: 'hr-idea', env: 'VITE_FEATURE_HR_IDEAS', permission: 'HR.IDEAS:VIEW', path: '/hr/talent-management/ideas' },
+  { id: 'hr-record-change', env: 'VITE_FEATURE_HR_EMPLOYEE_SERVICES', permission: 'HR.PERSONNEL_RECORD_CHANGES:VIEW', path: '/hr/employee-services/record-change' },
+  { id: 'hr-sick-leave', env: 'VITE_FEATURE_HR_SICK_LEAVE', permission: 'HR.SICK_LEAVE:VIEW', path: '/hr/employee-services/sick-leave' },
+  { id: 'hr-idea', env: 'VITE_FEATURE_HR_IDEAS', permission: 'HR.IDEAS:VIEW', path: '/hr/employee-services/ideas' },
 ]
 
 // ---------- shared contract helpers ----------
@@ -413,19 +413,20 @@ test('letters reports: the skeleton fills the drawer and the decision stays at t
   }
 })
 
-// ---------- sidebar: HR → Talent Management ----------
-test('sidebar: each form appears in Talent Management only with its switch on AND its VIEW permission', () => {
+// ---------- sidebar: HR → Employee Services ----------
+test('sidebar: personal status change, sick leave and ideas appear in Employee Services only with their switch and VIEW permission', () => {
   const hrGroup = NAVIGATION_GROUPS.find((group) => group.id === 'human-resources')
-  assert.deepEqual(hrGroup.subgroups.map((item) => item.id), ['hr-recruitment', 'hr-employee-services', 'hr-letters', 'hr-reports'])
+  assert.deepEqual(hrGroup.subgroups.map((item) => item.id), ['hr-recruitment', 'hr-talent-management', 'hr-employee-services', 'hr-letters', 'hr-reports'])
   const allOn = Object.fromEntries(FORMS.map((form) => [form.env, 'true']))
   const permissions = FORMS.map((form) => form.permission)
   const listed = (env, keys) => authorizedNavigation(ready(keys), resolveNavigationEntries(registry.entries, env))
     .find((section) => section.id === 'human-resources')?.items ?? []
 
   const items = listed(allOn, permissions)
-  assert.deepEqual(items.map((item) => item.id), ['hr-sick-leave', 'hr-reward', 'hr-idea'], 'reports and records are not listed')
+  const employeeServicesItems = items.filter((item) => item.subgroup === 'hr-employee-services')
+  assert.deepEqual(employeeServicesItems.map((item) => item.id), ['hr-record-change', 'hr-sick-leave', 'hr-idea'], 'reports and records are not listed')
   for (const form of FORMS) {
-    const item = items.find((entry) => entry.id === form.id)
+    const item = employeeServicesItems.find((entry) => entry.id === form.id)
     assert.equal(item.subgroup, 'hr-employee-services', form.id)
     assert.equal(item.path, form.path, `${form.id} opens its own page`)
     assert.equal(item.permission, form.permission)
@@ -434,14 +435,18 @@ test('sidebar: each form appears in Talent Management only with its switch on AN
     assert.ok(!listed({ DEV: false }, permissions).some((entry) => entry.id === form.id), `${form.id}: unset in production`)
   }
   assert.deepEqual(listed({}, []), [])
-  const paths = items.map((item) => item.path)
+  const paths = employeeServicesItems.map((item) => item.path)
   assert.equal(new Set(paths).size, paths.length, 'no two links share a page')
+  const reward = registry.entries.find((entry) => entry.id === 'hr-reward')
+  assert.equal(reward.subgroup, 'hr-talent-management', 'reward nomination remains under Talent Management')
 })
 
-test('sidebar: every HR entry belongs to a sub-group of its section; the flyout lists them', async () => {
-  for (const entry of registry.entries.filter((item) => item.section === 'human-resources')) {
-    assert.ok(['hr-recruitment', 'hr-employee-services', 'hr-letters', 'hr-reports'].includes(entry.subgroup), entry.id)
+test('sidebar: internal HR pages use sub-groups and the Training Hub stays a standalone link', async () => {
+  for (const entry of registry.entries.filter((item) => item.section === 'human-resources' && item.type !== 'external')) {
+    assert.ok(['hr-recruitment', 'hr-talent-management', 'hr-employee-services', 'hr-letters', 'hr-reports'].includes(entry.subgroup), entry.id)
   }
+  const externalHrLinks = registry.entries.filter((item) => item.section === 'human-resources' && item.type === 'external')
+  assert.deepEqual(externalHrLinks.map((item) => [item.id, item.subgroup]), [['training-hub', undefined]])
   const sidebar = await read('../src/components/layout/Sidebar.jsx')
   const flyout = await read('../src/components/layout/SidebarFlyout.jsx')
   assert.match(sidebar, /item\.subgroup === subgroup\.id/)
@@ -452,7 +457,7 @@ test('sidebar: every HR entry belongs to a sub-group of its section; the flyout 
   assert.match(flyout, /<NavLink to=\{item\.path\}/, 'flyout entries are real links to their own page')
   // sidebar.css clips #sidebar on desktop; an open flyout lifts the clip.
   assert.match(sidebar, /has-flyout/)
-  assert.match(await read('../src/styles/workspace.css'), /#sidebar\.has-flyout \{ overflow: visible !important; \}/)
+  assert.match(await read('../src/styles/workspace.css'), /#sidebar\.has-flyout\s*\{\s*overflow:\s*visible !important;\s*\}/)
 })
 
 // ---------- source rules ----------

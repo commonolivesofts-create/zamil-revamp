@@ -1,8 +1,8 @@
 // Route paths of the HR employee services screens (see the registry module
 // hrEmployeeServices.module.js and the router).
 export const ES_PATHS = Object.freeze({
-  recordChange: '/hr/talent-management/record-change',
-  recordChangeRequests: '/hr/talent-management/record-change/requests',
+  recordChange: '/hr/employee-services/record-change',
+  recordChangeRequests: '/hr/employee-services/record-change/requests',
   transfer: '/hr/talent-management/transfer',
   transferReport: '/hr/talent-management/transfer/report',
   appraisal: '/hr/performance/appraisal',
@@ -14,10 +14,10 @@ export const ES_PATHS = Object.freeze({
 export const FORM_PATHS = Object.freeze({
   reward: '/hr/talent-management/reward-nomination',
   rewardReport: '/hr/talent-management/reward-nomination/report',
-  idea: '/hr/talent-management/ideas',
-  ideaReport: '/hr/talent-management/ideas/report',
-  sickLeave: '/hr/talent-management/sick-leave',
-  sickLeaveReport: '/hr/talent-management/sick-leave/report',
+  idea: '/hr/employee-services/ideas',
+  ideaReport: '/hr/employee-services/ideas/report',
+  sickLeave: '/hr/employee-services/sick-leave',
+  sickLeaveReport: '/hr/employee-services/sick-leave/report',
 })
 
 // Employee Clearance (1063): the form, its report and (with an id) one record

@@ -13,7 +13,7 @@
 | Source reference | Prototype `nauman.zip` (unpacked outside the repository, not committed; UI and new rules only); legacy `php-ci3-old-app/…/pmform_codebase`; spec `docs/specs/README_employee_of_the_month_form.md` |
 
 **Owner decisions in this task (2026-11-02):**
-- Sidebar: build the sub-group flyout. HR is now split into Recruitment, Employee services and Reports.
+- Sidebar: build the sub-group flyout. HR is split into Recruitment, Talent Management, Employee Services, Letters and Reports.
 - Prototype fields with no column or API are left out of the forms and listed as gaps (§12.2).
 - Edit guard: DRAFT and REJECTED are editable, INPROCESS and APPROVED are read-only. The employee-of-the-month reset from APPROVED back to DRAFT is removed.
 
@@ -30,7 +30,7 @@
 
 | Form | Prototype files | Existing backend (before this branch) | Existing frontend | Oracle objects |
 |---|---|---|---|---|
-| Reward Nomination 1113 | `forms/reward/RewardForm.jsx`, `rewardData.js`, `styles/reward.css` | `server/src/modules/hr/employee-of-the-month/*` at `/api/v1/hr/employee-of-the-month`: list, get, create, update, delete, lookups (employees, requestor, criteria). Uses `HR.EMPLOYEE_OF_THE_MONTH`. HR check through the `XXZP_HR` lookup. | None | `XXZP.XX_EMP_RATING_EOM_HEADER`, `XXZP.XX_EMP_RATING_EOM_LINES`, `XX_DIGI_EMP_MASTER`, `XX_DIGI_LOOKUP_VALUES` (`XXZP_HR`), `XX_ZRV_USERS` |
+| Reward Nomination 1113 | `forms/reward/RewardForm.jsx`, `rewardData.js`, `styles/reward.css` | `server/src/modules/hr/employee-of-the-month/*` at `/api/v1/hr/employee-of-the-month`: list, get, create, update, delete, lookups (employees, requestor, criteria), and authenticated dashboard spotlight. Management uses `HR.EMPLOYEE_OF_THE_MONTH` permissions; nominations are not scoped by an HR lookup. | None | `XXZP.XX_EMP_RATING_EOM_HEADER`, `XXZP.XX_EMP_RATING_EOM_LINES`, `XX_DIGI_EMP_MASTER`, `XX_ZRV_USERS` |
 | Share an Idea 1097 | `forms/idea/IdeaForm.jsx`, `ideaData.js`, `styles/idea.css` | `server/src/modules/hr/ideas/idea form *.js` at `/api/v1/ideas`: list, get, create, update, feasibility, lookups (employees, divisions, categories). Delete and attachments always return 409. **No permission check.** HR check through `XXZP_HR`. | None | `XXZP.XXZP_IDEA`, `XXZP.XXZP_ALL_ATTACHMENTS` (`FORM_NAME='IDEA'`, read only), `XX_DIGI_EMP_MASTER`, `XX_DIGI_LOOKUP_VALUES`, `XXPHP_WORKFLOW` (pending-at, read) |
 | Sick Leave 1076 | `forms/sickleave/SickLeaveForm.jsx`, `sickData.js`, `styles/sickleave.css` | `server/src/modules/hr/sick-leave/*` at `/api/v1/hr/sick-leave`: list, get, create (multipart), update, delete, attachments upload/delete, lookups (employees). Resource came from `SICK_LEAVE_RESOURCE_KEY` (otherwise 503). The leave type had to exist under `SICK_LEAVE_LOOKUP_TYPE` (otherwise 503). | None | `XXZP.XXZP_SICK_LEAVE`, `XXZP.XXZP_ALL_ATTACHMENTS` (`FORM_NAME='SICKLEAVE'`), `XX_DIGI_EMP_MASTER`, `XX_ZRV_USERS`; files on disk storage |
 
@@ -110,15 +110,15 @@ Legend: **L** = legacy field, **P** = prototype only, **B** = backend only.
 
 | Route id | Path | Permission | MFA | In sidebar? |
 |---|---|---|---|---|
-| `hr-sick-leave` | `/hr/talent-management/sick-leave` | `HR.SICK_LEAVE:VIEW` | No | Yes (Employee services) |
-| `hr-sick-leave-report` | `/hr/talent-management/sick-leave/report` | `HR.SICK_LEAVE:VIEW` | No | No (from the form) |
-| `hr-sick-leave-record` | `/hr/talent-management/sick-leave/:leaveId` | `HR.SICK_LEAVE:VIEW` | No | No |
+| `hr-sick-leave` | `/hr/employee-services/sick-leave` | `HR.SICK_LEAVE:VIEW` | No | Yes (Employee services) |
+| `hr-sick-leave-report` | `/hr/employee-services/sick-leave/report` | `HR.SICK_LEAVE:VIEW` | No | No (from the form) |
+| `hr-sick-leave-record` | `/hr/employee-services/sick-leave/:leaveId` | `HR.SICK_LEAVE:VIEW` | No | No |
 | `hr-reward` | `/hr/talent-management/reward-nomination` | `HR.EMPLOYEE_OF_THE_MONTH:VIEW` | No | Yes |
 | `hr-reward-report` / `-record` | `…/report`, `…/:nominationId` | same | No | No |
-| `hr-idea` | `/hr/talent-management/ideas` | `HR.IDEAS:VIEW` | No | Yes |
+| `hr-idea` | `/hr/employee-services/ideas` | `HR.IDEAS:VIEW` | No | Yes |
 | `hr-idea-report` / `-record` | `…/report`, `…/:ideaId` | same | No | No |
 
-**Sidebar.** Human resources → **Recruitment** (requisition, interview, offer, orientation, probation) · **Employee services** (personal status change and its report, transfer and its report, performance appraisal, sick leave, reward nomination, share an idea) · **Reports** (employee report, periodwise employees).
+**Sidebar.** Human resources → **Recruitment** (requisition, interview, offer, orientation, probation) · **Talent Management** (transfer, performance appraisal, reward nomination, employee clearance, project charter) · **Employee Services** (personal status change and its report, sick leave, share an idea) · **Letters** · **Reports** (employee report, periodwise employees).
 - Each sub-group is a button showing how many pages the user may open and, when it applies, the current page.
 - The button opens a flyout beside the sidebar. On a phone the flyout is a sub-panel over the sidebar, with a Back button.
 - Keyboard: Escape closes the flyout and returns focus to the button; the arrow keys move between pages.
@@ -159,7 +159,7 @@ Not changed:
 |---|---|
 | New permission codes (code registry) | `HR.SICK_LEAVE:{VIEW,CREATE,UPDATE,DELETE,MANAGE_ATTACHMENTS}` ("Sick Leave Form"); `HR.EMPLOYEE_OF_THE_MONTH:{VIEW,CREATE,UPDATE,DELETE}` ("Employee Reward Nomination Form"); `HR.IDEAS:{VIEW,CREATE,UPDATE,DELETE,MANAGE_ATTACHMENTS}` ("Idea Form") |
 | Created in the catalogue | **Not yet.** The registration commands are below; they were not run. |
-| Record-level rules | Owner or HR (`XXZP_HR` lookup) for reward and idea. Sick leave: the employee, the creator, or HR through `SICK_LEAVE_HR_RESOURCE_KEY` (fail-closed when unset). Same-department access is not implemented (§13). |
+| Record-level rules | Reward access is controlled by its VIEW/UPDATE/DELETE permissions; the dashboard spotlight is available to every authenticated user. Idea: owner or HR (`XXZP_HR` lookup). Sick leave: the employee, the creator, or HR through `SICK_LEAVE_HR_RESOURCE_KEY` (fail-closed when unset). Same-department access is not implemented (§13). |
 
 Registration (from `server/`, see `server/docs/RBAC-REGISTRATION.md`):
 

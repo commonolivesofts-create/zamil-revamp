@@ -155,7 +155,7 @@ tests run as a production build with every switch unset, so cover the "on" state
 `resolveNavigationEntries(registry.entries, env)`. The first user is `HR_RECRUITMENT`
 (`VITE_FEATURE_HR_RECRUITMENT`).
 
-**External destinations** (`type: 'external'`, `href`: an https URL or
+**External destinations** (`type: 'external'`, `href`: an https URL (loopback http for local development) or
 `{ env: 'VITE_EXTERNAL_<NAME>' }`) are listed with the same permission checks, open in a new tab
 (`noopener noreferrer`) and are never React routes. A missing or invalid URL hides the entry.
 `VITE_` values are public: never put secrets in them. Adding a real external destination is a

@@ -234,8 +234,14 @@ test("employment offer live preview keeps the branch layout and three signature 
   assert.match(preview, /Bader Alsulaim/);
   assert.match(page, /<OfferLivePreview\b/);
   assert.match(page, /<OfferLetter\b[^\n]*printSource \/>/);
-  assert.match(styles, /\.zrv-hr--offer \.zrv-hr-side \.zrv-offer-letter--print-source \{ display: none; \}/);
-  assert.match(styles, /\.zrv-hr--offer \.zrv-offer-letter--print-source \{ display: flex !important; \}/);
+  assert.match(
+    styles,
+    /\.zrv-hr--offer \.zrv-hr-side \.zrv-offer-letter--print-source\s*\{\s*display:\s*none;\s*\}/,
+  );
+  assert.match(
+    styles,
+    /\.zrv-hr--offer \.zrv-offer-letter--print-source\s*\{\s*display:\s*flex !important;\s*\}/,
+  );
 });
 
 test("all recruitment services use the supplied API client and validate path IDs", async () => {

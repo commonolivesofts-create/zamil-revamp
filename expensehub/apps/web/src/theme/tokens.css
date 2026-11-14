@@ -1,0 +1,121 @@
+/*
+ * ExpenseHub design tokens. Keep these aligned with the approved Zamil green hub palette.
+ * Tailwind v4 turns each --color-* / --radius-* / --shadow-* into utilities; dark mode
+ * overrides the same variables.
+ *
+ * Additions to the UI-UX table, for WCAG AA (UI-UX §8):
+ *   --color-brand-solid   filled buttons; the placeholder brand green on white text is only 3.4:1
+ *   --color-pass-text     pass text on light backgrounds
+ *   --color-hero*         the dark summary card (UI-UX §5.1) in both themes
+ */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-brand: #0e9f6e;
+  --color-brand-solid: #047857;
+  --color-brand-solid-hover: #065f46;
+  --color-brand-fg: #ffffff;
+  --color-ink: #12352a;
+  --color-muted: #5c766a;
+  --color-surface: #ffffff;
+  --color-surface-2: #e8f7ee;
+  --color-canvas: #f4faf6;
+  --color-border: rgb(13 74 56 / 0.12);
+  --color-pass: #0e9f6e;
+  --color-pass-text: #047857;
+  --color-warn: #b45309;
+  --color-block: #b91c1c;
+  --color-info: #1d4ed8;
+  --color-hero: #151d2b;
+  --color-hero-fg: #f9fafb;
+  --color-hero-muted: #9ca3af;
+
+  --radius-card: 12px;
+  --radius-input: 8px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-raised: 0 4px 8px -2px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.04);
+
+  --text-display: 2rem;
+  --text-display--line-height: 2.5rem;
+  --text-display--letter-spacing: -0.02em;
+  --text-title: 1.5rem;
+  --text-title--line-height: 2rem;
+  --text-title--letter-spacing: -0.015em;
+
+  --animate-pop: pop 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-sheet-up: sheet-up 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-drawer-in: drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes drawer-in {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+  }
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.97) translateY(-2px);
+    }
+  }
+  @keyframes sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/*
+ * Dashboard charts (FR-DSH): categorical series, colour-blind-safe order. Plain :root, not
+ * @theme — they are read from inline SVG styles, and Tailwind drops @theme variables no utility
+ * uses.
+ */
+:root {
+  --color-chart-1: #047857;
+  --color-chart-2: #2563eb;
+  --color-chart-3: #d97706;
+  --color-chart-4: #7c3aed;
+  --color-chart-5: #db2777;
+  --color-chart-6: #0891b2;
+  --color-chart-7: #9ca3af;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --color-brand: #31c48d;
+  --color-brand-solid: #31c48d;
+  --color-brand-solid-hover: #5ad3a4;
+  --color-brand-fg: #04261a;
+  --color-ink: #f9fafb;
+  --color-muted: #9ca3af;
+  --color-surface: #111827;
+  --color-surface-2: #1a2333;
+  --color-canvas: #0b0f17;
+  --color-border: #1f2937;
+  --color-pass: #31c48d;
+  --color-pass-text: #31c48d;
+  --color-warn: #f59e0b;
+  --color-block: #f87171;
+  --color-info: #60a5fa;
+  --color-hero: #151d2b;
+  --color-hero-fg: #f9fafb;
+  --color-hero-muted: #9ca3af;
+  --color-chart-1: #34d399;
+  --color-chart-2: #60a5fa;
+  --color-chart-3: #fbbf24;
+  --color-chart-4: #a78bfa;
+  --color-chart-5: #f472b6;
+  --color-chart-6: #22d3ee;
+  --color-chart-7: #6b7280;
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02);
+  --shadow-raised: 0 8px 24px -8px rgb(0 0 0 / 0.6);
+}

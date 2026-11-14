@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
 import ProfileAvatar from "@/components/profile/ProfileAvatar.jsx";
 import useAuth from "@/features/auth/useAuth.js";
@@ -6,10 +7,10 @@ import { appConfig } from "@/config/appConfig.js";
 import DashboardMeta from "@/features/dashboard/components/DashboardMeta.jsx";
 import FolioBook from "@/features/dashboard/components/FolioBook.jsx";
 import EmployeeSpotlightFireworks from "@/features/dashboard/components/EmployeeSpotlightFireworks.jsx";
-import usePermissions from "@/features/access/usePermissions.js";
 import { useResource } from "@/features/security-administration/useAdminData.js";
 import { rewardService } from "@/features/hr-employee-services/reward/rewardService.js";
 import { enDate } from "@/features/hr-recruitment/shared/hrFormat.js";
+import { ConfirmDialog } from "@/features/security-administration/components/AdminUi.jsx";
 import {
   ATTENTION_ITEMS,
   FOOTER_COUNTS,
@@ -198,26 +199,13 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
   const [quickPanelChanged, setQuickPanelChanged] = useState(false);
   const [hrUsage, setHrUsage] = useState(readHrUsage);
   const { updateProfileImage, removeProfileImage } = useAuth();
-  const permissions = usePermissions();
   const employeeOfMonth = useResource(
-    permissions.can("HR.EMPLOYEE_OF_THE_MONTH:VIEW") ? "dashboard-employee-of-month" : null,
-    async (signal) => {
-      const result = await rewardService.list(
-        {
-          status: "APPROVED",
-          page: 1,
-          pageSize: 25,
-          sort: "activityDate",
-          order: "desc",
-        },
-        { signal },
-      );
-      const latest = result.items.find((item) => item.status === "APPROVED");
-      return latest ? rewardService.getById(latest.nominationId, { signal }) : null;
-    },
+    "dashboard-employee-of-month",
+    (signal) => rewardService.spotlight({ signal }),
   );
   const [imageBusy, setImageBusy] = useState(false);
   const [imageFeedback, setImageFeedback] = useState("");
+  const [photoResetOpen, setPhotoResetOpen] = useState(false);
   const [imageTarget, setImageTarget] = useState("");
   const imageTargetRef = useRef("");
   const loadedImageRef = useRef("");
@@ -292,15 +280,22 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
       const source = await removeProfileImage();
       waitForImage(source);
       setImageFeedback("Default photo restored");
+      return true;
     } catch (error) {
       setImageFeedback(error.message || "Could not restore the default photo");
+      return false;
     } finally {
       setImageBusy(false);
     }
   }
 
+  async function confirmPhotoReset() {
+    if (await resetProfileImage()) setPhotoResetOpen(false);
+  }
+
   const hrPages = pages.filter((page) => page.sectionLabel === "Human resources" || page.section === "human-resources");
   const openHrPage = (page) => {
+    if (!page?.id || !page.path) return;
     const next = { ...hrUsage, [page.id]: (hrUsage[page.id] || 0) + 1 };
     setHrUsage(next);
     window.localStorage.setItem(HR_USAGE_KEY, JSON.stringify(next));
@@ -384,7 +379,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
               {!profile?.isPreview && (
                 <div className="hero-profile-photo-actions">
                   <span className="hero-profile-photo-hint">Make it yours</span>
-                  <button className="hero-profile-reset" type="button" onClick={resetProfileImage} disabled={imageBusy}>
+                  <button className="hero-profile-reset" type="button" onClick={() => { setImageFeedback(""); setPhotoResetOpen(true); }} disabled={imageBusy}>
                     Reset photo
                   </button>
                   {imageBusy && <span role="status">Saving photo...</span>}
@@ -428,8 +423,21 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
             Start here, or use the sidebar or <kbd>Ctrl K</kbd> at any time.
           </div>
         </div>
-        <FolioBook onNavigate={onNavigate} hrPages={hrPages} onOpenPage={onOpenPage} />
+        <FolioBook onNavigate={onNavigate} hrPages={hrPages} onOpenPage={openHrPage} />
       </section>
+      {photoResetOpen && !profile?.isPreview && createPortal(
+        <ConfirmDialog
+          className="hero-photo-reset-backdrop"
+          title="Reset profile photo?"
+          description="This restores the default profile photo. You can upload a new photo at any time."
+          confirmLabel="Reset photo"
+          pending={imageBusy}
+          feedback={imageFeedback && !imageBusy ? { kind: "error", message: imageFeedback } : null}
+          onConfirm={confirmPhotoReset}
+          onClose={() => setPhotoResetOpen(false)}
+        />,
+        document.body,
+      )}
 
       <div className="section-line section-quick" id="quickStart">
         <div>
@@ -497,7 +505,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
       </div>
       <section className="employee-spotlight" data-zrv-reveal aria-label="Employee of the month">
         {employeeOfMonth.status === "idle" && (
-          <div className="employee-spotlight-empty">Employee recognition is available to authorised team members.</div>
+          <div className="employee-spotlight-empty">Employee recognition will appear here for everyone.</div>
         )}
         {employeeOfMonth.status === "loading" && (
           <div className="employee-spotlight-empty" role="status">

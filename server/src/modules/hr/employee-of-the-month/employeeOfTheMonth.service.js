@@ -188,14 +188,6 @@ export function createEmployeeOfTheMonthService({
     };
   }
 
-  async function assertRecordScope(c, actor, header) {
-    const isHrUser = await repository.isHrUser(c, actor.userId);
-
-    if (!isHrUser && String(header.CREATED_BY) !== String(actor.userId)) {
-      fail(404, 'RESOURCE_NOT_FOUND', 'Nomination not found');
-    }
-  }
-
   return {
     async get(actor, id) {
       return read(async (c) => {
@@ -205,9 +197,14 @@ export function createEmployeeOfTheMonthService({
           fail(404, 'RESOURCE_NOT_FOUND', 'Nomination not found');
         }
 
-        await assertRecordScope(c, actor, header);
-
         return detail(c, id, header);
+      });
+    },
+
+    async spotlight() {
+      return read(async (c) => {
+        const header = await repository.latestApproved(c);
+        return header ? detail(c, header.HEADER_ID, header) : null;
       });
     },
 
@@ -235,8 +232,6 @@ export function createEmployeeOfTheMonthService({
         if (!old) {
           fail(404, 'RESOURCE_NOT_FOUND', 'Nomination not found');
         }
-
-        await assertRecordScope(c, actor, old);
 
         if (old.STATUS === 'INPROCESS') {
           fail(409, 'CONFLICT', 'Cannot update nomination while it is In Process');
@@ -266,8 +261,6 @@ export function createEmployeeOfTheMonthService({
           fail(404, 'RESOURCE_NOT_FOUND', 'Nomination not found');
         }
 
-        await assertRecordScope(c, actor, old);
-
         if (!EDITABLE.includes(old.STATUS)) {
           fail(409, 'CONFLICT', 'Cannot delete nomination in its current status');
         }
@@ -282,9 +275,7 @@ export function createEmployeeOfTheMonthService({
 
     async list(actor, q) {
       return read(async (c) => {
-        const hr = await repository.isHrUser(c, actor.userId);
-
-        const r = await repository.list(c, q, actor.userId, hr);
+        const r = await repository.list(c, q);
 
         return {
           ...r,

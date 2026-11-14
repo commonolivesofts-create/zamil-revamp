@@ -48,7 +48,7 @@
 //                 Only 'external' = external destination with `href`.
 //                 Any other value fails validation.
 //   path          internal only: '/area/page' or '/area/page/:id'
-//   href          external only: an absolute https URL (host name or IP address,
+//   href          external only: an absolute https URL (loopback http for local development),
 //                 no credentials) or { env: 'VITE_EXTERNAL_<NAME>' } for an
 //                 environment-specific approved URL. Build-time VITE_ values are
 //                 public: never put tokens, passwords or keys in them. A missing
