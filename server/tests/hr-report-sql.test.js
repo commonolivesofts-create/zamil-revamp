@@ -227,6 +227,31 @@ describe('Salary certificate identity', () => {
 });
 
 describe('Tourist visa letter repository SQL', () => {
+  it('loads the selected employee by employee number and maps the national ID from details', async () => {
+    const { repository: tourist } =
+      await import('../src/modules/hr/tourist-visa-letters/tourist-visa.repository.js');
+    const c = recordingConnection([{
+      EMPLOYEE_NO: '1001',
+      EMPLOYEE_NAME: 'Employee',
+      NATIONALITY: 'Indian',
+      PASSPORT_NO: 'P123',
+      NATIONAL_ID: 'N123',
+      POSITION: 'Operator',
+    }]);
+
+    const [employee] = await tourist.employee(c, '1001');
+    const [{ sql, binds }] = c.statements;
+    assert.deepEqual(binds, { employee_no: '1001' });
+    assert.match(sql, /M\.EMPLOYEE_NUMBER = :employee_no/);
+    assert.match(sql, /M\.FULL_NAME EMPLOYEE_NAME/);
+    assert.match(sql, /M\.NATIONALITY/);
+    assert.match(sql, /M\.PASSPORT_NUMBER PASSPORT_NO/);
+    assert.match(sql, /D\.NATIONAL_IDENTIFIER NATIONAL_ID/);
+    assert.match(sql, /M\.POSITION_NAME POSITION/);
+    assert.equal(employee.employee_no, '1001');
+    assert.equal(employee.national_id, 'N123');
+  });
+
   it('writes and reads the physical POSI_START_DATE and EMP_NATIONALITY columns (TEST, legacy model)', async () => {
     const { repository: tourist } =
       await import('../src/modules/hr/tourist-visa-letters/tourist-visa.repository.js');

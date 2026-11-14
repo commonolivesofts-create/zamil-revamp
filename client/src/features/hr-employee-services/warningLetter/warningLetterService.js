@@ -3,6 +3,7 @@
 // position from the master and numbers the letter (reference ZPIL/<id>/<n>,
 // warning no. = the employee's count + 1). Readers reject unexpected data.
 import { apiClient } from '../../../services/api/apiClient.js'
+import { createListReadLimit } from '../../../services/api/listReadLimit.js'
 import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { ID, invalidResponse, isoDate, normalizeStatus, params, segment, text } from '../shared/formRecords.js'
 
@@ -105,6 +106,10 @@ const employeeOption = (item) => (text(item?.emp_no)
   : null)
 
 export function createWarningLetterService({ client }) {
+  // The warning-letter report requests counts for each month and reason in
+  // parallel. Bound those list reads so the report does not starve a preview's
+  // single-record request from the shared Oracle pool.
+  const runListRead = createListReadLimit(4)
   const getById = async (value, { signal } = {}) => readLetter((await client.get(`${BASE}/${segment(value)}`, { signal })).data)
   // The picker's list, loaded with the form (the legacy datalist of employees).
   const employees = createEmployeeList({
@@ -128,9 +133,9 @@ export function createWarningLetterService({ client }) {
       return readEmployee((await client.get(`${BASE}/lookups/employee/${encodeURIComponent(employeeNo)}`, { signal })).data)
     },
     async list({ page = 1, pageSize = 25, q, division, flag, dateFrom, dateTo } = {}, { signal } = {}) {
-      const { data } = await client.get(BASE, {
+      const { data } = await runListRead(() => client.get(BASE, {
         params: params({ page, limit: pageSize, search: q, division, flag, date_from: dateFrom, date_to: dateTo }), signal,
-      })
+      }), signal)
       return readLetterPage(data)
     },
     async save(value, form) {

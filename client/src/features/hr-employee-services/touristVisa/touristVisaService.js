@@ -128,6 +128,26 @@ export function validateLetter(form, { approvers }) {
   return errors
 }
 
+const MASTER_FIELD_LABELS = Object.freeze({
+  employee_name: 'Employee name',
+  nationality: 'Nationality',
+  passport_no: 'Passport number',
+  national_id: 'National ID',
+  position: 'Position / designation',
+})
+
+// The server includes the missing API field in FIELD_REQUIRED messages. Keep
+// the master-data rule, but tell the user which value HR must correct.
+export function employeeMasterProblem(error) {
+  if (error?.code === 'SALARY_INVALID') return 'This employee has no valid salary in the master.'
+  if (error?.code !== 'FIELD_REQUIRED') return ''
+  const field = /^([a-z_]+) is missing from employee master$/i.exec(String(error.message ?? ''))?.[1]?.toLowerCase()
+  const label = MASTER_FIELD_LABELS[field]
+  return label
+    ? `${label} is missing from the employee master. Ask HR to update the employee record.`
+    : 'A required employee detail is missing from the master. Ask HR to review the employee record.'
+}
+
 const employeeOption = (item) => (text(item?.employee_no)
   ? Object.freeze({ employeeId: text(item.employee_no), employeeNumber: text(item.employee_no), name: text(item.employee_name) })
   : null)

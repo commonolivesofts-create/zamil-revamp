@@ -495,9 +495,44 @@
   }
 
   html:not([data-sidebar-mode="full"]) #sidebar:hover,
-  html:not([data-sidebar-mode="full"]) #sidebar:has(:focus-visible),
-  html:not([data-sidebar-mode="full"]) #sidebar.is-hover-open {
+  html:not([data-sidebar-mode="full"]) #sidebar:has(:focus-visible) {
     width: 18rem !important;
+  }
+
+  /* Keep navigation icons on a stable leading edge in expanded mode. */
+  #sidebar :is(.sidebar-domain-toggle, .sidebar-domain-link) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    padding-inline: 4px;
+    text-align: start;
+  }
+
+  #sidebar .sidebar-domain-icon {
+    display: grid;
+    flex: 0 0 44px;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+  }
+
+  #sidebar :is(.sidebar-domain-label, .sidebar-domain-link-label) {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  #sidebar .sidebar-domain-chevron {
+    flex: none;
+    margin-inline-start: auto;
+  }
+
+  #sidebar .sidebar-domain-link > svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
   }
 
   html:not([data-sidebar-mode="full"]) #app-main {
@@ -531,11 +566,19 @@
 
   html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)) #sidebar-brand,
   html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-domain-toggle,
+  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-domain-link,
   html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)) .zrv-sidebar-subgroup {
     justify-content: center;
   }
 
   html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-domain-toggle {
+    padding-inline: 0;
+  }
+
+  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-domain-link {
+    width: 48px;
+    min-height: 48px;
+    margin-inline: auto;
     padding-inline: 0;
   }
 
