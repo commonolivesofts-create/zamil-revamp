@@ -49,7 +49,52 @@ const only = (query, keys) =>
 // Counts of list queries (page size 1, the total only); one load asks the
 // server once per distinct query. `countIn` limits a date window to the
 // report's own date filter.
-function counter(list, signal) {
+function createRequestGate(maxConcurrent) {
+  let active = 0;
+  const queue = [];
+  const abortError = () =>
+    Object.assign(new Error("The request was cancelled."), {
+      name: "AbortError",
+    });
+  const drain = () => {
+    while (active < maxConcurrent && queue.length) {
+      const entry = queue.shift();
+      entry.signal?.removeEventListener("abort", entry.onAbort);
+      if (entry.signal?.aborted) {
+        entry.reject(abortError());
+        continue;
+      }
+      active += 1;
+      Promise.resolve()
+        .then(entry.run)
+        .then(entry.resolve, entry.reject)
+        .finally(() => {
+          active -= 1;
+          drain();
+        });
+    }
+  };
+  return (run, signal) =>
+    new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(abortError());
+        return;
+      }
+      const entry = { run, signal, resolve, reject };
+      entry.onAbort = () => {
+        const index = queue.indexOf(entry);
+        if (index !== -1) {
+          queue.splice(index, 1);
+          reject(abortError());
+        }
+      };
+      signal?.addEventListener("abort", entry.onAbort, { once: true });
+      queue.push(entry);
+      drain();
+    });
+}
+
+function counter(list, signal, requestGate) {
   const memo = new Map();
   const count = (query) => {
     const clean = Object.entries(query)
@@ -61,10 +106,14 @@ function counter(list, signal) {
     if (!memo.has(key))
       memo.set(
         key,
-        list(
-          { ...Object.fromEntries(clean), page: 1, limit: 1 },
-          { signal },
-        ).then((result) => result.pagination.total),
+        requestGate(
+          () =>
+            list(
+              { ...Object.fromEntries(clean), page: 1, limit: 1 },
+              { signal },
+            ).then((result) => result.pagination.total),
+          signal,
+        ),
       );
     return memo.get(key);
   };
@@ -118,6 +167,8 @@ export function InsightReport({
   groups: groupsOf = [],
   summary,
   renderDetail,
+  highlight = null,
+  highlightLabel = "Suggestions",
   closeInDetail = false,
   resizableDrawer = false,
   breadcrumb = COMMON_TEXT.breadcrumb,
@@ -134,6 +185,7 @@ export function InsightReport({
   const canCreate =
     create && (!create.permission || permissions.can(create.permission));
   const fieldKeys = fields.map((field) => field.key);
+  const [highlightOpen, setHighlightOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [errors, setErrors] = useState({});
   const [draft, setDraft] = useState(() => only(initial, fieldKeys));
@@ -141,6 +193,9 @@ export function InsightReport({
   const [sort, setSort] = useState(defaultSort);
   const [page, setPage] = useState(1);
   const reportRef = useRef(null);
+  const countRequestGate = useRef(null);
+  if (countRequestGate.current == null)
+    countRequestGate.current = createRequestGate(3);
   const [selected, setSelected] = useState(null);
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef(0);
@@ -171,7 +226,7 @@ export function InsightReport({
   const overview = useResource(
     `${resourceKey}:overview:${JSON.stringify(query)}:${today}`,
     (signal) => {
-      const { count, countIn } = counter(list, signal);
+      const { count, countIn } = counter(list, signal, countRequestGate.current);
       return Promise.all(
         cards.map((card) =>
           card.load({
@@ -188,7 +243,7 @@ export function InsightReport({
   const breakdown = useResource(
     groups.length ? `${resourceKey}:breakdown:${JSON.stringify(query)}` : null,
     async (signal) => {
-      const { count } = counter(list, signal);
+      const { count } = counter(list, signal, countRequestGate.current);
       return Promise.all(
         groups.map((group) =>
           Promise.all(
@@ -342,6 +397,21 @@ export function InsightReport({
           {subtitle && <p className="zrv-hr-sub">{subtitle}</p>}
         </div>
         <div className="zrv-ir-head__actions">
+          {highlight && (
+            <button
+              type="button"
+              className={`zrv-ir-btn zrv-ir-btn--suggestions${highlightOpen ? " zrv-ir-is-on" : ""}`}
+              aria-expanded={highlightOpen}
+              aria-controls={`${id}-highlight`}
+              onClick={() => setHighlightOpen((value) => !value)}
+            >
+              <OrvexaIcon name="badge-check" size={16} />
+              {highlightLabel}
+              <span className="zrv-ir-btn__chevron" aria-hidden="true">
+                <OrvexaIcon name="chevron-down" size={14} />
+              </span>
+            </button>
+          )}
           {records.data?.loadedAt && (
             <span className="zrv-ir-stamp" role="status">
               <i aria-hidden="true" />
@@ -420,6 +490,16 @@ export function InsightReport({
             {T.close}
           </button>
         </p>
+      )}
+
+      {highlight && (
+        <div
+          id={`${id}-highlight`}
+          className="zrv-ir-highlight"
+          hidden={!highlightOpen}
+        >
+          {highlightOpen && highlight}
+        </div>
       )}
 
       <div

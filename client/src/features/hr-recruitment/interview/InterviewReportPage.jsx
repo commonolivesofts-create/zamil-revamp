@@ -5,6 +5,7 @@ import { enDate } from '../shared/hrFormat.js'
 import { Pill } from '../shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '../shared/components/InsightReport.jsx'
 import { CreateEmploymentOffer } from './CreateEmploymentOffer.jsx'
+import { InterviewSuggestions } from './InterviewSuggestions.jsx'
 import { Card, Foot, Funnel, HalfGauge, Hero, Hint, Splits } from '../shared/components/InsightCards.jsx'
 
 const BASE = '/hr/recruitment/interview'
@@ -113,6 +114,7 @@ export default function InterviewReportPage() {
     <InsightReport variant="interview-report" title={R.title} subtitle={R.subtitle} heading={R.heading} resourceKey="hr-interview-report"
       list={hrRecruitmentServices.interviews.list} create={{ permission: ACTIONS.INTERVIEW_CREATE, path: BASE, label: R.newAssessment }}
       openLabel={R.detail.open} empty={R.empty} initial={INITIAL} fields={FIELDS} columns={COLUMNS} cards={CARDS} groups={GROUPS}
+      highlight={<InterviewSuggestions />} highlightLabel="Hiring suggestions"
       defaultSort={{ key: 'HEADER_ID', order: 'desc' }} numberOf={(row) => row.assessmentNumber || row.assessmentId}
       rowKey={(row) => row.assessmentId} pathOf={(row) => `${BASE}/${row.assessmentId}`}
       renderDetail={(row) => <CreateEmploymentOffer row={row} />}

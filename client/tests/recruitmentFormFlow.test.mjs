@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { blankInterview, canCreateEmploymentOffer, COMP_KEYS, INTERVIEW_VALIDATION_FIELDS, interviewStepErrors, SPEC_KEYS } from '../src/features/hr-recruitment/interview/interviewModel.js'
+import { blankInterview, canCreateEmploymentOffer, COMP_KEYS, INTERVIEW_VALIDATION_FIELDS, interviewStepErrors, performanceSuggestion, SPEC_KEYS } from '../src/features/hr-recruitment/interview/interviewModel.js'
+import { candidateInsight, groupByRequisition, suggestionsSummary, waitingBuckets, waitingDays } from '../src/features/hr-recruitment/interview/interviewSuggestionsModel.js'
 import { blankOffer, completeOfferTranslations, offerCandidateFields, OFFER_VALIDATION_FIELDS, offerStepErrors, validateOffer } from '../src/features/hr-recruitment/offer/offerModel.js'
 import { recruitmentStepProgress, reviewCompletion, reviewField } from '../src/features/hr-recruitment/shared/recruitmentSteps.js'
 import { activeRecruitmentErrors, recruitmentValidation } from '../src/features/hr-recruitment/shared/recruitmentFieldErrors.js'
@@ -99,6 +100,42 @@ test('creating an offer requires an approved, passed assessment and carries its 
   assert.deepEqual(offerCandidateFields(candidate), { candidateNameEn: 'Candidate', position: 'Inspector', intNo: 'IA-100', reqNo: 'PR-100' })
   const secondCandidateWithSameName = { ...candidate, intNo: 'IA-101', requisitionNo: 'PR-101' }
   assert.equal(offerCandidateFields(secondCandidateWithSameName).intNo, 'IA-101')
+})
+
+test('interview performance suggestions explain strong, mixed, weak, incomplete, and unapproved assessments', () => {
+  const rated = (keys, rating) => Object.fromEntries(keys.map((key) => [key, { rating, remark: '' }]))
+  const base = { status: 'APPROVED', outcome: 'PASSED', spec: rated(SPEC_KEYS, 5), comp: rated(COMP_KEYS, 5) }
+
+  assert.equal(performanceSuggestion(base).action, 'Consider offer')
+  assert.equal(performanceSuggestion({ ...base, spec: rated(SPEC_KEYS, 3) }).action, 'Consider offer', 'Good and Outstanding bands coexist without a weighted score')
+  assert.equal(performanceSuggestion({ ...base, comp: rated(COMP_KEYS, 1) }).action, 'Do not recommend')
+  assert.equal(performanceSuggestion({ ...base, spec: { ...rated(SPEC_KEYS, 5), health: { rating: null, remark: '' } } }).action, 'Hold for review')
+  assert.equal(performanceSuggestion({ ...base, status: 'INCOMPLETE' }).action, 'Hold for review')
+  assert.match(performanceSuggestion({ ...base, outcome: 'HOLD' }).reasons.join(' '), /outcome is Hold/)
+})
+
+test('hiring suggestions decide from each candidate\'s own bands, with no ranking', () => {
+  const assessment = (overrides = {}) => ({
+    assessmentId: '1001', candidateName: 'Sample Candidate', requisitionNo: 'REQ-1', positionTitle: 'Sample Role',
+    status: 'APPROVED', outcome: 'PASSED', personalSpecTotal: 36, jobCompetencyTotal: 27,
+    interviewDate: '2026-11-01', ...overrides,
+  })
+
+  assert.equal(candidateInsight(assessment()).decision.label, 'Offer-ready')
+  assert.equal(candidateInsight(assessment({ jobCompetencyTotal: 12 })).decision.label, 'Needs review', 'a Poor group passed overall still needs review')
+  assert.equal(candidateInsight(assessment({ personalSpecTotal: null })).decision.label, 'Needs review', 'a missing total is unrated')
+  assert.equal(candidateInsight(assessment({ personalSpecTotal: 0 })).decision.label, 'Needs review', 'a stored 0 is a Poor score, not unrated')
+  assert.equal(waitingDays('2026-11-01', '2026-11-14'), 13)
+
+  const groups = groupByRequisition([
+    assessment(),
+    assessment({ assessmentId: '1002', personalSpecTotal: 22 }),
+    assessment({ assessmentId: '1003', requisitionNo: 'REQ-2', jobCompetencyTotal: 8 }),
+  ], '2026-11-14')
+  assert.deepEqual(groups.map((group) => group.requisitionNo), ['REQ-1', 'REQ-2'])
+  assert.deepEqual(suggestionsSummary(groups), { requisitions: 2, total: 3, ready: 2, review: 1, oldest: 13 })
+  assert.deepEqual(waitingBuckets(groups.flatMap((group) => group.candidates)).map((bucket) => [bucket.label, bucket.count]),
+    [['0–7 days', 0], ['8–14 days', 3], ['15–30 days', 0], ['31+ days', 0]])
 })
 
 test('offer save waits for missing automatic translations and preserves manual Arabic values', async () => {

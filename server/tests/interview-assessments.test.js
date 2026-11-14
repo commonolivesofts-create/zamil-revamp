@@ -555,6 +555,10 @@ describe('interview assessment API', () => {
       const approved = res.body.data.at(-1);
       assert.equal(approved.statusLabel, 'Approved');
       assert.equal(approved.evaluationStatus, 'Passed'); // only Approved rows expose it
+      assert.equal(approved.personalSpecTotal, 8);
+      assert.equal(approved.jobCompetencyTotal, 6);
+      assert.equal(approved.strengths, '-');
+      assert.equal(approved.weakness, '-');
       const inprocess = res.body.data.find((r) => r.headerId === '801');
       assert.equal(inprocess.statusLabel, 'InProcess'); // legacy display mapping (§7.3)
       assert.equal(inprocess.evaluationStatus, null);

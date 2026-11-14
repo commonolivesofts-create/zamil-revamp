@@ -204,6 +204,10 @@ export function readInterviewListItem(data) {
     // Report columns; absent from older list sources.
     requisitionNo: nullableText(data.requisitionNo || null, 100),
     interviewDate: date(data.interviewDate || null),
+    personalSpecTotal: amount(data.personalSpecTotal ?? null),
+    jobCompetencyTotal: amount(data.jobCompetencyTotal ?? null),
+    strengths: text(data.strengths ?? ''),
+    weakness: text(data.weakness ?? ''),
     updatedAt: instant(data.updatedAt),
   })
 }

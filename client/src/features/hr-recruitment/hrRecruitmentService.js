@@ -426,6 +426,10 @@ function interviewListItem(data) {
     outcome: interviewOutcome(data.evaluationStatus),
     requisitionNo: cleanBackendText(data.requisitionNo) || null,
     interviewDate: legacyDate(data.interviewDate) || null,
+    personalSpecTotal: data.personalSpecTotal == null ? null : Number(data.personalSpecTotal),
+    jobCompetencyTotal: data.jobCompetencyTotal == null ? null : Number(data.jobCompetencyTotal),
+    strengths: cleanBackendText(data.strengths),
+    weakness: cleanBackendText(data.weakness),
     updatedAt,
   });
 }

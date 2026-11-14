@@ -253,26 +253,30 @@ export function createInterviewAssessmentService({
     },
 
     async list(actor, { page, pageSize, sortBy, sortDir, search, createdBy, ...rest }) {
-      const isHr = await read((c) => repository.isHrUser(c, actor.userId));
+      const { total, items } = await read(async (c) => {
+        const isHr = await repository.isHrUser(c, actor.userId);
       // §7.4: HR users see everything (and may filter by createdBy); non-HR users only their own
       // rows — the scope wins over whatever the caller passed.
-      const scope = isHr ? (createdBy ?? null) : actor.userId;
-      const { total, items } = await read((c) =>
-        repository.listAssessments(c, {
+        const scope = isHr ? (createdBy ?? null) : actor.userId;
+        return repository.listAssessments(c, {
           limit: pageSize,
           offset: (page - 1) * pageSize,
           filters: { search: searchPattern(search), ...rest },
           createdBy: scope,
           sortBy,
           sortDir,
-        }),
-      );
+        });
+      });
       return {
         total,
         items: items.map((item) => ({
           ...item,
           statusLabel: STATUS_LABELS[item.headerStatus] ?? 'Draft',
           evaluationStatus: item.headerStatus === 'Approved' ? item.evaluationStatus : null,
+          personalSpecTotal: item.personalSpecTotal ?? null,
+          jobCompetencyTotal: item.jobCompetencyTotal ?? null,
+          strengths: item.strengths ?? '',
+          weakness: item.weakness ?? '',
         })),
       };
     },

@@ -181,6 +181,26 @@ test("interview records keep the managing director and HR representative so an u
   assert.equal(record.adminManagerName, "Sample Manager A");
 });
 
+test("interview report rows include score totals and strengths for suggestions without detail requests", async () => {
+  const client = fakeClient({
+    "GET /hr/interview-assessments": {
+      data: [{
+        headerId: "700", intNo: "IPP-0700", headerStatus: "Approved", evaluationStatus: "Passed",
+        candidateName: "Test Applicant A", positionName: "Quality Inspector", requisitionNo: "PR-100",
+        interviewDate: "28-Oct-26", creationDate: "2026-10-28", personalSpecTotal: 34,
+        jobCompetencyTotal: 26, strengths: "Clear communication", weakness: "Limited shift experience",
+      }],
+      pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    },
+  });
+  const result = await services(client).interviews.list({ status: "Approved", evaluationStatus: "Passed" });
+  assert.equal(result.items[0].personalSpecTotal, 34);
+  assert.equal(result.items[0].jobCompetencyTotal, 26);
+  assert.equal(result.items[0].strengths, "Clear communication");
+  assert.equal(result.items[0].weakness, "Limited shift experience");
+  assert.equal(client.calls.length, 1, "suggestion data is available in the report listing; no per-assessment calls are needed");
+});
+
 test("the interview page passes the derived position and remark limits match the backend", async () => {
   const page = await readFile(
     new URL("interview/InterviewPage.jsx", FEATURE),
