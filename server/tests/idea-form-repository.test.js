@@ -9,7 +9,8 @@ describe('Share an Idea Oracle repository', () => {
       async execute(sql, binds) {
         calls.push({ sql, binds });
         if (sql.includes('XX_DIGI_LOOKUP_VALUES')) return { rows: [{ CNT: 0 }] };
-        if (sql.includes('SELECT COUNT(*) AS CNT FROM XXZP.XXZP_IDEA')) return { rows: [{ CNT: 0 }] };
+        if (sql.includes('SELECT COUNT(*) AS CNT FROM XXZP.XXZP_IDEA'))
+          return { rows: [{ CNT: 0 }] };
         return { rows: [] };
       },
     };

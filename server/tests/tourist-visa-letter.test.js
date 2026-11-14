@@ -113,16 +113,18 @@ test('a blank or non-numeric salary is rejected, not stored as zero', async () =
 
 test('a missing passport is identified by the required-field key and is never inserted', async () => {
   const repository = fakeRepository();
-  repository.employee = async () => [{
-    employee_no: '100',
-    employee_name: 'Employee',
-    nationality: 'Indian',
-    passport_no: '',
-    national_id: 'ID1',
-    position: 'Engineer',
-    salary: 5000,
-    country: 'India',
-  }];
+  repository.employee = async () => [
+    {
+      employee_no: '100',
+      employee_name: 'Employee',
+      nationality: 'Indian',
+      passport_no: '',
+      national_id: 'ID1',
+      position: 'Engineer',
+      salary: 5000,
+      country: 'India',
+    },
+  ];
   const service = createTouristVisaService({
     repository,
     withConnection: run,

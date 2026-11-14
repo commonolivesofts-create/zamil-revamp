@@ -230,14 +230,16 @@ describe('Tourist visa letter repository SQL', () => {
   it('loads the selected employee by employee number and maps the national ID from details', async () => {
     const { repository: tourist } =
       await import('../src/modules/hr/tourist-visa-letters/tourist-visa.repository.js');
-    const c = recordingConnection([{
-      EMPLOYEE_NO: '1001',
-      EMPLOYEE_NAME: 'Employee',
-      NATIONALITY: 'Indian',
-      PASSPORT_NO: 'P123',
-      NATIONAL_ID: 'N123',
-      POSITION: 'Operator',
-    }]);
+    const c = recordingConnection([
+      {
+        EMPLOYEE_NO: '1001',
+        EMPLOYEE_NAME: 'Employee',
+        NATIONALITY: 'Indian',
+        PASSPORT_NO: 'P123',
+        NATIONAL_ID: 'N123',
+        POSITION: 'Operator',
+      },
+    ]);
 
     const [employee] = await tourist.employee(c, '1001');
     const [{ sql, binds }] = c.statements;
