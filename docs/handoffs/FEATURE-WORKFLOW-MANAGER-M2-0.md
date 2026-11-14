@@ -8,7 +8,7 @@
 | Business purpose | A form-independent backend foundation that M2-A (source mapping), M2-B (form mapping), M2-C (secure preview), M6 (governance) and E1 (execution) build on: canonical fingerprints and record keys, precise Oracle values, mapping contracts, key assurance, read-only dictionary verification and form-owned integration contracts. |
 | Business owner | Project owner (Zamil Digitalization) |
 | Developer(s) | Claude Code (owner-delegated) |
-| Status | **Implemented** — backend library only; no routes, screens, database writes or RBAC changes |
+| Status | **Merged** into `main` via PR #74 (`1e99898`) — backend library only; no routes, screens, database writes or RBAC changes. Consumed by M2-A (`FEATURE-WORKFLOW-MANAGER-M2-A.md`). |
 | Replaces CI3 feature | New |
 | Approval | G3, owner-approved 7 November 2026, limited to the four items in §8 |
 
@@ -17,9 +17,9 @@
 | Item | Value |
 |---|---|
 | Branch | `feat/workflow-manager-m2-0-foundation` (from `main` `e2971db`) |
-| Commit(s) | See the Pull Request |
-| Pull Request | See the Pull Request for this branch |
-| Merged into `main` | Not yet |
+| Commit(s) | Squash commit `1e99898` on `main` |
+| Pull Request | [#74](https://github.com/commonolivesofts-create/zamil-revamp/pull/74) |
+| Merged into `main` | Yes — PR #74, commit `1e99898` |
 
 ## 3. Requirement and acceptance criteria
 
@@ -231,6 +231,6 @@ Not applicable.
 | Item | Value |
 |---|---|
 | Reviewer(s) | Project owner |
-| Review outcome | Pending |
+| Review outcome | Merged via PR #74 |
 | Handoff accepted by | Pending |
 | Date | 2026-11-07 |

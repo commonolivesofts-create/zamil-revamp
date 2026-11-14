@@ -17,32 +17,55 @@ import {
   sourceObjectsQuerySchema,
   sourceUpdateBodySchema,
 } from './workflowManager.validation.js';
+import { createSourceMappingController } from './sourceMapping.controller.js';
+import {
+  sourceVersionCreateBodySchema,
+  sourceVersionListQuerySchema,
+  sourceVersionParams,
+  sourceVersionRowVersionBodySchema,
+  sourceVersionUpdateBodySchema,
+} from './sourceMapping.validation.js';
 
-const { OVERVIEW, FORM_REGISTRY: FORMS, DATA_SOURCE_REGISTRY: SOURCES } = PERMISSIONS;
+const {
+  OVERVIEW,
+  FORM_REGISTRY: FORMS,
+  DATA_SOURCE_REGISTRY: SOURCES,
+  SOURCE_MAPPING: MAPPING,
+} = PERMISSIONS;
+
+// Every SOURCE_MAPPING route also needs the data source registry it maps (client alsoRequires).
+const MAPPING_PREREQUISITE = [SOURCES, 'VIEW'];
 
 /**
- * Workflow Manager M1 (Form Registry and Data Source Registry), mounted at
+ * Workflow Manager M1 (Form Registry, Data Source Registry) and M2-A (source version mapping), mounted at
  * /api/v1/workflow-manager. Every route requires an authenticated session and a WORKFLOW_MANAGER
  * permission re-evaluated in Oracle per request; changes also require the session-bound CSRF
  * token. Validation runs after authorization. Lookups are declared before the /:id routes.
  */
 export function createWorkflowManagerRouter({
   workflowManagerService,
+  sourceMappingService,
   authorize,
   authenticate,
   auditService,
 }) {
   const controller = createWorkflowManagerController({ workflowManagerService });
+  const mapping = createSourceMappingController({ sourceMappingService });
   const requireCsrfToken = createRequireCsrfToken({ auditService });
-  const read = (resource, action, schemas = {}) => [
-    authenticate,
+  // `prerequisite`: a further [resource, action] the route needs (checked first; both must hold).
+  const guards = (resource, action, prerequisite) => [
+    ...(prerequisite ? [authorize(...prerequisite)] : []),
     authorize(resource, action),
+  ];
+  const read = (resource, action, schemas = {}, prerequisite = null) => [
+    authenticate,
+    ...guards(resource, action, prerequisite),
     validate({ query: emptyQuerySchema, ...schemas }),
   ];
-  const write = (resource, action, schemas = {}) => [
+  const write = (resource, action, schemas = {}, prerequisite = null) => [
     authenticate,
     requireCsrfToken,
-    authorize(resource, action),
+    ...guards(resource, action, prerequisite),
     validate({ query: emptyQuerySchema, body: emptyBodySchema, ...schemas }),
   ];
   const router = Router();
@@ -133,6 +156,81 @@ export function createWorkflowManagerRouter({
     '/data-sources/:sourceId/deactivate',
     ...write(SOURCES, 'DEACTIVATE', { params: sourceIdParams, body: rowVersionBodySchema }),
     controller.deactivateSource,
+  );
+
+  // --- Source version mapping (M2-A) -----------------------------------------------------------
+  // The M1 metadata-only GET /data-sources/:sourceId/versions above is unchanged.
+  const sourceParams = { params: sourceIdParams };
+  const versionParams = { params: sourceVersionParams };
+  router.get(
+    '/data-sources/:sourceId/dictionary',
+    ...read(MAPPING, 'VIEW', sourceParams, MAPPING_PREREQUISITE),
+    mapping.dictionary,
+  );
+  router.get(
+    '/data-sources/:sourceId/mapping-versions',
+    ...read(
+      MAPPING,
+      'VIEW',
+      { ...sourceParams, query: sourceVersionListQuerySchema },
+      MAPPING_PREREQUISITE,
+    ),
+    mapping.listVersions,
+  );
+  router.post(
+    '/data-sources/:sourceId/mapping-versions',
+    ...write(
+      MAPPING,
+      'CREATE',
+      { ...sourceParams, body: sourceVersionCreateBodySchema },
+      MAPPING_PREREQUISITE,
+    ),
+    mapping.createVersion,
+  );
+  router.get(
+    '/data-sources/:sourceId/mapping-versions/:versionId',
+    ...read(MAPPING, 'VIEW', versionParams, MAPPING_PREREQUISITE),
+    mapping.getVersion,
+  );
+  router.put(
+    '/data-sources/:sourceId/mapping-versions/:versionId',
+    ...write(
+      MAPPING,
+      'UPDATE',
+      { ...versionParams, body: sourceVersionUpdateBodySchema },
+      MAPPING_PREREQUISITE,
+    ),
+    mapping.updateVersion,
+  );
+  router.post(
+    '/data-sources/:sourceId/mapping-versions/:versionId/revalidate',
+    ...write(
+      MAPPING,
+      'UPDATE',
+      { ...versionParams, body: sourceVersionRowVersionBodySchema },
+      MAPPING_PREREQUISITE,
+    ),
+    mapping.revalidateVersion,
+  );
+  router.get(
+    '/data-sources/:sourceId/mapping-versions/:versionId/drift',
+    ...read(MAPPING, 'VIEW', versionParams, MAPPING_PREREQUISITE),
+    mapping.driftVersion,
+  );
+  router.post(
+    '/data-sources/:sourceId/mapping-versions/:versionId/clone',
+    ...write(MAPPING, 'CREATE', versionParams, MAPPING_PREREQUISITE),
+    mapping.cloneVersion,
+  );
+  router.delete(
+    '/data-sources/:sourceId/mapping-versions/:versionId',
+    ...write(
+      MAPPING,
+      'DELETE',
+      { ...versionParams, body: sourceVersionRowVersionBodySchema },
+      MAPPING_PREREQUISITE,
+    ),
+    mapping.deleteVersion,
   );
 
   return router;
