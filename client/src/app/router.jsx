@@ -1,6 +1,11 @@
 import { createBrowserRouter } from 'react-router'
 import {
-  AppRouteAccess, GuestOnlyRoute, MfaChallengeRoute, ProtectedRoute, RootRedirect, TemplateDemoRoute,
+  AppRouteAccess,
+  GuestOnlyRoute,
+  MfaChallengeRoute,
+  ProtectedRoute,
+  RootRedirect,
+  TemplateDemoRoute,
 } from '@/routes/RouteGuards.jsx'
 import { orvexaDemoRoutes } from '@/config/orvexaRoutes.js'
 import { implementedRoutes } from '@/config/appNavigation.js'
@@ -33,6 +38,8 @@ import {
   RequisitionReportPage,
   InterviewPage,
   InterviewReportPage,
+  InterviewSuggestionsPage,
+  InterviewComparisonPage,
   OfferPage,
   OfferReportPage,
   OrientationPage,
@@ -90,7 +97,8 @@ import { LegacyEmployeeServicesRedirect } from '@/routes/LegacyEmployeeServicesR
 // Only implemented pages are routed: a page whose registry entry is switched
 // off (`enabledBy`) is left out of this build's route table.
 const implementedRouteIds = new Set(implementedRoutes.map((route) => route.id))
-const implementedOnly = (routes) => routes.filter((route) => implementedRouteIds.has(route.handle.routeId))
+const implementedOnly = (routes) =>
+  routes.filter((route) => implementedRouteIds.has(route.handle.routeId))
 
 export const router = createBrowserRouter([
   {
@@ -143,100 +151,490 @@ export const router = createBrowserRouter([
                 // AppRouteAccess applies that entry's permission requirements.
                 element: <AppRouteAccess />,
                 children: implementedOnly([
-                  { path: 'dashboard', handle: { routeId: 'dashboard' }, element: <DashboardPage /> },
-                  { path: 'worklist/pending', handle: { routeId: 'pending-worklist' }, element: <PendingWorklistPage /> },
-                  { path: 'account/authenticator', handle: { routeId: 'account-authenticator' }, element: <MfaReplacementPage /> },
-                  { path: 'account/password', handle: { routeId: 'account-password' }, element: <ChangePasswordPage /> },
-                  { path: 'security/users', handle: { routeId: 'user-accounts' }, element: <UserAccountsPage /> },
-                  { path: 'security/users/:userId', handle: { routeId: 'user-account' }, element: <UserAccountDetailPage /> },
+                  {
+                    path: 'dashboard',
+                    handle: { routeId: 'dashboard' },
+                    element: <DashboardPage />,
+                  },
+                  {
+                    path: 'worklist/pending',
+                    handle: { routeId: 'pending-worklist' },
+                    element: <PendingWorklistPage />,
+                  },
+                  {
+                    path: 'account/authenticator',
+                    handle: { routeId: 'account-authenticator' },
+                    element: <MfaReplacementPage />,
+                  },
+                  {
+                    path: 'account/password',
+                    handle: { routeId: 'account-password' },
+                    element: <ChangePasswordPage />,
+                  },
+                  {
+                    path: 'security/users',
+                    handle: { routeId: 'user-accounts' },
+                    element: <UserAccountsPage />,
+                  },
+                  {
+                    path: 'security/users/:userId',
+                    handle: { routeId: 'user-account' },
+                    element: <UserAccountDetailPage />,
+                  },
                   { path: 'security/roles', handle: { routeId: 'roles' }, element: <RolesPage /> },
-                  { path: 'security/role-permissions', handle: { routeId: 'role-permissions' }, element: <RolePermissionsPage /> },
-                  { path: 'security/user-roles', handle: { routeId: 'user-roles' }, element: <UserRolesPage /> },
-                  { path: 'security/user-roles/:userId', handle: { routeId: 'user-role-assignments' }, element: <UserRoleAssignmentsPage /> },
-                  { path: 'security/permission-catalog', handle: { routeId: 'permission-catalog' }, element: <PermissionCatalogPage /> },
-                  { path: 'security/permission-overrides', handle: { routeId: 'permission-overrides' }, element: <PermissionOverridesPage /> },
-                  { path: 'security/permission-overrides/:userId', handle: { routeId: 'user-permission-overrides' }, element: <UserOverridesPage /> },
-                  { path: 'hr/recruitment/dashboard', handle: { routeId: 'hr-recruitment-dashboard' }, element: <RecruitmentDashboardPage /> },
-                  { path: 'hr/recruitment/requisition', handle: { routeId: 'hr-requisition' }, element: <RequisitionPage /> },
-                  { path: 'hr/recruitment/requisition/report', handle: { routeId: 'hr-requisition-report' }, element: <RequisitionReportPage /> },
-                  { path: 'hr/recruitment/requisition/:requisitionId', handle: { routeId: 'hr-requisition-record' }, element: <RequisitionPage /> },
-                  { path: 'hr/recruitment/interview', handle: { routeId: 'hr-interview' }, element: <InterviewPage /> },
-                  { path: 'hr/recruitment/interview/report', handle: { routeId: 'hr-interview-report' }, element: <InterviewReportPage /> },
-                  { path: 'hr/recruitment/interview/:assessmentId', handle: { routeId: 'hr-interview-record' }, element: <InterviewPage /> },
-                  { path: 'hr/recruitment/offer', handle: { routeId: 'hr-offer' }, element: <OfferPage /> },
-                  { path: 'hr/recruitment/offer/report', handle: { routeId: 'hr-offer-report' }, element: <OfferReportPage /> },
-                  { path: 'hr/recruitment/offer/:offerId', handle: { routeId: 'hr-offer-record' }, element: <OfferPage /> },
-                  { path: 'hr/recruitment/orientation', handle: { routeId: 'hr-orientation' }, element: <OrientationPage /> },
-                  { path: 'hr/recruitment/orientation/report', handle: { routeId: 'hr-orientation-report' }, element: <OrientationReportPage /> },
-                  { path: 'hr/recruitment/orientation/:scheduleId', handle: { routeId: 'hr-orientation-record' }, element: <OrientationPage /> },
-                  { path: 'hr/recruitment/probation-evaluation', handle: { routeId: 'hr-probation' }, element: <ProbationPage /> },
-                  { path: 'hr/recruitment/probation-evaluation/report', handle: { routeId: 'hr-probation-report' }, element: <ProbationReportPage /> },
-                  { path: 'hr/recruitment/probation-evaluation/:evaluationId', handle: { routeId: 'hr-probation-record' }, element: <ProbationPage /> },
-                  { path: 'hr/reports/contractor-employees', handle: { routeId: 'hr-employee-report' }, element: <EmployeeReportPage /> },
-                  { path: 'hr/reports/periodwise-employees', handle: { routeId: 'hr-periodwise-report' }, element: <PeriodwiseEmployeesPage /> },
-                  { path: 'hr/employee-services/record-change', handle: { routeId: 'hr-record-change' }, element: <RecordChangePage /> },
-                  { path: 'hr/employee-services/record-change/requests', handle: { routeId: 'hr-record-change-requests' }, element: <RecordChangeRequestsPage /> },
-                  { path: 'hr/employee-services/record-change/:requestId', handle: { routeId: 'hr-record-change-record' }, element: <RecordChangePage /> },
-                  { path: 'hr/talent-management/transfer', handle: { routeId: 'hr-transfer' }, element: <TransferPage /> },
-                  { path: 'hr/talent-management/transfer/report', handle: { routeId: 'hr-transfer-report' }, element: <TransferReportPage /> },
-                  { path: 'hr/talent-management/transfer/:transferId', handle: { routeId: 'hr-transfer-record' }, element: <TransferPage /> },
-                  { path: 'hr/performance/appraisal', handle: { routeId: 'hr-appraisal' }, element: <AppraisalPage /> },
-                  { path: 'hr/performance/appraisal/report', handle: { routeId: 'hr-appraisal-report' }, element: <AppraisalReportPage /> },
-                  { path: 'hr/performance/appraisal/:appraisalId', handle: { routeId: 'hr-appraisal-record' }, element: <AppraisalPage /> },
-                  { path: 'hr/employee-services/sick-leave', handle: { routeId: 'hr-sick-leave' }, element: <SickLeavePage /> },
-                  { path: 'hr/employee-services/sick-leave/report', handle: { routeId: 'hr-sick-leave-report' }, element: <SickLeaveReportPage /> },
-                  { path: 'hr/employee-services/sick-leave/:leaveId', handle: { routeId: 'hr-sick-leave-record' }, element: <SickLeavePage /> },
-                  { path: 'hr/talent-management/reward-nomination', handle: { routeId: 'hr-reward' }, element: <RewardPage /> },
-                  { path: 'hr/talent-management/reward-nomination/report', handle: { routeId: 'hr-reward-report' }, element: <RewardReportPage /> },
-                  { path: 'hr/talent-management/reward-nomination/:nominationId', handle: { routeId: 'hr-reward-record' }, element: <RewardPage /> },
-                  { path: 'hr/employee-services/ideas', handle: { routeId: 'hr-idea' }, element: <IdeaPage /> },
-                  { path: 'hr/employee-services/ideas/report', handle: { routeId: 'hr-idea-report' }, element: <IdeaReportPage /> },
-                  { path: 'hr/employee-services/ideas/:ideaId', handle: { routeId: 'hr-idea-record' }, element: <IdeaPage /> },
-                  { path: 'hr/talent-management/record-change', handle: { routeId: 'hr-record-change' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/record-change" /> },
-                  { path: 'hr/talent-management/record-change/requests', handle: { routeId: 'hr-record-change-requests' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/record-change/requests" /> },
-                  { path: 'hr/talent-management/record-change/:requestId', handle: { routeId: 'hr-record-change-record' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/record-change" param="requestId" /> },
-                  { path: 'hr/talent-management/sick-leave', handle: { routeId: 'hr-sick-leave' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/sick-leave" /> },
-                  { path: 'hr/talent-management/sick-leave/report', handle: { routeId: 'hr-sick-leave-report' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/sick-leave/report" /> },
-                  { path: 'hr/talent-management/sick-leave/:leaveId', handle: { routeId: 'hr-sick-leave-record' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/sick-leave" param="leaveId" /> },
-                  { path: 'hr/talent-management/ideas', handle: { routeId: 'hr-idea' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/ideas" /> },
-                  { path: 'hr/talent-management/ideas/report', handle: { routeId: 'hr-idea-report' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/ideas/report" /> },
-                  { path: 'hr/talent-management/ideas/:ideaId', handle: { routeId: 'hr-idea-record' }, element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/ideas" param="ideaId" /> },
-                  { path: 'hr/talent-management/clearance', handle: { routeId: 'hr-clearance' }, element: <ClearancePage /> },
-                  { path: 'hr/talent-management/clearance/report', handle: { routeId: 'hr-clearance-report' }, element: <ClearanceReportPage /> },
-                  { path: 'hr/talent-management/clearance/:clearanceId', handle: { routeId: 'hr-clearance-record' }, element: <ClearancePage /> },
-                  { path: 'hr/talent-management/project-charter', handle: { routeId: 'hr-charter' }, element: <CharterPage /> },
-                  { path: 'hr/talent-management/project-charter/report', handle: { routeId: 'hr-charter-report' }, element: <CharterReportPage /> },
-                  { path: 'hr/talent-management/project-charter/:charterId', handle: { routeId: 'hr-charter-record' }, element: <CharterPage /> },
-                  { path: 'hr/reports/survey', handle: { routeId: 'hr-survey-report' }, element: <SurveyReportPage /> },
-                  { path: 'hr/reports/survey/responses', handle: { routeId: 'hr-survey-responses' }, element: <SurveyResponsesPage /> },
-                  { path: 'hr/talent-management/salary-certificate', handle: { routeId: 'hr-salary-certificate' }, element: <SalaryCertificatePage /> },
-                  { path: 'hr/talent-management/salary-certificate/report', handle: { routeId: 'hr-salary-certificate-report' }, element: <SalaryCertificateReportPage /> },
-                  { path: 'hr/talent-management/salary-certificate/:certificateId', handle: { routeId: 'hr-salary-certificate-record' }, element: <SalaryCertificatePage /> },
-                  { path: 'hr/letters/business-visa', handle: { routeId: 'hr-business-visa' }, element: <BusinessVisaPage /> },
-                  { path: 'hr/letters/business-visa/report', handle: { routeId: 'hr-business-visa-report' }, element: <BusinessVisaReportPage /> },
-                  { path: 'hr/letters/business-visa/:requestId', handle: { routeId: 'hr-business-visa-record' }, element: <BusinessVisaPage /> },
-                  { path: 'hr/letters/warning-letter', handle: { routeId: 'hr-warning-letter' }, element: <WarningLetterPage /> },
-                  { path: 'hr/letters/warning-letter/report', handle: { routeId: 'hr-warning-letter-report' }, element: <WarningLetterReportPage /> },
-                  { path: 'hr/letters/warning-letter/:letterId', handle: { routeId: 'hr-warning-letter-record' }, element: <WarningLetterPage /> },
-                  { path: 'hr/letters/tourist-visa', handle: { routeId: 'hr-tourist-visa' }, element: <TouristVisaPage /> },
-                  { path: 'hr/letters/tourist-visa/report', handle: { routeId: 'hr-tourist-visa-report' }, element: <TouristVisaReportPage /> },
-                  { path: 'hr/letters/tourist-visa/:letterId', handle: { routeId: 'hr-tourist-visa-record' }, element: <TouristVisaPage /> },
-                  { path: 'hr/letters/business-visa-letter', handle: { routeId: 'hr-business-visa-letter' }, element: <BusinessVisaLetterPage /> },
-                  { path: 'hr/letters/business-visa-letter/report', handle: { routeId: 'hr-business-visa-letter-report' }, element: <BusinessVisaLetterReportPage /> },
-                  { path: 'hr/letters/business-visa-letter/:letterId', handle: { routeId: 'hr-business-visa-letter-record' }, element: <BusinessVisaLetterPage /> },
-                  { path: 'workflow-manager', handle: { routeId: 'workflow-manager' }, element: <WorkflowOverviewPage /> },
-                  { path: 'workflow-manager/forms', handle: { routeId: 'workflow-forms' }, element: <FormRegistryPage /> },
-                  { path: 'workflow-manager/forms/new', handle: { routeId: 'workflow-form-new' }, element: <FormRegistrationPage /> },
-                  { path: 'workflow-manager/forms/:formId', handle: { routeId: 'workflow-form' }, element: <FormRecordPage /> },
-                  { path: 'workflow-manager/data-sources', handle: { routeId: 'workflow-data-sources' }, element: <DataSourceRegistryPage /> },
-                  { path: 'workflow-manager/data-sources/:sourceId/mapping-versions', handle: { routeId: 'workflow-source-versions' }, element: <SourceVersionListPage /> },
-                  { path: 'workflow-manager/data-sources/:sourceId/mapping-versions/new', handle: { routeId: 'workflow-source-version-new' }, element: <SourceVersionEditorPage /> },
-                  { path: 'workflow-manager/data-sources/:sourceId/mapping-versions/:versionId', handle: { routeId: 'workflow-source-version' }, element: <SourceVersionEditorPage /> },
+                  {
+                    path: 'security/role-permissions',
+                    handle: { routeId: 'role-permissions' },
+                    element: <RolePermissionsPage />,
+                  },
+                  {
+                    path: 'security/user-roles',
+                    handle: { routeId: 'user-roles' },
+                    element: <UserRolesPage />,
+                  },
+                  {
+                    path: 'security/user-roles/:userId',
+                    handle: { routeId: 'user-role-assignments' },
+                    element: <UserRoleAssignmentsPage />,
+                  },
+                  {
+                    path: 'security/permission-catalog',
+                    handle: { routeId: 'permission-catalog' },
+                    element: <PermissionCatalogPage />,
+                  },
+                  {
+                    path: 'security/permission-overrides',
+                    handle: { routeId: 'permission-overrides' },
+                    element: <PermissionOverridesPage />,
+                  },
+                  {
+                    path: 'security/permission-overrides/:userId',
+                    handle: { routeId: 'user-permission-overrides' },
+                    element: <UserOverridesPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/dashboard',
+                    handle: { routeId: 'hr-recruitment-dashboard' },
+                    element: <RecruitmentDashboardPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/requisition',
+                    handle: { routeId: 'hr-requisition' },
+                    element: <RequisitionPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/requisition/report',
+                    handle: { routeId: 'hr-requisition-report' },
+                    element: <RequisitionReportPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/requisition/:requisitionId',
+                    handle: { routeId: 'hr-requisition-record' },
+                    element: <RequisitionPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/interview',
+                    handle: { routeId: 'hr-interview' },
+                    element: <InterviewPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/interview/report',
+                    handle: { routeId: 'hr-interview-report' },
+                    element: <InterviewReportPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/interview/suggestions',
+                    handle: { routeId: 'hr-interview-suggestions' },
+                    element: <InterviewSuggestionsPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/interview/compare',
+                    handle: { routeId: 'hr-interview-compare' },
+                    element: <InterviewComparisonPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/interview/:assessmentId',
+                    handle: { routeId: 'hr-interview-record' },
+                    element: <InterviewPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/offer',
+                    handle: { routeId: 'hr-offer' },
+                    element: <OfferPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/offer/report',
+                    handle: { routeId: 'hr-offer-report' },
+                    element: <OfferReportPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/offer/:offerId',
+                    handle: { routeId: 'hr-offer-record' },
+                    element: <OfferPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/orientation',
+                    handle: { routeId: 'hr-orientation' },
+                    element: <OrientationPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/orientation/report',
+                    handle: { routeId: 'hr-orientation-report' },
+                    element: <OrientationReportPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/orientation/:scheduleId',
+                    handle: { routeId: 'hr-orientation-record' },
+                    element: <OrientationPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/probation-evaluation',
+                    handle: { routeId: 'hr-probation' },
+                    element: <ProbationPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/probation-evaluation/report',
+                    handle: { routeId: 'hr-probation-report' },
+                    element: <ProbationReportPage />,
+                  },
+                  {
+                    path: 'hr/recruitment/probation-evaluation/:evaluationId',
+                    handle: { routeId: 'hr-probation-record' },
+                    element: <ProbationPage />,
+                  },
+                  {
+                    path: 'hr/reports/contractor-employees',
+                    handle: { routeId: 'hr-employee-report' },
+                    element: <EmployeeReportPage />,
+                  },
+                  {
+                    path: 'hr/reports/periodwise-employees',
+                    handle: { routeId: 'hr-periodwise-report' },
+                    element: <PeriodwiseEmployeesPage />,
+                  },
+                  {
+                    path: 'hr/employee-services/record-change',
+                    handle: { routeId: 'hr-record-change' },
+                    element: <RecordChangePage />,
+                  },
+                  {
+                    path: 'hr/employee-services/record-change/requests',
+                    handle: { routeId: 'hr-record-change-requests' },
+                    element: <RecordChangeRequestsPage />,
+                  },
+                  {
+                    path: 'hr/employee-services/record-change/:requestId',
+                    handle: { routeId: 'hr-record-change-record' },
+                    element: <RecordChangePage />,
+                  },
+                  {
+                    path: 'hr/talent-management/transfer',
+                    handle: { routeId: 'hr-transfer' },
+                    element: <TransferPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/transfer/report',
+                    handle: { routeId: 'hr-transfer-report' },
+                    element: <TransferReportPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/transfer/:transferId',
+                    handle: { routeId: 'hr-transfer-record' },
+                    element: <TransferPage />,
+                  },
+                  {
+                    path: 'hr/performance/appraisal',
+                    handle: { routeId: 'hr-appraisal' },
+                    element: <AppraisalPage />,
+                  },
+                  {
+                    path: 'hr/performance/appraisal/report',
+                    handle: { routeId: 'hr-appraisal-report' },
+                    element: <AppraisalReportPage />,
+                  },
+                  {
+                    path: 'hr/performance/appraisal/:appraisalId',
+                    handle: { routeId: 'hr-appraisal-record' },
+                    element: <AppraisalPage />,
+                  },
+                  {
+                    path: 'hr/employee-services/sick-leave',
+                    handle: { routeId: 'hr-sick-leave' },
+                    element: <SickLeavePage />,
+                  },
+                  {
+                    path: 'hr/employee-services/sick-leave/report',
+                    handle: { routeId: 'hr-sick-leave-report' },
+                    element: <SickLeaveReportPage />,
+                  },
+                  {
+                    path: 'hr/employee-services/sick-leave/:leaveId',
+                    handle: { routeId: 'hr-sick-leave-record' },
+                    element: <SickLeavePage />,
+                  },
+                  {
+                    path: 'hr/talent-management/reward-nomination',
+                    handle: { routeId: 'hr-reward' },
+                    element: <RewardPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/reward-nomination/report',
+                    handle: { routeId: 'hr-reward-report' },
+                    element: <RewardReportPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/reward-nomination/:nominationId',
+                    handle: { routeId: 'hr-reward-record' },
+                    element: <RewardPage />,
+                  },
+                  {
+                    path: 'hr/employee-services/ideas',
+                    handle: { routeId: 'hr-idea' },
+                    element: <IdeaPage />,
+                  },
+                  {
+                    path: 'hr/employee-services/ideas/report',
+                    handle: { routeId: 'hr-idea-report' },
+                    element: <IdeaReportPage />,
+                  },
+                  {
+                    path: 'hr/employee-services/ideas/:ideaId',
+                    handle: { routeId: 'hr-idea-record' },
+                    element: <IdeaPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/record-change',
+                    handle: { routeId: 'hr-record-change' },
+                    element: (
+                      <LegacyEmployeeServicesRedirect to="/hr/employee-services/record-change" />
+                    ),
+                  },
+                  {
+                    path: 'hr/talent-management/record-change/requests',
+                    handle: { routeId: 'hr-record-change-requests' },
+                    element: (
+                      <LegacyEmployeeServicesRedirect to="/hr/employee-services/record-change/requests" />
+                    ),
+                  },
+                  {
+                    path: 'hr/talent-management/record-change/:requestId',
+                    handle: { routeId: 'hr-record-change-record' },
+                    element: (
+                      <LegacyEmployeeServicesRedirect
+                        to="/hr/employee-services/record-change"
+                        param="requestId"
+                      />
+                    ),
+                  },
+                  {
+                    path: 'hr/talent-management/sick-leave',
+                    handle: { routeId: 'hr-sick-leave' },
+                    element: (
+                      <LegacyEmployeeServicesRedirect to="/hr/employee-services/sick-leave" />
+                    ),
+                  },
+                  {
+                    path: 'hr/talent-management/sick-leave/report',
+                    handle: { routeId: 'hr-sick-leave-report' },
+                    element: (
+                      <LegacyEmployeeServicesRedirect to="/hr/employee-services/sick-leave/report" />
+                    ),
+                  },
+                  {
+                    path: 'hr/talent-management/sick-leave/:leaveId',
+                    handle: { routeId: 'hr-sick-leave-record' },
+                    element: (
+                      <LegacyEmployeeServicesRedirect
+                        to="/hr/employee-services/sick-leave"
+                        param="leaveId"
+                      />
+                    ),
+                  },
+                  {
+                    path: 'hr/talent-management/ideas',
+                    handle: { routeId: 'hr-idea' },
+                    element: <LegacyEmployeeServicesRedirect to="/hr/employee-services/ideas" />,
+                  },
+                  {
+                    path: 'hr/talent-management/ideas/report',
+                    handle: { routeId: 'hr-idea-report' },
+                    element: (
+                      <LegacyEmployeeServicesRedirect to="/hr/employee-services/ideas/report" />
+                    ),
+                  },
+                  {
+                    path: 'hr/talent-management/ideas/:ideaId',
+                    handle: { routeId: 'hr-idea-record' },
+                    element: (
+                      <LegacyEmployeeServicesRedirect
+                        to="/hr/employee-services/ideas"
+                        param="ideaId"
+                      />
+                    ),
+                  },
+                  {
+                    path: 'hr/talent-management/clearance',
+                    handle: { routeId: 'hr-clearance' },
+                    element: <ClearancePage />,
+                  },
+                  {
+                    path: 'hr/talent-management/clearance/report',
+                    handle: { routeId: 'hr-clearance-report' },
+                    element: <ClearanceReportPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/clearance/:clearanceId',
+                    handle: { routeId: 'hr-clearance-record' },
+                    element: <ClearancePage />,
+                  },
+                  {
+                    path: 'hr/talent-management/project-charter',
+                    handle: { routeId: 'hr-charter' },
+                    element: <CharterPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/project-charter/report',
+                    handle: { routeId: 'hr-charter-report' },
+                    element: <CharterReportPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/project-charter/:charterId',
+                    handle: { routeId: 'hr-charter-record' },
+                    element: <CharterPage />,
+                  },
+                  {
+                    path: 'hr/reports/survey',
+                    handle: { routeId: 'hr-survey-report' },
+                    element: <SurveyReportPage />,
+                  },
+                  {
+                    path: 'hr/reports/survey/responses',
+                    handle: { routeId: 'hr-survey-responses' },
+                    element: <SurveyResponsesPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/salary-certificate',
+                    handle: { routeId: 'hr-salary-certificate' },
+                    element: <SalaryCertificatePage />,
+                  },
+                  {
+                    path: 'hr/talent-management/salary-certificate/report',
+                    handle: { routeId: 'hr-salary-certificate-report' },
+                    element: <SalaryCertificateReportPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/salary-certificate/:certificateId',
+                    handle: { routeId: 'hr-salary-certificate-record' },
+                    element: <SalaryCertificatePage />,
+                  },
+                  {
+                    path: 'hr/letters/business-visa',
+                    handle: { routeId: 'hr-business-visa' },
+                    element: <BusinessVisaPage />,
+                  },
+                  {
+                    path: 'hr/letters/business-visa/report',
+                    handle: { routeId: 'hr-business-visa-report' },
+                    element: <BusinessVisaReportPage />,
+                  },
+                  {
+                    path: 'hr/letters/business-visa/:requestId',
+                    handle: { routeId: 'hr-business-visa-record' },
+                    element: <BusinessVisaPage />,
+                  },
+                  {
+                    path: 'hr/letters/warning-letter',
+                    handle: { routeId: 'hr-warning-letter' },
+                    element: <WarningLetterPage />,
+                  },
+                  {
+                    path: 'hr/letters/warning-letter/report',
+                    handle: { routeId: 'hr-warning-letter-report' },
+                    element: <WarningLetterReportPage />,
+                  },
+                  {
+                    path: 'hr/letters/warning-letter/:letterId',
+                    handle: { routeId: 'hr-warning-letter-record' },
+                    element: <WarningLetterPage />,
+                  },
+                  {
+                    path: 'hr/letters/tourist-visa',
+                    handle: { routeId: 'hr-tourist-visa' },
+                    element: <TouristVisaPage />,
+                  },
+                  {
+                    path: 'hr/letters/tourist-visa/report',
+                    handle: { routeId: 'hr-tourist-visa-report' },
+                    element: <TouristVisaReportPage />,
+                  },
+                  {
+                    path: 'hr/letters/tourist-visa/:letterId',
+                    handle: { routeId: 'hr-tourist-visa-record' },
+                    element: <TouristVisaPage />,
+                  },
+                  {
+                    path: 'hr/letters/business-visa-letter',
+                    handle: { routeId: 'hr-business-visa-letter' },
+                    element: <BusinessVisaLetterPage />,
+                  },
+                  {
+                    path: 'hr/letters/business-visa-letter/report',
+                    handle: { routeId: 'hr-business-visa-letter-report' },
+                    element: <BusinessVisaLetterReportPage />,
+                  },
+                  {
+                    path: 'hr/letters/business-visa-letter/:letterId',
+                    handle: { routeId: 'hr-business-visa-letter-record' },
+                    element: <BusinessVisaLetterPage />,
+                  },
+                  {
+                    path: 'workflow-manager',
+                    handle: { routeId: 'workflow-manager' },
+                    element: <WorkflowOverviewPage />,
+                  },
+                  {
+                    path: 'workflow-manager/forms',
+                    handle: { routeId: 'workflow-forms' },
+                    element: <FormRegistryPage />,
+                  },
+                  {
+                    path: 'workflow-manager/forms/new',
+                    handle: { routeId: 'workflow-form-new' },
+                    element: <FormRegistrationPage />,
+                  },
+                  {
+                    path: 'workflow-manager/forms/:formId',
+                    handle: { routeId: 'workflow-form' },
+                    element: <FormRecordPage />,
+                  },
+                  {
+                    path: 'workflow-manager/data-sources',
+                    handle: { routeId: 'workflow-data-sources' },
+                    element: <DataSourceRegistryPage />,
+                  },
+                  {
+                    path: 'workflow-manager/data-sources/:sourceId/mapping-versions',
+                    handle: { routeId: 'workflow-source-versions' },
+                    element: <SourceVersionListPage />,
+                  },
+                  {
+                    path: 'workflow-manager/data-sources/:sourceId/mapping-versions/new',
+                    handle: { routeId: 'workflow-source-version-new' },
+                    element: <SourceVersionEditorPage />,
+                  },
+                  {
+                    path: 'workflow-manager/data-sources/:sourceId/mapping-versions/:versionId',
+                    handle: { routeId: 'workflow-source-version' },
+                    element: <SourceVersionEditorPage />,
+                  },
                 ]),
               },
               {
                 element: <TemplateDemoRoute />,
-                children: orvexaDemoRoutes.map(({ path }) => ({ path: path.slice(1), element: <DemoPage /> })),
+                children: orvexaDemoRoutes.map(({ path }) => ({
+                  path: path.slice(1),
+                  element: <DemoPage />,
+                })),
               },
             ],
           },

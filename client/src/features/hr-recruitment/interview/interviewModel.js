@@ -136,6 +136,51 @@ export function bandLabel(total, bands, anyRated) {
   return code ? INTERVIEW_TEXT.bands[code] : INTERVIEW_TEXT.bands.notRated
 }
 
+// Advisory guidance uses only the existing job-related score bands, interview
+// outcome, and approval status. It never changes assessment or offer state.
+export function performanceSuggestion({ status, outcome, spec, comp }) {
+  const specRated = ratedCount(spec ?? {}, SPEC_KEYS)
+  const compRated = ratedCount(comp ?? {}, COMP_KEYS)
+  const specTotal = sumRatings(spec ?? {})
+  const compTotal = sumRatings(comp ?? {})
+  return performanceSuggestionFromTotals({
+    status, outcome, specTotal, compTotal,
+    specRated: specRated === SPEC_KEYS.length,
+    compRated: compRated === COMP_KEYS.length,
+  })
+}
+
+export function performanceSuggestionFromTotals({ status, outcome, specTotal, compTotal, specRated, compRated }) {
+  const [, specBand] = bandOf(specTotal ?? 0, BANDS.spec, specRated)
+  const [, compBand] = bandOf(compTotal ?? 0, BANDS.comp, compRated)
+  const bandsReady = specRated && compRated
+  const outcomeReady = OUTCOMES.includes(outcome)
+  const reasons = []
+
+  if (!bandsReady || !outcomeReady) {
+    if (!bandsReady) reasons.push('Complete both rating groups to assess performance.')
+    if (!outcomeReady) reasons.push('Record the interview outcome.')
+    return { action: 'Hold for review', reasons, specBand, compBand }
+  }
+
+  if (outcome === 'FAILED' || specBand === 'POOR' || compBand === 'POOR') {
+    if (outcome === 'FAILED') reasons.push('The recorded interview outcome is Failed.')
+    if (specBand === 'POOR') reasons.push('Personal specification is in the Poor band.')
+    if (compBand === 'POOR') reasons.push('Competency is in the Poor band.')
+    return { action: 'Do not recommend', reasons, specBand, compBand }
+  }
+
+  if (outcome === 'HOLD') reasons.push('The recorded interview outcome is Hold.')
+  if (status !== 'APPROVED') reasons.push('The assessment is not approved.')
+  if (specBand === 'GOOD' || compBand === 'GOOD') reasons.push('One or both score groups are in the Good band.')
+  if (outcome === 'HOLD' || status !== 'APPROVED') {
+    return { action: 'Hold for review', reasons, specBand, compBand }
+  }
+
+  reasons.push('The assessment is approved, the outcome is Passed, and neither score group is Poor.')
+  return { action: 'Consider offer', reasons, specBand, compBand }
+}
+
 export function interviewDoneSteps(form) {
   const hrDone = HR_FIELDS.filter(([, , rules]) => rules.required).every(([key]) => String(form[key] ?? '').trim())
   return [hrDone, ratedCount(form.spec, SPEC_KEYS) === SPEC_KEYS.length, ratedCount(form.comp, COMP_KEYS) === COMP_KEYS.length, OUTCOMES.includes(form.outcome)]

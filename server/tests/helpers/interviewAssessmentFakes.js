@@ -230,6 +230,10 @@ export function installInterviewAssessments(
             creationDate: day(h.createdAt),
             headerStatus: h.status,
             evaluationStatus: evaluation.evalStatus,
+            personalSpecTotal: h.personalSpecTotal,
+            jobCompetencyTotal: h.jobCompetencyTotal,
+            strengths: compOf(h.headerId)?.sumStrength ?? null,
+            weakness: compOf(h.headerId)?.sumWeekness ?? null,
           };
         }),
       };
