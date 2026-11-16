@@ -643,6 +643,7 @@ export function InsightReport({
                             <td
                               key={column.key}
                               className={`zrv-ir-col-${column.key}`}
+                              data-label={column.label}
                             >
                               {column.render(row)}
                             </td>

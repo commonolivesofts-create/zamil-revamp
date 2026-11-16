@@ -2488,6 +2488,66 @@
 }
 
 @media (max-width: 640px) {
+  /* Result rows become cards; the header stays as a scrollable sort strip. */
+  .zrv-ir-table,
+  .zrv-ir-table thead,
+  .zrv-ir-table tbody {
+    display: block;
+  }
+  .zrv-ir-table colgroup {
+    display: none;
+  }
+  .zrv-ir-table thead {
+    overflow-x: auto;
+    border-bottom: 1px solid var(--line);
+  }
+  .zrv-ir-table thead tr {
+    display: flex;
+    width: max-content;
+  }
+  .zrv-ir-table th {
+    position: static;
+    flex: none;
+  }
+  .zrv-ir-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--row) 7%, transparent);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--row) 55%, transparent);
+  }
+  .zrv-ir-table tbody tr:hover {
+    background: color-mix(in srgb, var(--row) 14%, transparent);
+  }
+  .zrv-ir-table tbody tr.zrv-ir-is-on {
+    background: color-mix(in srgb, var(--row) 20%, transparent);
+    box-shadow: inset 4px 0 0 var(--row);
+  }
+  .zrv-ir-table td,
+  .zrv-ir-table tbody :is(td, tr:hover td, tr.zrv-ir-is-on td) {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    overflow-wrap: anywhere;
+  }
+  .zrv-ir-table td:first-child {
+    grid-column: 1 / -1;
+  }
+  .zrv-ir-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
   .zrv-ir-drawer--resizable .zrv-dialog {
     width: 100%;
   }

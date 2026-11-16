@@ -435,6 +435,7 @@
 }
 .zrv-ws .section-line {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -744,6 +745,7 @@
   background: rgba(var(--grn-rgb), 0.16);
   font-size: 12px;
   font-weight: 800;
+  white-space: nowrap;
 }
 .zrv-ws .attention-row-2 .attention-count {
   background: rgba(67, 157, 211, 0.18);
@@ -762,6 +764,7 @@
   background: rgba(var(--grn-rgb), 0.12);
   font-size: 10px;
   font-weight: 750;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background 0.18s,
@@ -1815,8 +1818,76 @@
   .zrv-ws .attention-queue {
     padding: 19px 17px 5px;
   }
-  .zrv-ws .attention-table {
-    min-width: 620px;
+  .zrv-ws .attention-queue-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  /* Rows become stacked cards: work item + count, then team + action. */
+  .zrv-ws .attention-table,
+  .zrv-ws .attention-table tbody {
+    display: block;
+  }
+  .zrv-ws .attention-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .zrv-ws .attention-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "work work count"
+      "team action action";
+    margin-bottom: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: inset 3px 0 0 var(--grn);
+  }
+  .zrv-ws .attention-row-2 {
+    box-shadow: inset 3px 0 0 #50a9dd;
+  }
+  .zrv-ws .attention-row-3 {
+    box-shadow: inset 3px 0 0 #c18de0;
+  }
+  .zrv-ws .attention-table td,
+  .zrv-ws .attention-table td:first-child,
+  .zrv-ws .attention-table td:last-child {
+    display: flex;
+    align-items: center;
+    width: auto;
+    min-width: 0;
+    padding: 10px 12px 10px 15px;
+    border: 0;
+    border-radius: 0;
+  }
+  .zrv-ws .attention-table td:nth-child(1) {
+    grid-area: work;
+    padding-bottom: 5px;
+  }
+  .zrv-ws .attention-work-icon {
+    flex: none;
+  }
+  .zrv-ws .attention-work-copy {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .zrv-ws .attention-table td:nth-child(2) {
+    grid-area: team;
+    padding-top: 5px;
+  }
+  .zrv-ws .attention-table td:nth-child(3) {
+    grid-area: count;
+    justify-content: flex-end;
+    padding-bottom: 5px;
+  }
+  .zrv-ws .attention-table td:nth-child(4) {
+    grid-area: action;
+    justify-content: flex-end;
+    padding-top: 5px;
   }
   .zrv-ws .attention-announcement {
     min-height: 118px;
@@ -1824,10 +1895,6 @@
   }
   .zrv-ws .attention-announcement-item {
     font-size: 12px;
-  }
-
-  .zrv-ws .employee-spotlight {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .zrv-ws .hero-meta {
@@ -2740,6 +2807,21 @@ html:not(.dark) .zrv-ws .scroll-indicator {
     font-size: 10px;
   }
 }
+@media (max-width: 430px) {
+  .zrv-ws .book-follow-links {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .zrv-ws .book-follow-links > span {
+    margin-right: 2px;
+  }
+  .zrv-ws .book-follow-links a span {
+    display: none;
+  }
+  .zrv-ws .book-follow-links a {
+    padding: 0 3px;
+  }
+}
 .zrv-ws .hero-meta {
   margin-bottom: 44px;
 }
@@ -3309,6 +3391,11 @@ html:not(.dark) .zrv-ws .scroll-indicator {
   grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
   gap: 14px;
   min-height: 320px;
+}
+@media (max-width: 760px) {
+  .zrv-ws .employee-spotlight {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .zrv-ws .employee-spotlight-person,
 .zrv-ws .employee-spotlight-reason {
@@ -5879,9 +5966,15 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
     width: 31px;
     height: 31px;
   }
+  .zrv-ws .hero-profile-copy {
+    width: 100%;
+  }
   .zrv-ws .hero-profile-name {
     margin-bottom: 10px;
     font-size: clamp(21px, 6vw, 28px) !important;
+  }
+  .zrv-ws .hero-profile-name :is(.name-typewrap, .name-typeghost, .name-typeink) {
+    white-space: normal;
   }
   .zrv-ws .hero-profile-details {
     display: grid;
@@ -5891,6 +5984,16 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   .zrv-ws .hero-profile-social-row {
     gap: 0;
     margin-top: 9px;
+  }
+  .zrv-ws .hero-profile-social-row .hero-social-fan.is-persistent {
+    width: auto;
+    max-width: 100%;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    margin: 0;
+  }
+  .zrv-ws .hero-profile-social-row .is-persistent .hero-social-fan-menu {
+    flex-wrap: wrap;
   }
   .zrv-ws .hero-profile-detail {
     padding: 0;
@@ -7178,7 +7281,7 @@ html:not(.dark) .zrv-ws .book-chapter.is-current {
 }
 @media (max-width: 650px) {
   .zrv-ws .book-visual {
-    height: 520px;
+    height: 585px;
     margin-top: 9px;
   }
   .zrv-ws .book-scene {
@@ -7269,12 +7372,6 @@ html:not(.dark) .zrv-ws .book-chapter.is-current {
   }
 }
 @media (max-width: 385px) {
-  .zrv-ws .book-visual {
-    height: 495px;
-  }
-  .zrv-ws .book-stack {
-    height: 350px;
-  }
   .zrv-ws .book-leaf {
     padding: 13px;
   }
@@ -8466,52 +8563,6 @@ html[data-accent-theme="yellow"] .hero-photo-reset-backdrop .zrv-dialog__actions
   }
   .zrv-ws .book-chapters {
     width: 136px;
-  }
-}
-@media (max-width: 650px) {
-  .zrv-ws .book-visual.is-hr-workspace {
-    height: 520px;
-  }
-}
-@media (min-width: 386px) and (max-width: 650px) {
-  .zrv-ws .book-visual .book-stack {
-    top: 66px;
-    right: 122px;
-    height: 367px;
-  }
-  .zrv-ws .book-visual .book-chapters {
-    top: 66px;
-    right: 0;
-    bottom: auto;
-    left: auto;
-    width: 112px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .zrv-ws .book-visual .book-chapter {
-    min-height: 48px;
-    flex-direction: column;
-    justify-content: center;
-    gap: 3px;
-    padding: 4px 2px;
-    text-align: center;
-  }
-  .zrv-ws .book-visual .book-chapter small {
-    display: none;
-  }
-  .zrv-ws .book-visual .book-chapter:hover,
-  .zrv-ws .book-visual .book-chapter:focus-visible,
-  .zrv-ws .book-visual .book-chapter.is-current {
-    transform: translateX(-3px);
-  }
-}
-@media (max-width: 385px) {
-  .zrv-ws .book-visual.is-hr-workspace {
-    height: 505px;
-  }
-  .zrv-ws .book-visual.is-hr-workspace .book-chapters {
-    bottom: 15px;
   }
 }
 @media (max-width: 650px) {
