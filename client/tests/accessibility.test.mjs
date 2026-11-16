@@ -10,7 +10,14 @@ test('.sr-only is defined as visually hidden but not removed from the accessibil
   const css = await read('../src/index.css')
   const rule = /\.sr-only\s*\{([^}]*)\}/.exec(css)?.[1]
   assert.ok(rule, '.sr-only rule exists in src/index.css')
-  for (const declaration of ['position: absolute', 'width: 1px', 'height: 1px', 'overflow: hidden', 'clip: rect(0, 0, 0, 0)', 'white-space: nowrap']) {
+  for (const declaration of [
+    'position: absolute',
+    'width: 1px',
+    'height: 1px',
+    'overflow: hidden',
+    'clip: rect(0, 0, 0, 0)',
+    'white-space: nowrap',
+  ]) {
     assert.ok(rule.includes(declaration), declaration)
   }
   assert.equal(/display\s*:\s*none|visibility\s*:\s*hidden/.test(rule), false)
@@ -18,8 +25,13 @@ test('.sr-only is defined as visually hidden but not removed from the accessibil
 })
 
 test('the route announcement stays a polite live region using .sr-only', async () => {
-  const source = await read('../src/routes/RouteComponents.jsx')
-  assert.match(source, /<p className="sr-only" role="status" aria-live="polite" aria-atomic="true">Page: \{pageName\}<\/p>/)
+  // Whitespace collapses to a single space, so the check does not depend on
+  // how the JSX happens to be wrapped.
+  const source = (await read('../src/routes/RouteComponents.jsx')).replace(/\s+/g, ' ')
+  assert.match(
+    source,
+    /<p className="sr-only" role="status" aria-live="polite" aria-atomic="true">\s*Page:\s*\{pageName\}\s*<\/p>/,
+  )
   assert.equal(/aria-hidden/.test(source), false)
 })
 
@@ -34,7 +46,9 @@ test('every sr-only usage is covered by an app-owned stylesheet', async () => {
   }
   await walk(new URL('../src/', import.meta.url))
   const users = []
-  for (const file of files) if ((await readFile(file, 'utf8')).includes('sr-only')) users.push(file.pathname.split('/src/')[1])
+  for (const file of files)
+    if ((await readFile(file, 'utf8')).includes('sr-only'))
+      users.push(file.pathname.split('/src/')[1])
   assert.ok(users.includes('routes/RouteComponents.jsx'))
   assert.match(await read('../src/index.css'), /\.sr-only\s*\{/, `used by: ${users.join(', ')}`)
 })
