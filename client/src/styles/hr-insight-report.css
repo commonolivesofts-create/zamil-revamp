@@ -2856,6 +2856,15 @@
 }
 
 @media (max-width: 640px) {
+  .zrv-ir-tabletools {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .zrv-ir-tabletools__count {
+    min-height: 0;
+    padding-block: 6px;
+    white-space: normal;
+  }
   /* Result rows become cards; the header stays as a scrollable sort strip. */
   .zrv-ir-table,
   .zrv-ir-table thead,
