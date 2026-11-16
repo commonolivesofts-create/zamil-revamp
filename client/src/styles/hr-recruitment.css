@@ -720,6 +720,7 @@
 }
 .zrv-hr-stage__nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -2201,6 +2202,7 @@
 }
 .zrv-hr-side__h {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -7270,6 +7272,7 @@
 }
 .zrv-hr-side__t {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }

@@ -748,7 +748,7 @@ export function InsightReport({
                             {first.sub && <small>{first.sub(row)}</small>}
                           </td>
                           {rest.map((column) => (
-                            <td key={column.key} className={`zrv-ir-col-${column.key}`}>
+                            <td key={column.key} className={`zrv-ir-col-${column.key}`} data-label={column.label}>
                               {column.render(row)}
                             </td>
                           ))}

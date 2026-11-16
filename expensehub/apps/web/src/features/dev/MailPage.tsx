@@ -40,12 +40,12 @@ export function MailPage() {
       <header className="sticky top-0 z-10 border-b border-border bg-surface/90 backdrop-blur-md">
         <div className="flex h-14 w-full items-center gap-3 px-4 sm:px-6">
           <Logo variant="mark" />
-          <span className="text-xs font-medium text-muted">{t('mail.eyebrow')}</span>
+          <span className="hidden text-xs font-medium text-muted sm:inline">{t('mail.eyebrow')}</span>
           <div className="ms-auto flex items-center gap-2">
             <Button asChild variant="ghost" size="sm">
               <Link to="/">
                 <ArrowLeft aria-hidden className="rtl:rotate-180" />
-                {t('mail.backToApp')}
+                <span className="sr-only sm:not-sr-only">{t('mail.backToApp')}</span>
               </Link>
             </Button>
             <ThemeToggle />
