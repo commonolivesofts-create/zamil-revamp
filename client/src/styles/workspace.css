@@ -494,6 +494,11 @@
     transition: width 220ms ease;
   }
 
+  html:not([data-sidebar-mode="full"])
+    #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) {
+    transition: width 0s;
+  }
+
   html:not([data-sidebar-mode="full"]) #sidebar:hover,
   html:not([data-sidebar-mode="full"]) #sidebar:has(:focus-visible),
   html:not([data-sidebar-mode="full"]) #sidebar.is-hover-open {
