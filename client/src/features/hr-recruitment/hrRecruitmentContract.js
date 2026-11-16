@@ -5,10 +5,21 @@
 import { ApiError } from '../../services/api/apiClient.js'
 import { isIsoDate } from './shared/hrFormat.js'
 import { REQUISITION_STATUSES, REASONS } from './requisition/requisitionModel.js'
-import { COMP_KEYS, HR_FIELDS, INTERVIEW_STATUSES, OUTCOMES, SPEC_KEYS } from './interview/interviewModel.js'
+import {
+  COMP_KEYS,
+  HR_FIELDS,
+  INTERVIEW_STATUSES,
+  OUTCOMES,
+  SPEC_KEYS,
+} from './interview/interviewModel.js'
 import { BENEFIT_KEYS, OFFER_STATUSES } from './offer/offerModel.js'
 import { ORIENTATION_STATUSES, SESSION_KEYS, TIME } from './orientation/orientationModel.js'
-import { EXTENSIONS, PROBATION_STATUSES, RECOMMENDATIONS, SIGNATURE_KEYS as PROBATION_SIGNATURES } from './probation/probationModel.js'
+import {
+  EXTENSIONS,
+  PROBATION_STATUSES,
+  RECOMMENDATIONS,
+  SIGNATURE_KEYS as PROBATION_SIGNATURES,
+} from './probation/probationModel.js'
 
 export const ID_PATTERN = /^[1-9][0-9]{0,18}$/
 export const LOOKUP_CODE = /^[A-Za-z0-9_-]{1,40}$/
@@ -17,31 +28,78 @@ const CURRENCY = /^[A-Z]{3}$/
 function invalid() {
   throw new ApiError('The server returned an unexpected response.', { code: 'INVALID_RESPONSE' })
 }
-const check = (condition) => { if (!condition) invalid() }
+const check = (condition) => {
+  if (!condition) invalid()
+}
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
-const id = (value) => { check(typeof value === 'string' && ID_PATTERN.test(value)); return value }
-const text = (value, max = 4000) => { check(typeof value === 'string' && value.length <= max); return value }
+const id = (value) => {
+  check(typeof value === 'string' && ID_PATTERN.test(value))
+  return value
+}
+const text = (value, max = 4000) => {
+  check(typeof value === 'string' && value.length <= max)
+  return value
+}
 const nullableText = (value, max = 4000) => (value === null ? null : text(value, max))
-const date = (value) => { check(value === null || isIsoDate(value)); return value }
-const instant = (value) => { check(typeof value === 'string' && !Number.isNaN(Date.parse(value))); return value }
+const date = (value) => {
+  check(value === null || isIsoDate(value))
+  return value
+}
+const instant = (value) => {
+  check(typeof value === 'string' && !Number.isNaN(Date.parse(value)))
+  return value
+}
 const nullableInstant = (value) => (value === null ? null : instant(value))
-const amount = (value) => { check(value === null || (typeof value === 'number' && Number.isFinite(value) && value >= 0)); return value }
-const oneOf = (value, allowed, { nullable = false } = {}) => { check((nullable && value === null) || allowed.includes(value)); return value }
-const code = (value) => { check(value === null || (typeof value === 'string' && LOOKUP_CODE.test(value))); return value }
-const textList = (value, max = 120) => { check(Array.isArray(value)); return Object.freeze(value.map((item) => text(item, max))) }
-const codeList = (value) => { check(Array.isArray(value)); return Object.freeze(value.map((item) => { check(item !== null); return code(item) })) }
-const currency = (value) => { check(typeof value === 'string' && CURRENCY.test(value)); return value }
-const nullableBoolean = (value) => { check(value === null || typeof value === 'boolean'); return value }
+const amount = (value) => {
+  check(value === null || (typeof value === 'number' && Number.isFinite(value) && value >= 0))
+  return value
+}
+const oneOf = (value, allowed, { nullable = false } = {}) => {
+  check((nullable && value === null) || allowed.includes(value))
+  return value
+}
+const code = (value) => {
+  check(value === null || (typeof value === 'string' && LOOKUP_CODE.test(value)))
+  return value
+}
+const textList = (value, max = 120) => {
+  check(Array.isArray(value))
+  return Object.freeze(value.map((item) => text(item, max)))
+}
+const codeList = (value) => {
+  check(Array.isArray(value))
+  return Object.freeze(
+    value.map((item) => {
+      check(item !== null)
+      return code(item)
+    }),
+  )
+}
+const currency = (value) => {
+  check(typeof value === 'string' && CURRENCY.test(value))
+  return value
+}
+const nullableBoolean = (value) => {
+  check(value === null || typeof value === 'boolean')
+  return value
+}
 
 const option = (item) => {
   check(isObject(item))
   return Object.freeze({ code: code(item.code) ?? invalid(), name: text(item.name, 200) })
 }
-const options = (list) => { check(Array.isArray(list)); return Object.freeze(list.map(option)) }
+const options = (list) => {
+  check(Array.isArray(list))
+  return Object.freeze(list.map(option))
+}
 const routeStep = (step) => {
   check(isObject(step))
-  return Object.freeze({ code: code(step.code) ?? invalid(), label: text(step.label, 120), note: text(step.note, 200) })
+  return Object.freeze({
+    code: code(step.code) ?? invalid(),
+    label: text(step.label, 120),
+    note: text(step.note, 200),
+  })
 }
 
 // An evaluation form type: its criteria and allocated points, totalling 100.
@@ -49,25 +107,58 @@ function readFormType(item) {
   check(isObject(item) && Array.isArray(item.criteria) && item.criteria.length > 0)
   const criteria = item.criteria.map((criterion) => {
     check(isObject(criterion) && Number.isInteger(criterion.points) && criterion.points > 0)
-    return Object.freeze({ code: code(criterion.code) ?? invalid(), name: text(criterion.name, 120), nameAr: text(criterion.nameAr, 120), points: criterion.points })
+    return Object.freeze({
+      code: code(criterion.code) ?? invalid(),
+      name: text(criterion.name, 120),
+      nameAr: text(criterion.nameAr, 120),
+      points: criterion.points,
+    })
   })
   check(criteria.reduce((sum, criterion) => sum + criterion.points, 0) === 100)
   check(new Set(criteria.map((criterion) => criterion.code)).size === criteria.length)
-  return Object.freeze({ code: code(item.code) ?? invalid(), name: text(item.name, 120), nameAr: text(item.nameAr, 120), criteria: Object.freeze(criteria) })
+  return Object.freeze({
+    code: code(item.code) ?? invalid(),
+    name: text(item.name, 120),
+    nameAr: text(item.nameAr, 120),
+    criteria: Object.freeze(criteria),
+  })
 }
 
 export function readLookups(data) {
-  check(isObject(data) && isObject(data.approvalRoute) && isObject(data.offer) && isObject(data.interview) && isObject(data.orientation))
+  check(
+    isObject(data) &&
+      isObject(data.approvalRoute) &&
+      isObject(data.offer) &&
+      isObject(data.interview) &&
+      isObject(data.orientation),
+  )
   check(isObject(data.orientation.departmentHeads) && isObject(data.probation))
-  check(Array.isArray(data.probation.formTypes) && data.probation.formTypes.length > 0 && Array.isArray(data.probation.ratingScale) && data.probation.ratingScale.length > 0)
-  check(Array.isArray(data.educationLevels) && Array.isArray(data.approvalRoute.steps) && Array.isArray(data.offer.signatories))
+  check(
+    Array.isArray(data.probation.formTypes) &&
+      data.probation.formTypes.length > 0 &&
+      Array.isArray(data.probation.ratingScale) &&
+      data.probation.ratingScale.length > 0,
+  )
+  check(
+    Array.isArray(data.educationLevels) &&
+      Array.isArray(data.approvalRoute.steps) &&
+      Array.isArray(data.offer.signatories),
+  )
   const { offer } = data
   check(isObject(offer.probation))
   const signatories = offer.signatories.map((item) => {
     check(isObject(item))
-    return Object.freeze({ role: oneOf(item.role, ['HR_MANAGER', 'GENERAL_MANAGER']), name: text(item.name, 120), title: text(item.title, 120) })
+    return Object.freeze({
+      role: oneOf(item.role, ['HR_MANAGER', 'GENERAL_MANAGER']),
+      name: text(item.name, 120),
+      title: text(item.title, 120),
+    })
   })
-  check(['HR_MANAGER', 'GENERAL_MANAGER'].every((role) => signatories.some((item) => item.role === role)))
+  check(
+    ['HR_MANAGER', 'GENERAL_MANAGER'].every((role) =>
+      signatories.some((item) => item.role === role),
+    ),
+  )
   return Object.freeze({
     departments: options(data.departments),
     divisions: options(data.divisions),
@@ -75,29 +166,47 @@ export function readLookups(data) {
     certificates: options(data.certificates),
     maritalStatuses: options(data.maritalStatuses),
     experienceBands: options(data.experienceBands),
-    educationLevels: Object.freeze(data.educationLevels.map((item) => {
-      check(isObject(item) && Number.isInteger(item.level) && item.level >= 1 && item.level <= 5)
-      return Object.freeze({ ...option(item), level: item.level })
-    })),
+    educationLevels: Object.freeze(
+      data.educationLevels.map((item) => {
+        check(isObject(item) && Number.isInteger(item.level) && item.level >= 1 && item.level <= 5)
+        return Object.freeze({ ...option(item), level: item.level })
+      }),
+    ),
     approvalRoute: Object.freeze({
       steps: Object.freeze(data.approvalRoute.steps.map(routeStep)),
-      unbudgetedStep: data.approvalRoute.unbudgetedStep === null ? null : routeStep(data.approvalRoute.unbudgetedStep),
+      unbudgetedStep:
+        data.approvalRoute.unbudgetedStep === null
+          ? null
+          : routeStep(data.approvalRoute.unbudgetedStep),
     }),
     interview: Object.freeze({ payrollDefault: text(data.interview.payrollDefault, 60) }),
     orientation: Object.freeze({
-      departmentHeads: Object.freeze(Object.fromEntries(SESSION_KEYS.map((key) => [key, options(data.orientation.departmentHeads[key])]))),
+      departmentHeads: Object.freeze(
+        Object.fromEntries(
+          SESSION_KEYS.map((key) => [key, options(data.orientation.departmentHeads[key])]),
+        ),
+      ),
     }),
     probation: Object.freeze({
       formTypes: Object.freeze(data.probation.formTypes.map(readFormType)),
-      ratingScale: Object.freeze(data.probation.ratingScale.map((band) => {
-        check(isObject(band) && Number.isInteger(band.min) && band.min >= 0 && band.min <= 100)
-        return Object.freeze({ min: band.min, label: text(band.label, 60), labelAr: text(band.labelAr, 60) })
-      })),
+      ratingScale: Object.freeze(
+        data.probation.ratingScale.map((band) => {
+          check(isObject(band) && Number.isInteger(band.min) && band.min >= 0 && band.min <= 100)
+          return Object.freeze({
+            min: band.min,
+            label: text(band.label, 60),
+            labelAr: text(band.labelAr, 60),
+          })
+        }),
+      ),
     }),
     offer: Object.freeze({
       currency: currency(offer.currency),
       reportFormat: text(offer.reportFormat, 60),
-      probation: Object.freeze({ en: text(offer.probation.en, 300), ar: text(offer.probation.ar, 300) }),
+      probation: Object.freeze({
+        en: text(offer.probation.en, 300),
+        ar: text(offer.probation.ar, 300),
+      }),
       signatories: Object.freeze(signatories),
     }),
   })
@@ -150,11 +259,21 @@ export function readRequisitionListItem(data) {
 
 const ratings = (group, keys) => {
   check(isObject(group))
-  return Object.freeze(Object.fromEntries(keys.map((key) => {
-    const item = group[key]
-    check(isObject(item) && (item.rating === null || item.rating === 'N/A' || (Number.isInteger(item.rating) && item.rating >= 1 && item.rating <= 5)))
-    return [key, Object.freeze({ rating: item.rating, remark: text(item.remark, 500) })]
-  })))
+  return Object.freeze(
+    Object.fromEntries(
+      keys.map((key) => {
+        const item = group[key]
+        check(
+          isObject(item) &&
+            (item.rating === null ||
+              item.rating === 'N/A' ||
+              (Number.isInteger(item.rating) && item.rating >= 1 && item.rating <= 5)),
+        )
+        // Legacy remark columns can be longer than the 200 the form writes.
+        return [key, Object.freeze({ rating: item.rating, remark: text(item.remark, 2000) })]
+      }),
+    ),
+  )
 }
 
 export function readInterview(data) {
@@ -186,9 +305,10 @@ export function readInterview(data) {
     hrRepresentative: text(data.hrRepresentative ?? '', 200),
     departmentRepresentative: text(data.departmentRepresentative, 200),
     payroll: text(data.payroll, 60),
-    hrComment: text(data.hrComment, 1000),
+    hrComment: text(data.hrComment, 2000),
     interviewers: textList(data.interviewers, 200),
-    updatedAt: instant(data.updatedAt),
+    // Legacy rows can predate the audit columns; nothing reads this timestamp.
+    updatedAt: nullableInstant(data.updatedAt ?? data.createdAt ?? null),
   })
 }
 
@@ -204,6 +324,10 @@ export function readInterviewListItem(data) {
     // Report columns; absent from older list sources.
     requisitionNo: nullableText(data.requisitionNo || null, 100),
     interviewDate: date(data.interviewDate || null),
+    personalSpecTotal: amount(data.personalSpecTotal ?? null),
+    jobCompetencyTotal: amount(data.jobCompetencyTotal ?? null),
+    strengths: text(data.strengths ?? ''),
+    weakness: text(data.weakness ?? ''),
     updatedAt: instant(data.updatedAt),
   })
 }
@@ -226,11 +350,22 @@ export function readOffer(data) {
     intNo: text(data.intNo, 100),
     reqNo: text(data.reqNo, 100),
     applicant: text(data.applicant, 200),
-    benefits: Object.freeze(Object.fromEntries(BENEFIT_KEYS.map((key) => {
-      const row = data.benefits[key]
-      check(isObject(row) && typeof row.autoArabic === 'boolean')
-      return [key, Object.freeze({ en: text(row.en, 500), ar: text(row.ar, 1000), autoArabic: row.autoArabic })]
-    }))),
+    benefits: Object.freeze(
+      Object.fromEntries(
+        BENEFIT_KEYS.map((key) => {
+          const row = data.benefits[key]
+          check(isObject(row) && typeof row.autoArabic === 'boolean')
+          return [
+            key,
+            Object.freeze({
+              en: text(row.en, 500),
+              ar: text(row.ar, 1000),
+              autoArabic: row.autoArabic,
+            }),
+          ]
+        }),
+      ),
+    ),
     comments: text(data.comments),
     currency: currency(data.currency),
     updatedAt: nullableInstant(data.updatedAt),
@@ -270,7 +405,10 @@ export function readEmployee(data) {
   })
 }
 
-const time = (value) => { check(value === null || (typeof value === 'string' && TIME.test(value))); return value }
+const time = (value) => {
+  check(value === null || (typeof value === 'string' && TIME.test(value)))
+  return value
+}
 
 export function readOrientation(data) {
   check(isObject(data) && isObject(data.sessions))
@@ -282,14 +420,25 @@ export function readOrientation(data) {
     scheduledByName: nullableText(data.scheduledByName, 200),
     fromDate: date(data.fromDate),
     toDate: date(data.toDate),
-    sessions: Object.freeze(Object.fromEntries(SESSION_KEYS.map((key) => {
-      const session = data.sessions[key]
-      check(isObject(session))
-      return [key, Object.freeze({
-        headCode: code(session.headCode), fromDate: date(session.fromDate), toDate: date(session.toDate),
-        timeFrom: time(session.timeFrom), timeTo: time(session.timeTo), remark: text(session.remark, 500),
-      })]
-    }))),
+    sessions: Object.freeze(
+      Object.fromEntries(
+        SESSION_KEYS.map((key) => {
+          const session = data.sessions[key]
+          check(isObject(session))
+          return [
+            key,
+            Object.freeze({
+              headCode: code(session.headCode),
+              fromDate: date(session.fromDate),
+              toDate: date(session.toDate),
+              timeFrom: time(session.timeFrom),
+              timeTo: time(session.timeTo),
+              remark: text(session.remark, 500),
+            }),
+          ]
+        }),
+      ),
+    ),
     updatedAt: instant(data.updatedAt),
   })
 }
@@ -311,9 +460,18 @@ export function readOrientationListItem(data) {
 // national ID itself, only whether one is on file.
 export const REPORT_FLAGS = Object.freeze(['BIRTH_DATE', 'NATIONAL_ID'])
 export const REPORT_AGE_BANDS = Object.freeze(['UNDER_30', '30_39', '40_49', '50_59', '60_PLUS'])
-const count = (value) => { check(Number.isInteger(value) && value >= 0); return value }
-const decimal = (value) => { check(typeof value === 'number' && Number.isFinite(value) && value >= 0); return value }
-const departmentCode = (value) => { check(value === null || (typeof value === 'string' && ID_PATTERN.test(value))); return value }
+const count = (value) => {
+  check(Number.isInteger(value) && value >= 0)
+  return value
+}
+const decimal = (value) => {
+  check(typeof value === 'number' && Number.isFinite(value) && value >= 0)
+  return value
+}
+const departmentCode = (value) => {
+  check(value === null || (typeof value === 'string' && ID_PATTERN.test(value)))
+  return value
+}
 
 export function readReportRow(data) {
   check(isObject(data) && Array.isArray(data.flags) && typeof data.hasNationalId === 'boolean')
@@ -344,25 +502,48 @@ export function readReportSummary(data) {
   check(isObject(data) && Array.isArray(data.byDepartment) && Array.isArray(data.byNationality))
   check(Array.isArray(data.ageBands) && Array.isArray(data.yearlyFlow))
   return Object.freeze({
-    total: count(data.total), active: count(data.active), joiners: count(data.joiners), leavers: count(data.leavers),
-    turnover: decimal(data.turnover), saudization: decimal(data.saudization), averageAge: decimal(data.averageAge),
-    senior: count(data.senior), averageService: decimal(data.averageService), flagged: count(data.flagged),
-    byDepartment: Object.freeze(data.byDepartment.map((item) => {
-      check(isObject(item))
-      return Object.freeze({ code: departmentCode(item.code), name: text(item.name, 240), count: count(item.count) })
-    })),
-    byNationality: Object.freeze(data.byNationality.map((item) => {
-      check(isObject(item))
-      return Object.freeze({ name: text(item.name, 100), count: count(item.count) })
-    })),
-    ageBands: Object.freeze(data.ageBands.map((item) => {
-      check(isObject(item))
-      return Object.freeze({ band: oneOf(item.band, REPORT_AGE_BANDS), count: count(item.count) })
-    })),
-    yearlyFlow: Object.freeze(data.yearlyFlow.map((item) => {
-      check(isObject(item) && /^\d{4}$/.test(item.year))
-      return Object.freeze({ year: item.year, joiners: count(item.joiners), leavers: count(item.leavers) })
-    })),
+    total: count(data.total),
+    active: count(data.active),
+    joiners: count(data.joiners),
+    leavers: count(data.leavers),
+    turnover: decimal(data.turnover),
+    saudization: decimal(data.saudization),
+    averageAge: decimal(data.averageAge),
+    senior: count(data.senior),
+    averageService: decimal(data.averageService),
+    flagged: count(data.flagged),
+    byDepartment: Object.freeze(
+      data.byDepartment.map((item) => {
+        check(isObject(item))
+        return Object.freeze({
+          code: departmentCode(item.code),
+          name: text(item.name, 240),
+          count: count(item.count),
+        })
+      }),
+    ),
+    byNationality: Object.freeze(
+      data.byNationality.map((item) => {
+        check(isObject(item))
+        return Object.freeze({ name: text(item.name, 100), count: count(item.count) })
+      }),
+    ),
+    ageBands: Object.freeze(
+      data.ageBands.map((item) => {
+        check(isObject(item))
+        return Object.freeze({ band: oneOf(item.band, REPORT_AGE_BANDS), count: count(item.count) })
+      }),
+    ),
+    yearlyFlow: Object.freeze(
+      data.yearlyFlow.map((item) => {
+        check(isObject(item) && /^\d{4}$/.test(item.year))
+        return Object.freeze({
+          year: item.year,
+          joiners: count(item.joiners),
+          leavers: count(item.leavers),
+        })
+      }),
+    ),
   })
 }
 
@@ -372,24 +553,40 @@ export function readReport(result) {
   check(isObject(result?.data) && Array.isArray(result.data.rows) && isObject(result.pagination))
   const rows = result.data.rows.map(readReportRow)
   check(new Set(rows.map((row) => row.employeeNumber)).size === rows.length)
-  return Object.freeze({ rows: Object.freeze(rows), pagination: result.pagination, summary: readReportSummary(result.data.summary) })
+  return Object.freeze({
+    rows: Object.freeze(rows),
+    pagination: result.pagination,
+    summary: readReportSummary(result.data.summary),
+  })
 }
 
 export function readReportDepartments(data) {
   check(Array.isArray(data))
-  return Object.freeze(data.map((item) => {
-    check(isObject(item))
-    return Object.freeze({ code: departmentCode(item.code) ?? invalid(), name: text(item.name, 240) })
-  }))
+  return Object.freeze(
+    data.map((item) => {
+      check(isObject(item))
+      return Object.freeze({
+        code: departmentCode(item.code) ?? invalid(),
+        name: text(item.name, 240),
+      })
+    }),
+  )
 }
 
-const wholePoints = (value) => { check(Number.isInteger(value) && value >= 0 && value <= 100); return value }
+const wholePoints = (value) => {
+  check(Number.isInteger(value) && value >= 0 && value <= 100)
+  return value
+}
 const codeMap = (value, read) => {
   check(isObject(value))
-  return Object.freeze(Object.fromEntries(Object.entries(value).map(([key, item]) => {
-    check(LOOKUP_CODE.test(key))
-    return [key, read(item)]
-  })))
+  return Object.freeze(
+    Object.fromEntries(
+      Object.entries(value).map(([key, item]) => {
+        check(LOOKUP_CODE.test(key))
+        return [key, read(item)]
+      }),
+    ),
+  )
 }
 
 export function readProbation(data) {
@@ -405,11 +602,19 @@ export function readProbation(data) {
     toDate: date(data.toDate),
     scores: codeMap(data.scores, wholePoints),
     notes: codeMap(data.notes, (value) => text(value, 500)),
-    strengths: text(data.strengths), improvements: text(data.improvements), training: text(data.training, 1000),
+    strengths: text(data.strengths),
+    improvements: text(data.improvements),
+    training: text(data.training, 1000),
     recommendation: oneOf(data.recommendation, RECOMMENDATIONS, { nullable: true }),
     extendByMonths: oneOf(data.extendByMonths, EXTENSIONS, { nullable: true }),
-    justification: text(data.justification), comments: text(data.comments), suggestion: text(data.suggestion),
-    signatures: Object.freeze(Object.fromEntries(PROBATION_SIGNATURES.map((key) => [key, nullableInstant(data.signatures[key])]))),
+    justification: text(data.justification),
+    comments: text(data.comments),
+    suggestion: text(data.suggestion),
+    signatures: Object.freeze(
+      Object.fromEntries(
+        PROBATION_SIGNATURES.map((key) => [key, nullableInstant(data.signatures[key])]),
+      ),
+    ),
     updatedAt: instant(data.updatedAt),
   })
 }
@@ -430,5 +635,8 @@ export function readProbationListItem(data) {
 // `result` is the client result: { data, pagination } (pagination already validated).
 export function readPage(result, reader) {
   if (!Array.isArray(result?.data) || !result.pagination) invalid()
-  return Object.freeze({ items: Object.freeze(result.data.map(reader)), pagination: result.pagination })
+  return Object.freeze({
+    items: Object.freeze(result.data.map(reader)),
+    pagination: result.pagination,
+  })
 }

@@ -6,14 +6,33 @@ import { createCsrfStore } from '../src/services/api/csrfStore.js'
 import { createAuthService } from '../src/features/auth/authService.js'
 import { createAuthSession } from '../src/features/auth/authSession.js'
 import {
-  readCurrentUser, readLoginResult, readMfaEnrollment, readMfaReplacementResult, readMfaSignIn,
+  readCurrentUser,
+  readLoginResult,
+  readMfaEnrollment,
+  readMfaReplacementResult,
+  readMfaSignIn,
 } from '../src/features/auth/authContract.js'
 import { authenticatorQr, formatSetupKey } from '../src/features/auth/authenticatorQr.js'
-import { mfaChallengePath, safeReturnTo, templateDemosAvailable } from '../src/config/authRouting.js'
+import {
+  mfaChallengePath,
+  safeReturnTo,
+  templateDemosAvailable,
+} from '../src/config/authRouting.js'
 import { orvexaDemoRoutes } from '../src/config/orvexaRoutes.js'
 import {
-  CHALLENGE_TOKEN, RESTORED_TOKEN, SESSION_TOKEN, SETUP_SECRET, currentUser, deferred, enrollmentMaterial,
-  failure, forbidBrowserStorage, loginResult, mfaChallenge, recordingFetch, success,
+  CHALLENGE_TOKEN,
+  RESTORED_TOKEN,
+  SESSION_TOKEN,
+  SETUP_SECRET,
+  currentUser,
+  deferred,
+  enrollmentMaterial,
+  failure,
+  forbidBrowserStorage,
+  loginResult,
+  mfaChallenge,
+  recordingFetch,
+  success,
 } from './helpers/http.mjs'
 
 const NOW = Date.parse('2026-10-21T08:00:00.000Z') // The default fixture challenge expires at 08:10:00Z (any backend expiresAt is honored).
@@ -40,14 +59,32 @@ test('setup material is validated and its QR URI must carry the shown secret', (
     { algorithm: 'SHA256' },
     { expiresAt: 'later' },
   ]) {
-    assert.throws(() => readMfaEnrollment(enrollmentMaterial(overrides)), { code: 'INVALID_RESPONSE' }, JSON.stringify(overrides))
+    assert.throws(
+      () => readMfaEnrollment(enrollmentMaterial(overrides)),
+      { code: 'INVALID_RESPONSE' },
+      JSON.stringify(overrides),
+    )
   }
 })
 
 test('replacement results must require re-authentication', () => {
-  assert.deepEqual(readMfaReplacementResult({ replaced: true, sessionsRevoked: 3, reauthenticationRequired: true }),
-    { replaced: true, sessionsRevoked: 3, reauthenticationRequired: true })
-  assert.throws(() => readMfaReplacementResult({ replaced: true, sessionsRevoked: 1, reauthenticationRequired: false }), { code: 'INVALID_RESPONSE' })
+  assert.deepEqual(
+    readMfaReplacementResult({
+      replaced: true,
+      sessionsRevoked: 3,
+      reauthenticationRequired: true,
+    }),
+    { replaced: true, sessionsRevoked: 3, reauthenticationRequired: true },
+  )
+  assert.throws(
+    () =>
+      readMfaReplacementResult({
+        replaced: true,
+        sessionsRevoked: 1,
+        reauthenticationRequired: false,
+      }),
+    { code: 'INVALID_RESPONSE' },
+  )
 })
 
 // ---------------------------------------------------------------- transport
@@ -56,17 +93,38 @@ function transport(responder) {
   const { fetchImpl, calls } = recordingFetch(responder)
   const csrfStore = createCsrfStore()
   let unauthorized = 0
-  const client = createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore, onUnauthorized: () => { unauthorized += 1 } })
-  return { service: createAuthService({ client }), calls, csrfStore, unauthorizedCount: () => unauthorized }
+  const client = createApiClient({
+    baseUrl: '/api/v1',
+    fetchImpl,
+    csrfStore,
+    onUnauthorized: () => {
+      unauthorized += 1
+    },
+  })
+  return {
+    service: createAuthService({ client }),
+    calls,
+    csrfStore,
+    unauthorizedCount: () => unauthorized,
+  }
 }
 
 test('challenge endpoints send the code as a string with the challenge CSRF token only', async () => {
-  const t = transport((url) => url.endsWith('/mfa/enrollment') ? success(enrollmentMaterial()) : success(loginResult()))
+  const t = transport((url) =>
+    url.endsWith('/mfa/enrollment') ? success(enrollmentMaterial()) : success(loginResult()),
+  )
   t.csrfStore.setChallengeToken(CHALLENGE_TOKEN)
   await t.service.verifyMfa('012345')
   await t.service.startMfaEnrollment()
   await t.service.confirmMfaEnrollment('000001')
-  assert.deepEqual(t.calls.map((c) => c.url), ['/api/v1/auth/mfa/verify', '/api/v1/auth/mfa/enrollment', '/api/v1/auth/mfa/enrollment/confirm'])
+  assert.deepEqual(
+    t.calls.map((c) => c.url),
+    [
+      '/api/v1/auth/mfa/verify',
+      '/api/v1/auth/mfa/enrollment',
+      '/api/v1/auth/mfa/enrollment/confirm',
+    ],
+  )
   assert.equal(t.calls[0].init.body, '{"code":"012345"}', 'leading zero preserved')
   assert.equal(t.calls[1].init.body, '{}')
   assert.equal(t.calls[2].init.body, '{"code":"000001"}')
@@ -74,20 +132,34 @@ test('challenge endpoints send the code as a string with the challenge CSRF toke
 })
 
 test('challenge 401s never invalidate a session', async () => {
-  const t = transport(() => failure(401, 'MFA_VERIFICATION_FAILED', 'The verification code is incorrect, expired or already used.'))
+  const t = transport(() =>
+    failure(
+      401,
+      'MFA_VERIFICATION_FAILED',
+      'The verification code is incorrect, expired or already used.',
+    ),
+  )
   t.csrfStore.setChallengeToken(CHALLENGE_TOKEN)
-  await assert.rejects(t.service.verifyMfa('123456'), { code: 'MFA_VERIFICATION_FAILED', status: 401 })
+  await assert.rejects(t.service.verifyMfa('123456'), {
+    code: 'MFA_VERIFICATION_FAILED',
+    status: 401,
+  })
   assert.equal(t.unauthorizedCount(), 0)
 })
 
 test('replacement endpoints use the session CSRF token; only the start call reports session 401s', async () => {
-  const ok = transport((url) => url.endsWith('/confirm')
-    ? success({ replaced: true, sessionsRevoked: 2, reauthenticationRequired: true })
-    : success(enrollmentMaterial()))
+  const ok = transport((url) =>
+    url.endsWith('/confirm')
+      ? success({ replaced: true, sessionsRevoked: 2, reauthenticationRequired: true })
+      : success(enrollmentMaterial()),
+  )
   ok.csrfStore.setSessionToken(SESSION_TOKEN)
   await ok.service.startMfaReplacement()
   await ok.service.confirmMfaReplacement('654321')
-  assert.deepEqual(ok.calls.map((c) => c.url), ['/api/v1/auth/mfa/replacement', '/api/v1/auth/mfa/replacement/confirm'])
+  assert.deepEqual(
+    ok.calls.map((c) => c.url),
+    ['/api/v1/auth/mfa/replacement', '/api/v1/auth/mfa/replacement/confirm'],
+  )
   for (const call of ok.calls) assert.equal(call.init.headers.get('X-CSRF-Token'), SESSION_TOKEN)
 
   const gone = transport(() => failure(401, 'UNAUTHENTICATED', 'Authentication is required'))
@@ -103,23 +175,47 @@ const sessions = []
 
 function controller({ preview = false } = {}) {
   const calls = []
-  const call = (name) => (...args) => {
-    const pending = deferred()
-    calls.push({ name, args, ...pending })
-    return pending.promise
-  }
-  const service = Object.fromEntries([
-    'login', 'getCurrentUser', 'getCsrfToken', 'logout', 'verifyMfa', 'startMfaEnrollment',
-    'confirmMfaEnrollment', 'startMfaReplacement', 'confirmMfaReplacement',
-  ].map((name) => [name, call(name)]))
+  const call =
+    (name) =>
+    (...args) => {
+      const pending = deferred()
+      calls.push({ name, args, ...pending })
+      return pending.promise
+    }
+  const service = Object.fromEntries(
+    [
+      'login',
+      'getCurrentUser',
+      'getCsrfToken',
+      'logout',
+      'verifyMfa',
+      'startMfaEnrollment',
+      'confirmMfaEnrollment',
+      'startMfaReplacement',
+      'confirmMfaReplacement',
+    ].map((name) => [name, call(name)]),
+  )
   const csrfStore = createCsrfStore()
   let emit = () => {}
   const auth = createAuthSession({
-    service, csrfStore, preview,
-    subscribeUnauthorized(listener) { emit = listener; return () => { emit = () => {} } },
+    service,
+    csrfStore,
+    preview,
+    subscribeUnauthorized(listener) {
+      emit = listener
+      return () => {
+        emit = () => {}
+      }
+    },
   })
   sessions.push(auth)
-  return { auth, csrfStore, calls, last: (name) => calls.filter((c) => c.name === name).at(-1), emitUnauthorized: () => emit() }
+  return {
+    auth,
+    csrfStore,
+    calls,
+    last: (name) => calls.filter((c) => c.name === name).at(-1),
+    emitUnauthorized: () => emit(),
+  }
 }
 
 async function challenged(ctx, challenge = mfaChallenge()) {
@@ -158,14 +254,22 @@ test('a verified code creates the session and ends the challenge', async () => {
   await challenged(ctx)
   const pending = ctx.auth.verifyMfa('012345')
   assert.equal(ctx.last('verifyMfa').args[0], '012345')
-  assert.equal(ctx.auth.getSnapshot().status, 'mfa_required', 'no access before the backend verifies')
+  assert.equal(
+    ctx.auth.getSnapshot().status,
+    'mfa_required',
+    'no access before the backend verifies',
+  )
   ctx.last('verifyMfa').resolve(readMfaSignIn(loginResult()))
   assert.equal(await pending, 'authenticated')
   assert.equal(ctx.auth.getSnapshot().user.id, '105')
   assert.equal(ctx.csrfStore.getSessionToken(), SESSION_TOKEN)
   assert.equal(ctx.csrfStore.getChallengeToken(), null)
   mock.timers.tick(600_000)
-  assert.equal(ctx.auth.getSnapshot().status, 'authenticated', 'the old challenge timer cannot end the session')
+  assert.equal(
+    ctx.auth.getSnapshot().status,
+    'authenticated',
+    'the old challenge timer cannot end the session',
+  )
 })
 
 test('a wrong code keeps the challenge and its token', async () => {
@@ -191,7 +295,11 @@ test('MFA_CHALLENGE_INVALID ends the challenge', async () => {
 
 test('codes are validated locally and duplicate submissions are refused', async () => {
   const ctx = controller()
-  await assert.rejects(ctx.auth.verifyMfa('123456'), { code: 'MFA_CHALLENGE_INVALID' }, 'no challenge yet')
+  await assert.rejects(
+    ctx.auth.verifyMfa('123456'),
+    { code: 'MFA_CHALLENGE_INVALID' },
+    'no challenge yet',
+  )
   await challenged(ctx)
   for (const code of ['12345', '1234567', '12a456', 123456, ' 123456']) {
     await assert.rejects(ctx.auth.verifyMfa(code), { code: 'VALIDATION_ERROR' }, String(code))
@@ -235,9 +343,18 @@ test('Batch A check C: an expired challenge timer cannot end a newer challenge',
   await challenged(ctx)
   mock.timers.tick(300_000)
   // A second sign-in five minutes later; its challenge expires at 08:15:00Z.
-  await challenged(ctx, mfaChallenge({ mfa: { required: true, enrollmentRequired: false, expiresAt: '2026-10-21T08:15:00.000Z' } }))
+  await challenged(
+    ctx,
+    mfaChallenge({
+      mfa: { required: true, enrollmentRequired: false, expiresAt: '2026-10-21T08:15:00.000Z' },
+    }),
+  )
   mock.timers.tick(300_000)
-  assert.equal(ctx.auth.getSnapshot().status, 'mfa_required', 'first challenge expiry passed harmlessly')
+  assert.equal(
+    ctx.auth.getSnapshot().status,
+    'mfa_required',
+    'first challenge expiry passed harmlessly',
+  )
   assert.equal(ctx.csrfStore.getChallengeToken(), CHALLENGE_TOKEN)
   mock.timers.tick(300_000)
   assert.equal(ctx.auth.getSnapshot().notice, 'mfa_expired')
@@ -245,7 +362,12 @@ test('Batch A check C: an expired challenge timer cannot end a newer challenge',
 
 test('a five-minute challenge ends exactly at the backend expiresAt and requires a new sign-in', async () => {
   const ctx = controller()
-  await challenged(ctx, mfaChallenge({ mfa: { required: true, enrollmentRequired: false, expiresAt: '2026-10-21T08:05:00.000Z' } }))
+  await challenged(
+    ctx,
+    mfaChallenge({
+      mfa: { required: true, enrollmentRequired: false, expiresAt: '2026-10-21T08:05:00.000Z' },
+    }),
+  )
   mock.timers.tick(299_999)
   assert.equal(ctx.auth.getSnapshot().status, 'mfa_required')
   mock.timers.tick(1)
@@ -253,7 +375,11 @@ test('a five-minute challenge ends exactly at the backend expiresAt and requires
   assert.equal(ctx.auth.getSnapshot().notice, 'mfa_expired')
   assert.equal(ctx.csrfStore.getChallengeToken(), null)
   await assert.rejects(ctx.auth.verifyMfa('123456'), { code: 'MFA_CHALLENGE_INVALID' })
-  assert.equal(ctx.calls.filter((item) => item.name === 'verifyMfa').length, 0, 'no request after expiry')
+  assert.equal(
+    ctx.calls.filter((item) => item.name === 'verifyMfa').length,
+    0,
+    'no request after expiry',
+  )
 })
 
 test('conflicts route between enrollment and verification', async () => {
@@ -270,12 +396,21 @@ test('conflicts route between enrollment and verification', async () => {
   await assert.rejects(start, { code: 'MFA_ALREADY_ENROLLED' })
   assert.equal(mfaChallengePath(ctx.auth.getSnapshot().mfa), '/mfa/verify')
   mock.timers.tick(600_000)
-  assert.equal(ctx.auth.getSnapshot().notice, 'mfa_expired', 'the challenge timer survives the conflict update')
+  assert.equal(
+    ctx.auth.getSnapshot().notice,
+    'mfa_expired',
+    'the challenge timer survives the conflict update',
+  )
 })
 
 test('enrollment returns setup material to the page without storing it in auth state', async () => {
   const ctx = controller()
-  await challenged(ctx, mfaChallenge({ mfa: { required: true, enrollmentRequired: true, expiresAt: '2026-10-21T08:10:00.000Z' } }))
+  await challenged(
+    ctx,
+    mfaChallenge({
+      mfa: { required: true, enrollmentRequired: true, expiresAt: '2026-10-21T08:10:00.000Z' },
+    }),
+  )
   const start = ctx.auth.startMfaEnrollment()
   ctx.last('startMfaEnrollment').resolve(readMfaEnrollment(enrollmentMaterial()))
   assert.equal((await start).secret, SETUP_SECRET)
@@ -289,7 +424,12 @@ test('enrollment returns setup material to the page without storing it in auth s
 
 test('setup material from an ended challenge is discarded', async () => {
   const ctx = controller()
-  await challenged(ctx, mfaChallenge({ mfa: { required: true, enrollmentRequired: true, expiresAt: '2026-10-21T08:10:00.000Z' } }))
+  await challenged(
+    ctx,
+    mfaChallenge({
+      mfa: { required: true, enrollmentRequired: true, expiresAt: '2026-10-21T08:10:00.000Z' },
+    }),
+  )
   const start = ctx.auth.startMfaEnrollment()
   ctx.auth.cancelMfa()
   ctx.last('startMfaEnrollment').resolve(readMfaEnrollment(enrollmentMaterial()))
@@ -299,7 +439,11 @@ test('setup material from an ended challenge is discarded', async () => {
 test('replacement requires a session and ends it after backend confirmation', async () => {
   const ctx = controller()
   await challenged(ctx)
-  await assert.rejects(ctx.auth.startMfaReplacement(), { code: 'UNAUTHENTICATED' }, 'an MFA challenge is not a session')
+  await assert.rejects(
+    ctx.auth.startMfaReplacement(),
+    { code: 'UNAUTHENTICATED' },
+    'an MFA challenge is not a session',
+  )
   ctx.auth.cancelMfa()
   ctx.auth.stop()
 
@@ -312,10 +456,16 @@ test('replacement requires a session and ends it after backend confirmation', as
   const wrong = signed.auth.confirmMfaReplacement('111111')
   signed.last('confirmMfaReplacement').reject(apiError(401, 'MFA_VERIFICATION_FAILED'))
   await assert.rejects(wrong, { code: 'MFA_VERIFICATION_FAILED' })
-  assert.equal(signed.auth.getSnapshot().status, 'authenticated', 'a wrong code does not end the session')
+  assert.equal(
+    signed.auth.getSnapshot().status,
+    'authenticated',
+    'a wrong code does not end the session',
+  )
 
   const confirm = signed.auth.confirmMfaReplacement('222222')
-  signed.last('confirmMfaReplacement').resolve({ replaced: true, sessionsRevoked: 2, reauthenticationRequired: true })
+  signed
+    .last('confirmMfaReplacement')
+    .resolve({ replaced: true, sessionsRevoked: 2, reauthenticationRequired: true })
   await confirm
   assert.equal(signed.auth.getSnapshot().status, 'guest')
   assert.equal(signed.auth.getSnapshot().notice, 'mfa_replaced')
@@ -333,7 +483,11 @@ test('replacement refusals keep the session; a session 401 ends it', async () =>
   const csrf = ctx.auth.confirmMfaReplacement('123456')
   ctx.last('confirmMfaReplacement').reject(apiError(403, 'CSRF_REJECTED'))
   await assert.rejects(csrf, { code: 'CSRF_REJECTED' })
-  assert.equal(ctx.calls.filter((c) => c.name === 'confirmMfaReplacement').length, 1, 'never replayed')
+  assert.equal(
+    ctx.calls.filter((c) => c.name === 'confirmMfaReplacement').length,
+    1,
+    'never replayed',
+  )
 
   const ended = ctx.auth.confirmMfaReplacement('123456')
   ctx.last('confirmMfaReplacement').reject(apiError(401, 'UNAUTHENTICATED'))
@@ -350,14 +504,19 @@ test('preview cannot run MFA operations', async () => {
 
 test('end to end: login challenge, verify with the challenge token, then session writes use the session token', async () => {
   const { fetchImpl, calls } = recordingFetch((url) => {
-    if (url.endsWith('/auth/me')) return failure(401, 'UNAUTHENTICATED', 'Authentication is required')
+    if (url.endsWith('/auth/me'))
+      return failure(401, 'UNAUTHENTICATED', 'Authentication is required')
     if (url.endsWith('/auth/login')) return success(mfaChallenge())
     if (url.endsWith('/auth/mfa/verify')) return success(loginResult())
     return success(enrollmentMaterial())
   })
   const csrfStore = createCsrfStore()
   const client = createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore })
-  const auth = createAuthSession({ service: createAuthService({ client }), csrfStore, subscribeUnauthorized: () => () => {} })
+  const auth = createAuthSession({
+    service: createAuthService({ client }),
+    csrfStore,
+    subscribeUnauthorized: () => () => {},
+  })
   sessions.push(auth)
   await auth.restore()
   assert.equal(await auth.signIn({ username: 'zaid', password: 'secret' }), 'mfa_required')
@@ -389,11 +548,23 @@ test('MFA pages are never post-login destinations', () => {
 
 test('after an authenticator replacement, signing in again lands on the dashboard', () => {
   // ProtectedRoute stores safeReturnTo(current path) as the post-login destination.
-  for (const from of ['/account/authenticator', '/account/authenticator?step=2', '/account/authenticator#key']) {
+  for (const from of [
+    '/account/authenticator',
+    '/account/authenticator?step=2',
+    '/account/authenticator#key',
+  ]) {
     assert.equal(safeReturnTo(from), '/dashboard', from)
   }
-  assert.equal(safeReturnTo('/account/authenticator-history'), '/account/authenticator-history', 'exact path only')
-  assert.equal(safeReturnTo('//evil.example/account/authenticator'), '/dashboard', 'open-redirect protection kept')
+  assert.equal(
+    safeReturnTo('/account/authenticator-history'),
+    '/account/authenticator-history',
+    'exact path only',
+  )
+  assert.equal(
+    safeReturnTo('//evil.example/account/authenticator'),
+    '/dashboard',
+    'open-redirect protection kept',
+  )
 })
 
 test('template demos render only in the development preview', async () => {
@@ -417,8 +588,13 @@ test('the login heading names the application', async () => {
 
 test('Batch A check A: template demo routes stay in the /demo namespace as unconverted notices', async () => {
   assert.ok(orvexaDemoRoutes.every((route) => route.path.startsWith('/demo/')))
-  const router = await readFile(new URL('../src/app/router.jsx', import.meta.url), 'utf8')
-  assert.match(router, /orvexaDemoRoutes\.map\(\(\{ path \}\) => \(\{ path: path\.slice\(1\), element: <DemoPage \/> \}\)\)/)
+  const router = (
+    await readFile(new URL('../src/app/router.jsx', import.meta.url), 'utf8')
+  ).replace(/\s+/g, ' ')
+  assert.match(
+    router,
+    /orvexaDemoRoutes\.map\(\(\{ path \}\) => \(\{ path: path\.slice\(1\), element: <DemoPage \/>,? \}\)\)/,
+  )
   const pages = await readFile(new URL('../src/pages/PhasePages.jsx', import.meta.url), 'utf8')
   assert.match(pages, /Template demo · not yet converted/)
 })
@@ -430,7 +606,11 @@ test('MFA code never logs secrets or uses a remote QR service; uqr is pinned', a
     for (const name of await readdir(base)) {
       const source = await readFile(new URL(name, base), 'utf8')
       assert.equal(/console\./.test(source), false, `${dir}${name} logs`)
-      assert.equal(/qrserver|chart\.googleapis|quickchart|qrcode\.|<img/i.test(source), false, `${dir}${name} remote QR`)
+      assert.equal(
+        /qrserver|chart\.googleapis|quickchart|qrcode\.|<img/i.test(source),
+        false,
+        `${dir}${name} remote QR`,
+      )
       assert.equal(/dangerouslySetInnerHTML/.test(source), false, `${dir}${name} raw HTML`)
     }
   }
@@ -441,7 +621,10 @@ test('MFA code never logs secrets or uses a remote QR service; uqr is pinned', a
   const entry = lock.packages['node_modules/uqr']
   assert.equal(entry.version, '0.1.3')
   assert.equal(entry.resolved, 'https://registry.npmjs.org/uqr/-/uqr-0.1.3.tgz')
-  assert.equal(entry.integrity, 'sha512-0rjE8iEJe4YmT9TOhwsZtqCMRLc5DXZUI2UEYUUg63ikBkqqE5EYWaI0etFe/5KUcmcYwLih2RND1kq+hrUJXA==')
+  assert.equal(
+    entry.integrity,
+    'sha512-0rjE8iEJe4YmT9TOhwsZtqCMRLc5DXZUI2UEYUUg63ikBkqqE5EYWaI0etFe/5KUcmcYwLih2RND1kq+hrUJXA==',
+  )
   assert.equal(entry.license, 'MIT')
   assert.equal(entry.dependencies, undefined)
   assert.equal(entry.hasInstallScript, undefined)

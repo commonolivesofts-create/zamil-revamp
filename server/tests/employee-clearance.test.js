@@ -461,6 +461,8 @@ describe('employee clearance API', () => {
     const detail = await get(`/${headerId}`);
     assert.equal(detail.status, 200);
     assert.equal(detail.body.data.empName, 'Test Employee');
+    assert.equal(detail.body.data.purpose, BODY.purpose);
+    assert.equal(detail.body.data.itMatrix.length, 5);
     assert.deepEqual(detail.body.data.sections.employeeDept.items.sort(), [
       'book_manuals',
       'files',

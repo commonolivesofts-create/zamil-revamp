@@ -75,7 +75,7 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
 
   // Runs a change. `operation({ saved })` reports each record the server
   // returns, so a new record keeps its id even if a later call fails.
-  async function perform(operation, { success } = {}) {
+  async function perform(operation, { success, navigateOnCreate = true } = {}) {
     setNotice(null)
     setServerErrors({})
     const snapshot = JSON.stringify(form)
@@ -91,7 +91,7 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
       reject(validation.step)
     }
     if (outcome.status === 'success') setBaseline(snapshot)
-    if (created) {
+    if (created && navigateOnCreate) {
       const message = typeof success === 'function' && outcome.status === 'success' ? success(outcome.value) : success
       navigate(`${basePath}/${created[idKey]}`, { replace: true, state: { step, notice: outcomeFeedback(outcome, message) } })
     }

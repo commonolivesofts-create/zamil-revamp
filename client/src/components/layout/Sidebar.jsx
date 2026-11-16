@@ -379,10 +379,7 @@ export default function Sidebar({
   // Existing flyout state.
   const [flyoutState, setFlyoutState] = useState(null)
   const flyoutAnchor = useRef(null)
-  const sidebarCloseTimer = useRef(null)
   const [hoverOpen, setHoverOpen] = useState(false)
-
-  useEffect(() => () => window.clearTimeout(sidebarCloseTimer.current), [])
 
   const flyout =
     flyoutState?.pathname === pathname &&
@@ -656,24 +653,20 @@ export default function Sidebar({
         aria-label="Primary navigation"
         onPointerEnter={(event) => {
           if (event.pointerType === 'mouse') {
-            window.clearTimeout(sidebarCloseTimer.current)
             setHoverOpen(true)
           }
         }}
         onPointerLeave={(event) => {
           if (isMobile || event.pointerType !== 'mouse') return
           const sidebarNode = event.currentTarget
-          window.clearTimeout(sidebarCloseTimer.current)
-          sidebarCloseTimer.current = window.setTimeout(() => {
-            setHoverOpen(false)
-            closeFlyout(false)
-            setSelection({ pathname, domain: '' })
+          setHoverOpen(false)
+          closeFlyout(false)
+          setSelection({ pathname, domain: '' })
 
-            const focused = document.activeElement
-            if (focused && sidebarNode.contains(focused)) {
-              focused.blur()
-            }
-          }, 650)
+          const focused = document.activeElement
+          if (focused && sidebarNode.contains(focused)) {
+            focused.blur()
+          }
         }}
         aria-hidden={isMobile && !mobileOpen}
         role={

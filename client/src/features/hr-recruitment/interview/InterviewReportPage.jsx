@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router'
+import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { COMMON_TEXT, INSIGHT_TEXT, INTERVIEW_TEXT as T } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
@@ -5,12 +8,26 @@ import { enDate } from '../shared/hrFormat.js'
 import { Pill } from '../shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '../shared/components/InsightReport.jsx'
 import { CreateEmploymentOffer } from './CreateEmploymentOffer.jsx'
-import { Card, Foot, Funnel, HalfGauge, Hero, Hint, Splits } from '../shared/components/InsightCards.jsx'
+import {
+  Card,
+  Foot,
+  Funnel,
+  HalfGauge,
+  Hero,
+  Hint,
+  Splits,
+} from '../shared/components/InsightCards.jsx'
+import { MAX_COMPARE, requisitionOf } from './interviewComparisonModel.js'
 
 const BASE = '/hr/recruitment/interview'
 const R = T.report
 const O = R.overview
-const STATUS_TONE = Object.freeze({ INCOMPLETE: 'warn', INPROCESS: 'warn', APPROVED: 'ok', REJECTED: 'bad' })
+const STATUS_TONE = Object.freeze({
+  INCOMPLETE: 'warn',
+  INPROCESS: 'warn',
+  APPROVED: 'ok',
+  REJECTED: 'bad',
+})
 const OUTCOME_TONE = Object.freeze({ PASSED: 'ok', HOLD: 'amber', FAILED: 'bad' })
 const options = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }))
 const date = (value) => (value ? enDate(value) : COMMON_TEXT.dash)
@@ -19,24 +36,80 @@ const STATUSES = ['Incomplete', 'Inprocess', 'Approved', 'Rejected']
 const OUTCOMES = ['Passed', 'Hold', 'Failed']
 const outcomeLabel = (value) => T.outcomes[value.toUpperCase()]
 
-const INITIAL = Object.freeze({ status: '', search: '', evaluationStatus: '', interviewType: '', division: '', dateFrom: '', dateTo: '' })
+const INITIAL = Object.freeze({
+  status: '',
+  search: '',
+  evaluationStatus: '',
+  interviewType: '',
+  division: '',
+  dateFrom: '',
+  dateTo: '',
+})
 const FIELDS = [
   { key: 'search', label: INSIGHT_TEXT.search, type: 'search', placeholder: R.filters.search },
-  { key: 'evaluationStatus', label: R.filters.outcome, type: 'select', options: OUTCOMES.map((value) => ({ value, label: outcomeLabel(value) })) },
+  {
+    key: 'evaluationStatus',
+    label: R.filters.outcome,
+    type: 'select',
+    options: OUTCOMES.map((value) => ({ value, label: outcomeLabel(value) })),
+  },
   { key: 'interviewType', label: R.filters.type, type: 'select', options: options(R.types) },
   { key: 'division', label: R.filters.division, type: 'select', options: options(R.divisions) },
   { key: 'dateFrom', label: R.filters.from, type: 'date' },
   { key: 'dateTo', label: R.filters.to, type: 'date' },
 ]
 const COLUMNS = [
-  { key: 'number', label: R.columns.number, sort: 'HEADER_ID', render: (row) => row.assessmentNumber || row.assessmentId },
-  { key: 'candidate', label: R.columns.candidate, sort: 'CANDIDATE_NAME', render: (row) => <b>{row.candidateName || COMMON_TEXT.dash}</b> },
-  { key: 'position', label: R.columns.position, render: (row) => row.positionTitle || COMMON_TEXT.dash },
-  { key: 'requisition', label: R.columns.requisition, render: (row) => row.requisitionNo || COMMON_TEXT.dash },
-  { key: 'date', label: R.columns.date, sort: 'INTERVIEW_DATE', render: (row) => date(row.interviewDate) },
-  { key: 'outcome', label: R.columns.outcome, render: (row) => (row.outcome ? <Pill tone={OUTCOME_TONE[row.outcome] === 'amber' ? 'warn' : OUTCOME_TONE[row.outcome]}>{T.outcomes[row.outcome]}</Pill> : COMMON_TEXT.dash) },
-  { key: 'status', label: R.columns.status, render: (row) => <Pill tone={STATUS_TONE[row.status]}>{T.status[row.status]}</Pill> },
-  { key: 'offer', label: 'Actions', export: false, render: (row) => <CreateEmploymentOffer row={row} compact /> },
+  {
+    key: 'number',
+    label: R.columns.number,
+    sort: 'HEADER_ID',
+    render: (row) => row.assessmentNumber || row.assessmentId,
+  },
+  {
+    key: 'candidate',
+    label: R.columns.candidate,
+    sort: 'CANDIDATE_NAME',
+    render: (row) => <b>{row.candidateName || COMMON_TEXT.dash}</b>,
+  },
+  {
+    key: 'position',
+    label: R.columns.position,
+    render: (row) => row.positionTitle || COMMON_TEXT.dash,
+  },
+  {
+    key: 'requisition',
+    label: R.columns.requisition,
+    render: (row) => row.requisitionNo || COMMON_TEXT.dash,
+  },
+  {
+    key: 'date',
+    label: R.columns.date,
+    sort: 'INTERVIEW_DATE',
+    render: (row) => date(row.interviewDate),
+  },
+  {
+    key: 'outcome',
+    label: R.columns.outcome,
+    render: (row) =>
+      row.outcome ? (
+        <Pill tone={OUTCOME_TONE[row.outcome] === 'amber' ? 'warn' : OUTCOME_TONE[row.outcome]}>
+          {T.outcomes[row.outcome]}
+        </Pill>
+      ) : (
+        COMMON_TEXT.dash
+      ),
+  },
+  {
+    key: 'status',
+    label: R.columns.status,
+    render: (row) => <Pill tone={STATUS_TONE[row.status]}>{T.status[row.status]}</Pill>,
+  },
+  {
+    key: 'offer',
+    label: 'Actions',
+    export: false,
+    render: (row) => <CreateEmploymentOffer row={row} compact />,
+  },
 ]
 
 // Overview: how interviews turned out, the share that passed, and how
@@ -46,17 +119,32 @@ const CARDS = [
     key: 'outcomes',
     load: async ({ omit, count }) => {
       const base = omit(['evaluationStatus'])
-      const [all, ...parts] = await Promise.all([count(base), ...OUTCOMES.map((value) => count({ ...base, evaluationStatus: value }))])
+      const [all, ...parts] = await Promise.all([
+        count(base),
+        ...OUTCOMES.map((value) => count({ ...base, evaluationStatus: value })),
+      ])
       return { all, parts }
     },
     render: (data, { pick }) => {
       const rated = data ? data.parts.reduce((sum, value) => sum + value, 0) : 0
       return (
-        <Card index={0} icon="list-checks" label={O.outcomes} theme="mint" aside={<Hint>{data && O.unrated(Math.max(0, data.all - rated))}</Hint>}>
+        <Card
+          index={0}
+          icon="list-checks"
+          label={O.outcomes}
+          theme="mint"
+          aside={<Hint>{data && O.unrated(Math.max(0, data.all - rated))}</Hint>}
+        >
           <Hero value={data?.all} unit={O.total} />
-          <Funnel items={OUTCOMES.map((value, index) => ({
-            key: value, label: outcomeLabel(value), tone: OUTCOME_TONE[value.toUpperCase()], count: data?.parts[index], ...pick({ evaluationStatus: value }),
-          }))} />
+          <Funnel
+            items={OUTCOMES.map((value, index) => ({
+              key: value,
+              label: outcomeLabel(value),
+              tone: OUTCOME_TONE[value.toUpperCase()],
+              count: data?.parts[index],
+              ...pick({ evaluationStatus: value }),
+            }))}
+          />
         </Card>
       )
     },
@@ -65,7 +153,9 @@ const CARDS = [
     key: 'pass',
     load: async ({ omit, count }) => {
       const base = omit(['evaluationStatus'])
-      const parts = await Promise.all(OUTCOMES.map((value) => count({ ...base, evaluationStatus: value })))
+      const parts = await Promise.all(
+        OUTCOMES.map((value) => count({ ...base, evaluationStatus: value })),
+      )
       return { passed: parts[0], rated: parts.reduce((sum, value) => sum + value, 0) }
     },
     render: (data) => (
@@ -81,48 +171,181 @@ const CARDS = [
       const channel = omit(['interviewType'])
       const division = omit(['division'])
       const [personal, online, food, nonFood] = await Promise.all([
-        count({ ...channel, interviewType: 'Personal' }), count({ ...channel, interviewType: 'Online' }),
-        count({ ...division, division: 'Food' }), count({ ...division, division: 'Non-Food' }),
+        count({ ...channel, interviewType: 'Personal' }),
+        count({ ...channel, interviewType: 'Online' }),
+        count({ ...division, division: 'Food' }),
+        count({ ...division, division: 'Non-Food' }),
       ])
       return { personal, online, food, nonFood }
     },
     render: (data, { pick }) => (
       <Card index={2} icon="shuffle" label={O.mix} theme="amber">
-        <Splits rows={[
-          { key: 'channel', title: O.channel, sides: [
-            { key: 'Personal', label: R.types.Personal, icon: 'users', tone: 'mint', count: data?.personal, ...pick({ interviewType: 'Personal' }) },
-            { key: 'Online', label: R.types.Online, icon: 'video', tone: 'amber', count: data?.online, ...pick({ interviewType: 'Online' }) },
-          ] },
-          { key: 'division', title: O.division, sides: [
-            { key: 'Food', label: R.divisions.Food, icon: 'utensils', tone: 'primary', count: data?.food, ...pick({ division: 'Food' }) },
-            { key: 'Non-Food', label: R.divisions['Non-Food'], icon: 'package', tone: 'amber', count: data?.nonFood, ...pick({ division: 'Non-Food' }) },
-          ] },
-        ]} />
+        <Splits
+          rows={[
+            {
+              key: 'channel',
+              title: O.channel,
+              sides: [
+                {
+                  key: 'Personal',
+                  label: R.types.Personal,
+                  icon: 'users',
+                  tone: 'mint',
+                  count: data?.personal,
+                  ...pick({ interviewType: 'Personal' }),
+                },
+                {
+                  key: 'Online',
+                  label: R.types.Online,
+                  icon: 'video',
+                  tone: 'amber',
+                  count: data?.online,
+                  ...pick({ interviewType: 'Online' }),
+                },
+              ],
+            },
+            {
+              key: 'division',
+              title: O.division,
+              sides: [
+                {
+                  key: 'Food',
+                  label: R.divisions.Food,
+                  icon: 'utensils',
+                  tone: 'primary',
+                  count: data?.food,
+                  ...pick({ division: 'Food' }),
+                },
+                {
+                  key: 'Non-Food',
+                  label: R.divisions['Non-Food'],
+                  icon: 'package',
+                  tone: 'amber',
+                  count: data?.nonFood,
+                  ...pick({ division: 'Non-Food' }),
+                },
+              ],
+            },
+          ]}
+        />
       </Card>
     ),
   },
 ]
 const GROUPS = [
-  { key: 'approval', title: R.breakdown.approval, tone: 'primary', items: STATUSES.map((value) => ({ key: value, label: T.status[value.toUpperCase()], patch: { status: value } })) },
+  {
+    key: 'approval',
+    title: R.breakdown.approval,
+    tone: 'primary',
+    items: STATUSES.map((value) => ({
+      key: value,
+      label: T.status[value.toUpperCase()],
+      patch: { status: value },
+    })),
+  },
 ]
 
+// Candidates can only be compared for one position, so a ticked selection is
+// bound to the requisition of its first row and checkboxes for other
+// requisitions are disabled (rather than silently ignored).
+const samePosition = (row, scope) => requisitionOf(row).toLowerCase() === scope.toLowerCase()
+
 // Interview assessment report: HR sees every assessment, others their own;
-// filtered, sorted and paged by the server.
+// filtered, sorted and paged by the server. Rows can also be ticked and
+// compared side by side; the comparison page loads the chosen assessments
+// itself, so it works across filters and pages of the same requisition.
+// Hiring suggestions is its own page, opened from the header.
 export default function InterviewReportPage() {
+  const navigate = useNavigate()
+  const [pick, setPick] = useState({ ids: [], scope: '' })
+  const togglePick = (row) =>
+    setPick((current) => {
+      const id = row.assessmentId
+      if (current.ids.includes(id)) {
+        const ids = current.ids.filter((value) => value !== id)
+        return { ids, scope: ids.length ? current.scope : '' }
+      }
+      if (current.ids.length >= MAX_COMPARE) return current
+      if (current.ids.length && !samePosition(row, current.scope)) return current
+      return { ids: [...current.ids, id], scope: current.scope || requisitionOf(row) }
+    })
+  const blockedReason = (row) => {
+    if (!pick.ids.length || samePosition(row, pick.scope)) return undefined
+    return pick.scope
+      ? `One position at a time — this comparison is for ${pick.scope}.`
+      : 'The selected assessments have no requisition recorded, so another position cannot be added.'
+  }
+  const openComparison = () => {
+    if (pick.ids.length < 2) return
+    const requisition = pick.scope ? `&requisition=${encodeURIComponent(pick.scope)}` : ''
+    navigate(`/hr/recruitment/interview/compare?ids=${pick.ids.join(',')}${requisition}`)
+  }
   return (
-    <InsightReport variant="interview-report" title={R.title} subtitle={R.subtitle} heading={R.heading} resourceKey="hr-interview-report"
-      list={hrRecruitmentServices.interviews.list} create={{ permission: ACTIONS.INTERVIEW_CREATE, path: BASE, label: R.newAssessment }}
-      openLabel={R.detail.open} empty={R.empty} initial={INITIAL} fields={FIELDS} columns={COLUMNS} cards={CARDS} groups={GROUPS}
-      defaultSort={{ key: 'HEADER_ID', order: 'desc' }} numberOf={(row) => row.assessmentNumber || row.assessmentId}
-      rowKey={(row) => row.assessmentId} pathOf={(row) => `${BASE}/${row.assessmentId}`}
+    <InsightReport
+      variant="interview-report"
+      title={R.title}
+      subtitle={R.subtitle}
+      heading={R.heading}
+      resourceKey="hr-interview-report"
+      rowSelection={{
+        selectedKeys: pick.ids,
+        onToggle: togglePick,
+        max: MAX_COMPARE,
+        label: (row) => row.candidateName || row.assessmentNumber,
+        disabled: blockedReason,
+      }}
+      tableTools={
+        <>
+          <span className="zrv-ir-tabletools__count">
+            {pick.ids.length
+              ? `${pick.ids.length} of ${MAX_COMPARE} selected${pick.scope ? ` · ${pick.scope}` : ''}`
+              : 'Tick assessments to compare — one position at a time'}
+          </span>
+          <button
+            type="button"
+            className="zrv-ir-btn"
+            onClick={openComparison}
+            disabled={pick.ids.length < 2}
+          >
+            <OrvexaIcon name="columns-2" size={13} />
+            Compare{pick.ids.length ? ` ${pick.ids.length}` : ''}
+          </button>
+          {pick.ids.length > 0 && (
+            <button
+              type="button"
+              className="zrv-ir-btn"
+              onClick={() => setPick({ ids: [], scope: '' })}
+            >
+              Clear
+            </button>
+          )}
+        </>
+      }
+      list={hrRecruitmentServices.interviews.list}
+      create={{ permission: ACTIONS.INTERVIEW_CREATE, path: BASE, label: R.newAssessment }}
+      openLabel={R.detail.open}
+      empty={R.empty}
+      initial={INITIAL}
+      fields={FIELDS}
+      columns={COLUMNS}
+      cards={CARDS}
+      groups={GROUPS}
+      headerLink={{ to: `${BASE}/suggestions`, label: 'Hiring suggestions', icon: 'badge-check' }}
+      defaultSort={{ key: 'HEADER_ID', order: 'desc' }}
+      numberOf={(row) => row.assessmentNumber || row.assessmentId}
+      rowKey={(row) => row.assessmentId}
+      pathOf={(row) => `${BASE}/${row.assessmentId}`}
       renderDetail={(row) => <CreateEmploymentOffer row={row} />}
       summary={(row) => ({
         heading: row.candidateName,
         pill: <Pill tone={STATUS_TONE[row.status]}>{T.status[row.status]}</Pill>,
         facts: [
-          [R.columns.position, row.positionTitle], [R.columns.requisition, row.requisitionNo],
-          [R.columns.date, date(row.interviewDate)], [R.columns.outcome, T.outcomes[row.outcome]],
+          [R.columns.position, row.positionTitle],
+          [R.columns.requisition, row.requisitionNo],
+          [R.columns.date, date(row.interviewDate)],
+          [R.columns.outcome, T.outcomes[row.outcome]],
         ],
-      })} />
+      })}
+    />
   )
 }

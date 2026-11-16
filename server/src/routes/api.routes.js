@@ -94,6 +94,8 @@ import { createWarningLetterService } from '../modules/hr/warning-letters/warnin
 
 import { createWorkflowManagerRouter } from '../modules/workflow-manager/workflowManager.routes.js';
 import { createWorkflowManagerService } from '../modules/workflow-manager/workflowManager.service.js';
+import { createSourceMappingService } from '../modules/workflow-manager/sourceMapping.service.js';
+import { createDictionaryService } from '../modules/workflow-manager/mapping/dictionary.service.js';
 
 /**
  * Versioned business API (/api/v1). `deps` lets tests substitute repositories and the
@@ -588,7 +590,8 @@ export function createApiRouter(appConfig, deps = {}) {
     }),
   );
 
-  // Workflow Manager M1: Form Registry and Data Source Registry (configuration only).
+  // Workflow Manager M1 (Form Registry, Data Source Registry) and M2-A (source version mapping):
+  // configuration only. Dictionary reads run READ ONLY on their own LOW-pool connections.
   router.use(
     '/workflow-manager',
     createWorkflowManagerRouter({
@@ -597,6 +600,15 @@ export function createApiRouter(appConfig, deps = {}) {
         withConnection: db.withConnection,
         withTransaction: db.withTransaction,
         holds: (userId, permission) => authorizationService.holds(userId, permission),
+      }),
+      sourceMappingService: createSourceMappingService({
+        repository: deps.sourceMappingRepository,
+        registryRepository: deps.workflowManagerRepository,
+        dictionaryService:
+          deps.workflowDictionaryService ??
+          createDictionaryService({ withConnection: db.withConnection }),
+        withConnection: db.withConnection,
+        withTransaction: db.withTransaction,
       }),
       authenticate,
       authorize,

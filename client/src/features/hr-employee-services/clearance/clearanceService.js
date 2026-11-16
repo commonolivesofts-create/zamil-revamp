@@ -11,6 +11,33 @@ import {
 import { SECTIONS } from './clearanceModel.js'
 
 export const CLEARANCE_BASE = '/hr/employee-clearance'
+const SAVE_TIMEOUT_MS = 60_000
+
+function savedRecord(form, response, existingRecord) {
+  if (!ID.test(String(response?.headerId ?? ''))) throw invalidResponse('employee clearance request')
+  const body = clearanceBody(form)
+  const employee = form.employee
+  return readClearanceRecord({
+    headerId: String(response.headerId),
+    referenceNo: response.referenceNo ?? existingRecord?.referenceNo,
+    status: response.status ?? existingRecord?.status ?? 'Draft',
+    empNo: body.employee.empNo,
+    empName: employee.name,
+    jobTitle: employee.jobTitle ?? employee.position,
+    department: employee.departmentName ?? employee.section,
+    division: employee.division,
+    contact: body.contact,
+    purpose: body.purpose,
+    vacationFrom: body.vacationFrom,
+    vacationTo: body.vacationTo,
+    departmentManager: body.departmentManager,
+    itManager: body.itManager,
+    computerReceivedBy: body.computerReceivedBy,
+    computerSignature: body.computerSignature,
+    itMatrix: body.itMatrix,
+    sections: body.sections,
+  })
+}
 
 export function createClearanceService({ client }) {
   const getById = async (id, { signal } = {}) => readClearanceRecord((await client.get(`${CLEARANCE_BASE}/${segment(id)}`, { signal })).data)
@@ -63,15 +90,16 @@ export function createClearanceService({ client }) {
       return readClearancePage(data)
     },
     getById,
-    // Creates or updates, then returns the reloaded record.
-    async save(id, form) {
+    // Clearance writes multiple related rows; allow more time than the generic
+    // API timeout, but never make confirmation depend on a follow-up GET.
+    async save(id, form, existingRecord = null) {
+      const body = clearanceBody(form)
       if (!id) {
-        const { data } = await client.post(CLEARANCE_BASE, clearanceBody(form))
-        if (!ID.test(String(data?.headerId ?? ''))) throw invalidResponse('employee clearance request')
-        return getById(String(data.headerId))
+        const { data } = await client.post(CLEARANCE_BASE, body, { timeout: SAVE_TIMEOUT_MS })
+        return savedRecord(form, data, null)
       }
-      await client.put(`${CLEARANCE_BASE}/${segment(id)}`, clearanceBody(form))
-      return getById(id)
+      const { data } = await client.put(`${CLEARANCE_BASE}/${segment(id)}`, body, { timeout: SAVE_TIMEOUT_MS })
+      return savedRecord(form, { headerId: id, ...data }, existingRecord)
     },
   })
 }
