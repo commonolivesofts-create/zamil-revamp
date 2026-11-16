@@ -1,0 +1,4 @@
+dist
+coverage
+public/orvexa/assets/vendor
+package-lock.json
