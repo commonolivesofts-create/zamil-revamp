@@ -1,0 +1,145 @@
+/* Shared report table treatment for HR reports and administration directories. */
+.zrv-report-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.zrv-report-table th {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 92%, var(--surface-solid));
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: left;
+  white-space: normal;
+}
+
+.zrv-report-table th button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.zrv-report-table th button:hover,
+.zrv-report-table th[aria-sort="ascending"] button,
+.zrv-report-table th[aria-sort="descending"] button {
+  color: var(--text);
+}
+
+.zrv-report-table th button svg { flex: 0 0 auto; }
+.zrv-report-table th button > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.zrv-report-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  transition: background 0.2s;
+}
+
+.zrv-report-table tbody tr {
+  --report-row: var(--mint);
+}
+
+.zrv-report-table tbody tr:nth-child(3n + 2) { --report-row: var(--amber); }
+.zrv-report-table tbody tr:nth-child(3n) { --report-row: var(--primary); }
+
+.zrv-report-table tbody td {
+  background: color-mix(in srgb, var(--report-row) 7%, transparent);
+}
+
+.zrv-report-table tbody td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--report-row) 55%, transparent);
+}
+
+.zrv-report-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--report-row) 14%, transparent);
+}
+
+.zrv-report-table tbody tr:last-child td { border-bottom: 0; }
+
+.zrv-report-table td b {
+  display: block;
+  font-weight: 650;
+}
+
+.zrv-report-table td small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.zrv-report-table :is(button, a) {
+  max-width: 100%;
+}
+
+/* Compact account directories share the same responsive 7-column layout. */
+.zrv-directory-report-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.zrv-directory-report-table th,
+.zrv-directory-report-table td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.zrv-directory-report-table th:nth-child(1),
+.zrv-directory-report-table td:nth-child(1) { width: 22%; }
+.zrv-directory-report-table th:nth-child(2),
+.zrv-directory-report-table td:nth-child(2) { width: 14%; }
+.zrv-directory-report-table th:nth-child(3),
+.zrv-directory-report-table td:nth-child(3) { width: 24%; }
+.zrv-directory-report-table th:nth-child(4),
+.zrv-directory-report-table td:nth-child(4) { width: 10%; }
+.zrv-directory-report-table th:nth-child(5),
+.zrv-directory-report-table td:nth-child(5) { width: 12%; }
+.zrv-directory-report-table th:nth-child(6),
+.zrv-directory-report-table td:nth-child(6) { width: 12%; }
+.zrv-directory-report-table th:nth-child(7),
+.zrv-directory-report-table td:nth-child(7) { width: 6%; }
+.zrv-directory-report-table .zrv-admin-link { white-space: normal; }
+
+@media (max-width: 650px) {
+  .zrv-directory-report-table th:nth-child(3),
+  .zrv-directory-report-table td:nth-child(3),
+  .zrv-directory-report-table th:nth-child(5),
+  .zrv-directory-report-table td:nth-child(5),
+  .zrv-directory-report-table th:nth-child(6),
+  .zrv-directory-report-table td:nth-child(6) {
+    display: none;
+  }
+
+  .zrv-directory-report-table th:nth-child(1),
+  .zrv-directory-report-table td:nth-child(1) { width: 36%; }
+  .zrv-directory-report-table th:nth-child(2),
+  .zrv-directory-report-table td:nth-child(2) { width: 28%; }
+  .zrv-directory-report-table th:nth-child(4),
+  .zrv-directory-report-table td:nth-child(4) { width: 22%; }
+  .zrv-directory-report-table th:nth-child(7),
+  .zrv-directory-report-table td:nth-child(7) { width: 14%; }
+
+  .zrv-directory-report-table th,
+  .zrv-directory-report-table td { padding: 7px 6px; }
+}
