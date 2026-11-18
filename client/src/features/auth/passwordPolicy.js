@@ -16,21 +16,38 @@ export const passwordLength = (password) => [...password].length
 // Rule codes are the backend's PASSWORD_POLICY_VIOLATION detail messages.
 export function policyRules(policy) {
   const rules = [
-    { code: 'MIN_LENGTH', label: `At least ${policy.minLength} characters`, met: (p) => passwordLength(p) >= policy.minLength },
-    { code: 'MAX_LENGTH', label: `No more than ${policy.maxLength} characters`, met: (p) => passwordLength(p) <= policy.maxLength },
+    {
+      code: 'MIN_LENGTH',
+      label: `At least ${policy.minLength} characters`,
+      met: (p) => passwordLength(p) >= policy.minLength,
+    },
+    {
+      code: 'MAX_LENGTH',
+      label: `No more than ${policy.maxLength} characters`,
+      met: (p) => passwordLength(p) <= policy.maxLength,
+    },
   ]
-  if (policy.requireUppercase) rules.push({ code: 'UPPERCASE', label: 'An uppercase letter', met: (p) => UPPERCASE.test(p) })
-  if (policy.requireLowercase) rules.push({ code: 'LOWERCASE', label: 'A lowercase letter', met: (p) => LOWERCASE.test(p) })
-  if (policy.requireDigit) rules.push({ code: 'DIGIT', label: 'A number', met: (p) => DIGIT.test(p) })
+  if (policy.requireUppercase)
+    rules.push({ code: 'UPPERCASE', label: 'An uppercase letter', met: (p) => UPPERCASE.test(p) })
+  if (policy.requireLowercase)
+    rules.push({ code: 'LOWERCASE', label: 'A lowercase letter', met: (p) => LOWERCASE.test(p) })
+  if (policy.requireDigit)
+    rules.push({ code: 'DIGIT', label: 'A number', met: (p) => DIGIT.test(p) })
   if (policy.requireSpecialCharacter) {
-    rules.push({ code: 'SPECIAL_CHARACTER', label: 'A symbol or space (not a letter or number)', met: (p) => SPECIAL.test(p) })
+    rules.push({
+      code: 'SPECIAL_CHARACTER',
+      label: 'A symbol or space (not a letter or number)',
+      met: (p) => SPECIAL.test(p),
+    })
   }
   return rules
 }
 
 // Unmet rule codes; empty when the password satisfies the policy locally.
 export function unmetPolicyRules(password, policy) {
-  return policyRules(policy).filter((rule) => !rule.met(password)).map((rule) => rule.code)
+  return policyRules(policy)
+    .filter((rule) => !rule.met(password))
+    .map((rule) => rule.code)
 }
 
 const ruleText = {
@@ -60,7 +77,8 @@ export function validateNewPassword({ newPassword, confirmPassword }, policy) {
     if (unmet.length) errors.newPassword = describeUnmetRules(unmet)
   }
   if (!confirmPassword) errors.confirmPassword = 'Confirm the new password.'
-  else if (newPassword && confirmPassword !== newPassword) errors.confirmPassword = 'The passwords do not match.'
+  else if (newPassword && confirmPassword !== newPassword)
+    errors.confirmPassword = 'The passwords do not match.'
   return errors
 }
 

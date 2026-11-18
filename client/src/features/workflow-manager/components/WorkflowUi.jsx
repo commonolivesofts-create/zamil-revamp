@@ -1,4 +1,8 @@
-import { ActiveBadge, Badge, ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
+import {
+  ActiveBadge,
+  Badge,
+  ConfirmDialog,
+} from '@/features/security-administration/components/AdminUi.jsx'
 import { formatInstant } from '@/features/security-administration/adminFeedback.js'
 import { LIFECYCLE_TONES } from '../workflowManagerModel.js'
 import '@/styles/workflow-manager.css'
@@ -19,9 +23,11 @@ export function ActivationDialog({ item, entity, label, pending, feedback, onCon
       feedback={feedback}
       onClose={onClose}
       onConfirm={onConfirm}
-      description={activating
-        ? `The ${entity} becomes available again for workflow configuration.`
-        : `The ${entity} stays registered with its history, but cannot be chosen for new workflow configuration until it is activated again. Nothing is deleted.`}
+      description={
+        activating
+          ? `The ${entity} becomes available again for workflow configuration.`
+          : `The ${entity} stays registered with its history, but cannot be chosen for new workflow configuration until it is activated again. Nothing is deleted.`
+      }
     />
   )
 }
@@ -29,7 +35,11 @@ export function ActivationDialog({ item, entity, label, pending, feedback, onCon
 // Read-only version metadata (versions are created by the mapping package, M2).
 export function VersionTable({ versions, caption, sourceColumn = false }) {
   if (!versions.length) {
-    return <p className="zrv-admin-state" role="status">No versions yet. Versions are created when the mapping for this record is configured.</p>
+    return (
+      <p className="zrv-admin-state" role="status">
+        No versions yet. Versions are created when the mapping for this record is configured.
+      </p>
+    )
   }
   return (
     <div className="ux-table-wrap">
@@ -48,12 +58,28 @@ export function VersionTable({ versions, caption, sourceColumn = false }) {
         <tbody>
           {versions.map((version) => (
             <tr key={version.formVersionId ?? version.sourceVersionId}>
-              <td><b>v{version.versionNo}</b>{version.isDefault && <Badge tone="good">DEFAULT</Badge>}</td>
-              <td><Badge tone={LIFECYCLE_TONES[version.lifecycleState]}>{version.lifecycleState}</Badge></td>
-              {sourceColumn && <td><span className="zwf-code">{version.headerSource.sourceCode}</span><small className="zrv-admin-sub">version {version.headerSource.versionNo}</small></td>}
+              <td>
+                <b>v{version.versionNo}</b>
+                {version.isDefault && <Badge tone="good">DEFAULT</Badge>}
+              </td>
+              <td>
+                <Badge tone={LIFECYCLE_TONES[version.lifecycleState]}>
+                  {version.lifecycleState}
+                </Badge>
+              </td>
+              {sourceColumn && (
+                <td>
+                  <span className="zwf-code">{version.headerSource.sourceCode}</span>
+                  <small className="zrv-admin-sub">version {version.headerSource.versionNo}</small>
+                </td>
+              )}
               <td>{formatInstant(version.publishedAt)}</td>
               <td>{formatInstant(version.updatedAt)}</td>
-              <td><span className="zwf-code" title={version.configSha256}>{version.configSha256.slice(0, 12)}…</span></td>
+              <td>
+                <span className="zwf-code" title={version.configSha256}>
+                  {version.configSha256.slice(0, 12)}…
+                </span>
+              </td>
             </tr>
           ))}
         </tbody>

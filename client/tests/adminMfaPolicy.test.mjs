@@ -3,7 +3,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
-import { authorizedNavigation, appRoutes, PERMISSIONS, routeAccess } from '../src/config/appNavigation.js'
+import {
+  authorizedNavigation,
+  appRoutes,
+  PERMISSIONS,
+  routeAccess,
+} from '../src/config/appNavigation.js'
 import { readMyPermissions } from '../src/features/access/permissionContract.js'
 import { createPermissionStore } from '../src/features/access/permissionStore.js'
 import { authUser, deferred } from './helpers/http.mjs'
@@ -13,9 +18,21 @@ const usersRoute = appRoutes.find((route) => route.id === 'user-accounts')
 const grant = (key) => {
   const [moduleCode, rest] = key.split('.')
   const [resourceCode, actionCode] = rest.split(':')
-  return { permissionId: '1', moduleCode, resourceCode, actionCode, viaRole: true, viaOverride: false }
+  return {
+    permissionId: '1',
+    moduleCode,
+    resourceCode,
+    actionCode,
+    viaRole: true,
+    viaOverride: false,
+  }
 }
-const response = (overrides = {}) => ({ userId: authUser.id, mfaVerified: false, permissions: [grant(PERMISSIONS.USER_ACCOUNTS_VIEW)], ...overrides })
+const response = (overrides = {}) => ({
+  userId: authUser.id,
+  mfaVerified: false,
+  permissions: [grant(PERMISSIONS.USER_ACCOUNTS_VIEW)],
+  ...overrides,
+})
 const ready = (keys, { mfaVerified = false, adminMfaRequired } = {}) => {
   const set = new Set(keys)
   return { status: 'ready', mfaVerified, adminMfaRequired, has: (key) => set.has(key) }
@@ -26,9 +43,17 @@ test('the permission contract keeps the backend flag and treats a missing flag a
   assert.equal(readMyPermissions(response({ adminMfaRequired: true })).adminMfaRequired, true)
   assert.equal(readMyPermissions(response()).adminMfaRequired, true, 'older backend: fail safe')
   for (const value of ['false', 0, null, {}]) {
-    assert.throws(() => readMyPermissions(response({ adminMfaRequired: value })), { code: 'INVALID_RESPONSE' }, String(value))
+    assert.throws(
+      () => readMyPermissions(response({ adminMfaRequired: value })),
+      { code: 'INVALID_RESPONSE' },
+      String(value),
+    )
   }
-  assert.equal(readMyPermissions(response({ adminMfaRequired: false })).mfaVerified, false, 'never turned into a verification')
+  assert.equal(
+    readMyPermissions(response({ adminMfaRequired: false })).mfaVerified,
+    false,
+    'never turned into a verification',
+  )
 })
 
 test('the permission store exposes the flag only for the loaded user', async () => {
@@ -49,34 +74,70 @@ test('route access waives only the MFA condition, and only when the server repor
   assert.equal(routeAccess(usersRoute, ready(keys, { adminMfaRequired: false })), 'allowed')
   assert.equal(routeAccess(usersRoute, ready(keys, { adminMfaRequired: true })), 'mfa_required')
   assert.equal(routeAccess(usersRoute, ready(keys)), 'mfa_required', 'unknown flag: MFA required')
-  assert.equal(routeAccess(usersRoute, ready(keys, { mfaVerified: true, adminMfaRequired: true })), 'allowed')
-  assert.equal(routeAccess(usersRoute, ready([], { adminMfaRequired: false })), 'denied', 'permission still required')
-  assert.equal(routeAccess(usersRoute, { status: 'loading', adminMfaRequired: false, has: () => false }), 'pending')
+  assert.equal(
+    routeAccess(usersRoute, ready(keys, { mfaVerified: true, adminMfaRequired: true })),
+    'allowed',
+  )
+  assert.equal(
+    routeAccess(usersRoute, ready([], { adminMfaRequired: false })),
+    'denied',
+    'permission still required',
+  )
+  assert.equal(
+    routeAccess(usersRoute, { status: 'loading', adminMfaRequired: false, has: () => false }),
+    'pending',
+  )
 })
 
 test('navigation lists authorized security pages under the exception, nothing more', () => {
-  const security = (access) => authorizedNavigation(access).find((section) => section.id === 'security')?.items.map((item) => item.id) ?? []
-  assert.deepEqual(security(ready([PERMISSIONS.USER_ACCOUNTS_VIEW], { adminMfaRequired: false })), ['user-accounts'])
-  assert.deepEqual(security(ready([PERMISSIONS.USER_ACCOUNTS_VIEW], { adminMfaRequired: true })), [])
-  assert.deepEqual(security(ready(['PRODUCTION.WORK_ORDERS:VIEW'], { adminMfaRequired: false })), [])
+  const security = (access) =>
+    authorizedNavigation(access)
+      .find((section) => section.id === 'security')
+      ?.items.map((item) => item.id) ?? []
+  assert.deepEqual(security(ready([PERMISSIONS.USER_ACCOUNTS_VIEW], { adminMfaRequired: false })), [
+    'user-accounts',
+  ])
+  assert.deepEqual(
+    security(ready([PERMISSIONS.USER_ACCOUNTS_VIEW], { adminMfaRequired: true })),
+    [],
+  )
+  assert.deepEqual(
+    security(ready(['PRODUCTION.WORK_ORDERS:VIEW'], { adminMfaRequired: false })),
+    [],
+  )
 })
 
 test('the dashboard no longer renders deferred account/security sections', async () => {
   const dashboard = await read('../src/features/dashboard/DashboardPage.jsx')
   assert.equal(/needsMfa|mfaWaived|DashboardLegacySections/.test(dashboard), false)
-  await assert.rejects(read('../src/features/dashboard/DashboardLegacySections.jsx'), { code: 'ENOENT' })
+  await assert.rejects(read('../src/features/dashboard/DashboardLegacySections.jsx'), {
+    code: 'ENOENT',
+  })
 })
 
 test('there is no frontend MFA bypass setting', async () => {
   const example = await read('../.env.example')
-  assert.equal(/MFA/i.test(example.replace(/^#.*$/gm, '')), false, 'no MFA variable in the frontend environment')
-  const walk = async (dir) => (await Promise.all((await readdir(dir, { withFileTypes: true })).map((entry) => {
-    const url = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir)
-    return entry.isDirectory() ? walk(url) : [url]
-  }))).flat()
+  assert.equal(
+    /MFA/i.test(example.replace(/^#.*$/gm, '')),
+    false,
+    'no MFA variable in the frontend environment',
+  )
+  const walk = async (dir) =>
+    (
+      await Promise.all(
+        (await readdir(dir, { withFileTypes: true })).map((entry) => {
+          const url = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir)
+          return entry.isDirectory() ? walk(url) : [url]
+        }),
+      )
+    ).flat()
   for (const file of await walk(new URL('../src/', import.meta.url))) {
     const source = await readFile(file, 'utf8')
     // Comments may mention the backend variable; code must not read any MFA setting itself.
-    assert.equal(/VITE_[A-Z_]*MFA|import\.meta\.env\.[A-Z_]*MFA|env\.AUTH_ADMIN_MFA/.test(source), false, file.pathname)
+    assert.equal(
+      /VITE_[A-Z_]*MFA|import\.meta\.env\.[A-Z_]*MFA|env\.AUTH_ADMIN_MFA/.test(source),
+      false,
+      file.pathname,
+    )
   }
 })

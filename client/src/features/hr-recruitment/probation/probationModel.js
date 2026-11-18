@@ -47,7 +47,14 @@ export function evaluationTotals(criteria, scores) {
   const scored = criteria.filter((criterion) => isScored(scores[criterion.code])).length
   const complete = criteria.length > 0 && scored === criteria.length
   const percent = allocated ? Math.round((total / allocated) * 100) : 0
-  return { total, allocated, scored, complete, percent, acceptable: complete && percent >= PASS_MARK }
+  return {
+    total,
+    allocated,
+    scored,
+    complete,
+    percent,
+    acceptable: complete && percent >= PASS_MARK,
+  }
 }
 
 export const resultFor = (percent) => (percent >= PASS_MARK ? 'ACCEPTABLE' : 'NOT_ACCEPTABLE')
@@ -88,8 +95,21 @@ export function probationElapsed(joiningDate, endDate, today) {
 
 export function blankProbation() {
   return {
-    formTypeCode: '', employeeId: '', fromDate: '', toDate: '', scores: {}, notes: {}, strengths: '', improvements: '', training: '',
-    recommendation: '', extendBy: '', justification: '', comments: '', suggestion: '', signatures: { evaluator: null, employee: null },
+    formTypeCode: '',
+    employeeId: '',
+    fromDate: '',
+    toDate: '',
+    scores: {},
+    notes: {},
+    strengths: '',
+    improvements: '',
+    training: '',
+    recommendation: '',
+    extendBy: '',
+    justification: '',
+    comments: '',
+    suggestion: '',
+    signatures: { evaluator: null, employee: null },
   }
 }
 
@@ -121,13 +141,20 @@ export function validateProbation(form, { employee, criteria }) {
   if (!form.fromDate) errors.fromDate = text.from
   if (!form.toDate) errors.toDate = text.to
   if (form.fromDate && form.toDate && form.toDate < form.fromDate) errors.toDate = text.toBeforeFrom
-  if (employee && form.fromDate && form.fromDate < employee.startDate) errors.fromDate = text.beforeJoining
+  if (employee && form.fromDate && form.fromDate < employee.startDate)
+    errors.fromDate = text.beforeJoining
   for (const criterion of criteria) {
-    if (!isScored(form.scores[criterion.code])) errors[`criterion:${criterion.code}`] = text.criterion
+    if (!isScored(form.scores[criterion.code]))
+      errors[`criterion:${criterion.code}`] = text.criterion
   }
-  const stepOf = (key) => (['formTypeCode', 'employeeId', 'fromDate', 'toDate'].includes(key) ? 0 : 1)
+  const stepOf = (key) =>
+    ['formTypeCode', 'employeeId', 'fromDate', 'toDate'].includes(key) ? 0 : 1
   const keys = Object.keys(errors)
-  return { errors, firstStep: keys.length ? Math.min(...keys.map(stepOf)) : -1, valid: keys.length === 0 }
+  return {
+    errors,
+    firstStep: keys.length ? Math.min(...keys.map(stepOf)) : -1,
+    valid: keys.length === 0,
+  }
 }
 
 export function probationPayload(form) {
@@ -136,21 +163,48 @@ export function probationPayload(form) {
     employeeId: form.employeeId || null,
     fromDate: form.fromDate || null,
     toDate: form.toDate || null,
-    scores: Object.fromEntries(Object.entries(form.scores).filter(([, value]) => isScored(value)).map(([code, value]) => [code, Number(value)])),
-    notes: Object.fromEntries(Object.entries(form.notes).map(([code, note]) => [code, note.trim()]).filter(([, note]) => note)),
-    strengths: form.strengths.trim(), improvements: form.improvements.trim(), training: form.training.trim(),
+    scores: Object.fromEntries(
+      Object.entries(form.scores)
+        .filter(([, value]) => isScored(value))
+        .map(([code, value]) => [code, Number(value)]),
+    ),
+    notes: Object.fromEntries(
+      Object.entries(form.notes)
+        .map(([code, note]) => [code, note.trim()])
+        .filter(([, note]) => note),
+    ),
+    strengths: form.strengths.trim(),
+    improvements: form.improvements.trim(),
+    training: form.training.trim(),
     recommendation: form.recommendation || null,
-    extendByMonths: form.recommendation === 'EXTEND' && form.extendBy ? Number(form.extendBy) : null,
-    justification: form.justification.trim(), comments: form.comments.trim(), suggestion: form.suggestion.trim(),
-    signatures: { evaluator: form.signatures.evaluator ?? null, employee: form.signatures.employee ?? null },
+    extendByMonths:
+      form.recommendation === 'EXTEND' && form.extendBy ? Number(form.extendBy) : null,
+    justification: form.justification.trim(),
+    comments: form.comments.trim(),
+    suggestion: form.suggestion.trim(),
+    signatures: {
+      evaluator: form.signatures.evaluator ?? null,
+      employee: form.signatures.employee ?? null,
+    },
   }
 }
 
 export function probationFormFromRecord(record) {
   return {
-    formTypeCode: record.formTypeCode ?? '', employeeId: record.employee.employeeId, fromDate: record.fromDate ?? '', toDate: record.toDate ?? '',
-    scores: { ...record.scores }, notes: { ...record.notes }, strengths: record.strengths, improvements: record.improvements, training: record.training,
-    recommendation: record.recommendation ?? '', extendBy: record.extendByMonths ? String(record.extendByMonths) : '', justification: record.justification,
-    comments: record.comments, suggestion: record.suggestion, signatures: { ...record.signatures },
+    formTypeCode: record.formTypeCode ?? '',
+    employeeId: record.employee.employeeId,
+    fromDate: record.fromDate ?? '',
+    toDate: record.toDate ?? '',
+    scores: { ...record.scores },
+    notes: { ...record.notes },
+    strengths: record.strengths,
+    improvements: record.improvements,
+    training: record.training,
+    recommendation: record.recommendation ?? '',
+    extendBy: record.extendByMonths ? String(record.extendByMonths) : '',
+    justification: record.justification,
+    comments: record.comments,
+    suggestion: record.suggestion,
+    signatures: { ...record.signatures },
   }
 }

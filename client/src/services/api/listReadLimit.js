@@ -18,25 +18,26 @@ export function createListReadLimit(limit = 4) {
       })
     }
   }
-  return (operation, signal) => new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
-      return
-    }
-    const entry = { signal, resolve, reject, cancel: null }
-    entry.cancel = () => {
-      const index = queue.indexOf(entry)
-      if (index !== -1) queue.splice(index, 1)
-      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
-    }
-    signal?.addEventListener('abort', entry.cancel, { once: true })
-    queue.push(entry)
-    drain()
-  }).then(async (release) => {
-    try {
-      return await operation()
-    } finally {
-      release()
-    }
-  })
+  return (operation, signal) =>
+    new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+        return
+      }
+      const entry = { signal, resolve, reject, cancel: null }
+      entry.cancel = () => {
+        const index = queue.indexOf(entry)
+        if (index !== -1) queue.splice(index, 1)
+        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+      }
+      signal?.addEventListener('abort', entry.cancel, { once: true })
+      queue.push(entry)
+      drain()
+    }).then(async (release) => {
+      try {
+        return await operation()
+      } finally {
+        release()
+      }
+    })
 }

@@ -73,16 +73,37 @@ export default function SignaturePad({ id, label, hint, clearLabel, value, onCha
   }
 
   return (
-    <div className={`zrv-hr-sign__pad zrv-hr-es-pad${disabled ? ' zrv-hr-is-locked' : ''}${hasImage && !redrawing ? ' zrv-hr-is-signed' : ''}`}>
+    <div
+      className={`zrv-hr-sign__pad zrv-hr-es-pad${disabled ? ' zrv-hr-is-locked' : ''}${hasImage && !redrawing ? ' zrv-hr-is-signed' : ''}`}
+    >
       {showCanvas ? (
-        <canvas id={id} ref={canvasRef} className="zrv-hr-es-pad__canvas" role="img" aria-label={label}
-          onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onPointerLeave={finish} />
+        <canvas
+          id={id}
+          ref={canvasRef}
+          className="zrv-hr-es-pad__canvas"
+          role="img"
+          aria-label={label}
+          onPointerDown={start}
+          onPointerMove={move}
+          onPointerUp={finish}
+          onPointerCancel={finish}
+          onPointerLeave={finish}
+        />
       ) : (
         <img id={id} className="zrv-hr-es-pad__img" src={value} alt={label} />
       )}
-      {showCanvas && !touched && !disabled && <span className="zrv-hr-es-pad__hint" aria-hidden="true">{hint}</span>}
+      {showCanvas && !touched && !disabled && (
+        <span className="zrv-hr-es-pad__hint" aria-hidden="true">
+          {hint}
+        </span>
+      )}
       {!disabled && (
-        <button type="button" className="zrv-hr-es-pad__clear" onClick={clear} disabled={(showCanvas && !touched && !hasImage)}>
+        <button
+          type="button"
+          className="zrv-hr-es-pad__clear"
+          onClick={clear}
+          disabled={showCanvas && !touched && !hasImage}
+        >
           <OrvexaIcon name="eraser" size={14} /> {clearLabel}
         </button>
       )}

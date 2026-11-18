@@ -1,16 +1,16 @@
-import { useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
-import ProfileAvatar from "@/components/profile/ProfileAvatar.jsx";
-import useAuth from "@/features/auth/useAuth.js";
-import { appConfig } from "@/config/appConfig.js";
-import DashboardMeta from "@/features/dashboard/components/DashboardMeta.jsx";
-import FolioBook from "@/features/dashboard/components/FolioBook.jsx";
-import EmployeeSpotlightFireworks from "@/features/dashboard/components/EmployeeSpotlightFireworks.jsx";
-import { useResource } from "@/features/security-administration/useAdminData.js";
-import { rewardService } from "@/features/hr-employee-services/reward/rewardService.js";
-import { enDate } from "@/features/hr-recruitment/shared/hrFormat.js";
-import { ConfirmDialog } from "@/features/security-administration/components/AdminUi.jsx";
+import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import ProfileAvatar from '@/components/profile/ProfileAvatar.jsx'
+import useAuth from '@/features/auth/useAuth.js'
+import { appConfig } from '@/config/appConfig.js'
+import DashboardMeta from '@/features/dashboard/components/DashboardMeta.jsx'
+import FolioBook from '@/features/dashboard/components/FolioBook.jsx'
+import EmployeeSpotlightFireworks from '@/features/dashboard/components/EmployeeSpotlightFireworks.jsx'
+import { useResource } from '@/features/security-administration/useAdminData.js'
+import { rewardService } from '@/features/hr-employee-services/reward/rewardService.js'
+import { enDate } from '@/features/hr-recruitment/shared/hrFormat.js'
+import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
 import {
   ATTENTION_ITEMS,
   FOOTER_COUNTS,
@@ -18,41 +18,41 @@ import {
   QUICK_DEFINITIONS,
   displayName,
   formatDateLabel,
-} from "@/features/dashboard/dashboardExperience.js";
+} from '@/features/dashboard/dashboardExperience.js'
 
 function NameTyping({ name }) {
-  const steps = Math.max(4, name.length);
+  const steps = Math.max(4, name.length)
   return (
-    <span className="name-typewrap is-typing" aria-hidden="true" style={{ "--name-steps": steps }}>
+    <span className="name-typewrap is-typing" aria-hidden="true" style={{ '--name-steps': steps }}>
       <span className="name-typeghost">{name}</span>
       <span className="name-typeink" style={{ animationTimingFunction: `steps(${steps}, end)` }}>
         {name}
       </span>
     </span>
-  );
+  )
 }
 
 const EMPLOYEE_SHARE_LINKS = [
   {
-    name: "LinkedIn",
-    className: "linkedin",
+    name: 'LinkedIn',
+    className: 'linkedin',
     href: (url) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
   },
   {
-    name: "Facebook",
-    className: "facebook",
+    name: 'Facebook',
+    className: 'facebook',
     href: (url) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
   },
   {
-    name: "X",
-    className: "x-network",
+    name: 'X',
+    className: 'x-network',
     href: (url) =>
-      `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent("Explore the Zamil workspace")}`,
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Explore the Zamil workspace')}`,
   },
-];
+]
 
 function EmployeeSocialLinks() {
-  const shareUrl = typeof window === "undefined" ? "" : window.location.origin;
+  const shareUrl = typeof window === 'undefined' ? '' : window.location.origin
   return (
     <div className="hero-social-fan is-persistent" aria-label="Share your workspace">
       <span className="hero-social-toggle-mark" aria-hidden="true">
@@ -79,56 +79,57 @@ function EmployeeSocialLinks() {
         ))}
       </div>
     </div>
-  );
+  )
 }
 
 function SocialMark({ network }) {
   const paths = {
     LinkedIn:
-      "M5.2 8.6H2.1V22h3.1V8.6ZM3.7 2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6ZM22 14.3c0-4-2.1-5.9-4.9-5.9a4.2 4.2 0 0 0-3.8 2.1V8.6h-3V22h3.1v-6.6c0-1.8.3-3.6 2.6-3.6s2.3 2.1 2.3 3.7V22h3.1l.6-7.7Z",
+      'M5.2 8.6H2.1V22h3.1V8.6ZM3.7 2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6ZM22 14.3c0-4-2.1-5.9-4.9-5.9a4.2 4.2 0 0 0-3.8 2.1V8.6h-3V22h3.1v-6.6c0-1.8.3-3.6 2.6-3.6s2.3 2.1 2.3 3.7V22h3.1l.6-7.7Z',
     Facebook:
-      "M14.1 22v-9h3l.5-3.5h-3.5V7.2c0-1 .3-1.7 1.8-1.7h1.9V2.4c-.3 0-1.5-.1-2.9-.1-2.9 0-4.9 1.8-4.9 5v2.2H6.8V13H10v9h4.1Z",
-    X: "M18.9 2H22l-6.8 7.8L23.2 22h-6.3L12 14.6 5.6 22H2.4l7.3-8.4L1.8 2h6.5l4.5 6.8L18.9 2Zm-1.1 17.8h1.7L7.3 4.1H5.5l12.3 15.7Z",
-  };
+      'M14.1 22v-9h3l.5-3.5h-3.5V7.2c0-1 .3-1.7 1.8-1.7h1.9V2.4c-.3 0-1.5-.1-2.9-.1-2.9 0-4.9 1.8-4.9 5v2.2H6.8V13H10v9h4.1Z',
+    X: 'M18.9 2H22l-6.8 7.8L23.2 22h-6.3L12 14.6 5.6 22H2.4l7.3-8.4L1.8 2h6.5l4.5 6.8L18.9 2Zm-1.1 17.8h1.7L7.3 4.1H5.5l12.3 15.7Z',
+  }
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d={paths[network]} />
     </svg>
-  );
+  )
 }
 
-const HR_USAGE_KEY = "zrv-dashboard-hr-form-usage";
+const HR_USAGE_KEY = 'zrv-dashboard-hr-form-usage'
 function readHrUsage() {
   try {
-    return JSON.parse(window.localStorage.getItem(HR_USAGE_KEY) || "{}");
+    return JSON.parse(window.localStorage.getItem(HR_USAGE_KEY) || '{}')
   } catch {
-    return {};
+    return {}
   }
 }
 
 function QuickPanel({ category, hrPages = [], hrUsage = {}, onOpenHrPage }) {
-  const definition = QUICK_DEFINITIONS[category] ?? QUICK_DEFINITIONS.HR;
-  const index = QUICK_CATEGORY_IDS.indexOf(category);
+  const definition = QUICK_DEFINITIONS[category] ?? QUICK_DEFINITIONS.HR
+  const index = QUICK_CATEGORY_IDS.indexOf(category)
   const forms =
-    category === "HR"
+    category === 'HR'
       ? [...hrPages]
           .sort((a, b) => (hrUsage[b.id] || 0) - (hrUsage[a.id] || 0))
           .slice(0, 6)
           .map((page) => ({
             id: page.id,
             name: page.label,
-            desc: page.subgroup || "Human resources",
-            icon: page.icon || "file-text",
+            desc: page.subgroup || 'Human resources',
+            icon: page.icon || 'file-text',
             page,
           }))
-      : definition.forms;
+      : definition.forms
   return (
     <>
       <div className="quick-panel-head">
         <div>
           <span className="eyebrow">SELECTED WORKSPACE · {category}</span>
           <h3>
-            <OrvexaIcon name={definition.icon} /> {category} <span className="quick-suffix">/ direct access</span>
+            <OrvexaIcon name={definition.icon} /> {category}{' '}
+            <span className="quick-suffix">/ direct access</span>
           </h3>
           <p>{definition.sub}</p>
         </div>
@@ -140,7 +141,7 @@ function QuickPanel({ category, hrPages = [], hrUsage = {}, onOpenHrPage }) {
             className="quick-form"
             type="button"
             key={form.name}
-            style={{ "--qi": formIndex }}
+            style={{ '--qi': formIndex }}
             onClick={form.page ? () => onOpenHrPage(form.page) : undefined}
           >
             <span className="quick-form-index">0{formIndex + 1}</span>
@@ -159,153 +160,159 @@ function QuickPanel({ category, hrPages = [], hrUsage = {}, onOpenHrPage }) {
         <span>
           <OrvexaIcon name="zap" /> Click a card to open its workflow
         </span>
-        <span>{category === "HR" ? `${forms.length} frequently used forms` : "Catalog previews"}</span>
+        <span>
+          {category === 'HR' ? `${forms.length} frequently used forms` : 'Catalog previews'}
+        </span>
       </div>
     </>
-  );
+  )
 }
 
 async function optimizeProfileImage(file) {
-  if (typeof createImageBitmap !== "function") return file;
-  let bitmap;
+  if (typeof createImageBitmap !== 'function') return file
+  let bitmap
   try {
-    bitmap = await createImageBitmap(file);
-    const maxDimension = 512;
-    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
-    if (scale === 1 && file.size <= 250 * 1024) return file;
+    bitmap = await createImageBitmap(file)
+    const maxDimension = 512
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height))
+    if (scale === 1 && file.size <= 250 * 1024) return file
 
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const context = canvas.getContext("2d");
-    if (!context) return file;
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const optimized = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.82));
-    if (!optimized || optimized.size >= file.size) return file;
-    const baseName = file.name.replace(/\.[^.]+$/, "") || "profile";
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext('2d')
+    if (!context) return file
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    const optimized = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82))
+    if (!optimized || optimized.size >= file.size) return file
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'profile'
     return new File([optimized], `${baseName}.webp`, {
-      type: "image/webp",
+      type: 'image/webp',
       lastModified: Date.now(),
-    });
+    })
   } catch {
-    return file;
+    return file
   } finally {
-    bitmap?.close();
+    bitmap?.close()
   }
 }
 
 export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }) {
-  const [quickCategory, setQuickCategory] = useState("HR");
-  const [quickPanelChanged, setQuickPanelChanged] = useState(false);
-  const [hrUsage, setHrUsage] = useState(readHrUsage);
-  const { updateProfileImage, removeProfileImage } = useAuth();
-  const employeeOfMonth = useResource(
-    "dashboard-employee-of-month",
-    (signal) => rewardService.spotlight({ signal }),
-  );
-  const [imageBusy, setImageBusy] = useState(false);
-  const [imageFeedback, setImageFeedback] = useState("");
-  const [photoResetOpen, setPhotoResetOpen] = useState(false);
-  const [imageTarget, setImageTarget] = useState("");
-  const imageTargetRef = useRef("");
-  const loadedImageRef = useRef("");
-  const failedImageRef = useRef("");
-  const name = displayName(profile);
-  const heroProfile = profile;
+  const [quickCategory, setQuickCategory] = useState('HR')
+  const [quickPanelChanged, setQuickPanelChanged] = useState(false)
+  const [hrUsage, setHrUsage] = useState(readHrUsage)
+  const { updateProfileImage, removeProfileImage } = useAuth()
+  const employeeOfMonth = useResource('dashboard-employee-of-month', (signal) =>
+    rewardService.spotlight({ signal }),
+  )
+  const [imageBusy, setImageBusy] = useState(false)
+  const [imageFeedback, setImageFeedback] = useState('')
+  const [photoResetOpen, setPhotoResetOpen] = useState(false)
+  const [imageTarget, setImageTarget] = useState('')
+  const imageTargetRef = useRef('')
+  const loadedImageRef = useRef('')
+  const failedImageRef = useRef('')
+  const name = displayName(profile)
+  const heroProfile = profile
 
   function openAttentionItem(item) {
-    const terms = item.matchTerms ?? [];
+    const terms = item.matchTerms ?? []
     const target = pages.find((page) => {
-      const searchText = `${page.label} ${page.sectionLabel}`.toLowerCase();
-      return terms.some((term) => searchText.includes(term));
-    });
-    if (target) onOpenPage(target);
-    else onNavigate("atlas", { domain: item.team });
+      const searchText = `${page.label} ${page.sectionLabel}`.toLowerCase()
+      return terms.some((term) => searchText.includes(term))
+    })
+    if (target) onOpenPage(target)
+    else onNavigate('atlas', { domain: item.team })
   }
 
   function waitForImage(source) {
     if (loadedImageRef.current === source) {
-      imageTargetRef.current = "";
-      setImageTarget("");
-      return;
+      imageTargetRef.current = ''
+      setImageTarget('')
+      return
     }
     if (failedImageRef.current === source) {
-      imageTargetRef.current = "";
-      setImageTarget("");
-      setImageFeedback("Photo saved, but its preview could not be loaded.");
-      return;
+      imageTargetRef.current = ''
+      setImageTarget('')
+      setImageFeedback('Photo saved, but its preview could not be loaded.')
+      return
     }
-    imageTargetRef.current = source;
-    setImageTarget(source);
+    imageTargetRef.current = source
+    setImageTarget(source)
   }
 
   function handleAvatarLoad(source) {
-    loadedImageRef.current = source;
-    failedImageRef.current = "";
+    loadedImageRef.current = source
+    failedImageRef.current = ''
     if (imageTargetRef.current === source) {
-      imageTargetRef.current = "";
-      setImageTarget("");
+      imageTargetRef.current = ''
+      setImageTarget('')
     }
   }
 
   function handleAvatarError(source) {
-    failedImageRef.current = source;
-    if (imageTargetRef.current !== source) return;
-    imageTargetRef.current = "";
-    setImageTarget("");
-    setImageFeedback("Photo saved, but its preview could not be loaded.");
+    failedImageRef.current = source
+    if (imageTargetRef.current !== source) return
+    imageTargetRef.current = ''
+    setImageTarget('')
+    setImageFeedback('Photo saved, but its preview could not be loaded.')
   }
 
   async function changeProfileImage(event) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    setImageBusy(true);
-    setImageFeedback("");
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setImageBusy(true)
+    setImageFeedback('')
     try {
-      const source = await updateProfileImage(await optimizeProfileImage(file));
-      waitForImage(source);
-      setImageFeedback("Profile photo updated");
+      const source = await updateProfileImage(await optimizeProfileImage(file))
+      waitForImage(source)
+      setImageFeedback('Profile photo updated')
     } catch (error) {
-      setImageFeedback(error.message || "Could not update the profile photo");
+      setImageFeedback(error.message || 'Could not update the profile photo')
     } finally {
-      setImageBusy(false);
+      setImageBusy(false)
     }
   }
 
   async function resetProfileImage() {
-    setImageBusy(true);
-    setImageFeedback("");
+    setImageBusy(true)
+    setImageFeedback('')
     try {
-      const source = await removeProfileImage();
-      waitForImage(source);
-      setImageFeedback("Default photo restored");
-      return true;
+      const source = await removeProfileImage()
+      waitForImage(source)
+      setImageFeedback('Default photo restored')
+      return true
     } catch (error) {
-      setImageFeedback(error.message || "Could not restore the default photo");
-      return false;
+      setImageFeedback(error.message || 'Could not restore the default photo')
+      return false
     } finally {
-      setImageBusy(false);
+      setImageBusy(false)
     }
   }
 
   async function confirmPhotoReset() {
-    if (await resetProfileImage()) setPhotoResetOpen(false);
+    if (await resetProfileImage()) setPhotoResetOpen(false)
   }
 
-  const hrPages = pages.filter((page) => page.sectionLabel === "Human resources" || page.section === "human-resources");
+  const hrPages = pages.filter(
+    (page) => page.sectionLabel === 'Human resources' || page.section === 'human-resources',
+  )
   const openHrPage = (page) => {
-    if (!page?.id || !page.path) return;
-    const next = { ...hrUsage, [page.id]: (hrUsage[page.id] || 0) + 1 };
-    setHrUsage(next);
-    window.localStorage.setItem(HR_USAGE_KEY, JSON.stringify(next));
-    onOpenPage(page);
-  };
+    if (!page?.id || !page.path) return
+    const next = { ...hrUsage, [page.id]: (hrUsage[page.id] || 0) + 1 }
+    setHrUsage(next)
+    window.localStorage.setItem(HR_USAGE_KEY, JSON.stringify(next))
+    onOpenPage(page)
+  }
 
   return (
     <>
       <DashboardMeta />
-      <section className="hero-top zamil-hero gateway-layout" aria-label="Your workspace starting point">
+      <section
+        className="hero-top zamil-hero gateway-layout"
+        aria-label="Your workspace starting point"
+      >
         <div className="greeting greeting-zamil gateway-copy">
           <div className="eyebrow entering-tag">
             {formatDateLabel()} &nbsp; / &nbsp; {appConfig.name.toUpperCase()} WORKSPACE
@@ -316,7 +323,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
           </div>
           <div className="hero-profile">
             <div
-              className={`hero-profile-photo-wrap${imageBusy || imageTarget ? " is-uploading" : ""}`}
+              className={`hero-profile-photo-wrap${imageBusy || imageTarget ? ' is-uploading' : ''}`}
               aria-busy={imageBusy || Boolean(imageTarget)}
             >
               <ProfileAvatar
@@ -360,11 +367,11 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
               <div className="hero-profile-details">
                 <div className="hero-profile-detail">
                   <span>ROLE</span>
-                  <strong>{profile?.jobTitle || "Not listed"}</strong>
+                  <strong>{profile?.jobTitle || 'Not listed'}</strong>
                 </div>
                 <div className="hero-profile-detail">
                   <span>TEAM</span>
-                  <strong>{profile?.department || "Not listed"}</strong>
+                  <strong>{profile?.department || 'Not listed'}</strong>
                 </div>
                 {profile?.employeeNumber && (
                   <div className="hero-profile-detail hero-profile-employee">
@@ -379,7 +386,15 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
               {!profile?.isPreview && (
                 <div className="hero-profile-photo-actions">
                   <span className="hero-profile-photo-hint">Make it yours</span>
-                  <button className="hero-profile-reset" type="button" onClick={() => { setImageFeedback(""); setPhotoResetOpen(true); }} disabled={imageBusy}>
+                  <button
+                    className="hero-profile-reset"
+                    type="button"
+                    onClick={() => {
+                      setImageFeedback('')
+                      setPhotoResetOpen(true)
+                    }}
+                    disabled={imageBusy}
+                  >
                     Reset photo
                   </button>
                   {imageBusy && <span role="status">Saving photo...</span>}
@@ -403,7 +418,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
             <button
               className="gateway-action gateway-main"
               type="button"
-              onClick={() => onOpenPage({ path: "/worklist/pending" })}
+              onClick={() => onOpenPage({ path: '/worklist/pending' })}
             >
               <span className="gateway-action-icon">
                 <OrvexaIcon name="list-checks" />
@@ -425,19 +440,23 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
         </div>
         <FolioBook onNavigate={onNavigate} hrPages={hrPages} onOpenPage={openHrPage} />
       </section>
-      {photoResetOpen && !profile?.isPreview && createPortal(
-        <ConfirmDialog
-          className="hero-photo-reset-backdrop"
-          title="Reset profile photo?"
-          description="This restores the default profile photo. You can upload a new photo at any time."
-          confirmLabel="Reset photo"
-          pending={imageBusy}
-          feedback={imageFeedback && !imageBusy ? { kind: "error", message: imageFeedback } : null}
-          onConfirm={confirmPhotoReset}
-          onClose={() => setPhotoResetOpen(false)}
-        />,
-        document.body,
-      )}
+      {photoResetOpen &&
+        !profile?.isPreview &&
+        createPortal(
+          <ConfirmDialog
+            className="hero-photo-reset-backdrop"
+            title="Reset profile photo?"
+            description="This restores the default profile photo. You can upload a new photo at any time."
+            confirmLabel="Reset photo"
+            pending={imageBusy}
+            feedback={
+              imageFeedback && !imageBusy ? { kind: 'error', message: imageFeedback } : null
+            }
+            onConfirm={confirmPhotoReset}
+            onClose={() => setPhotoResetOpen(false)}
+          />,
+          document.body,
+        )}
 
       <div className="section-line section-quick" id="quickStart">
         <div>
@@ -447,23 +466,23 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
           </h2>
           <p>Your six most frequently used HR forms are ready on the right.</p>
         </div>
-        <button className="btn tiny quiet" type="button" onClick={() => onNavigate("atlas")}>
+        <button className="btn tiny quiet" type="button" onClick={() => onNavigate('atlas')}>
           Discover all modules <OrvexaIcon name="arrow-right" />
         </button>
       </div>
       <section className="quick-shell" data-zrv-reveal>
         <div className="quick-categories">
           {QUICK_CATEGORY_IDS.map((category, index) => {
-            const definition = QUICK_DEFINITIONS[category];
+            const definition = QUICK_DEFINITIONS[category]
             return (
               <button
-                className={`quick-category ${quickCategory === category ? "selected" : ""}`}
+                className={`quick-category ${quickCategory === category ? 'selected' : ''}`}
                 type="button"
                 key={category}
                 onClick={() => {
                   if (quickCategory !== category) {
-                    setQuickCategory(category);
-                    setQuickPanelChanged(true);
+                    setQuickCategory(category)
+                    setQuickPanelChanged(true)
                   }
                 }}
                 aria-pressed={quickCategory === category}
@@ -480,16 +499,21 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
                   <OrvexaIcon name="arrow-right" />
                 </span>
               </button>
-            );
+            )
           })}
         </div>
         <div
-          className={`quick-panel${quickPanelChanged ? " panel-swap" : ""}`}
+          className={`quick-panel${quickPanelChanged ? ' panel-swap' : ''}`}
           id="quickPanel"
           key={quickCategory}
           aria-live="polite"
         >
-          <QuickPanel category={quickCategory} hrPages={hrPages} hrUsage={hrUsage} onOpenHrPage={openHrPage} />
+          <QuickPanel
+            category={quickCategory}
+            hrPages={hrPages}
+            hrUsage={hrUsage}
+            onOpenHrPage={openHrPage}
+          />
         </div>
       </section>
 
@@ -504,20 +528,22 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
         </span>
       </div>
       <section className="employee-spotlight" data-zrv-reveal aria-label="Employee of the month">
-        {employeeOfMonth.status === "idle" && (
-          <div className="employee-spotlight-empty">Employee recognition will appear here for everyone.</div>
+        {employeeOfMonth.status === 'idle' && (
+          <div className="employee-spotlight-empty">
+            Employee recognition will appear here for everyone.
+          </div>
         )}
-        {employeeOfMonth.status === "loading" && (
+        {employeeOfMonth.status === 'loading' && (
           <div className="employee-spotlight-empty" role="status">
             Loading employee recognition...
           </div>
         )}
-        {employeeOfMonth.status === "error" && (
+        {employeeOfMonth.status === 'error' && (
           <div className="employee-spotlight-empty" role="status">
             Employee recognition is temporarily unavailable.
           </div>
         )}
-        {employeeOfMonth.status === "ready" && employeeOfMonth.data && (
+        {employeeOfMonth.status === 'ready' && employeeOfMonth.data && (
           <>
             <EmployeeSpotlightFireworks />
             <div className="employee-spotlight-person">
@@ -529,19 +555,23 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
                   className="employee-spotlight-photo"
                   src={
                     profile.employeeNumber === employeeOfMonth.data.employee.employeeNumber
-                      ? profile.avatarUrl || "/profile-placeholder.png"
-                      : "/profile-placeholder.png"
+                      ? profile.avatarUrl || '/profile-placeholder.png'
+                      : '/profile-placeholder.png'
                   }
                   alt={
-                    profile.employeeNumber === employeeOfMonth.data.employee.employeeNumber && profile.avatarUrl
+                    profile.employeeNumber === employeeOfMonth.data.employee.employeeNumber &&
+                    profile.avatarUrl
                       ? `${employeeOfMonth.data.employee.name} portrait`
-                      : "Employee photo placeholder"
+                      : 'Employee photo placeholder'
                   }
                   onError={(event) => {
-                    event.currentTarget.src = "/profile-placeholder.png";
+                    event.currentTarget.src = '/profile-placeholder.png'
                   }}
                 />
-                <span className="employee-spotlight-medal" aria-label="Approved employee recognition">
+                <span
+                  className="employee-spotlight-medal"
+                  aria-label="Approved employee recognition"
+                >
                   <OrvexaIcon name="award" />
                 </span>
                 <span className="employee-spotlight-celebration" aria-hidden="true">
@@ -552,7 +582,9 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
               </div>
               <span className="employee-spotlight-kicker">RECOGNISED TEAM MEMBER</span>
               <h3>{employeeOfMonth.data.employee.name}</h3>
-              <p className="employee-spotlight-role">{employeeOfMonth.data.employee.position || "Employee"}</p>
+              <p className="employee-spotlight-role">
+                {employeeOfMonth.data.employee.position || 'Employee'}
+              </p>
               <dl className="employee-spotlight-details">
                 <div>
                   <dt>Employee no.</dt>
@@ -560,22 +592,28 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
                 </div>
                 <div>
                   <dt>Department</dt>
-                  <dd>{employeeOfMonth.data.employee.departmentName || "—"}</dd>
+                  <dd>{employeeOfMonth.data.employee.departmentName || '—'}</dd>
                 </div>
                 <div>
                   <dt>Recognition date</dt>
-                  <dd>{employeeOfMonth.data.activityDate ? enDate(employeeOfMonth.data.activityDate) : "—"}</dd>
+                  <dd>
+                    {employeeOfMonth.data.activityDate
+                      ? enDate(employeeOfMonth.data.activityDate)
+                      : '—'}
+                  </dd>
                 </div>
               </dl>
             </div>
             <div className="employee-spotlight-reason">
               <div className="employee-spotlight-reason-head">
                 <span className="employee-spotlight-kicker">WHY THEY WERE RECOGNISED</span>
-                <span className="employee-spotlight-rating">{employeeOfMonth.data.overallRating || "APPROVED"}</span>
+                <span className="employee-spotlight-rating">
+                  {employeeOfMonth.data.overallRating || 'APPROVED'}
+                </span>
               </div>
               <h3>A contribution worth celebrating.</h3>
               <p className="employee-spotlight-remark">
-                {employeeOfMonth.data.remark || "Their contribution was recognised by the team."}
+                {employeeOfMonth.data.remark || 'Their contribution was recognised by the team.'}
               </p>
               {!!employeeOfMonth.data.lines.length && (
                 <ul className="employee-spotlight-evidence">
@@ -592,7 +630,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
             </div>
           </>
         )}
-        {employeeOfMonth.status === "ready" && !employeeOfMonth.data && (
+        {employeeOfMonth.status === 'ready' && !employeeOfMonth.data && (
           <div className="employee-spotlight-empty">
             <OrvexaIcon name="sparkles" /> No approved employee recognition is available yet.
           </div>
@@ -606,7 +644,12 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
           <p>Updates from across your workspace, in one place.</p>
         </div>
       </div>
-      <div className="attention-announcement" role="region" aria-label="Attention queue announcement" tabIndex={0}>
+      <div
+        className="attention-announcement"
+        role="region"
+        aria-label="Attention queue announcement"
+        tabIndex={0}
+      >
         <div className="attention-announcement-head">
           <span className="attention-announcement-label">
             <OrvexaIcon name="sparkles" /> ANNOUNCEMENT
@@ -617,7 +660,9 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
         </div>
         <div className="attention-announcement-window">
           <p className="attention-announcement-sr">
-            {ATTENTION_ITEMS.map((item) => `${item.count} ${item.label} in ${item.team}`).join(". ")}
+            {ATTENTION_ITEMS.map((item) => `${item.count} ${item.label} in ${item.team}`).join(
+              '. ',
+            )}
           </p>
           <div className="attention-announcement-track" aria-hidden="true">
             {[0, 1].map((copy) => (
@@ -643,13 +688,19 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
           className="btn tiny quiet"
           type="button"
           onClick={() =>
-            document.getElementById("attentionQueueTitle")?.scrollIntoView({ behavior: "smooth", block: "center" })
+            document
+              .getElementById('attentionQueueTitle')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
           }
         >
           View queue <OrvexaIcon name="arrow-right" />
         </button>
       </div>
-      <section className="attention-queue surface" data-zrv-reveal aria-labelledby="attentionQueueTitle">
+      <section
+        className="attention-queue surface"
+        data-zrv-reveal
+        aria-labelledby="attentionQueueTitle"
+      >
         <div className="attention-queue-head">
           <div>
             <span className="eyebrow">YOUR WORK, AT A GLANCE</span>
@@ -673,7 +724,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
                 <tr className={`attention-row attention-row-${index + 1}`} key={item.label}>
                   <td>
                     <span className="attention-work-icon">
-                      <OrvexaIcon name={item.icon || "clipboard-list"} />
+                      <OrvexaIcon name={item.icon || 'clipboard-list'} />
                     </span>
                     <span className="attention-work-copy">
                       <strong>{item.label}</strong>
@@ -687,7 +738,11 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
                     <span className="attention-count">{item.count}</span>
                   </td>
                   <td>
-                    <button className="attention-action" type="button" onClick={() => openAttentionItem(item)}>
+                    <button
+                      className="attention-action"
+                      type="button"
+                      onClick={() => openAttentionItem(item)}
+                    >
                       Take action <OrvexaIcon name="arrow-right" />
                     </button>
                   </td>
@@ -700,13 +755,14 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
 
       <footer className="footnote">
         <span>
-          <b>{appConfig.name.toUpperCase()} / DIGITAL WORKSPACE</b> &nbsp; · &nbsp; Interactive design concept
+          <b>{appConfig.name.toUpperCase()} / DIGITAL WORKSPACE</b> &nbsp; · &nbsp; Interactive
+          design concept
         </span>
         <span>
-          {FOOTER_COUNTS.modules} catalog previews · {FOOTER_COUNTS.views} interactive{" "}
-          {FOOTER_COUNTS.views === 1 ? "view" : "views"}
+          {FOOTER_COUNTS.modules} catalog previews · {FOOTER_COUNTS.views} interactive{' '}
+          {FOOTER_COUNTS.views === 1 ? 'view' : 'views'}
         </span>
       </footer>
     </>
-  );
+  )
 }

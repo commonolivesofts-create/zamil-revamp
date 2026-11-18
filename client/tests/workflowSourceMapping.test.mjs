@@ -9,15 +9,38 @@ import { readFile } from 'node:fs/promises'
 import { ApiError, createApiClient } from '../src/services/api/apiClient.js'
 import { createCsrfStore } from '../src/services/api/csrfStore.js'
 import {
-  readSourceDictionary, readSourceMappingDeleted, readSourceMappingDetail, readSourceMappingDrift, readSourceMappingVersion,
+  readSourceDictionary,
+  readSourceMappingDeleted,
+  readSourceMappingDetail,
+  readSourceMappingDrift,
+  readSourceMappingVersion,
 } from '../src/features/workflow-manager/workflowManagerContract.js'
 import { createWorkflowManagerService } from '../src/features/workflow-manager/workflowManagerService.js'
-import { PATHS, WORKFLOW_ACTIONS, describeWorkflowFailure, fieldErrorsFrom } from '../src/features/workflow-manager/workflowManagerModel.js'
 import {
-  describePath, draftOrder, editorState, emptyKey, findingsFromError, groupFindings, previewEnforcement, samePayload,
-  storedDraft, typeLabel, validateEditor,
+  PATHS,
+  WORKFLOW_ACTIONS,
+  describeWorkflowFailure,
+  fieldErrorsFrom,
+} from '../src/features/workflow-manager/workflowManagerModel.js'
+import {
+  describePath,
+  draftOrder,
+  editorState,
+  emptyKey,
+  findingsFromError,
+  groupFindings,
+  previewEnforcement,
+  samePayload,
+  storedDraft,
+  typeLabel,
+  validateEditor,
 } from '../src/features/workflow-manager/sourceMappingModel.js'
-import { authorizedNavigation, findAppRoute, paletteCommands, routeAccess } from '../src/config/appNavigation.js'
+import {
+  authorizedNavigation,
+  findAppRoute,
+  paletteCommands,
+  routeAccess,
+} from '../src/config/appNavigation.js'
 import { SESSION_TOKEN, failure, recordingFetch, success } from './helpers/http.mjs'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
@@ -26,55 +49,172 @@ const SHA = 'a'.repeat(64)
 // ------------------------------------------------------------ fixtures (backend shapes)
 
 const liveColumn = (name, oracleType, extra = {}) => ({
-  name, oracleType, dataLength: 22, charLength: null, precision: null, scale: null, nullable: true, identity: null,
-  supported: true, keyEligible: true, ...extra,
+  name,
+  oracleType,
+  dataLength: 22,
+  charLength: null,
+  precision: null,
+  scale: null,
+  nullable: true,
+  identity: null,
+  supported: true,
+  keyEligible: true,
+  ...extra,
 })
 const snapshot = () => ({
-  objectType: 'TABLE', status: 'VALID', capturedAt: '2026-11-09T08:00:00.000Z', columnsSha256: SHA,
+  objectType: 'TABLE',
+  status: 'VALID',
+  capturedAt: '2026-11-09T08:00:00.000Z',
+  columnsSha256: SHA,
   columns: [
-    liveColumn('REQUEST_ID', 'NUMBER', { nullable: false, identity: 'ALWAYS', precision: 19, scale: 0 }),
+    liveColumn('REQUEST_ID', 'NUMBER', {
+      nullable: false,
+      identity: 'ALWAYS',
+      precision: 19,
+      scale: 0,
+    }),
     liveColumn('ORG_ID', 'NUMBER', { nullable: false, precision: 15, scale: 0 }),
     liveColumn('LINE_NO', 'NUMBER', { nullable: false }),
     liveColumn('REQUESTER_NO', 'VARCHAR2', { charLength: 30 }),
     liveColumn('PAYLOAD', 'BLOB', { supported: false, keyEligible: false }),
   ],
-  constraints: [{ name: 'DEMO_PK', type: 'P', status: 'ENABLED', validated: 'VALIDATED', columns: ['REQUEST_ID'] }],
-  uniqueIndexes: [{ name: 'DEMO_UX', status: 'VALID', functionBased: false, columns: ['ORG_ID', 'LINE_NO'] }],
+  constraints: [
+    {
+      name: 'DEMO_PK',
+      type: 'P',
+      status: 'ENABLED',
+      validated: 'VALIDATED',
+      columns: ['REQUEST_ID'],
+    },
+  ],
+  uniqueIndexes: [
+    { name: 'DEMO_UX', status: 'VALID', functionBased: false, columns: ['ORG_ID', 'LINE_NO'] },
+  ],
 })
-const sourceSummary = { sourceId: '5', sourceCode: 'DEMO_HEADER', sourceName: 'Demo header', sourceKind: 'TABLE', ownerName: 'XXZP', objectName: 'XXZP_DEMO_T', handlerCode: null, isActive: true, rowVersion: 2 }
-const dictionary = (overrides = {}) => ({ source: sourceSummary, available: true, snapshot: snapshot(), handler: null, findings: [], ...overrides })
+const sourceSummary = {
+  sourceId: '5',
+  sourceCode: 'DEMO_HEADER',
+  sourceName: 'Demo header',
+  sourceKind: 'TABLE',
+  ownerName: 'XXZP',
+  objectName: 'XXZP_DEMO_T',
+  handlerCode: null,
+  isActive: true,
+  rowVersion: 2,
+}
+const dictionary = (overrides = {}) => ({
+  source: sourceSummary,
+  available: true,
+  snapshot: snapshot(),
+  handler: null,
+  findings: [],
+  ...overrides,
+})
 const configColumn = (name, oracleType, extra = {}) => ({
-  name, oracleType, dataLength: 22, charLength: null, precision: null, scale: null, nullable: true, identity: null, exposed: true, dataClass: 'INTERNAL', ...extra,
+  name,
+  oracleType,
+  dataLength: 22,
+  charLength: null,
+  precision: null,
+  scale: null,
+  nullable: true,
+  identity: null,
+  exposed: true,
+  dataClass: 'INTERNAL',
+  ...extra,
 })
 const config = () => ({
   schema: 'zrv.wf.source/1',
-  source: { sourceCode: 'DEMO_HEADER', kind: 'TABLE', owner: 'XXZP', object: 'XXZP_DEMO_T', handlerCode: null },
-  dictionary: { objectType: 'TABLE', status: 'VALID', capturedAt: '2026-11-09T08:00:00.000Z', columnsSha256: SHA },
+  source: {
+    sourceCode: 'DEMO_HEADER',
+    kind: 'TABLE',
+    owner: 'XXZP',
+    object: 'XXZP_DEMO_T',
+    handlerCode: null,
+  },
+  dictionary: {
+    objectType: 'TABLE',
+    status: 'VALID',
+    capturedAt: '2026-11-09T08:00:00.000Z',
+    columnsSha256: SHA,
+  },
   handler: null,
   columns: [
     configColumn('OLD_COL', 'VARCHAR2', { charLength: 10 }),
-    configColumn('REQUEST_ID', 'NUMBER', { nullable: false, identity: 'ALWAYS', precision: 19, scale: 0 }),
-    configColumn('REQUESTER_NO', 'VARCHAR2', { charLength: 30, dataClass: 'PERSONAL', exposed: false }),
+    configColumn('REQUEST_ID', 'NUMBER', {
+      nullable: false,
+      identity: 'ALWAYS',
+      precision: 19,
+      scale: 0,
+    }),
+    configColumn('REQUESTER_NO', 'VARCHAR2', {
+      charLength: 30,
+      dataClass: 'PERSONAL',
+      exposed: false,
+    }),
   ],
-  keyCandidates: [{ code: 'REQUEST_PK', columns: ['REQUEST_ID'], enforcement: 'DATABASE_ENFORCED', enforcedBy: { kind: 'PRIMARY_KEY', name: 'DEMO_PK' }, assurance: null, observation: null }],
+  keyCandidates: [
+    {
+      code: 'REQUEST_PK',
+      columns: ['REQUEST_ID'],
+      enforcement: 'DATABASE_ENFORCED',
+      enforcedBy: { kind: 'PRIMARY_KEY', name: 'DEMO_PK' },
+      assurance: null,
+      observation: null,
+    },
+  ],
 })
 const versionMeta = (overrides = {}) => ({
-  sourceVersionId: '41', sourceId: '5', versionNo: 3, lifecycleState: 'DRAFT', isDefault: false, configSha256: SHA, schemaVersion: 1,
-  validatedAt: '2026-11-09T08:00:00.000Z', validatedBy: '7', publishedAt: null, createdAt: '2026-11-09T08:00:00.000Z', createdBy: '7',
-  updatedAt: '2026-11-09T08:00:00.000Z', updatedBy: '7', rowVersion: 2, editable: true, ...overrides,
+  sourceVersionId: '41',
+  sourceId: '5',
+  versionNo: 3,
+  lifecycleState: 'DRAFT',
+  isDefault: false,
+  configSha256: SHA,
+  schemaVersion: 1,
+  validatedAt: '2026-11-09T08:00:00.000Z',
+  validatedBy: '7',
+  publishedAt: null,
+  createdAt: '2026-11-09T08:00:00.000Z',
+  createdBy: '7',
+  updatedAt: '2026-11-09T08:00:00.000Z',
+  updatedBy: '7',
+  rowVersion: 2,
+  editable: true,
+  ...overrides,
 })
 const detail = (overrides = {}, extra = {}) => ({
   source: sourceSummary,
-  version: { ...versionMeta(overrides), createdByName: null, updatedByName: null, validatedByName: 'Test Mapper', configIntegrity: 'VERIFIED', config: config(), publicationBlockers: [] },
+  version: {
+    ...versionMeta(overrides),
+    createdByName: null,
+    updatedByName: null,
+    validatedByName: 'Test Mapper',
+    configIntegrity: 'VERIFIED',
+    config: config(),
+    publicationBlockers: [],
+  },
   ...extra,
 })
-const pagination = { page: 1, limit: 20, total: 1, totalPages: 1, hasNextPage: false, hasPreviousPage: false }
+const pagination = {
+  page: 1,
+  limit: 20,
+  total: 1,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPreviousPage: false,
+}
 
 function setup(responder) {
   const { fetchImpl, calls } = recordingFetch(responder)
   const csrfStore = createCsrfStore()
   csrfStore.setSessionToken(SESSION_TOKEN)
-  const client = createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore, onUnauthorized: () => {} })
+  const client = createApiClient({
+    baseUrl: '/api/v1',
+    fetchImpl,
+    csrfStore,
+    onUnauthorized: () => {},
+  })
   return { service: createWorkflowManagerService({ client }), calls }
 }
 const body = (call) => (call.init.body === undefined ? undefined : JSON.parse(call.init.body))
@@ -88,10 +228,36 @@ test('dictionary reader keeps facts only and rejects malformed evidence', () => 
   assert.equal('rows' in parsed, false)
   assert.equal(parsed.snapshot.columns[4].supported, false)
   assert.ok(Object.isFrozen(parsed.snapshot.columns[0]))
-  assert.equal(readSourceDictionary(dictionary({ available: false, snapshot: null, findings: [{ severity: 'ERROR', code: 'OBJECT_INVALID', path: 'source', message: 'x' }] })).available, false)
-  assert.throws(() => readSourceDictionary(dictionary({ snapshot: { ...snapshot(), columnsSha256: 'xyz' } })), invalid)
-  assert.throws(() => readSourceDictionary(dictionary({ source: { ...sourceSummary, sourceId: 5 } })), invalid)
-  assert.throws(() => readSourceDictionary(dictionary({ snapshot: { ...snapshot(), columns: [liveColumn('X', 'NUMBER', { identity: 'SOMETIMES' })] } })), invalid)
+  assert.equal(
+    readSourceDictionary(
+      dictionary({
+        available: false,
+        snapshot: null,
+        findings: [{ severity: 'ERROR', code: 'OBJECT_INVALID', path: 'source', message: 'x' }],
+      }),
+    ).available,
+    false,
+  )
+  assert.throws(
+    () => readSourceDictionary(dictionary({ snapshot: { ...snapshot(), columnsSha256: 'xyz' } })),
+    invalid,
+  )
+  assert.throws(
+    () => readSourceDictionary(dictionary({ source: { ...sourceSummary, sourceId: 5 } })),
+    invalid,
+  )
+  assert.throws(
+    () =>
+      readSourceDictionary(
+        dictionary({
+          snapshot: {
+            ...snapshot(),
+            columns: [liveColumn('X', 'NUMBER', { identity: 'SOMETIMES' })],
+          },
+        }),
+      ),
+    invalid,
+  )
 })
 
 test('version and detail readers require decimal-string IDs, ISO instants and a canonical config', () => {
@@ -99,8 +265,23 @@ test('version and detail readers require decimal-string IDs, ISO instants and a 
   assert.throws(() => readSourceMappingVersion(versionMeta({ sourceVersionId: 41 })), invalid)
   assert.throws(() => readSourceMappingVersion(versionMeta({ updatedAt: 'yesterday' })), invalid)
   assert.throws(() => readSourceMappingVersion(versionMeta({ lifecycleState: 'LIVE' })), invalid)
-  assert.throws(() => readSourceMappingVersion(versionMeta({ lifecycleState: 'PUBLISHED', editable: true })), invalid, 'only a DRAFT is editable')
-  const parsed = readSourceMappingDetail(detail({}, { validation: { valid: true, findings: [], publicationBlockers: [{ code: 'PROVISIONAL_KEY', path: 'keyCandidates[0]' }] } }))
+  assert.throws(
+    () => readSourceMappingVersion(versionMeta({ lifecycleState: 'PUBLISHED', editable: true })),
+    invalid,
+    'only a DRAFT is editable',
+  )
+  const parsed = readSourceMappingDetail(
+    detail(
+      {},
+      {
+        validation: {
+          valid: true,
+          findings: [],
+          publicationBlockers: [{ code: 'PROVISIONAL_KEY', path: 'keyCandidates[0]' }],
+        },
+      },
+    ),
+  )
   assert.equal(parsed.version.config.keyCandidates[0].enforcedBy.name, 'DEMO_PK')
   assert.equal(parsed.validation.publicationBlockers[0].code, 'PROVISIONAL_KEY')
   assert.equal(readSourceMappingDetail(detail()).validation, null)
@@ -118,28 +299,73 @@ test('version and detail readers require decimal-string IDs, ISO instants and a 
 
 test('drift and delete readers validate their shapes', () => {
   const drift = readSourceMappingDrift({
-    sourceVersionId: '41', versionNo: 3, lifecycleState: 'PUBLISHED', configIntegrity: 'VERIFIED', checkedAt: '2026-11-09T09:00:00.000Z', drifted: true,
-    saved: null, current: { objectType: 'TABLE', status: 'VALID', capturedAt: '2026-11-09T09:00:00.000Z', columnsSha256: SHA },
-    findings: [{ severity: 'ERROR', code: 'KEY_ENFORCEMENT_LOST', path: 'keyCandidates[0]', message: 'lost' }],
+    sourceVersionId: '41',
+    versionNo: 3,
+    lifecycleState: 'PUBLISHED',
+    configIntegrity: 'VERIFIED',
+    checkedAt: '2026-11-09T09:00:00.000Z',
+    drifted: true,
+    saved: null,
+    current: {
+      objectType: 'TABLE',
+      status: 'VALID',
+      capturedAt: '2026-11-09T09:00:00.000Z',
+      columnsSha256: SHA,
+    },
+    findings: [
+      {
+        severity: 'ERROR',
+        code: 'KEY_ENFORCEMENT_LOST',
+        path: 'keyCandidates[0]',
+        message: 'lost',
+      },
+    ],
   })
   assert.equal(drift.findings[0].code, 'KEY_ENFORCEMENT_LOST')
   assert.throws(() => readSourceMappingDrift({ ...drift, drifted: 'yes' }), invalid)
-  assert.deepEqual(readSourceMappingDeleted({ sourceId: '5', sourceVersionId: '41', deleted: true }), { sourceId: '5', sourceVersionId: '41', deleted: true })
-  assert.throws(() => readSourceMappingDeleted({ sourceId: '5', sourceVersionId: '41', deleted: false }), invalid)
+  assert.deepEqual(
+    readSourceMappingDeleted({ sourceId: '5', sourceVersionId: '41', deleted: true }),
+    { sourceId: '5', sourceVersionId: '41', deleted: true },
+  )
+  assert.throws(
+    () => readSourceMappingDeleted({ sourceId: '5', sourceVersionId: '41', deleted: false }),
+    invalid,
+  )
 })
 
 // ------------------------------------------------------------ service
 
 const DRAFT = {
   columns: [{ name: 'REQUEST_ID', exposed: true, dataClass: 'INTERNAL', oracleType: 'NUMBER' }],
-  keyCandidates: [{ code: 'REQUEST_PK', columns: ['REQUEST_ID'], assurance: null, enforcement: 'DATABASE_ENFORCED' }],
+  keyCandidates: [
+    {
+      code: 'REQUEST_PK',
+      columns: ['REQUEST_ID'],
+      assurance: null,
+      enforcement: 'DATABASE_ENFORCED',
+    },
+  ],
 }
-const CLEAN_DRAFT = { columns: [{ name: 'REQUEST_ID', exposed: true, dataClass: 'INTERNAL' }], keyCandidates: [{ code: 'REQUEST_PK', columns: ['REQUEST_ID'], assurance: null }] }
+const CLEAN_DRAFT = {
+  columns: [{ name: 'REQUEST_ID', exposed: true, dataClass: 'INTERNAL' }],
+  keyCandidates: [{ code: 'REQUEST_PK', columns: ['REQUEST_ID'], assurance: null }],
+}
 
 test('reads call the documented paths without a CSRF header', async () => {
   const { service, calls } = setup((url) => {
     if (url.includes('/dictionary')) return success(dictionary())
-    if (url.includes('/drift')) return success({ sourceVersionId: '41', versionNo: 3, lifecycleState: 'DRAFT', configIntegrity: 'VERIFIED', checkedAt: '2026-11-09T09:00:00.000Z', drifted: false, saved: null, current: null, findings: [] })
+    if (url.includes('/drift'))
+      return success({
+        sourceVersionId: '41',
+        versionNo: 3,
+        lifecycleState: 'DRAFT',
+        configIntegrity: 'VERIFIED',
+        checkedAt: '2026-11-09T09:00:00.000Z',
+        drifted: false,
+        saved: null,
+        current: null,
+        findings: [],
+      })
     if (url.includes('/mapping-versions?')) return success([versionMeta()], 200, { pagination })
     return success(detail())
   })
@@ -148,31 +374,45 @@ test('reads call the documented paths without a CSRF header', async () => {
   await service.getSourceMappingVersion('5', '41')
   await service.getSourceMappingDrift('5', '41')
   const paths = calls.map((call) => new URL(call.url, 'http://local'))
-  assert.deepEqual(paths.map((u) => u.pathname), [
-    '/api/v1/workflow-manager/data-sources/5/dictionary',
-    '/api/v1/workflow-manager/data-sources/5/mapping-versions',
-    '/api/v1/workflow-manager/data-sources/5/mapping-versions/41',
-    '/api/v1/workflow-manager/data-sources/5/mapping-versions/41/drift',
-  ])
+  assert.deepEqual(
+    paths.map((u) => u.pathname),
+    [
+      '/api/v1/workflow-manager/data-sources/5/dictionary',
+      '/api/v1/workflow-manager/data-sources/5/mapping-versions',
+      '/api/v1/workflow-manager/data-sources/5/mapping-versions/41',
+      '/api/v1/workflow-manager/data-sources/5/mapping-versions/41/drift',
+    ],
+  )
   assert.deepEqual(Object.fromEntries(paths[1].searchParams), { page: '2', pageSize: '50' })
   for (const call of calls) {
     assert.equal(call.init.method, 'GET')
     assert.equal(csrf(call), null)
   }
-  await assert.rejects(service.getSourceMappingVersion('5', '41/../1'), (error) => error.code === 'INVALID_ID')
+  await assert.rejects(
+    service.getSourceMappingVersion('5', '41/../1'),
+    (error) => error.code === 'INVALID_ID',
+  )
   await assert.rejects(service.getSourceDictionary('05'), (error) => error.code === 'INVALID_ID')
   assert.equal(calls.length, 4, 'invalid identifiers are never sent')
 })
 
 test('writes send CSRF and exactly the author fields; delete carries the row version', async () => {
   const { service, calls } = setup((url, init) => {
-    if (init.method === 'DELETE') return success({ sourceId: '5', sourceVersionId: '41', deleted: true })
-    return success(detail({}, { validation: { valid: true, findings: [], publicationBlockers: [] } }), init.method === 'POST' && !url.includes('revalidate') ? 201 : 200)
+    if (init.method === 'DELETE')
+      return success({ sourceId: '5', sourceVersionId: '41', deleted: true })
+    return success(
+      detail({}, { validation: { valid: true, findings: [], publicationBlockers: [] } }),
+      init.method === 'POST' && !url.includes('revalidate') ? 201 : 200,
+    )
   })
   await service.createSourceMappingVersion('5', DRAFT)
   assert.equal(calls[0].init.method, 'POST')
   assert.match(calls[0].url, /\/data-sources\/5\/mapping-versions$/)
-  assert.deepEqual(body(calls[0]), { draft: CLEAN_DRAFT }, 'server-owned and derived fields are never sent')
+  assert.deepEqual(
+    body(calls[0]),
+    { draft: CLEAN_DRAFT },
+    'server-owned and derived fields are never sent',
+  )
   await service.updateSourceMappingVersion('5', '41', { rowVersion: 2, draft: DRAFT })
   assert.equal(calls[1].init.method, 'PUT')
   assert.deepEqual(body(calls[1]), { rowVersion: 2, draft: CLEAN_DRAFT })
@@ -187,20 +427,46 @@ test('writes send CSRF and exactly the author fields; delete carries the row ver
   assert.deepEqual(body(calls[4]), { rowVersion: 3 })
   assert.equal(deleted.deleted, true)
   for (const call of calls) assert.equal(csrf(call), SESSION_TOKEN)
-  await assert.rejects(service.deleteSourceMappingVersion('5', '41', undefined), (error) => error.code === 'INVALID_REQUEST')
-  await assert.rejects(service.updateSourceMappingVersion('5', '41', { rowVersion: 0, draft: DRAFT }), (error) => error.code === 'INVALID_REQUEST')
+  await assert.rejects(
+    service.deleteSourceMappingVersion('5', '41', undefined),
+    (error) => error.code === 'INVALID_REQUEST',
+  )
+  await assert.rejects(
+    service.updateSourceMappingVersion('5', '41', { rowVersion: 0, draft: DRAFT }),
+    (error) => error.code === 'INVALID_REQUEST',
+  )
   assert.equal(calls.length, 5, 'a missing row version is never sent')
 })
 
 test('unsafe requests are never retried and conflicts keep their backend code', async () => {
-  const network = setup(() => { throw new TypeError('Failed to fetch') })
-  await assert.rejects(network.service.createSourceMappingVersion('5', DRAFT), (error) => error instanceof ApiError)
+  const network = setup(() => {
+    throw new TypeError('Failed to fetch')
+  })
+  await assert.rejects(
+    network.service.createSourceMappingVersion('5', DRAFT),
+    (error) => error instanceof ApiError,
+  )
   assert.equal(network.calls.length, 1, 'a failed POST is not repeated')
   const stale = setup(() => failure(409, 'STALE_RECORD', 'changed'))
-  await assert.rejects(stale.service.updateSourceMappingVersion('5', '41', { rowVersion: 1, draft: DRAFT }), (error) => error.status === 409 && error.code === 'STALE_RECORD')
-  const findings = [{ field: 'keyCandidates[0]', message: 'Document its assurance', code: 'KEY_ASSURANCE_REQUIRED', severity: 'ERROR' }]
-  const refused = setup(() => failure(400, 'SOURCE_MAPPING_INVALID', 'invalid', { details: findings }))
-  await assert.rejects(refused.service.createSourceMappingVersion('5', DRAFT), (error) => error.code === 'SOURCE_MAPPING_INVALID' && error.details.length === 1)
+  await assert.rejects(
+    stale.service.updateSourceMappingVersion('5', '41', { rowVersion: 1, draft: DRAFT }),
+    (error) => error.status === 409 && error.code === 'STALE_RECORD',
+  )
+  const findings = [
+    {
+      field: 'keyCandidates[0]',
+      message: 'Document its assurance',
+      code: 'KEY_ASSURANCE_REQUIRED',
+      severity: 'ERROR',
+    },
+  ]
+  const refused = setup(() =>
+    failure(400, 'SOURCE_MAPPING_INVALID', 'invalid', { details: findings }),
+  )
+  await assert.rejects(
+    refused.service.createSourceMappingVersion('5', DRAFT),
+    (error) => error.code === 'SOURCE_MAPPING_INVALID' && error.details.length === 1,
+  )
 })
 
 // ------------------------------------------------------------ editor model
@@ -221,12 +487,26 @@ test('editor state merges the live dictionary with the stored configuration', ()
 
 test('enforcement preview mirrors the server rule', () => {
   const s = snapshot()
-  assert.deepEqual(previewEnforcement(['REQUEST_ID'], s), { enforcement: 'DATABASE_ENFORCED', enforcedBy: 'DEMO_PK' })
-  assert.deepEqual(previewEnforcement(['ORG_ID', 'LINE_NO'], s), { enforcement: 'DATABASE_ENFORCED', enforcedBy: 'DEMO_UX' })
-  assert.equal(previewEnforcement(['REQUEST_ID', 'ORG_ID'], s).enforcement, 'DATABASE_ENFORCED', 'a superset of an enforced key')
+  assert.deepEqual(previewEnforcement(['REQUEST_ID'], s), {
+    enforcement: 'DATABASE_ENFORCED',
+    enforcedBy: 'DEMO_PK',
+  })
+  assert.deepEqual(previewEnforcement(['ORG_ID', 'LINE_NO'], s), {
+    enforcement: 'DATABASE_ENFORCED',
+    enforcedBy: 'DEMO_UX',
+  })
+  assert.equal(
+    previewEnforcement(['REQUEST_ID', 'ORG_ID'], s).enforcement,
+    'DATABASE_ENFORCED',
+    'a superset of an enforced key',
+  )
   assert.equal(previewEnforcement(['ORG_ID'], s).enforcement, 'DECLARED')
   s.columns.find((c) => c.name === 'LINE_NO').nullable = true
-  assert.equal(previewEnforcement(['ORG_ID', 'LINE_NO'], s).enforcement, 'DECLARED', 'a unique index over a nullable column does not enforce')
+  assert.equal(
+    previewEnforcement(['ORG_ID', 'LINE_NO'], s).enforcement,
+    'DECLARED',
+    'a unique index over a nullable column does not enforce',
+  )
   s.constraints[0].validated = 'NOT VALIDATED'
   assert.equal(previewEnforcement(['REQUEST_ID'], s).enforcement, 'DECLARED')
   assert.equal(previewEnforcement([], s).enforcement, 'DECLARED')
@@ -236,57 +516,143 @@ test('client checks mirror the author schema and build an exact payload', () => 
   const s = snapshot()
   const state = editorState({ liveColumns: s.columns, config: null })
   assert.equal(validateEditor(state, s).valid, false, 'at least one column')
-  const include = (names, extra = {}) => state.columns.map((c) => (names.includes(c.name) ? { ...c, included: true, exposed: true, ...extra } : c))
+  const include = (names, extra = {}) =>
+    state.columns.map((c) =>
+      names.includes(c.name) ? { ...c, included: true, exposed: true, ...extra } : c,
+    )
   const declared = { ...emptyKey(), code: 'ORG_KEY', columns: ['ORG_ID'] }
   let check = validateEditor({ columns: include(['REQUEST_ID', 'ORG_ID']), keys: [declared] }, s)
   assert.equal(check.valid, false)
   assert.ok(check.errors.keys[declared.uid].basis, 'a declared key needs an assurance basis')
   assert.ok(check.errors.keys[declared.uid].evidenceRef)
-  const assured = { ...declared, basis: 'OWNER_ATTESTED', evidenceRef: ' Note DEMO-1 ', rationale: 'Owner reviewed.' }
-  const enforced = { ...emptyKey(), code: 'REQUEST_PK', columns: ['REQUEST_ID'], basis: 'OWNER_ATTESTED', evidenceRef: 'x', rationale: 'y' }
-  check = validateEditor({ columns: include(['REQUEST_ID', 'ORG_ID']), keys: [enforced, assured] }, s)
+  const assured = {
+    ...declared,
+    basis: 'OWNER_ATTESTED',
+    evidenceRef: ' Note DEMO-1 ',
+    rationale: 'Owner reviewed.',
+  }
+  const enforced = {
+    ...emptyKey(),
+    code: 'REQUEST_PK',
+    columns: ['REQUEST_ID'],
+    basis: 'OWNER_ATTESTED',
+    evidenceRef: 'x',
+    rationale: 'y',
+  }
+  check = validateEditor(
+    { columns: include(['REQUEST_ID', 'ORG_ID']), keys: [enforced, assured] },
+    s,
+  )
   assert.equal(check.valid, true, JSON.stringify(check.errors))
-  assert.deepEqual(check.payload, {
-    columns: [{ name: 'REQUEST_ID', exposed: true, dataClass: 'INTERNAL' }, { name: 'ORG_ID', exposed: true, dataClass: 'INTERNAL' }],
-    keyCandidates: [
-      { code: 'REQUEST_PK', columns: ['REQUEST_ID'], assurance: null },
-      { code: 'ORG_KEY', columns: ['ORG_ID'], assurance: { basis: 'OWNER_ATTESTED', evidenceRef: 'Note DEMO-1', rationale: 'Owner reviewed.' } },
-    ],
-  }, 'enforced keys send no assurance; text is trimmed')
-  const hidden = validateEditor({ columns: include(['REQUEST_ID']).map((c) => (c.name === 'REQUEST_ID' ? { ...c, exposed: false } : c)), keys: [enforced] }, s)
+  assert.deepEqual(
+    check.payload,
+    {
+      columns: [
+        { name: 'REQUEST_ID', exposed: true, dataClass: 'INTERNAL' },
+        { name: 'ORG_ID', exposed: true, dataClass: 'INTERNAL' },
+      ],
+      keyCandidates: [
+        { code: 'REQUEST_PK', columns: ['REQUEST_ID'], assurance: null },
+        {
+          code: 'ORG_KEY',
+          columns: ['ORG_ID'],
+          assurance: {
+            basis: 'OWNER_ATTESTED',
+            evidenceRef: 'Note DEMO-1',
+            rationale: 'Owner reviewed.',
+          },
+        },
+      ],
+    },
+    'enforced keys send no assurance; text is trimmed',
+  )
+  const hidden = validateEditor(
+    {
+      columns: include(['REQUEST_ID']).map((c) =>
+        c.name === 'REQUEST_ID' ? { ...c, exposed: false } : c,
+      ),
+      keys: [enforced],
+    },
+    s,
+  )
   assert.match(hidden.errors.keys[enforced.uid].columns, /exposed/)
-  const dup = validateEditor({ columns: include(['REQUEST_ID']), keys: [enforced, { ...enforced, uid: 'k2' }] }, s)
+  const dup = validateEditor(
+    { columns: include(['REQUEST_ID']), keys: [enforced, { ...enforced, uid: 'k2' }] },
+    s,
+  )
   assert.match(dup.errors.keys.k2.code, /unique/)
   const blob = validateEditor({ columns: include(['PAYLOAD']), keys: [] }, s)
   assert.match(blob.errors.columns, /cannot be exposed/)
-  const lower = validateEditor({ columns: include(['REQUEST_ID']), keys: [{ ...enforced, code: 'bad code' }] }, s)
+  const lower = validateEditor(
+    { columns: include(['REQUEST_ID']), keys: [{ ...enforced, code: 'bad code' }] },
+    s,
+  )
   assert.ok(lower.errors.keys[enforced.uid].code)
 })
 
 test('unsaved changes, findings and readable locations', () => {
   const stored = storedDraft(config())
-  assert.equal(samePayload(stored, { ...stored, columns: [...stored.columns].reverse() }), true, 'order-insensitive')
+  assert.equal(
+    samePayload(stored, { ...stored, columns: [...stored.columns].reverse() }),
+    true,
+    'order-insensitive',
+  )
   assert.equal(samePayload(stored, { ...stored, columns: stored.columns.slice(1) }), false)
-  const error = new ApiError('invalid', { status: 400, code: 'SOURCE_MAPPING_INVALID', details: [
-    { field: 'keyCandidates[0].columns[1]', message: 'Expose it', code: 'KEY_COLUMN_NOT_EXPOSED', severity: 'ERROR' },
-    { field: 'keyCandidates[0]', message: 'Provisional', code: 'KEY_NOT_DATABASE_ENFORCED', severity: 'WARNING' },
-  ] })
+  const error = new ApiError('invalid', {
+    status: 400,
+    code: 'SOURCE_MAPPING_INVALID',
+    details: [
+      {
+        field: 'keyCandidates[0].columns[1]',
+        message: 'Expose it',
+        code: 'KEY_COLUMN_NOT_EXPOSED',
+        severity: 'ERROR',
+      },
+      {
+        field: 'keyCandidates[0]',
+        message: 'Provisional',
+        code: 'KEY_NOT_DATABASE_ENFORCED',
+        severity: 'WARNING',
+      },
+    ],
+  })
   const findings = findingsFromError(error)
   assert.equal(groupFindings(findings).errors.length, 1)
   assert.equal(groupFindings(findings).warnings.length, 1)
-  const order = draftOrder({ columns: [{ name: 'A' }, { name: 'B' }], keyCandidates: [{ code: 'ORG_LINE' }] })
+  const order = draftOrder({
+    columns: [{ name: 'A' }, { name: 'B' }],
+    keyCandidates: [{ code: 'ORG_LINE' }],
+  })
   assert.equal(describePath('keyCandidates[0].columns[1]', order), 'Key candidate ORG_LINE')
   assert.equal(describePath('columns[1]', order), 'Column B')
   assert.equal(describePath('$', order), 'Whole mapping')
   assert.deepEqual(fieldErrorsFrom(error), {}, 'mapping findings are not misread as form fields')
   assert.deepEqual(describeWorkflowFailure(error).details, [])
-  for (const code of ['STALE_RECORD', 'SOURCE_VERSION_NOT_DRAFT', 'SOURCE_IDENTITY_CHANGED', 'SOURCE_BUSY']) {
+  for (const code of [
+    'STALE_RECORD',
+    'SOURCE_VERSION_NOT_DRAFT',
+    'SOURCE_IDENTITY_CHANGED',
+    'SOURCE_BUSY',
+  ]) {
     const failure = describeWorkflowFailure(new ApiError('x', { status: 409, code }))
     assert.equal(failure.stale, true, code)
   }
-  assert.equal(describeWorkflowFailure(new ApiError('x', { status: 409, code: 'SOURCE_VERSION_REFERENCED' })).stale, false)
-  assert.match(describeWorkflowFailure(new ApiError('x', { status: 409, code: 'SOURCE_VERSION_REFERENCED' })).message, /form mapping uses/)
-  assert.equal(describeWorkflowFailure(new ApiError('Unable to connect to the server.', { code: 'NETWORK_ERROR' })).kind, 'unknown')
+  assert.equal(
+    describeWorkflowFailure(new ApiError('x', { status: 409, code: 'SOURCE_VERSION_REFERENCED' }))
+      .stale,
+    false,
+  )
+  assert.match(
+    describeWorkflowFailure(new ApiError('x', { status: 409, code: 'SOURCE_VERSION_REFERENCED' }))
+      .message,
+    /form mapping uses/,
+  )
+  assert.equal(
+    describeWorkflowFailure(
+      new ApiError('Unable to connect to the server.', { code: 'NETWORK_ERROR' }),
+    ).kind,
+    'unknown',
+  )
 })
 
 // ------------------------------------------------------------ routes and permissions
@@ -304,16 +670,35 @@ test('mapping pages need SOURCE_MAPPING and DATA_SOURCE_REGISTRY:VIEW, and stay 
   assert.equal(create.id, 'workflow-source-version-new', 'the static path wins over :versionId')
   assert.equal(record.id, 'workflow-source-version')
   const { MAPPING_VIEW, MAPPING_CREATE, SOURCES_VIEW } = WORKFLOW_ACTIONS
-  assert.equal(routeAccess(list, ready([MAPPING_VIEW])), 'denied', 'the registry prerequisite is required')
+  assert.equal(
+    routeAccess(list, ready([MAPPING_VIEW])),
+    'denied',
+    'the registry prerequisite is required',
+  )
   assert.equal(routeAccess(list, ready([SOURCES_VIEW])), 'denied')
   assert.equal(routeAccess(list, ready([MAPPING_VIEW, SOURCES_VIEW])), 'allowed')
   assert.equal(routeAccess(record, ready([MAPPING_VIEW, SOURCES_VIEW])), 'allowed')
-  assert.equal(routeAccess(create, ready([MAPPING_VIEW, SOURCES_VIEW])), 'denied', 'creation needs CREATE')
+  assert.equal(
+    routeAccess(create, ready([MAPPING_VIEW, SOURCES_VIEW])),
+    'denied',
+    'creation needs CREATE',
+  )
   assert.equal(routeAccess(create, ready([MAPPING_CREATE, SOURCES_VIEW])), 'allowed')
   const all = ready(Object.values(WORKFLOW_ACTIONS))
-  const items = authorizedNavigation(all).find((section) => section.id === 'workflow-manager').items.map((item) => item.id)
-  assert.deepEqual(items, ['workflow-manager', 'workflow-forms', 'workflow-data-sources'], 'no new sidebar entries')
-  assert.equal(paletteCommands(all, 'authenticated').some((command) => command.path?.includes('mapping-versions')), false)
+  const items = authorizedNavigation(all)
+    .find((section) => section.id === 'workflow-manager')
+    .items.map((item) => item.id)
+  assert.deepEqual(
+    items,
+    ['workflow-manager', 'workflow-forms', 'workflow-data-sources'],
+    'no new sidebar entries',
+  )
+  assert.equal(
+    paletteCommands(all, 'authenticated').some((command) =>
+      command.path?.includes('mapping-versions'),
+    ),
+    false,
+  )
 })
 
 // ------------------------------------------------------------ pages (static)
@@ -321,17 +706,36 @@ test('mapping pages need SOURCE_MAPPING and DATA_SOURCE_REGISTRY:VIEW, and stay 
 test('mapping pages use the shared service, real API data and accessible controls', async () => {
   const files = {
     list: await read('../src/features/workflow-manager/pages/SourceVersionListPage.jsx'),
-    editor: await read('../src/features/workflow-manager/pages/SourceVersionEditorPage.jsx'),
+    editor: (
+      await read('../src/features/workflow-manager/pages/SourceVersionEditorPage.jsx')
+    ).replace(/\s+/g, ' '),
     columns: await read('../src/features/workflow-manager/components/SourceColumnTable.jsx'),
     keys: await read('../src/features/workflow-manager/components/SourceKeyCandidateEditor.jsx'),
     validation: await read('../src/features/workflow-manager/components/SourceValidationPanel.jsx'),
     registry: await read('../src/features/workflow-manager/pages/DataSourceRegistryPage.jsx'),
   }
   for (const [name, source] of Object.entries(files)) {
-    assert.doesNotMatch(source, /\bfetch\(|axios|lorem|mock|dangerouslySetInnerHTML|JSON\.stringify\(config/i, `${name} has no other transport, fake data or raw JSON editing`)
+    assert.doesNotMatch(
+      source,
+      /\bfetch\(|axios|lorem|mock|dangerouslySetInnerHTML|JSON\.stringify\(config/i,
+      `${name} has no other transport, fake data or raw JSON editing`,
+    )
   }
-  for (const call of ['getSourceDictionary', 'getSourceMappingVersion', 'createSourceMappingVersion', 'updateSourceMappingVersion', 'revalidateSourceMappingVersion', 'getSourceMappingDrift', 'cloneSourceMappingVersion', 'deleteSourceMappingVersion']) {
-    assert.match(files.editor, new RegExp(`workflowManagerService\\.${call}\\(`), `editor calls ${call}`)
+  for (const call of [
+    'getSourceDictionary',
+    'getSourceMappingVersion',
+    'createSourceMappingVersion',
+    'updateSourceMappingVersion',
+    'revalidateSourceMappingVersion',
+    'getSourceMappingDrift',
+    'cloneSourceMappingVersion',
+    'deleteSourceMappingVersion',
+  ]) {
+    assert.match(
+      files.editor,
+      new RegExp(`workflowManagerService\\.${call}\\(`),
+      `editor calls ${call}`,
+    )
   }
   assert.match(files.list, /workflowManagerService\.listSourceMappingVersions\(/)
   // Actions follow permissions and lifecycle state.
@@ -354,16 +758,29 @@ test('mapping pages use the shared service, real API data and accessible control
 })
 
 test('findings are labelled in the order of the draft they came from', async () => {
-  const editor = await read('../src/features/workflow-manager/pages/SourceVersionEditorPage.jsx')
+  const editor = (
+    await read('../src/features/workflow-manager/pages/SourceVersionEditorPage.jsx')
+  ).replace(/\s+/g, ' ')
   // Saves label by the submitted order (also carried across the create navigation) …
-  assert.match(editor, /validation: outcome\.value\.validation, order \}/)
+  assert.match(editor, /validation: outcome\.value\.validation, order,?\s*\}/)
   assert.match(editor, /saved\.`, order\)/)
   // … while drift and stored blockers index the stored, sorted configuration.
   assert.match(editor, /driftOrder=\{storedOrder\}/)
   assert.match(editor, /blockerOrder=\{fromResult \? resultOrder : storedOrder\}/)
   // The same path names different keys in the two orders, so the choice matters.
-  const submitted = draftOrder({ columns: [], keyCandidates: [{ code: 'Z_KEY' }, { code: 'A_KEY' }] })
-  const sorted = draftOrder(storedDraft({ columns: [], keyCandidates: [{ code: 'A_KEY', columns: [] }, { code: 'Z_KEY', columns: [] }] }))
+  const submitted = draftOrder({
+    columns: [],
+    keyCandidates: [{ code: 'Z_KEY' }, { code: 'A_KEY' }],
+  })
+  const sorted = draftOrder(
+    storedDraft({
+      columns: [],
+      keyCandidates: [
+        { code: 'A_KEY', columns: [] },
+        { code: 'Z_KEY', columns: [] },
+      ],
+    }),
+  )
   assert.equal(describePath('keyCandidates[1]', submitted), 'Key candidate A_KEY')
   assert.equal(describePath('keyCandidates[1]', sorted), 'Key candidate Z_KEY')
 })

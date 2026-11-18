@@ -1,4 +1,4 @@
-import { AdminPage, Panel } from "@/features/security-administration/components/AdminUi.jsx";
+import { AdminPage, Panel } from '@/features/security-administration/components/AdminUi.jsx'
 
 export default function PendingWorklistPage() {
   return (
@@ -12,10 +12,10 @@ export default function PendingWorklistPage() {
           Pending count: <strong>Not available</strong> until worklist reporting is connected.
         </p>
         <p className="zrv-admin-note">
-          Workflow execution is not active in this app, so it does not currently create approval tasks or pending report
-          rows.
+          Workflow execution is not active in this app, so it does not currently create approval
+          tasks or pending report rows.
         </p>
       </Panel>
     </AdminPage>
-  );
+  )
 }

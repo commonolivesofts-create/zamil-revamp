@@ -18,13 +18,24 @@ export default function UserAccountsPage() {
     <AdminPage
       title="User accounts"
       description="Application accounts of employees. Open an account to review its status, sessions and security, and to manage it."
-      actions={can(SECURITY_ACTIONS.USER_ACCOUNTS_CREATE) && (
-        <button type="button" className="btn-primary" onClick={() => { action.setFeedback(null); setProvisioning(true) }}>
-          <OrvexaIcon name="user-plus" className="size-4" /> Provision account
-        </button>
-      )}
+      actions={
+        can(SECURITY_ACTIONS.USER_ACCOUNTS_CREATE) && (
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => {
+              action.setFeedback(null)
+              setProvisioning(true)
+            }}
+          >
+            <OrvexaIcon name="user-plus" className="size-4" /> Provision account
+          </button>
+        )
+      }
     >
-      {!provisioning && <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />}
+      {!provisioning && (
+        <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
+      )}
       <UserDirectory rowLink={(user) => `/security/users/${user.userId}`} />
       {provisioning && (
         <ProvisionAccountDialog

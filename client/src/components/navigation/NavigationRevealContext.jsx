@@ -1,13 +1,6 @@
+import { useCallback, useMemo, useState } from 'react'
 
-import {
-  useCallback,
-  useMemo,
-  useState,
-} from 'react'
-
-import {
-  NavigationRevealContext,
-} from './useNavigationReveal.js'
+import { NavigationRevealContext } from './useNavigationReveal.js'
 
 /**
  * Shared navigation reveal provider.
@@ -17,19 +10,13 @@ import {
  *
  * Existing RBAC and navigation permissions remain unchanged.
  */
-export function NavigationRevealProvider({
-  children,
-  onReveal,
-}) {
+export function NavigationRevealProvider({ children, onReveal }) {
   const [revealRequest, setRevealRequest] = useState(null)
 
   // Request a registered navigation item to be revealed.
   const revealNavigationItem = useCallback(
     (routeId) => {
-      if (
-        typeof routeId !== 'string' ||
-        !routeId.trim()
-      ) {
+      if (typeof routeId !== 'string' || !routeId.trim()) {
         return
       }
 
@@ -55,11 +42,7 @@ export function NavigationRevealProvider({
       revealNavigationItem,
       clearNavigationReveal,
     }),
-    [
-      revealRequest,
-      revealNavigationItem,
-      clearNavigationReveal,
-    ],
+    [revealRequest, revealNavigationItem, clearNavigationReveal],
   )
 
   return (

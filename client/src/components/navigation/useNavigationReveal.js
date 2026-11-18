@@ -1,8 +1,4 @@
-
-import {
-  createContext,
-  useContext,
-} from 'react'
+import { createContext, useContext } from 'react'
 
 // Shared context used by NavigationRevealProvider
 // and all sidebar navigation consumers.
@@ -17,9 +13,7 @@ export default function useNavigationReveal() {
   const context = useContext(NavigationRevealContext)
 
   if (!context) {
-    throw new Error(
-      'useNavigationReveal must be used within NavigationRevealProvider',
-    )
+    throw new Error('useNavigationReveal must be used within NavigationRevealProvider')
   }
 
   return context

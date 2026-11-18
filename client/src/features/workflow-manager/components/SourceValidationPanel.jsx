@@ -20,7 +20,15 @@ function FindingList({ items, order, tone }) {
 // Validation result of the last check: errors (block saving), warnings (saved, but worth
 // reading), publication blockers (reported for the later approval package; nothing here
 // publishes) and the read-only drift check — each in its own section.
-export default function SourceValidationPanel({ validation, blockers = [], drift, order, blockerOrder = order, driftOrder = order, pending }) {
+export default function SourceValidationPanel({
+  validation,
+  blockers = [],
+  drift,
+  order,
+  blockerOrder = order,
+  driftOrder = order,
+  pending,
+}) {
   const { errors, warnings } = groupFindings(validation?.findings ?? [])
   const driftGroups = groupFindings(drift?.findings ?? [])
   const nothing = !validation && !drift && blockers.length === 0
@@ -28,15 +36,26 @@ export default function SourceValidationPanel({ validation, blockers = [], drift
     <div className="zwf-validation" aria-live="polite" aria-busy={pending || undefined}>
       {nothing && (
         <p className="zrv-admin-state" role="status">
-          No validation result yet. Saving validates the mapping against the live source; you can also re-validate a saved draft or check it for drift.
+          No validation result yet. Saving validates the mapping against the live source; you can
+          also re-validate a saved draft or check it for drift.
         </p>
       )}
       {validation && (
         <section className="zwf-validation__section" aria-labelledby="zwf-validation-result">
           <h3 id="zwf-validation-result">
-            {validation.source === 'refused'
-              ? <><OrvexaIcon name="circle-alert" className="size-4" /> Not saved — {errors.length} error{errors.length === 1 ? '' : 's'} to correct</>
-              : <><OrvexaIcon name="circle-check" className="size-4" /> Valid{warnings.length ? ` with ${warnings.length} warning${warnings.length === 1 ? '' : 's'}` : ''}</>}
+            {validation.source === 'refused' ? (
+              <>
+                <OrvexaIcon name="circle-alert" className="size-4" /> Not saved — {errors.length}{' '}
+                error{errors.length === 1 ? '' : 's'} to correct
+              </>
+            ) : (
+              <>
+                <OrvexaIcon name="circle-check" className="size-4" /> Valid
+                {warnings.length
+                  ? ` with ${warnings.length} warning${warnings.length === 1 ? '' : 's'}`
+                  : ''}
+              </>
+            )}
           </h3>
           {errors.length > 0 && (
             <>
@@ -54,12 +73,19 @@ export default function SourceValidationPanel({ validation, blockers = [], drift
       )}
       {blockers.length > 0 && (
         <section className="zwf-validation__section" aria-labelledby="zwf-validation-blockers">
-          <h3 id="zwf-validation-blockers"><OrvexaIcon name="shield-alert" className="size-4" /> Publication blockers</h3>
-          <p className="zrv-admin-hint">Recorded for the later approval and publication step. They do not stop you saving a draft.</p>
+          <h3 id="zwf-validation-blockers">
+            <OrvexaIcon name="shield-alert" className="size-4" /> Publication blockers
+          </h3>
+          <p className="zrv-admin-hint">
+            Recorded for the later approval and publication step. They do not stop you saving a
+            draft.
+          </p>
           <ul className="zwf-findings zwf-findings--blocker">
             {blockers.map((blocker) => (
               <li key={`${blocker.code}:${blocker.path}`}>
-                <span className="zwf-findings__where">{describePath(blocker.path, blockerOrder)}</span>
+                <span className="zwf-findings__where">
+                  {describePath(blocker.path, blockerOrder)}
+                </span>
                 <span>{describeBlocker(blocker)}</span>
                 <code className="zwf-code">{blocker.code}</code>
               </li>
@@ -70,16 +96,30 @@ export default function SourceValidationPanel({ validation, blockers = [], drift
       {drift && (
         <section className="zwf-validation__section" aria-labelledby="zwf-validation-drift">
           <h3 id="zwf-validation-drift">
-            <OrvexaIcon name={drift.drifted ? 'triangle-alert' : 'circle-check'} className="size-4" /> Drift check
-            {' '}<Badge tone={drift.drifted ? 'bad' : 'good'}>{drift.drifted ? 'Drift found' : 'No drift'}</Badge>
+            <OrvexaIcon
+              name={drift.drifted ? 'triangle-alert' : 'circle-check'}
+              className="size-4"
+            />{' '}
+            Drift check{' '}
+            <Badge tone={drift.drifted ? 'bad' : 'good'}>
+              {drift.drifted ? 'Drift found' : 'No drift'}
+            </Badge>
           </h3>
           <p className="zrv-admin-hint">
             Checked {formatInstant(drift.checkedAt)}
-            {drift.current ? ` · live ${drift.current.objectType} is ${drift.current.status}` : ' · the live object could not be read'}
-            {drift.configIntegrity !== 'VERIFIED' ? ` · stored configuration ${drift.configIntegrity.toLowerCase()}` : ''}
+            {drift.current
+              ? ` · live ${drift.current.objectType} is ${drift.current.status}`
+              : ' · the live object could not be read'}
+            {drift.configIntegrity !== 'VERIFIED'
+              ? ` · stored configuration ${drift.configIntegrity.toLowerCase()}`
+              : ''}
           </p>
-          {driftGroups.errors.length > 0 && <FindingList items={driftGroups.errors} order={driftOrder} tone="error" />}
-          {driftGroups.warnings.length > 0 && <FindingList items={driftGroups.warnings} order={driftOrder} tone="warning" />}
+          {driftGroups.errors.length > 0 && (
+            <FindingList items={driftGroups.errors} order={driftOrder} tone="error" />
+          )}
+          {driftGroups.warnings.length > 0 && (
+            <FindingList items={driftGroups.warnings} order={driftOrder} tone="warning" />
+          )}
         </section>
       )}
     </div>

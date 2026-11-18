@@ -5,39 +5,63 @@
 import { apiClient } from '../../../services/api/apiClient.js'
 import { createListReadLimit } from '../../../services/api/listReadLimit.js'
 import { createEmployeeList, employeePage } from '../shared/employeeList.js'
-import { ID, invalidResponse, isoDate, normalizeStatus, params, segment, text } from '../shared/formRecords.js'
+import {
+  ID,
+  invalidResponse,
+  isoDate,
+  normalizeStatus,
+  params,
+  segment,
+  text,
+} from '../shared/formRecords.js'
 
 export const BASE = '/hr/warning-letters'
 export const RESOURCE = 'HR.WARNING_LETTERS'
 export const TEXT_MAX = 2000
 
 // The legacy reasons, English and Arabic as on the form.
-export const REASONS = Object.freeze([
-  ['irregular', 'Irregular on duty', 'التأخير المتكرر في الحضور أو الانصراف'],
-  ['absent', 'Absent without permission', 'الغياب بدون إذن'],
-  ['eating', 'Eating in a prohibited place', 'الأكل في غير المكان المحدد'],
-  ['delaying', 'Delaying the assigned job', 'التأخير في أداء العمل'],
-  ['makeProblems', 'Creating problems at work', 'إحداث مشاكل في مكان العمل'],
-].map(([key, en, ar]) => Object.freeze({ key, en, ar })))
+export const REASONS = Object.freeze(
+  [
+    ['irregular', 'Irregular on duty', 'التأخير المتكرر في الحضور أو الانصراف'],
+    ['absent', 'Absent without permission', 'الغياب بدون إذن'],
+    ['eating', 'Eating in a prohibited place', 'الأكل في غير المكان المحدد'],
+    ['delaying', 'Delaying the assigned job', 'التأخير في أداء العمل'],
+    ['makeProblems', 'Creating problems at work', 'إحداث مشاكل في مكان العمل'],
+  ].map(([key, en, ar]) => Object.freeze({ key, en, ar })),
+)
 const FLAGS = Object.freeze({
-  irregular: 'irregular_flag', absent: 'absent_flag', eating: 'eating_flag', delaying: 'delaying_flag', makeProblems: 'make_problems_flag',
-  warningLetter: 'warning_letter_flag', otherLetter: 'other_letter_flag',
+  irregular: 'irregular_flag',
+  absent: 'absent_flag',
+  eating: 'eating_flag',
+  delaying: 'delaying_flag',
+  makeProblems: 'make_problems_flag',
+  warningLetter: 'warning_letter_flag',
+  otherLetter: 'other_letter_flag',
 })
 const TEXTS = Object.freeze({
-  othersText: 'others_text', othersTextAr: 'others_text_ar', actionText: 'action_text', actionTextAr: 'action_text_ar',
-  warningComment: 'warning_letter_comment', otherComment: 'other_letter_comment',
+  othersText: 'others_text',
+  othersTextAr: 'others_text_ar',
+  actionText: 'action_text',
+  actionTextAr: 'action_text_ar',
+  warningComment: 'warning_letter_comment',
+  otherComment: 'other_letter_comment',
 })
 
-export const blankLetter = (today) => Object.freeze({
-  warDate: today, employee: null,
-  ...Object.fromEntries(Object.keys(FLAGS).map((key) => [key, false])),
-  ...Object.fromEntries(Object.keys(TEXTS).map((key) => [key, ''])),
-})
+export const blankLetter = (today) =>
+  Object.freeze({
+    warDate: today,
+    employee: null,
+    ...Object.fromEntries(Object.keys(FLAGS).map((key) => [key, false])),
+    ...Object.fromEntries(Object.keys(TEXTS).map((key) => [key, ''])),
+  })
 
 export function readEmployee(data) {
   if (!data || !text(data.emp_no)) throw invalidResponse('employee')
   return Object.freeze({
-    employeeNo: text(data.emp_no), name: text(data.emp_name), division: text(data.emp_div), position: text(data.emp_job),
+    employeeNo: text(data.emp_no),
+    name: text(data.emp_name),
+    division: text(data.emp_div),
+    position: text(data.emp_job),
     nextWarningNo: data.warning_no == null ? '' : text(data.warning_no),
   })
 }
@@ -52,7 +76,12 @@ export function readLetter(data) {
     warDate: isoDate(data.war_date),
     createdAt: isoDate(data.created_at),
     employee: readEmployee(data),
-    ...Object.fromEntries(Object.entries(FLAGS).map(([key, column]) => [key, String(data[column] ?? '').toUpperCase() === 'Y'])),
+    ...Object.fromEntries(
+      Object.entries(FLAGS).map(([key, column]) => [
+        key,
+        String(data[column] ?? '').toUpperCase() === 'Y',
+      ]),
+    ),
     ...Object.fromEntries(Object.entries(TEXTS).map(([key, column]) => [key, text(data[column])])),
   })
 }
@@ -66,12 +95,20 @@ export function readLetterPage(data) {
   const totalPages = limit ? Math.ceil(total / limit) : 1
   return Object.freeze({
     items: Object.freeze(data.rows.map(readLetter)),
-    pagination: Object.freeze({ page, limit, total, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 }),
+    pagination: Object.freeze({
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    }),
   })
 }
 
 export const letterFormOf = (letter) => ({
-  warDate: letter.warDate, employee: letter.employee,
+  warDate: letter.warDate,
+  employee: letter.employee,
   ...Object.fromEntries(Object.keys(FLAGS).map((key) => [key, letter[key]])),
   ...Object.fromEntries(Object.keys(TEXTS).map((key) => [key, letter[key]])),
 })
@@ -82,7 +119,9 @@ export function letterBody(form, { creating }) {
   return {
     war_date: form.warDate,
     ...(creating ? { emp_no: form.employee.employeeNo } : {}),
-    ...Object.fromEntries(Object.entries(FLAGS).map(([key, column]) => [column, form[key] ? 'Y' : 'N'])),
+    ...Object.fromEntries(
+      Object.entries(FLAGS).map(([key, column]) => [column, form[key] ? 'Y' : 'N']),
+    ),
     ...Object.fromEntries(Object.entries(TEXTS).map(([key, column]) => [column, form[key].trim()])),
   }
 }
@@ -92,28 +131,42 @@ export function validateLetter(form) {
   const errors = {}
   if (!form.employee) errors.employee = 'Choose the employee.'
   if (!form.warDate) errors.warDate = 'Date is required.'
-  if (!REASONS.some((item) => form[item.key]) && !form.othersText.trim() && !form.othersTextAr.trim()) {
+  if (
+    !REASONS.some((item) => form[item.key]) &&
+    !form.othersText.trim() &&
+    !form.othersTextAr.trim()
+  ) {
     errors.reasons = 'Tick a reason or describe it under Others.'
   }
-  if (form.warningLetter && !form.warningComment.trim()) errors.warningComment = 'Add the warning letter comment.'
-  if (form.otherLetter && !form.otherComment.trim()) errors.otherComment = 'Add the other letter comment.'
-  for (const key of Object.keys(TEXTS)) if (form[key].trim().length > TEXT_MAX) errors[key] = `Keep it within ${TEXT_MAX} characters.`
+  if (form.warningLetter && !form.warningComment.trim())
+    errors.warningComment = 'Add the warning letter comment.'
+  if (form.otherLetter && !form.otherComment.trim())
+    errors.otherComment = 'Add the other letter comment.'
+  for (const key of Object.keys(TEXTS))
+    if (form[key].trim().length > TEXT_MAX) errors[key] = `Keep it within ${TEXT_MAX} characters.`
   return errors
 }
 
-const employeeOption = (item) => (text(item?.emp_no)
-  ? Object.freeze({ employeeId: text(item.emp_no), employeeNumber: text(item.emp_no), name: text(item.emp_name) })
-  : null)
+const employeeOption = (item) =>
+  text(item?.emp_no)
+    ? Object.freeze({
+        employeeId: text(item.emp_no),
+        employeeNumber: text(item.emp_no),
+        name: text(item.emp_name),
+      })
+    : null
 
 export function createWarningLetterService({ client }) {
   // The warning-letter report requests counts for each month and reason in
   // parallel. Bound those list reads so the report does not starve a preview's
   // single-record request from the shared Oracle pool.
   const runListRead = createListReadLimit(4)
-  const getById = async (value, { signal } = {}) => readLetter((await client.get(`${BASE}/${segment(value)}`, { signal })).data)
+  const getById = async (value, { signal } = {}) =>
+    readLetter((await client.get(`${BASE}/${segment(value)}`, { signal })).data)
   // The picker's list, loaded with the form (the legacy datalist of employees).
   const employees = createEmployeeList({
-    load: ({ signal } = {}) => client.get(`${BASE}/lookups/employees`, { signal }).then(({ data }) => data),
+    load: ({ signal } = {}) =>
+      client.get(`${BASE}/lookups/employees`, { signal }).then(({ data }) => data),
     shape: employeeOption,
   })
   return Object.freeze({
@@ -130,16 +183,39 @@ export function createWarningLetterService({ client }) {
       return employeePage(data.map(employeeOption).filter(Boolean))
     },
     async employee(employeeNo, { signal } = {}) {
-      return readEmployee((await client.get(`${BASE}/lookups/employee/${encodeURIComponent(employeeNo)}`, { signal })).data)
+      return readEmployee(
+        (await client.get(`${BASE}/lookups/employee/${encodeURIComponent(employeeNo)}`, { signal }))
+          .data,
+      )
     },
-    async list({ page = 1, pageSize = 25, q, division, flag, dateFrom, dateTo } = {}, { signal } = {}) {
-      const { data } = await runListRead(() => client.get(BASE, {
-        params: params({ page, limit: pageSize, search: q, division, flag, date_from: dateFrom, date_to: dateTo }), signal,
-      }), signal)
+    async list(
+      { page = 1, pageSize = 25, q, division, flag, dateFrom, dateTo } = {},
+      { signal } = {},
+    ) {
+      const { data } = await runListRead(
+        () =>
+          client.get(BASE, {
+            params: params({
+              page,
+              limit: pageSize,
+              search: q,
+              division,
+              flag,
+              date_from: dateFrom,
+              date_to: dateTo,
+            }),
+            signal,
+          }),
+        signal,
+      )
       return readLetterPage(data)
     },
     async save(value, form) {
-      if (value) return readLetter((await client.put(`${BASE}/${segment(value)}`, letterBody(form, { creating: false }))).data)
+      if (value)
+        return readLetter(
+          (await client.put(`${BASE}/${segment(value)}`, letterBody(form, { creating: false })))
+            .data,
+        )
       return readLetter((await client.post(BASE, letterBody(form, { creating: true }))).data)
     },
   })

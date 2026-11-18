@@ -44,13 +44,17 @@ export function isFeatureEnabled(enabledBy, env = buildEnv) {
 
 // The registry entries as this build sees them (`env` is replaceable for tests only).
 export function resolveNavigationEntries(entries, env = buildEnv) {
-  return Object.freeze(entries.map((entry) => {
-    if (entry.type !== 'external') {
-      return entry.enabledBy && !isFeatureEnabled(entry.enabledBy, env) ? Object.freeze({ ...entry, implemented: false }) : entry
-    }
-    const href = resolveExternalHref(entry.href, env)
-    return Object.freeze({ ...entry, href, implemented: entry.implemented && href !== null })
-  }))
+  return Object.freeze(
+    entries.map((entry) => {
+      if (entry.type !== 'external') {
+        return entry.enabledBy && !isFeatureEnabled(entry.enabledBy, env)
+          ? Object.freeze({ ...entry, implemented: false })
+          : entry
+      }
+      const href = resolveExternalHref(entry.href, env)
+      return Object.freeze({ ...entry, href, implemented: entry.implemented && href !== null })
+    }),
+  )
 }
 
 export const navigationEntries = resolveNavigationEntries(registry.entries)
@@ -58,16 +62,20 @@ export const navigationEntries = resolveNavigationEntries(registry.entries)
 export const navigationSections = NAVIGATION_GROUPS
 
 // Internal application routes only.
-export const appRoutes = Object.freeze(navigationEntries.filter((entry) => entry.type !== 'external'))
+export const appRoutes = Object.freeze(
+  navigationEntries.filter((entry) => entry.type !== 'external'),
+)
 
 // Permission identities used by the Security Administration navigation,
 // named RESOURCE_ACTION (for example USER_ACCOUNTS_VIEW).
-export const PERMISSIONS = Object.freeze(Object.fromEntries(
-  navigationEntries
-    .flatMap((entry) => [entry.permission, ...(entry.alsoRequires || [])])
-    .filter((key) => key?.startsWith('SECURITY_ADMINISTRATION.'))
-    .map((key) => [key.slice(key.indexOf('.') + 1).replace(':', '_'), key]),
-))
+export const PERMISSIONS = Object.freeze(
+  Object.fromEntries(
+    navigationEntries
+      .flatMap((entry) => [entry.permission, ...(entry.alsoRequires || [])])
+      .filter((key) => key?.startsWith('SECURITY_ADMINISTRATION.'))
+      .map((key) => [key.slice(key.indexOf('.') + 1).replace(':', '_'), key]),
+  ),
+)
 
 export const implementedRoutes = Object.freeze(appRoutes.filter((route) => route.implemented))
 
@@ -75,14 +83,22 @@ export const implementedRoutes = Object.freeze(appRoutes.filter((route) => route
 function matchesPath(pattern, path) {
   const expected = pattern.split('/')
   const actual = path.split('/')
-  return expected.length === actual.length &&
-    expected.every((segment, index) => (segment.startsWith(':') ? actual[index] !== '' : segment === actual[index]))
+  return (
+    expected.length === actual.length &&
+    expected.every((segment, index) =>
+      segment.startsWith(':') ? actual[index] !== '' : segment === actual[index],
+    )
+  )
 }
 
 export function findAppRoute(pathname) {
   if (typeof pathname !== 'string') return null
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
-  return appRoutes.find((route) => route.path === path) || appRoutes.find((route) => matchesPath(route.path, path)) || null
+  return (
+    appRoutes.find((route) => route.path === path) ||
+    appRoutes.find((route) => matchesPath(route.path, path)) ||
+    null
+  )
 }
 
 // Access decision for one route, given the permission state
@@ -96,10 +112,12 @@ export function routeAccess(route, access) {
   if (access?.status === 'loading') return 'pending'
   if (access?.status === 'error') return 'error'
   if (access?.status !== 'ready' || typeof access.has !== 'function') return 'denied'
-  if (![route.permission, ...(route.alsoRequires || [])].every((key) => access.has(key) === true)) return 'denied'
+  if (![route.permission, ...(route.alsoRequires || [])].every((key) => access.has(key) === true))
+    return 'denied'
   // The MFA condition mirrors the backend: waived only when the server reports the
   // local-development exception (adminMfaRequired === false); the session is still unverified.
-  if (route.requiresMfa && access.mfaVerified !== true && access.adminMfaRequired !== false) return 'mfa_required'
+  if (route.requiresMfa && access.mfaVerified !== true && access.adminMfaRequired !== false)
+    return 'mfa_required'
   return 'allowed'
 }
 
@@ -110,7 +128,13 @@ export const canAccessRoute = (route, access) => routeAccess(route, access) === 
 // omitted. `routes` is replaceable for tests only.
 export function authorizedNavigation(access, routes = navigationEntries) {
   return navigationSections
-    .map((section) => ({ ...section, items: routes.filter((route) => route.section === section.id && route.nav !== false && canAccessRoute(route, access)) }))
+    .map((section) => ({
+      ...section,
+      items: routes.filter(
+        (route) =>
+          route.section === section.id && route.nav !== false && canAccessRoute(route, access),
+      ),
+    }))
     .filter((section) => section.items.length)
 }
 
@@ -119,16 +143,45 @@ export function authorizedNavigation(access, routes = navigationEntries) {
 // added only in the development preview, never for a session.
 export function paletteCommands(access, authStatus, routes = navigationEntries) {
   const commands = authorizedNavigation(access, routes).flatMap((section) =>
-    section.items.map((route) => (route.type === 'external'
-      ? { id: route.id, label: route.label, icon: route.icon, href: route.href, external: true, group: section.label }
-      : { id: route.id, label: route.label, icon: route.icon, path: route.path, group: section.label })))
+    section.items.map((route) =>
+      route.type === 'external'
+        ? {
+            id: route.id,
+            label: route.label,
+            icon: route.icon,
+            href: route.href,
+            external: true,
+            group: section.label,
+          }
+        : {
+            id: route.id,
+            label: route.label,
+            icon: route.icon,
+            path: route.path,
+            group: section.label,
+          },
+    ),
+  )
   if (!templateDemosAvailable(authStatus)) return commands
-  return [...commands, ...orvexaDemoRoutes
-    .filter((demo) => demo.path.startsWith('/demo/'))
-    .map((demo) => ({ id: `demo-${demo.id}`, label: demo.label, icon: demo.icon, path: demo.path, group: 'Template demos (preview only)' }))]
+  return [
+    ...commands,
+    ...orvexaDemoRoutes
+      .filter((demo) => demo.path.startsWith('/demo/'))
+      .map((demo) => ({
+        id: `demo-${demo.id}`,
+        label: demo.label,
+        icon: demo.icon,
+        path: demo.path,
+        group: 'Template demos (preview only)',
+      })),
+  ]
 }
 
 export function searchCommands(commands, query, limit = 12) {
-  const term = String(query ?? '').trim().toLowerCase()
-  return commands.filter((item) => `${item.label} ${item.group}`.toLowerCase().includes(term)).slice(0, limit)
+  const term = String(query ?? '')
+    .trim()
+    .toLowerCase()
+  return commands
+    .filter((item) => `${item.label} ${item.group}`.toLowerCase().includes(term))
+    .slice(0, limit)
 }

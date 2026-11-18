@@ -13,10 +13,24 @@ export default function ActionPicker({ existing, selected, onToggle, disabled = 
   return (
     <div className="zrv-admin-picker">
       <Field id="action-search" label="Find actions" hint="Code, name, category or description">
-        <input {...fieldProps('action-search', { hint: true })} data-autofocus className="ux-input" type="search" value={search} maxLength={100} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault() }} disabled={disabled} />
+        <input
+          {...fieldProps('action-search', { hint: true })}
+          data-autofocus
+          className="ux-input"
+          type="search"
+          value={search}
+          maxLength={100}
+          onChange={(event) => setSearch(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.preventDefault()
+          }}
+          disabled={disabled}
+        />
       </Field>
       <p className="zrv-admin-hint" role="status" aria-live="polite">
-        {selected.length ? `${selected.length} selected: ${selected.join(', ')}` : 'No action selected.'}
+        {selected.length
+          ? `${selected.length} selected: ${selected.join(', ')}`
+          : 'No action selected.'}
       </p>
       {options.length ? (
         <fieldset className="zrv-admin-choices zrv-admin-choices--scroll">
@@ -35,16 +49,29 @@ export default function ActionPicker({ existing, selected, onToggle, disabled = 
                   aria-describedby={`${id}-description`}
                 />
                 <span>
-                  <code>{option.code}</code> {option.name} <small className="zrv-admin-sub">· {option.categoryLabel}</small>
-                  {present && <small className="zrv-admin-sub"> — {option.existing === 'active' ? 'already exists' : 'already exists but is inactive (grants nothing until activated)'}</small>}
-                  <small id={`${id}-description`} className="zrv-admin-sub">{option.description}</small>
+                  <code>{option.code}</code> {option.name}{' '}
+                  <small className="zrv-admin-sub">· {option.categoryLabel}</small>
+                  {present && (
+                    <small className="zrv-admin-sub">
+                      {' '}
+                      —{' '}
+                      {option.existing === 'active'
+                        ? 'already exists'
+                        : 'already exists but is inactive (grants nothing until activated)'}
+                    </small>
+                  )}
+                  <small id={`${id}-description`} className="zrv-admin-sub">
+                    {option.description}
+                  </small>
                 </span>
               </label>
             )
           })}
         </fieldset>
       ) : (
-        <p className="zrv-admin-state" role="status">No standard action matches.</p>
+        <p className="zrv-admin-state" role="status">
+          No standard action matches.
+        </p>
       )}
     </div>
   )

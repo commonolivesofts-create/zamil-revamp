@@ -243,11 +243,11 @@ a.zwf-stat:focus-visible {
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;
 }
-.zwf-columns th[scope="row"] {
+.zwf-columns th[scope='row'] {
   font-weight: 600;
   text-align: left;
 }
-.zwf-columns th[scope="row"] .zrv-admin-badge {
+.zwf-columns th[scope='row'] .zrv-admin-badge {
   margin-left: 6px;
 }
 .zwf-check {

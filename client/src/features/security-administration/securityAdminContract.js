@@ -45,7 +45,11 @@ const text = (value) => {
 }
 // Instants are serialised as ISO 8601 strings, or null.
 const instant = (value) => {
-  check(value === null || value === undefined || (typeof value === 'string' && !Number.isNaN(Date.parse(value))))
+  check(
+    value === null ||
+      value === undefined ||
+      (typeof value === 'string' && !Number.isNaN(Date.parse(value))),
+  )
   return value ?? null
 }
 const oneOf = (allowed) => (value) => {
@@ -84,7 +88,10 @@ export function readUserListItem(item) {
 
 // `result` is the shared API client's { data, pagination }.
 export function readPage(result, reader) {
-  return Object.freeze({ items: list(result?.data, reader), pagination: readPagination(result?.pagination) })
+  return Object.freeze({
+    items: list(result?.data, reader),
+    pagination: readPagination(result?.pagination),
+  })
 }
 
 export function readCandidate(item) {
@@ -133,8 +140,15 @@ export function readUserRole(role) {
 }
 
 export function readUserDetail(data) {
-  check(isObject(data) && isObject(data.account) && isObject(data.password) && isObject(data.mfa) &&
-    isObject(data.eligibility) && isObject(data.classification) && isObject(data.activation))
+  check(
+    isObject(data) &&
+      isObject(data.account) &&
+      isObject(data.password) &&
+      isObject(data.mfa) &&
+      isObject(data.eligibility) &&
+      isObject(data.classification) &&
+      isObject(data.activation),
+  )
   check(data.employee === null || isObject(data.employee))
   const { account, password, mfa, employee, eligibility, classification, activation } = data
   check(Number.isInteger(account.failedLoginAttempts) || account.failedLoginAttempts === null)
@@ -159,16 +173,21 @@ export function readUserDetail(data) {
       expired: password.expired,
     }),
     mfa: Object.freeze({ enrolled: bool(mfa.enrolled), enrolledAt: instant(mfa.enrolledAt) }),
-    employee: employee && Object.freeze({
-      username: text(employee.username),
-      fullName: text(employee.fullName),
-      email: text(employee.email),
-      jobTitle: text(employee.jobTitle),
-      department: text(employee.department),
-      currentEmployeeFlag: text(employee.currentEmployeeFlag),
-      terminationStatus: text(employee.terminationStatus),
+    employee:
+      employee &&
+      Object.freeze({
+        username: text(employee.username),
+        fullName: text(employee.fullName),
+        email: text(employee.email),
+        jobTitle: text(employee.jobTitle),
+        department: text(employee.department),
+        currentEmployeeFlag: text(employee.currentEmployeeFlag),
+        terminationStatus: text(employee.terminationStatus),
+      }),
+    eligibility: Object.freeze({
+      eligible: bool(eligibility.eligible),
+      reason: text(eligibility.reason),
     }),
-    eligibility: Object.freeze({ eligible: bool(eligibility.eligible), reason: text(eligibility.reason) }),
     classification: Object.freeze({
       protectedSuperAdministrator: bool(classification.protectedSuperAdministrator),
       privilegedRoleMember: bool(classification.privilegedRoleMember),
@@ -189,7 +208,11 @@ export function readUserChange(data) {
   const user = readUserDetail(data)
   check(data.changed === undefined || typeof data.changed === 'boolean')
   check(data.sessionsRevoked === undefined || Number.isInteger(data.sessionsRevoked))
-  return Object.freeze({ user, changed: data.changed ?? true, sessionsRevoked: data.sessionsRevoked ?? null })
+  return Object.freeze({
+    user,
+    changed: data.changed ?? true,
+    sessionsRevoked: data.sessionsRevoked ?? null,
+  })
 }
 
 export function readSessionsRevoked(data) {
@@ -199,7 +222,11 @@ export function readSessionsRevoked(data) {
 
 export function readSessionRevoked(data) {
   check(isObject(data) && data.revoked === true)
-  return Object.freeze({ userId: id(data.userId), sessionId: id(data.sessionId), changed: bool(data.changed) })
+  return Object.freeze({
+    userId: id(data.userId),
+    sessionId: id(data.sessionId),
+    changed: bool(data.changed),
+  })
 }
 
 // Password-setup and recovery links go only to the delivery channel: the
@@ -246,17 +273,30 @@ export function readRolePermission(grant) {
 
 export function readGrantChange(data) {
   check(isObject(data) && typeof data.granted === 'boolean')
-  return Object.freeze({ roleId: id(data.roleId), permissionId: id(data.permissionId), granted: data.granted, changed: bool(data.changed) })
+  return Object.freeze({
+    roleId: id(data.roleId),
+    permissionId: id(data.permissionId),
+    granted: data.granted,
+    changed: bool(data.changed),
+  })
 }
 
 export function readRoleAssigned(data) {
   check(isObject(data) && data.assigned === true)
-  return Object.freeze({ userId: id(data.userId), roleId: id(data.roleId), expiresAt: instant(data.expiresAt) })
+  return Object.freeze({
+    userId: id(data.userId),
+    roleId: id(data.roleId),
+    expiresAt: instant(data.expiresAt),
+  })
 }
 
 export function readRoleUnassigned(data) {
   check(isObject(data) && data.assigned === false)
-  return Object.freeze({ userId: id(data.userId), roleId: id(data.roleId), changed: bool(data.changed) })
+  return Object.freeze({
+    userId: id(data.userId),
+    roleId: id(data.roleId),
+    changed: bool(data.changed),
+  })
 }
 
 // ------------------------------------------------------------------- catalogue
@@ -284,7 +324,11 @@ function readCatalogResource(resource) {
 
 function readCatalogModule(module) {
   check(isObject(module))
-  check(module.displayOrder === null || module.displayOrder === undefined || Number.isInteger(module.displayOrder))
+  check(
+    module.displayOrder === null ||
+      module.displayOrder === undefined ||
+      Number.isInteger(module.displayOrder),
+  )
   return Object.freeze({
     moduleId: id(module.moduleId),
     moduleCode: code(module.moduleCode),
@@ -304,7 +348,11 @@ export function readCatalogCreated(data, idField) {
 
 export function readCatalogActivation(data, idField) {
   check(isObject(data))
-  return Object.freeze({ id: id(data[idField]), isActive: bool(data.isActive), changed: bool(data.changed) })
+  return Object.freeze({
+    id: id(data[idField]),
+    isActive: bool(data.isActive),
+    changed: bool(data.changed),
+  })
 }
 
 // ------------------------------------------------- overrides and effective access
@@ -327,18 +375,28 @@ export function readOverride(override) {
 
 export function readOverrideSet(data) {
   check(isObject(data) && data.isActive === true)
-  return Object.freeze({ userId: id(data.userId), permissionId: id(data.permissionId), effect: oneOf(OVERRIDE_EFFECTS)(data.effect) })
+  return Object.freeze({
+    userId: id(data.userId),
+    permissionId: id(data.permissionId),
+    effect: oneOf(OVERRIDE_EFFECTS)(data.effect),
+  })
 }
 
 export function readOverrideRevoked(data) {
   check(isObject(data) && data.isActive === false)
-  return Object.freeze({ userId: id(data.userId), permissionId: id(data.permissionId), changed: bool(data.changed) })
+  return Object.freeze({
+    userId: id(data.userId),
+    permissionId: id(data.permissionId),
+    changed: bool(data.changed),
+  })
 }
 
 export function readEffectivePermissions(data) {
   check(Array.isArray(data))
-  return Object.freeze(data.map((entry) => {
-    check(isObject(entry))
-    return Object.freeze({ permissionId: id(entry.permissionId), ...readPermission(entry) })
-  }))
+  return Object.freeze(
+    data.map((entry) => {
+      check(isObject(entry))
+      return Object.freeze({ permissionId: id(entry.permissionId), ...readPermission(entry) })
+    }),
+  )
 }

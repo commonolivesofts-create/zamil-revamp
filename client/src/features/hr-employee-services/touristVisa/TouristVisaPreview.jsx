@@ -7,21 +7,48 @@ import { DATE_FIELDS, EMPLOYEE_FIELDS } from './touristVisaService.js'
 // so they show until their English value is changed.
 const money = (value) => {
   const number = Number(String(value ?? '').replace(/,/g, ''))
-  return value === '' || !Number.isFinite(number) ? String(value ?? '') : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(number)
+  return value === '' || !Number.isFinite(number)
+    ? String(value ?? '')
+    : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(number)
 }
 const date = (value) => (value ? enDate(value) : '')
-const arabicOf = (record, key, current, saved) => (record && current === saved ? record[key] || '' : '')
+const arabicOf = (record, key, current, saved) =>
+  record && current === saved ? record[key] || '' : ''
 // A value in the language the preview shows: English, Arabic (falling back to
 // English), or English with the Arabic under it.
 const Val = ({ value, arabic, language = 'bi' }) => {
   const main = language === 'ar' ? arabic || value : value
-  return <>{main || '—'}{language === 'bi' && arabic ? <><br /><small lang="ar" dir="rtl">{arabic}</small></> : null}</>
+  return (
+    <>
+      {main || '—'}
+      {language === 'bi' && arabic ? (
+        <>
+          <br />
+          <small lang="ar" dir="rtl">
+            {arabic}
+          </small>
+        </>
+      ) : null}
+    </>
+  )
 }
 
-const closing = (language) => (language === 'ar'
-  ? <span lang="ar" dir="rtl">وتفضلوا بقبول فائق الاحترام ،،،</span>
-  : language === 'en' ? <span>Anticipating your assistance in this regard.</span>
-    : <><span>Anticipating your assistance in this regard.</span><br /><small lang="ar" dir="rtl">وتفضلوا بقبول فائق الاحترام ،،،</small></>)
+const closing = (language) =>
+  language === 'ar' ? (
+    <span lang="ar" dir="rtl">
+      وتفضلوا بقبول فائق الاحترام ،،،
+    </span>
+  ) : language === 'en' ? (
+    <span>Anticipating your assistance in this regard.</span>
+  ) : (
+    <>
+      <span>Anticipating your assistance in this regard.</span>
+      <br />
+      <small lang="ar" dir="rtl">
+        وتفضلوا بقبول فائق الاحترام ،،،
+      </small>
+    </>
+  )
 
 export default function TouristVisaPreview({ form, record, employee, approver, language = 'bi' }) {
   const countryAr = arabicOf(record, 'countryAr', form.country, record?.country)
@@ -40,16 +67,42 @@ export default function TouristVisaPreview({ form, record, employee, approver, l
         </header>
 
         <dl className="zrv-hr-esf-preview__grid">
-          <div className="zrv-hr-is-wide"><dt>Addressed to</dt><dd><Val language={language} value={form.country ? `The Consul General of ${form.country}` : ''} arabic={countryAr} /></dd></div>
-          <div><dt>Date</dt><dd>{date(form.curDate) || '—'}</dd></div>
-          <div><dt>Hijri date</dt><dd><Val value={hijri} /></dd></div>
+          <div className="zrv-hr-is-wide">
+            <dt>Addressed to</dt>
+            <dd>
+              <Val
+                language={language}
+                value={form.country ? `The Consul General of ${form.country}` : ''}
+                arabic={countryAr}
+              />
+            </dd>
+          </div>
+          <div>
+            <dt>Date</dt>
+            <dd>{date(form.curDate) || '—'}</dd>
+          </div>
+          <div>
+            <dt>Hijri date</dt>
+            <dd>
+              <Val value={hijri} />
+            </dd>
+          </div>
         </dl>
 
         <section className="zrv-hr-esf-preview__comments">
           <span>Employee</span>
           <dl className="zrv-hr-esf-preview__grid">
             {EMPLOYEE_FIELDS.map((item) => (
-              <div key={item.key}><dt>{item.en}</dt><dd><Val language={language} value={employee?.[item.key]} arabic={employee?.[`${item.key}_ar`]} /></dd></div>
+              <div key={item.key}>
+                <dt>{item.en}</dt>
+                <dd>
+                  <Val
+                    language={language}
+                    value={employee?.[item.key]}
+                    arabic={employee?.[`${item.key}_ar`]}
+                  />
+                </dd>
+              </div>
             ))}
           </dl>
         </section>
@@ -57,22 +110,44 @@ export default function TouristVisaPreview({ form, record, employee, approver, l
         <section className="zrv-hr-esf-preview__comments">
           <span>Salary</span>
           <p>{employee ? `${money(employee.salary)} SAR` : '—'}</p>
-          {record?.salaryWord && <p><Val language={language} value={record.salaryWord} arabic={record.salaryWordAr} /></p>}
+          {record?.salaryWord && (
+            <p>
+              <Val language={language} value={record.salaryWord} arabic={record.salaryWordAr} />
+            </p>
+          )}
         </section>
 
         <section className="zrv-hr-esf-preview__comments">
           <span>Tourism</span>
           <dl className="zrv-hr-esf-preview__grid">
-            <div><dt>From</dt><dd><Val language={language} value={form.tourismFrom} arabic={fromAr} /></dd></div>
-            <div><dt>To</dt><dd><Val language={language} value={form.tourismTo} arabic={toAr} /></dd></div>
-            {DATE_FIELDS.map((item) => <div key={item.key}><dt>{item.en}</dt><dd>{date(form.dates[item.key]) || '—'}</dd></div>)}
+            <div>
+              <dt>From</dt>
+              <dd>
+                <Val language={language} value={form.tourismFrom} arabic={fromAr} />
+              </dd>
+            </div>
+            <div>
+              <dt>To</dt>
+              <dd>
+                <Val language={language} value={form.tourismTo} arabic={toAr} />
+              </dd>
+            </div>
+            {DATE_FIELDS.map((item) => (
+              <div key={item.key}>
+                <dt>{item.en}</dt>
+                <dd>{date(form.dates[item.key]) || '—'}</dd>
+              </div>
+            ))}
           </dl>
         </section>
 
         <section className="zrv-hr-esf-preview__comments">
           <span>Closing and approval</span>
           <p>{closing(language)}</p>
-          <p>{form.approvalName || '—'}{approver?.position ? ` · ${approver.position}` : ''}</p>
+          <p>
+            {form.approvalName || '—'}
+            {approver?.position ? ` · ${approver.position}` : ''}
+          </p>
         </section>
 
         <footer>{record ? 'Saved' : 'Not saved yet'}</footer>

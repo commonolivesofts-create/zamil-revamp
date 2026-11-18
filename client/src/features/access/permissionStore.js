@@ -18,13 +18,26 @@ const denyAll = () => false
 
 function accessState(status, fields = {}) {
   return Object.freeze({
-    status, subjectId: null, mfaVerified: false, adminMfaRequired: true, permissions: NO_PERMISSIONS, errorCode: null, has: denyAll, ...fields,
+    status,
+    subjectId: null,
+    mfaVerified: false,
+    adminMfaRequired: true,
+    permissions: NO_PERMISSIONS,
+    errorCode: null,
+    has: denyAll,
+    ...fields,
   })
 }
 
 function readyState(subjectId, { mfaVerified, adminMfaRequired = true, permissions }) {
   const keys = new Set(permissions.map(permissionKey))
-  return accessState('ready', { subjectId, mfaVerified, adminMfaRequired: adminMfaRequired !== false, permissions, has: (key) => keys.has(key) })
+  return accessState('ready', {
+    subjectId,
+    mfaVerified,
+    adminMfaRequired: adminMfaRequired !== false,
+    permissions,
+    has: (key) => keys.has(key),
+  })
 }
 
 const IDLE = accessState('idle')
@@ -38,7 +51,8 @@ const authenticatedSubject = ({ status, user } = {}) =>
 export function resolveAccess(snapshot, auth) {
   const subjectId = authenticatedSubject(auth)
   if (!subjectId) return IDLE
-  if (snapshot?.subjectId !== subjectId || snapshot.status === 'idle') return accessState('loading', { subjectId })
+  if (snapshot?.subjectId !== subjectId || snapshot.status === 'idle')
+    return accessState('loading', { subjectId })
   return snapshot
 }
 
@@ -81,12 +95,19 @@ export function createPermissionStore({ service }) {
       // Permissions for another identity (a session changed underneath this
       // request) are never associated with the signed-in user.
       if (result.userId !== subjectId) {
-        throw new ApiError('Your access permissions could not be verified.', { code: 'IDENTITY_MISMATCH' })
+        throw new ApiError('Your access permissions could not be verified.', {
+          code: 'IDENTITY_MISMATCH',
+        })
       }
       set(readyState(subjectId, result))
     } catch (error) {
       if (!isCurrent()) return
-      set(accessState('error', { subjectId, errorCode: typeof error?.code === 'string' ? error.code : 'API_ERROR' }))
+      set(
+        accessState('error', {
+          subjectId,
+          errorCode: typeof error?.code === 'string' ? error.code : 'API_ERROR',
+        }),
+      )
     } finally {
       if (active === controller) active = null
     }

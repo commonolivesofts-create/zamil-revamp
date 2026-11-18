@@ -21,7 +21,9 @@ const clientEnv = readViteEnv(clientRoot)
 const serverEnv = readViteEnv(path.join(repoRoot, 'server'))
 const selectedAppEnv = String(
   process.env.APP_ENV ?? clientEnv.APP_ENV ?? serverEnv.APP_ENV ?? 'development',
-).trim().toLowerCase()
+)
+  .trim()
+  .toLowerCase()
 const appEnv = selectedAppEnv === 'test' ? 'test' : 'development'
 const childEnv = { ...process.env, APP_ENV: appEnv }
 const windows = process.platform === 'win32'
@@ -74,7 +76,9 @@ function start(label, command, args, cwd) {
   })
   child.once('exit', (code, signal) => {
     if (stopping) return
-    console.error(`[dev] ${label} stopped${signal ? ` (${signal})` : ` (exit ${code})`}; stopping all apps.`)
+    console.error(
+      `[dev] ${label} stopped${signal ? ` (${signal})` : ` (exit ${code})`}; stopping all apps.`,
+    )
     stopAll(code ?? 1)
   })
 }

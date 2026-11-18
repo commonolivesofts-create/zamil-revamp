@@ -13,6 +13,8 @@ export const REQUEST_STATUS_TEXT = Object.freeze({ ...STATUS_TEXT, ACCEPTED: 'Ac
 export const REQUEST_STATUS_TONE = Object.freeze({ ...STATUS_TONE, ACCEPTED: 'ok' })
 
 export function normalizeRequestStatus(value) {
-  const status = String(value ?? '').replace(/\s+/g, '').toUpperCase()
+  const status = String(value ?? '')
+    .replace(/\s+/g, '')
+    .toUpperCase()
   return REQUEST_STATUSES.includes(status) ? status : normalizeStatus(value)
 }

@@ -11,7 +11,8 @@ const FRAGMENT_PATTERN = /^#token=([^&#]*)$/
 // `#token=<43 URL-safe characters>`; `hadFragment` reports any fragment, which
 // the caller removes from the visible URL either way.
 export function readLinkToken(hash) {
-  if (typeof hash !== 'string' || hash === '' || hash === '#') return { token: null, hadFragment: false }
+  if (typeof hash !== 'string' || hash === '' || hash === '#')
+    return { token: null, hadFragment: false }
   const match = FRAGMENT_PATTERN.exec(hash)
   const token = match && LINK_TOKEN_PATTERN.test(match[1]) ? match[1] : null
   return { token, hadFragment: true }
@@ -38,5 +39,7 @@ export function isNewLink(captured, location) {
 // Clears the token only if it is still the one the caller used, so a late
 // response for an earlier link cannot discard a newer link's token.
 export function forgetToken(captured, token) {
-  return captured.token !== null && captured.token === token ? Object.freeze({ ...captured, token: null }) : captured
+  return captured.token !== null && captured.token === token
+    ? Object.freeze({ ...captured, token: null })
+    : captured
 }

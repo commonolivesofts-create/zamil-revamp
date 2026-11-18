@@ -2,19 +2,33 @@
 // the page, the demo adapter and the tests use the same rules.
 import { isIsoDate } from '../../hr-recruitment/shared/hrFormat.js'
 
-export const TRANSFER_STATUSES = Object.freeze(['DRAFT', 'SUBMITTED', 'INPROCESS', 'APPROVED', 'REJECTED'])
+export const TRANSFER_STATUSES = Object.freeze([
+  'DRAFT',
+  'SUBMITTED',
+  'INPROCESS',
+  'APPROVED',
+  'REJECTED',
+])
 export const YES_NO = Object.freeze(['YES', 'NO'])
 // Sign-off chain, in order (states: shared/approvals.js).
-export const TRANSFER_ROUTE = Object.freeze(['NEW_DEPARTMENT_HEAD', 'OLD_DEPARTMENT_HEAD', 'NEW_DIRECTOR', 'HR_ADMIN_MANAGER', 'GENERAL_MANAGER'])
+export const TRANSFER_ROUTE = Object.freeze([
+  'NEW_DEPARTMENT_HEAD',
+  'OLD_DEPARTMENT_HEAD',
+  'NEW_DIRECTOR',
+  'HR_ADMIN_MANAGER',
+  'GENERAL_MANAGER',
+])
 // "For IT & HR use only": completed after the chain approves; read-only for the requester.
 export const OFFICE_APPROVALS = Object.freeze(['HR_SUPERVISOR', 'IT', 'ADMIN_MANAGER'])
 // The three things a transfer can change.
 export const MOVE_KEYS = Object.freeze(['jobTitleCode', 'departmentCode', 'sectionCode'])
 
-export const isTransferLocked = (status) => status === 'SUBMITTED' || status === 'INPROCESS' || status === 'APPROVED'
+export const isTransferLocked = (status) =>
+  status === 'SUBMITTED' || status === 'INPROCESS' || status === 'APPROVED'
 
 // Sections of a department (they depend on the department).
-export const sectionsOf = (departments, departmentCode) => departments.find((item) => item.code === departmentCode)?.sections ?? []
+export const sectionsOf = (departments, departmentCode) =>
+  departments.find((item) => item.code === departmentCode)?.sections ?? []
 
 // What moves: the parts of "Transfer to" that are chosen and differ from now.
 export function transferMoves(employee, to) {
@@ -23,14 +37,24 @@ export function transferMoves(employee, to) {
 }
 
 export const blankTransfer = (today, companyCode) => ({
-  requestDate: today, companyCode, to: { jobTitleCode: '', departmentCode: '', sectionCode: '' }, effectiveDate: '', bloodType: '', directorId: '',
-  salaryChange: '', budgetedSalary: '',
+  requestDate: today,
+  companyCode,
+  to: { jobTitleCode: '', departmentCode: '', sectionCode: '' },
+  effectiveDate: '',
+  bloodType: '',
+  directorId: '',
+  salaryChange: '',
+  budgetedSalary: '',
 })
 
 // After choosing the employee: the new job title starts as the current one and
 // the blood type is prefilled from the employee record when it is known.
 export function withTransferEmployee(form, employee) {
-  return { ...form, to: { jobTitleCode: employee.jobTitleCode, departmentCode: '', sectionCode: '' }, bloodType: form.bloodType || employee.bloodType || '' }
+  return {
+    ...form,
+    to: { jobTitleCode: employee.jobTitleCode, departmentCode: '', sectionCode: '' },
+    bloodType: form.bloodType || employee.bloodType || '',
+  }
 }
 
 // Choosing a department resets its section, or seeds the matching section when
@@ -48,7 +72,11 @@ export function transferPayload(form, employee) {
   return {
     companyCode: orNull(form.companyCode),
     employeeId: employee?.employeeId ?? null,
-    to: { jobTitleCode: orNull(form.to.jobTitleCode), departmentCode: orNull(form.to.departmentCode), sectionCode: orNull(form.to.sectionCode) },
+    to: {
+      jobTitleCode: orNull(form.to.jobTitleCode),
+      departmentCode: orNull(form.to.departmentCode),
+      sectionCode: orNull(form.to.sectionCode),
+    },
     effectiveDate: orNull(form.effectiveDate),
     bloodType: orNull(form.bloodType),
     directorId: orNull(form.directorId),
@@ -70,13 +98,29 @@ export function validateTransfer(form, employee, departments, { submit }) {
   if (!to.sectionCode) add('sectionCode', 'required', 0)
   // Section choices come from the server's organization list. Reject any value that is not
   // one of those choices before sending the request.
-  const knownSection = departments.some((item) => (item.sections ?? []).some((section) => section.code === to.sectionCode))
+  const knownSection = departments.some((item) =>
+    (item.sections ?? []).some((section) => section.code === to.sectionCode),
+  )
   if (to.sectionCode && !knownSection) add('sectionCode', 'invalid', 0)
-  else if (to.sectionCode && to.departmentCode && !sectionsOf(departments, to.departmentCode).some((item) => item.code === to.sectionCode)) add('sectionCode', 'notInDepartment', 0)
-  if (submit && employee && to.jobTitleCode && to.departmentCode && to.sectionCode && !transferMoves(employee, to).length) add('to', 'noMove', 0)
+  else if (
+    to.sectionCode &&
+    to.departmentCode &&
+    !sectionsOf(departments, to.departmentCode).some((item) => item.code === to.sectionCode)
+  )
+    add('sectionCode', 'notInDepartment', 0)
+  if (
+    submit &&
+    employee &&
+    to.jobTitleCode &&
+    to.departmentCode &&
+    to.sectionCode &&
+    !transferMoves(employee, to).length
+  )
+    add('to', 'noMove', 0)
   if (!form.effectiveDate) add('effectiveDate', 'required', 1)
   else if (!isIsoDate(form.effectiveDate)) add('effectiveDate', 'invalid', 1)
-  else if (employee && form.effectiveDate < employee.startDate) add('effectiveDate', 'beforeJoining', 1)
+  else if (employee && form.effectiveDate < employee.startDate)
+    add('effectiveDate', 'beforeJoining', 1)
   if (!form.bloodType) add('bloodType', 'required', 1)
   if (!form.directorId) add('directorId', 'required', 1)
   if (!YES_NO.includes(form.salaryChange)) add('salaryChange', 'required', 1)
@@ -87,5 +131,9 @@ export function validateTransfer(form, employee, departments, { submit }) {
 // Office approvals ("For IT & HR use only") as the server reports them: done
 // with a date once the chain has approved, waiting before.
 export function officeStates(status, date) {
-  return OFFICE_APPROVALS.map((role) => (status === 'APPROVED' ? { role, state: 'APPROVED', date } : { role, state: 'WAITING', date: null }))
+  return OFFICE_APPROVALS.map((role) =>
+    status === 'APPROVED'
+      ? { role, state: 'APPROVED', date }
+      : { role, state: 'WAITING', date: null },
+  )
 }

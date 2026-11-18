@@ -649,7 +649,7 @@ test('requisition capabilities come from the server and the form has no status e
 test('the recruitment loader and employee picker have no demo-only lookup or employee-search defaults', async () => {
   const loader = await readFile(new URL('shared/components/RecruitmentLoader.jsx', FEATURE), 'utf8')
   const picker = await readFile(new URL('shared/components/EmployeePicker.jsx', FEATURE), 'utf8')
-  assert.match(loader, /param, load, loadLookups, demo = false,/)
+  assert.match(loader, /param,\s*load,\s*loadLookups,\s*demo\s*=\s*false,/)
   assert.doesNotMatch(loader + picker, /hrRecruitmentServices/)
   assert.equal('employees' in services(fakeClient({})), false)
 })

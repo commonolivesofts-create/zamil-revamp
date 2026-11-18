@@ -1,10 +1,4 @@
-
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { NavLink, useLocation } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
@@ -23,14 +17,7 @@ import useNavigationReveal from '@/components/navigation/useNavigationReveal.js'
 // -----------------------------------------------------
 // Existing internal navigation link
 // -----------------------------------------------------
-function SidebarLink({
-  to,
-  icon,
-  label,
-  nested = false,
-  end = true,
-  onNavigate,
-}) {
+function SidebarLink({ to, icon, label, nested = false, end = true, onNavigate }) {
   return (
     <NavLink
       to={to}
@@ -98,14 +85,9 @@ function StandaloneLink({ item, onNavigate }) {
         <OrvexaIcon name={item.icon || 'circle'} />
       </span>
 
-      <span className="sidebar-domain-label">
-        {item.label}
-      </span>
+      <span className="sidebar-domain-label">{item.label}</span>
 
-      <span
-        className="sidebar-domain-chevron sidebar-domain-placeholder"
-        aria-hidden="true"
-      />
+      <span className="sidebar-domain-chevron sidebar-domain-placeholder" aria-hidden="true" />
     </>
   )
 
@@ -151,10 +133,7 @@ function ExternalSidebarLink({ item, onNavigate }) {
         <b>{item.label}</b>
       </span>
 
-      <OrvexaIcon
-        name="chevron-right"
-        className="zrv-sidebar-subgroup__arrow"
-      />
+      <OrvexaIcon name="chevron-right" className="zrv-sidebar-subgroup__arrow" />
     </ExternalNavigationLink>
   )
 }
@@ -162,14 +141,7 @@ function ExternalSidebarLink({ item, onNavigate }) {
 // -----------------------------------------------------
 // Existing collapsible navigation section
 // -----------------------------------------------------
-function CollapsibleSection({
-  section,
-  isOpen,
-  panelOpen = isOpen,
-  isActive,
-  onToggle,
-  children,
-}) {
+function CollapsibleSection({ section, isOpen, panelOpen = isOpen, isActive, onToggle, children }) {
   return (
     <section
       className={`sidebar-domain ${isActive ? 'is-active' : ''} ${isOpen ? 'is-open' : ''}`.trim()}
@@ -182,12 +154,21 @@ function CollapsibleSection({
         aria-expanded={isOpen}
         aria-controls={`sidebar-panel-${section.id}`}
         onPointerEnter={(event) => {
-          if (event.pointerType === 'mouse' && !isOpen && ['security', 'account'].includes(section.id)) {
+          if (
+            event.pointerType === 'mouse' &&
+            !isOpen &&
+            ['security', 'account'].includes(section.id)
+          ) {
             onToggle(event.currentTarget)
           }
         }}
         onClick={(event) => {
-          if (event.nativeEvent.pointerType === 'mouse' && isOpen && ['security', 'account'].includes(section.id)) return
+          if (
+            event.nativeEvent.pointerType === 'mouse' &&
+            isOpen &&
+            ['security', 'account'].includes(section.id)
+          )
+            return
           onToggle(event.currentTarget)
         }}
       >
@@ -195,21 +176,12 @@ function CollapsibleSection({
           <OrvexaIcon name={section.icon || 'circle'} />
         </span>
 
-        <span className="sidebar-domain-label">
-          {section.label}
-        </span>
+        <span className="sidebar-domain-label">{section.label}</span>
 
-        <OrvexaIcon
-          name="chevron-down"
-          className="sidebar-domain-chevron"
-        />
+        <OrvexaIcon name="chevron-down" className="sidebar-domain-chevron" />
       </button>
 
-      <div
-        id={`sidebar-panel-${section.id}`}
-        className="sidebar-domain-panel"
-        hidden={!panelOpen}
-      >
+      <div id={`sidebar-panel-${section.id}`} className="sidebar-domain-panel" hidden={!panelOpen}>
         {children}
       </div>
     </section>
@@ -219,23 +191,13 @@ function CollapsibleSection({
 // -----------------------------------------------------
 // Existing authorized section items
 // -----------------------------------------------------
-function SectionItems({
-  section,
-  currentRoute,
-  flyout,
-  onFlyout,
-  onNavigate,
-}) {
-  const direct = section.items.filter(
-    (item) => !item.subgroup,
-  )
+function SectionItems({ section, currentRoute, flyout, onFlyout, onNavigate }) {
+  const direct = section.items.filter((item) => !item.subgroup)
 
   const groups = (section.subgroups ?? [])
     .map((subgroup) => ({
       subgroup,
-      items: section.items.filter(
-        (item) => item.subgroup === subgroup.id,
-      ),
+      items: section.items.filter((item) => item.subgroup === subgroup.id),
     }))
     .filter((group) => group.items.length)
 
@@ -243,11 +205,7 @@ function SectionItems({
     <>
       {direct.map((item) =>
         item.type === 'external' ? (
-          <ExternalSidebarLink
-            key={item.id}
-            item={item}
-            onNavigate={onNavigate}
-          />
+          <ExternalSidebarLink key={item.id} item={item} onNavigate={onNavigate} />
         ) : (
           <SidebarLink
             key={item.id}
@@ -267,9 +225,7 @@ function SectionItems({
           items={items}
           current={
             currentRoute?.subgroup === subgroup.id
-              ? items.find(
-                  (item) => item.id === currentRoute.id,
-                ) ?? currentRoute
+              ? (items.find((item) => item.id === currentRoute.id) ?? currentRoute)
               : null
           }
           open={flyout?.subgroupId === subgroup.id}
@@ -303,26 +259,16 @@ function isMobileViewport() {
 // -----------------------------------------------------
 // Main Sidebar
 // -----------------------------------------------------
-export default function Sidebar({
-  mobileOpen,
-  onMobileClose,
-}) {
-  const [isMobile, setIsMobile] = useState(
-    isMobileViewport,
-  )
+export default function Sidebar({ mobileOpen, onMobileClose }) {
+  const [isMobile, setIsMobile] = useState(isMobileViewport)
 
   // Update mobile state only when the media query changes.
   useEffect(() => {
-    if (
-      typeof window === 'undefined' ||
-      typeof window.matchMedia !== 'function'
-    ) {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
       return undefined
     }
 
-    const media = window.matchMedia(
-      '(max-width: 1023px)',
-    )
+    const media = window.matchMedia('(max-width: 1023px)')
 
     const onChange = (event) => {
       setIsMobile(event.matches)
@@ -340,10 +286,7 @@ export default function Sidebar({
   const { pathname } = useLocation()
 
   // Shared dashboard-to-sidebar navigation.
-  const {
-    revealRequest,
-    clearNavigationReveal,
-  } = useNavigationReveal()
+  const { revealRequest, clearNavigationReveal } = useNavigationReveal()
 
   // Store the last completed request object, not just a serial
   // number. This also supports new requests after clearing.
@@ -352,18 +295,14 @@ export default function Sidebar({
   // Authorized navigation remains the source of truth.
   const sections = authorizedNavigation(access)
 
-  const demoSections = templateDemosAvailable(status) ? orvexaNavigation.filter(
-        (section) => section.items?.length,
-      )
+  const demoSections = templateDemosAvailable(status)
+    ? orvexaNavigation.filter((section) => section.items?.length)
     : []
 
   const currentRoute = findAppRoute(pathname)
 
   const activeDomain =
-    currentRoute?.section ||
-    (demoSections.length
-      ? getOrvexaSection(pathname)
-      : null)
+    currentRoute?.section || (demoSections.length ? getOrvexaSection(pathname) : null)
 
   // Existing section state.
   const [selection, setSelection] = useState({
@@ -371,10 +310,7 @@ export default function Sidebar({
     domain: null,
   })
 
-  const openDomain =
-    selection.pathname === pathname
-      ? selection.domain
-      : activeDomain
+  const openDomain = selection.pathname === pathname ? selection.domain : activeDomain
 
   // Existing flyout state.
   const [flyoutState, setFlyoutState] = useState(null)
@@ -382,24 +318,14 @@ export default function Sidebar({
   const [hoverOpen, setHoverOpen] = useState(false)
 
   const flyout =
-    flyoutState?.pathname === pathname &&
-    (!isMobile || mobileOpen)
-      ? flyoutState
-      : null
+    flyoutState?.pathname === pathname && (!isMobile || mobileOpen) ? flyoutState : null
 
-  const flyoutSection =
-    flyout
-      ? sections.find((section) =>
-          section.subgroups?.some(
-            (item) => item.id === flyout.subgroupId,
-          ),
-        )
-      : null
+  const flyoutSection = flyout
+    ? sections.find((section) => section.subgroups?.some((item) => item.id === flyout.subgroupId))
+    : null
 
   const flyoutItems =
-    flyoutSection?.items.filter(
-      (item) => item.subgroup === flyout.subgroupId,
-    ) ?? []
+    flyoutSection?.items.filter((item) => item.subgroup === flyout.subgroupId) ?? []
 
   // ---------------------------------------------------
   // Existing flyout controls
@@ -448,10 +374,7 @@ export default function Sidebar({
 
     setSelection({
       pathname,
-      domain:
-        openDomain === sectionId
-          ? ''
-          : sectionId,
+      domain: openDomain === sectionId ? '' : sectionId,
     })
 
     setFlyoutState(null)
@@ -470,10 +393,7 @@ export default function Sidebar({
   // No hardcoded HR paths, duplicate form lists, or
   // changes to active route behavior.
   useEffect(() => {
-    if (
-      !revealRequest ||
-      processedReveal.current === revealRequest
-    ) {
+    if (!revealRequest || processedReveal.current === revealRequest) {
       return undefined
     }
 
@@ -490,9 +410,7 @@ export default function Sidebar({
       ),
     )
 
-    const target = targetSection?.items.find(
-      (item) => item.id === routeId,
-    )
+    const target = targetSection?.items.find((item) => item.id === routeId)
 
     // Unauthorized or unavailable navigation target.
     if (!target) {
@@ -527,20 +445,12 @@ export default function Sidebar({
 
       // Wait for React to render the expanded section.
       openFrame = window.requestAnimationFrame(() => {
-        const sidebar = document.getElementById(
-          'sidebar',
-        )
+        const sidebar = document.getElementById('sidebar')
 
         if (!sidebar) return
 
-        const sectionNode = Array.from(
-          sidebar.querySelectorAll(
-            '[data-sidebar-domain]',
-          ),
-        ).find(
-          (node) =>
-            node.getAttribute('data-sidebar-domain') ===
-            targetSection.id,
+        const sectionNode = Array.from(sidebar.querySelectorAll('[data-sidebar-domain]')).find(
+          (node) => node.getAttribute('data-sidebar-domain') === targetSection.id,
         )
 
         if (!sectionNode) {
@@ -551,11 +461,8 @@ export default function Sidebar({
 
         // Registered direct-section link.
         if (!target.subgroup) {
-          const link = Array.from(
-            sectionNode.querySelectorAll('a[href]'),
-          ).find(
-            (node) =>
-              node.getAttribute('href') === target.path,
+          const link = Array.from(sectionNode.querySelectorAll('a[href]')).find(
+            (node) => node.getAttribute('href') === target.path,
           )
 
           link?.scrollIntoView?.({
@@ -575,14 +482,8 @@ export default function Sidebar({
         // Locate the existing subgroup button by its
         // registered flyout ID.
         const anchor = Array.from(
-          sectionNode.querySelectorAll(
-            '.zrv-sidebar-subgroup[aria-controls]',
-          ),
-        ).find(
-          (node) =>
-            node.getAttribute('aria-controls') ===
-            `sidebar-flyout-${target.subgroup}`,
-        )
+          sectionNode.querySelectorAll('.zrv-sidebar-subgroup[aria-controls]'),
+        ).find((node) => node.getAttribute('aria-controls') === `sidebar-flyout-${target.subgroup}`)
 
         if (!anchor) {
           processedReveal.current = revealRequest
@@ -669,20 +570,11 @@ export default function Sidebar({
           }
         }}
         aria-hidden={isMobile && !mobileOpen}
-        role={
-          isMobile && mobileOpen
-            ? 'dialog'
-            : undefined
-        }
-        aria-modal={
-          isMobile && mobileOpen
-            ? 'true'
-            : undefined
-        }
+        role={isMobile && mobileOpen ? 'dialog' : undefined}
+        aria-modal={isMobile && mobileOpen ? 'true' : undefined}
         inert={isMobile && !mobileOpen}
         style={{
-          background:
-            'color-mix(in srgb,var(--surface-solid) 95%,transparent)',
+          background: 'color-mix(in srgb,var(--surface-solid) 95%,transparent)',
           borderColor: 'var(--line)',
           backdropFilter: 'blur(24px)',
         }}
@@ -702,16 +594,10 @@ export default function Sidebar({
             onClick={navigate}
           >
             <span className="brand-mark">
-              <OrvexaIcon
-                name="building-2"
-                className="size-4"
-              />
+              <OrvexaIcon name="building-2" className="size-4" />
             </span>
 
-            <span
-              id="sidebar-brand-copy"
-              className="min-w-0"
-            >
+            <span id="sidebar-brand-copy" className="min-w-0">
               <span className="font-display block text-[18px] font-bold tracking-[-0.045em]">
                 {appConfig.name}
               </span>
@@ -737,19 +623,13 @@ export default function Sidebar({
               onMobileClose?.()
             }}
           >
-            <OrvexaIcon
-              name="x"
-              className="size-4"
-            />
+            <OrvexaIcon name="x" className="size-4" />
           </button>
         </div>
 
         {/* Existing authorized navigation */}
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-5 pt-3">
-          <nav
-            id="primary-navigation"
-            aria-label={`${appConfig.name} pages`}
-          >
+          <nav id="primary-navigation" aria-label={`${appConfig.name} pages`}>
             {sections.map((section) =>
               section.standalone ? (
                 section.items.map((item) => (
@@ -757,15 +637,10 @@ export default function Sidebar({
                     key={item.id}
                     data-sidebar-domain={item.id}
                     className={`sidebar-domain sidebar-domain-standalone ${
-                      pathname === item.path
-                        ? 'is-active'
-                        : ''
+                      pathname === item.path ? 'is-active' : ''
                     }`.trim()}
                   >
-                    <StandaloneLink
-                      item={item}
-                      onNavigate={navigate}
-                    />
+                    <StandaloneLink item={item} onNavigate={navigate} />
                   </section>
                 ))
               ) : section.id === 'human-resources' ? (
@@ -791,31 +666,19 @@ export default function Sidebar({
                   section={section}
                   isOpen={
                     section.id === 'security'
-                      ? flyout?.subgroupId ===
-                        'security-admin'
+                      ? flyout?.subgroupId === 'security-admin'
                       : section.id === 'account'
-                        ? flyout?.subgroupId ===
-                          'account-settings'
+                        ? flyout?.subgroupId === 'account-settings'
                         : openDomain === section.id
                   }
                   panelOpen={
-                    !['security', 'account'].includes(
-                      section.id,
-                    ) &&
-                    openDomain === section.id
+                    !['security', 'account'].includes(section.id) && openDomain === section.id
                   }
-                  isActive={
-                    activeDomain === section.id
-                  }
+                  isActive={activeDomain === section.id}
                   onToggle={(anchor) => {
-                    if (
-                      section.id === 'security' ||
-                      section.id === 'account'
-                    ) {
+                    if (section.id === 'security' || section.id === 'account') {
                       const subgroupId =
-                        section.id === 'security'
-                          ? 'security-admin'
-                          : 'account-settings'
+                        section.id === 'security' ? 'security-admin' : 'account-settings'
 
                       openFlyout(
                         flyout?.subgroupId === subgroupId
@@ -846,26 +709,16 @@ export default function Sidebar({
             {/* Existing permission loading state */}
             {access.status === 'loading' && (
               <div className="zrv-sidebar-access">
-                <ContentSkeleton
-                  label="Loading navigation"
-                />
+                <ContentSkeleton label="Loading navigation" />
               </div>
             )}
 
             {/* Existing permission error state */}
             {access.status === 'error' && (
-              <div
-                className="zrv-sidebar-access"
-                role="alert"
-              >
-                <span>
-                  Your access could not be loaded.
-                </span>
+              <div className="zrv-sidebar-access" role="alert">
+                <span>Your access could not be loaded.</span>
 
-                <button
-                  type="button"
-                  onClick={access.reload}
-                >
+                <button type="button" onClick={access.reload}>
                   Retry
                 </button>
               </div>
@@ -878,28 +731,17 @@ export default function Sidebar({
               aria-label="Template demos (development preview only)"
               className="zrv-sidebar-demos"
             >
-              <p className="zrv-sidebar-heading">
-                Template demos · preview only
-              </p>
+              <p className="zrv-sidebar-heading">Template demos · preview only</p>
 
               {demoSections.map((section) => (
                 <CollapsibleSection
                   key={section.id}
                   section={section}
-                  isOpen={
-                    openDomain === section.id
-                  }
-                  isActive={
-                    activeDomain === section.id
-                  }
-                  onToggle={() =>
-                    toggleDomain(section.id)
-                  }
+                  isOpen={openDomain === section.id}
+                  isActive={activeDomain === section.id}
+                  onToggle={() => toggleDomain(section.id)}
                 >
-                  <DemoItems
-                    items={section.items}
-                    onNavigate={navigate}
-                  />
+                  <DemoItems items={section.items} onNavigate={navigate} />
                 </CollapsibleSection>
               ))}
             </nav>
@@ -910,20 +752,14 @@ export default function Sidebar({
         {flyoutItems.length > 0 && flyout && (
           <SidebarFlyout
             key={flyout.subgroupId}
-            subgroup={flyoutSection.subgroups.find(
-              (item) =>
-                item.id === flyout.subgroupId,
-            )}
+            subgroup={flyoutSection.subgroups.find((item) => item.id === flyout.subgroupId)}
             items={flyoutItems}
             anchor={flyout.anchor}
             mobile={isMobile}
             onClose={closeFlyout}
             onNavigate={navigate}
             revealedRouteId={
-              flyoutItems.some(
-                (item) =>
-                  item.id === revealRequest?.routeId,
-              )
+              flyoutItems.some((item) => item.id === revealRequest?.routeId)
                 ? revealRequest.routeId
                 : null
             }
@@ -931,7 +767,9 @@ export default function Sidebar({
         )}
 
         {/* Existing application version */}
-        <p className="zrv-sidebar-version" title="Application version">{appConfig.displayVersion}</p>
+        <p className="zrv-sidebar-version" title="Application version">
+          {appConfig.displayVersion}
+        </p>
       </aside>
     </>
   )

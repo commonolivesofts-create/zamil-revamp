@@ -127,7 +127,7 @@
   height: 6px;
   border-radius: 50%;
   background: currentColor;
-  content: "";
+  content: '';
 }
 .p2-status.good {
   color: var(--mint-text);
@@ -222,7 +222,7 @@
   top: 50%;
   height: 1px;
   background: linear-gradient(90deg, var(--cyan), var(--primary));
-  content: "";
+  content: '';
 }
 .p2-fabric-grid:before {
   left: 22%;
@@ -530,10 +530,7 @@
   flex: 1;
   min-width: 12px;
   border-radius: 7px 7px 2px 2px;
-  background: linear-gradient(
-    var(--primary),
-    color-mix(in srgb, var(--primary) 25%, transparent)
-  );
+  background: linear-gradient(var(--primary), color-mix(in srgb, var(--primary) 25%, transparent));
 }
 .p2-reliability {
   display: grid;
@@ -572,7 +569,7 @@
   height: 2px;
   background: linear-gradient(90deg, var(--cyan), var(--primary), var(--mint));
   opacity: 0.45;
-  content: "";
+  content: '';
 }
 .p2-gateway-core {
   position: relative;
@@ -701,7 +698,7 @@
   width: 13px;
   height: 1px;
   background: var(--line-strong);
-  content: "";
+  content: '';
 }
 .p2-contact-layout {
   display: grid;
@@ -974,7 +971,7 @@
     color-mix(in srgb, var(--text) 6%, transparent),
     transparent
   );
-  content: "";
+  content: '';
   animation: p2-shimmer 1.6s infinite;
 }
 @keyframes p2-shimmer {

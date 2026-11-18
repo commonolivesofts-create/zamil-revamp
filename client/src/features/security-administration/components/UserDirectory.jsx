@@ -24,7 +24,9 @@ export default function UserDirectory({ rowLink, rowAction = 'Open' }) {
     setSearchError(null)
   }
   const query = userListQuery(filters)
-  const users = useResource(`users:${JSON.stringify(query)}`, (signal) => securityAdminService.listUsers(query, { signal }))
+  const users = useResource(`users:${JSON.stringify(query)}`, (signal) =>
+    securityAdminService.listUsers(query, { signal }),
+  )
 
   const update = (changes) => {
     const next = { ...filters, page: 1, ...changes }
@@ -45,12 +47,35 @@ export default function UserDirectory({ rowLink, rowAction = 'Open' }) {
 
   return (
     <Panel>
-      <form className="zrv-admin-toolbar" onSubmit={submitSearch} role="search" aria-label="Search accounts" noValidate>
-        <Field id="users-search" label="Search" hint="Employee number, username or name" error={searchError}>
-          <input {...fieldProps('users-search', { hint: true, error: searchError })} className="ux-input" type="search" value={searchText} maxLength={100} onChange={(event) => setSearchText(event.target.value)} />
+      <form
+        className="zrv-admin-toolbar"
+        onSubmit={submitSearch}
+        role="search"
+        aria-label="Search accounts"
+        noValidate
+      >
+        <Field
+          id="users-search"
+          label="Search"
+          hint="Employee number, username or name"
+          error={searchError}
+        >
+          <input
+            {...fieldProps('users-search', { hint: true, error: searchError })}
+            className="ux-input"
+            type="search"
+            value={searchText}
+            maxLength={100}
+            onChange={(event) => setSearchText(event.target.value)}
+          />
         </Field>
         <Field id="users-status" label="Status">
-          <select id="users-status" className="ux-select" value={filters.status} onChange={(event) => update({ status: event.target.value })}>
+          <select
+            id="users-status"
+            className="ux-select"
+            value={filters.status}
+            onChange={(event) => update({ status: event.target.value })}
+          >
             <option value="">All statuses</option>
             <option value="PENDING">Pending</option>
             <option value="ACTIVE">Active</option>
@@ -58,29 +83,53 @@ export default function UserDirectory({ rowLink, rowAction = 'Open' }) {
           </select>
         </Field>
         <Field id="users-mfa" label="Authenticator">
-          <select id="users-mfa" className="ux-select" value={filters.mfaEnrolled} onChange={(event) => update({ mfaEnrolled: event.target.value })}>
+          <select
+            id="users-mfa"
+            className="ux-select"
+            value={filters.mfaEnrolled}
+            onChange={(event) => update({ mfaEnrolled: event.target.value })}
+          >
             <option value="">Any</option>
             <option value="true">Enrolled</option>
             <option value="false">Not enrolled</option>
           </select>
         </Field>
         <Field id="users-locked" label="Lockout">
-          <select id="users-locked" className="ux-select" value={filters.locked} onChange={(event) => update({ locked: event.target.value })}>
+          <select
+            id="users-locked"
+            className="ux-select"
+            value={filters.locked}
+            onChange={(event) => update({ locked: event.target.value })}
+          >
             <option value="">Any</option>
             <option value="true">Locked</option>
             <option value="false">Not locked</option>
           </select>
         </Field>
         <Field id="users-sort" label="Sort by">
-          <select id="users-sort" className="ux-select" value={`${filters.sortBy}:${filters.sortOrder}`} onChange={(event) => { const [sortBy, sortOrder] = event.target.value.split(':'); update({ sortBy, sortOrder }) }}>
+          <select
+            id="users-sort"
+            className="ux-select"
+            value={`${filters.sortBy}:${filters.sortOrder}`}
+            onChange={(event) => {
+              const [sortBy, sortOrder] = event.target.value.split(':')
+              update({ sortBy, sortOrder })
+            }}
+          >
             {Object.entries(USER_SORTS).flatMap(([value, label]) => [
-              <option key={`${value}:asc`} value={`${value}:asc`}>{label} ↑</option>,
-              <option key={`${value}:desc`} value={`${value}:desc`}>{label} ↓</option>,
+              <option key={`${value}:asc`} value={`${value}:asc`}>
+                {label} ↑
+              </option>,
+              <option key={`${value}:desc`} value={`${value}:desc`}>
+                {label} ↓
+              </option>,
             ])}
           </select>
         </Field>
         <div className="zrv-admin-toolbar__submit">
-          <button type="submit" className="btn-primary">Search</button>
+          <button type="submit" className="btn-primary">
+            Search
+          </button>
         </div>
       </form>
 
@@ -98,26 +147,56 @@ export default function UserDirectory({ rowLink, rowAction = 'Open' }) {
                     <th scope="col">Status</th>
                     <th scope="col">Authenticator</th>
                     <th scope="col">Last sign-in</th>
-                    <th scope="col"><span className="sr-only">Action</span></th>
+                    <th scope="col">
+                      <span className="sr-only">Action</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {!items.length && <tr><td colSpan={7} className="zrv-admin-state">No accounts on this page. Use Previous to go back.</td></tr>}
+                  {!items.length && (
+                    <tr>
+                      <td colSpan={7} className="zrv-admin-state">
+                        No accounts on this page. Use Previous to go back.
+                      </td>
+                    </tr>
+                  )}
                   {items.map((user) => (
                     <tr key={user.userId}>
-                      <td><b>{displayName(user) || 'Name not recorded'}</b><small className="zrv-admin-sub">{user.employeeNumber}</small></td>
+                      <td>
+                        <b>{displayName(user) || 'Name not recorded'}</b>
+                        <small className="zrv-admin-sub">{user.employeeNumber}</small>
+                      </td>
                       <td>{user.username || '—'}</td>
-                      <td>{user.department || '—'}<small className="zrv-admin-sub">{user.jobTitle || ''}</small></td>
-                      <td><Badge>{user.accountStatus}</Badge>{user.locked && <Badge tone="bad">LOCKED</Badge>}</td>
+                      <td>
+                        {user.department || '—'}
+                        <small className="zrv-admin-sub">{user.jobTitle || ''}</small>
+                      </td>
+                      <td>
+                        <Badge>{user.accountStatus}</Badge>
+                        {user.locked && <Badge tone="bad">LOCKED</Badge>}
+                      </td>
                       <td>{user.mfaEnrolled ? 'Enrolled' : 'Not enrolled'}</td>
                       <td>{formatInstant(user.lastLoginAt)}</td>
-                      <td><Link className="zrv-admin-link" to={rowLink(user)}>{rowAction}<span className="sr-only"> {displayName(user) || user.employeeNumber}</span></Link></td>
+                      <td>
+                        <Link className="zrv-admin-link" to={rowLink(user)}>
+                          {rowAction}
+                          <span className="sr-only">
+                            {' '}
+                            {displayName(user) || user.employeeNumber}
+                          </span>
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <Pagination pagination={pagination} onPage={(page) => update({ page })} disabled={users.refreshing} label="Account pages" />
+            <Pagination
+              pagination={pagination}
+              onPage={(page) => update({ page })}
+              disabled={users.refreshing}
+              label="Account pages"
+            />
           </>
         )}
       </ResourceState>

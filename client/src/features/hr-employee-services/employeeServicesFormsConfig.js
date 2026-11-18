@@ -18,5 +18,9 @@ export function resolveFormDemo(name, values = {}) {
 }
 
 export const employeeServicesFormsConfig = Object.freeze({
-  demo: Object.freeze(Object.fromEntries(Object.keys(FORM_DEMO_SWITCHES).map((name) => [name, resolveFormDemo(name, env)]))),
+  demo: Object.freeze(
+    Object.fromEntries(
+      Object.keys(FORM_DEMO_SWITCHES).map((name) => [name, resolveFormDemo(name, env)]),
+    ),
+  ),
 })

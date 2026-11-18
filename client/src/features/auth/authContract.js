@@ -12,7 +12,10 @@ const ID_PATTERN = /^[1-9][0-9]{0,18}$/
 export const MFA_CODE_PATTERN = /^\d{6}$/
 // Input sanitising for typed or pasted codes: keep ASCII digits only, then the
 // first six ("123 456" → "123456"). Validation still requires exactly six.
-export const sanitizeMfaCode = (value) => String(value ?? '').replace(/[^0-9]/g, '').slice(0, 6)
+export const sanitizeMfaCode = (value) =>
+  String(value ?? '')
+    .replace(/[^0-9]/g, '')
+    .slice(0, 6)
 // Single-use action token from an e-mailed link (backend actionToken schema).
 export const LINK_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const BASE32_SECRET_PATTERN = /^[A-Z2-7]{16,128}$/
@@ -36,13 +39,21 @@ function readAvatarUrl(value) {
 }
 
 function invalid() {
-  return new ApiError('The authentication response could not be verified.', { code: 'INVALID_RESPONSE' })
+  return new ApiError('The authentication response could not be verified.', {
+    code: 'INVALID_RESPONSE',
+  })
 }
 
 function readUser(user) {
-  if (!isObject(user) || typeof user.id !== 'string' || !ID_PATTERN.test(user.id) ||
+  if (
+    !isObject(user) ||
+    typeof user.id !== 'string' ||
+    !ID_PATTERN.test(user.id) ||
     typeof user.employeeNumber !== 'string' ||
-    !['username', 'fullName', 'email', 'jobTitle', 'department'].every((key) => isNullableString(user[key]))) {
+    !['username', 'fullName', 'email', 'jobTitle', 'department'].every((key) =>
+      isNullableString(user[key]),
+    )
+  ) {
     throw invalid()
   }
   const avatarUrl = readAvatarUrl(user.avatarUrl)
@@ -59,9 +70,13 @@ function readUser(user) {
 }
 
 function readSession(session) {
-  if (!isObject(session) || !isDateTime(session.expiresAt) ||
-    !Number.isInteger(session.idleTimeoutSeconds) || session.idleTimeoutSeconds <= 0 ||
-    typeof session.mfaVerified !== 'boolean') {
+  if (
+    !isObject(session) ||
+    !isDateTime(session.expiresAt) ||
+    !Number.isInteger(session.idleTimeoutSeconds) ||
+    session.idleTimeoutSeconds <= 0 ||
+    typeof session.mfaVerified !== 'boolean'
+  ) {
     throw invalid()
   }
   return Object.freeze({
@@ -72,16 +87,23 @@ function readSession(session) {
 }
 
 function readPassword(password) {
-  if (!isObject(password) || typeof password.expired !== 'boolean' ||
-    !(password.expiresAt === null || isDateTime(password.expiresAt))) {
+  if (
+    !isObject(password) ||
+    typeof password.expired !== 'boolean' ||
+    !(password.expiresAt === null || isDateTime(password.expiresAt))
+  ) {
     throw invalid()
   }
   return Object.freeze({ expired: password.expired, expiresAt: password.expiresAt })
 }
 
 export function readCsrfToken(csrf) {
-  if (!isObject(csrf) || csrf.headerName !== CSRF_HEADER ||
-    typeof csrf.token !== 'string' || !TOKEN_PATTERN.test(csrf.token)) {
+  if (
+    !isObject(csrf) ||
+    csrf.headerName !== CSRF_HEADER ||
+    typeof csrf.token !== 'string' ||
+    !TOKEN_PATTERN.test(csrf.token)
+  ) {
     throw invalid()
   }
   return csrf.token
@@ -110,8 +132,12 @@ export function readLoginResult(data) {
   }
   if (data.authenticated === false) {
     const mfa = data.mfa
-    if (!isObject(mfa) || mfa.required !== true || typeof mfa.enrollmentRequired !== 'boolean' ||
-      !isDateTime(mfa.expiresAt)) {
+    if (
+      !isObject(mfa) ||
+      mfa.required !== true ||
+      typeof mfa.enrollmentRequired !== 'boolean' ||
+      !isDateTime(mfa.expiresAt)
+    ) {
       throw invalid()
     }
     return Object.freeze({
@@ -142,16 +168,24 @@ export function readMfaEnrollment(data) {
 // MfaEnrollment schema, the backend implementation sends no expiresAt (the link
 // token's 15-minute lifetime applies). A present expiresAt is still validated.
 export function readMfaRecoverySetup(data) {
-  if (!isObject(data) || !(data.expiresAt === undefined || isDateTime(data.expiresAt))) throw invalid()
+  if (!isObject(data) || !(data.expiresAt === undefined || isDateTime(data.expiresAt)))
+    throw invalid()
   return readSetupMaterial(data, data.expiresAt ?? null)
 }
 
 function readSetupMaterial(data, expiresAt) {
-  if (typeof data.secret !== 'string' || !BASE32_SECRET_PATTERN.test(data.secret) ||
-    typeof data.otpauthUri !== 'string' || data.otpauthUri.length > MAX_OTPAUTH_URI_LENGTH ||
+  if (
+    typeof data.secret !== 'string' ||
+    !BASE32_SECRET_PATTERN.test(data.secret) ||
+    typeof data.otpauthUri !== 'string' ||
+    data.otpauthUri.length > MAX_OTPAUTH_URI_LENGTH ||
     !data.otpauthUri.startsWith('otpauth://totp/') ||
-    typeof data.issuer !== 'string' || typeof data.accountName !== 'string' ||
-    data.algorithm !== 'SHA1' || data.digits !== 6 || data.periodSeconds !== 30) {
+    typeof data.issuer !== 'string' ||
+    typeof data.accountName !== 'string' ||
+    data.algorithm !== 'SHA1' ||
+    data.digits !== 6 ||
+    data.periodSeconds !== 30
+  ) {
     throw invalid()
   }
   let uri
@@ -173,11 +207,19 @@ function readSetupMaterial(data, expiresAt) {
 const isCount = (value) => Number.isInteger(value) && value >= 0
 
 export function readPasswordPolicy(data) {
-  if (!isObject(data) || !Number.isInteger(data.minLength) || data.minLength < 1 ||
-    !Number.isInteger(data.maxLength) || data.maxLength < data.minLength ||
-    !['requireUppercase', 'requireLowercase', 'requireDigit', 'requireSpecialCharacter']
-      .every((key) => typeof data[key] === 'boolean') ||
-    !isCount(data.expiryDays) || !Array.isArray(data.expiryReminderDays) || !data.expiryReminderDays.every(isCount)) {
+  if (
+    !isObject(data) ||
+    !Number.isInteger(data.minLength) ||
+    data.minLength < 1 ||
+    !Number.isInteger(data.maxLength) ||
+    data.maxLength < data.minLength ||
+    !['requireUppercase', 'requireLowercase', 'requireDigit', 'requireSpecialCharacter'].every(
+      (key) => typeof data[key] === 'boolean',
+    ) ||
+    !isCount(data.expiryDays) ||
+    !Array.isArray(data.expiryReminderDays) ||
+    !data.expiryReminderDays.every(isCount)
+  ) {
     throw invalid()
   }
   return Object.freeze({
@@ -196,29 +238,59 @@ export function readPasswordPolicy(data) {
 // generic, non-enumerating confirmation.
 export function readRecoveryAccepted(data) {
   if (!isObject(data) || data.accepted !== true) throw invalid()
-  return Object.freeze({ accepted: true, message: typeof data.message === 'string' ? data.message : null })
+  return Object.freeze({
+    accepted: true,
+    message: typeof data.message === 'string' ? data.message : null,
+  })
 }
 
 // Password setup, reset and change. Setup also reports the activated account.
 export function readPasswordChangeResult(data) {
-  if (!isObject(data) || data.passwordChanged !== true || data.signInRequired !== true ||
-    !isCount(data.sessionsRevoked) || !(data.accountStatus === undefined || data.accountStatus === 'ACTIVE')) {
+  if (
+    !isObject(data) ||
+    data.passwordChanged !== true ||
+    data.signInRequired !== true ||
+    !isCount(data.sessionsRevoked) ||
+    !(data.accountStatus === undefined || data.accountStatus === 'ACTIVE')
+  ) {
     throw invalid()
   }
-  return Object.freeze({ passwordChanged: true, sessionsRevoked: data.sessionsRevoked, signInRequired: true })
+  return Object.freeze({
+    passwordChanged: true,
+    sessionsRevoked: data.sessionsRevoked,
+    signInRequired: true,
+  })
 }
 
 export function readMfaRecoveryResult(data) {
-  if (!isObject(data) || data.mfaRecovered !== true || data.signInRequired !== true || !isCount(data.sessionsRevoked)) {
+  if (
+    !isObject(data) ||
+    data.mfaRecovered !== true ||
+    data.signInRequired !== true ||
+    !isCount(data.sessionsRevoked)
+  ) {
     throw invalid()
   }
-  return Object.freeze({ mfaRecovered: true, sessionsRevoked: data.sessionsRevoked, signInRequired: true })
+  return Object.freeze({
+    mfaRecovered: true,
+    sessionsRevoked: data.sessionsRevoked,
+    signInRequired: true,
+  })
 }
 
 export function readMfaReplacementResult(data) {
-  if (!isObject(data) || data.replaced !== true || data.reauthenticationRequired !== true ||
-    !Number.isInteger(data.sessionsRevoked) || data.sessionsRevoked < 0) {
+  if (
+    !isObject(data) ||
+    data.replaced !== true ||
+    data.reauthenticationRequired !== true ||
+    !Number.isInteger(data.sessionsRevoked) ||
+    data.sessionsRevoked < 0
+  ) {
     throw invalid()
   }
-  return Object.freeze({ replaced: true, sessionsRevoked: data.sessionsRevoked, reauthenticationRequired: true })
+  return Object.freeze({
+    replaced: true,
+    sessionsRevoked: data.sessionsRevoked,
+    reauthenticationRequired: true,
+  })
 }

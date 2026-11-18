@@ -11,16 +11,20 @@ export function getOrvexaRoute(item) {
   return match ? `/demo/${match[1]}` : null
 }
 
-export const orvexaDemoRoutes = orvexaNavigation.flatMap((section) =>
-  (section.items || []).flatMap((item) =>
-    (item.children?.length ? item.children : [item]).map((leaf) => ({
-      ...leaf,
-      sectionId: section.id,
-      path: getOrvexaRoute(leaf),
-    })),
-  ),
-).filter((item) => item.path)
+export const orvexaDemoRoutes = orvexaNavigation
+  .flatMap((section) =>
+    (section.items || []).flatMap((item) =>
+      (item.children?.length ? item.children : [item]).map((leaf) => ({
+        ...leaf,
+        sectionId: section.id,
+        path: getOrvexaRoute(leaf),
+      })),
+    ),
+  )
+  .filter((item) => item.path)
 
 export function getOrvexaSection(pathname) {
-  return orvexaDemoRoutes.find((item) => item.path === pathname.replace(/\/+$/, ''))?.sectionId || null
+  return (
+    orvexaDemoRoutes.find((item) => item.path === pathname.replace(/\/+$/, ''))?.sectionId || null
+  )
 }

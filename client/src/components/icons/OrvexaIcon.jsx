@@ -9,15 +9,24 @@ function renderNode(definition, index) {
   if (!Array.isArray(definition)) return null
   const [tag, rawAttributes = {}, children = []] = definition
   const attributes = Object.fromEntries(
-    Object.entries(rawAttributes).map(([key, value]) => [key === 'class' ? 'className' : camelCaseAttribute(key), value]),
+    Object.entries(rawAttributes).map(([key, value]) => [
+      key === 'class' ? 'className' : camelCaseAttribute(key),
+      value,
+    ]),
   )
 
-  return createElement(tag, { ...attributes, key: `${tag}-${index}` },
-    ...(Array.isArray(children) ? children.map(renderNode) : []))
+  return createElement(
+    tag,
+    { ...attributes, key: `${tag}-${index}` },
+    ...(Array.isArray(children) ? children.map(renderNode) : []),
+  )
 }
 
 export default function OrvexaIcon({ name, className, size, ...props }) {
-  const iconKey = name.split('-').map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1)).join('')
+  const iconKey = name
+    .split('-')
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join('')
   const iconDefinitions = typeof window === 'undefined' ? null : window.lucide?.icons
   const definition = iconDefinitions?.[iconKey] || iconDefinitions?.Circle
 

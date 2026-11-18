@@ -62,7 +62,7 @@
   align-items: center;
   gap: 12px;
   color: var(--text);
-  font-family: "Inter Display", sans-serif;
+  font-family: 'Inter Display', sans-serif;
   font-size: 13px;
   letter-spacing: 0.17em;
   font-weight: 800;
@@ -214,7 +214,7 @@
   background: linear-gradient(140deg, var(--grn-soft), var(--grn-mid));
   font-weight: 800;
   color: var(--grn-900);
-  font-family: "Inter Display", sans-serif;
+  font-family: 'Inter Display', sans-serif;
 }
 .zrv-ws .avatar-wrap {
   display: flex;
@@ -238,7 +238,7 @@
   margin-bottom: 44px;
 }
 .zrv-ws .greeting h1 {
-  font-family: "Inter Display", sans-serif;
+  font-family: 'Inter Display', sans-serif;
   font-size: clamp(48px, 5.4vw, 77px);
   font-weight: 600;
   letter-spacing: -0.079em;
@@ -355,14 +355,14 @@
   z-index: 2;
 }
 .zrv-ws .planet::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 14px;
   border: 1px solid rgba(var(--grn-rgb), 0.09);
   border-radius: 50%;
 }
 .zrv-ws .planet::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: -4px;
   border-radius: 50%;
@@ -371,7 +371,7 @@
 }
 .zrv-ws .planet-number {
   font:
-    500 62px/1 "Inter Display",
+    500 62px/1 'Inter Display',
     sans-serif;
   letter-spacing: -0.09em;
 }
@@ -443,7 +443,7 @@
 }
 .zrv-ws .section-line h2 {
   font:
-    700 18px "Inter Display",
+    700 18px 'Inter Display',
     sans-serif;
   letter-spacing: -0.04em;
   margin: 0;
@@ -469,11 +469,7 @@
   border: 1px solid rgba(var(--grn-rgb), 0.28);
   border-radius: 22px;
   background:
-    radial-gradient(
-      ellipse at 100% 0%,
-      rgba(245, 181, 67, 0.13),
-      transparent 42%
-    ),
+    radial-gradient(ellipse at 100% 0%, rgba(245, 181, 67, 0.13), transparent 42%),
     linear-gradient(
       110deg,
       rgba(var(--grn-rgb), 0.12),
@@ -522,13 +518,7 @@
   overflow: hidden;
   display: flex;
   align-items: center;
-  mask-image: linear-gradient(
-    90deg,
-    transparent 0,
-    #000 4%,
-    #000 96%,
-    transparent 100%
-  );
+  mask-image: linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%);
 }
 .zrv-ws .attention-announcement-track {
   display: flex;
@@ -614,7 +604,7 @@
   margin: 5px 0 3px;
   color: var(--ink);
   font:
-    700 20px/1.2 "Inter Display",
+    700 20px/1.2 'Inter Display',
     sans-serif;
   letter-spacing: -0.04em;
 }
@@ -795,15 +785,11 @@
   flex-direction: column;
   justify-content: space-between;
   background:
-    radial-gradient(
-      ellipse at 93% 4%,
-      rgba(var(--grn-rgb), 0.21),
-      transparent 53%
-    ),
+    radial-gradient(ellipse at 93% 4%, rgba(var(--grn-rgb), 0.21), transparent 53%),
     linear-gradient(125deg, var(--grn-750), var(--grn-850) 72%);
 }
 .zrv-ws .feature-primary::after {
-  content: "";
+  content: '';
   position: absolute;
   right: -107px;
   top: -85px;
@@ -822,7 +808,7 @@
 .zrv-ws .feature-primary h3 {
   max-width: 310px;
   font:
-    600 29px/1.18 "Inter Display",
+    600 29px/1.18 'Inter Display',
     sans-serif;
   letter-spacing: -0.065em;
   margin: 13px 0;
@@ -853,7 +839,7 @@
 }
 .zrv-ws .feature-mini h3 {
   font:
-    700 17px "Inter Display",
+    700 17px 'Inter Display',
     sans-serif;
   margin: 0;
 }
@@ -889,7 +875,7 @@
 }
 .zrv-ws .queue-line b {
   font:
-    600 14px "Inter Display",
+    600 14px 'Inter Display',
     sans-serif;
 }
 .zrv-ws .queue-pill {
@@ -914,11 +900,7 @@
   display: block;
   flex: 1;
   border-radius: 7px 7px 3px 3px;
-  background: linear-gradient(
-    0deg,
-    rgba(var(--grn-rgb), 0.17),
-    rgba(var(--grn-rgb), 0.86)
-  );
+  background: linear-gradient(0deg, rgba(var(--grn-rgb), 0.17), rgba(var(--grn-rgb), 0.86));
   min-width: 0;
   transition: height 0.35s ease;
 }
@@ -937,7 +919,7 @@
 }
 .zrv-ws .metric-bottom strong {
   font:
-    600 31px "Inter Display",
+    600 31px 'Inter Display',
     sans-serif;
   letter-spacing: -0.07em;
 }
@@ -976,7 +958,7 @@
 }
 .zrv-ws .domain-card strong {
   font:
-    700 13px "Inter Display",
+    700 13px 'Inter Display',
     sans-serif;
 }
 .zrv-ws .domain-card small {
@@ -1056,7 +1038,7 @@
   color: var(--grn);
 }
 .zrv-ws .dock button.active::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 3px;
   width: 16px;
@@ -1090,7 +1072,7 @@
 }
 .zrv-ws .view-head h1 {
   font:
-    600 clamp(35px, 4vw, 56px)/1.16 "Inter Display",
+    600 clamp(35px, 4vw, 56px)/1.16 'Inter Display',
     sans-serif;
   letter-spacing: -0.065em;
   margin: 10px 0;
@@ -1138,7 +1120,7 @@
 .zrv-ws .stat-card strong {
   display: block;
   font:
-    600 29px "Inter Display",
+    600 29px 'Inter Display',
     sans-serif;
   letter-spacing: -0.06em;
   margin: 6px 0 2px;
@@ -1248,7 +1230,7 @@
 }
 .zrv-ws .module-tile strong {
   font:
-    700 13px "Inter Display",
+    700 13px 'Inter Display',
     sans-serif;
 }
 .zrv-ws .module-tile small {
@@ -1319,7 +1301,7 @@
 }
 .zrv-ws .form-panel-header h2 {
   font:
-    700 14px "Inter Display",
+    700 14px 'Inter Display',
     sans-serif;
   margin: 0;
 }
@@ -1513,7 +1495,7 @@
 }
 .zrv-ws .invoice-bottom strong {
   font:
-    700 24px "Inter Display",
+    700 24px 'Inter Display',
     sans-serif;
   color: var(--grn);
   letter-spacing: -0.05em;
@@ -1555,7 +1537,7 @@
 }
 .zrv-ws .activity-card .copy strong {
   font:
-    700 13px "Inter Display",
+    700 13px 'Inter Display',
     sans-serif;
 }
 .zrv-ws .activity-card .copy small {
@@ -1565,7 +1547,7 @@
 }
 .zrv-ws .activity-card .amount {
   font:
-    700 14px "Inter Display",
+    700 14px 'Inter Display',
     sans-serif;
 }
 .zrv-ws .two-layout {
@@ -1581,7 +1563,7 @@
 }
 .zrv-ws .aux-card h3 {
   font:
-    700 15px "Inter Display",
+    700 15px 'Inter Display',
     sans-serif;
   margin: 0 0 16px;
 }
@@ -1758,7 +1740,7 @@
 }
 .zrv-ws .dialog h2 {
   font:
-    600 27px "Inter Display",
+    600 27px 'Inter Display',
     sans-serif;
   letter-spacing: -0.05em;
   margin: 12px 0;
@@ -1839,8 +1821,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
     grid-template-areas:
-      "work work count"
-      "team action action";
+      'work work count'
+      'team action action';
     margin-bottom: 8px;
     overflow: hidden;
     border: 1px solid var(--border);
@@ -2169,11 +2151,7 @@ html:not(.dark) .zrv-ws .surface {
 }
 html:not(.dark) .zrv-ws .feature-primary {
   background:
-    radial-gradient(
-      ellipse at 95% 0%,
-      rgba(var(--grn-rgb), 0.28),
-      transparent 55%
-    ),
+    radial-gradient(ellipse at 95% 0%, rgba(var(--grn-rgb), 0.28), transparent 55%),
     linear-gradient(120deg, var(--grn2), var(--grn3) 82%);
   color: var(--grn-wash);
   box-shadow: 0 19px 48px rgba(var(--grn-shadow-rgb), 0.2);
@@ -2528,7 +2506,7 @@ html:not(.dark) .zrv-ws .theme-toggle:hover {
   overflow: hidden;
 }
 .zrv-ws .scroll-indicator::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, var(--grn-soft), var(--grn2));
@@ -2549,8 +2527,7 @@ html:not(.dark) .zrv-ws .scroll-indicator {
 }
 .zrv-ws .motion-enabled .reveal:not(.is-visible) {
   opacity: 0;
-  transform: perspective(1100px) translate3d(0, 33px, 0) rotateX(2.6deg)
-    scale(0.985);
+  transform: perspective(1100px) translate3d(0, 33px, 0) rotateX(2.6deg) scale(0.985);
 }
 .zrv-ws .motion-enabled .reveal.is-visible {
   opacity: 1;
@@ -2586,8 +2563,7 @@ html:not(.dark) .zrv-ws .scroll-indicator {
 .zrv-ws .activity-card,
 .zrv-ws .dock,
 .zrv-ws .filter {
-  transition-property:
-    background-color, border-color, box-shadow, transform, opacity;
+  transition-property: background-color, border-color, box-shadow, transform, opacity;
   transition-duration: 0.32s;
   transition-timing-function: ease;
 }
@@ -2913,12 +2889,7 @@ html:not(.dark) .zrv-ws .scroll-indicator {
 .zrv-ws .kinetic-tagline em {
   margin-left: 0.11em;
   font-style: normal;
-  background: linear-gradient(
-    95deg,
-    var(--grn-pale),
-    var(--grn),
-    var(--grn-pale)
-  );
+  background: linear-gradient(95deg, var(--grn-pale), var(--grn), var(--grn-pale));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -3157,11 +3128,7 @@ html:not(.dark) .zrv-ws .scroll-indicator {
   border-color: rgba(var(--grn-rgb), 0.36);
 }
 .zrv-ws .quick-category.selected {
-  background: linear-gradient(
-    115deg,
-    rgba(var(--grn-rgb), 0.22),
-    rgba(var(--grn2-rgb), 0.46)
-  );
+  background: linear-gradient(115deg, rgba(var(--grn-rgb), 0.22), rgba(var(--grn2-rgb), 0.46));
   border-color: rgba(var(--grn-rgb), 0.46);
   box-shadow: 0 14px 33px rgba(0, 0, 0, 0.12);
 }
@@ -3205,12 +3172,7 @@ html:not(.dark) .zrv-ws .scroll-indicator {
   padding: 25px 26px 20px;
   border-radius: 24px;
   background:
-    radial-gradient(
-      circle at 100% 0%,
-      rgba(var(--grn-rgb), 0.1),
-      transparent 38%
-    ),
-    var(--panel);
+    radial-gradient(circle at 100% 0%, rgba(var(--grn-rgb), 0.1), transparent 38%), var(--panel);
   border: 1px solid var(--border);
   min-width: 0;
   position: relative;
@@ -3352,8 +3314,7 @@ html:not(.dark) .zrv-ws .scroll-indicator {
 @keyframes zrv-ws-card-materialize {
   from {
     opacity: 0;
-    transform: perspective(950px) translate3d(0, 16px, 0) rotateX(12deg)
-      scale(0.82);
+    transform: perspective(950px) translate3d(0, 16px, 0) rotateX(12deg) scale(0.82);
   }
   to {
     opacity: 1;
@@ -3444,7 +3405,7 @@ html:not(.dark) .zrv-ws .scroll-indicator {
   color: #ba8521;
 }
 .zrv-ws .employee-spotlight-photo-wrap::before {
-  content: "";
+  content: '';
   position: absolute;
   z-index: -1;
   inset: -11px;
@@ -3733,8 +3694,7 @@ html:not(.dark) .zrv-ws .employee-spotlight-photo-wrap::before {
     0 0 24px rgba(180, 116, 11, 0.42);
 }
 html:not(.dark) .zrv-ws .employee-spotlight-celebration i {
-  filter: drop-shadow(0 0 2px rgba(100, 63, 6, 0.75))
-    drop-shadow(0 0 7px rgba(183, 120, 13, 0.7));
+  filter: drop-shadow(0 0 2px rgba(100, 63, 6, 0.75)) drop-shadow(0 0 7px rgba(183, 120, 13, 0.7));
 }
 @media (prefers-reduced-motion: reduce) {
   .zrv-ws .employee-spotlight-photo-wrap::before,
@@ -3742,19 +3702,15 @@ html:not(.dark) .zrv-ws .employee-spotlight-celebration i {
     animation: none !important;
   }
 }
-html[data-motion="reduced"] .zrv-ws .employee-spotlight-photo-wrap::before,
-html[data-motion="reduced"] .zrv-ws .employee-spotlight-celebration i {
+html[data-motion='reduced'] .zrv-ws .employee-spotlight-photo-wrap::before,
+html[data-motion='reduced'] .zrv-ws .employee-spotlight-celebration i {
   animation: none !important;
 }
 .zrv-ws .habit-feature {
   position: relative;
   min-height: 302px;
   background:
-    radial-gradient(
-      circle at 90% 10%,
-      rgba(var(--grn-rgb), 0.2),
-      transparent 52%
-    ),
+    radial-gradient(circle at 90% 10%, rgba(var(--grn-rgb), 0.2), transparent 52%),
     linear-gradient(125deg, var(--grn-750), var(--grn-850));
   border: 1px solid rgba(var(--grn-rgb), 0.19);
   border-radius: 24px;
@@ -3810,7 +3766,7 @@ html[data-motion="reduced"] .zrv-ws .employee-spotlight-celebration i {
     0 0 0 40px rgba(var(--grn-rgb), 0.02);
 }
 .zrv-ws .habit-orb:before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 14px;
   border: 1px dashed rgba(var(--grn-rgb), 0.32);
@@ -3965,7 +3921,7 @@ html[data-motion="reduced"] .zrv-ws .employee-spotlight-celebration i {
 .zrv-ws .hr-aside-orbit:before,
 .zrv-ws .hr-aside-orbit:after,
 .zrv-ws .hr-aside-orbit i {
-  content: "";
+  content: '';
   position: absolute;
   inset: 13px;
   border: 1px solid rgba(var(--grn-rgb), 0.25);
@@ -4015,8 +3971,7 @@ html[data-motion="reduced"] .zrv-ws .employee-spotlight-celebration i {
 }
 .zrv-ws .motion-enabled .reveal:not(.is-visible) {
   opacity: 0;
-  transform: perspective(1100px) translate3d(0, 19px, 0) rotateX(5deg)
-    scale(0.88) !important;
+  transform: perspective(1100px) translate3d(0, 19px, 0) rotateX(5deg) scale(0.88) !important;
 }
 .zrv-ws .motion-enabled .reveal.is-visible {
   opacity: 1;
@@ -4041,7 +3996,7 @@ html[data-motion="reduced"] .zrv-ws .employee-spotlight-celebration i {
   animation: zrv-ws-splash-dismiss 0.42s ease 0.85s forwards;
 }
 .zrv-ws .brand-splash:before {
-  content: "";
+  content: '';
   position: absolute;
   width: 300px;
   height: 300px;
@@ -4145,11 +4100,7 @@ html:not(.dark) .zrv-ws .quick-form-arrow {
 }
 html:not(.dark) .zrv-ws .habit-feature {
   background:
-    radial-gradient(
-      circle at 95% 0%,
-      rgba(var(--grn-rgb), 0.2),
-      transparent 60%
-    ),
+    radial-gradient(circle at 95% 0%, rgba(var(--grn-rgb), 0.2), transparent 60%),
     linear-gradient(130deg, var(--grn2), var(--grn3));
 }
 html:not(.dark) .zrv-ws .habit-list {
@@ -4180,12 +4131,7 @@ html:not(.dark) .zrv-ws .privacy-chip {
   color: var(--grn2);
 }
 html:not(.dark) .zrv-ws .zamil-core {
-  background: radial-gradient(
-    circle at 28% 20%,
-    var(--grn),
-    var(--grn2) 43%,
-    var(--grn3) 80%
-  );
+  background: radial-gradient(circle at 28% 20%, var(--grn), var(--grn2) 43%, var(--grn3) 80%);
 }
 @media (min-width: 1500px) {
   .zrv-ws .zamil-stage {
@@ -4498,7 +4444,7 @@ html:not(.dark) .zrv-ws .zamil-core {
   inset: -5px;
   border: 1px solid rgba(var(--grn-rgb), 0.4);
   border-radius: 50%;
-  content: "";
+  content: '';
   transition:
     transform 0.45s cubic-bezier(0.2, 0.75, 0.25, 1),
     border-color 0.3s,
@@ -4723,11 +4669,7 @@ html:not(.dark) .zrv-ws .zamil-core {
   width: 30px;
   height: 30px;
 }
-.zrv-ws
-  .hero-profile-social-row
-  .is-persistent
-  .hero-social-toggle-copy
-  strong {
+.zrv-ws .hero-profile-social-row .is-persistent .hero-social-toggle-copy strong {
   font-size: 11px;
 }
 .zrv-ws .hero-profile-detail {
@@ -4779,11 +4721,7 @@ html:not(.dark) .zrv-ws .zamil-core {
   padding: 5px 14px 5px 6px;
   border: 1px solid rgba(var(--grn-rgb), 0.4);
   border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(var(--grn-rgb), 0.14),
-    rgba(var(--grn-rgb), 0.04)
-  );
+  background: linear-gradient(135deg, rgba(var(--grn-rgb), 0.14), rgba(var(--grn-rgb), 0.04));
   color: var(--text);
   text-align: left;
   cursor: pointer;
@@ -4798,11 +4736,7 @@ html:not(.dark) .zrv-ws .zamil-core {
 .zrv-ws .hero-social-fan.is-open .hero-social-toggle {
   transform: translateY(-2px);
   border-color: var(--grn);
-  background: linear-gradient(
-    135deg,
-    rgba(var(--grn-rgb), 0.24),
-    rgba(var(--grn-rgb), 0.1)
-  );
+  background: linear-gradient(135deg, rgba(var(--grn-rgb), 0.24), rgba(var(--grn-rgb), 0.1));
   box-shadow: 0 14px 34px rgba(var(--grn-shadow-rgb), 0.2);
 }
 .zrv-ws .hero-social-toggle-mark {
@@ -4982,7 +4916,7 @@ html:not(.dark) .zrv-ws .zamil-core {
   opacity: 0.55;
   cursor: wait;
 }
-.zrv-ws .hero-profile-photo-actions [role="status"] {
+.zrv-ws .hero-profile-photo-actions [role='status'] {
   color: var(--grn);
 }
 .zrv-ws .hero-tagline {
@@ -4998,7 +4932,7 @@ html:not(.dark) .zrv-ws .zamil-core {
   width: 3px;
   border-radius: 3px;
   background: linear-gradient(180deg, var(--grn-pale), var(--grn));
-  content: "";
+  content: '';
 }
 .zrv-ws .hero-tagline .kinetic-tagline {
   margin: 0;
@@ -5223,8 +5157,7 @@ html:not(.dark) .zrv-ws .gateway-main .gateway-action-icon {
 @keyframes zrv-ws-command-enter {
   from {
     opacity: 0;
-    transform: translate3d(90px, 42px, -300px) rotateX(42deg) rotateY(-44deg)
-      scale(0.62);
+    transform: translate3d(90px, 42px, -300px) rotateX(42deg) rotateY(-44deg) scale(0.62);
     filter: blur(14px);
   }
   70% {
@@ -5293,28 +5226,19 @@ html:not(.dark) .zrv-ws .gateway-main .gateway-action-icon {
   border: 1px solid rgba(var(--grn-pale-rgb), 0.18);
   border-radius: 24px;
   background:
-    radial-gradient(
-      circle at 80% -10%,
-      rgba(var(--grn-rgb), 0.24),
-      transparent 36%
-    ),
+    radial-gradient(circle at 80% -10%, rgba(var(--grn-rgb), 0.24), transparent 36%),
     linear-gradient(150deg, var(--grn2), var(--grn-850) 54%, var(--grn-900));
   padding: 23px;
   isolation: isolate;
 }
 .zrv-ws .command-monolith-inset:before {
-  content: "";
+  content: '';
   position: absolute;
   width: 210%;
   height: 70px;
   left: -50%;
   top: -130px;
-  background: linear-gradient(
-    180deg,
-    transparent,
-    rgba(var(--grn-pale-rgb), 0.18),
-    transparent
-  );
+  background: linear-gradient(180deg, transparent, rgba(var(--grn-pale-rgb), 0.18), transparent);
   transform: rotate(26deg);
   animation: zrv-ws-command-scan 6s linear 1.6s infinite;
   pointer-events: none;
@@ -5383,12 +5307,7 @@ html:not(.dark) .zrv-ws .gateway-main .gateway-action-icon {
 }
 .zrv-ws .command-divider {
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(var(--grn-pale-rgb), 0.37),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(var(--grn-pale-rgb), 0.37), transparent);
   width: 100%;
   margin: 0 0 17px;
 }
@@ -5586,11 +5505,7 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   pointer-events: none !important;
   display: flex !important;
   gap: 0 !important;
-  background: radial-gradient(
-    ellipse at center,
-    var(--grn2),
-    var(--grn-950) 73%
-  ) !important;
+  background: radial-gradient(ellipse at center, var(--grn2), var(--grn-950) 73%) !important;
   overflow: hidden;
   animation: none !important;
   visibility: visible !important;
@@ -5691,12 +5606,7 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   align-items: center;
   justify-content: center;
   gap: 15px;
-  background: linear-gradient(
-    135deg,
-    var(--grn-mid),
-    var(--grn-800) 58%,
-    var(--grn-900)
-  );
+  background: linear-gradient(135deg, var(--grn-mid), var(--grn-800) 58%, var(--grn-900));
   animation: zrv-ws-intro-front 1.12s var(--gateway-spring) both;
   box-shadow:
     0 25px 60px rgba(0, 0, 0, 0.38),
@@ -5843,8 +5753,7 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
 .zrv-ws.motion-enabled .reveal:not(.is-visible) {
   opacity: 0;
   filter: blur(8px);
-  transform: perspective(1000px) translate3d(0, 38px, -95px) rotateX(19deg)
-    scale(0.83) !important;
+  transform: perspective(1000px) translate3d(0, 38px, -95px) rotateX(19deg) scale(0.83) !important;
 }
 .zrv-ws.motion-enabled .reveal.is-visible {
   opacity: 1;
@@ -5859,8 +5768,7 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
 @keyframes zrv-ws-route-unfold {
   from {
     opacity: 0;
-    transform: perspective(1200px) translate3d(0, 22px, -110px) rotateX(5deg)
-      scale(0.978);
+    transform: perspective(1200px) translate3d(0, 22px, -110px) rotateX(5deg) scale(0.978);
     filter: blur(5px);
   }
   to {
@@ -6210,8 +6118,7 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
 @keyframes zrv-ws-book-assemble {
   from {
     opacity: 0;
-    transform: translate3d(75px, 45px, -180px) rotateX(20deg) rotateY(-28deg)
-      scale(0.81);
+    transform: translate3d(75px, 45px, -180px) rotateX(20deg) rotateY(-28deg) scale(0.81);
   }
   to {
     opacity: 1;
@@ -6264,12 +6171,7 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   overflow: hidden;
   backface-visibility: hidden;
   transform-origin: 6% 50%;
-  background: linear-gradient(
-    150deg,
-    var(--grn2),
-    var(--grn-850) 59%,
-    var(--grn-900)
-  );
+  background: linear-gradient(150deg, var(--grn2), var(--grn-850) 59%, var(--grn-900));
   color: var(--grn-wash);
   box-shadow:
     0 27px 48px rgba(var(--grn-shadow-rgb), 0.24),
@@ -6288,19 +6190,15 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   text-align: left;
 }
 .zrv-ws .book-leaf::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(
-    circle at 80% 12%,
-    rgba(var(--grn-pale-rgb), 0.17),
-    transparent 42%
-  );
+  background: radial-gradient(circle at 80% 12%, rgba(var(--grn-pale-rgb), 0.17), transparent 42%);
   pointer-events: none;
 }
 .zrv-ws .book-leaf::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
@@ -6379,7 +6277,7 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   transition: opacity 0.42s cubic-bezier(0.65, 0, 0.35, 1);
 }
 .zrv-ws .book-leaf-title {
-  font-family: "Inter Display", Inter, sans-serif;
+  font-family: 'Inter Display', Inter, sans-serif;
   font-size: 29px;
   font-weight: 660;
   letter-spacing: -0.058em;
@@ -6534,7 +6432,11 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
     linear-gradient(105deg, rgba(255, 255, 255, 0.045), rgba(0, 0, 0, 0.11));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
   text-align: left;
-  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
   cursor: pointer;
 }
 .zrv-ws .book-hr-submodule:hover,
@@ -6544,7 +6446,9 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   background:
     radial-gradient(ellipse at 0 0, rgba(var(--grn-rgb), 0.23), transparent 72%),
     linear-gradient(105deg, rgba(var(--grn-rgb), 0.14), rgba(0, 0, 0, 0.08));
-  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 7px 18px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
   outline: 2px solid rgba(var(--grn-rgb), 0.55);
   outline-offset: 1px;
 }
@@ -6596,7 +6500,10 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   border-radius: 50%;
   color: var(--grn-soft);
   background: rgba(var(--grn-rgb), 0.07);
-  transition: transform 0.2s ease, color 0.2s ease, background 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
 }
 .zrv-ws .book-hr-submodule:hover .book-hr-submodule-arrow,
 .zrv-ws .book-hr-submodule:focus-visible .book-hr-submodule-arrow {
@@ -6707,7 +6614,10 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   background: rgba(255, 255, 255, 0.045);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s ease;
 }
 .zrv-ws .book-hr-form:hover,
 .zrv-ws .book-hr-form:focus-visible {
@@ -7138,7 +7048,7 @@ html.dark .folio-picker-option:has(input:checked) {
 }
 .zrv-ws .book-finance-number {
   font:
-    600 29px "Inter Display",
+    600 29px 'Inter Display',
     sans-serif;
   letter-spacing: -0.05em;
   margin: 6px 0 12px;
@@ -7207,7 +7117,7 @@ html.dark .folio-picker-option:has(input:checked) {
 }
 .zrv-ws .book-big-metric {
   font:
-    650 28px "Inter Display",
+    650 28px 'Inter Display',
     sans-serif;
   letter-spacing: -0.055em;
 }
@@ -7380,7 +7290,7 @@ html.dark .folio-picker-option:has(input:checked) {
     0 6px 11px rgba(var(--grn2-rgb), 0.09);
 }
 .zrv-ws .name-typeink:after {
-  content: "";
+  content: '';
   display: inline-block;
   width: 3px;
   height: 0.77em;
@@ -7733,22 +7643,14 @@ html:not(.dark) .zrv-ws .book-chapter.is-current {
 }
 
 .zrv-ws::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(
-      ellipse 60% 45% at 50% -12%,
-      rgba(var(--grn-rgb), 0.14),
-      transparent 80%
-    ),
-    radial-gradient(
-      ellipse 45% 50% at 105% 40%,
-      rgba(var(--grn2-rgb), 0.19),
-      transparent 80%
-    );
+    radial-gradient(ellipse 60% 45% at 50% -12%, rgba(var(--grn-rgb), 0.14), transparent 80%),
+    radial-gradient(ellipse 45% 50% at 105% 40%, rgba(var(--grn2-rgb), 0.19), transparent 80%);
 }
 
 html:not(.dark) .zrv-ws {
@@ -7758,16 +7660,8 @@ html:not(.dark) .zrv-ws {
 
 html:not(.dark) .zrv-ws::before {
   background:
-    radial-gradient(
-      ellipse 52% 47% at 82% 0%,
-      rgba(var(--grn-rgb), 0.13),
-      transparent 74%
-    ),
-    radial-gradient(
-      ellipse 47% 48% at -5% 46%,
-      rgba(var(--grn-rgb), 0.065),
-      transparent 76%
-    );
+    radial-gradient(ellipse 52% 47% at 82% 0%, rgba(var(--grn-rgb), 0.13), transparent 74%),
+    radial-gradient(ellipse 47% 48% at -5% 46%, rgba(var(--grn-rgb), 0.065), transparent 76%);
 }
 
 /* The original design painted #app directly on the body. In the shell the
@@ -7812,19 +7706,11 @@ html:not(.dark) .zrv-ws::before {
 }
 
 /* Keep long internal views from creating a second horizontal scrollbar. */
-.zrv-ws
-  :is(
-    .module-grid,
-    .feature-grid,
-    .domain-grid,
-    .stat-strip,
-    .two-layout,
-    .form-grid
-  ) {
+.zrv-ws :is(.module-grid, .feature-grid, .domain-grid, .stat-strip, .two-layout, .form-grid) {
   min-width: 0;
 }
 
-.zrv-ws [id="quickStart"] {
+.zrv-ws [id='quickStart'] {
   scroll-margin-top: 92px;
 }
 
@@ -7833,7 +7719,7 @@ html:not(.dark) .zrv-ws::before {
 /* Yellow keeps the same structure and contrast relationship as the approved
    emerald palette: dark ink values become warm brown, light washes become
    cream, and the single accent becomes amber. */
-html[data-accent-theme="yellow"] .zrv-ws {
+html[data-accent-theme='yellow'] .zrv-ws {
   --grn: #f4c95d;
   --grn2: #6b4f00;
   --grn3: #3f2f00;
@@ -7869,7 +7755,7 @@ html[data-accent-theme="yellow"] .zrv-ws {
   --shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
 }
 
-html[data-accent-theme="yellow"]:not(.dark) .zrv-ws {
+html[data-accent-theme='yellow']:not(.dark) .zrv-ws {
   --bg: #fdfaf0;
   --base: #fffdf7;
   --panel: #fff;
@@ -7885,7 +7771,7 @@ html[data-accent-theme="yellow"]:not(.dark) .zrv-ws {
 }
 
 /* Yellow's dark background needs the amber accent to carry the toast. */
-html[data-accent-theme="yellow"] .zrv-ws .toast {
+html[data-accent-theme='yellow'] .zrv-ws .toast {
   border-color: rgba(var(--grn-rgb), 0.36);
   background: #3b2c06;
   color: #fff8e0;
@@ -7893,81 +7779,81 @@ html[data-accent-theme="yellow"] .zrv-ws .toast {
 
 /* ------------------------------------------------------------- density mode */
 
-html[data-density="compact"] .zrv-ws .scene {
+html[data-density='compact'] .zrv-ws .scene {
   padding-top: 16px;
   padding-bottom: 56px;
 }
 
-html[data-density="compact"] .zrv-ws .hero-meta {
+html[data-density='compact'] .zrv-ws .hero-meta {
   margin-bottom: 18px;
 }
 
-html[data-density="compact"] .zrv-ws .gateway-layout {
+html[data-density='compact'] .zrv-ws .gateway-layout {
   min-height: 0;
   margin-bottom: 28px;
 }
 
-html[data-density="compact"] .zrv-ws .section-line {
+html[data-density='compact'] .zrv-ws .section-line {
   margin: 18px 0 12px;
 }
 
-html[data-density="compact"] .zrv-ws .feature-primary {
+html[data-density='compact'] .zrv-ws .feature-primary {
   min-height: 250px;
 }
 
-html[data-density="compact"] .zrv-ws .stat-card {
+html[data-density='compact'] .zrv-ws .stat-card {
   padding: 13px 16px;
 }
 
-html[data-density="compact"] .zrv-ws .view-head {
+html[data-density='compact'] .zrv-ws .view-head {
   margin: 22px 0 20px;
 }
 
-html[data-density="compact"] .zrv-ws .card-list {
+html[data-density='compact'] .zrv-ws .card-list {
   gap: 8px;
 }
 
-html[data-density="compact"] .zrv-ws .activity-card {
+html[data-density='compact'] .zrv-ws .activity-card {
   padding: 14px;
 }
 
-html[data-density="compact"] .zrv-ws .aux-card {
+html[data-density='compact'] .zrv-ws .aux-card {
   padding: 18px;
 }
 
-html[data-density="compact"] .zrv-ws .fields {
+html[data-density='compact'] .zrv-ws .fields {
   gap: 13px;
   padding: 16px 18px 18px;
 }
 
-html[data-density="compact"] .zrv-ws .form-panel-header {
+html[data-density='compact'] .zrv-ws .form-panel-header {
   padding: 16px 18px;
 }
 
-html[data-density="compact"] .zrv-ws .module-grid {
+html[data-density='compact'] .zrv-ws .module-grid {
   gap: 10px;
 }
 
 /* ---------------------------------------------------------- motion controls */
 
-html[data-motion="reduced"] .zrv-ws .scene,
-html[data-motion="reduced"] .zrv-ws .book-leaf,
-html[data-motion="reduced"] .zrv-ws .zrv-dialog,
-html[data-motion="reduced"] .zrv-ws .toast {
+html[data-motion='reduced'] .zrv-ws .scene,
+html[data-motion='reduced'] .zrv-ws .book-leaf,
+html[data-motion='reduced'] .zrv-ws .zrv-dialog,
+html[data-motion='reduced'] .zrv-ws .toast {
   animation: none !important;
   transition: none !important;
 }
 
-html[data-motion="reduced"] .zrv-ws *,
-html[data-motion="reduced"] .zrv-ws *::before,
-html[data-motion="reduced"] .zrv-ws *::after {
+html[data-motion='reduced'] .zrv-ws *,
+html[data-motion='reduced'] .zrv-ws *::before,
+html[data-motion='reduced'] .zrv-ws *::after {
   animation-duration: 0.001ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
   scroll-behavior: auto !important;
 }
 
-html[data-motion="reduced"] .zrv-ws .reveal {
+html[data-motion='reduced'] .zrv-ws .reveal {
   opacity: 1 !important;
   transform: none !important;
   filter: none !important;
@@ -8082,7 +7968,7 @@ html:not(.dark) .zrv-ws .zrv-dialog {
 .zrv-ws .zrv-dialog > h2 {
   margin: 0 0 8px;
   font:
-    600 27px/1.15 "Inter Display",
+    600 27px/1.15 'Inter Display',
     Inter,
     sans-serif;
   letter-spacing: -0.05em;
@@ -8377,11 +8263,7 @@ html.dark .zrv-ws .zrv-ws-credit-total {
 html:not(.dark) .zrv-ws .attention-announcement {
   border-color: rgba(13, 74, 56, 0.16);
   background:
-    radial-gradient(
-      ellipse at 100% 0%,
-      rgba(245, 181, 67, 0.17),
-      transparent 42%
-    ),
+    radial-gradient(ellipse at 100% 0%, rgba(245, 181, 67, 0.17), transparent 42%),
     linear-gradient(110deg, #e8f7ee, #fff 48%, #f1faf5);
   box-shadow: 0 12px 34px rgba(19, 77, 52, 0.09);
 }
@@ -8714,7 +8596,7 @@ html:not(.dark) .zrv-ws .book-chapter.is-current small {
   color: var(--text);
 }
 html.dark .hero-photo-reset-backdrop .zrv-dialog__actions .btn-primary,
-html[data-accent-theme="yellow"] .hero-photo-reset-backdrop .zrv-dialog__actions .btn-primary {
+html[data-accent-theme='yellow'] .hero-photo-reset-backdrop .zrv-dialog__actions .btn-primary {
   color: #10241b;
 }
 @media (max-width: 650px) {
@@ -8818,9 +8700,7 @@ html[data-accent-theme="yellow"] .hero-photo-reset-backdrop .zrv-dialog__actions
 
   scrollbar-width: thin;
 
-  scrollbar-color:
-    rgba(var(--grn-rgb), 0.38)
-    transparent;
+  scrollbar-color: rgba(var(--grn-rgb), 0.38) transparent;
 
   overscroll-behavior: contain;
 
@@ -8849,9 +8729,7 @@ html[data-accent-theme="yellow"] .hero-photo-reset-backdrop .zrv-dialog__actions
 
   scrollbar-width: thin;
 
-  scrollbar-color:
-    rgba(var(--grn-rgb), 0.38)
-    transparent;
+  scrollbar-color: rgba(var(--grn-rgb), 0.38) transparent;
 }
 
 /* Compact six-card layout */
@@ -8935,8 +8813,7 @@ html[data-accent-theme="yellow"] .hero-photo-reset-backdrop .zrv-dialog__actions
   overflow-y: hidden;
 
   scrollbar-width: thin;
-  scrollbar-color:
-    rgba(var(--grn-rgb), 0.38) transparent;
+  scrollbar-color: rgba(var(--grn-rgb), 0.38) transparent;
 
   overscroll-behavior: contain;
 }

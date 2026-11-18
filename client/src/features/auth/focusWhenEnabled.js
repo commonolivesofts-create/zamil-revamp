@@ -7,7 +7,9 @@ import { useCallback, useEffect, useState } from 'react'
 export function createDeferredFocus() {
   let target = null
   return Object.freeze({
-    request(ref) { target = ref },
+    request(ref) {
+      target = ref
+    },
     // Returns true when an element received focus.
     flush(disabled) {
       if (disabled || !target) return false
@@ -24,6 +26,8 @@ export function createDeferredFocus() {
 // enabled field, and never after the component unmounts.
 export default function useFocusWhenEnabled(disabled) {
   const [deferred] = useState(createDeferredFocus)
-  useEffect(() => { deferred.flush(disabled) }, [deferred, disabled])
+  useEffect(() => {
+    deferred.flush(disabled)
+  }, [deferred, disabled])
   return useCallback((ref) => deferred.request(ref), [deferred])
 }

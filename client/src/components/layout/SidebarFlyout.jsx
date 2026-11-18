@@ -1,10 +1,4 @@
-
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { NavLink } from 'react-router'
 
@@ -16,19 +10,11 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 // the existing navigation registry.
 //
 // No HR-specific routes or duplicate form lists are defined here.
-export function SidebarSubgroupButton({
-  subgroup,
-  items,
-  current,
-  open,
-  onToggle,
-}) {
+export function SidebarSubgroupButton({ subgroup, items, current, open, onToggle }) {
   return (
     <button
       type="button"
-      className={`zrv-sidebar-subgroup${
-        open ? ' is-open' : ''
-      }${current ? ' is-current' : ''}`}
+      className={`zrv-sidebar-subgroup${open ? ' is-open' : ''}${current ? ' is-current' : ''}`}
       aria-expanded={open}
       aria-controls={`sidebar-flyout-${subgroup.id}`}
       onPointerEnter={(event) => {
@@ -48,22 +34,14 @@ export function SidebarSubgroupButton({
       <span className="zrv-sidebar-subgroup__label">
         <b>{subgroup.label}</b>
 
-        {current && (
-          <small>{current.label}</small>
-        )}
+        {current && <small>{current.label}</small>}
       </span>
 
-      <span
-        className="zrv-sidebar-subgroup__count"
-        aria-label={`${items.length} pages`}
-      >
+      <span className="zrv-sidebar-subgroup__count" aria-label={`${items.length} pages`}>
         {items.length}
       </span>
 
-      <OrvexaIcon
-        name="chevron-right"
-        className="zrv-sidebar-subgroup__arrow"
-      />
+      <OrvexaIcon name="chevron-right" className="zrv-sidebar-subgroup__arrow" />
     </button>
   )
 }
@@ -113,17 +91,9 @@ export function SidebarFlyout({
 
       const height = ref.current.offsetHeight
 
-      const viewTop = Math.max(
-        box.top - 10,
-        12,
-      )
+      const viewTop = Math.max(box.top - 10, 12)
 
-      setTop(
-        Math.min(
-          viewTop,
-          window.innerHeight - height - 12,
-        ) - hostTop,
-      )
+      setTop(Math.min(viewTop, window.innerHeight - height - 12) - hostTop)
     }
 
     place()
@@ -146,27 +116,15 @@ export function SidebarFlyout({
       return undefined
     }
 
-    const links = () =>
-      Array.from(
-        node.querySelectorAll(
-          '.zrv-sidebar-flyout__link',
-        ),
-      )
+    const links = () => Array.from(node.querySelectorAll('.zrv-sidebar-flyout__link'))
 
     const revealedLink = links().find(
-      (link) =>
-        link.getAttribute('data-revealed-route') ===
-        revealedRouteId,
+      (link) => link.getAttribute('data-revealed-route') === revealedRouteId,
     )
 
-    const activeLink = node.querySelector(
-      '[aria-current="page"]',
-    )
+    const activeLink = node.querySelector('[aria-current="page"]')
 
-    const initialLink =
-      revealedLink ||
-      activeLink ||
-      links()[0]
+    const initialLink = revealedLink || activeLink || links()[0]
 
     initialLink?.focus({
       preventScroll: true,
@@ -188,10 +146,7 @@ export function SidebarFlyout({
         return
       }
 
-      if (
-        event.key !== 'ArrowDown' &&
-        event.key !== 'ArrowUp'
-      ) {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
         return
       }
 
@@ -199,80 +154,45 @@ export function SidebarFlyout({
 
       if (!list.length) return
 
-      const index = list.indexOf(
-        document.activeElement,
-      )
+      const index = list.indexOf(document.activeElement)
 
       if (index < 0) return
 
       event.preventDefault()
 
-      const nextIndex =
-        (
-          index +
-          (event.key === 'ArrowDown'
-            ? 1
-            : list.length - 1)
-        ) % list.length
+      const nextIndex = (index + (event.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length
 
       list[nextIndex].focus()
     }
 
     const onPointer = (event) => {
-      const clickedInsideFlyout =
-        node.contains(event.target)
+      const clickedInsideFlyout = node.contains(event.target)
 
-      const clickedSubgroup =
-        anchor?.contains(event.target)
+      const clickedSubgroup = anchor?.contains(event.target)
 
-      if (
-        !clickedInsideFlyout &&
-        !clickedSubgroup
-      ) {
+      if (!clickedInsideFlyout && !clickedSubgroup) {
         onClose(false)
       }
     }
 
-    node.addEventListener(
-      'keydown',
-      onKey,
-    )
+    node.addEventListener('keydown', onKey)
 
-    document.addEventListener(
-      'pointerdown',
-      onPointer,
-    )
+    document.addEventListener('pointerdown', onPointer)
 
     return () => {
-      node.removeEventListener(
-        'keydown',
-        onKey,
-      )
+      node.removeEventListener('keydown', onKey)
 
-      document.removeEventListener(
-        'pointerdown',
-        onPointer,
-      )
+      document.removeEventListener('pointerdown', onPointer)
     }
-  }, [
-    anchor,
-    onClose,
-    revealedRouteId,
-  ])
+  }, [anchor, onClose, revealedRouteId])
 
   return (
     <nav
       ref={ref}
       id={`sidebar-flyout-${subgroup.id}`}
-      className={`zrv-sidebar-flyout${
-        mobile ? ' is-mobile' : ''
-      }`}
+      className={`zrv-sidebar-flyout${mobile ? ' is-mobile' : ''}`}
       aria-label={subgroup.label}
-      style={
-        mobile
-          ? undefined
-          : { top }
-      }
+      style={mobile ? undefined : { top }}
     >
       {/* Preserve existing flyout heading. */}
       <div className="zrv-sidebar-flyout__head">
@@ -283,10 +203,7 @@ export function SidebarFlyout({
             aria-label="Back"
             onClick={() => onClose(true)}
           >
-            <OrvexaIcon
-              name="arrow-left"
-              className="size-4"
-            />
+            <OrvexaIcon name="arrow-left" className="size-4" />
           </button>
         )}
 
@@ -297,17 +214,14 @@ export function SidebarFlyout({
         <div>
           <b>{subgroup.label}</b>
 
-          <small>
-            {subgroup.description}
-          </small>
+          <small>{subgroup.description}</small>
         </div>
       </div>
 
       {/* Existing authorized navigation items. */}
       <ul className="zrv-sidebar-flyout__list">
         {items.map((item, index) => {
-          const isRevealed =
-            revealedRouteId === item.id
+          const isRevealed = revealedRouteId === item.id
 
           return (
             <li
@@ -316,46 +230,31 @@ export function SidebarFlyout({
                 '--i': index,
               }}
             >
-              <NavLink to={item.path}
+              <NavLink
+                to={item.path}
                 end={false}
-                data-revealed-route={
-                  isRevealed
-                    ? item.id
-                    : undefined
-                }
+                data-revealed-route={isRevealed ? item.id : undefined}
                 className={({ isActive }) =>
                   [
                     'zrv-sidebar-flyout__link',
                     isActive ? 'active' : '',
-                    isRevealed
-                      ? 'is-revealed-target'
-                      : '',
+                    isRevealed ? 'is-revealed-target' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')
                 }
                 onClick={onNavigate}
               >
-                <span className="zrv-sidebar-flyout__n">
-                  {String(index + 1).padStart(
-                    2,
-                    '0',
-                  )}
-                </span>
+                <span className="zrv-sidebar-flyout__n">{String(index + 1).padStart(2, '0')}</span>
 
                 <OrvexaIcon
                   name={item.icon || 'circle'}
                   className="zrv-sidebar-flyout__item-icon"
                 />
 
-                <span className="zrv-sidebar-flyout__label">
-                  {item.label}
-                </span>
+                <span className="zrv-sidebar-flyout__label">{item.label}</span>
 
-                <OrvexaIcon
-                  name="chevron-right"
-                  className="zrv-sidebar-flyout__go"
-                />
+                <OrvexaIcon name="chevron-right" className="zrv-sidebar-flyout__go" />
               </NavLink>
             </li>
           )

@@ -12,10 +12,9 @@
   color: var(--text);
   font-size: 11px;
   line-height: 1.6;
-  box-shadow: 0 18px 40px -30px
-    color-mix(in srgb, var(--zrv-hr-ink) 45%, transparent);
+  box-shadow: 0 18px 40px -30px color-mix(in srgb, var(--zrv-hr-ink) 45%, transparent);
 }
-.zrv-hr-bvl-page[dir="rtl"] {
+.zrv-hr-bvl-page[dir='rtl'] {
   font-size: 12px;
   line-height: 1.8;
 }

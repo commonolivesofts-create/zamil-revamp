@@ -12,31 +12,22 @@
   --m162-teal: #62aaa3;
   --m162-line: rgba(65, 61, 50, 0.1);
   --m162-shadow: 0 24px 68px rgba(104, 83, 43, 0.12);
-  --m162-float-shadow:
-    0 28px 70px rgba(102, 79, 37, 0.15), 0 4px 16px rgba(83, 68, 39, 0.06);
+  --m162-float-shadow: 0 28px 70px rgba(102, 79, 37, 0.15), 0 4px 16px rgba(83, 68, 39, 0.06);
 }
-body[data-active-page="command-center"] {
+body[data-active-page='command-center'] {
   background:
-    radial-gradient(
-      circle at 79% 2%,
-      rgba(255, 224, 145, 0.24),
-      transparent 26%
-    ),
-    radial-gradient(
-      circle at 10% 22%,
-      rgba(217, 234, 220, 0.32),
-      transparent 28%
-    ),
+    radial-gradient(circle at 79% 2%, rgba(255, 224, 145, 0.24), transparent 26%),
+    radial-gradient(circle at 10% 22%, rgba(217, 234, 220, 0.32), transparent 28%),
     linear-gradient(180deg, #f8f4ed 0%, #eee7dc 100%) !important;
   color: var(--m162-ink) !important;
 }
-body[data-active-page="command-center"] #app-main > header {
+body[data-active-page='command-center'] #app-main > header {
   background: rgba(251, 248, 242, 0.88) !important;
   border-color: rgba(70, 65, 54, 0.08) !important;
   backdrop-filter: blur(22px) !important;
   box-shadow: 0 1px rgba(255, 255, 255, 0.8);
 }
-body[data-active-page="command-center"] #main-content {
+body[data-active-page='command-center'] #main-content {
   padding-top: 18px !important;
 }
 
@@ -88,21 +79,9 @@ body[data-active-page="command-center"] #main-content {
   border: 1px solid rgba(75, 68, 55, 0.075) !important;
   border-radius: 32px !important;
   background:
-    radial-gradient(
-      circle at 54% 45%,
-      rgba(255, 207, 87, 0.22),
-      transparent 18%
-    ),
-    radial-gradient(
-      circle at 55% 50%,
-      rgba(94, 183, 161, 0.1),
-      transparent 31%
-    ),
-    linear-gradient(
-      145deg,
-      rgba(255, 253, 248, 0.97),
-      rgba(247, 240, 227, 0.96)
-    ) !important;
+    radial-gradient(circle at 54% 45%, rgba(255, 207, 87, 0.22), transparent 18%),
+    radial-gradient(circle at 55% 50%, rgba(94, 183, 161, 0.1), transparent 31%),
+    linear-gradient(145deg, rgba(255, 253, 248, 0.97), rgba(247, 240, 227, 0.96)) !important;
   box-shadow:
     0 30px 90px rgba(92, 73, 39, 0.1),
     inset 0 1px rgba(255, 255, 255, 0.95) !important;
@@ -121,16 +100,12 @@ body[data-active-page="command-center"] #main-content {
   ) !important;
 }
 .m16-scene:after {
-  content: "";
+  content: '';
   position: absolute;
   inset: auto 19% -25% 18%;
   height: 62%;
   border-radius: 50%;
-  background: radial-gradient(
-    ellipse,
-    rgba(227, 177, 66, 0.12),
-    transparent 65%
-  );
+  background: radial-gradient(ellipse, rgba(227, 177, 66, 0.12), transparent 65%);
   filter: blur(16px);
   pointer-events: none;
 }
@@ -354,7 +329,7 @@ body[data-active-page="command-center"] #main-content {
   filter: blur(0.1px) !important;
 }
 .m16-core-floor:before {
-  content: "";
+  content: '';
   position: absolute;
   left: 50%;
   top: 50%;
@@ -362,17 +337,13 @@ body[data-active-page="command-center"] #main-content {
   height: 105px;
   transform: translate(-50%, -46%);
   border-radius: 50%;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.92),
-    rgba(222, 210, 187, 0.78)
-  );
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(222, 210, 187, 0.78));
   box-shadow:
     0 24px 45px rgba(119, 91, 39, 0.15),
     inset 0 0 0 1px rgba(171, 144, 87, 0.16);
 }
 .m16-core-floor:after {
-  content: "";
+  content: '';
   position: absolute;
   left: 50%;
   top: 49%;
@@ -412,12 +383,7 @@ body[data-active-page="command-center"] #main-content {
 }
 .m161-core-robot .robot-head {
   border-color: rgba(152, 139, 112, 0.23) !important;
-  background: linear-gradient(
-    145deg,
-    #fffdf7 0%,
-    #e5dfd2 72%,
-    #d2c9b8 100%
-  ) !important;
+  background: linear-gradient(145deg, #fffdf7 0%, #e5dfd2 72%, #d2c9b8 100%) !important;
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.96),
     inset 0 -10px 24px rgba(148, 128, 89, 0.08),
@@ -437,12 +403,7 @@ body[data-active-page="command-center"] #main-content {
 }
 .m161-core-robot .robot-body {
   border-color: rgba(152, 139, 112, 0.22) !important;
-  background: linear-gradient(
-    145deg,
-    #fffdf7 0%,
-    #e6dfd2 72%,
-    #d4cbbb 100%
-  ) !important;
+  background: linear-gradient(145deg, #fffdf7 0%, #e6dfd2 72%, #d4cbbb 100%) !important;
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.96),
     inset 0 -13px 26px rgba(148, 128, 89, 0.08),

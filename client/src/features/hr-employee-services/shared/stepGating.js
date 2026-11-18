@@ -13,11 +13,14 @@ export const INCOMPLETE_STEP = 'Complete this step before moving on.'
 
 // The problems of one step only, so pressing Continue shows the messages of the
 // open step without painting errors on steps the user cannot reach yet.
-export const problemsInStep = (problems, step) => problems.filter((problem) => problem.step === step)
+export const problemsInStep = (problems, step) =>
+  problems.filter((problem) => problem.step === step)
 
 export const errorsInStep = (errors, stepOf, step) =>
   // `stepOf` is either a field → step map or a (field) → step function.
-  Object.fromEntries(Object.entries(errors).filter(([field]) => {
-    const fieldStep = typeof stepOf === 'function' ? stepOf(field) : stepOf[field]
-    return (fieldStep ?? 0) === step
-  }))
+  Object.fromEntries(
+    Object.entries(errors).filter(([field]) => {
+      const fieldStep = typeof stepOf === 'function' ? stepOf(field) : stepOf[field]
+      return (fieldStep ?? 0) === step
+    }),
+  )
