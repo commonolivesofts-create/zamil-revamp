@@ -254,6 +254,26 @@ export function Compare({ rows }) {
   )
 }
 
+// A total against its maximum: a bullet bar with the band thresholds marked,
+// named so two bars side by side can never be confused, and the band name
+// beside the value. The bar itself is decorative.
+export function BandBar({ value, max, bands, label, name, tone = 'mint' }) {
+  if (value === undefined || value === null) return <span className="zrv-ir-band__missing">{name ? `${name} not scored` : 'Not scored'}</span>
+  const ticks = (bands ?? []).slice(1).filter(([minimum]) => minimum > 0 && minimum < max)
+  return (
+    <span className={`zrv-ir-band zrv-ir-tone--${tone}`}>
+      <span className="zrv-ir-band__head">
+        {name && <span className="zrv-ir-band__name">{name}</span>}
+        <small><b>{value}</b><span>/{max}</span> · {label}</small>
+      </span>
+      <span className="zrv-ir-band__track" aria-hidden="true">
+        <i style={{ '--w': `${Math.max(3, Math.min(100, (value / max) * 100))}%` }} />
+        {ticks.map(([minimum, code]) => <b key={code} style={{ '--x': `${(minimum / max) * 100}%` }} />)}
+      </span>
+    </span>
+  )
+}
+
 // One tile per period, its tint the period's share of the busiest one.
 export function HeatStrip({ items, slots }) {
   const peak = Math.max(1, ...(items ?? []).map((item) => item.count))
@@ -363,6 +383,33 @@ export function Donut({ items, total, unit }) {
           </Pick>
         ))}
       </div>
+    </div>
+  )
+}
+
+// Two independent scores on one plot, with the Good thresholds as a crosshair.
+// points: [{ key, label, x, y, tone }]; the same readings are listed for
+// screen readers so the plot is never the only copy.
+export function Quadrant({ points, xMax, yMax, xCut, yCut, xLabel, yLabel }) {
+  if (!points) return <div className="zrv-ir-quad zrv-ir-quad--wait" aria-hidden="true" />
+  const share = (value, max) => `${Math.min(100, Math.max(0, (value / max) * 100))}%`
+  return (
+    <div className="zrv-ir-quad" style={{ '--x-cut': share(xCut, xMax), '--y-cut': share(yCut, yMax) }}>
+      <span className="zrv-ir-quad__axis zrv-ir-quad__axis--y" aria-hidden="true">{yLabel}</span>
+      <div className="zrv-ir-quad__plot" aria-hidden="true">
+        <i className="zrv-ir-quad__zone" />
+        <i className="zrv-ir-quad__rule zrv-ir-quad__rule--x" />
+        <i className="zrv-ir-quad__rule zrv-ir-quad__rule--y" />
+        {points.map((point) => (
+          <span key={point.key} className={`zrv-ir-quad__dot zrv-ir-tone--${point.tone}`}
+            style={{ left: share(point.x, xMax), bottom: share(point.y, yMax) }}
+            title={`${point.label} — ${xLabel} ${point.x}/${xMax}, ${yLabel} ${point.y}/${yMax}`} />
+        ))}
+      </div>
+      <span className="zrv-ir-quad__axis zrv-ir-quad__axis--x" aria-hidden="true">{xLabel}</span>
+      <ul className="zrv-hr-sr">
+        {points.map((point) => <li key={point.key}>{`${point.label}: ${xLabel} ${point.x} of ${xMax}, ${yLabel} ${point.y} of ${yMax}.`}</li>)}
+      </ul>
     </div>
   )
 }

@@ -16,3 +16,4 @@ export default defineModule({
     { id: 'expense-hub', type: 'external', href: { env: 'VITE_EXTERNAL_EXPENSE_HUB' }, title: 'Expense Hub', icon: 'wallet-cards', group: 'finance', order: 10 },
   ],
 })
+

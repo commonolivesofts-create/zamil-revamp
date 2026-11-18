@@ -435,6 +435,7 @@
 }
 .zrv-ws .section-line {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -744,6 +745,7 @@
   background: rgba(var(--grn-rgb), 0.16);
   font-size: 12px;
   font-weight: 800;
+  white-space: nowrap;
 }
 .zrv-ws .attention-row-2 .attention-count {
   background: rgba(67, 157, 211, 0.18);
@@ -762,6 +764,7 @@
   background: rgba(var(--grn-rgb), 0.12);
   font-size: 10px;
   font-weight: 750;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background 0.18s,
@@ -1815,8 +1818,76 @@
   .zrv-ws .attention-queue {
     padding: 19px 17px 5px;
   }
-  .zrv-ws .attention-table {
-    min-width: 620px;
+  .zrv-ws .attention-queue-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  /* Rows become stacked cards: work item + count, then team + action. */
+  .zrv-ws .attention-table,
+  .zrv-ws .attention-table tbody {
+    display: block;
+  }
+  .zrv-ws .attention-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .zrv-ws .attention-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "work work count"
+      "team action action";
+    margin-bottom: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: inset 3px 0 0 var(--grn);
+  }
+  .zrv-ws .attention-row-2 {
+    box-shadow: inset 3px 0 0 #50a9dd;
+  }
+  .zrv-ws .attention-row-3 {
+    box-shadow: inset 3px 0 0 #c18de0;
+  }
+  .zrv-ws .attention-table td,
+  .zrv-ws .attention-table td:first-child,
+  .zrv-ws .attention-table td:last-child {
+    display: flex;
+    align-items: center;
+    width: auto;
+    min-width: 0;
+    padding: 10px 12px 10px 15px;
+    border: 0;
+    border-radius: 0;
+  }
+  .zrv-ws .attention-table td:nth-child(1) {
+    grid-area: work;
+    padding-bottom: 5px;
+  }
+  .zrv-ws .attention-work-icon {
+    flex: none;
+  }
+  .zrv-ws .attention-work-copy {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .zrv-ws .attention-table td:nth-child(2) {
+    grid-area: team;
+    padding-top: 5px;
+  }
+  .zrv-ws .attention-table td:nth-child(3) {
+    grid-area: count;
+    justify-content: flex-end;
+    padding-bottom: 5px;
+  }
+  .zrv-ws .attention-table td:nth-child(4) {
+    grid-area: action;
+    justify-content: flex-end;
+    padding-top: 5px;
   }
   .zrv-ws .attention-announcement {
     min-height: 118px;
@@ -1824,10 +1895,6 @@
   }
   .zrv-ws .attention-announcement-item {
     font-size: 12px;
-  }
-
-  .zrv-ws .employee-spotlight {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .zrv-ws .hero-meta {
@@ -2740,6 +2807,21 @@ html:not(.dark) .zrv-ws .scroll-indicator {
     font-size: 10px;
   }
 }
+@media (max-width: 430px) {
+  .zrv-ws .book-follow-links {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .zrv-ws .book-follow-links > span {
+    margin-right: 2px;
+  }
+  .zrv-ws .book-follow-links a span {
+    display: none;
+  }
+  .zrv-ws .book-follow-links a {
+    padding: 0 3px;
+  }
+}
 .zrv-ws .hero-meta {
   margin-bottom: 44px;
 }
@@ -3309,6 +3391,11 @@ html:not(.dark) .zrv-ws .scroll-indicator {
   grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
   gap: 14px;
   min-height: 320px;
+}
+@media (max-width: 760px) {
+  .zrv-ws .employee-spotlight {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .zrv-ws .employee-spotlight-person,
 .zrv-ws .employee-spotlight-reason {
@@ -5879,9 +5966,15 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
     width: 31px;
     height: 31px;
   }
+  .zrv-ws .hero-profile-copy {
+    width: 100%;
+  }
   .zrv-ws .hero-profile-name {
     margin-bottom: 10px;
     font-size: clamp(21px, 6vw, 28px) !important;
+  }
+  .zrv-ws .hero-profile-name :is(.name-typewrap, .name-typeghost, .name-typeink) {
+    white-space: normal;
   }
   .zrv-ws .hero-profile-details {
     display: grid;
@@ -5891,6 +5984,16 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   .zrv-ws .hero-profile-social-row {
     gap: 0;
     margin-top: 9px;
+  }
+  .zrv-ws .hero-profile-social-row .hero-social-fan.is-persistent {
+    width: auto;
+    max-width: 100%;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    margin: 0;
+  }
+  .zrv-ws .hero-profile-social-row .is-persistent .hero-social-fan-menu {
+    flex-wrap: wrap;
   }
   .zrv-ws .hero-profile-detail {
     padding: 0;
@@ -6648,7 +6751,183 @@ html:not(.dark) .zrv-ws .command-ambient-glow {
   text-align: center;
 }
 .zrv-ws .book-leaf--hr .book-leaf-bottom {
-  display: none;
+  display: flex;
+  flex: none;
+  margin-top: 8px;
+}
+.zrv-ws .book-hr-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  gap: 10px;
+}
+.zrv-ws .book-hr-nav {
+  display: flex;
+  flex: none;
+  gap: 9px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--grn-rgb), 0.38) transparent;
+  overscroll-behavior-x: contain;
+}
+.zrv-ws .book-hr-nav-button {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  min-height: 42px;
+  padding: 5px 12px;
+  border: 1px solid rgba(var(--grn-pale-rgb), 0.32);
+  border-radius: 12px;
+  color: var(--grn-wash);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.zrv-ws .book-hr-nav-button .book-hr-submodule-icon {
+  width: 28px;
+  height: 28px;
+}
+.zrv-ws .book-hr-nav-button .book-hr-submodule-icon .ic {
+  width: 17px;
+  height: 17px;
+}
+.zrv-ws .book-hr-nav-button.is-active {
+  color: var(--grn-850);
+  border-color: var(--grn);
+  background: var(--grn);
+}
+.zrv-ws .book-hr-nav-button.is-active .book-hr-submodule-icon {
+  color: var(--grn-850);
+  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.28);
+}
+.zrv-ws .book-hr-flip {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.zrv-ws .book-hr-front {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.zrv-ws .book-hr-workspace > .book-hr-flip {
+  width: 100%;
+}
+.zrv-ws .book-hr-workspace .book-hr-submodule {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+}
+.zrv-ws .book-hr-front .book-hr-submodule {
+  min-height: 52px;
+  padding: 8px 13px;
+}
+.zrv-ws .book-hr-submodule {
+  color: #c7e7d6;
+}
+.zrv-ws .book-hr-submodule-copy strong {
+  color: #d5f2e2;
+  font-weight: 600;
+}
+.zrv-ws .book-hr-submodule-copy small {
+  color: #91bea6;
+  font-weight: 500;
+}
+.zrv-ws .book-hr-nav-button {
+  color: #badbc9;
+  font-weight: 600;
+}
+.zrv-ws .book-hr-nav-button.is-active {
+  color: #073b2c;
+  font-weight: 650;
+}
+.zrv-ws .book-hr-form {
+  color: #c7e7d6;
+}
+.zrv-ws .book-hr-form-label {
+  color: #c7e7d6;
+  font-weight: 550;
+}
+.zrv-ws .book-hr-form-count {
+  color: #a9d2bc;
+  font-weight: 600;
+}
+.zrv-ws .book-hr-nav::-webkit-scrollbar {
+  height: 3px;
+}
+.zrv-ws .book-hr-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.zrv-ws .book-hr-nav::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: rgba(var(--grn-rgb), 0.38);
+}
+.zrv-ws .book-hr-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--grn-rgb), 0.58);
+}
+.zrv-ws .folio-arrow:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  transform: none;
+}
+.zrv-ws .folio-arrow:disabled:hover {
+  background: rgba(var(--grn-rgb), 0.13);
+  border-color: rgba(var(--grn-pale-rgb), 0.38);
+}
+@media (min-width: 1271px) {
+  .zrv-ws .gateway-layout {
+    grid-template-columns: minmax(360px, 0.72fr) minmax(700px, 1.28fr);
+    min-height: 720px;
+    gap: clamp(20px, 2.2vw, 38px);
+  }
+  .zrv-ws .book-visual.is-hr-workspace {
+    height: 700px;
+    min-width: 0;
+  }
+  .zrv-ws .book-visual.is-hr-workspace .book-stack {
+    height: 555px;
+  }
+}
+@media (max-width: 1270px) {
+  .zrv-ws .book-visual.is-hr-workspace {
+    max-width: 920px;
+    height: 700px;
+  }
+  .zrv-ws .book-visual.is-hr-workspace .book-stack {
+    height: 555px;
+  }
+}
+@media (max-width: 650px) {
+  .zrv-ws .book-visual.is-hr-workspace {
+    height: 650px;
+  }
+  .zrv-ws .book-visual.is-hr-workspace .book-stack {
+    height: 475px;
+  }
+  .zrv-ws .book-hr-nav {
+    gap: 6px;
+  }
+  .zrv-ws .book-hr-nav-button {
+    min-height: 38px;
+    padding: 4px 8px;
+    gap: 6px;
+    font-size: 10px;
+  }
+}
+@media (max-width: 385px) {
+  .zrv-ws .book-visual.is-hr-workspace {
+    height: 625px;
+  }
+  .zrv-ws .book-visual.is-hr-workspace .book-stack {
+    height: 455px;
+  }
 }
 @media (max-width: 650px) {
   .zrv-ws .book-leaf--hr .book-leaf-title {
@@ -7178,7 +7457,7 @@ html:not(.dark) .zrv-ws .book-chapter.is-current {
 }
 @media (max-width: 650px) {
   .zrv-ws .book-visual {
-    height: 520px;
+    height: 585px;
     margin-top: 9px;
   }
   .zrv-ws .book-scene {
@@ -7269,12 +7548,6 @@ html:not(.dark) .zrv-ws .book-chapter.is-current {
   }
 }
 @media (max-width: 385px) {
-  .zrv-ws .book-visual {
-    height: 495px;
-  }
-  .zrv-ws .book-stack {
-    height: 350px;
-  }
   .zrv-ws .book-leaf {
     padding: 13px;
   }
@@ -8371,7 +8644,7 @@ html:not(.dark) .zrv-ws .book-chapter.is-current small {
 }
 .zrv-ws .book-hr-form-label {
   font-size: clamp(11px, 1.05vw, 13px);
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.3;
 }
 
@@ -8469,52 +8742,6 @@ html[data-accent-theme="yellow"] .hero-photo-reset-backdrop .zrv-dialog__actions
   }
 }
 @media (max-width: 650px) {
-  .zrv-ws .book-visual.is-hr-workspace {
-    height: 520px;
-  }
-}
-@media (min-width: 386px) and (max-width: 650px) {
-  .zrv-ws .book-visual .book-stack {
-    top: 66px;
-    right: 122px;
-    height: 367px;
-  }
-  .zrv-ws .book-visual .book-chapters {
-    top: 66px;
-    right: 0;
-    bottom: auto;
-    left: auto;
-    width: 112px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .zrv-ws .book-visual .book-chapter {
-    min-height: 48px;
-    flex-direction: column;
-    justify-content: center;
-    gap: 3px;
-    padding: 4px 2px;
-    text-align: center;
-  }
-  .zrv-ws .book-visual .book-chapter small {
-    display: none;
-  }
-  .zrv-ws .book-visual .book-chapter:hover,
-  .zrv-ws .book-visual .book-chapter:focus-visible,
-  .zrv-ws .book-visual .book-chapter.is-current {
-    transform: translateX(-3px);
-  }
-}
-@media (max-width: 385px) {
-  .zrv-ws .book-visual.is-hr-workspace {
-    height: 505px;
-  }
-  .zrv-ws .book-visual.is-hr-workspace .book-chapters {
-    bottom: 15px;
-  }
-}
-@media (max-width: 650px) {
   .zrv-ws .book-leaf--insights .book-chart {
     height: 68px;
     margin: 3px 0 2px;
@@ -8566,5 +8793,215 @@ html[data-accent-theme="yellow"] .hero-photo-reset-backdrop .zrv-dialog__actions
   .zrv-ws .book-leaf--insights .book-big-metric {
     font-size: 24px;
     line-height: 1.05;
+  }
+}
+
+/*
+ * HR WORKSPACE
+ * Six modules + horizontal mouse-wheel navigation
+ */
+
+.zrv-ws .book-hr-nav {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+
+  width: 100%;
+  min-width: 0;
+
+  gap: 9px;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  padding: 4px 2px 8px;
+
+  scrollbar-width: thin;
+
+  scrollbar-color:
+    rgba(var(--grn-rgb), 0.38)
+    transparent;
+
+  overscroll-behavior: contain;
+
+  touch-action: pan-x;
+}
+
+/* Keep navigation icons in one row */
+
+.zrv-ws .book-hr-nav-button {
+  flex: 0 0 auto;
+}
+
+/* Use available HR card height */
+
+.zrv-ws .book-hr-front {
+  justify-content: space-between;
+
+  gap: 9px;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  overscroll-behavior-y: contain;
+
+  padding: 2px 3px 4px;
+
+  scrollbar-width: thin;
+
+  scrollbar-color:
+    rgba(var(--grn-rgb), 0.38)
+    transparent;
+}
+
+/* Compact six-card layout */
+
+.zrv-ws .book-hr-front .book-hr-submodule {
+  flex: 0 0 auto;
+
+  min-height: 44px;
+
+  padding: 6px 11px;
+}
+
+/* Responsive adjustments */
+
+@media (max-width: 650px) {
+  .zrv-ws .book-hr-front .book-hr-submodule {
+    min-height: 40px;
+
+    padding: 5px 9px;
+  }
+}
+
+/* =========================================
+   HR WORKSPACE - SPACING REFINEMENT
+   ========================================= */
+
+/* Main HR workspace layout */
+.zrv-ws .book-hr-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 7px;
+}
+
+/* Six HR module cards */
+.zrv-ws .book-hr-front {
+  display: flex;
+  flex-direction: column;
+
+  justify-content: flex-start;
+  align-items: stretch;
+
+  gap: 10px;
+
+  padding: 2px 3px 4px;
+
+  min-height: 0;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  overscroll-behavior-y: contain;
+}
+
+/* Preserve card dimensions */
+.zrv-ws .book-hr-front .book-hr-submodule {
+  flex: 0 0 auto;
+
+  min-height: 48px;
+
+  padding: 7px 11px;
+
+  margin: 0;
+}
+
+/* Horizontal HR navigation */
+.zrv-ws .book-hr-nav {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  width: 100%;
+  min-width: 0;
+
+  padding: 2px 2px 6px;
+  margin: 0;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  scrollbar-width: thin;
+  scrollbar-color:
+    rgba(var(--grn-rgb), 0.38) transparent;
+
+  overscroll-behavior: contain;
+}
+
+/* Navigation buttons stay in one line */
+.zrv-ws .book-hr-nav-button {
+  flex: 0 0 auto;
+}
+
+/* Back side layout */
+.zrv-ws .book-hr-back {
+  display: flex;
+  flex-direction: column;
+
+  justify-content: flex-start;
+
+  gap: 5px;
+
+  overflow: hidden;
+}
+
+/* Keep form rows grouped neatly */
+.zrv-ws .book-hr-form-list {
+  display: flex;
+  flex-direction: column;
+
+  justify-content: flex-start;
+
+  gap: 6px;
+
+  min-height: 0;
+
+  padding: 2px 1px;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Maintain form row sizing */
+.zrv-ws .book-hr-form {
+  flex: 0 0 auto;
+
+  min-height: 37px;
+
+  margin: 0;
+}
+
+/* Keep footer in original position */
+.zrv-ws .book-leaf--hr .book-leaf-bottom {
+  flex: 0 0 auto;
+  margin-top: 6px;
+}
+
+/* Responsive handling */
+@media (max-width: 650px) {
+  .zrv-ws .book-hr-front {
+    gap: 8px;
+  }
+
+  .zrv-ws .book-hr-front .book-hr-submodule {
+    min-height: 42px;
+    padding: 6px 9px;
+  }
+
+  .zrv-ws .book-hr-workspace {
+    gap: 6px;
   }
 }

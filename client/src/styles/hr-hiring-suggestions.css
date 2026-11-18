@@ -1,0 +1,675 @@
+/* --- Hiring suggestions page ------------------------------------------------
+   The original hiring suggestions panel, opened as its own page. The page
+   header is the shared report header; the panel's own styles live in
+   hr-insight-report.css. This file only adds scoped overrides that give the
+   same components the room a full page allows. Colours come from the Orvexa
+   theme tokens, so light and dark mode follow the application. */
+
+.zrv-hs {
+  gap: 20px;
+  /* Dark green with white text: the page's call-to-action colour. The light
+     and dark themes both keep the same deep green, so the contrast promise
+     holds in either. */
+  --ia-cta-bg: #2f7448;
+  --ia-cta-bg-hover: #378050;
+  --ia-cta-bg-active: #275f3a;
+  --ia-cta-border: #225c36;
+}
+
+/* --- The panel becomes the page body -------------------------------------- */
+/* Keep the component tree exactly as it was; drop only the card that used to
+   wrap the whole panel, so its sections can sit directly on the page. */
+.zrv-hs .zrv-ia-suggestions--page {
+  display: grid;
+  gap: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+/* --- Breathing room for the unchanged sections ---------------------------- */
+.zrv-hs .zrv-ia-dash {
+  gap: 16px;
+  margin-bottom: 0;
+}
+.zrv-hs .zrv-ia-kpi {
+  gap: 14px;
+}
+.zrv-hs .zrv-ia-stat {
+  gap: 5px;
+  padding: 16px 18px;
+  border-radius: 14px;
+}
+.zrv-hs .zrv-ia-stat__label {
+  font-size: 0.66rem;
+}
+.zrv-hs .zrv-ia-stat b {
+  font-size: 1.55rem;
+}
+.zrv-hs .zrv-ia-stat b small {
+  font-size: 0.7rem;
+}
+.zrv-hs .zrv-ia-stat__hint {
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.zrv-hs .zrv-ia-suggestions__grid {
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 14px;
+}
+.zrv-hs .zrv-ia-card {
+  border-radius: 16px;
+}
+.zrv-hs .zrv-ia-card__trigger {
+  gap: 10px;
+  padding: 18px 18px 16px;
+}
+.zrv-hs .zrv-ia-card.zrv-ia-is-selected .zrv-ia-card__trigger {
+  gap: 20px;
+  padding: 18px 20px 16px;
+}
+.zrv-hs .zrv-ia-card__position {
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+.zrv-hs .zrv-ia-card__req {
+  font-size: 0.7rem;
+}
+.zrv-hs .zrv-ia-card__foot {
+  font-size: 0.7rem;
+}
+.zrv-hs .zrv-ia-card__foot b {
+  font-size: 0.78rem;
+}
+.zrv-hs .zrv-ia-card__chevron {
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+}
+
+.zrv-hs .zrv-ia-detail {
+  margin: 0 18px;
+  padding: 16px 0 18px;
+}
+.zrv-hs .zrv-ia-detail__head {
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.zrv-hs .zrv-ia-detail__eyebrow {
+  font-size: 0.66rem;
+}
+.zrv-hs .zrv-ia-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.zrv-hs .zrv-ia-detail__pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 46%, var(--surface));
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Deep green pointer pill, right where the selection happens, towards the
+   sticky Compare bar at the bottom of the viewport. */
+.zrv-hs .zrv-ia-detail__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--ia-cta-bg);
+  color: #ffffff;
+  font-size: 0.56rem;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  animation: zrv-ia-hint-wiggle 1.6s ease 1;
+}
+.zrv-hs .zrv-ia-detail__compare {
+  min-height: 32px;
+  padding: 0 13px;
+  font-size: 0.72rem;
+}
+
+/* --- Selection tray --------------------------------------------------------
+   The chosen candidates stay visible at the bottom of the viewport while HR
+   scrolls requisitions. This is the page's primary call to action once a
+   selection starts, so the bar is opaque and framed in the deep green with a
+   glowing Compare button — it should be impossible to miss. */
+.zrv-ia-has-tray {
+  padding-bottom: 112px;
+}
+.zrv-ia-tray {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  z-index: 45;
+  width: min(calc(100% - 32px), 1160px);
+  padding: 12px 14px;
+  border: 2px solid var(--mint);
+  border-radius: 18px;
+  background: var(--surface-solid);
+  box-shadow:
+    0 30px 64px -18px rgba(4, 26, 14, 0.52),
+    0 0 0 5px color-mix(in srgb, var(--mint) 28%, transparent);
+  transform: translateX(-50%);
+  animation:
+    zrv-ia-tray-in 0.45s cubic-bezier(0.2, 1.15, 0.32, 1) both,
+    zrv-ia-tray-pulse 1.5s ease 0.7s 2;
+}
+@keyframes zrv-ia-tray-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(30px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+@keyframes zrv-ia-tray-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 30px 64px -18px rgba(4, 26, 14, 0.52),
+      0 0 0 5px color-mix(in srgb, var(--mint) 28%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 30px 64px -18px rgba(4, 26, 14, 0.52),
+      0 0 0 11px color-mix(in srgb, var(--mint) 32%, transparent);
+  }
+}
+@keyframes zrv-ia-hint-wiggle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(2px);
+  }
+  70% {
+    transform: translateY(-1px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-ia-tray,
+  .zrv-hs .zrv-ia-detail__hint {
+    animation: none;
+  }
+}
+.zrv-ia-tray__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.zrv-ia-tray__count {
+  flex: none;
+  padding: 8px 14px;
+  border: 1px solid var(--ia-cta-border);
+  border-radius: 12px;
+  background: var(--ia-cta-bg);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.zrv-ia-tray__count b {
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+.zrv-ia-tray__people {
+  display: flex;
+  flex: 1 1 320px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 2px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  list-style: none;
+  scrollbar-width: thin;
+}
+.zrv-ia-tray__people:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+.zrv-ia-tray__people li {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px 4px 6px;
+  border: 1px solid color-mix(in srgb, var(--mint) 42%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 55%, var(--surface));
+}
+.zrv-ia-tray__avatar {
+  display: grid;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ia-cta-bg);
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 850;
+}
+.zrv-ia-tray__who {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+.zrv-ia-tray__who b {
+  overflow: hidden;
+  max-width: 150px;
+  color: var(--text);
+  font-size: 0.7rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zrv-ia-tray__who small {
+  color: var(--muted);
+  font-size: 0.57rem;
+  font-weight: 600;
+}
+.zrv-ia-tray__remove {
+  display: grid;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.zrv-ia-tray__remove:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger-text);
+}
+.zrv-ia-tray__remove:focus-visible,
+.zrv-ia-tray__clear:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+.zrv-ia-tray__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.zrv-ia-tray__clear {
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.zrv-ia-tray__clear:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+/* The one thing on this page that should never be missed: a deep green
+   button with white text. */
+.zrv-ia-tray__compare {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 1px solid var(--ia-cta-border) !important;
+  border-radius: 13px;
+  background: linear-gradient(
+    180deg,
+    #3a8a56 0%,
+    var(--ia-cta-bg) 45%,
+    var(--ia-cta-bg-active) 100%
+  ) !important;
+  color: #ffffff !important;
+  font-size: 0.86rem;
+  font-weight: 850;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(2, 18, 8, 0.35);
+  box-shadow:
+    0 12px 28px -10px rgba(24, 78, 46, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.zrv-ia-tray__compare:hover:not(:disabled) {
+  background: linear-gradient(
+    180deg,
+    var(--ia-cta-bg-hover) 0%,
+    #2f7448 45%,
+    #295f39 100%
+  ) !important;
+  transform: translateY(-1px);
+}
+.zrv-ia-tray__compare:active:not(:disabled) {
+  transform: translateY(1px);
+  background: var(--ia-cta-bg-active) !important;
+  box-shadow:
+    0 6px 16px -8px rgba(24, 78, 46, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.zrv-ia-tray__compare:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 3px;
+}
+.zrv-ia-tray__compare:disabled {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--muted) !important;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.zrv-hs .zrv-ia-cands {
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+}
+.zrv-hs .zrv-ia-cand {
+  gap: 12px;
+  padding: 15px 16px;
+  border-radius: 14px;
+}
+.zrv-hs .zrv-ia-cand__head {
+  align-items: center;
+  gap: 10px;
+}
+.zrv-hs .zrv-ia-cand__pick {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  cursor: pointer;
+}
+.zrv-hs .zrv-ia-cand__pick input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--mint);
+  cursor: pointer;
+}
+.zrv-hs .zrv-ia-cand__pick input:focus-visible {
+  outline: 2px solid var(--zrv-hr-accent);
+  outline-offset: 2px;
+}
+.zrv-hs .zrv-ia-cand__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+}
+.zrv-hs .zrv-ia-cand__who b {
+  font-size: 0.84rem;
+}
+.zrv-hs .zrv-ia-cand__who small {
+  font-size: 0.66rem;
+}
+.zrv-hs .zrv-ia-cand__scores {
+  gap: 8px;
+}
+.zrv-hs .zrv-ia-cand__reason {
+  padding: 8px 10px;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+.zrv-hs .zrv-ia-cand__notes {
+  font-size: 0.68rem;
+}
+
+.zrv-hs .zrv-ia-empty {
+  gap: 14px;
+  padding: 22px 20px;
+  border-radius: 16px;
+}
+.zrv-hs .zrv-ia-empty__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+}
+.zrv-hs .zrv-ia-empty b {
+  font-size: 0.9rem;
+}
+.zrv-hs .zrv-ia-empty p {
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.zrv-hs .zrv-ia-empty small {
+  font-size: 0.74rem;
+}
+.zrv-hs .zrv-ia-loading {
+  min-height: 40vh;
+}
+.zrv-hs .zrv-ia-suggestions__error {
+  gap: 18px;
+  padding: 16px 18px;
+  border-radius: 14px;
+}
+
+.zrv-hs .zrv-ia-how {
+  margin-top: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+.zrv-hs .zrv-ia-how ul {
+  gap: 6px;
+  margin-top: 9px;
+  line-height: 1.55;
+}
+
+/* --- Clickable candidate cards -------------------------------------------- */
+.zrv-hs .zrv-ia-cand--selectable {
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.zrv-hs .zrv-ia-cand--selectable:hover {
+  border-color: color-mix(in srgb, var(--text) 16%, var(--border));
+  background: var(--surface);
+  box-shadow: 0 10px 22px -22px color-mix(in srgb, var(--text) 45%, transparent);
+}
+.zrv-hs .zrv-ia-cand--picked {
+  border-color: color-mix(in srgb, var(--mint) 55%, var(--border));
+  background: color-mix(in srgb, var(--mint) 7%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--mint);
+}
+.zrv-hs .zrv-ia-cand--locked {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+.zrv-hs .zrv-ia-cand--locked:hover {
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+/* --- Skeleton --------------------------------------------------------------
+   The KPI strip and the requisition cards keep their real shape while the
+   assessments load, so the page does not jump when the data arrives. */
+.zrv-ia-skeleton {
+  display: grid;
+  gap: 20px;
+}
+.zrv-hs-skel {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(
+    100deg,
+    var(--line) 30%,
+    color-mix(in srgb, var(--zrv-hr-accent) 14%, var(--surface-solid)) 50%,
+    var(--line) 70%
+  );
+  background-size: 300% 100%;
+  animation: zrv-hr-shimmer 1.4s linear infinite;
+}
+.zrv-ia-skeleton__kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+.zrv-ia-skeleton__stat {
+  display: grid;
+  gap: 9px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.zrv-hs-skel--label {
+  width: 62%;
+  height: 9px;
+}
+.zrv-hs-skel--value {
+  width: 44%;
+  height: 22px;
+  border-radius: 7px;
+}
+.zrv-hs-skel--hint {
+  width: 74%;
+  height: 8px;
+}
+.zrv-ia-skeleton__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 14px;
+}
+.zrv-ia-skeleton__card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.zrv-ia-skeleton__card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.zrv-hs-skel--title {
+  width: 68%;
+  height: 13px;
+  border-radius: 6px;
+}
+.zrv-hs-skel--chevron {
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+}
+.zrv-hs-skel--req {
+  width: 40%;
+  height: 9px;
+}
+.zrv-hs-skel--meter {
+  width: 100%;
+  height: 8px;
+}
+.zrv-ia-skeleton__card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.zrv-hs-skel--foot {
+  width: 42%;
+  height: 9px;
+}
+.zrv-hs-skel--foot-sm {
+  width: 28%;
+  height: 9px;
+}
+
+/* --- Responsive ------------------------------------------------------------ */
+@media (max-width: 900px) {
+  .zrv-hs .zrv-ia-kpi,
+  .zrv-ia-skeleton__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .zrv-hs .zrv-ia-detail {
+    margin: 0 14px;
+  }
+  .zrv-hs .zrv-ia-suggestions__grid,
+  .zrv-hs .zrv-ia-cands {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zrv-ia-tray {
+    bottom: 10px;
+    width: calc(100% - 20px);
+    padding: 9px;
+  }
+  .zrv-ia-tray__people {
+    flex-basis: 100%;
+  }
+  .zrv-ia-tray__actions {
+    width: 100%;
+  }
+  .zrv-ia-tray__compare {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .zrv-hs .zrv-ia-detail__hint {
+    display: none;
+  }
+}
+
+/* --- Print ----------------------------------------------------------------- */
+@media print {
+  body:has(.zrv-hs) *:not(:has(.zrv-hs)):not(.zrv-hs):not(.zrv-hs *) {
+    display: none !important;
+  }
+  .zrv-ir-head__actions {
+    display: none !important;
+  }
+  .zrv-ia-tray {
+    display: none !important;
+  }
+  .zrv-ia-has-tray {
+    padding-bottom: 0 !important;
+  }
+  .zrv-hs .zrv-ia-stat,
+  .zrv-hs .zrv-ia-card {
+    box-shadow: none;
+    border-color: #e5e5e5 !important;
+    background: #fff !important;
+  }
+  .zrv-hs .zrv-ia-card {
+    break-inside: avoid;
+  }
+  .zrv-hs {
+    color: #111;
+    gap: 12px;
+  }
+}
