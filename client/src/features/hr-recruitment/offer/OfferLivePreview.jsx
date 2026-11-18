@@ -53,6 +53,12 @@ export function OfferLivePreview({ form, language = 'bi', focusRow, offerId }) {
         <b>{placeholder(form.position.trim(), T.letterAr.placeholders.position)}</b>{' '}
         {T.letterAr.terms}
       </p>
+      <div
+        className="zrv-offer-live__table-scroll"
+        role="region"
+        aria-label={T.letter.benefits}
+        tabIndex={0}
+      >
       <table className="zrv-hr-paper__tbl">
         <thead>
           <tr>
@@ -102,6 +108,7 @@ export function OfferLivePreview({ form, language = 'bi', focusRow, offerId }) {
           ))}
         </tbody>
       </table>
+      </div>
       <p data-l="en">{T.acceptEn}</p>
       <p data-l="ar" dir="rtl" lang="ar">
         {T.acceptAr}

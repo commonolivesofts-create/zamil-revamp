@@ -1,0 +1,44 @@
+/* Interview-only control sizing; the shared shell owns page responsiveness. */
+.zrv-hr--interview .zrv-hr-row,
+.zrv-hr--interview .zrv-hr-choice,
+.zrv-hr--interview .zrv-hr-scorecard {
+  min-width: 0;
+}
+
+.zrv-hr--interview .zrv-hr-row__rem {
+  min-width: 0;
+  min-height: 42px;
+  height: auto;
+}
+
+@media (max-width: 640px) {
+  .zrv-hr--interview .zrv-hr-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zrv-hr--interview .zrv-hr-choice {
+    overflow-wrap: anywhere;
+  }
+
+  .zrv-hr--interview .zrv-hr-scorecard {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .zrv-hr--interview .zrv-hr-choices {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (pointer: coarse) {
+  .zrv-hr--interview .zrv-hr-row .zrv-hr-pips span {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .zrv-ir--interview-report .zrv-ir-col-pick input {
+    width: 22px;
+    height: 22px;
+  }
+}

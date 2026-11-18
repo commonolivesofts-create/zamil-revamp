@@ -28,6 +28,7 @@ import {
   SearchableLookup,
 } from '../shared/components/RecruitmentInputs.jsx'
 import { Gauge, Radar, RatingRows } from './Scores.jsx'
+import '@/styles/hr-interview-responsive.css'
 import { NATIONALITIES as BUSINESS_NATIONALITIES } from '@/features/hr-employee-services/businessVisa/nationalities.js'
 import {
   BANDS,
