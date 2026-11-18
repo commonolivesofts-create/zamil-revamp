@@ -16,6 +16,7 @@ import { Card } from "./InsightCards.jsx";
 import { clampRange } from "../insightDates.js";
 import "@/styles/hr-recruitment.css";
 import "@/styles/hr-insight-report.css";
+import "@/styles/report-table.css";
 
 const PAGE_SIZE = 15;
 const DRAWER_EXIT_MS = 320;
@@ -575,7 +576,7 @@ export function InsightReport({
                   tabIndex={0}
                   aria-busy={records.refreshing || undefined}
                 >
-                  <table className={`zrv-ir-table${columns.length > 10 ? " zrv-ir-table--wide" : ""}`}>
+                  <table className={`zrv-ir-table zrv-report-table${columns.length > 10 ? " zrv-ir-table--wide" : ""}`}>
                     <caption className="zrv-hr-sr">{heading}</caption>
                     <colgroup>
                       {columns.map((column) => <col key={column.key} style={{ width: fixedColumnWidth(column) ? `${fixedColumnWidth(column)}px` : `calc((100% - ${fixedWidth}px) * ${columnWeight(column) / totalWeight})` }} />)}

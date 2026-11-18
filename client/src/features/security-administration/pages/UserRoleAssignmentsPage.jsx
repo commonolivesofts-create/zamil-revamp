@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import HorizontalTableScroll from '@/components/ui/HorizontalTableScroll.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import RouteNotice from '@/pages/RouteNotice.jsx'
 import { fieldProps, readFutureInstant } from '../adminForms.js'
@@ -102,8 +103,8 @@ export default function UserRoleAssignmentsPage() {
         <Panel title="Assigned roles" className="zrv-admin-grid__wide">
           <ResourceState resource={assignments} label="role assignments" empty="No roles are assigned to this account.">
             {(data) => (
-              <div className="ux-table-wrap">
-                <table className="ux-table zrv-admin-table" aria-busy={assignments.refreshing || undefined}>
+              <HorizontalTableScroll className="zrv-security-table-scroll">
+                <table className="ux-table zrv-admin-table zrv-security-table" aria-busy={assignments.refreshing || undefined}>
                   <caption className="sr-only">Assigned roles</caption>
                   <thead><tr><th scope="col">Role</th><th scope="col">Assignment</th><th scope="col">Role status</th><th scope="col">Expires</th><th scope="col">Effective</th><th scope="col"><span className="sr-only">Action</span></th></tr></thead>
                   <tbody>
@@ -119,7 +120,7 @@ export default function UserRoleAssignmentsPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </HorizontalTableScroll>
             )}
           </ResourceState>
         </Panel>

@@ -29,16 +29,12 @@ export function SidebarSubgroupButton({
       className={`zrv-sidebar-subgroup${
         open ? ' is-open' : ''
       }${current ? ' is-current' : ''}`}
+      aria-label={`${subgroup.label}${items.length ? `, ${items.length} pages` : ''}`}
+      title={subgroup.label}
       aria-expanded={open}
       aria-controls={`sidebar-flyout-${subgroup.id}`}
-      onPointerEnter={(event) => {
-        if (event.pointerType === 'mouse' && !open) {
-          onToggle(event.currentTarget)
-        }
-      }}
       onClick={(event) => {
-        if (event.nativeEvent.pointerType === 'mouse' && open) return
-        onToggle(event.currentTarget)
+        onToggle(event.currentTarget, event.detail === 0)
       }}
     >
       <span className="zrv-sidebar-subgroup__icon">
@@ -88,6 +84,7 @@ export function SidebarFlyout({
   items,
   anchor,
   mobile,
+  focusOnOpen = true,
   revealedRouteId = null,
   onClose,
   onNavigate,
@@ -113,25 +110,32 @@ export function SidebarFlyout({
 
       const height = ref.current.offsetHeight
 
-      const viewTop = Math.max(
-        box.top - 10,
+      const maxViewportTop = Math.max(
         12,
+        window.innerHeight - height - 12,
+      )
+      const viewTop = Math.min(
+        Math.max(box.top - 10, 12),
+        maxViewportTop,
       )
 
-      setTop(
-        Math.min(
-          viewTop,
-          window.innerHeight - height - 12,
-        ) - hostTop,
-      )
+      setTop(viewTop - hostTop)
     }
 
     place()
 
     window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(place)
+    observer?.observe(anchor)
+    if (ref.current) observer?.observe(ref.current)
 
     return () => {
       window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+      observer?.disconnect()
     }
   }, [anchor, mobile, items.length])
 
@@ -168,9 +172,9 @@ export function SidebarFlyout({
       activeLink ||
       links()[0]
 
-    initialLink?.focus({
-      preventScroll: true,
-    })
+    if (focusOnOpen) {
+      initialLink?.focus({ preventScroll: true })
+    }
 
     if (revealedLink) {
       revealedLink.scrollIntoView({
@@ -218,29 +222,9 @@ export function SidebarFlyout({
       list[nextIndex].focus()
     }
 
-    const onPointer = (event) => {
-      const clickedInsideFlyout =
-        node.contains(event.target)
-
-      const clickedSubgroup =
-        anchor?.contains(event.target)
-
-      if (
-        !clickedInsideFlyout &&
-        !clickedSubgroup
-      ) {
-        onClose(false)
-      }
-    }
-
     node.addEventListener(
       'keydown',
       onKey,
-    )
-
-    document.addEventListener(
-      'pointerdown',
-      onPointer,
     )
 
     return () => {
@@ -248,16 +232,11 @@ export function SidebarFlyout({
         'keydown',
         onKey,
       )
-
-      document.removeEventListener(
-        'pointerdown',
-        onPointer,
-      )
     }
   }, [
-    anchor,
     onClose,
     revealedRouteId,
+    focusOnOpen,
   ])
 
   return (

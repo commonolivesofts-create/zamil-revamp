@@ -1,0 +1,857 @@
+
+/* =====================================================
+   ZAMIL DIGITALIZATION
+   SECURITY ADMINISTRATION — USER ROLES
+   ITSAZZ Premium Summary Cards
+   ===================================================== */
+
+.zrv-user-roles-page {
+  --ur-green: #087343;
+  --ur-green-dark: #075b38;
+  --ur-green-border: #b8dec9;
+  --ur-green-soft: #e8f7ef;
+
+  --ur-amber: #bc7b00;
+  --ur-amber-soft: #fff2db;
+  --ur-amber-border: #e6d8b9;
+
+  width: 100%;
+  min-width: 0;
+}
+
+/* PAGE HEADER */
+
+.zrv-user-roles-page .zrv-admin__head {
+  padding-bottom: 18px;
+}
+
+.zrv-user-roles-page .zrv-admin__head h1 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.zrv-user-roles-page .zrv-admin__lead {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* SUMMARY SECTION */
+
+.zrv-user-roles-summary {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.zrv-user-roles-summary__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 13px;
+}
+
+/* STATISTIC CARD */
+
+.zrv-user-role-stat {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+
+  min-width: 0;
+  min-height: 96px;
+  overflow: hidden;
+
+  padding: 18px 15px;
+
+  background: #f9fcfa;
+  border: 1px solid var(--ur-green-border);
+  border-radius: 16px;
+
+  box-shadow: 0 2px 10px rgb(14 72 44 / 3%);
+  isolation: isolate;
+}
+
+.zrv-user-role-stat--amber {
+  border-color: var(--ur-green-border);
+}
+
+/* CARD CONTENT */
+
+.zrv-user-role-stat__content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  position: relative;
+  z-index: 2;
+
+  width: 100%;
+  min-width: 0;
+}
+
+/* ICON CONTAINER */
+
+.zrv-user-role-stat__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+
+  border-radius: 50%;
+
+  color: var(--ur-green);
+  background: var(--ur-green-soft);
+}
+
+.zrv-user-role-stat__icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.8;
+}
+
+/* LOCKED ACCOUNT ICON */
+
+.zrv-user-role-stat--amber
+.zrv-user-role-stat__icon {
+  color: var(--ur-amber);
+  background: var(--ur-amber-soft);
+}
+
+/* TEXT */
+
+.zrv-user-role-stat__details {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+  gap: 5px;
+}
+
+.zrv-user-role-stat__label {
+  margin: 1px 0 0;
+
+  color: #152b24;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.zrv-user-role-stat__values {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.zrv-user-role-stat__number {
+  color: #112b26;
+  font-size: 27px;
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+
+  font-variant-numeric: tabular-nums;
+}
+
+/* PERCENTAGE BADGE */
+
+.zrv-user-role-stat__percentage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 3px 8px;
+
+  border-radius: 999px;
+
+  background: #e0f7ea;
+  color: #087343;
+
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+
+  font-variant-numeric: tabular-nums;
+}
+
+.zrv-user-role-stat--amber
+.zrv-user-role-stat__percentage {
+  background: #fff0d3;
+  color: #ad7300;
+}
+
+/* DECORATIVE BOTTOM WAVE */
+
+.zrv-user-role-stat__art {
+  position: absolute;
+
+  width: 58%;
+  height: 48px;
+
+  right: 0;
+  bottom: 0;
+
+  z-index: 0;
+  pointer-events: none;
+
+  color: #d9f2e4;
+}
+
+.zrv-user-role-stat--amber
+.zrv-user-role-stat__art {
+  color: #fff0d4;
+}
+
+/* DIRECTORY SPACING */
+
+.zrv-user-roles-directory {
+  width: 100%;
+  min-width: 0;
+}
+
+.zrv-user-roles-directory .zrv-admin-panel {
+  border-radius: 14px;
+}
+
+/* STATISTICS ERROR */
+
+.zrv-user-roles-summary__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+
+  border: 1px solid #f0d4bc;
+  border-radius: 9px;
+
+  background: #fff8f2;
+  color: #96551c;
+
+  font-size: 12px;
+}
+
+/* LARGE TABLET */
+
+@media (max-width: 1100px) {
+  .zrv-user-roles-summary__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+  .zrv-user-roles-summary__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .zrv-user-role-stat {
+    min-height: 100px;
+    padding: 12px 10px;
+    border-radius: 12px;
+  }
+
+  .zrv-user-role-stat__content {
+    gap: 8px;
+  }
+
+  .zrv-user-role-stat__icon {
+    width: 33px;
+    height: 33px;
+    flex-basis: 33px;
+  }
+
+  .zrv-user-role-stat__icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .zrv-user-role-stat__label {
+    font-size: 10px;
+  }
+
+  .zrv-user-role-stat__number {
+    font-size: 23px;
+  }
+
+  .zrv-user-role-stat__percentage {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+
+  .zrv-user-roles-summary {
+    margin-bottom: 14px;
+  }
+}
+
+/* SMALL PHONES */
+
+@media (max-width: 360px) {
+  .zrv-user-roles-summary__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* DARK THEME */
+
+[data-theme="dark"] .zrv-user-role-stat {
+  background: var(--surface-solid);
+  border-color: var(--line);
+}
+
+[data-theme="dark"]
+.zrv-user-role-stat__label,
+[data-theme="dark"]
+.zrv-user-role-stat__number {
+  color: var(--text);
+}
+
+[data-theme="dark"]
+.zrv-user-role-stat__art {
+  opacity: 0.14;
+}
+/* User Roles - Search button text color */
+
+.zrv-user-roles-page button.btn-primary {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.zrv-user-roles-page button.btn-primary:hover,
+.zrv-user-roles-page button.btn-primary:focus-visible {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* ======================================================
+   ZAMIL DIGITALIZATION — USER ROLES
+   TABLE DESIGN REFINEMENT
+   Requisitions Reference Style
+   ====================================================== */
+
+/* Main directory container */
+
+.zrv-user-roles-page .zrv-user-roles-directory {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Smooth panel borders and rounded corners */
+
+.zrv-user-roles-page
+.zrv-user-roles-directory .zrv-admin-panel {
+  width: 100%;
+  max-width: none;
+
+  padding: 16px 18px 12px;
+
+  background: var(--surface-solid, #fff);
+
+  border: 1px solid #d8e5dc;
+  border-radius: 18px;
+
+  box-shadow: 0 4px 18px rgba(20, 65, 42, 0.035);
+
+  overflow: hidden;
+}
+
+/* Preserve horizontal scrolling on smaller screens */
+
+.zrv-user-roles-page
+.zrv-user-roles-directory .ux-table-wrap {
+  width: 100%;
+  max-width: 100%;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  border: 1px solid #dce6de;
+  border-radius: 12px;
+
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Table layout */
+
+.zrv-user-roles-page
+.zrv-user-roles-directory .zrv-admin-table {
+  width: 100%;
+  min-width: 1000px;
+
+  border-collapse: separate;
+  border-spacing: 0;
+
+  table-layout: fixed;
+
+  background: #fff;
+
+  font-size: 11px;
+}
+
+/* Consistent column sizing */
+
+.zrv-user-roles-page .zrv-admin-table th:nth-child(1) {
+  width: 18%;
+}
+
+.zrv-user-roles-page .zrv-admin-table th:nth-child(2) {
+  width: 14%;
+}
+
+.zrv-user-roles-page .zrv-admin-table th:nth-child(3) {
+  width: 24%;
+}
+
+.zrv-user-roles-page .zrv-admin-table th:nth-child(4) {
+  width: 9%;
+}
+
+.zrv-user-roles-page .zrv-admin-table th:nth-child(5) {
+  width: 12%;
+}
+
+.zrv-user-roles-page .zrv-admin-table th:nth-child(6) {
+  width: 14%;
+}
+
+.zrv-user-roles-page .zrv-admin-table th:nth-child(7) {
+  width: 9%;
+}
+
+/* Header design */
+
+.zrv-user-roles-page
+.zrv-admin-table thead th {
+  height: 43px;
+
+  padding: 11px 12px;
+
+  background: #f0f6f1;
+  color: #455a50;
+
+  border: 0;
+  border-bottom: 1px solid #d4e2d8;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  line-height: 1.3;
+  letter-spacing: 0.025em;
+
+  text-align: left;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* Round top table corners */
+
+.zrv-user-roles-page
+.zrv-admin-table thead th:first-child {
+  border-top-left-radius: 11px;
+}
+
+.zrv-user-roles-page
+.zrv-admin-table thead th:last-child {
+  border-top-right-radius: 11px;
+}
+
+/* Table row structure */
+
+.zrv-user-roles-page
+.zrv-admin-table tbody tr {
+  height: 64px;
+
+  background: #edf7f1;
+
+  transition: background-color 0.15s ease;
+}
+
+/* Alternating light cream rows */
+
+.zrv-user-roles-page
+.zrv-admin-table tbody tr:nth-child(even) {
+  background: #fbf7ec;
+}
+
+/* Light green alternate rows */
+
+.zrv-user-roles-page
+.zrv-admin-table tbody tr:nth-child(4n + 3) {
+  background: #e8f4ee;
+}
+
+/* Reference-style left color indicator */
+
+.zrv-user-roles-page
+.zrv-admin-table tbody tr td:first-child {
+  border-left: 3px solid #9acfb3;
+}
+
+.zrv-user-roles-page
+.zrv-admin-table tbody tr:nth-child(even) td:first-child {
+  border-left-color: #e9c678;
+}
+
+/* Hover state */
+
+.zrv-user-roles-page
+.zrv-admin-table tbody tr:hover {
+  background: #ddf0e4;
+}
+
+/* Table cells */
+
+.zrv-user-roles-page
+.zrv-admin-table tbody td {
+  height: 64px;
+
+  padding: 10px 12px;
+
+  border: 0;
+  border-bottom: 1px solid #d7e3da;
+
+  color: #263b32;
+
+  font-size: 11px;
+  line-height: 1.45;
+
+  text-align: left;
+  vertical-align: middle;
+
+  overflow-wrap: anywhere;
+}
+
+/* Employee names */
+
+.zrv-user-roles-page
+.zrv-admin-table tbody td:first-child b {
+  display: block;
+
+  font-size: 11.5px;
+  font-weight: 650;
+
+  line-height: 1.4;
+
+  color: #18352a;
+}
+
+/* Secondary information */
+
+.zrv-user-roles-page
+.zrv-admin-table .zrv-admin-sub {
+  display: block;
+
+  margin-top: 3px;
+
+  font-size: 10px;
+  font-weight: 400;
+
+  line-height: 1.35;
+  color: #73867b;
+}
+
+/* Status column alignment */
+
+.zrv-user-roles-page
+.zrv-admin-table th:nth-child(4),
+.zrv-user-roles-page
+.zrv-admin-table td:nth-child(4) {
+  text-align: left;
+  vertical-align: middle;
+}
+
+/* Status badges */
+
+.zrv-user-roles-page
+.zrv-admin-table td:nth-child(4) .zrv-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 22px;
+
+  padding: 3px 9px;
+
+  border: 1px solid #9ed0af;
+  border-radius: 999px;
+
+  font-size: 10px;
+  font-weight: 650;
+
+  white-space: nowrap;
+}
+
+/* Manage roles action */
+
+.zrv-user-roles-page
+.zrv-admin-table .zrv-admin-link {
+  color: #087343;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.zrv-user-roles-page
+.zrv-admin-table .zrv-admin-link:hover {
+  color: #065c37;
+  text-decoration: underline;
+}
+
+/* Remove last-row border */
+
+.zrv-user-roles-page
+.zrv-admin-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Smooth bottom corners */
+
+.zrv-user-roles-page
+.zrv-admin-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 11px;
+}
+
+.zrv-user-roles-page
+.zrv-admin-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 11px;
+}
+
+/* Pagination spacing */
+
+.zrv-user-roles-page
+.zrv-user-roles-directory .zrv-admin-pagination {
+  margin-top: 14px;
+
+  padding: 9px 3px 2px;
+
+  font-size: 11px;
+  color: #657a6e;
+}
+
+/* Reuse the HR report table layout for the employee directory. */
+.zrv-user-roles-page .zrv-user-roles-directory .zrv-report-table-wrap {
+  width: calc(100% + 36px);
+  min-width: 0;
+  margin-inline: -18px;
+  overflow-x: clip;
+  border-top: 1px solid var(--line);
+}
+
+/* Search button white text */
+
+.zrv-user-roles-page
+.zrv-admin-toolbar__submit .btn-primary {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* Tablet and smaller screens */
+
+@media (max-width: 1100px) {
+  .zrv-user-roles-page
+  .zrv-admin-table {
+    min-width: 1000px;
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 650px) {
+  .zrv-user-roles-page
+  .zrv-user-roles-directory .zrv-admin-panel {
+    padding: 11px;
+    border-radius: 14px;
+  }
+
+  .zrv-user-roles-page .zrv-user-roles-directory .zrv-report-table-wrap {
+    width: calc(100% + 22px);
+    margin-inline: -11px;
+  }
+
+  .zrv-user-roles-page
+  .zrv-user-roles-directory .ux-table-wrap {
+    border-radius: 10px;
+  }
+
+  .zrv-user-roles-page
+  .zrv-admin-table tbody td {
+    padding: 9px 10px;
+  }
+}
+
+/* Dark theme */
+
+[data-theme="dark"]
+.zrv-user-roles-page
+.zrv-admin-table thead th {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+[data-theme="dark"]
+.zrv-user-roles-page
+.zrv-admin-table tbody tr {
+  background: var(--surface-solid);
+}
+
+[data-theme="dark"]
+.zrv-user-roles-page
+.zrv-admin-table tbody tr:nth-child(even) {
+  background: var(--surface-2);
+}
+
+[data-theme="dark"]
+.zrv-user-roles-page
+.zrv-admin-table tbody tr:hover {
+  background: color-mix(
+    in srgb,
+    var(--primary) 15%,
+    var(--surface-solid)
+  );
+}
+
+[data-theme="dark"]
+.zrv-user-roles-page
+.zrv-admin-table tbody td,
+[data-theme="dark"]
+.zrv-user-roles-page
+.zrv-admin-table tbody td:first-child b {
+  color: var(--text);
+}
+
+/* =============================================
+   ACCOUNTS TABLE — SIX PASTEL ROW COLORS
+   ============================================= */
+
+/* Keep the table clean and aligned */
+
+.zrv-accounts-page .zrv-admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* General row styling */
+
+.zrv-accounts-page .zrv-admin-table tbody tr {
+  transition: background-color 0.18s ease;
+}
+
+/* Six repeating row colors */
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 1) {
+  background-color: #eaf6ef;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 2) {
+  background-color: #fff0f3;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 3) {
+  background-color: #eaf4ff;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 4) {
+  background-color: #fff9e8;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 5) {
+  background-color: #f3efff;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 6) {
+  background-color: #eaf8f5;
+}
+
+/* Matching colored left borders */
+
+.zrv-accounts-page
+.zrv-admin-table tbody td:first-child {
+  border-left: 3px solid transparent;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 1)
+td:first-child {
+  border-left-color: #8bc9a6;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 2)
+td:first-child {
+  border-left-color: #e9a4b3;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 3)
+td:first-child {
+  border-left-color: #99bfeb;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 4)
+td:first-child {
+  border-left-color: #eacb7a;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 5)
+td:first-child {
+  border-left-color: #b9a8eb;
+}
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:nth-child(6n + 6)
+td:first-child {
+  border-left-color: #8acfc0;
+}
+
+/* Ensure cells display their row background */
+
+.zrv-accounts-page
+.zrv-admin-table tbody td {
+  background: transparent;
+  border-bottom: 1px solid #dbe6df;
+  vertical-align: middle;
+}
+
+/* Hover effect */
+
+.zrv-accounts-page
+.zrv-admin-table tbody tr:hover {
+  background-color: #d9eee2;
+}
+
+/* Preserve active/status badges */
+
+.zrv-accounts-page
+.zrv-admin-table tbody .zrv-admin-badge {
+  border-radius: 999px;
+}
+
+/* Dark mode */
+
+[data-theme="dark"]
+.zrv-accounts-page .zrv-admin-table tbody tr {
+  background-color: var(--surface-solid);
+}
+
+[data-theme="dark"]
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(even) {
+  background-color: var(--surface-2);
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import HorizontalTableScroll from '@/components/ui/HorizontalTableScroll.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import RouteNotice from '@/pages/RouteNotice.jsx'
 import { checkJustification, fieldProps, readFutureInstant } from '../adminForms.js'
@@ -113,8 +114,8 @@ export default function UserOverridesPage() {
           </label>
           <ResourceState resource={overrides} label="overrides" empty={showInactive ? 'This account has no overrides.' : 'This account has no active overrides.'} isEmpty={(data) => !data.some((item) => showInactive || item.isActive)}>
             {(data) => (
-              <div className="ux-table-wrap">
-                <table className="ux-table zrv-admin-table" aria-busy={overrides.refreshing || undefined}>
+              <HorizontalTableScroll className="zrv-security-table-scroll">
+                <table className="ux-table zrv-admin-table zrv-security-table" aria-busy={overrides.refreshing || undefined}>
                   <caption className="sr-only">Override records</caption>
                   <thead><tr><th scope="col">Permission</th><th scope="col">Effect</th><th scope="col">Justification</th><th scope="col">Status</th><th scope="col">Expires</th><th scope="col"><span className="sr-only">Action</span></th></tr></thead>
                   <tbody>
@@ -130,7 +131,7 @@ export default function UserOverridesPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </HorizontalTableScroll>
             )}
           </ResourceState>
         </Panel>

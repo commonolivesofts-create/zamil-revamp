@@ -570,6 +570,14 @@
     display: none;
   }
 
+  /* An active section can keep its panel open after route changes. In icon
+     mode show its section icon only; reveal child links when the rail opens. */
+  html:not([data-sidebar-mode="full"])
+    #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
+    .sidebar-domain-panel {
+    display: none !important;
+  }
+
   html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) #sidebar-brand,
   html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) .sidebar-domain-toggle,
   html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) .sidebar-domain-link,
@@ -626,6 +634,87 @@
     #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
     .zrv-sidebar-subgroup {
     justify-content: center;
+    width: 48px;
+    min-height: 48px;
+    margin-inline: auto;
+    padding: 0;
+  }
+
+  /* Pointer exit dismisses the expanded rail even if keyboard focus remains
+     in the sidebar, so it cannot cover the workspace after hover interaction. */
+  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed {
+    width: 5rem !important;
+  }
+
+  html:not([data-sidebar-mode="full"])
+    #sidebar.is-pointer-dismissed:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) {
+    transition: width 220ms ease !important;
+  }
+
+  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed :is(
+    .zrv-sidebar-access,
+    .zrv-sidebar-heading,
+    .zrv-sidebar-version,
+    #sidebar-brand-copy,
+    .sidebar-domain-label,
+    .sidebar-domain-link-label,
+    .sidebar-domain-chevron,
+    .zrv-sidebar-subgroup__label,
+    .zrv-sidebar-subgroup__count,
+    .zrv-sidebar-subgroup__arrow
+  ) {
+    display: none;
+  }
+
+  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .sidebar-domain-panel {
+    display: none !important;
+  }
+
+  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed :is(
+    .sidebar-domain-toggle,
+    .sidebar-domain-link,
+    .zrv-sidebar-subgroup
+  ) {
+    justify-content: center;
+  }
+
+  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed #sidebar-brand {
+    justify-content: center;
+  }
+
+  html:not([data-sidebar-mode="full"])
+    #sidebar.is-pointer-dismissed > .min-h-0.flex-1 {
+    padding-inline: 8px !important;
+  }
+
+  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .sidebar-domain {
+    display: flex;
+    justify-content: center;
+    margin-inline: 0 !important;
+  }
+
+  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .sidebar-domain-toggle {
+    width: 48px !important;
+    min-height: 48px !important;
+    margin-inline: auto;
+    padding: 2px !important;
+    gap: 0 !important;
+  }
+
+  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .sidebar-domain-icon {
+    flex: none;
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .sidebar-domain-link {
+    width: 48px;
+    min-height: 48px;
+    margin-inline: auto;
+    padding-inline: 0;
+  }
+
+  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .zrv-sidebar-subgroup {
     width: 48px;
     min-height: 48px;
     margin-inline: auto;
@@ -751,7 +840,8 @@
 }
 .zrv-sidebar-flyout {
   position: absolute;
-  inset-inline-start: calc(100% + 10px);
+  /* Overlap the rail by one pixel so there is no pointer-dead gap. */
+  inset-inline-start: calc(100% - 1px);
   z-index: 70;
   width: 320px;
   max-height: calc(100vh - 24px);
@@ -776,6 +866,7 @@
     inset-inline-start: -12px;
     width: 12px;
     content: "";
+    pointer-events: auto;
   }
 }
 @keyframes zrv-flyout-in {

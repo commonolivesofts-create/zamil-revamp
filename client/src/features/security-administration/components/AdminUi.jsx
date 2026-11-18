@@ -3,6 +3,7 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import ContentSkeleton from '@/components/feedback/ContentSkeleton.jsx'
 import { describeFailure } from '../adminFeedback.js'
 import '@/styles/security-admin.css'
+import '@/styles/security-admin-tables.css'
 
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import HorizontalTableScroll from '@/components/ui/HorizontalTableScroll.jsx'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
 import RouteNotice from '@/pages/RouteNotice.jsx'
@@ -152,8 +153,8 @@ export default function UserAccountDetailPage() {
                 )}
               >
                 {account.activeSessions.length ? (
-                  <div className="ux-table-wrap">
-                    <table className="ux-table zrv-admin-table">
+                  <HorizontalTableScroll className="zrv-security-table-scroll">
+                    <table className="ux-table zrv-admin-table zrv-security-table">
                       <caption className="sr-only">Active sessions</caption>
                       <thead><tr><th scope="col">Started</th><th scope="col">Last activity</th><th scope="col">Expires</th><th scope="col">Verified</th><th scope="col">IP address</th><th scope="col">Browser</th><th scope="col"><span className="sr-only">Action</span></th></tr></thead>
                       <tbody>
@@ -170,7 +171,7 @@ export default function UserAccountDetailPage() {
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </HorizontalTableScroll>
                 ) : <p className="zrv-admin-state">The account has no active sessions.</p>}
               </Panel>
 

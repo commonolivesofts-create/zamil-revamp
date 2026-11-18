@@ -38,6 +38,8 @@ function SidebarLink({
       className={({ isActive }) =>
         `sidebar-domain-link ${nested ? 'is-nested' : ''} ${isActive ? 'active' : ''}`.trim()
       }
+      aria-label={label}
+      title={label}
       onClick={onNavigate}
     >
       <OrvexaIcon name={icon || 'circle'} />
@@ -181,13 +183,7 @@ function CollapsibleSection({
         aria-label={section.label}
         aria-expanded={isOpen}
         aria-controls={`sidebar-panel-${section.id}`}
-        onPointerEnter={(event) => {
-          if (event.pointerType === 'mouse' && !isOpen && ['security', 'account'].includes(section.id)) {
-            onToggle(event.currentTarget)
-          }
-        }}
         onClick={(event) => {
-          if (event.nativeEvent.pointerType === 'mouse' && isOpen && ['security', 'account'].includes(section.id)) return
           onToggle(event.currentTarget)
         }}
       >
@@ -273,13 +269,14 @@ function SectionItems({
               : null
           }
           open={flyout?.subgroupId === subgroup.id}
-          onToggle={(anchor) =>
+          onToggle={(anchor, focusOnOpen) =>
             onFlyout(
               flyout?.subgroupId === subgroup.id
                 ? null
                 : {
                     subgroupId: subgroup.id,
                     anchor,
+                    focusOnOpen,
                   },
             )
           }
@@ -380,9 +377,12 @@ export default function Sidebar({
   const [flyoutState, setFlyoutState] = useState(null)
   const flyoutAnchor = useRef(null)
   const [hoverOpen, setHoverOpen] = useState(false)
+  const [pointerDismissed, setPointerDismissed] = useState(false)
+  const hoverCloseTimer = useRef(null)
 
   const flyout =
-    flyoutState?.pathname === pathname &&
+    flyoutState &&
+    flyoutState.pathname === pathname &&
     (!isMobile || mobileOpen)
       ? flyoutState
       : null
@@ -408,6 +408,7 @@ export default function Sidebar({
     clearNavigationReveal()
 
     flyoutAnchor.current = value?.anchor ?? null
+    if (!value) setHoverOpen(false)
 
     setFlyoutState(
       value
@@ -424,6 +425,7 @@ export default function Sidebar({
       const anchor = flyoutAnchor.current
 
       setFlyoutState(null)
+      setHoverOpen(false)
       clearNavigationReveal()
 
       if (refocus && anchor) {
@@ -437,11 +439,31 @@ export default function Sidebar({
     [clearNavigationReveal],
   )
 
+  useEffect(() => () => {
+    if (hoverCloseTimer.current) {
+      window.clearTimeout(hoverCloseTimer.current)
+    }
+  }, [])
+
   const navigate = () => {
-    setFlyoutState(null)
     clearNavigationReveal()
+    closeFlyout(false)
+    setSelection({ pathname, domain: '' })
     onMobileClose?.()
   }
+
+  useEffect(() => {
+    if (!flyout) return undefined
+
+    const onOutsidePointerDown = (event) => {
+      const sidebar = document.getElementById('sidebar')
+      if (sidebar?.contains(event.target)) return
+      closeFlyout(false)
+    }
+
+    document.addEventListener('pointerdown', onOutsidePointerDown, true)
+    return () => document.removeEventListener('pointerdown', onOutsidePointerDown, true)
+  }, [flyout?.subgroupId, closeFlyout])
 
   const toggleDomain = (sectionId) => {
     clearNavigationReveal()
@@ -649,23 +671,49 @@ export default function Sidebar({
         id="sidebar"
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r transition-[width,transform] duration-300 lg:translate-x-0 ${
           mobileOpen ? 'mobile-open' : ''
-        }${hoverOpen ? ' is-hover-open' : ''}${flyoutItems.length ? ' has-flyout' : ''}`}
+        }${hoverOpen ? ' is-hover-open' : ''}${pointerDismissed ? ' is-pointer-dismissed' : ''}${flyoutItems.length ? ' has-flyout' : ''}`}
         aria-label="Primary navigation"
         onPointerEnter={(event) => {
           if (event.pointerType === 'mouse') {
+            if (hoverCloseTimer.current) {
+              window.clearTimeout(hoverCloseTimer.current)
+              hoverCloseTimer.current = null
+            }
+            setPointerDismissed(false)
             setHoverOpen(true)
           }
         }}
         onPointerLeave={(event) => {
           if (isMobile || event.pointerType !== 'mouse') return
-          const sidebarNode = event.currentTarget
-          setHoverOpen(false)
-          closeFlyout(false)
-          setSelection({ pathname, domain: '' })
-
-          const focused = document.activeElement
-          if (focused && sidebarNode.contains(focused)) {
-            focused.blur()
+          if (hoverCloseTimer.current) {
+            window.clearTimeout(hoverCloseTimer.current)
+          }
+          hoverCloseTimer.current = window.setTimeout(() => {
+            hoverCloseTimer.current = null
+            setPointerDismissed(true)
+            setHoverOpen(false)
+            if (flyoutState) closeFlyout(false)
+          }, 180)
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && isMobile && mobileOpen) {
+            event.stopPropagation()
+            closeFlyout(false)
+            onMobileClose?.()
+            return
+          }
+          if (event.key !== 'Tab' || !isMobile || !mobileOpen) return
+          const focusable = Array.from(event.currentTarget.querySelectorAll('a[href], button:not([disabled])'))
+            .filter((node) => node.getClientRects().length > 0)
+          if (!focusable.length) return
+          const first = focusable[0]
+          const last = focusable[focusable.length - 1]
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault()
+            last.focus()
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault()
+            first.focus()
           }
         }}
         aria-hidden={isMobile && !mobileOpen}
@@ -807,7 +855,7 @@ export default function Sidebar({
                   isActive={
                     activeDomain === section.id
                   }
-                  onToggle={(anchor) => {
+                  onToggle={(anchor, focusOnOpen) => {
                     if (
                       section.id === 'security' ||
                       section.id === 'account'
@@ -823,6 +871,7 @@ export default function Sidebar({
                           : {
                               subgroupId,
                               anchor,
+                              focusOnOpen,
                             },
                       )
 
@@ -917,6 +966,7 @@ export default function Sidebar({
             items={flyoutItems}
             anchor={flyout.anchor}
             mobile={isMobile}
+            focusOnOpen={flyout.focusOnOpen !== false}
             onClose={closeFlyout}
             onNavigate={navigate}
             revealedRouteId={
