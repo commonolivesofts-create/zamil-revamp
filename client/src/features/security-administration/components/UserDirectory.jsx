@@ -57,13 +57,13 @@ export default function UserDirectory({ rowLink, rowAction = 'Open' }) {
         <Field
           id="users-search"
           label="Search"
-          hint="Employee number, username or name"
           error={searchError}
-        >
+        > 
           <input
             {...fieldProps('users-search', { hint: true, error: searchError })}
             className="ux-input"
             type="search"
+            placeholder="Employee number, username or name"
             value={searchText}
             maxLength={100}
             onChange={(event) => setSearchText(event.target.value)}
