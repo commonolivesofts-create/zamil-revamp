@@ -5,12 +5,12 @@ setup and scripts in [`../README.md`](../README.md).
 
 ## Reading order
 
-| # | Document | Purpose |
-|---|---|---|
-| 1 | [Frontend architecture](FRONTEND-ARCHITECTURE.md) | Providers, routing, layouts, state boundaries, design system |
-| 2 | [Shared components and patterns](SHARED-COMPONENTS-AND-PATTERNS.md) | What exists, where it is, what you must reuse |
-| 3 | [New feature guide](NEW-FEATURE-GUIDE.md) | Adding a business module end to end (illustrative example) |
-| 4 | [Frontend testing](FRONTEND-TESTING.md) | Scripts, test organization, browser and integration checks |
+| #   | Document                                                            | Purpose                                                      |
+| --- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 1   | [Frontend architecture](FRONTEND-ARCHITECTURE.md)                   | Providers, routing, layouts, state boundaries, design system |
+| 2   | [Shared components and patterns](SHARED-COMPONENTS-AND-PATTERNS.md) | What exists, where it is, what you must reuse                |
+| 3   | [New feature guide](NEW-FEATURE-GUIDE.md)                           | Adding a business module end to end (illustrative example)   |
+| 4   | [Frontend testing](FRONTEND-TESTING.md)                             | Scripts, test organization, browser and integration checks   |
 
 ## Source tree
 

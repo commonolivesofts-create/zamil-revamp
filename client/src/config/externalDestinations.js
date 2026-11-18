@@ -19,8 +19,10 @@ export function resolveExternalHref(href, env = buildEnv) {
   // for the sibling app links instead of sending the user to their own device.
   const destination = new URL(approved)
   const currentHost = window.location.hostname
-  if (LOOPBACK_HOSTS.has(destination.hostname.toLowerCase())
-    && !LOOPBACK_HOSTS.has(currentHost.toLowerCase())) {
+  if (
+    LOOPBACK_HOSTS.has(destination.hostname.toLowerCase()) &&
+    !LOOPBACK_HOSTS.has(currentHost.toLowerCase())
+  ) {
     destination.hostname = currentHost
   }
   return destination.href

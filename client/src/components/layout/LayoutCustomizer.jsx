@@ -1,7 +1,20 @@
 import { useEffect, useRef } from 'react'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 
-export default function LayoutCustomizer({ open, onClose, sidebarMode, setSidebarMode, sidebarTone, setSidebarTone, density, setDensity, motion, setMotion, accentTheme, setAccentTheme }) {
+export default function LayoutCustomizer({
+  open,
+  onClose,
+  sidebarMode,
+  setSidebarMode,
+  sidebarTone,
+  setSidebarTone,
+  density,
+  setDensity,
+  motion,
+  setMotion,
+  accentTheme,
+  setAccentTheme,
+}) {
   const closeButton = useRef(null)
   const panelRef = useRef(null)
   useEffect(() => {
@@ -51,7 +64,14 @@ export default function LayoutCustomizer({ open, onClose, sidebarMode, setSideba
             <h2 id="layout-settings-title">Layout settings</h2>
             <p>Choose how the navigation looks and behaves.</p>
           </div>
-          <button type="button" ref={closeButton} id="layout-settings-close" className="icon-button" aria-label="Close layout settings" onClick={onClose}>
+          <button
+            type="button"
+            ref={closeButton}
+            id="layout-settings-close"
+            className="icon-button"
+            aria-label="Close layout settings"
+            onClick={onClose}
+          >
             <OrvexaIcon name="x" />
           </button>
         </div>
@@ -62,16 +82,39 @@ export default function LayoutCustomizer({ open, onClose, sidebarMode, setSideba
               <p>Use the compact icon rail or keep the full navigation visible.</p>
             </div>
             <div className="sidebar-layout-options">
-              {[['icon', 'Icon + hover', 'Compact by default; expands on hover.'], ['full', 'Full sidebar', 'Navigation stays open and content shifts right.']].map(([mode, label, description]) => (
-                <button key={mode} type="button" className="sidebar-layout-option" data-sidebar-mode-option={mode} aria-pressed={sidebarMode === mode} onClick={() => setSidebarMode(mode)}>
-                  <span className="sidebar-layout-preview"><span className="rail" /><span className="canvas"><span /><span /><span /></span></span>
-                  <span className="sidebar-layout-copy"><b>{label}</b><small>{description}</small></span>
+              {[
+                ['icon', 'Icon + hover', 'Compact by default; expands on hover.'],
+                ['full', 'Full sidebar', 'Navigation stays open and content shifts right.'],
+              ].map(([mode, label, description]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className="sidebar-layout-option"
+                  data-sidebar-mode-option={mode}
+                  aria-pressed={sidebarMode === mode}
+                  onClick={() => setSidebarMode(mode)}
+                >
+                  <span className="sidebar-layout-preview">
+                    <span className="rail" />
+                    <span className="canvas">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  </span>
+                  <span className="sidebar-layout-copy">
+                    <b>{label}</b>
+                    <small>{description}</small>
+                  </span>
                 </button>
               ))}
             </div>
             <div className="layout-settings-note">
               <OrvexaIcon name="mouse-pointer-click" />
-              <span>Menu groups open only when clicked. Hover expands the icon rail but does not open a submenu.</span>
+              <span>
+                Menu groups open only when clicked. Hover expands the icon rail but does not open a
+                submenu.
+              </span>
             </div>
           </section>
           <section className="layout-settings-section">
@@ -92,9 +135,17 @@ export default function LayoutCustomizer({ open, onClose, sidebarMode, setSideba
                   aria-pressed={accentTheme === value}
                   onClick={() => setAccentTheme(value)}
                 >
-                  <span className={`zrv-accent-swatch zrv-accent-swatch--${value}`} aria-hidden="true" />
-                  <span className="zrv-accent-copy"><b>{label}</b><small>{description}</small></span>
-                  {accentTheme === value && <OrvexaIcon name="check" className="zrv-accent-check" />}
+                  <span
+                    className={`zrv-accent-swatch zrv-accent-swatch--${value}`}
+                    aria-hidden="true"
+                  />
+                  <span className="zrv-accent-copy">
+                    <b>{label}</b>
+                    <small>{description}</small>
+                  </span>
+                  {accentTheme === value && (
+                    <OrvexaIcon name="check" className="zrv-accent-check" />
+                  )}
                 </button>
               ))}
             </div>
@@ -110,7 +161,14 @@ export default function LayoutCustomizer({ open, onClose, sidebarMode, setSideba
             </div>
             <div className="sidebar-tone-options">
               {['pearl', 'warm', 'dark'].map((tone) => (
-                <button key={tone} className="sidebar-tone-option" data-sidebar-tone-option={tone} type="button" aria-pressed={sidebarTone === tone} onClick={() => setSidebarTone(tone)}>
+                <button
+                  key={tone}
+                  className="sidebar-tone-option"
+                  data-sidebar-tone-option={tone}
+                  type="button"
+                  aria-pressed={sidebarTone === tone}
+                  onClick={() => setSidebarTone(tone)}
+                >
                   <span className={`sidebar-tone-swatch ${tone}`} />
                   <span>{tone.charAt(0).toUpperCase() + tone.slice(1)}</span>
                 </button>
@@ -127,9 +185,18 @@ export default function LayoutCustomizer({ open, onClose, sidebarMode, setSideba
                 ['comfortable', 'Comfortable', 'Default spacing and readable controls.'],
                 ['compact', 'Compact', 'Denser navigation and content tables.'],
               ].map(([value, label, description]) => (
-                <button key={value} type="button" className="sidebar-layout-option" data-density-option={value}
-                  aria-pressed={density === value} onClick={() => setDensity(value)}>
-                  <span className="sidebar-layout-copy"><b>{label}</b><small>{description}</small></span>
+                <button
+                  key={value}
+                  type="button"
+                  className="sidebar-layout-option"
+                  data-density-option={value}
+                  aria-pressed={density === value}
+                  onClick={() => setDensity(value)}
+                >
+                  <span className="sidebar-layout-copy">
+                    <b>{label}</b>
+                    <small>{description}</small>
+                  </span>
                 </button>
               ))}
             </div>
@@ -144,17 +211,37 @@ export default function LayoutCustomizer({ open, onClose, sidebarMode, setSideba
                 ['standard', 'Standard', 'Use the standard animations.'],
                 ['reduced', 'Reduced motion', 'Keep animations and movement minimal.'],
               ].map(([value, label, description]) => (
-                <button key={value} type="button" className="sidebar-layout-option" data-motion-option={value}
-                  aria-pressed={motion === value} onClick={() => setMotion(value)}>
-                  <span className="sidebar-layout-copy"><b>{label}</b><small>{description}</small></span>
+                <button
+                  key={value}
+                  type="button"
+                  className="sidebar-layout-option"
+                  data-motion-option={value}
+                  aria-pressed={motion === value}
+                  onClick={() => setMotion(value)}
+                >
+                  <span className="sidebar-layout-copy">
+                    <b>{label}</b>
+                    <small>{description}</small>
+                  </span>
                 </button>
               ))}
             </div>
           </section>
         </div>
         <div className="layout-settings-footer">
-          <button type="button" className="layout-reset-button" data-reset-layout-settings onClick={() => { setSidebarMode('icon'); setSidebarTone('pearl'); setDensity('comfortable'); setMotion('standard') }}>
-            <OrvexaIcon name="rotate-ccw" /><span>Reset layout settings</span>
+          <button
+            type="button"
+            className="layout-reset-button"
+            data-reset-layout-settings
+            onClick={() => {
+              setSidebarMode('icon')
+              setSidebarTone('pearl')
+              setDensity('comfortable')
+              setMotion('standard')
+            }}
+          >
+            <OrvexaIcon name="rotate-ccw" />
+            <span>Reset layout settings</span>
           </button>
         </div>
       </aside>

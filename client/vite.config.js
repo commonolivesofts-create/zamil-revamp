@@ -13,9 +13,10 @@ import react from '@vitejs/plugin-react'
 // would depend on the IPv6-to-IPv4 connection fallback for every request.
 export const apiProxy = Object.freeze({
   '/api': {
-    target: process.env.APP_ENV?.trim().toLowerCase() === 'test'
-      ? 'http://127.0.0.1:7381'
-      : 'http://127.0.0.1:3000',
+    target:
+      process.env.APP_ENV?.trim().toLowerCase() === 'test'
+        ? 'http://127.0.0.1:7381'
+        : 'http://127.0.0.1:3000',
     changeOrigin: false,
   },
 })
@@ -26,10 +27,17 @@ export const apiProxy = Object.freeze({
 export const DEV_PORT = 7382
 
 export function resolveAppEnv({ processEnv, clientEnv, serverEnv }) {
-  return String(processEnv.APP_ENV ?? processEnv.app_env
-    ?? clientEnv.APP_ENV ?? clientEnv.app_env
-    ?? serverEnv.APP_ENV ?? serverEnv.app_env
-    ?? 'development').trim().toLowerCase()
+  return String(
+    processEnv.APP_ENV ??
+      processEnv.app_env ??
+      clientEnv.APP_ENV ??
+      clientEnv.app_env ??
+      serverEnv.APP_ENV ??
+      serverEnv.app_env ??
+      'development',
+  )
+    .trim()
+    .toLowerCase()
 }
 
 function configureEnvironment(config, { mode }) {
@@ -59,22 +67,27 @@ function configureEnvironment(config, { mode }) {
   return config
 }
 
-export default defineConfig((context) => configureEnvironment({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+export default defineConfig((context) =>
+  configureEnvironment(
+    {
+      plugins: [react()],
+      resolve: {
+        alias: {
+          '@': fileURLToPath(new URL('./src', import.meta.url)),
+        },
+      },
+      server: {
+        port: DEV_PORT,
+        strictPort: true,
+        proxy: apiProxy,
+      },
+      // `npm run preview` serves the production build with the same same-origin API.
+      preview: {
+        port: DEV_PORT,
+        strictPort: true,
+        proxy: apiProxy,
+      },
     },
-  },
-  server: {
-    port: DEV_PORT,
-    strictPort: true,
-    proxy: apiProxy,
-  },
-  // `npm run preview` serves the production build with the same same-origin API.
-  preview: {
-    port: DEV_PORT,
-    strictPort: true,
-    proxy: apiProxy,
-  },
-}, context))
+    context,
+  ),
+)

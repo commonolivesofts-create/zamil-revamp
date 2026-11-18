@@ -5,10 +5,7 @@
 
 /* IT access: subject, action chips, then the access-to field */
 .zrv-hr-ecl-it {
-  grid-template-columns: minmax(130px, 170px) minmax(0, 1fr) minmax(
-      180px,
-      240px
-    );
+  grid-template-columns: minmax(130px, 170px) minmax(0, 1fr) minmax(180px, 240px);
   align-items: center;
   column-gap: 14px;
 }

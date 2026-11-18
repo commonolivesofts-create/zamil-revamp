@@ -110,19 +110,14 @@
   );
 }
 .ux-metric:before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: 16px;
   right: 16px;
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--metric, var(--primary)),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, var(--metric, var(--primary)), transparent);
   opacity: 0.75;
 }
 .ux-metric small {
@@ -313,7 +308,7 @@
   cursor: pointer;
 }
 .ux-switch:after {
-  content: "";
+  content: '';
   position: absolute;
   top: 3px;
   left: 3px;
@@ -467,7 +462,7 @@
   background: conic-gradient(var(--mint) 0 88%, var(--surface-3) 88% 100%);
 }
 .security-ring:after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 13px;
   border-radius: 50%;
@@ -927,20 +922,12 @@
   background: linear-gradient(145deg, #111821, #16212b);
 }
 .auth-visual:before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(
-      circle at 38% 20%,
-      rgba(242, 189, 79, 0.18),
-      transparent 28%
-    ),
-    radial-gradient(
-      circle at 74% 58%,
-      rgba(78, 214, 196, 0.12),
-      transparent 30%
-    );
+    radial-gradient(circle at 38% 20%, rgba(242, 189, 79, 0.18), transparent 28%),
+    radial-gradient(circle at 74% 58%, rgba(78, 214, 196, 0.12), transparent 30%);
 }
 .auth-visual-copy {
   position: relative;
@@ -1025,7 +1012,7 @@
 }
 .auth-divider:before,
 .auth-divider:after {
-  content: "";
+  content: '';
   height: 1px;
   flex: 1;
   background: var(--line);
@@ -1117,44 +1104,44 @@
   background: linear-gradient(90deg, var(--primary), var(--cyan));
 }
 
-html[data-density="compact"] .ux-page {
+html[data-density='compact'] .ux-page {
   padding-top: 18px;
 }
-html[data-density="compact"] .ux-panel-body {
+html[data-density='compact'] .ux-panel-body {
   padding: 15px;
 }
-html[data-density="compact"] .notification-item {
+html[data-density='compact'] .notification-item {
   padding: 12px 15px;
 }
-html[data-density="compact"] .ux-table td {
+html[data-density='compact'] .ux-table td {
   padding-top: 9px;
   padding-bottom: 9px;
 }
-html[data-density="compact"] .ux-metric {
+html[data-density='compact'] .ux-metric {
   min-height: 112px;
   padding: 14px;
 }
-[dir="rtl"] .ux-head,
-[dir="rtl"] .ux-panel-head,
-[dir="rtl"] .table-toolbar,
-[dir="rtl"] .table-pagination {
+[dir='rtl'] .ux-head,
+[dir='rtl'] .ux-panel-head,
+[dir='rtl'] .table-toolbar,
+[dir='rtl'] .table-pagination {
   direction: rtl;
 }
-[dir="rtl"] .ux-table th {
+[dir='rtl'] .ux-table th {
   text-align: right;
 }
-[dir="rtl"] .notification-meta {
+[dir='rtl'] .notification-meta {
   text-align: left;
 }
-[dir="rtl"] .component-link .arrow {
+[dir='rtl'] .component-link .arrow {
   right: auto;
   left: 15px;
 }
-[dir="rtl"] .ux-switch:after {
+[dir='rtl'] .ux-switch:after {
   left: auto;
   right: 3px;
 }
-[dir="rtl"] .ux-switch.is-on:after {
+[dir='rtl'] .ux-switch.is-on:after {
   left: auto;
   right: 20px;
 }
@@ -1286,46 +1273,46 @@ html[data-density="compact"] .ux-metric {
   }
 }
 
-[dir="rtl"] #sidebar {
+[dir='rtl'] #sidebar {
   left: auto !important;
   right: 0;
   border-right: 0 !important;
   border-left: 1px solid var(--line);
 }
-[dir="rtl"] .sidebar-link:hover {
+[dir='rtl'] .sidebar-link:hover {
   transform: translateX(-2px);
 }
-[dir="rtl"] .sidebar-link.active:before {
+[dir='rtl'] .sidebar-link.active:before {
   left: auto;
   right: -1px;
 }
-[dir="rtl"] .dropdown-panel.right-0 {
+[dir='rtl'] .dropdown-panel.right-0 {
   right: auto;
   left: 0;
 }
-[dir="rtl"] #toast-region {
+[dir='rtl'] #toast-region {
   right: auto;
   left: 1rem;
 }
-html[data-density="compact"] .sidebar-link {
+html[data-density='compact'] .sidebar-link {
   min-height: 36px !important;
 }
-html[data-density="compact"] .nav-heading {
+html[data-density='compact'] .nav-heading {
   margin-top: 14px;
   margin-bottom: 5px;
 }
-html[data-density="compact"] .cp-panel-body,
-html[data-density="compact"] .pa-panel-body {
+html[data-density='compact'] .cp-panel-body,
+html[data-density='compact'] .pa-panel-body {
   padding-top: 14px !important;
   padding-bottom: 14px !important;
 }
 @media (min-width: 1024px) {
-  [dir="rtl"] #app-main {
+  [dir='rtl'] #app-main {
     padding-left: 0 !important;
     padding-right: 18rem;
   }
-  .sidebar-collapsed[dir="rtl"] #app-main,
-  [dir="rtl"][data-sidebar-collapsed="true"] #app-main {
+  .sidebar-collapsed[dir='rtl'] #app-main,
+  [dir='rtl'][data-sidebar-collapsed='true'] #app-main {
     padding-right: 5.25rem;
   }
 }

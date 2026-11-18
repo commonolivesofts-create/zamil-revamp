@@ -16,8 +16,17 @@ import '@/styles/hr-recruitment.css'
 // outside it); `identify` tells a demo adapter the signed-in name, and
 // `breadcrumb` replaces the recruitment breadcrumb.
 export function RecruitmentLoader({
-  current, title, subtitle, param, load, loadLookups, demo = false,
-  flow = true, identify = identifyDemoUser, breadcrumb, children,
+  current,
+  title,
+  subtitle,
+  param,
+  load,
+  loadLookups,
+  demo = false,
+  flow = true,
+  identify = identifyDemoUser,
+  breadcrumb,
+  children,
 }) {
   const params = useParams()
   const location = useLocation()
@@ -26,22 +35,45 @@ export function RecruitmentLoader({
   // Demo only: the adapter records the signed-in name as requester, scheduler or evaluator.
   useEffect(() => identify(user?.fullName), [identify, user?.fullName])
   const lookups = useResource(`hr-recruitment-lookups:${current}`, loadLookups)
-  const record = useResource(id ? `hr-recruitment-${current}:${id}` : null, (signal) => load(id, { signal }))
+  const record = useResource(id ? `hr-recruitment-${current}:${id}` : null, (signal) =>
+    load(id, { signal }),
+  )
   const frame = (content, loading = false) => (
     <div className={`zrv-hr zrv-hr--${current}`}>
       <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} breadcrumb={breadcrumb} />
       {flow && <FlowNav current={current} />}
-      {loading
-        ? <ContentSkeleton variant="form" label={`Loading ${title}`} />
-        : <div className="zrv-admin-panel">{content}</div>}
+      {loading ? (
+        <ContentSkeleton variant="form" label={`Loading ${title}`} />
+      ) : (
+        <div className="zrv-admin-panel">{content}</div>
+      )}
     </div>
   )
 
   if (current !== 'requisition' && lookups.status !== 'ready') {
-    return frame(<ResourceState resource={lookups} label={COMMON_TEXT.loadingLookups} empty={COMMON_TEXT.loadingLookups}>{() => null}</ResourceState>, lookups.status === 'loading')
+    return frame(
+      <ResourceState
+        resource={lookups}
+        label={COMMON_TEXT.loadingLookups}
+        empty={COMMON_TEXT.loadingLookups}
+      >
+        {() => null}
+      </ResourceState>,
+      lookups.status === 'loading',
+    )
   }
   if (id && record.status !== 'ready') {
-    return frame(<ResourceState resource={record} label={COMMON_TEXT.loadingRecord} empty={COMMON_TEXT.notFound} notFound={COMMON_TEXT.notFound}>{() => null}</ResourceState>, record.status === 'loading')
+    return frame(
+      <ResourceState
+        resource={record}
+        label={COMMON_TEXT.loadingRecord}
+        empty={COMMON_TEXT.notFound}
+        notFound={COMMON_TEXT.notFound}
+      >
+        {() => null}
+      </ResourceState>,
+      record.status === 'loading',
+    )
   }
   return children({
     lookups: lookups.data ?? { jobs: [], departments: [], requester: '', replacements: [] },

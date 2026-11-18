@@ -1,12 +1,23 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readCsrfToken, readCurrentUser, readLoginResult } from '../src/features/auth/authContract.js'
 import {
-  CHALLENGE_TOKEN, SESSION_TOKEN, authUser, currentUser, loginResult, mfaChallenge,
+  readCsrfToken,
+  readCurrentUser,
+  readLoginResult,
+} from '../src/features/auth/authContract.js'
+import {
+  CHALLENGE_TOKEN,
+  SESSION_TOKEN,
+  authUser,
+  currentUser,
+  loginResult,
+  mfaChallenge,
 } from './helpers/http.mjs'
 
 test('a successful login contract yields an authenticated result with the session CSRF token', () => {
-  const result = readLoginResult(loginResult({ user: { ...authUser, passwordHash: 'x', role: 'ADMIN' } }))
+  const result = readLoginResult(
+    loginResult({ user: { ...authUser, passwordHash: 'x', role: 'ADMIN' } }),
+  )
   assert.equal(result.authenticated, true)
   assert.equal(result.csrfToken, SESSION_TOKEN)
   assert.deepEqual(result.user, authUser, 'undocumented fields are dropped')
@@ -37,7 +48,9 @@ test('ambiguous or malformed login responses are rejected', () => {
     loginResult({ csrf: { token: 'line\nbreak', headerName: 'X-CSRF-Token' } }),
     loginResult({ user: { ...authUser, id: 105 } }),
     loginResult({ session: { expiresAt: 'soon', idleTimeoutSeconds: 1800, mfaVerified: false } }),
-    mfaChallenge({ mfa: { required: false, enrollmentRequired: false, expiresAt: '2026-10-21T08:10:00Z' } }),
+    mfaChallenge({
+      mfa: { required: false, enrollmentRequired: false, expiresAt: '2026-10-21T08:10:00Z' },
+    }),
     mfaChallenge({ csrf: undefined }),
   ]) {
     assert.throws(() => readLoginResult(data), { code: 'INVALID_RESPONSE' }, JSON.stringify(data))
@@ -46,20 +59,27 @@ test('ambiguous or malformed login responses are rejected', () => {
 
 test('current-user and CSRF contracts are validated', () => {
   assert.deepEqual(readCurrentUser(currentUser()).user, authUser)
-  assert.throws(() => readCurrentUser({ authenticated: true, user: authUser }), { code: 'INVALID_RESPONSE' })
+  assert.throws(() => readCurrentUser({ authenticated: true, user: authUser }), {
+    code: 'INVALID_RESPONSE',
+  })
   assert.equal(readCsrfToken({ token: 'abc', headerName: 'X-CSRF-Token' }), 'abc')
-  assert.throws(() => readCsrfToken({ token: '', headerName: 'X-CSRF-Token' }), { code: 'INVALID_RESPONSE' })
+  assert.throws(() => readCsrfToken({ token: '', headerName: 'X-CSRF-Token' }), {
+    code: 'INVALID_RESPONSE',
+  })
 })
 
 test('an optional avatar path is kept only when it is same-origin', () => {
-  const withAvatar = (avatarUrl) => readCurrentUser({
-    ...currentUser(),
-    user: { ...authUser, avatarUrl },
-  }).user
+  const withAvatar = (avatarUrl) =>
+    readCurrentUser({
+      ...currentUser(),
+      user: { ...authUser, avatarUrl },
+    }).user
 
   assert.equal(withAvatar('/avatars/2502.png').avatarUrl, '/avatars/2502.png')
-  assert.equal(withAvatar('/api/v1/users/2502/avatar?v=2').avatarUrl,
-    '/api/v1/users/2502/avatar?v=2')
+  assert.equal(
+    withAvatar('/api/v1/users/2502/avatar?v=2').avatarUrl,
+    '/api/v1/users/2502/avatar?v=2',
+  )
   assert.equal('avatarUrl' in readCurrentUser(currentUser()).user, false)
   for (const avatarUrl of [
     'javascript:alert(1)',

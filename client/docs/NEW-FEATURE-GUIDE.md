@@ -42,12 +42,17 @@ JSX).
 // widgetRequestContract.js (ILLUSTRATIVE) — keep only documented fields; reject anything else.
 import { ApiError } from '../../services/api/apiClient.js'
 
-const ID = /^[1-9][0-9]{0,18}$/                       // Oracle NUMBER IDs stay strings
-const STATUSES = ['DRAFT', 'SUBMITTED']                // only verified backend values
+const ID = /^[1-9][0-9]{0,18}$/ // Oracle NUMBER IDs stay strings
+const STATUSES = ['DRAFT', 'SUBMITTED'] // only verified backend values
 
 export function readWidgetRequest(item) {
-  if (!item || typeof item.requestId !== 'string' || !ID.test(item.requestId) ||
-    !STATUSES.includes(item.status) || typeof item.title !== 'string') {
+  if (
+    !item ||
+    typeof item.requestId !== 'string' ||
+    !ID.test(item.requestId) ||
+    !STATUSES.includes(item.status) ||
+    typeof item.title !== 'string'
+  ) {
     throw new ApiError('The server returned an unexpected response.', { code: 'INVALID_RESPONSE' })
   }
   return Object.freeze({ requestId: item.requestId, status: item.status, title: item.title })
@@ -58,7 +63,10 @@ export function readWidgetRequestPage(result) {
   if (!Array.isArray(result?.data) || !result.pagination) {
     throw new ApiError('The server returned an unexpected response.', { code: 'INVALID_RESPONSE' })
   }
-  return Object.freeze({ items: Object.freeze(result.data.map(readWidgetRequest)), pagination: result.pagination })
+  return Object.freeze({
+    items: Object.freeze(result.data.map(readWidgetRequest)),
+    pagination: result.pagination,
+  })
 }
 ```
 
@@ -76,12 +84,15 @@ import { readWidgetRequestPage } from './widgetRequestContract.js'
 export function createWidgetRequestService({ client }) {
   return Object.freeze({
     async list({ page, limit, search } = {}, { signal } = {}) {
-      const result = await client.get('/example-module/widget-requests', { params: { page, limit, search }, signal })
-      return readWidgetRequestPage(result)             // { items, pagination }
+      const result = await client.get('/example-module/widget-requests', {
+        params: { page, limit, search },
+        signal,
+      })
+      return readWidgetRequestPage(result) // { items, pagination }
     },
     async submit(requestId) {
       const { data } = await client.post(`/example-module/widget-requests/${requestId}/submit`, {})
-      return readWidgetRequest(data)                   // CSRF header added by apiClient
+      return readWidgetRequest(data) // CSRF header added by apiClient
     },
   })
 }
@@ -123,16 +134,35 @@ imports into `index.js`); it is documentation only and must never be imported.
 import { defineModule } from '../defineModule.js'
 
 export default defineModule({
-  code: 'EXAMPLE_MODULE', name: 'Example module', displayOrder: 100,
-  resources: [{
-    code: 'WIDGET_REQUESTS', name: 'Widget Requests', actions: ['VIEW', 'CREATE', 'APPROVE'],
-    navigation: [
-      { id: 'widget-requests', path: '/example-domain/widget-requests', title: 'Widget requests',
-        icon: 'package', group: 'example-domain', order: 10 },
-      { id: 'widget-request', path: '/example-domain/widget-requests/:requestId', title: 'Widget request',
-        icon: 'package', group: 'example-domain', order: 11, hidden: true },
-    ],
-  }],
+  code: 'EXAMPLE_MODULE',
+  name: 'Example module',
+  displayOrder: 100,
+  resources: [
+    {
+      code: 'WIDGET_REQUESTS',
+      name: 'Widget Requests',
+      actions: ['VIEW', 'CREATE', 'APPROVE'],
+      navigation: [
+        {
+          id: 'widget-requests',
+          path: '/example-domain/widget-requests',
+          title: 'Widget requests',
+          icon: 'package',
+          group: 'example-domain',
+          order: 10,
+        },
+        {
+          id: 'widget-request',
+          path: '/example-domain/widget-requests/:requestId',
+          title: 'Widget request',
+          icon: 'package',
+          group: 'example-domain',
+          order: 11,
+          hidden: true,
+        },
+      ],
+    },
+  ],
 })
 ```
 
@@ -164,7 +194,9 @@ security review (gate G2).
 **`src/routes/RouteComponents.jsx`** — lazy page exports:
 
 ```js
-export const WidgetRequestsPage = lazy(() => import('@/features/widget-requests/pages/WidgetRequestsPage.jsx'))
+export const WidgetRequestsPage = lazy(
+  () => import('@/features/widget-requests/pages/WidgetRequestsPage.jsx'),
+)
 ```
 
 **`src/app/router.jsx`** — inside the `AppRouteAccess` children, one line per route, in exactly
@@ -184,7 +216,12 @@ the registry.
 // pages/WidgetRequestsPage.jsx (ILLUSTRATIVE, abridged)
 import { useState } from 'react'
 import usePermissions from '@/features/access/usePermissions.js'
-import { AdminPage, Feedback, Pagination, ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
+import {
+  AdminPage,
+  Feedback,
+  Pagination,
+  ResourceState,
+} from '@/features/security-administration/components/AdminUi.jsx'
 import { useAdminAction, useResource } from '@/features/security-administration/useAdminData.js'
 import { WIDGET_REQUEST_ACTIONS } from '../widgetRequestActions.js'
 import { widgetRequestService } from '../widgetRequestService.js'
@@ -192,24 +229,44 @@ import { widgetRequestService } from '../widgetRequestService.js'
 export default function WidgetRequestsPage() {
   const { can } = usePermissions()
   const [page, setPage] = useState(1)
-  const requests = useResource(`widget-requests:${page}`, (signal) => widgetRequestService.list({ page, limit: 25 }, { signal }))
+  const requests = useResource(`widget-requests:${page}`, (signal) =>
+    widgetRequestService.list({ page, limit: 25 }, { signal }),
+  )
   const action = useAdminAction()
 
   const submit = async (id) => {
-    const outcome = await action.run(() => widgetRequestService.submit(id), { success: 'Request submitted.' })
-    if (outcome.status !== 'ignored') requests.reload()   // refresh after success AND unknown outcomes
+    const outcome = await action.run(() => widgetRequestService.submit(id), {
+      success: 'Request submitted.',
+    })
+    if (outcome.status !== 'ignored') requests.reload() // refresh after success AND unknown outcomes
   }
 
   return (
     <AdminPage eyebrow="Example domain" title="Widget requests">
       <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
-      <ResourceState resource={requests} label="widget requests" empty="There are no widget requests.">
+      <ResourceState
+        resource={requests}
+        label="widget requests"
+        empty="There are no widget requests."
+      >
         {({ items, pagination }) => (
           <>
             {/* table in <div className="ux-table-wrap"><table className="ux-table zrv-admin-table"> */}
-            {items.map((item) => can(WIDGET_REQUEST_ACTIONS.SUBMIT) && item.status === 'DRAFT' && (
-              <button key={item.requestId} type="button" className="btn-secondary" disabled={action.pending} onClick={() => submit(item.requestId)}>Submit</button>
-            ))}
+            {items.map(
+              (item) =>
+                can(WIDGET_REQUEST_ACTIONS.SUBMIT) &&
+                item.status === 'DRAFT' && (
+                  <button
+                    key={item.requestId}
+                    type="button"
+                    className="btn-secondary"
+                    disabled={action.pending}
+                    onClick={() => submit(item.requestId)}
+                  >
+                    Submit
+                  </button>
+                ),
+            )}
             <Pagination pagination={pagination} onPage={setPage} disabled={requests.refreshing} />
           </>
         )}

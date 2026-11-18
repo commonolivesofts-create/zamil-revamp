@@ -18,8 +18,12 @@ export function createCsrfStore() {
       challengeToken = token
       sessionToken = null
     },
-    clearSession() { sessionToken = null },
-    clearChallenge() { challengeToken = null },
+    clearSession() {
+      sessionToken = null
+    },
+    clearChallenge() {
+      challengeToken = null
+    },
     clear() {
       sessionToken = null
       challengeToken = null

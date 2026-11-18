@@ -7,7 +7,13 @@ import { EXTERNAL_LINK_REL, EXTERNAL_LINK_TARGET } from '@/config/externalDestin
 // authorizes its own users. Internal entries keep using React Router links.
 export default function ExternalNavigationLink({ href, className, onClick, children }) {
   return (
-    <a href={href} target={EXTERNAL_LINK_TARGET} rel={EXTERNAL_LINK_REL} className={className} onClick={onClick}>
+    <a
+      href={href}
+      target={EXTERNAL_LINK_TARGET}
+      rel={EXTERNAL_LINK_REL}
+      className={className}
+      onClick={onClick}
+    >
       {children}
       <span className="sr-only"> (opens in a new tab)</span>
     </a>

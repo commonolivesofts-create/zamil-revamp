@@ -1,7 +1,15 @@
 // Response contract of Sick Leave (form 1076): /api/v1/hr/sick-leave. Readers
 // turn backend data into the frozen shapes the screens use and reject anything
 // unexpected; `sickLeaveFields` builds the request fields. Pure.
-import { ID, invalidResponse, isoDate, normalizeStatus, optionalNumber, pageOf, text } from '../shared/formRecords.js'
+import {
+  ID,
+  invalidResponse,
+  isoDate,
+  normalizeStatus,
+  optionalNumber,
+  pageOf,
+  text,
+} from '../shared/formRecords.js'
 
 export const DAY_TYPES = Object.freeze(['FULL', 'HALF'])
 export const SICK_LEAVE_TYPE = 'Sick Leave'
@@ -10,14 +18,21 @@ export const SICK_LEAVE_TYPE = 'Sick Leave'
 export function readSickLeaveEmployee(item) {
   if (!item || !text(item.empNumber)) throw invalidResponse('employee')
   return Object.freeze({
-    employeeId: text(item.empNumber), employeeNumber: text(item.empNumber), name: text(item.empName) || text(item.empNumber),
-    departmentName: text(item.department), position: text(item.department),
+    employeeId: text(item.empNumber),
+    employeeNumber: text(item.empNumber),
+    name: text(item.empName) || text(item.empNumber),
+    departmentName: text(item.department),
+    position: text(item.department),
   })
 }
 
 const readAttachment = (item) => {
   if (!item || !ID.test(String(item.attachmentId ?? ''))) throw invalidResponse('attachment')
-  return Object.freeze({ attachmentId: String(item.attachmentId), fileName: text(item.fileName), attachedOn: isoDate(item.attachedOn) })
+  return Object.freeze({
+    attachmentId: String(item.attachmentId),
+    fileName: text(item.fileName),
+    attachedOn: isoDate(item.attachedOn),
+  })
 }
 
 export function readSickLeaveRecord(data) {
@@ -25,7 +40,11 @@ export function readSickLeaveRecord(data) {
   return Object.freeze({
     leaveId: String(data.headerId),
     employee: Object.freeze({
-      employeeId: text(data.empId), employeeNumber: text(data.empId), name: text(data.empName) || text(data.empId), departmentName: '', position: '',
+      employeeId: text(data.empId),
+      employeeNumber: text(data.empId),
+      name: text(data.empName) || text(data.empId),
+      departmentName: '',
+      position: '',
     }),
     leaveType: text(data.leaveType) || SICK_LEAVE_TYPE,
     fromDate: isoDate(data.fromDate),
@@ -36,7 +55,9 @@ export function readSickLeaveRecord(data) {
     comments: text(data.comments) === '-' ? '' : text(data.comments),
     status: normalizeStatus(data.status),
     createdAt: isoDate(data.createdAt),
-    attachments: Object.freeze((Array.isArray(data.attachments) ? data.attachments : []).map(readAttachment)),
+    attachments: Object.freeze(
+      (Array.isArray(data.attachments) ? data.attachments : []).map(readAttachment),
+    ),
   })
 }
 
@@ -60,7 +81,10 @@ export function readSickLeaveListItem(item) {
 
 export function readSickLeavePage(data) {
   if (!data || !Array.isArray(data.items)) throw invalidResponse('sick leave list')
-  return Object.freeze({ items: Object.freeze(data.items.map(readSickLeaveListItem)), pagination: pageOf(data) })
+  return Object.freeze({
+    items: Object.freeze(data.items.map(readSickLeaveListItem)),
+    pagination: pageOf(data),
+  })
 }
 
 // The server recomputes the number of days, resolves the employee name and

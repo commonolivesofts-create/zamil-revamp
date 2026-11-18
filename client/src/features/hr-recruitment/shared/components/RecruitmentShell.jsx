@@ -14,15 +14,29 @@ import { RecruitmentPending } from './RecruitmentPending.jsx'
 export function FlowNav({ current, status }) {
   const index = FLOW.findIndex((item) => item.id === current)
   return (
-    <nav className="zrv-hr-flow" aria-label={FLOW_TEXT.label} style={{ '--f': index, '--n': FLOW.length }}>
-      <span className="zrv-hr-flow__line" aria-hidden="true"><i /></span>
+    <nav
+      className="zrv-hr-flow"
+      aria-label={FLOW_TEXT.label}
+      style={{ '--f': index, '--n': FLOW.length }}
+    >
+      <span className="zrv-hr-flow__line" aria-hidden="true">
+        <i />
+      </span>
       {FLOW.map((item, position) => {
         const on = item.id === current
         const text = FLOW_TEXT[item.id]
         return (
-          <Link key={item.id} to={item.path} className={`zrv-hr-flow__step${on ? ' zrv-hr-is-on' : ''}`} aria-current={on ? 'page' : undefined}>
+          <Link
+            key={item.id}
+            to={item.path}
+            className={`zrv-hr-flow__step${on ? ' zrv-hr-is-on' : ''}`}
+            aria-current={on ? 'page' : undefined}
+          >
             <span className="zrv-hr-flow__n">{position + 1}</span>
-            <span className="zrv-hr-flow__t"><b>{text.name}</b><small>{on && status ? status : text.hint}</small></span>
+            <span className="zrv-hr-flow__t">
+              <b>{text.name}</b>
+              <small>{on && status ? status : text.hint}</small>
+            </span>
           </Link>
         )
       })}
@@ -32,12 +46,19 @@ export function FlowNav({ current, status }) {
 
 // Page header: breadcrumb, title, optional subtitle and, for screens that opt in while
 // they run on demo data (`demo`), the demo-data indicator.
-export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.breadcrumb, demo = false }) {
+export function RecruitmentHeader({
+  title,
+  subtitle,
+  breadcrumb = COMMON_TEXT.breadcrumb,
+  demo = false,
+}) {
   return (
     <header className="zrv-hr-head">
       <nav aria-label="Breadcrumb">
         <ol className="zrv-hr-crumb">
-          {breadcrumb.map((item) => <li key={item}>{item}</li>)}
+          {breadcrumb.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
           <li aria-current="page">{title}</li>
         </ol>
       </nav>
@@ -45,12 +66,20 @@ export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.br
         <h1 className="zrv-hr-title" aria-label={title}>
           {titleWords(title).map((word, index, words) => (
             <span key={index} className="zrv-hr-word" aria-hidden="true">
-              {[...word.text].map((character, offset) => <span key={offset} style={{ '--i': word.start + offset }}>{character}</span>)}
+              {[...word.text].map((character, offset) => (
+                <span key={offset} style={{ '--i': word.start + offset }}>
+                  {character}
+                </span>
+              ))}
               {index < words.length - 1 ? ' ' : ''}
             </span>
           ))}
         </h1>
-        {demo && <span title={COMMON_TEXT.demoNote}><Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge></span>}
+        {demo && (
+          <span title={COMMON_TEXT.demoNote}>
+            <Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge>
+          </span>
+        )}
       </div>
       {subtitle && <p className="zrv-hr-sub">{subtitle}</p>}
       {demo && <p className="zrv-hr-sr">{COMMON_TEXT.demoNote}</p>}
@@ -66,8 +95,39 @@ export function RecruitmentHeader({ title, subtitle, breadcrumb = COMMON_TEXT.br
 // `banner` (content between the ticket strip and the step track) and
 // `breadcrumb`.
 export function RecruitmentShell({
-  current, title, subtitle, flowStatus, tools, primary, secondaryAction, feedback, onDismissFeedback, lookupNotice, ticket, steps, step, onStep, doneSteps,
-  finalLabel, onFinal, side, locked, pending, pendingMessage, focusError, demo, flow = true, compact = false, banner = null, breadcrumb, lockedSteps = [], onContinue, feedbackMode = 'toast', dir, singlePage = false, children,
+  current,
+  title,
+  subtitle,
+  flowStatus,
+  tools,
+  primary,
+  secondaryAction,
+  feedback,
+  onDismissFeedback,
+  lookupNotice,
+  ticket,
+  steps,
+  step,
+  onStep,
+  doneSteps,
+  finalLabel,
+  onFinal,
+  side,
+  locked,
+  pending,
+  pendingMessage,
+  focusError,
+  demo,
+  flow = true,
+  compact = false,
+  banner = null,
+  breadcrumb,
+  lockedSteps = [],
+  onContinue,
+  feedbackMode = 'toast',
+  dir,
+  singlePage = false,
+  children,
 }) {
   const [direction, setDirection] = useState({ step, value: 'fwd' })
   const stageRef = useRef(null)
@@ -75,13 +135,17 @@ export function RecruitmentShell({
   const moved = useRef(false)
   const focusInvalid = () => {
     const invalid = stageRef.current?.querySelector('[aria-invalid="true"]')
-    const target = invalid?.matches('input,select,textarea,button') ? invalid : invalid?.querySelector('input,select,textarea,button')
+    const target = invalid?.matches('input,select,textarea,button')
+      ? invalid
+      : invalid?.querySelector('input,select,textarea,button')
     if (!target) return false
     target.scrollIntoView({ block: 'center', behavior: 'smooth' })
     target.focus({ preventScroll: true })
     return true
   }
-  const act = (action) => { if (!locked && !pending && !focusInvalid()) action?.() }
+  const act = (action) => {
+    if (!locked && !pending && !focusInvalid()) action?.()
+  }
   if (direction.step !== step) setDirection({ step, value: step < direction.step ? 'back' : 'fwd' })
 
   const go = (target, validate = false) => {
@@ -97,7 +161,10 @@ export function RecruitmentShell({
     if (next === step && !singlePage) return
     moved.current = true
     onStep(next)
-    if (!singlePage) requestAnimationFrame(() => trackRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+    if (!singlePage)
+      requestAnimationFrame(() =>
+        trackRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
+      )
   }
 
   // Keyboard users land on the heading of the step they moved to.
@@ -111,7 +178,9 @@ export function RecruitmentShell({
     if (!focusError) return
     const frame = requestAnimationFrame(() => {
       const invalid = stageRef.current?.querySelector('[aria-invalid="true"]')
-      const target = invalid?.matches('input,select,textarea,button') ? invalid : invalid?.querySelector('input,select,textarea,button')
+      const target = invalid?.matches('input,select,textarea,button')
+        ? invalid
+        : invalid?.querySelector('input,select,textarea,button')
       if (target) {
         target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
         target.focus({ preventScroll: true })
@@ -121,7 +190,12 @@ export function RecruitmentShell({
   }, [focusError])
 
   return (
-    <div className={`zrv-hr zrv-hr--${current}${compact ? ' zrv-hr--compact' : ''}`} dir={dir} aria-busy={pending || undefined} inert={pending ? true : undefined}>
+    <div
+      className={`zrv-hr zrv-hr--${current}${compact ? ' zrv-hr--compact' : ''}`}
+      dir={dir}
+      aria-busy={pending || undefined}
+      inert={pending ? true : undefined}
+    >
       {pending && <RecruitmentPending message={pendingMessage || 'Processing your request'} />}
       <div className="zrv-hr-form-header">
         <RecruitmentHeader title={title} subtitle={subtitle} demo={demo} breadcrumb={breadcrumb} />
@@ -130,39 +204,88 @@ export function RecruitmentShell({
         <div className="zrv-hr-toolbar" role="toolbar" aria-label={COMMON_TEXT.toolbarLabel}>
           <div className="zrv-hr-tools">
             {tools.map((tool) => (
-              <button key={tool.label} type="button" onClick={tool.onClick} disabled={pending || tool.disabled} title={tool.label}>
-                <OrvexaIcon name={tool.icon} size={17} /><span>{tool.label}</span>
+              <button
+                key={tool.label}
+                type="button"
+                onClick={tool.onClick}
+                disabled={pending || tool.disabled}
+                title={tool.label}
+              >
+                <OrvexaIcon name={tool.icon} size={17} />
+                <span>{tool.label}</span>
               </button>
             ))}
           </div>
           <div className="zrv-hr-toolbar__actions">
-          {primary && (
-            <button type="button" className="btn-primary zrv-hr-btn" onClick={() => act(primary.onClick)} disabled={locked || pending || primary.disabled}>
-              <OrvexaIcon name={primary.icon || 'check'} size={16} /> <span className="zrv-hr-btn__label">{primary.label}</span>
-            </button>
-          )}
-          {secondaryAction && (
-            <button type="button" className="btn-secondary zrv-hr-btn" onClick={() => act(secondaryAction.onClick)} disabled={locked || pending || secondaryAction.disabled}>
-              <OrvexaIcon name={secondaryAction.icon || 'send'} size={16} /><span>{secondaryAction.label}</span>
-            </button>
-          )}
+            {primary && (
+              <button
+                type="button"
+                className="btn-primary zrv-hr-btn"
+                onClick={() => act(primary.onClick)}
+                disabled={locked || pending || primary.disabled}
+              >
+                <OrvexaIcon name={primary.icon || 'check'} size={16} />{' '}
+                <span className="zrv-hr-btn__label">{primary.label}</span>
+              </button>
+            )}
+            {secondaryAction && (
+              <button
+                type="button"
+                className="btn-secondary zrv-hr-btn"
+                onClick={() => act(secondaryAction.onClick)}
+                disabled={locked || pending || secondaryAction.disabled}
+              >
+                <OrvexaIcon name={secondaryAction.icon || 'send'} size={16} />
+                <span>{secondaryAction.label}</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {feedbackMode === 'toast' ? <RecruitmentToast feedback={feedback} onDismiss={onDismissFeedback} /> : <Feedback feedback={feedback} onDismiss={onDismissFeedback} />}
+        {feedbackMode === 'toast' ? (
+          <RecruitmentToast feedback={feedback} onDismiss={onDismissFeedback} />
+        ) : (
+          <Feedback feedback={feedback} onDismiss={onDismissFeedback} />
+        )}
         {lookupNotice}
         {ticket}
         {banner}
 
-        <nav className="zrv-hr-track" aria-label={COMMON_TEXT.stepsLabel} style={{ '--step': step, '--n': steps.length }} ref={trackRef}>
+        <nav
+          className="zrv-hr-track"
+          aria-label={COMMON_TEXT.stepsLabel}
+          style={{ '--step': step, '--n': steps.length }}
+          ref={trackRef}
+        >
           <span className="zrv-hr-track__fill" aria-hidden="true" />
           {steps.map(([name, hint], index) => {
             const done = doneSteps[index] && index !== step
             const stepLocked = Boolean(lockedSteps[index])
             return (
-              <button key={name} type="button" className={`zrv-hr-track__step${done ? ' zrv-hr-is-done' : ''}`} aria-current={index === step ? 'step' : undefined} disabled={pending || stepLocked} aria-label={stepLocked ? `${name}: locked. Complete the previous steps first.` : undefined} onClick={() => go(index)}>
-                <span className="zrv-hr-track__n">{stepLocked ? <OrvexaIcon name="lock" size={15} /> : done ? <OrvexaIcon name="check" size={15} /> : index + 1}</span>
-                <span className="zrv-hr-track__t"><b>{name}</b><small>{stepLocked ? 'Complete previous step' : hint}</small></span>
+              <button
+                key={name}
+                type="button"
+                className={`zrv-hr-track__step${done ? ' zrv-hr-is-done' : ''}`}
+                aria-current={index === step ? 'step' : undefined}
+                disabled={pending || stepLocked}
+                aria-label={
+                  stepLocked ? `${name}: locked. Complete the previous steps first.` : undefined
+                }
+                onClick={() => go(index)}
+              >
+                <span className="zrv-hr-track__n">
+                  {stepLocked ? (
+                    <OrvexaIcon name="lock" size={15} />
+                  ) : done ? (
+                    <OrvexaIcon name="check" size={15} />
+                  ) : (
+                    index + 1
+                  )}
+                </span>
+                <span className="zrv-hr-track__t">
+                  <b>{name}</b>
+                  <small>{stepLocked ? 'Complete previous step' : hint}</small>
+                </span>
               </button>
             )
           })}
@@ -170,24 +293,63 @@ export function RecruitmentShell({
       </div>
 
       <div className="zrv-hr-body">
-        <form className="zrv-hr-stage" noValidate onSubmit={(event) => event.preventDefault()} ref={stageRef}>
-          {locked && <p className="zrv-hr-locked"><OrvexaIcon name="lock" size={15} /> {COMMON_TEXT.readOnly}</p>}
+        <form
+          className="zrv-hr-stage"
+          noValidate
+          onSubmit={(event) => event.preventDefault()}
+          ref={stageRef}
+        >
+          {locked && (
+            <p className="zrv-hr-locked">
+              <OrvexaIcon name="lock" size={15} /> {COMMON_TEXT.readOnly}
+            </p>
+          )}
           <fieldset disabled={locked || pending} className="zrv-hr-stage__fs">
-            <section key={singlePage ? 'all' : step} className={`zrv-hr-panel${singlePage ? '' : ` zrv-hr-is-entering zrv-hr-is-${direction.value}`}`}>
+            <section
+              key={singlePage ? 'all' : step}
+              className={`zrv-hr-panel${singlePage ? '' : ` zrv-hr-is-entering zrv-hr-is-${direction.value}`}`}
+            >
               {children}
             </section>
           </fieldset>
-          {!singlePage && <div className="zrv-hr-stage__nav">
-            <button type="button" className="btn-secondary zrv-hr-btn" onClick={() => go(step - 1)} disabled={pending || step === 0}>
-              <OrvexaIcon name="arrow-left" size={16} /> {COMMON_TEXT.back}
-            </button>
-            <span className="zrv-hr-dots" aria-hidden="true">{steps.map(([name], index) => <i key={name} className={index === step ? 'zrv-hr-is-on' : ''} />)}</span>
-            {step < steps.length - 1 ? (
-              <button type="button" className="btn-primary zrv-hr-btn" onClick={() => go(step + 1, true)} disabled={pending}><span className="zrv-hr-btn__label">{COMMON_TEXT.continue}</span> <OrvexaIcon name="arrow-right" size={16} /></button>
-            ) : (
-              <button type="button" className="btn-primary zrv-hr-btn" onClick={() => act(onFinal)} disabled={locked || pending}><OrvexaIcon name="check" size={16} /> <span className="zrv-hr-btn__label">{finalLabel}</span></button>
-            )}
-          </div>}
+          {!singlePage && (
+            <div className="zrv-hr-stage__nav">
+              <button
+                type="button"
+                className="btn-secondary zrv-hr-btn"
+                onClick={() => go(step - 1)}
+                disabled={pending || step === 0}
+              >
+                <OrvexaIcon name="arrow-left" size={16} /> {COMMON_TEXT.back}
+              </button>
+              <span className="zrv-hr-dots" aria-hidden="true">
+                {steps.map(([name], index) => (
+                  <i key={name} className={index === step ? 'zrv-hr-is-on' : ''} />
+                ))}
+              </span>
+              {step < steps.length - 1 ? (
+                <button
+                  type="button"
+                  className="btn-primary zrv-hr-btn"
+                  onClick={() => go(step + 1, true)}
+                  disabled={pending}
+                >
+                  <span className="zrv-hr-btn__label">{COMMON_TEXT.continue}</span>{' '}
+                  <OrvexaIcon name="arrow-right" size={16} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-primary zrv-hr-btn"
+                  onClick={() => act(onFinal)}
+                  disabled={locked || pending}
+                >
+                  <OrvexaIcon name="check" size={16} />{' '}
+                  <span className="zrv-hr-btn__label">{finalLabel}</span>
+                </button>
+              )}
+            </div>
+          )}
         </form>
         {side && <aside className="zrv-hr-side">{side}</aside>}
       </div>
@@ -203,7 +365,9 @@ export function PanelHead({ n, eyebrow, title, desc }) {
         <h2 tabIndex={-1}>{title}</h2>
         {desc && <p>{desc}</p>}
       </div>
-      <span className="zrv-hr-panel__n" aria-hidden="true">{String(n).padStart(2, '0')}</span>
+      <span className="zrv-hr-panel__n" aria-hidden="true">
+        {String(n).padStart(2, '0')}
+      </span>
     </div>
   )
 }
@@ -213,7 +377,9 @@ export function PanelHead({ n, eyebrow, title, desc }) {
 export function StepHead({ title, desc }) {
   return (
     <div className="zrv-hr-step-head">
-      <h2 tabIndex={-1} className="zrv-hr-sr">{title}</h2>
+      <h2 tabIndex={-1} className="zrv-hr-sr">
+        {title}
+      </h2>
       {desc && <p>{desc}</p>}
     </div>
   )
@@ -222,14 +388,22 @@ export function StepHead({ title, desc }) {
 export function Ticket({ avatar, items, code }) {
   return (
     <section className="zrv-hr-ticket" aria-label={COMMON_TEXT.ticketLabel}>
-      <span className="zrv-hr-avatar" aria-hidden="true">{avatar}</span>
+      <span className="zrv-hr-avatar" aria-hidden="true">
+        {avatar}
+      </span>
       <dl className="zrv-hr-ticket__meta">
         {items.map((item) => (
-          <div key={item.k}><dt>{item.k}</dt><dd className={item.big ? 'zrv-hr-is-big' : undefined}>{item.v}</dd></div>
+          <div key={item.k}>
+            <dt>{item.k}</dt>
+            <dd className={item.big ? 'zrv-hr-is-big' : undefined}>{item.v}</dd>
+          </div>
         ))}
       </dl>
       <span className="zrv-hr-ticket__perf" aria-hidden="true" />
-      <div className="zrv-hr-ticket__no"><span>{COMMON_TEXT.formCode}</span>{code}</div>
+      <div className="zrv-hr-ticket__no">
+        <span>{COMMON_TEXT.formCode}</span>
+        {code}
+      </div>
     </section>
   )
 }
@@ -245,13 +419,41 @@ export function Orbit({ done, total, hint }) {
   const percent = Math.round(ratio * 100)
   return (
     <div className="zrv-hr-orbit zrv-hr-card">
-      <svg width="92" height="92" viewBox="0 0 92 92" role="img" aria-label={COMMON_TEXT.percent(percent)}>
-        <circle cx="46" cy="46" r="38" fill="none" className="zrv-hr-orbit__track" strokeWidth="8" />
-        <circle className="zrv-hr-orbit__ring" cx="46" cy="46" r="38" fill="none" strokeWidth="8" strokeLinecap="round"
-          strokeDasharray={circumference} strokeDashoffset={(circumference * (1 - ratio)).toFixed(2)} transform="rotate(-90 46 46)" />
-        <text x="46" y="52" textAnchor="middle" className="zrv-hr-orbit__text">{percent}%</text>
+      <svg
+        width="92"
+        height="92"
+        viewBox="0 0 92 92"
+        role="img"
+        aria-label={COMMON_TEXT.percent(percent)}
+      >
+        <circle
+          cx="46"
+          cy="46"
+          r="38"
+          fill="none"
+          className="zrv-hr-orbit__track"
+          strokeWidth="8"
+        />
+        <circle
+          className="zrv-hr-orbit__ring"
+          cx="46"
+          cy="46"
+          r="38"
+          fill="none"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={(circumference * (1 - ratio)).toFixed(2)}
+          transform="rotate(-90 46 46)"
+        />
+        <text x="46" y="52" textAnchor="middle" className="zrv-hr-orbit__text">
+          {percent}%
+        </text>
       </svg>
-      <div><b>{COMMON_TEXT.progress(done, total)}</b><small>{hint}</small></div>
+      <div>
+        <b>{COMMON_TEXT.progress(done, total)}</b>
+        <small>{hint}</small>
+      </div>
     </div>
   )
 }
@@ -265,7 +467,10 @@ export function RouteCard({ title, note, steps }) {
         {steps.map((item, index) => (
           <li key={item.code} className={item.added ? 'zrv-hr-is-added' : undefined}>
             <span className="zrv-hr-route__n">{index + 1}</span>
-            <span><b>{item.label}</b><small>{item.note}</small></span>
+            <span>
+              <b>{item.label}</b>
+              <small>{item.note}</small>
+            </span>
           </li>
         ))}
       </ol>
@@ -277,7 +482,11 @@ export function RouteCard({ title, note, steps }) {
 export function Tilt({ className = '', children, ...rest }) {
   const ref = useRef(null)
   const onMove = (event) => {
-    if (!window.matchMedia('(hover:hover)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (
+      !window.matchMedia('(hover:hover)').matches ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    )
+      return
     const node = ref.current
     const box = node.getBoundingClientRect()
     const x = (event.clientX - box.left) / box.width
@@ -293,7 +502,15 @@ export function Tilt({ className = '', children, ...rest }) {
   }
   return (
     <div className="zrv-hr-tilt-wrap">
-      <article ref={ref} className={`zrv-hr-tilt zrv-hr-dark ${className}`.trim()} onPointerMove={onMove} onPointerLeave={onLeave} {...rest}>{children}</article>
+      <article
+        ref={ref}
+        className={`zrv-hr-tilt zrv-hr-dark ${className}`.trim()}
+        onPointerMove={onMove}
+        onPointerLeave={onLeave}
+        {...rest}
+      >
+        {children}
+      </article>
     </div>
   )
 }

@@ -1,5 +1,5 @@
-import { appConfig } from "@/config/appConfig.js";
-import { ZAMIL_LOGO_SRC } from "@/features/dashboard/dashboardExperience.js";
+import { appConfig } from '@/config/appConfig.js'
+import { ZAMIL_LOGO_SRC } from '@/features/dashboard/dashboardExperience.js'
 
 // The application shell owns the real navigation and account menu. This strip
 // belongs to the dashboard canvas: it gives the page the approved identity and
@@ -7,10 +7,7 @@ import { ZAMIL_LOGO_SRC } from "@/features/dashboard/dashboardExperience.js";
 export default function DashboardMeta() {
   return (
     <header className="hero-meta">
-      <span
-        className="sitebrand"
-        aria-label={`${appConfig.name} digital workspace`}
-      >
+      <span className="sitebrand" aria-label={`${appConfig.name} digital workspace`}>
         <span className="zamil-lockup">
           <img src={ZAMIL_LOGO_SRC} alt="" />
         </span>
@@ -21,5 +18,5 @@ export default function DashboardMeta() {
         </span>
       </span>
     </header>
-  );
+  )
 }

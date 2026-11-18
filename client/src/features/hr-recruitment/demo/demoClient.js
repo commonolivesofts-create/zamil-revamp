@@ -14,46 +14,108 @@ import { COMP_KEYS, HR_FIELDS, SPEC_KEYS } from '../interview/interviewModel.js'
 import { BENEFIT_KEYS, issuedStatus } from '../offer/offerModel.js'
 import { scheduleIssues, scheduleToDate } from '../orientation/orientationModel.js'
 import { validateProbation } from '../probation/probationModel.js'
-import { AGE_BANDS, ALL_DEPARTMENTS, ageBandCounts, groupCount, inBand, runReport, sortRows, summarise, yearlyFlow } from '../report/periodwiseModel.js'
+import {
+  AGE_BANDS,
+  ALL_DEPARTMENTS,
+  ageBandCounts,
+  groupCount,
+  inBand,
+  runReport,
+  sortRows,
+  summarise,
+  yearlyFlow,
+} from '../report/periodwiseModel.js'
 import { isIsoDate } from '../shared/hrFormat.js'
-import { DEMO_ASSIGNED, DEMO_EMPLOYEES, DEMO_LOOKUPS, createDemoRecords, createDemoReportRows } from './demoData.js'
+import {
+  DEMO_ASSIGNED,
+  DEMO_EMPLOYEES,
+  DEMO_LOOKUPS,
+  createDemoRecords,
+  createDemoReportRows,
+} from './demoData.js'
 
 const BASE = '/hr/recruitment'
-const ROUTE = /^\/hr\/recruitment\/(requisitions|interview-assessments|employment-offers|orientation-schedules|probation-evaluations)(?:\/([1-9][0-9]*)(?:\/(submit|issue))?)?$/
+const ROUTE =
+  /^\/hr\/recruitment\/(requisitions|interview-assessments|employment-offers|orientation-schedules|probation-evaluations)(?:\/([1-9][0-9]*)(?:\/(submit|issue))?)?$/
 const MAX_LIMIT = 100
 
 const clone = (value) => structuredClone(value)
 
 const COLLECTIONS = Object.freeze({
   requisitions: Object.freeze({
-    store: 'requisitions', id: 'requisitionId', number: 'requisitionNumber', prefix: 'PRQ', action: 'submit',
-    listFields: ['requisitionId', 'requisitionNumber', 'status', 'jobTitle', 'departmentCode', 'updatedAt'],
+    store: 'requisitions',
+    id: 'requisitionId',
+    number: 'requisitionNumber',
+    prefix: 'PRQ',
+    action: 'submit',
+    listFields: [
+      'requisitionId',
+      'requisitionNumber',
+      'status',
+      'jobTitle',
+      'departmentCode',
+      'updatedAt',
+    ],
     locked: (record) => record.status === 'SUBMITTED',
   }),
   'interview-assessments': Object.freeze({
-    store: 'interviews', id: 'assessmentId', number: 'assessmentNumber', prefix: 'IA', action: 'submit',
-    listFields: ['assessmentId', 'assessmentNumber', 'status', 'candidateName', 'positionTitle', 'outcome', 'updatedAt'],
+    store: 'interviews',
+    id: 'assessmentId',
+    number: 'assessmentNumber',
+    prefix: 'IA',
+    action: 'submit',
+    listFields: [
+      'assessmentId',
+      'assessmentNumber',
+      'status',
+      'candidateName',
+      'positionTitle',
+      'outcome',
+      'updatedAt',
+    ],
     locked: (record) => record.status === 'SUBMITTED',
   }),
   'employment-offers': Object.freeze({
-    store: 'offers', id: 'offerId', number: 'offerNumber', prefix: 'OFR', action: 'issue',
+    store: 'offers',
+    id: 'offerId',
+    number: 'offerNumber',
+    prefix: 'OFR',
+    action: 'issue',
     listFields: ['offerId', 'offerNumber', 'status', 'position', 'candidateNameEn', 'updatedAt'],
     locked: (record) => record.status === 'ISSUED' || record.status === 'ACCEPTED',
   }),
   'orientation-schedules': Object.freeze({
-    store: 'orientations', id: 'scheduleId', number: 'scheduleNumber', prefix: 'ORT', action: null,
+    store: 'orientations',
+    id: 'scheduleId',
+    number: 'scheduleNumber',
+    prefix: 'ORT',
+    action: null,
     listItem: (record) => ({
-      scheduleId: record.scheduleId, scheduleNumber: record.scheduleNumber, status: record.status, employeeName: record.employee.name,
-      fromDate: record.fromDate, toDate: record.toDate, updatedAt: record.updatedAt,
+      scheduleId: record.scheduleId,
+      scheduleNumber: record.scheduleNumber,
+      status: record.status,
+      employeeName: record.employee.name,
+      fromDate: record.fromDate,
+      toDate: record.toDate,
+      updatedAt: record.updatedAt,
     }),
     // A saved schedule is read-only.
     locked: () => true,
   }),
   'probation-evaluations': Object.freeze({
-    store: 'evaluations', id: 'evaluationId', number: 'evaluationNumber', prefix: 'PAF', action: 'submit',
+    store: 'evaluations',
+    id: 'evaluationId',
+    number: 'evaluationNumber',
+    prefix: 'PAF',
+    action: 'submit',
     listItem: (record) => ({
-      evaluationId: record.evaluationId, evaluationNumber: record.evaluationNumber, status: record.status, employeeName: record.employee.name,
-      formTypeCode: record.formTypeCode, totalPoints: Object.values(record.scores).reduce((sum, value) => sum + value, 0), updatedAt: record.updatedAt,
+      evaluationId: record.evaluationId,
+      evaluationNumber: record.evaluationNumber,
+      status: record.status,
+      employeeName: record.employee.name,
+      formTypeCode: record.formTypeCode,
+      totalPoints: Object.values(record.scores).reduce((sum, value) => sum + value, 0),
+      updatedAt: record.updatedAt,
     }),
     locked: (record) => record.status === 'SUBMITTED',
   }),
@@ -61,58 +123,143 @@ const COLLECTIONS = Object.freeze({
 
 // Writable fields per collection, as the backend's Joi schema would allow.
 const REQUISITION_FIELDS = [
-  'jobTitle', 'departmentCode', 'neededDate', 'remark', 'reason', 'replacementFor', 'additionReason', 'budgeted', 'budgetedSalary',
-  'educationCodes', 'gccExperienceCode', 'workExperienceCode', 'skills', 'otherRequirements', 'attachments',
+  'jobTitle',
+  'departmentCode',
+  'neededDate',
+  'remark',
+  'reason',
+  'replacementFor',
+  'additionReason',
+  'budgeted',
+  'budgetedSalary',
+  'educationCodes',
+  'gccExperienceCode',
+  'workExperienceCode',
+  'skills',
+  'otherRequirements',
+  'attachments',
 ]
 const INTERVIEW_FIELDS = [
-  ...HR_FIELDS.map(([key]) => key), 'personalSpecification', 'personalSpecificationRemarks', 'competency', 'competencyRemarks',
-  'strengths', 'weakness', 'outcome', 'departmentRepresentative', 'payroll', 'hrComment', 'interviewers',
+  ...HR_FIELDS.map(([key]) => key),
+  'personalSpecification',
+  'personalSpecificationRemarks',
+  'competency',
+  'competencyRemarks',
+  'strengths',
+  'weakness',
+  'outcome',
+  'departmentRepresentative',
+  'payroll',
+  'hrComment',
+  'interviewers',
 ]
-const OFFER_FIELDS = ['position', 'offerDate', 'reportFormat', 'salutation', 'candidateNameEn', 'candidateNameAr', 'benefits', 'comments', 'signatures']
+const OFFER_FIELDS = [
+  'position',
+  'offerDate',
+  'reportFormat',
+  'salutation',
+  'candidateNameEn',
+  'candidateNameAr',
+  'benefits',
+  'comments',
+  'signatures',
+]
 const ORIENTATION_FIELDS = ['employeeId', 'fromDate', 'sessions']
 const PROBATION_FIELDS = [
-  'formTypeCode', 'employeeId', 'fromDate', 'toDate', 'scores', 'notes', 'strengths', 'improvements', 'training', 'recommendation',
-  'extendByMonths', 'justification', 'comments', 'suggestion', 'signatures',
+  'formTypeCode',
+  'employeeId',
+  'fromDate',
+  'toDate',
+  'scores',
+  'notes',
+  'strengths',
+  'improvements',
+  'training',
+  'recommendation',
+  'extendByMonths',
+  'justification',
+  'comments',
+  'suggestion',
+  'signatures',
 ]
 const FIELDS = Object.freeze({
-  requisitions: REQUISITION_FIELDS, interviews: INTERVIEW_FIELDS, offers: OFFER_FIELDS, orientations: ORIENTATION_FIELDS, evaluations: PROBATION_FIELDS,
+  requisitions: REQUISITION_FIELDS,
+  interviews: INTERVIEW_FIELDS,
+  offers: OFFER_FIELDS,
+  orientations: ORIENTATION_FIELDS,
+  evaluations: PROBATION_FIELDS,
 })
 
-const pick = (body, fields) => Object.fromEntries(fields.filter((field) => body && field in body).map((field) => [field, clone(body[field])]))
-const blank = (value) => value === null || value === undefined || (typeof value === 'string' && !value.trim()) || (Array.isArray(value) && !value.length)
+const pick = (body, fields) =>
+  Object.fromEntries(
+    fields.filter((field) => body && field in body).map((field) => [field, clone(body[field])]),
+  )
+const blank = (value) =>
+  value === null ||
+  value === undefined ||
+  (typeof value === 'string' && !value.trim()) ||
+  (Array.isArray(value) && !value.length)
 
 function wait(ms, signal) {
   return new Promise((resolve, reject) => {
-    const aborted = () => reject(new ApiError('The API request was cancelled.', { code: 'ABORTED' }))
+    const aborted = () =>
+      reject(new ApiError('The API request was cancelled.', { code: 'ABORTED' }))
     if (signal?.aborted) return aborted()
-    const timer = setTimeout(() => { signal?.removeEventListener?.('abort', onAbort); resolve() }, ms)
-    function onAbort() { clearTimeout(timer); aborted() }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener?.('abort', onAbort)
+      resolve()
+    }, ms)
+    function onAbort() {
+      clearTimeout(timer)
+      aborted()
+    }
     signal?.addEventListener?.('abort', onAbort, { once: true })
   })
 }
 
 // Missing answers of a requisition submission, as validation details.
 function requisitionProblems(record) {
-  const required = ['jobTitle', 'departmentCode', 'neededDate', 'reason', record.reason === 'ADDITION' ? 'additionReason' : 'replacementFor',
-    'educationCodes', 'gccExperienceCode', 'workExperienceCode', 'skills']
-  const problems = required.filter((field) => blank(record[field])).map((field) => ({ field, message: `${field} is required` }))
-  if (record.budgeted === null) problems.push({ field: 'budgeted', message: 'budgeted is required' })
-  if (record.budgeted === true && record.budgetedSalary === null) problems.push({ field: 'budgetedSalary', message: 'budgetedSalary is required' })
+  const required = [
+    'jobTitle',
+    'departmentCode',
+    'neededDate',
+    'reason',
+    record.reason === 'ADDITION' ? 'additionReason' : 'replacementFor',
+    'educationCodes',
+    'gccExperienceCode',
+    'workExperienceCode',
+    'skills',
+  ]
+  const problems = required
+    .filter((field) => blank(record[field]))
+    .map((field) => ({ field, message: `${field} is required` }))
+  if (record.budgeted === null)
+    problems.push({ field: 'budgeted', message: 'budgeted is required' })
+  if (record.budgeted === true && record.budgetedSalary === null)
+    problems.push({ field: 'budgetedSalary', message: 'budgetedSalary is required' })
   return problems
 }
 
 function interviewComplete(record) {
   const hr = HR_FIELDS.filter(([, , rules]) => rules.required).every(([key]) => !blank(record[key]))
   const rated = (group, keys) => keys.every((key) => group?.[key]?.rating)
-  return hr && rated(record.personalSpecification, SPEC_KEYS) && rated(record.competency, COMP_KEYS) && Boolean(record.outcome)
+  return (
+    hr &&
+    rated(record.personalSpecification, SPEC_KEYS) &&
+    rated(record.competency, COMP_KEYS) &&
+    Boolean(record.outcome)
+  )
 }
 
 function offerProblems(record) {
   const problems = []
   if (blank(record.position)) problems.push({ field: 'position', message: 'position is required' })
-  if (blank(record.candidateNameEn)) problems.push({ field: 'candidateNameEn', message: 'candidateNameEn is required' })
-  if (blank(record.benefits?.basic?.en)) problems.push({ field: 'benefits.basic', message: 'benefits.basic is required' })
-  if (blank(record.benefits?.start?.en)) problems.push({ field: 'benefits.start', message: 'benefits.start is required' })
+  if (blank(record.candidateNameEn))
+    problems.push({ field: 'candidateNameEn', message: 'candidateNameEn is required' })
+  if (blank(record.benefits?.basic?.en))
+    problems.push({ field: 'benefits.basic', message: 'benefits.basic is required' })
+  if (blank(record.benefits?.start?.en))
+    problems.push({ field: 'benefits.start', message: 'benefits.start is required' })
   return problems
 }
 
@@ -122,12 +269,22 @@ function orientationProblems(record, employee) {
   const problems = []
   if (!employee) problems.push({ field: 'employeeId', message: 'employeeId is required' })
   if (!record.fromDate) problems.push({ field: 'fromDate', message: 'fromDate is required' })
-  const sessions = Object.fromEntries(Object.entries(record.sessions ?? {}).map(([key, session]) => [key, {
-    fromDate: session?.fromDate ?? '', toDate: session?.toDate ?? '', timeFrom: session?.timeFrom ?? '', timeTo: session?.timeTo ?? '',
-  }]))
-  if (Object.keys(sessions).length !== 5 || !scheduleToDate(sessions)) problems.push({ field: 'sessions', message: 'at least one dated session is required' })
+  const sessions = Object.fromEntries(
+    Object.entries(record.sessions ?? {}).map(([key, session]) => [
+      key,
+      {
+        fromDate: session?.fromDate ?? '',
+        toDate: session?.toDate ?? '',
+        timeFrom: session?.timeFrom ?? '',
+        timeTo: session?.timeTo ?? '',
+      },
+    ]),
+  )
+  if (Object.keys(sessions).length !== 5 || !scheduleToDate(sessions))
+    problems.push({ field: 'sessions', message: 'at least one dated session is required' })
   else {
-    for (const issue of scheduleIssues(sessions).filter((item) => item.level === 'bad')) problems.push({ field: `sessions.${issue.key}`, message: issue.text })
+    for (const issue of scheduleIssues(sessions).filter((item) => item.level === 'bad'))
+      problems.push({ field: `sessions.${issue.key}`, message: issue.text })
   }
   return problems
 }
@@ -136,16 +293,27 @@ function orientationProblems(record, employee) {
 function probationProblems(record, employee, lookups) {
   const formType = lookups.probation.formTypes.find((item) => item.code === record.formTypeCode)
   const form = {
-    formTypeCode: formType ? record.formTypeCode : '', employeeId: employee ? employee.employeeId : '', fromDate: record.fromDate ?? '', toDate: record.toDate ?? '',
-    scores: record.scores ?? {}, recommendation: record.recommendation ?? '', extendBy: record.extendByMonths ? String(record.extendByMonths) : '',
-    justification: record.justification ?? '', signatures: record.signatures ?? {},
+    formTypeCode: formType ? record.formTypeCode : '',
+    employeeId: employee ? employee.employeeId : '',
+    fromDate: record.fromDate ?? '',
+    toDate: record.toDate ?? '',
+    scores: record.scores ?? {},
+    recommendation: record.recommendation ?? '',
+    extendBy: record.extendByMonths ? String(record.extendByMonths) : '',
+    justification: record.justification ?? '',
+    signatures: record.signatures ?? {},
   }
   const { errors } = validateProbation(form, { employee, criteria: formType?.criteria ?? [] })
   return Object.entries(errors).map(([field, message]) => ({ field, message }))
 }
 
 export function createDemoClient({
-  latencyMs = 350, now = () => new Date(), records = createDemoRecords(), lookups = DEMO_LOOKUPS, employees = DEMO_EMPLOYEES, reportRows = createDemoReportRows(),
+  latencyMs = 350,
+  now = () => new Date(),
+  records = createDemoRecords(),
+  lookups = DEMO_LOOKUPS,
+  employees = DEMO_EMPLOYEES,
+  reportRows = createDemoReportRows(),
 } = {}) {
   const store = clone(records)
   let requests = 0
@@ -156,7 +324,12 @@ export function createDemoClient({
     throw new ApiError(message, { code, status, details, requestId: `demo-${requests}` })
   }
   const respond = (data, { status = 200, pagination = null } = {}) =>
-    Object.freeze({ status, data: clone(data), pagination: pagination && Object.freeze(pagination), requestId: `demo-${requests}` })
+    Object.freeze({
+      status,
+      data: clone(data),
+      pagination: pagination && Object.freeze(pagination),
+      requestId: `demo-${requests}`,
+    })
   const timestamp = () => now().toISOString()
   const today = () => businessToday(now())
 
@@ -166,48 +339,90 @@ export function createDemoClient({
     const pattern = new RegExp(`^${collection.prefix}-${year}-(\\d+)$`)
     const highest = store[collection.store]
       .map((record) => pattern.exec(record[collection.number] ?? '')?.[1])
-      .filter(Boolean).map(Number).reduce((max, value) => Math.max(max, value), 0)
+      .filter(Boolean)
+      .map(Number)
+      .reduce((max, value) => Math.max(max, value), 0)
     return `${collection.prefix}-${year}-${String(highest + 1).padStart(4, '0')}`
   }
-  const nextId = (collection) => String(store[collection.store].reduce((max, record) => Math.max(max, Number(record[collection.id])), 0) + 1)
-  const find = (collection, id) => store[collection.store].find((record) => record[collection.id] === id) ?? fail(404, 'NOT_FOUND', 'The record was not found.')
+  const nextId = (collection) =>
+    String(
+      store[collection.store].reduce(
+        (max, record) => Math.max(max, Number(record[collection.id])),
+        0,
+      ) + 1,
+    )
+  const find = (collection, id) =>
+    store[collection.store].find((record) => record[collection.id] === id) ??
+    fail(404, 'NOT_FOUND', 'The record was not found.')
 
   function list(collection, params = {}) {
     const page = Math.max(1, Number.parseInt(params.page, 10) || 1)
     const limit = Math.min(MAX_LIMIT, Math.max(1, Number.parseInt(params.limit, 10) || 25))
-    const number = String(params.number ?? '').trim().toLowerCase()
+    const number = String(params.number ?? '')
+      .trim()
+      .toLowerCase()
     const items = store[collection.store]
-      .filter((record) => !number || String(record[collection.number] ?? '').toLowerCase() === number)
+      .filter(
+        (record) => !number || String(record[collection.number] ?? '').toLowerCase() === number,
+      )
       .filter((record) => !params.status || record.status === params.status)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     const total = items.length
     const totalPages = Math.ceil(total / limit)
-    return respond(items.slice((page - 1) * limit, page * limit).map((record) => (collection.listItem ? collection.listItem(record) : pick(record, collection.listFields))), {
-      pagination: { page, limit, total, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 },
-    })
+    return respond(
+      items
+        .slice((page - 1) * limit, page * limit)
+        .map((record) =>
+          collection.listItem ? collection.listItem(record) : pick(record, collection.listFields),
+        ),
+      {
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+      },
+    )
   }
 
   // Server-side values for a saved record.
   function prepare(collection, record) {
     if (collection.store === 'interviews') {
-      if (!interviewComplete(record)) fail(422, 'VALIDATION_ERROR', INTERVIEW_TEXT.errors.incomplete)
-      const requisition = store.requisitions.find((item) => item.status === 'SUBMITTED' &&
-        String(item.requisitionNumber).toLowerCase() === String(record.requisitionNumber).trim().toLowerCase())
+      if (!interviewComplete(record))
+        fail(422, 'VALIDATION_ERROR', INTERVIEW_TEXT.errors.incomplete)
+      const requisition = store.requisitions.find(
+        (item) =>
+          item.status === 'SUBMITTED' &&
+          String(item.requisitionNumber).toLowerCase() ===
+            String(record.requisitionNumber).trim().toLowerCase(),
+      )
       record.positionTitle = requisition ? requisition.jobTitle : null
       record.adminManagerName = DEMO_ASSIGNED.adminManagerName
       if (record.status !== 'SUBMITTED') record.status = 'COMPLETE'
       record.assessmentNumber ??= nextNumber(collection)
     }
     if (collection.store === 'requisitions') {
-      record.attachments = (record.attachments ?? []).map(({ fileName, sizeBytes }) => ({ fileName: String(fileName), sizeBytes: Number(sizeBytes) || 0 }))
+      record.attachments = (record.attachments ?? []).map(({ fileName, sizeBytes }) => ({
+        fileName: String(fileName),
+        sizeBytes: Number(sizeBytes) || 0,
+      }))
     }
     if (collection.store === 'offers') {
-      record.benefits = Object.fromEntries(BENEFIT_KEYS.map((key) => [key, record.benefits?.[key] ?? { en: '', ar: '', autoArabic: true }]))
+      record.benefits = Object.fromEntries(
+        BENEFIT_KEYS.map((key) => [
+          key,
+          record.benefits?.[key] ?? { en: '', ar: '', autoArabic: true },
+        ]),
+      )
     }
     if (collection.store === 'orientations') {
       const person = employees.find((item) => item.employeeId === record.employeeId)
       const problems = orientationProblems(record, person)
-      if (problems.length) fail(422, 'VALIDATION_ERROR', 'The orientation schedule cannot be saved.', problems)
+      if (problems.length)
+        fail(422, 'VALIDATION_ERROR', 'The orientation schedule cannot be saved.', problems)
       record.employee = clone(person)
       delete record.employeeId
       record.toDate = scheduleToDate(record.sessions)
@@ -216,14 +431,20 @@ export function createDemoClient({
       record.scheduleNumber ??= nextNumber(collection)
     }
     if (collection.store === 'evaluations') {
-      const person = employees.find((item) => item.employeeId === (record.employeeId ?? record.employee?.employeeId))
+      const person = employees.find(
+        (item) => item.employeeId === (record.employeeId ?? record.employee?.employeeId),
+      )
       const problems = probationProblems(record, person, lookups)
-      if (problems.length) fail(422, 'VALIDATION_ERROR', 'The evaluation cannot be saved.', problems)
+      if (problems.length)
+        fail(422, 'VALIDATION_ERROR', 'The evaluation cannot be saved.', problems)
       record.employee = clone(person)
       delete record.employeeId
       record.scores ??= {}
       record.notes ??= {}
-      record.signatures = { evaluator: record.signatures?.evaluator ?? null, employee: record.signatures?.employee ?? null }
+      record.signatures = {
+        evaluator: record.signatures?.evaluator ?? null,
+        employee: record.signatures?.employee ?? null,
+      }
       record.preparedByName = actor ?? record.preparedByName ?? DEMO_ASSIGNED.preparedByName
       record.status = 'DRAFT'
       record.evaluationNumber ??= nextNumber(collection)
@@ -234,41 +455,76 @@ export function createDemoClient({
 
   function create(collection, body) {
     const base = {
-      requisitions: () => ({ requisitionNumber: null, status: 'DRAFT', requesterName: actor ?? DEMO_ASSIGNED.requesterName, requestDate: today(), basicSalary: null, attachments: [] }),
-      interviews: () => ({ assessmentNumber: null, status: 'INCOMPLETE', positionTitle: null, adminManagerName: null }),
+      requisitions: () => ({
+        requisitionNumber: null,
+        status: 'DRAFT',
+        requesterName: actor ?? DEMO_ASSIGNED.requesterName,
+        requestDate: today(),
+        basicSalary: null,
+        attachments: [],
+      }),
+      interviews: () => ({
+        assessmentNumber: null,
+        status: 'INCOMPLETE',
+        positionTitle: null,
+        adminManagerName: null,
+      }),
       offers: () => ({ offerNumber: null, status: 'DRAFT', currency: lookups.offer.currency }),
       orientations: () => ({ scheduleNumber: null }),
       evaluations: () => ({
-        evaluationNumber: null, strengths: '', improvements: '', training: '', recommendation: null, extendByMonths: null, justification: '', comments: '', suggestion: '',
+        evaluationNumber: null,
+        strengths: '',
+        improvements: '',
+        training: '',
+        recommendation: null,
+        extendByMonths: null,
+        justification: '',
+        comments: '',
+        suggestion: '',
       }),
     }[collection.store]()
-    const record = prepare(collection, { [collection.id]: nextId(collection), ...base, ...pick(body, FIELDS[collection.store]) })
+    const record = prepare(collection, {
+      [collection.id]: nextId(collection),
+      ...base,
+      ...pick(body, FIELDS[collection.store]),
+    })
     store[collection.store].push(record)
     return respond(record, { status: 201 })
   }
 
   function update(collection, id, body) {
     const current = find(collection, id)
-    if (collection.locked(current)) fail(409, 'CONFLICT', 'This record is read-only because it was already submitted or issued.')
-    const record = prepare(collection, { ...clone(current), ...pick(body, FIELDS[collection.store]) })
+    if (collection.locked(current))
+      fail(409, 'CONFLICT', 'This record is read-only because it was already submitted or issued.')
+    const record = prepare(collection, {
+      ...clone(current),
+      ...pick(body, FIELDS[collection.store]),
+    })
     store[collection.store][store[collection.store].indexOf(current)] = record
     return respond(record)
   }
 
   function act(collection, id) {
     const current = find(collection, id)
-    if (collection.locked(current)) fail(409, 'CONFLICT', 'This record is read-only because it was already submitted or issued.')
+    if (collection.locked(current))
+      fail(409, 'CONFLICT', 'This record is read-only because it was already submitted or issued.')
     const record = clone(current)
     if (collection.store === 'requisitions') {
       const problems = requisitionProblems(record)
       if (problems.length) fail(422, 'VALIDATION_ERROR', 'The requisition is incomplete.', problems)
       record.status = 'SUBMITTED'
     } else if (collection.store === 'interviews') {
-      if (!interviewComplete(record)) fail(422, 'VALIDATION_ERROR', INTERVIEW_TEXT.errors.incomplete)
+      if (!interviewComplete(record))
+        fail(422, 'VALIDATION_ERROR', INTERVIEW_TEXT.errors.incomplete)
       record.status = 'SUBMITTED'
     } else if (collection.store === 'evaluations') {
-      const problems = probationProblems({ ...record, employeeId: record.employee.employeeId }, record.employee, lookups)
-      if (problems.length) fail(422, 'VALIDATION_ERROR', 'The evaluation cannot be submitted.', problems)
+      const problems = probationProblems(
+        { ...record, employeeId: record.employee.employeeId },
+        record.employee,
+        lookups,
+      )
+      if (problems.length)
+        fail(422, 'VALIDATION_ERROR', 'The evaluation cannot be submitted.', problems)
       record.status = 'SUBMITTED'
     } else {
       const problems = offerProblems(record)
@@ -281,64 +537,135 @@ export function createDemoClient({
     return respond(record)
   }
 
-
   // Periodwise Employees, with the API contract of GET /hr/reports/periodwise-employees: the
   // period, department and status select the scope (and the summary); search, nationality,
   // age band and "needs checking" narrow only the rows; then sort and page. Demo departments
   // get numeric codes like the API's ORGANIZATION_ID.
-  const departmentIds = Object.fromEntries(lookups.departments.map((item, index) => [item.code, String(101 + index)]))
-  const reportDepartments = lookups.departments.map((item) => ({ code: departmentIds[item.code], name: item.name }))
+  const departmentIds = Object.fromEntries(
+    lookups.departments.map((item, index) => [item.code, String(101 + index)]),
+  )
+  const reportDepartments = lookups.departments.map((item) => ({
+    code: departmentIds[item.code],
+    name: item.name,
+  }))
   function periodwiseEmployees(params = {}) {
     const department = params.department || ALL_DEPARTMENTS
     const status = params.status || 'ALL'
     const page = Number(params.page ?? 1)
     const pageSize = Number(params.pageSize ?? 25)
     const problems = []
-    if (!isIsoDate(params.dateFrom)) problems.push({ field: 'dateFrom', message: '"dateFrom" is required' })
-    if (!isIsoDate(params.dateTo)) problems.push({ field: 'dateTo', message: '"dateTo" is required' })
-    if (isIsoDate(params.dateFrom) && isIsoDate(params.dateTo) && params.dateTo < params.dateFrom) problems.push({ field: 'dateTo', message: '"dateTo" must be on or after "dateFrom"' })
-    if (department !== ALL_DEPARTMENTS && !/^[0-9]{1,19}$/.test(department)) problems.push({ field: 'department', message: '"department" has an invalid format' })
-    if (!['ALL', 'ACTIVE', 'LEFT'].includes(status)) problems.push({ field: 'status', message: '"status" is not allowed' })
-    if (!Number.isInteger(page) || page < 1 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > MAX_LIMIT) problems.push({ field: 'pageSize', message: '"pageSize" is not allowed' })
+    if (!isIsoDate(params.dateFrom))
+      problems.push({ field: 'dateFrom', message: '"dateFrom" is required' })
+    if (!isIsoDate(params.dateTo))
+      problems.push({ field: 'dateTo', message: '"dateTo" is required' })
+    if (isIsoDate(params.dateFrom) && isIsoDate(params.dateTo) && params.dateTo < params.dateFrom)
+      problems.push({ field: 'dateTo', message: '"dateTo" must be on or after "dateFrom"' })
+    if (department !== ALL_DEPARTMENTS && !/^[0-9]{1,19}$/.test(department))
+      problems.push({ field: 'department', message: '"department" has an invalid format' })
+    if (!['ALL', 'ACTIVE', 'LEFT'].includes(status))
+      problems.push({ field: 'status', message: '"status" is not allowed' })
+    if (
+      !Number.isInteger(page) ||
+      page < 1 ||
+      !Number.isInteger(pageSize) ||
+      pageSize < 1 ||
+      pageSize > MAX_LIMIT
+    )
+      problems.push({ field: 'pageSize', message: '"pageSize" is not allowed' })
     if (problems.length) fail(400, 'VALIDATION_ERROR', 'Request validation failed', problems)
     const scopeParams = { department, from: params.dateFrom, to: params.dateTo }
     const names = Object.fromEntries(reportDepartments.map((item) => [item.code, item.name]))
-    const items = runReport(reportRows.map((row) => ({ ...row, departmentCode: departmentIds[row.departmentCode] })), scopeParams, today())
+    const items = runReport(
+      reportRows.map((row) => ({ ...row, departmentCode: departmentIds[row.departmentCode] })),
+      scopeParams,
+      today(),
+    )
       .filter((row) => status === 'ALL' || (status === 'ACTIVE' ? row.active : !row.active))
       .map((row) => ({
-        employeeNumber: row.employeeNumber, name: row.name, birthDate: row.birthDate, age: row.age, nationality: row.nationality,
-        jobTitle: row.job, position: row.position, departmentCode: row.departmentCode, departmentName: names[row.departmentCode] ?? '',
-        hasNationalId: Boolean(row.nationalId), startDate: row.startDate, endDate: row.endDate, years: row.years,
-        leavingReason: row.leavingReason, active: row.active, senior: row.senior, flags: row.flags,
+        employeeNumber: row.employeeNumber,
+        name: row.name,
+        birthDate: row.birthDate,
+        age: row.age,
+        nationality: row.nationality,
+        jobTitle: row.job,
+        position: row.position,
+        departmentCode: row.departmentCode,
+        departmentName: names[row.departmentCode] ?? '',
+        hasNationalId: Boolean(row.nationalId),
+        startDate: row.startDate,
+        endDate: row.endDate,
+        years: row.years,
+        leavingReason: row.leavingReason,
+        active: row.active,
+        senior: row.senior,
+        flags: row.flags,
       }))
     const active = items.filter((row) => row.active)
     const kpis = summarise(items, scopeParams)
     const summary = {
-      total: kpis.total, active: kpis.active, joiners: kpis.joiners, leavers: kpis.leavers, turnover: kpis.turnover, saudization: kpis.saudization,
-      averageAge: kpis.averageAge, senior: kpis.senior, averageService: kpis.averageService, flagged: kpis.flagged,
-      byDepartment: groupCount(items, 'departmentCode').map(([code, count]) => ({ code, name: names[code] ?? '', count })),
+      total: kpis.total,
+      active: kpis.active,
+      joiners: kpis.joiners,
+      leavers: kpis.leavers,
+      turnover: kpis.turnover,
+      saudization: kpis.saudization,
+      averageAge: kpis.averageAge,
+      senior: kpis.senior,
+      averageService: kpis.averageService,
+      flagged: kpis.flagged,
+      byDepartment: groupCount(items, 'departmentCode').map(([code, count]) => ({
+        code,
+        name: names[code] ?? '',
+        count,
+      })),
       byNationality: groupCount(active, 'nationality').map(([name, count]) => ({ name, count })),
       ageBands: ageBandCounts(active).map(([band, count]) => ({ band, count })),
-      yearlyFlow: yearlyFlow(items, Number(today().slice(0, 4))).map(([year, joiners, leavers]) => ({ year, joiners, leavers })),
+      yearlyFlow: yearlyFlow(items, Number(today().slice(0, 4))).map(
+        ([year, joiners, leavers]) => ({ year, joiners, leavers }),
+      ),
     }
-    const term = String(params.search ?? '').trim().toLowerCase()
+    const term = String(params.search ?? '')
+      .trim()
+      .toLowerCase()
     const band = AGE_BANDS.find(([code]) => code === params.ageBand)
-    const refined = items.filter((row) => (!params.nationality || row.nationality === params.nationality) && (!band || inBand(row.age, band))
-      && (params.flagged !== 'true' || row.flags.length > 0)
-      && (!term || `${row.employeeNumber} ${row.name} ${row.jobTitle} ${row.departmentName}`.toLowerCase().includes(term)))
-    const sorted = sortRows(refined, { key: params.sortBy || 'employeeNumber', direction: params.sortDir === 'asc' ? 1 : -1 })
-    const totalPages = Math.ceil(sorted.length / pageSize)
-    return respond({ rows: sorted.slice((page - 1) * pageSize, page * pageSize), summary }, {
-      pagination: { page, limit: pageSize, total: sorted.length, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 },
+    const refined = items.filter(
+      (row) =>
+        (!params.nationality || row.nationality === params.nationality) &&
+        (!band || inBand(row.age, band)) &&
+        (params.flagged !== 'true' || row.flags.length > 0) &&
+        (!term ||
+          `${row.employeeNumber} ${row.name} ${row.jobTitle} ${row.departmentName}`
+            .toLowerCase()
+            .includes(term)),
+    )
+    const sorted = sortRows(refined, {
+      key: params.sortBy || 'employeeNumber',
+      direction: params.sortDir === 'asc' ? 1 : -1,
     })
+    const totalPages = Math.ceil(sorted.length / pageSize)
+    return respond(
+      { rows: sorted.slice((page - 1) * pageSize, page * pageSize), summary },
+      {
+        pagination: {
+          page,
+          limit: pageSize,
+          total: sorted.length,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+      },
+    )
   }
 
   async function request(method, path, { params, body, signal } = {}) {
     requests += 1
     await wait(latencyMs, signal)
     if (method === 'GET' && path === `${BASE}/lookups`) return respond(lookups)
-    if (method === 'GET' && path === '/hr/reports/periodwise-employees') return periodwiseEmployees(params)
-    if (method === 'GET' && path === '/hr/reports/periodwise-employees/lookups/departments') return respond(reportDepartments)
+    if (method === 'GET' && path === '/hr/reports/periodwise-employees')
+      return periodwiseEmployees(params)
+    if (method === 'GET' && path === '/hr/reports/periodwise-employees/lookups/departments')
+      return respond(reportDepartments)
     const match = ROUTE.exec(path)
     if (!match) fail(404, 'NOT_FOUND', 'The requested resource does not exist.')
     const [, name, id, action] = match
@@ -347,13 +674,16 @@ export function createDemoClient({
     if (method === 'GET' && id && !action) return respond(find(collection, id))
     if (method === 'POST' && !id) return create(collection, body)
     if (method === 'PUT' && id && !action) return update(collection, id, body)
-    if (method === 'POST' && id && action && action === collection.action) return act(collection, id)
+    if (method === 'POST' && id && action && action === collection.action)
+      return act(collection, id)
     return fail(405, 'METHOD_NOT_ALLOWED', 'The request method is not supported for this resource.')
   }
 
   return Object.freeze({
     demo: true,
-    identify: (name) => { actor = name },
+    identify: (name) => {
+      actor = name
+    },
     get: (path, options) => request('GET', path, options),
     post: (path, body, options) => request('POST', path, { ...options, body }),
     put: (path, body, options) => request('PUT', path, { ...options, body }),

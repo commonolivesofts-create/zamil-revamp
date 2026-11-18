@@ -6,16 +6,28 @@ import { getOrvexaRoute, getOrvexaSection, orvexaDemoRoutes } from '../src/confi
 
 test('safe internal deep links survive sign-in redirects', () => {
   assert.equal(safeReturnTo('/dashboard'), '/dashboard')
-  assert.equal(safeReturnTo('/demo/live-operations?tab=alerts#details'), '/demo/live-operations?tab=alerts#details')
+  assert.equal(
+    safeReturnTo('/demo/live-operations?tab=alerts#details'),
+    '/demo/live-operations?tab=alerts#details',
+  )
   assert.equal(safeReturnTo('/dashboard?filter=a%20b'), '/dashboard?filter=a%20b')
 })
 
 test('external, guest, and malformed return paths are rejected', () => {
   for (const value of [
-    'https://evil.example', 'javascript:alert(1)', '//evil.example/path',
-    '/\\evil.example', '/login', '/forgot-password', '/',
-    '/dashboard\nnext', '/dashboard\rnext', '/dashboard\0next',
-    '', null, {},
+    'https://evil.example',
+    'javascript:alert(1)',
+    '//evil.example/path',
+    '/\\evil.example',
+    '/login',
+    '/forgot-password',
+    '/',
+    '/dashboard\nnext',
+    '/dashboard\rnext',
+    '/dashboard\0next',
+    '',
+    null,
+    {},
   ]) {
     assert.equal(safeReturnTo(value), '/dashboard', String(value))
   }

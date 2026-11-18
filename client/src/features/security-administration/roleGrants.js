@@ -29,7 +29,10 @@ export const grantListMayBeIncomplete = (grants) => (grants ?? []).length >= ROL
  *   loading | error (`source`: 'catalog' | 'grants') | refreshing | blocked (`problem`) | ready (`data`)
  */
 export function grantDialogState({ catalog, grants }) {
-  for (const [source, resource] of [['catalog', catalog], ['grants', grants]]) {
+  for (const [source, resource] of [
+    ['catalog', catalog],
+    ['grants', grants],
+  ]) {
     if (resource?.status === 'error') return { kind: 'error', source }
   }
   if (catalog?.status !== 'ready' || grants?.status !== 'ready') return { kind: 'loading' }
@@ -59,8 +62,13 @@ export function grantDataProblem({ catalog, grants }) {
  * (selectable again: granting reactivates it) or null.
  */
 export function grantOptions(catalog, grants, search = '') {
-  const state = new Map((grants ?? []).map((grant) => [grant.permissionId, grant.isActive ? 'granted' : 'revoked']))
-  return grantablePermissions(catalog, { search }).map((item) => ({ ...item, grantState: state.get(item.permissionId) ?? null }))
+  const state = new Map(
+    (grants ?? []).map((grant) => [grant.permissionId, grant.isActive ? 'granted' : 'revoked']),
+  )
+  return grantablePermissions(catalog, { search }).map((item) => ({
+    ...item,
+    grantState: state.get(item.permissionId) ?? null,
+  }))
 }
 
 /**
@@ -76,7 +84,11 @@ export function toggleGrant(selected, permissionId, { catalog, grants }) {
 
 /** Keeps only selected IDs that are still selectable after the data changed (e.g. a refresh). */
 export const validSelection = (selected, data) =>
-  selected.filter((id) => grantOptions(data.catalog, data.grants).some((item) => item.permissionId === id && item.grantState !== 'granted'))
+  selected.filter((id) =>
+    grantOptions(data.catalog, data.grants).some(
+      (item) => item.permissionId === id && item.grantState !== 'granted',
+    ),
+  )
 
 /**
  * Grants the selected permissions to `roleId` one at a time, never retrying. Results:
@@ -90,11 +102,16 @@ export const validSelection = (selected, data) =>
  */
 export async function grantPermissionsSequentially({ roleId, permissionIds, grant }) {
   const ids = [...new Set(permissionIds)]
-  const results = ids.map((permissionId) => ({ permissionId, status: GRANT_RESULT.NOT_SUBMITTED, error: null }))
+  const results = ids.map((permissionId) => ({
+    permissionId,
+    status: GRANT_RESULT.NOT_SUBMITTED,
+    error: null,
+  }))
   for (const result of results) {
     try {
       const response = await grant(roleId, result.permissionId)
-      result.status = response?.changed === false ? GRANT_RESULT.ALREADY_GRANTED : GRANT_RESULT.GRANTED
+      result.status =
+        response?.changed === false ? GRANT_RESULT.ALREADY_GRANTED : GRANT_RESULT.GRANTED
     } catch (error) {
       result.error = error
       result.status = isOutcomeUnknown(error) ? GRANT_RESULT.UNKNOWN_OUTCOME : GRANT_RESULT.FAILED
@@ -105,7 +122,9 @@ export async function grantPermissionsSequentially({ roleId, permissionIds, gran
     roleId,
     results,
     // Effective permissions may have changed: something was granted, or might have been.
-    accessMayHaveChanged: results.some((r) => r.status === GRANT_RESULT.GRANTED || r.status === GRANT_RESULT.UNKNOWN_OUTCOME),
+    accessMayHaveChanged: results.some(
+      (r) => r.status === GRANT_RESULT.GRANTED || r.status === GRANT_RESULT.UNKNOWN_OUTCOME,
+    ),
   }
 }
 
@@ -113,7 +132,8 @@ const RESULT_TEXT = Object.freeze({
   GRANTED: () => 'granted',
   ALREADY_GRANTED: () => 'already granted; nothing changed',
   FAILED: (result, describe) => `not granted: ${describe(result.error).message}`,
-  UNKNOWN_OUTCOME: () => 'outcome unknown: the server did not confirm the result. Check the refreshed grant list before trying again',
+  UNKNOWN_OUTCOME: () =>
+    'outcome unknown: the server did not confirm the result. Check the refreshed grant list before trying again',
   NOT_SUBMITTED: () => 'not submitted (stopped after an earlier problem)',
 })
 
@@ -124,11 +144,15 @@ export function summarizeGrantResults({ results }, { describeFailure, labelOf, r
   const unchanged = count(GRANT_RESULT.ALREADY_GRANTED)
   const unknown = count(GRANT_RESULT.UNKNOWN_OUTCOME)
   const problems = count(GRANT_RESULT.FAILED) + count(GRANT_RESULT.NOT_SUBMITTED)
-  const details = results.map((result) => `${labelOf(result.permissionId)}: ${RESULT_TEXT[result.status](result, describeFailure)}`)
+  const details = results.map(
+    (result) =>
+      `${labelOf(result.permissionId)}: ${RESULT_TEXT[result.status](result, describeFailure)}`,
+  )
   const kind = unknown ? 'unknown' : problems ? 'error' : 'success'
   const total = results.length
-  const message = kind === 'success'
-    ? `${granted} ${granted === 1 ? 'permission' : 'permissions'} granted to ${roleLabel}${unchanged ? `; ${unchanged} already held` : ''}.`
-    : `Only part of the request completed for ${roleLabel}: ${granted} of ${total} granted${unchanged ? `, ${unchanged} already held` : ''}. Each grant is separate, so the completed ones stay in effect. Review each result below.`
+  const message =
+    kind === 'success'
+      ? `${granted} ${granted === 1 ? 'permission' : 'permissions'} granted to ${roleLabel}${unchanged ? `; ${unchanged} already held` : ''}.`
+      : `Only part of the request completed for ${roleLabel}: ${granted} of ${total} granted${unchanged ? `, ${unchanged} already held` : ''}. Each grant is separate, so the completed ones stay in effect. Review each result below.`
   return { kind, message, details }
 }

@@ -9,7 +9,12 @@ import { businessToday } from '../shared/hrFormat.js'
 
 export const DECISION = Object.freeze({
   READY: Object.freeze({ key: 'READY', label: 'Offer-ready', short: 'offer-ready', tone: 'mint' }),
-  REVIEW: Object.freeze({ key: 'REVIEW', label: 'Needs review', short: 'needs review', tone: 'amber' }),
+  REVIEW: Object.freeze({
+    key: 'REVIEW',
+    label: 'Needs review',
+    short: 'needs review',
+    tone: 'amber',
+  }),
 })
 
 const DAY = 86400000
@@ -31,11 +36,24 @@ export function candidateDecision({ status, outcome, specTotal, compTotal }) {
   const [, compBand] = bandOfTotal(compTotal, BANDS.comp)
 
   if (specTotal == null || compTotal == null) {
-    const missing = [specTotal == null && 'personal specification', compTotal == null && 'competency'].filter(Boolean).join(' and ')
-    return { decision: DECISION.REVIEW, specBand, compBand, reason: `${missing} totals are not recorded.` }
+    const missing = [
+      specTotal == null && 'personal specification',
+      compTotal == null && 'competency',
+    ]
+      .filter(Boolean)
+      .join(' and ')
+    return {
+      decision: DECISION.REVIEW,
+      specBand,
+      compBand,
+      reason: `${missing} totals are not recorded.`,
+    }
   }
   if (specBand === 'POOR' || compBand === 'POOR') {
-    const groups = [specBand === 'POOR' && 'Personal specification', compBand === 'POOR' && 'Competency'].filter(Boolean)
+    const groups = [
+      specBand === 'POOR' && 'Personal specification',
+      compBand === 'POOR' && 'Competency',
+    ].filter(Boolean)
     return {
       decision: DECISION.REVIEW,
       specBand,
@@ -44,7 +62,12 @@ export function candidateDecision({ status, outcome, specTotal, compTotal }) {
     }
   }
   if (outcome !== 'PASSED' || status !== 'APPROVED') {
-    return { decision: DECISION.REVIEW, specBand, compBand, reason: 'The assessment is not an approved pass.' }
+    return {
+      decision: DECISION.REVIEW,
+      specBand,
+      compBand,
+      reason: 'The assessment is not an approved pass.',
+    }
   }
   return {
     decision: DECISION.READY,
@@ -74,7 +97,9 @@ export function candidateInsight(item, today = businessToday()) {
 }
 
 export function summarise(candidates) {
-  const ready = candidates.filter((candidate) => candidate.decision.key === DECISION.READY.key).length
+  const ready = candidates.filter(
+    (candidate) => candidate.decision.key === DECISION.READY.key,
+  ).length
   const waits = candidates.map((candidate) => candidate.wait).filter((value) => value != null)
   return {
     total: candidates.length,
@@ -91,7 +116,11 @@ export function groupByRequisition(items, today = businessToday()) {
   for (const item of items) {
     const requisitionNo = String(item.requisitionNo ?? '').trim()
     if (!requisitionNo) continue
-    const current = groups.get(requisitionNo) ?? { requisitionNo, position: item.positionTitle, candidates: [] }
+    const current = groups.get(requisitionNo) ?? {
+      requisitionNo,
+      position: item.positionTitle,
+      candidates: [],
+    }
     current.candidates.push(candidateInsight(item, today))
     groups.set(requisitionNo, current)
   }
@@ -117,11 +146,16 @@ export function waitingBuckets(candidates) {
   const items = BUCKETS.map(([from, to, label]) => ({
     key: `d${from}`,
     label,
-    count: candidates.filter((candidate) => candidate.wait != null && candidate.wait >= from && (to == null || candidate.wait <= to)).length,
+    count: candidates.filter(
+      (candidate) =>
+        candidate.wait != null && candidate.wait >= from && (to == null || candidate.wait <= to),
+    ).length,
     tone: from >= 31 ? 'bad' : from >= 15 ? 'amber' : 'mint',
   }))
   const unknown = candidates.filter((candidate) => candidate.wait == null).length
-  return unknown ? [...items, { key: 'dx', label: 'No interview date', count: unknown, tone: 'progress' }] : items
+  return unknown
+    ? [...items, { key: 'dx', label: 'No interview date', count: unknown, tone: 'progress' }]
+    : items
 }
 
 // Fallback for the score map while there are too few candidates to read a
@@ -130,9 +164,26 @@ export function bandMix(candidates) {
   const count = (test) => candidates.filter(test).length
   const atLeastGood = (band) => band === 'GOOD' || band === 'OUTSTANDING'
   return [
-    { key: 'strong', label: 'Both groups Good+', count: count((candidate) => atLeastGood(candidate.specBand) && atLeastGood(candidate.compBand)), tone: 'mint' },
-    { key: 'poor', label: 'A group is Poor', count: count((candidate) => candidate.specBand === 'POOR' || candidate.compBand === 'POOR'), tone: 'amber' },
-    { key: 'unknown', label: 'Totals missing', count: count((candidate) => candidate.specBand == null || candidate.compBand == null), tone: 'progress' },
+    {
+      key: 'strong',
+      label: 'Both groups Good+',
+      count: count(
+        (candidate) => atLeastGood(candidate.specBand) && atLeastGood(candidate.compBand),
+      ),
+      tone: 'mint',
+    },
+    {
+      key: 'poor',
+      label: 'A group is Poor',
+      count: count((candidate) => candidate.specBand === 'POOR' || candidate.compBand === 'POOR'),
+      tone: 'amber',
+    },
+    {
+      key: 'unknown',
+      label: 'Totals missing',
+      count: count((candidate) => candidate.specBand == null || candidate.compBand == null),
+      tone: 'progress',
+    },
   ]
 }
 

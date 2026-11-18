@@ -19,8 +19,12 @@ export default function ViewHead({
       </button>
       <header className="view-head">
         <div>
-          <span className="eyebrow" style={{ display: 'block' }}>{eyebrow}</span>
-          <h1 data-zrv-view-title tabIndex={-1}>{title}</h1>
+          <span className="eyebrow" style={{ display: 'block' }}>
+            {eyebrow}
+          </span>
+          <h1 data-zrv-view-title tabIndex={-1}>
+            {title}
+          </h1>
           {description && <p>{description}</p>}
         </div>
         {actions && <div className="head-buttons">{actions}</div>}

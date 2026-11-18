@@ -132,11 +132,11 @@
 .zrv-auth-page .zrv-password-toggle:disabled {
   transform: translateY(-50%) !important;
 }
-[dir="rtl"] .zrv-auth-page .zrv-password-toggle {
+[dir='rtl'] .zrv-auth-page .zrv-password-toggle {
   right: auto;
   left: 6px;
 }
-[dir="rtl"] .zrv-auth-page .zrv-password-input .ux-input {
+[dir='rtl'] .zrv-auth-page .zrv-password-input .ux-input {
   padding-right: 13px;
   padding-left: 44px;
 }
@@ -201,13 +201,12 @@
   position: absolute;
   z-index: -1;
   inset: 0;
-  content: "";
+  content: '';
   pointer-events: none;
 }
 
 .zrv-auth-page.auth-shell::before {
-  background: url("/assets/zamil-plastics-login-bg.png") 38% center / cover
-    no-repeat;
+  background: url('/assets/zamil-plastics-login-bg.png') 38% center / cover no-repeat;
 }
 
 .zrv-auth-page.auth-shell::after {
@@ -284,13 +283,7 @@
   width: 40px;
   height: 34px;
   flex: 0 0 auto;
-  background: linear-gradient(
-    140deg,
-    #18c56b 12%,
-    #168e58 48%,
-    #65d52e 50%,
-    #b4e533 100%
-  );
+  background: linear-gradient(140deg, #18c56b 12%, #168e58 48%, #65d52e 50%, #b4e533 100%);
   clip-path: polygon(0 100%, 33% 0, 100% 0, 66% 100%);
 }
 
@@ -349,7 +342,7 @@
     rgba(255, 255, 255, 0.022) 38%,
     transparent 68%
   );
-  content: "";
+  content: '';
   pointer-events: none;
 }
 
@@ -589,11 +582,7 @@
 
   .zrv-auth-page.auth-shell::after {
     background:
-      radial-gradient(
-        ellipse 100% 24% at 100% 110%,
-        rgba(31, 205, 105, 0.48),
-        transparent 70%
-      ),
+      radial-gradient(ellipse 100% 24% at 100% 110%, rgba(31, 205, 105, 0.48), transparent 70%),
       linear-gradient(
         0deg,
         rgba(0, 30, 26, 0.92) 0%,

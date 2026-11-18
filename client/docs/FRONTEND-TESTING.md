@@ -4,14 +4,14 @@ How frontend work is verified. All commands run in `client/`.
 
 ## 1. Scripts
 
-| Command | What it does | Needs backend? |
-|---|---|---|
-| `npm run lint` | ESLint (`eslint.config.js`: recommended JS, React Hooks, React Refresh rules) | No |
-| `npm test` | `node --test "tests/*.test.mjs"` — every frontend test | No |
-| `npm run build` | Vite production build into `dist/` | No |
-| `node scripts/verify-production.mjs` | Static release checks on `dist/` (run after `npm run build`) | No |
-| `npm run preview` | Serves `dist/` on `http://localhost:5199` with the `/api` proxy | Yes, for real use |
-| `npm run dev` | Development server on `http://localhost:5199` | Yes, for real use |
+| Command                              | What it does                                                                  | Needs backend?    |
+| ------------------------------------ | ----------------------------------------------------------------------------- | ----------------- |
+| `npm run lint`                       | ESLint (`eslint.config.js`: recommended JS, React Hooks, React Refresh rules) | No                |
+| `npm test`                           | `node --test "tests/*.test.mjs"` — every frontend test                        | No                |
+| `npm run build`                      | Vite production build into `dist/`                                            | No                |
+| `node scripts/verify-production.mjs` | Static release checks on `dist/` (run after `npm run build`)                  | No                |
+| `npm run preview`                    | Serves `dist/` on `http://localhost:5199` with the `/api` proxy               | Yes, for real use |
+| `npm run dev`                        | Development server on `http://localhost:5199`                                 | Yes, for real use |
 
 There is no `check` script in `client/`; run lint, tests and build separately and record each
 result.
@@ -37,30 +37,30 @@ result.
 
 ### Test files
 
-| File | Covers |
-|---|---|
-| `apiClient.test.mjs` | Shared client: URLs, envelopes, errors, CSRF modes, timeouts, 401 events |
-| `authContract.test.mjs`, `authService.test.mjs`, `authSession.test.mjs` | Authentication contract, endpoints, session state machine and races |
-| `mfa.test.mjs`, `recovery.test.mjs`, `corrections.test.mjs` | MFA, password/recovery flows, Stage 1 regressions |
-| `permissions.test.mjs` | Effective permissions: identity binding, stale responses, default deny |
-| `navigation.test.mjs` | Route table, route access decisions, sidebar, command palette, dashboard, header |
-| `securityAdministration.test.mjs` | Security Administration request contracts, races, duplicates, action visibility |
-| `productionReadiness.test.mjs` | Branding, removed template code, dev server/preview config, permission refresh, role selector |
-| `routing.test.mjs` | Safe return URLs, development-preview demo routes |
-| `securityBoundaries.test.mjs` | No browser storage/cookies in auth and API code; dev proxy |
-| `accessibility.test.mjs` | Screen-reader-only styles and route announcements |
-| `loadingExperience.test.mjs` | Session startup, pending permissions, content-only Suspense skeletons, immediate ready-page rendering |
-| `deployment.test.mjs` | `vercel.json`: SPA fallback excludes `/api`, security headers, CSP |
+| File                                                                    | Covers                                                                                                |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `apiClient.test.mjs`                                                    | Shared client: URLs, envelopes, errors, CSRF modes, timeouts, 401 events                              |
+| `authContract.test.mjs`, `authService.test.mjs`, `authSession.test.mjs` | Authentication contract, endpoints, session state machine and races                                   |
+| `mfa.test.mjs`, `recovery.test.mjs`, `corrections.test.mjs`             | MFA, password/recovery flows, Stage 1 regressions                                                     |
+| `permissions.test.mjs`                                                  | Effective permissions: identity binding, stale responses, default deny                                |
+| `navigation.test.mjs`                                                   | Route table, route access decisions, sidebar, command palette, dashboard, header                      |
+| `securityAdministration.test.mjs`                                       | Security Administration request contracts, races, duplicates, action visibility                       |
+| `productionReadiness.test.mjs`                                          | Branding, removed template code, dev server/preview config, permission refresh, role selector         |
+| `routing.test.mjs`                                                      | Safe return URLs, development-preview demo routes                                                     |
+| `securityBoundaries.test.mjs`                                           | No browser storage/cookies in auth and API code; dev proxy                                            |
+| `accessibility.test.mjs`                                                | Screen-reader-only styles and route announcements                                                     |
+| `loadingExperience.test.mjs`                                            | Session startup, pending permissions, content-only Suspense skeletons, immediate ready-page rendering |
+| `deployment.test.mjs`                                                   | `vercel.json`: SPA fallback excludes `/api`, security headers, CSP                                    |
 
 ### What a new feature should add
 
-| Test type | Example |
-|---|---|
-| Contract | Reader accepts the documented response and rejects malformed data |
-| Request | Correct method, path, query, body; CSRF header on changes; no request for an invalid ID |
-| Errors | 401 ends the session; 403/409/422/429 messages; unknown outcomes are not success |
+| Test type   | Example                                                                                  |
+| ----------- | ---------------------------------------------------------------------------------------- |
+| Contract    | Reader accepts the documented response and rejects malformed data                        |
+| Request     | Correct method, path, query, body; CSRF header on changes; no request for an invalid ID  |
+| Errors      | 401 ends the session; 403/409/422/429 messages; unknown outcomes are not success         |
 | Permissions | `routeAccess` allowed/denied/mfa_required for the new routes; buttons use their own keys |
-| Integrity | No sample data, `console.*` or storage use in the new feature folder |
+| Integrity   | No sample data, `console.*` or storage use in the new feature folder                     |
 
 **Pinned expectations:** `navigation.test.mjs` and `securityAdministration.test.mjs` list the
 implemented routes and the sidebar of an administrator. When you add or remove a route, update
@@ -89,10 +89,10 @@ Against a real backend (`npm run dev` or `npm run preview`, backend on port 3000
 
 ## 5. Mocked tests vs. real integration
 
-| Evidence | Proves | Does **not** prove |
-|---|---|---|
-| `npm test` | Frontend logic against the documented contract | That the backend returns that contract, or that Oracle has the data |
-| Browser + local backend + Oracle TEST | The integrated behaviour for the accounts and data used | Production behaviour, other accounts' permissions |
+| Evidence                              | Proves                                                  | Does **not** prove                                                  |
+| ------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------- |
+| `npm test`                            | Frontend logic against the documented contract          | That the backend returns that contract, or that Oracle has the data |
+| Browser + local backend + Oracle TEST | The integrated behaviour for the accounts and data used | Production behaviour, other accounts' permissions                   |
 
 Oracle TEST checks write real rows (sign-ins write audit and session records). Run them only with
 the accounts and scope you are authorized for, and report them separately from mocked results.

@@ -6,10 +6,15 @@ import { BENEFIT_KEYS, englishDisplay } from './offerModel.js'
 // The print-ready letter remains a separate component.
 export function OfferLivePreview({ form, language = 'bi', focusRow, offerId }) {
   const currency = 'SAR'
-  const placeholder = (value, fallback) => (value ? value : <span className="zrv-hr-paper__ph">{fallback}</span>)
+  const placeholder = (value, fallback) =>
+    value ? value : <span className="zrv-hr-paper__ph">{fallback}</span>
 
   return (
-    <article className="zrv-hr-paper zrv-offer-live" data-lang={language} aria-label={T.letter.label}>
+    <article
+      className="zrv-hr-paper zrv-offer-live"
+      data-lang={language}
+      aria-label={T.letter.label}
+    >
       <div className="zrv-hr-paper__top">
         <div className="zrv-hr-paper__brand">
           {T.letter.brand}
@@ -32,16 +37,20 @@ export function OfferLivePreview({ form, language = 'bi', focusRow, offerId }) {
         {T.letterAr.date} {placeholder(arDate(form.offerDate), T.letterAr.placeholders.date)}
       </p>
       <p data-l="en">
-        {T.letter.to} {form.salutation} {placeholder(form.candidateNameEn.trim(), T.letter.placeholders.name)}
+        {T.letter.to} {form.salutation}{' '}
+        {placeholder(form.candidateNameEn.trim(), T.letter.placeholders.name)}
       </p>
       <p data-l="ar" dir="rtl" lang="ar">
-        {T.letterAr.to} {form.salutationAr} {placeholder(form.candidateNameAr.trim(), T.letterAr.placeholders.name)}
+        {T.letterAr.to} {form.salutationAr}{' '}
+        {placeholder(form.candidateNameAr.trim(), T.letterAr.placeholders.name)}
       </p>
       <p data-l="en">
-        {T.letter.offer} <b>{placeholder(form.position.trim(), T.letter.placeholders.position)}</b> {T.letter.terms}
+        {T.letter.offer} <b>{placeholder(form.position.trim(), T.letter.placeholders.position)}</b>{' '}
+        {T.letter.terms}
       </p>
       <p data-l="ar" dir="rtl" lang="ar">
-        {T.letterAr.offer} <b>{placeholder(form.position.trim(), T.letterAr.placeholders.position)}</b>{' '}
+        {T.letterAr.offer}{' '}
+        <b>{placeholder(form.position.trim(), T.letterAr.placeholders.position)}</b>{' '}
         {T.letterAr.terms}
       </p>
       <table className="zrv-hr-paper__tbl">
@@ -74,7 +83,12 @@ export function OfferLivePreview({ form, language = 'bi', focusRow, offerId }) {
                 {index + 1}
               </td>
               <td data-l="en">{T.benefits[key].en}</td>
-              <td data-l="en">{placeholder(englishDisplay(key, form.benefits[key].en, currency), COMMON_TEXT.dash)}</td>
+              <td data-l="en">
+                {placeholder(
+                  englishDisplay(key, form.benefits[key].en, currency),
+                  COMMON_TEXT.dash,
+                )}
+              </td>
               <td dir="rtl" lang="ar" data-l="ar">
                 {placeholder(form.benefits[key].ar, COMMON_TEXT.dash)}
               </td>

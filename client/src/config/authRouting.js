@@ -12,8 +12,13 @@ export const linkTokenPaths = Object.freeze(['/password/setup', '/password/reset
 // whose completed action ends every session (authenticator replacement,
 // password change), so returning there after signing in again is never useful.
 const neverReturnTo = Object.freeze([
-  '/login', '/forgot-password', '/', ...mfaChallengePaths, ...linkTokenPaths,
-  '/account/authenticator', '/account/password',
+  '/login',
+  '/forgot-password',
+  '/',
+  ...mfaChallengePaths,
+  ...linkTokenPaths,
+  '/account/authenticator',
+  '/account/password',
 ])
 // A fragment carrying a token is never kept in a return-to location.
 const TOKEN_FRAGMENT = /token=/i

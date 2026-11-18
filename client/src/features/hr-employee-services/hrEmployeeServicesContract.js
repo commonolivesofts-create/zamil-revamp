@@ -4,10 +4,26 @@
 // adapter returns the same shapes and is read through the same functions.
 import { ApiError } from '../../services/api/apiClient.js'
 import { isIsoDate } from '../hr-recruitment/shared/hrFormat.js'
-import { CHANGE_TYPES, PAY_KEYS, RECORD_CHANGE_ROUTE, RECORD_CHANGE_STATUSES } from './recordChange/recordChangeModel.js'
+import {
+  CHANGE_TYPES,
+  PAY_KEYS,
+  RECORD_CHANGE_ROUTE,
+  RECORD_CHANGE_STATUSES,
+} from './recordChange/recordChangeModel.js'
 import { APPROVAL_STATES } from './shared/approvals.js'
-import { OFFICE_APPROVALS, TRANSFER_ROUTE, TRANSFER_STATUSES, YES_NO } from './transfer/transferModel.js'
-import { APPRAISAL_STATUSES, CRITERIA_COUNT, EXPLANATION_MAX, GRADES, RATINGS } from './performance/appraisalModel.js'
+import {
+  OFFICE_APPROVALS,
+  TRANSFER_ROUTE,
+  TRANSFER_STATUSES,
+  YES_NO,
+} from './transfer/transferModel.js'
+import {
+  APPRAISAL_STATUSES,
+  CRITERIA_COUNT,
+  EXPLANATION_MAX,
+  GRADES,
+  RATINGS,
+} from './performance/appraisalModel.js'
 
 export const ID_PATTERN = /^[1-9][0-9]{0,18}$/
 export const LOOKUP_CODE = /^[A-Za-z0-9_+-]{1,40}$/
@@ -17,20 +33,46 @@ const DIRECTOR_ID = /^[A-Za-z0-9-]{1,20}$/
 function invalid() {
   throw new ApiError('The server returned an unexpected response.', { code: 'INVALID_RESPONSE' })
 }
-const check = (condition) => { if (!condition) invalid() }
+const check = (condition) => {
+  if (!condition) invalid()
+}
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
-const id = (value) => { check(typeof value === 'string' && ID_PATTERN.test(value)); return value }
-const text = (value, max = 4000) => { check(typeof value === 'string' && value.length <= max); return value }
-const date = (value) => { check(isIsoDate(value)); return value }
+const id = (value) => {
+  check(typeof value === 'string' && ID_PATTERN.test(value))
+  return value
+}
+const text = (value, max = 4000) => {
+  check(typeof value === 'string' && value.length <= max)
+  return value
+}
+const date = (value) => {
+  check(isIsoDate(value))
+  return value
+}
 const nullableDate = (value) => (value === null ? null : date(value))
-const instant = (value) => { check(typeof value === 'string' && !Number.isNaN(Date.parse(value))); return value }
-const code = (value) => { check(typeof value === 'string' && LOOKUP_CODE.test(value)); return value }
+const instant = (value) => {
+  check(typeof value === 'string' && !Number.isNaN(Date.parse(value)))
+  return value
+}
+const code = (value) => {
+  check(typeof value === 'string' && LOOKUP_CODE.test(value))
+  return value
+}
 const nullableCode = (value) => (value === null ? null : code(value))
-const amount = (value) => { check(typeof value === 'number' && Number.isFinite(value) && value >= 0); return value }
+const amount = (value) => {
+  check(typeof value === 'number' && Number.isFinite(value) && value >= 0)
+  return value
+}
 const nullableAmount = (value) => (value === null ? null : amount(value))
-const oneOf = (value, allowed) => { check(allowed.includes(value)); return value }
-const list = (value, read) => { check(Array.isArray(value)); return Object.freeze(value.map(read)) }
+const oneOf = (value, allowed) => {
+  check(allowed.includes(value))
+  return value
+}
+const list = (value, read) => {
+  check(Array.isArray(value))
+  return Object.freeze(value.map(read))
+}
 
 const option = (item) => {
   check(isObject(item))
@@ -39,7 +81,10 @@ const option = (item) => {
 const options = (value) => list(value, option)
 const person = (value) => {
   check(isObject(value))
-  return Object.freeze({ name: text(value.name, 200), employeeNumber: text(value.employeeNumber, 40) })
+  return Object.freeze({
+    name: text(value.name, 200),
+    employeeNumber: text(value.employeeNumber, 40),
+  })
 }
 const attachment = (item) => {
   check(isObject(item))
@@ -68,14 +113,21 @@ const department = (item) => {
 }
 const director = (item) => {
   check(isObject(item) && typeof item.directorId === 'string' && DIRECTOR_ID.test(item.directorId))
-  return Object.freeze({ directorId: item.directorId, name: text(item.name, 200), area: text(item.area, 200) })
+  return Object.freeze({
+    directorId: item.directorId,
+    name: text(item.name, 200),
+    area: text(item.area, 200),
+  })
 }
 // The controlled-document strip of the transfer form.
 const transferDocument = (value) => {
   check(isObject(value))
   return Object.freeze({
-    title: text(value.title, 200), controlNumber: text(value.controlNumber, 40), version: text(value.version, 20),
-    issueDate: date(value.issueDate), pages: text(value.pages, 40),
+    title: text(value.title, 200),
+    controlNumber: text(value.controlNumber, 40),
+    version: text(value.version, 20),
+    issueDate: date(value.issueDate),
+    pages: text(value.pages, 40),
   })
 }
 
@@ -117,7 +169,10 @@ export function readServiceEmployee(item) {
 
 const approval = (allowedRoles) => (item) => {
   check(isObject(item))
-  return Object.freeze({ role: oneOf(item.role, allowedRoles), state: oneOf(item.state, APPROVAL_STATES) })
+  return Object.freeze({
+    role: oneOf(item.role, allowedRoles),
+    state: oneOf(item.state, APPROVAL_STATES),
+  })
 }
 
 // One personnel record change request.
@@ -145,11 +200,19 @@ export function readRecordChange(data) {
 const yesNo = (value) => (value === null ? null : oneOf(value, YES_NO))
 const destination = (value) => {
   check(isObject(value))
-  return Object.freeze({ jobTitleCode: nullableCode(value.jobTitleCode), departmentCode: nullableCode(value.departmentCode), sectionCode: nullableCode(value.sectionCode) })
+  return Object.freeze({
+    jobTitleCode: nullableCode(value.jobTitleCode),
+    departmentCode: nullableCode(value.departmentCode),
+    sectionCode: nullableCode(value.sectionCode),
+  })
 }
 const officeApproval = (item) => {
   check(isObject(item))
-  return Object.freeze({ role: oneOf(item.role, OFFICE_APPROVALS), state: oneOf(item.state, APPROVAL_STATES), date: nullableDate(item.date) })
+  return Object.freeze({
+    role: oneOf(item.role, OFFICE_APPROVALS),
+    state: oneOf(item.state, APPROVAL_STATES),
+    date: nullableDate(item.date),
+  })
 }
 
 // One transfer request.
@@ -169,7 +232,10 @@ export function readTransfer(data) {
     to: destination(data.to),
     effectiveDate: nullableDate(data.effectiveDate),
     bloodType: nullableCode(data.bloodType),
-    directorId: data.directorId === null ? null : director({ directorId: data.directorId, name: '', area: '' }).directorId,
+    directorId:
+      data.directorId === null
+        ? null
+        : director({ directorId: data.directorId, name: '', area: '' }).directorId,
     salaryChange: yesNo(data.salaryChange),
     budgetedSalary: yesNo(data.budgetedSalary),
     approvals,
@@ -217,20 +283,38 @@ export function readRecordChangeListItem(item) {
 // `result` is the client result: { data, pagination } (pagination already validated).
 export function readPage(result, reader) {
   if (!Array.isArray(result?.data) || !result.pagination) invalid()
-  return Object.freeze({ items: Object.freeze(result.data.map(reader)), pagination: result.pagination })
+  return Object.freeze({
+    items: Object.freeze(result.data.map(reader)),
+    pagination: result.pagination,
+  })
 }
 
 // ------------------------------------------------------------ performance appraisal
 
 const band = (item) => {
-  check(isObject(item) && typeof item.min === 'number' && Number.isFinite(item.min) && item.min >= 0 && item.min <= 5)
+  check(
+    isObject(item) &&
+      typeof item.min === 'number' &&
+      Number.isFinite(item.min) &&
+      item.min >= 0 &&
+      item.min <= 5,
+  )
   return Object.freeze({
-    min: item.min, grade: oneOf(item.grade, GRADES), title: text(item.title, 100), range: text(item.range, 40), description: text(item.description, 400),
+    min: item.min,
+    grade: oneOf(item.grade, GRADES),
+    title: text(item.title, 100),
+    range: text(item.range, 40),
+    description: text(item.description, 400),
   })
 }
 const period = (item) => {
   check(isObject(item))
-  const value = Object.freeze({ code: code(item.code), label: text(item.label, 200), from: date(item.from), to: date(item.to) })
+  const value = Object.freeze({
+    code: code(item.code),
+    label: text(item.label, 200),
+    from: date(item.from),
+    to: date(item.to),
+  })
   check(value.from <= value.to)
   return value
 }
@@ -244,14 +328,24 @@ export function readPerformanceLookups(data) {
     check(isObject(item))
     return Object.freeze({ code: code(item.code), label: text(item.label, 200) })
   })
-  check(criteria.length === CRITERIA_COUNT && new Set(criteria.map((item) => item.code)).size === CRITERIA_COUNT)
+  check(
+    criteria.length === CRITERIA_COUNT &&
+      new Set(criteria.map((item) => item.code)).size === CRITERIA_COUNT,
+  )
   const scale = list(data.scale, band)
-  check(GRADES.every((grade) => scale.some((item) => item.grade === grade)) && scale.some((item) => item.min === 0))
-  const distribution = Object.freeze(Object.fromEntries(GRADES.map((grade) => {
-    const value = data.distribution[grade]
-    check(typeof value === 'number' && value >= 0 && value <= 100)
-    return [grade, value]
-  })))
+  check(
+    GRADES.every((grade) => scale.some((item) => item.grade === grade)) &&
+      scale.some((item) => item.min === 0),
+  )
+  const distribution = Object.freeze(
+    Object.fromEntries(
+      GRADES.map((grade) => {
+        const value = data.distribution[grade]
+        check(typeof value === 'number' && value >= 0 && value <= 100)
+        return [grade, value]
+      }),
+    ),
+  )
   check(GRADES.reduce((sum, grade) => sum + distribution[grade], 0) === 100)
   const periods = list(data.periods, period)
   check(periods.length > 0)
@@ -278,19 +372,32 @@ const teamMember = (item) => {
 // with the grades already given in that period.
 export function readAppraisalTeam(data) {
   check(isObject(data))
-  return Object.freeze({ appraiser: person(data.appraiser), members: list(data.members, teamMember) })
+  return Object.freeze({
+    appraiser: person(data.appraiser),
+    members: list(data.members, teamMember),
+  })
 }
 
 const rating = (value) => {
   check(isObject(value))
   check(value.rating === null || RATINGS.includes(value.rating))
-  return Object.freeze({ rating: value.rating, explanation: text(value.explanation, EXPLANATION_MAX) })
+  return Object.freeze({
+    rating: value.rating,
+    explanation: text(value.explanation, EXPLANATION_MAX),
+  })
 }
-const lines = (value, max) => { const items = list(value, (item) => text(item, 300)); check(items.length <= max); return items }
+const lines = (value, max) => {
+  const items = list(value, (item) => text(item, 300))
+  check(items.length <= max)
+  return items
+}
 
 export function readAppraisal(data) {
   check(isObject(data) && isObject(data.ratings) && isObject(data.signatures))
-  check(data.rating === null || (typeof data.rating === 'number' && data.rating >= 1 && data.rating <= 5))
+  check(
+    data.rating === null ||
+      (typeof data.rating === 'number' && data.rating >= 1 && data.rating <= 5),
+  )
   return Object.freeze({
     appraisalId: id(data.appraisalId),
     appraisalNumber: text(data.appraisalNumber, 40),
@@ -298,12 +405,19 @@ export function readAppraisal(data) {
     periodCode: code(data.periodCode),
     appraiser: person(data.appraiser),
     employee: teamMember(data.employee),
-    ratings: Object.freeze(Object.fromEntries(Object.entries(data.ratings).map(([key, value]) => [code(key), rating(value)]))),
+    ratings: Object.freeze(
+      Object.fromEntries(
+        Object.entries(data.ratings).map(([key, value]) => [code(key), rating(value)]),
+      ),
+    ),
     goals: lines(data.goals, 5),
     training: lines(data.training, 6),
     employeeRemarks: text(data.employeeRemarks, 2000),
     appraiserRemarks: text(data.appraiserRemarks, 2000),
-    signatures: Object.freeze({ employee: nullableDate(data.signatures.employee), appraiser: nullableDate(data.signatures.appraiser) }),
+    signatures: Object.freeze({
+      employee: nullableDate(data.signatures.employee),
+      appraiser: nullableDate(data.signatures.appraiser),
+    }),
     rating: data.rating,
     grade: data.grade === null ? null : oneOf(data.grade, GRADES),
     updatedAt: instant(data.updatedAt),
@@ -312,7 +426,10 @@ export function readAppraisal(data) {
 
 export function readAppraisalListItem(item) {
   check(isObject(item))
-  check(item.rating === null || (typeof item.rating === 'number' && item.rating >= 1 && item.rating <= 5))
+  check(
+    item.rating === null ||
+      (typeof item.rating === 'number' && item.rating >= 1 && item.rating <= 5),
+  )
   return Object.freeze({
     appraisalId: id(item.appraisalId),
     appraisalNumber: text(item.appraisalNumber, 40),

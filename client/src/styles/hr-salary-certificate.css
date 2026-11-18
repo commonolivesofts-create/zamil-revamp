@@ -34,7 +34,7 @@
   font-size: 11.5px;
   line-height: 1.5;
 }
-.zrv-hr-sc-notes li span[lang="ar"] {
+.zrv-hr-sc-notes li span[lang='ar'] {
   color: var(--zrv-hr-fine);
   text-align: right;
 }

@@ -7,13 +7,30 @@
 const subgroup = (id, label, icon, description) => Object.freeze({ id, label, icon, description })
 
 export const NAVIGATION_GROUPS = Object.freeze([
-  Object.freeze({ id: 'workspace', label: 'Workspace', icon: 'layout-dashboard', standalone: true }),
   Object.freeze({
-    id: 'human-resources', label: 'Human resources', icon: 'users-round',
+    id: 'workspace',
+    label: 'Workspace',
+    icon: 'layout-dashboard',
+    standalone: true,
+  }),
+  Object.freeze({
+    id: 'human-resources',
+    label: 'Human resources',
+    icon: 'users-round',
     subgroups: Object.freeze([
       subgroup('hr-recruitment', 'Recruitment', 'user-plus', 'From requisition to probation'),
-      subgroup('hr-talent-management', 'Talent Management', 'layers', 'Transfers, recognition and performance'),
-      subgroup('hr-employee-services', 'Employee Services', 'briefcase-business', 'Personal status, leave and ideas'),
+      subgroup(
+        'hr-talent-management',
+        'Talent Management',
+        'layers',
+        'Transfers, recognition and performance',
+      ),
+      subgroup(
+        'hr-employee-services',
+        'Employee Services',
+        'briefcase-business',
+        'Personal status, leave and ideas',
+      ),
       subgroup('hr-letters', 'Letters', 'mail', 'Salary certificates and letters'),
       subgroup('hr-reports', 'Reports', 'chart-column', 'HR reports'),
     ]),
@@ -21,13 +38,22 @@ export const NAVIGATION_GROUPS = Object.freeze([
   Object.freeze({ id: 'finance', label: 'Finance', icon: 'wallet-cards' }),
   Object.freeze({ id: 'workflow-manager', label: 'Workflow Manager', icon: 'workflow' }),
   Object.freeze({
-    id: 'security', label: 'Security administration', icon: 'shield-check',
+    id: 'security',
+    label: 'Security administration',
+    icon: 'shield-check',
     subgroups: Object.freeze([
-      subgroup('security-admin', 'Security administration', 'shield-check', 'Accounts, roles and permissions'),
+      subgroup(
+        'security-admin',
+        'Security administration',
+        'shield-check',
+        'Accounts, roles and permissions',
+      ),
     ]),
   }),
   Object.freeze({
-    id: 'account', label: 'My account', icon: 'user-round',
+    id: 'account',
+    label: 'My account',
+    icon: 'user-round',
     subgroups: Object.freeze([
       subgroup('account-settings', 'My account', 'user-round', 'Password and authentication'),
     ]),

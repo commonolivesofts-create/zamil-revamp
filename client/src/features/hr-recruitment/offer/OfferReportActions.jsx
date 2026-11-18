@@ -32,26 +32,49 @@ export function OfferReportActions({ row, language = 'bi', previewRecord = null 
     }
   }
 
-  return <div className="zrv-ir-offer-actions">
-    {!isOfferLocked(row.status) && permissions.can(ACTIONS.OFFER_UPDATE) && (
-      <Link className="zrv-ir-btn" to={path} onClick={(event) => event.stopPropagation()}
-        aria-label={`Edit employment offer ${reference}`} title={`Edit employment offer ${reference}`}>
-        <OrvexaIcon name="pencil" size={15} /><span>Edit</span>
-      </Link>
-    )}
-    {permissions.can(ACTIONS.OFFER_VIEW) && (
-      <button type="button" className="zrv-ir-btn zrv-ir-btn--primary zrv-ir-offer-print-btn" onClick={printOffer} disabled={printing}
-        aria-label={`${printing ? 'Preparing' : 'Print'} employment offer ${reference}`} title={`Print employment offer ${reference}`}>
-        <OrvexaIcon name="printer" size={15} /><span>{printing ? 'Preparing' : 'Print'}</span>
-      </button>
-    )}
-    {printError && <span className="zrv-ir-offer-print-error" role="status">{printError}</span>}
-    {printer.printRecord && (
-      createPortal(<div className="zrv-hr zrv-hr--offer zrv-ir-offer-print" aria-hidden="true">
-        <div className="zrv-hr-body"><div className="zrv-hr-side">
-          <OfferLetter form={offerFormFromRecord(printer.printRecord)} language={language} />
-        </div></div>
-      </div>, document.body)
-    )}
-  </div>
+  return (
+    <div className="zrv-ir-offer-actions">
+      {!isOfferLocked(row.status) && permissions.can(ACTIONS.OFFER_UPDATE) && (
+        <Link
+          className="zrv-ir-btn"
+          to={path}
+          onClick={(event) => event.stopPropagation()}
+          aria-label={`Edit employment offer ${reference}`}
+          title={`Edit employment offer ${reference}`}
+        >
+          <OrvexaIcon name="pencil" size={15} />
+          <span>Edit</span>
+        </Link>
+      )}
+      {permissions.can(ACTIONS.OFFER_VIEW) && (
+        <button
+          type="button"
+          className="zrv-ir-btn zrv-ir-btn--primary zrv-ir-offer-print-btn"
+          onClick={printOffer}
+          disabled={printing}
+          aria-label={`${printing ? 'Preparing' : 'Print'} employment offer ${reference}`}
+          title={`Print employment offer ${reference}`}
+        >
+          <OrvexaIcon name="printer" size={15} />
+          <span>{printing ? 'Preparing' : 'Print'}</span>
+        </button>
+      )}
+      {printError && (
+        <span className="zrv-ir-offer-print-error" role="status">
+          {printError}
+        </span>
+      )}
+      {printer.printRecord &&
+        createPortal(
+          <div className="zrv-hr zrv-hr--offer zrv-ir-offer-print" aria-hidden="true">
+            <div className="zrv-hr-body">
+              <div className="zrv-hr-side">
+                <OfferLetter form={offerFormFromRecord(printer.printRecord)} language={language} />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  )
 }

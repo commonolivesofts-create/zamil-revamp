@@ -29,7 +29,14 @@ export const employeePage = (list) => {
   const items = Object.freeze(list)
   return Object.freeze({
     items,
-    pagination: Object.freeze({ page: 1, limit: items.length, total: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false }),
+    pagination: Object.freeze({
+      page: 1,
+      limit: items.length,
+      total: items.length,
+      totalPages: items.length ? 1 : 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    }),
   })
 }
 

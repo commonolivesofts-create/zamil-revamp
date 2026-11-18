@@ -26,15 +26,20 @@ export default function MfaReplacementPage() {
   // Setup material is discarded when its confirmation window closes.
   useEffect(() => {
     if (!material) return undefined
-    const timer = window.setTimeout(() => {
-      setMaterial(null)
-      setCode('')
-      setNotice('The setup window has closed. Start again to get a new setup key.')
-    }, Math.max(0, Date.parse(material.expiresAt) - Date.now()))
+    const timer = window.setTimeout(
+      () => {
+        setMaterial(null)
+        setCode('')
+        setNotice('The setup window has closed. Start again to get a new setup key.')
+      },
+      Math.max(0, Date.parse(material.expiresAt) - Date.now()),
+    )
     return () => window.clearTimeout(timer)
   }, [material])
 
-  useEffect(() => { if (material) inputRef.current?.focus() }, [material])
+  useEffect(() => {
+    if (material) inputRef.current?.focus()
+  }, [material])
 
   const start = async () => {
     if (starting || pending) return
@@ -89,44 +94,101 @@ export default function MfaReplacementPage() {
           <h1 id="mfa-replace-title">Authenticator app</h1>
           <p>Replace the authenticator used for multi-factor sign-in.</p>
         </div>
-        <span className="ux-badge"><OrvexaIcon name="shield-check" className="size-3.5" /> MFA</span>
+        <span className="ux-badge">
+          <OrvexaIcon name="shield-check" className="size-3.5" /> MFA
+        </span>
       </div>
       <div className="ux-panel-body">
         {preview ? (
-          <p className="zrv-auth-feedback" role="status">Development preview has no authenticated session; authenticator changes are unavailable.</p>
+          <p className="zrv-auth-feedback" role="status">
+            Development preview has no authenticated session; authenticator changes are unavailable.
+          </p>
         ) : (
           <>
-            <p className="zrv-mfa-meta">For your protection this is only allowed within 5 minutes of signing in with your current authenticator. After the replacement, every session of your account ends, including this one, and you sign in again with the new authenticator.</p>
+            <p className="zrv-mfa-meta">
+              For your protection this is only allowed within 5 minutes of signing in with your
+              current authenticator. After the replacement, every session of your account ends,
+              including this one, and you sign in again with the new authenticator.
+            </p>
             {session && !session.mfaVerified && (
-              <p className="zrv-auth-feedback" role="status">This session was not verified with an authenticator, so the server will ask you to sign in again first.</p>
+              <p className="zrv-auth-feedback" role="status">
+                This session was not verified with an authenticator, so the server will ask you to
+                sign in again first.
+              </p>
             )}
-            {notice && <p className="zrv-auth-feedback" role="status">{notice}</p>}
-            {error && <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">{error.message || 'The request could not be completed.'}</p>}
+            {notice && (
+              <p className="zrv-auth-feedback" role="status">
+                {notice}
+              </p>
+            )}
+            {error && (
+              <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
+                {error.message || 'The request could not be completed.'}
+              </p>
+            )}
             {needsRecentMfa && (
-              <button type="button" className="btn-secondary mt-3" onClick={() => { void signOut() }}>Sign out and sign in again</button>
+              <button
+                type="button"
+                className="btn-secondary mt-3"
+                onClick={() => {
+                  void signOut()
+                }}
+              >
+                Sign out and sign in again
+              </button>
             )}
             {material ? (
               <>
                 <AuthenticatorSetup material={material} />
-                <p className="zrv-mfa-meta">Confirm before {formatClockTime(material.expiresAt)}. Codes from your current authenticator will stop working.</p>
+                <p className="zrv-mfa-meta">
+                  Confirm before {formatClockTime(material.expiresAt)}. Codes from your current
+                  authenticator will stop working.
+                </p>
                 <form className="mt-4 zrv-mfa-form" onSubmit={submit} noValidate>
-                  <MfaCodeInput ref={inputRef} id="mfa-replace-code" value={code} onChange={setCode} error={fieldError} disabled={pending} />
+                  <MfaCodeInput
+                    ref={inputRef}
+                    id="mfa-replace-code"
+                    value={code}
+                    onChange={setCode}
+                    error={fieldError}
+                    disabled={pending}
+                  />
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button className="btn-primary zrv-auth-submit" type="submit" disabled={pending}>
-                      <OrvexaIcon name="shield-check" className="size-4" /> {pending ? 'Replacing…' : 'Confirm new authenticator'}
+                    <button
+                      className="btn-primary zrv-auth-submit"
+                      type="submit"
+                      disabled={pending}
+                    >
+                      <OrvexaIcon name="shield-check" className="size-4" />{' '}
+                      {pending ? 'Replacing…' : 'Confirm new authenticator'}
                     </button>
-                    <button type="button" className="btn-secondary" onClick={cancel} disabled={pending}>Cancel</button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={cancel}
+                      disabled={pending}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </form>
               </>
             ) : (
-              <button type="button" className="btn-primary mt-4 zrv-auth-submit" onClick={start} disabled={starting || status !== 'authenticated'}>
-                <OrvexaIcon name="key-round" className="size-4" /> {starting ? 'Starting…' : 'Replace authenticator'}
+              <button
+                type="button"
+                className="btn-primary mt-4 zrv-auth-submit"
+                onClick={start}
+                disabled={starting || status !== 'authenticated'}
+              >
+                <OrvexaIcon name="key-round" className="size-4" />{' '}
+                {starting ? 'Starting…' : 'Replace authenticator'}
               </button>
             )}
           </>
         )}
-        <Link className="btn-secondary mt-4" to="/account/password"><OrvexaIcon name="lock-keyhole" className="size-4" /> Password</Link>
+        <Link className="btn-secondary mt-4" to="/account/password">
+          <OrvexaIcon name="lock-keyhole" className="size-4" /> Password
+        </Link>
       </div>
     </section>
   )

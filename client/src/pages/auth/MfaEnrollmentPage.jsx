@@ -29,7 +29,9 @@ export default function MfaEnrollmentPage() {
   useEffect(() => {
     const controller = new AbortController()
     startMfaEnrollment({ signal: controller.signal })
-      .then((result) => { if (!controller.signal.aborted) setMaterial(result) })
+      .then((result) => {
+        if (!controller.signal.aborted) setMaterial(result)
+      })
       .catch((failure) => {
         if (!controller.signal.aborted && failure?.code !== 'ABORTED') {
           setLoadError(failure?.message || 'Authenticator setup could not be started.')
@@ -77,31 +79,74 @@ export default function MfaEnrollmentPage() {
 
   return (
     <main className="system-state zrv-auth-page">
-      <section className="system-card !max-w-[520px]" aria-labelledby="mfa-enroll-title" aria-busy={!material && !loadError}>
-        <span className="mx-auto flex size-14 items-center justify-center rounded-2xl" style={{ background: 'color-mix(in srgb,var(--primary) 11%,transparent)', color: 'var(--primary-text)' }}><OrvexaIcon name="shield-check" className="size-6" /></span>
+      <section
+        className="system-card !max-w-[520px]"
+        aria-labelledby="mfa-enroll-title"
+        aria-busy={!material && !loadError}
+      >
+        <span
+          className="mx-auto flex size-14 items-center justify-center rounded-2xl"
+          style={{
+            background: 'color-mix(in srgb,var(--primary) 11%,transparent)',
+            color: 'var(--primary-text)',
+          }}
+        >
+          <OrvexaIcon name="shield-check" className="size-6" />
+        </span>
         <h1 id="mfa-enroll-title">Set up your authenticator</h1>
-        <p>Your account requires multi-factor authentication. Scan the QR code with an authenticator app, then enter the code it shows. You are not signed in until the code is confirmed.</p>
+        <p>
+          Your account requires multi-factor authentication. Scan the QR code with an authenticator
+          app, then enter the code it shows. You are not signed in until the code is confirmed.
+        </p>
         {loadError && (
           <>
-            <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">{loadError}</p>
-            <button type="button" className="btn-primary mt-4" onClick={retry}>Try again</button>
+            <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
+              {loadError}
+            </p>
+            <button type="button" className="btn-primary mt-4" onClick={retry}>
+              Try again
+            </button>
           </>
         )}
-        {!material && !loadError && <p className="zrv-auth-feedback" role="status">Preparing authenticator setup…</p>}
+        {!material && !loadError && (
+          <p className="zrv-auth-feedback" role="status">
+            Preparing authenticator setup…
+          </p>
+        )}
         {material && (
           <>
             <AuthenticatorSetup material={material} />
-            <p className="zrv-mfa-meta">Complete setup before {formatClockTime(material.expiresAt)}.</p>
-            {error && <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">{error}</p>}
+            <p className="zrv-mfa-meta">
+              Complete setup before {formatClockTime(material.expiresAt)}.
+            </p>
+            {error && (
+              <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
+                {error}
+              </p>
+            )}
             <form className="mt-4 text-left" onSubmit={submit} noValidate>
-              <MfaCodeInput ref={inputRef} id="mfa-enroll-code" value={code} onChange={setCode} error={fieldError} disabled={pending} />
-              <button className="btn-primary mt-4 w-full zrv-auth-submit" type="submit" disabled={pending}>
-                <OrvexaIcon name="log-in" className="size-4" /> {pending ? 'Confirming…' : 'Confirm and sign in'}
+              <MfaCodeInput
+                ref={inputRef}
+                id="mfa-enroll-code"
+                value={code}
+                onChange={setCode}
+                error={fieldError}
+                disabled={pending}
+              />
+              <button
+                className="btn-primary mt-4 w-full zrv-auth-submit"
+                type="submit"
+                disabled={pending}
+              >
+                <OrvexaIcon name="log-in" className="size-4" />{' '}
+                {pending ? 'Confirming…' : 'Confirm and sign in'}
               </button>
             </form>
           </>
         )}
-        <button type="button" className="btn-secondary mt-3" onClick={cancel} disabled={pending}>Use a different account</button>
+        <button type="button" className="btn-secondary mt-3" onClick={cancel} disabled={pending}>
+          Use a different account
+        </button>
       </section>
     </main>
   )
