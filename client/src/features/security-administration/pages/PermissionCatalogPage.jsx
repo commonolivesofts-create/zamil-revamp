@@ -142,9 +142,7 @@ function getCatalogStatistics(data) {
 export default function PermissionCatalogPage() {
   const { can } = usePermissions()
 
-  const manage = can(
-    SECURITY_ACTIONS.PERMISSION_CATALOG_MANAGE
-  )
+  const manage = can(SECURITY_ACTIONS.PERMISSION_CATALOG_MANAGE)
 
   const catalog = useResource(
     'catalog',
@@ -678,15 +676,8 @@ export default function PermissionCatalogPage() {
                                                       `${module.moduleCode}.${resource.resourceCode}`,
                                                     resourceName:
                                                       resourceLabel,
-                                                    existing:
-                                                      existingActions(
-                                                        resource
-                                                      ),
-                                                    codeOwned:
-                                                      isCodeOwnedResource(
-                                                        module.moduleCode,
-                                                        resource.resourceCode
-                                                      ),
+                                                    existing: existingActions(resource),
+                                                    codeOwned: isCodeOwnedResource(module.moduleCode, resource.resourceCode),
                                                     catalogIncomplete:
                                                       incomplete,
                                                     exampleDescription:
