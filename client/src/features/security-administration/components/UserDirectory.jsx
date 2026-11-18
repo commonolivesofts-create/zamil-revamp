@@ -54,11 +54,7 @@ export default function UserDirectory({ rowLink, rowAction = 'Open' }) {
         aria-label="Search accounts"
         noValidate
       >
-        <Field
-          id="users-search"
-          label="Search"
-          error={searchError}
-        > 
+        <Field id="users-search" label="Search" error={searchError}>
           <input
             {...fieldProps('users-search', { hint: true, error: searchError })}
             className="ux-input"
