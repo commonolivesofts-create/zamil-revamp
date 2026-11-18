@@ -25,8 +25,8 @@ export function Drawer({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-ink/30 backdrop-blur-[2px] motion-safe:animate-fade-in dark:bg-black/60" />
-        <Dialog.Content className="fixed inset-y-0 end-0 z-50 flex w-full flex-col border-s border-border bg-surface text-ink shadow-raised outline-none motion-safe:animate-drawer-in sm:max-w-[560px]">
-          <header className="flex items-start gap-3 border-b border-border px-5 py-4 sm:px-6">
+        <Dialog.Content className="eh-drawer fixed inset-y-0 end-0 z-50 flex w-full flex-col border-s border-border bg-surface text-ink shadow-raised outline-none motion-safe:animate-drawer-in sm:max-w-[560px]">
+          <header className="flex shrink-0 items-start gap-3 border-b border-border px-5 py-4 sm:px-6">
             <div className="min-w-0 flex-1">
               <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
               {description ? (
@@ -44,9 +44,9 @@ export function Drawer({
               <X aria-hidden className="size-4" />
             </Dialog.Close>
           </header>
-          <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
           {footer && (
-            <footer className="flex items-center justify-end gap-2 border-t border-border bg-surface px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+            <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-surface px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
               {footer}
             </footer>
           )}
