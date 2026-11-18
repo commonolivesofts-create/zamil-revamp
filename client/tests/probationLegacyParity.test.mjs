@@ -28,7 +28,7 @@ import {
 } from '../src/features/hr-recruitment/probation/probationRules.js'
 
 const PAGE = new URL('../src/features/hr-recruitment/probation/ProbationPage.jsx', import.meta.url)
-const page = () => readFile(PAGE, 'utf8')
+const page = async () => (await readFile(PAGE, 'utf8')).replace(/\s+/g, ' ')
 const BASE = '/hr/probation-evaluations'
 const LEGACY_FORM_TYPES = [
   'Workers_Technicians',
@@ -281,10 +281,10 @@ test('parity: each criterion shows English and Arabic text, Allocated 5 and Poin
   const source = await page()
   assert.match(
     source,
-    /<span className="zrv-hr-row__l zrv-hr-probation-row__label">\{line\.param\}/,
+    /<span className="zrv-hr-row__l zrv-hr-probation-row__label">\s*\{line\.param\}/,
   )
-  assert.match(source, /<small lang="ar" dir="rtl">\{line\.paramAr\}<\/small>/)
-  assert.match(source, /zrv-hr-probation-row__alloc"[^>]*>\{ALLOCATED_POINTS\}/)
+  assert.match(source, /<small lang="ar" dir="rtl">\s*\{line\.paramAr\}\s*<\/small>/)
+  assert.match(source, /zrv-hr-probation-row__alloc"[^>]*>\s*\{ALLOCATED_POINTS\}/)
   assert.match(source, /\{\[1, 2, 3, 4, 5\]\.map/)
   assert.match(source, /type="radio"/)
   assert.match(source, /aria-label="Evaluation Criteria"/)
@@ -373,10 +373,13 @@ test('parity: Approved by shows HR SUPERVISOR once approved; Prepared & Agreed b
     '',
   ])
   const source = await page()
-  assert.match(source, /readOnly\('pa-approved', 'Approved by', approvedBy\(record\?\.status\)\)/)
   assert.match(
     source,
-    /readOnly\('pa-prepared', 'Prepared & Agreed by', saved \? record\.preparedBy : lookups\.requestor\?\.fullName\)/,
+    /readOnly\(\s*'pa-approved', 'Approved by', approvedBy\(record\?\.status\)\)/,
+  )
+  assert.match(
+    source,
+    /readOnly\(\s*'pa-prepared',\s*'Prepared & Agreed by',\s*saved \? record\.preparedBy : lookups\.requestor\?\.fullName,?\s*\)/,
   )
 })
 
@@ -429,7 +432,7 @@ test('parity: a saved evaluation needs Comments, Suggestion and every rating (le
 
 test('parity: the page validates by stage, as the two legacy views', async () => {
   const source = await page()
-  const rules = await readFile(new URL('probationForm.js', PAGE), 'utf8')
+  const rules = (await readFile(new URL('probationForm.js', PAGE), 'utf8')).replace(/\s+/g, ' ')
   assert.match(
     rules,
     /saved \? validateForSubmit\(form\) : validateForCreate\(form, \{ employee: form\.employee, criteria: form\.lines \}\)/,
@@ -465,9 +468,12 @@ test('new-only fields of the demo model stay optional: recommendation, extension
 test('parity: a saved evaluation keeps its header (legacy edit saves only comments and points)', async () => {
   const source = await page()
   assert.match(source, /disabled=\{saved\}/, 'form type')
-  assert.match(source, /saved \? readOnly\('pa-emp', 'Employee Name', employee\?\.name\)/)
-  assert.match(source, /readOnly\('pa-from', 'Evaluation Period From', form\.fromDate\)/)
-  assert.match(source, /readOnly\('pa-to', 'Evaluation Period To', form\.toDate\)/)
+  assert.match(
+    source,
+    /saved \? \(?\s*readOnly\(\s*'pa-emp',\s*'Employee Name',\s*employee\?\.name\s*\)\s*\)?/,
+  )
+  assert.match(source, /readOnly\(\s*'pa-from', 'Evaluation Period From', form\.fromDate\)/)
+  assert.match(source, /readOnly\(\s*'pa-to', 'Evaluation Period To', form\.toDate\)/)
 })
 
 test('parity: Draft and Rejected are editable; Inprocess and Approved are read only', async () => {
@@ -504,7 +510,10 @@ test('parity: probation makes it clear that approval submission is still pending
 test('parity: the report has the legacy columns, Pending At from the API', async () => {
   // The report is its own page (ProbationReportPage.jsx), opened by the form's Report tool.
   assert.match(await page(), /label: 'Report', onClick: \(\) => leave\(`\$\{BASE\}\/report`\)/)
-  const source = await readFile(new URL('ProbationReportPage.jsx', PAGE), 'utf8')
+  const source = (await readFile(new URL('ProbationReportPage.jsx', PAGE), 'utf8')).replace(
+    /\s+/g,
+    ' ',
+  )
   const labels = [...source.matchAll(/\{ key: '\w+', label: '([^']+)'/g)].map((match) => match[1])
   assert.deepEqual(
     labels.slice(labels.indexOf('#')),

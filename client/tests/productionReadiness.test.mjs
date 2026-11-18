@@ -355,7 +355,10 @@ test('a failed refresh denies everything; a sign-out during a refresh wins', asy
 })
 
 test("confirmed changes that can alter the signed-in user's own access refresh permissions", async () => {
-  const action = await read('../src/features/security-administration/useAdminData.js')
+  const action = (await read('../src/features/security-administration/useAdminData.js')).replace(
+    /\s+/g,
+    ' ',
+  )
   assert.match(
     action,
     /if \(refreshAccess && \(outcome\.status === 'success' \|\| outcome\.status === 'unknown'\)\) reloadPermissions\(\)/,
@@ -370,12 +373,12 @@ test("confirmed changes that can alter the signed-in user's own access refresh p
     assert.equal((source.match(/refreshAccess: true/g) || []).length, count, file)
   }
   // Phase 2C multi-grant: refresh after any confirmed or uncertain grant, or a permission refusal.
-  const grantDialog = await read(
-    '../src/features/security-administration/components/RoleGrantDialog.jsx',
-  )
+  const grantDialog = (
+    await read('../src/features/security-administration/components/RoleGrantDialog.jsx')
+  ).replace(/\s+/g, ' ')
   assert.match(
     grantDialog,
-    /if \(result\.accessMayHaveChanged \|\| result\.results\.some\(\(item\) => describeFailure\(item\.error\)\.permissionChanged\)\) reloadPermissions\(\)/,
+    /if \(\s*result\.accessMayHaveChanged \|\| result\.results\.some\(\(item\) => describeFailure\(item\.error\)\.permissionChanged\)\s*\) reloadPermissions\(\)/,
   )
 })
 

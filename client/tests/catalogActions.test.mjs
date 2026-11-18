@@ -362,7 +362,7 @@ test('the action dialog uses the accessible picker, warns for code-owned resourc
   const dialog = await read(
     '../src/features/security-administration/components/CatalogFormDialog.jsx',
   )
-  assert.match(dialog, /<ActionPicker /)
+  assert.match(dialog, /<ActionPicker\b/)
   assert.match(
     dialog,
     /actions \? \([\s\S]*<ActionPicker[\s\S]*\) : \([\s\S]*catalog-code/,
@@ -384,9 +384,11 @@ test('the action dialog uses the accessible picker, warns for code-owned resourc
   assert.match(picker, /role="status" aria-live="polite"/)
   assert.match(picker, /disabled=\{disabled \|\| present\}/)
 
-  const page = await read('../src/features/security-administration/pages/PermissionCatalogPage.jsx')
+  const page = (
+    await read('../src/features/security-administration/pages/PermissionCatalogPage.jsx')
+  ).replace(/\s+/g, ' ')
   assert.match(page, /const manage = can\(SECURITY_ACTIONS\.PERMISSION_CATALOG_MANAGE\)/)
-  assert.match(page, /\{manage && <button[^\n]*kind: 'permission'/)
+  assert.match(page, /\{manage &&\s*\(?\s*<button.*kind: 'permission'/)
   for (const field of [
     'existing: existingActions(resource)',
     'codeOwned: isCodeOwnedResource(',

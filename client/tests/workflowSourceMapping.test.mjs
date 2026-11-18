@@ -706,7 +706,9 @@ test('mapping pages need SOURCE_MAPPING and DATA_SOURCE_REGISTRY:VIEW, and stay 
 test('mapping pages use the shared service, real API data and accessible controls', async () => {
   const files = {
     list: await read('../src/features/workflow-manager/pages/SourceVersionListPage.jsx'),
-    editor: await read('../src/features/workflow-manager/pages/SourceVersionEditorPage.jsx'),
+    editor: (
+      await read('../src/features/workflow-manager/pages/SourceVersionEditorPage.jsx')
+    ).replace(/\s+/g, ' '),
     columns: await read('../src/features/workflow-manager/components/SourceColumnTable.jsx'),
     keys: await read('../src/features/workflow-manager/components/SourceKeyCandidateEditor.jsx'),
     validation: await read('../src/features/workflow-manager/components/SourceValidationPanel.jsx'),
@@ -756,9 +758,11 @@ test('mapping pages use the shared service, real API data and accessible control
 })
 
 test('findings are labelled in the order of the draft they came from', async () => {
-  const editor = await read('../src/features/workflow-manager/pages/SourceVersionEditorPage.jsx')
+  const editor = (
+    await read('../src/features/workflow-manager/pages/SourceVersionEditorPage.jsx')
+  ).replace(/\s+/g, ' ')
   // Saves label by the submitted order (also carried across the create navigation) …
-  assert.match(editor, /validation: outcome\.value\.validation, order \}/)
+  assert.match(editor, /validation: outcome\.value\.validation, order,?\s*\}/)
   assert.match(editor, /saved\.`, order\)/)
   // … while drift and stored blockers index the stored, sorted configuration.
   assert.match(editor, /driftOrder=\{storedOrder\}/)

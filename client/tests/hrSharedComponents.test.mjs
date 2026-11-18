@@ -64,7 +64,7 @@ test('step track: one column per step (--n), defaulting to the earlier four', as
 })
 
 test('RecruitmentShell options: flow, compact and banner default to the earlier layout', async () => {
-  const shell = await read(`${SHARED}RecruitmentShell.jsx`)
+  const shell = (await read(`${SHARED}RecruitmentShell.jsx`)).replace(/\s+/g, ' ')
   assert.match(
     shell,
     /flow = true, compact = false, banner = null, breadcrumb, lockedSteps = \[\], onContinue, feedbackMode = ['"]toast['"], .*children,/,
@@ -78,7 +78,7 @@ test('RecruitmentShell options: flow, compact and banner default to the earlier 
   assert.match(shell, /\{flow && <FlowNav current=\{current\} status=\{flowStatus\} \/>\}/)
   assert.match(
     shell,
-    /\{ticket\}\n\s*\{banner\}\n/,
+    /\{ticket\}\s*\{banner\}/,
     'the banner sits between the ticket strip and the step track',
   )
   assert.match(
@@ -87,7 +87,7 @@ test('RecruitmentShell options: flow, compact and banner default to the earlier 
   )
   assert.match(
     shell,
-    /breadcrumb = COMMON_TEXT\.breadcrumb, demo = false \}/,
+    /breadcrumb = COMMON_TEXT\.breadcrumb, demo = false,?\s*\}/,
     'an undefined breadcrumb keeps the recruitment one',
   )
   const css = await read(CSS)
@@ -119,7 +119,7 @@ test('RecruitmentShell options: flow, compact and banner default to the earlier 
 })
 
 test('RecruitmentLoader options: flow, identify and breadcrumb keep the recruitment defaults', async () => {
-  const loader = await read(`${SHARED}RecruitmentLoader.jsx`)
+  const loader = (await read(`${SHARED}RecruitmentLoader.jsx`)).replace(/\s+/g, ' ')
   assert.match(loader, /flow = true, identify = identifyDemoUser, breadcrumb, children,/)
   assert.match(loader, /\{flow && <FlowNav current=\{current\} \/>\}/)
   assert.match(

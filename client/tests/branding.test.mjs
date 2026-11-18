@@ -44,7 +44,7 @@ test('the version is shown only in the login footer and the sidebar footer', asy
   const sidebar = await read('../src/components/layout/Sidebar.jsx')
   assert.match(
     sidebar,
-    /<p className="zrv-sidebar-version" title="Application version">\{appConfig\.displayVersion\}<\/p>/,
+    /<p\s+className="zrv-sidebar-version"\s+title="Application version">\s*\{appConfig\.displayVersion\}\s*<\/p>/,
   )
 })
 

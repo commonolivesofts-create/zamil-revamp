@@ -1046,7 +1046,7 @@ test('routes: transfers use HR permissions and list paths win over record ids', 
 // ------------------------------------------------------------ static checks of the screens
 
 test('record change page: not in the recruitment flow, services only, linked errors, reset per row', async () => {
-  const page = await read(`${FEATURE}recordChange/RecordChangePage.jsx`)
+  const page = (await read(`${FEATURE}recordChange/RecordChangePage.jsx`)).replace(/\s+/g, ' ')
   assert.match(
     page,
     /<RecruitmentLoader current="record-change" flow=\{false\} identify=\{NO_IDENTIFY\}/,
@@ -1068,7 +1068,7 @@ test('record change page: not in the recruitment flow, services only, linked err
   assert.match(page, /leave\(ES_PATHS\.recordChangeRequests\)/)
   assert.match(
     page,
-    /editor\.reject\(problems\[0\]\.step/,
+    /editor\.reject\(\s*problems\[0\]\.step/,
     'validation opens the step with the first problem',
   )
   const list = await read(`${FEATURE}recordChange/RecordChangeRequestsPage.jsx`)
@@ -1088,7 +1088,7 @@ test('record change page: not in the recruitment flow, services only, linked err
     'idea/IdeaReportPage.jsx',
   ]) {
     const source = await read(`${FEATURE}${report}`)
-    assert.match(source, /<InsightReport /, report)
+    assert.match(source, /<InsightReport\b/, report)
     assert.match(
       source,
       /breadcrumb=\{(?:C\.(?:breadcrumb|performanceBreadcrumb)|EMPLOYEE_SERVICES_BREADCRUMB)\}/,
@@ -1710,7 +1710,7 @@ test('demo adapter: transfer save, submit, the report and 404, 409 and 422 error
 })
 
 test('transfer page: compact frame without the duplicate document banner, tight pickers, radio groups and a report view', async () => {
-  const page = await read(`${FEATURE}transfer/TransferPage.jsx`)
+  const page = (await read(`${FEATURE}transfer/TransferPage.jsx`)).replace(/\s+/g, ' ')
   assert.match(page, /<RecruitmentShell current="transfer" flow=\{false\} compact /)
   assert.doesNotMatch(
     page,
@@ -1793,7 +1793,7 @@ test('transfer page: compact frame without the duplicate document banner, tight 
     'requester from the server (before the first save: the session user)',
   )
   const report = await read(`${FEATURE}transfer/TransferReportPage.jsx`)
-  assert.match(report, /<InsightReport /)
+  assert.match(report, /<InsightReport\b/)
   assert.match(report, /localList\(hrEmployeeServices\.transfers\.list,/)
   assert.match(report, /onRefresh=\{transfers\.reset\}/, 'Refresh loads the requests again')
 })
@@ -2337,7 +2337,7 @@ test('backend appraisal adapter uses eligible employee snapshots and creates the
 })
 
 test('appraisal page: compact frame, radio groups for ratings, development tabs, signatures and the report page', async () => {
-  const page = await read(`${FEATURE}performance/AppraisalPage.jsx`)
+  const page = (await read(`${FEATURE}performance/AppraisalPage.jsx`)).replace(/\s+/g, ' ')
   assert.match(page, /<RecruitmentShell current="appraisal" flow=\{false\} compact /)
   assert.match(page, /breadcrumb=\{C\.performanceBreadcrumb\}/)
   assert.match(

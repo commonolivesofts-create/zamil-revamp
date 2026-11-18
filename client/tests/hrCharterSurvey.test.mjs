@@ -272,10 +272,12 @@ test('source: live APIs only, no browser storage, routed', async () => {
 })
 
 test('charter form: the manager is the shared employee dropdown and the Idea heading is not duplicated', async () => {
-  const page = await readFile(
-    new URL('../src/features/hr-employee-services/charter/CharterPage.jsx', import.meta.url),
-    'utf8',
-  )
+  const page = (
+    await readFile(
+      new URL('../src/features/hr-employee-services/charter/CharterPage.jsx', import.meta.url),
+      'utf8',
+    )
+  ).replace(/\s+/g, ' ')
   assert.match(page, /<EmployeePicker id="pc-projectManager"/)
   assert.match(page, /searchService=\{searchManagers\}/)
   assert.doesNotMatch(page, /NameSuggest|<h3[^>]*>Idea<\/h3>/)

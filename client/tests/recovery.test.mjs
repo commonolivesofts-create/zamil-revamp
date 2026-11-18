@@ -632,10 +632,10 @@ test('preview cannot run any password or recovery operation', async () => {
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('link pages strip the fragment with history replacement and reuse the Batch B MFA components', async () => {
-  const hook = await read('../src/features/auth/useLinkToken.js')
+  const hook = (await read('../src/features/auth/useLinkToken.js')).replace(/\s+/g, ' ')
   assert.match(
     hook,
-    /navigate\(\{ pathname: location\.pathname, search: location\.search \}, \{ replace: true, state: null \}\)/,
+    /navigate\(\s*\{ pathname: location\.pathname, search: location\.search \},\s*\{ replace: true, state: null \},?\s*\)/,
   )
   const recovery = await read('../src/pages/auth/MfaRecoveryPage.jsx')
   assert.match(

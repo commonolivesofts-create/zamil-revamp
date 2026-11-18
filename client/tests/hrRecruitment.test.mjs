@@ -325,7 +325,7 @@ test('the three forms show no demo text and keep live API wiring', async () => {
   assert.doesNotMatch(shell, /hrRecruitmentDemo/)
   assert.match(
     shell,
-    /export function RecruitmentHeader\(\{ title, subtitle, breadcrumb = COMMON_TEXT\.breadcrumb, demo = false \}\)/,
+    /export function RecruitmentHeader\(\{\s*title,\s*subtitle,\s*breadcrumb\s*=\s*COMMON_TEXT\.breadcrumb,\s*demo\s*=\s*false,?\s*\}\)/,
   )
   for (const page of pages) assert.doesNotMatch(page, /hrRecruitmentDemo|demo=/)
   assert.match(

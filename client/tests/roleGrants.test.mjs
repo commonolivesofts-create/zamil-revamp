@@ -472,17 +472,17 @@ test('the page binds dialogs to their role, refuses unavailable or inactive role
   assert.match(page, /setDialog\(\{ \.\.\.next, roleId \}\)/)
   assert.match(
     page,
-    /const grantBlocked = !role \? .* : !role\.isActive \? 'Inactive roles cannot receive permissions' : null/,
+    /const grantBlocked = !role\s*\?[\s\S]*?: !role\.isActive\s*\?\s*'Inactive roles cannot receive permissions'\s*:\s*null/,
   )
   assert.match(page, /disabled=\{Boolean\(grantBlocked\)\}/)
-  assert.match(page, /grants\.reload\(\)\n\s+open\(\{ type: 'grant' \}\)/)
+  assert.match(page, /grants\.reload\(\)\s*open\(\{ type: 'grant' \}\)/)
   assert.match(
     page,
-    /dialog\?\.type === 'grant' && role\?\.isActive && \(\n\s+<RoleGrantDialog roleId=\{dialog\.roleId\}/,
+    /dialog\?\.type === 'grant' && role\?\.isActive && \(\s*<RoleGrantDialog\s+roleId=\{dialog\.roleId\}/,
   )
   assert.match(
     page,
-    /revokeRolePermission\(dialog\.roleId, dialog\.grant\.permissionId\)/,
+    /revokeRolePermission\(\s*dialog\.roleId,\s*dialog\.grant\.permissionId,?\s*\)/,
     'revoke uses the role the dialog was opened for',
   )
 

@@ -174,14 +174,14 @@ test('#3 malformed fragments, refreshes and stale clears', () => {
 })
 
 test('#3 link pages key their flow on the captured link and clear only their own token', async () => {
-  const hook = await read('../src/features/auth/useLinkToken.js')
+  const hook = (await read('../src/features/auth/useLinkToken.js')).replace(/\s+/g, ' ')
   assert.match(
     hook,
     /if \(isNewLink\(captured, location\)\) setCaptured\(captureLink\(location\)\)/,
   )
   assert.match(
     hook,
-    /navigate\(\{ pathname: location\.pathname, search: location\.search \}, \{ replace: true, state: null \}\)/,
+    /navigate\(\s*\{\s*pathname:\s*location\.pathname,\s*search:\s*location\.search\s*\}, \{ replace: true, state: null \}/,
   )
   for (const file of [
     '../src/features/auth/PasswordLinkForm.jsx',
@@ -201,7 +201,7 @@ test('#4 login focuses the first invalid field and reuses the shared password in
     login,
     /if \(errors\.username\) return usernameRef\.current\?\.focus\(\)\s*\n\s*if \(errors\.password\) return passwordRef\.current\?\.focus\(\)/,
   )
-  assert.match(login, /<input ref=\{usernameRef\} id="auth-username"/)
+  assert.match(login, /<input\s+ref=\{usernameRef\}\s+id="auth-username"/)
   assert.match(
     login,
     /<PasswordInput\s+ref=\{passwordRef\}\s+id="auth-password"\s+label="Password"/,
@@ -213,7 +213,7 @@ test('#4 login focuses the first invalid field and reuses the shared password in
     'payload unchanged; password not trimmed',
   )
   const fields = await read('../src/features/auth/PasswordFields.jsx')
-  assert.match(fields, /\{label\}\{labelAddon && <> \{labelAddon\}<\/>\}/)
+  assert.match(fields, /\{label\}\s*\{labelAddon && <> \{labelAddon\}<\/>\}/)
 })
 
 // ------------------------------------------------------------ #5 panel spacing

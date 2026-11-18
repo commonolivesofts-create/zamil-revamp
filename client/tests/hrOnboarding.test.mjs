@@ -666,7 +666,7 @@ test('employee report service uses the contractor employee lookup and paginated 
 })
 
 test('employee report page always sends both dates, in order', async () => {
-  const page = await read(`${FEATURE}report/EmployeeReportPage.jsx`)
+  const page = (await read(`${FEATURE}report/EmployeeReportPage.jsx`)).replace(/\s+/g, ' ')
   // Blank dates are the legacy "Since 2000" period up to today; the API requires both.
   assert.match(page, /dateFrom: dateFrom \|\| SINCE, dateTo: dateTo \|\| businessToday\(\)/)
   assert.match(page, /dateTo: dateFrom && dateTo && dateTo < dateFrom \? I\.dateOrder : ''/)
@@ -754,7 +754,11 @@ test('orientation page: flow step 4 keeps the styled editor and uses backend emp
   assert.match(page, /service\.employeeSetup\(picked\.employeeNumber\)/)
   assert.match(page, /const lines = form\.lines/)
   assert.match(page, /service\.save\(\s*editor\.recordId,/)
-  assert.match(page, /const toDate = form\.fromOrient;/, 'legacy copies From into the read-only To')
+  assert.match(
+    page,
+    /const toDate = form\.fromOrient;?/,
+    'legacy copies From into the read-only To',
+  )
   assert.match(page, /readOnly\s+value=\{toDate \? enDate\(toDate\) : ["']["']\}/)
   assert.match(page, /locked=\{locked\}/, 'a request in the workflow or approved is read only')
   assert.match(
@@ -763,7 +767,7 @@ test('orientation page: flow step 4 keeps the styled editor and uses backend emp
     'legacy time inputs use seconds',
   )
   // The report is its own page, opened on the schedule's table (Shared or Plant).
-  assert.match(page, /leave\(`\$\{BASE\}\/report\?flag=\$\{savedRecord\?\.flag \|\| "N"\}`\)/)
+  assert.match(page, /leave\(`\$\{BASE\}\/report\?flag=\$\{savedRecord\?\.flag \|\| ['"]N['"]\}`\)/)
   const report = await read(`${FEATURE}orientation/OrientationReportPage.jsx`)
   assert.match(
     report,
@@ -1184,7 +1188,7 @@ test('probation page connects to backend supported fields', async () => {
     RECRUITMENT_FLOW.map((item) => item.id),
     ['requisition', 'interview', 'offer', 'orientation', 'probation'],
   )
-  const page = await read(`${FEATURE}probation/ProbationPage.jsx`)
+  const page = (await read(`${FEATURE}probation/ProbationPage.jsx`)).replace(/\s+/g, ' ')
   assert.match(page, /loadLookups=\{\(signal\) => service\.getLookups\(\{ signal \}\)\}/)
   assert.match(page, /searchService=\{searchEmployees\}/)
   assert.match(
@@ -1618,7 +1622,7 @@ test('report page: outside the flow, server rows and summary, column chooser, si
     false,
     'the report is not part of the flow',
   )
-  const page = await read(`${FEATURE}report/PeriodwiseEmployeesPage.jsx`)
+  const page = (await read(`${FEATURE}report/PeriodwiseEmployeesPage.jsx`)).replace(/\s+/g, ' ')
   assert.equal(/<FlowNav|<RecruitmentShell/.test(page), false)
   assert.match(
     page,
@@ -1643,7 +1647,7 @@ test('report page: outside the flow, server rows and summary, column chooser, si
   assert.doesNotMatch(page, /(row|open).nationalId/, 'no national ID value is shown')
   assert.match(
     page,
-    /aria-sort=\{sort\.key === column\.key \? \(sort\.direction > 0 \? 'ascending' : 'descending'\) : column\.sort \? 'none' : undefined\}/,
+    /aria-sort=\{\s*sort\.key === column\.key \? \(?sort\.direction > 0 \? 'ascending' : 'descending'\)? : column\.sort \? 'none' : undefined\s*\}/,
   )
   assert.match(
     page,
@@ -1666,7 +1670,7 @@ test('report page: outside the flow, server rows and summary, column chooser, si
       new URL('../src/features/hr-recruitment/shared/reportExport.js', import.meta.url),
       'utf8',
     ),
-    /new Blob\(\[withBom\(csv\)\], \{ type: "text\/csv;charset=utf-8" \}\)/,
+    /new Blob\(\[withBom\(csv\)\], \{ type: ['"]text\/csv;charset=utf-8['"] \}\)/,
   )
   for (const key of [
     'employeeNumber',

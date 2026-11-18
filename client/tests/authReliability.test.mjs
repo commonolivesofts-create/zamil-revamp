@@ -215,9 +215,11 @@ test('actual HTTP: a backend that starts listening during recovery is reached au
 })
 
 test('the error state offers retry and login without unlocking protected routes', async () => {
-  const guards = await readFile(new URL('../src/routes/RouteGuards.jsx', import.meta.url), 'utf8')
+  const guards = (
+    await readFile(new URL('../src/routes/RouteGuards.jsx', import.meta.url), 'utf8')
+  ).replace(/\s+/g, ' ')
   assert.match(guards, /actionLabel="Retry session check" onAction=\{retrySession\}/)
-  assert.match(guards, /to="\/login"[^>]*>Go to Login<\/Link>/)
+  assert.match(guards, /to="\/login"[^>]*>\s*Go to Login\s*<\/Link>/)
   // ProtectedRoute: error renders the warning, never <Outlet />; only authenticated/preview pass.
   const protectedRoute = guards.slice(
     guards.indexOf('export function ProtectedRoute'),
@@ -265,11 +267,15 @@ test('the login page cannot start a session check while a sign-in is pending', a
 
   // So the page's retry control is disabled and ignores clicks while `pending`.
   const login = await readFile(new URL('../src/pages/auth/LoginPage.jsx', import.meta.url), 'utf8')
+  const retryIdx = login.indexOf('Retry session check')
   const retry = login.slice(
-    login.lastIndexOf('<button', login.indexOf('>Retry session check<')),
-    login.indexOf('>Retry session check<'),
+    login.lastIndexOf('<button', retryIdx),
+    login.indexOf('</button>', retryIdx),
   )
-  assert.match(retry, /onClick=\{\(\) => \{ if \(!pending\) retrySession\(\) \}\}/)
+  assert.match(
+    retry.replace(/\s+/g, ' '),
+    /onClick=\{\(\) => \{ if \(!pending\) retrySession\(\) \}\}/,
+  )
   assert.match(retry, /disabled=\{pending\}/)
   assert.doesNotMatch(login, /onClick=\{retrySession\}/)
 })

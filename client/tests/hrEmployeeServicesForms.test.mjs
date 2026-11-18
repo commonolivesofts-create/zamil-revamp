@@ -430,7 +430,10 @@ test('idea: client validation (required lists, title, 40-character idea, amounts
 })
 
 test('idea page: one compact page with tabs that scroll to each section, no review step', async () => {
-  const page = await read('../src/features/hr-employee-services/idea/IdeaPage.jsx')
+  const page = (await read('../src/features/hr-employee-services/idea/IdeaPage.jsx')).replace(
+    /\s+/g,
+    ' ',
+  )
   assert.match(page, /compact singlePage/)
   assert.match(page, /onStep=\{goToSection\}/)
   assert.match(page, /id="idea-section-0"/)
@@ -656,7 +659,9 @@ test('sick leave: records read camelCase attachments and YYYY-MM-DD dates', () =
 })
 
 test('sick leave page: one compact page with a live preview and tabs that scroll to each section', async () => {
-  const page = await read('../src/features/hr-employee-services/sickLeave/SickLeavePage.jsx')
+  const page = (
+    await read('../src/features/hr-employee-services/sickLeave/SickLeavePage.jsx')
+  ).replace(/\s+/g, ' ')
   assert.match(page, /compact singlePage/, 'the form is one page, not a step wizard')
   assert.doesNotMatch(page, /\bTilt\b|\bOrbit\b/, 'the old green summary card is gone')
   assert.match(page, /<SickLeavePreview/, 'the request is shown as a paper preview like the offer')
@@ -670,9 +675,9 @@ test('sick leave page: one compact page with a live preview and tabs that scroll
 })
 
 test('sick leave report: a row opens the saved request like the employment offer drawer', async () => {
-  const report = await read(
-    '../src/features/hr-employee-services/sickLeave/SickLeaveReportPage.jsx',
-  )
+  const report = (
+    await read('../src/features/hr-employee-services/sickLeave/SickLeaveReportPage.jsx')
+  ).replace(/\s+/g, ' ')
   assert.match(report, /<SickLeaveReportPreview /, 'the drawer shows the saved request preview')
   assert.match(
     report,
@@ -687,12 +692,12 @@ test('sick leave report: a row opens the saved request like the employment offer
     'the Open link and copy number are gone',
   )
 
-  const preview = await read(
-    '../src/features/hr-employee-services/sickLeave/SickLeaveReportPreview.jsx',
-  )
+  const preview = (
+    await read('../src/features/hr-employee-services/sickLeave/SickLeaveReportPreview.jsx')
+  ).replace(/\s+/g, ' ')
   assert.match(
     preview,
-    /sickLeaveService\.getById\(row\.leaveId/,
+    /sickLeaveService\s*\.\s*getById\(row\.leaveId/,
     'the drawer loads the saved record, not the list row',
   )
   assert.match(preview, /<SickLeavePreview/, 'the same paper preview as the form')
@@ -1047,7 +1052,7 @@ test('sidebar: internal HR pages use sub-groups and the Training Hub stays a sta
     [['training-hub', undefined]],
   )
   const sidebar = await read('../src/components/layout/Sidebar.jsx')
-  const flyout = await read('../src/components/layout/SidebarFlyout.jsx')
+  const flyout = (await read('../src/components/layout/SidebarFlyout.jsx')).replace(/\s+/g, ' ')
   assert.match(sidebar, /item\.subgroup === subgroup\.id/)
   assert.match(sidebar, /<SidebarFlyout/)
   assert.match(flyout, /aria-expanded=\{open\}/)
