@@ -32,7 +32,7 @@ export const PasswordInput = forwardRef(function PasswordInput({
           aria-describedby={described}
           required
         />
-        <button type="button" className="zrv-password-toggle" onClick={() => setVisible((current) => !current)} disabled={disabled} aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`} aria-pressed={visible} aria-controls={id}>
+        <button type="button" className="zrv-password-toggle" onClick={() => setVisible((current) => !current)} aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`} aria-pressed={visible} aria-controls={id}>
           <OrvexaIcon name={visible ? 'eye-off' : 'eye'} className="size-4" />
         </button>
       </div>

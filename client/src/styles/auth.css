@@ -129,6 +129,9 @@
   color: var(--text);
   background: var(--surface-2);
 }
+.zrv-auth-page .zrv-password-toggle:disabled {
+  transform: translateY(-50%) !important;
+}
 [dir="rtl"] .zrv-auth-page .zrv-password-toggle {
   right: auto;
   left: 6px;
