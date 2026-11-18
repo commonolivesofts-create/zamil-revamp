@@ -12,7 +12,9 @@ const page = (entry) => ({ group: 'workflow-manager', ...entry })
 export default defineModule({
   code: 'WORKFLOW_MANAGER',
   name: 'Workflow Manager',
-  description: 'Master Workflow Manager configuration: registered forms, approved data sources and their source mappings.',
+  // Registered on Oracle TEST by M1 (#56). Registration never updates existing rows, so a changed
+  // name or description here becomes a CONFLICT that also blocks every new resource below.
+  description: 'Master Workflow Manager configuration: registered forms and approved data sources.',
   displayOrder: 0,
   resources: [
     {
