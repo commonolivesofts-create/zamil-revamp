@@ -304,6 +304,7 @@ export default function UserRolesPage() {
   }
   rowAction="Manage roles"
   compactReportTable
+  searchPlaceholder="Search by Employee Number, Username, or Name..."
 />
 
         </div>

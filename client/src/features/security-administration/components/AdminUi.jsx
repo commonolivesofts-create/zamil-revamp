@@ -351,9 +351,9 @@ export function ConfirmDialog({
   )
 }
 
-export function Field({ id, label, hint, error, children }) {
+export function Field({ id, label, hint, error, children, className = '' }) {
   return (
-    <div className="field zrv-admin-field">
+    <div className={`field zrv-admin-field ${className}`.trim()}>
       <label htmlFor={id}>{label}</label>
       {children}
       {hint && !error && (

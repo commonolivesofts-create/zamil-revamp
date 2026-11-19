@@ -4,6 +4,7 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { safeReturnTo } from '@/config/authRouting.js'
 import { appConfig } from '@/config/appConfig.js'
 import { authConfig } from '@/config/authConfig.js'
+import AnimatedSecurityShield from '@/features/auth/AnimatedSecurityShield.jsx'
 import { PasswordInput } from '@/features/auth/PasswordFields.jsx'
 import useAuth from '@/features/auth/useAuth.js'
 import '@/styles/auth.css'
@@ -124,11 +125,13 @@ export default function LoginPage() {
               secure session.
             </p>
           )}
-          {notice && notices[notice] && (
+          {notice === 'password_changed' ? (
+            <AnimatedSecurityShield success />
+          ) : notice && notices[notice] ? (
             <p className="zrv-auth-feedback" role="status">
               {notices[notice]}
             </p>
-          )}
+          ) : null}
           {status === 'error' && (
             <p className="zrv-auth-feedback" role="status">
               The authentication server could not be reached to check for an existing session. You
