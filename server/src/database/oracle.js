@@ -85,7 +85,14 @@ export async function withConnection(poolName, work) {
 
   try {
     if (!pool) throw new Error(`Oracle pool ${poolName} is not initialized`);
-    connection = await pool.getConnection();
+    try {
+      connection = await pool.getConnection();
+    } catch {
+      // Bounded retry for transient cold-start or queue contention: if the pool is
+      // completing its initial TLS handshake or recovering, retry once to absorb the delay.
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      connection = await pool.getConnection();
+    }
   } catch (error) {
     throw new AppError(
       503,
@@ -165,7 +172,9 @@ export async function probePool(poolName, timeoutMs) {
 }
 
 /** Probes both pools in parallel; returns `{ LOW: boolean, HIGH: boolean }`. */
-export async function checkDatabaseReadiness(timeoutMs = config.health.readyTimeoutMs) {
+export async function checkDatabaseReadiness(
+  timeoutMs = Math.max(config.health.readyTimeoutMs, (config.database.connectTimeout + 5) * 1000),
+) {
   const names = Object.values(POOLS);
   const results = await Promise.all(
     names.map(async (name) => {
