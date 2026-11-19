@@ -38,10 +38,13 @@ node --env-file-if-exists=.env .\scripts\rbac-register.js --target=TEST --module
 The `WORKFLOW_MANAGER` definition now holds 1 module, 4 resources and 15 permissions
 (20 records): the M1 catalogue (1 module, 3 resources, 11 permissions — registered on TEST
 on 7 November 2026) plus the M2-A resource `SOURCE_MAPPING` with `VIEW`, `CREATE`, `UPDATE`
-and `DELETE` (5 records). On TEST the scoped preview is therefore expected to show the 15 M1
-records as MATCH and **MISSING 5** (`RESOURCE WORKFLOW_MANAGER.SOURCE_MAPPING` and its four
-permissions), **0 conflicts** and only matched security-catalogue entries; an environment
-without the M1 registration shows MISSING 20.
+and `DELETE` (5 records). On TEST the scoped preview is therefore expected to show
+**MATCH 47** (the 15 M1 records plus the 32 protected `SECURITY_ADMINISTRATION` records the
+scoped preview always verifies), **MISSING 5** (`RESOURCE WORKFLOW_MANAGER.SOURCE_MAPPING` and
+its four permissions) and **0 conflicts**; an environment without the M1 registration shows
+MISSING 20. The module name and description must stay exactly as registered by M1: the
+script never updates existing rows, so a changed description is a CONFLICT that also blocks
+every new child record (the M2-A registry text did this until it was restored).
 Verify the exact live plan; do not rely on a historical count or fingerprint. Registering
 `SOURCE_MAPPING` and granting it to a role are separate G1 decisions; until then every M2-A
 route denies (default deny). The scoped
