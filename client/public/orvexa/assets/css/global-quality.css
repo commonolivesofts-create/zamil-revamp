@@ -29,16 +29,8 @@ body {
 }
 .dark body {
   background:
-    radial-gradient(
-      circle at 74% -10%,
-      rgba(78, 214, 196, 0.055),
-      transparent 31%
-    ),
-    radial-gradient(
-      circle at 20% -8%,
-      rgba(242, 189, 79, 0.045),
-      transparent 28%
-    ),
+    radial-gradient(circle at 74% -10%, rgba(78, 214, 196, 0.055), transparent 31%),
+    radial-gradient(circle at 20% -8%, rgba(242, 189, 79, 0.045), transparent 28%),
     linear-gradient(180deg, #0d141b 0%, #0f171f 52%, #0c1319 100%) !important;
 }
 .dark #sidebar {
@@ -220,49 +212,13 @@ body {
   min-height: 26px !important;
 }
 
-:where(
-    .cp-metric,
-    .rt-metric,
-    .kc-metric,
-    .qg-metric,
-    .of-metric,
-    .pa-metric,
-    .ux-metric
-  )
-  p,
-:where(
-    .cp-metric,
-    .rt-metric,
-    .kc-metric,
-    .qg-metric,
-    .of-metric,
-    .pa-metric,
-    .ux-metric
-  )
-  span {
+:where(.cp-metric, .rt-metric, .kc-metric, .qg-metric, .of-metric, .pa-metric, .ux-metric) p,
+:where(.cp-metric, .rt-metric, .kc-metric, .qg-metric, .of-metric, .pa-metric, .ux-metric) span {
   font-size: 12px !important;
   line-height: 1.4 !important;
 }
-:where(
-    .cp-metric,
-    .rt-metric,
-    .kc-metric,
-    .qg-metric,
-    .of-metric,
-    .pa-metric,
-    .ux-metric
-  )
-  strong,
-:where(
-    .cp-metric,
-    .rt-metric,
-    .kc-metric,
-    .qg-metric,
-    .of-metric,
-    .pa-metric,
-    .ux-metric
-  )
-  b {
+:where(.cp-metric, .rt-metric, .kc-metric, .qg-metric, .of-metric, .pa-metric, .ux-metric) strong,
+:where(.cp-metric, .rt-metric, .kc-metric, .qg-metric, .of-metric, .pa-metric, .ux-metric) b {
   line-height: 1.12 !important;
 }
 
@@ -397,16 +353,8 @@ body {
 }
 .dark body {
   background:
-    radial-gradient(
-      circle at 76% -12%,
-      rgba(78, 214, 196, 0.045),
-      transparent 30%
-    ),
-    radial-gradient(
-      circle at 18% -10%,
-      rgba(242, 189, 79, 0.035),
-      transparent 26%
-    ),
+    radial-gradient(circle at 76% -12%, rgba(78, 214, 196, 0.045), transparent 30%),
+    radial-gradient(circle at 18% -10%, rgba(242, 189, 79, 0.035), transparent 26%),
     linear-gradient(180deg, #0b1218 0%, #0e161e 48%, #0b1218 100%) !important;
 }
 .dark #sidebar {
@@ -737,17 +685,7 @@ body {
   font-size: 13.25px !important;
   line-height: 1.3 !important;
 }
-:where(
-    .cp-table,
-    .rt-table,
-    .kc-table,
-    .qg-table,
-    .of-table,
-    .pa-table,
-    .ux-table
-  )
-  tbody
-  tr {
+:where(.cp-table, .rt-table, .kc-table, .qg-table, .of-table, .pa-table, .ux-table) tbody tr {
   min-height: 54px;
 }
 
@@ -820,15 +758,15 @@ body {
   line-height: 1.25 !important;
 }
 
-html[data-density="compact"] body {
+html[data-density='compact'] body {
   font-size: 14.5px;
 }
-html[data-density="compact"] .cp-table td,
-html[data-density="compact"] .rt-table td,
-html[data-density="compact"] .kc-table td,
-html[data-density="compact"] .qg-table td,
-html[data-density="compact"] .of-table td,
-html[data-density="compact"] .pa-table td {
+html[data-density='compact'] .cp-table td,
+html[data-density='compact'] .rt-table td,
+html[data-density='compact'] .kc-table td,
+html[data-density='compact'] .qg-table td,
+html[data-density='compact'] .of-table td,
+html[data-density='compact'] .pa-table td {
   padding-block: 11px !important;
 }
 
@@ -907,7 +845,7 @@ html[data-density="compact"] .pa-table td {
   background: color-mix(in srgb, var(--primary) 7%, transparent);
 }
 .sidebar-group-toggle.active-parent::after {
-  content: "";
+  content: '';
   position: absolute;
   inset-inline-start: -1px;
   top: 50%;
@@ -923,8 +861,7 @@ html[data-density="compact"] .pa-table td {
   gap: 3px;
   margin: 5px 0 3px 18px;
   padding: 3px 0 3px 11px;
-  border-inline-start: 1px solid
-    color-mix(in srgb, var(--line-strong) 78%, transparent);
+  border-inline-start: 1px solid color-mix(in srgb, var(--line-strong) 78%, transparent);
 }
 .sidebar-submenu[hidden] {
   display: none !important;
@@ -983,34 +920,34 @@ html[data-density="compact"] .pa-table td {
   margin-inline-start: auto;
 }
 
-[data-sidebar-collapsed="true"] .sidebar-nav-group .sidebar-submenu {
+[data-sidebar-collapsed='true'] .sidebar-nav-group .sidebar-submenu {
   display: none !important;
 }
-[data-sidebar-collapsed="true"] .sidebar-group-toggle {
+[data-sidebar-collapsed='true'] .sidebar-group-toggle {
   justify-content: center;
   padding-inline: 0.65rem !important;
 }
-[data-sidebar-collapsed="true"] .sidebar-group-toggle .sidebar-label,
-[data-sidebar-collapsed="true"] .sidebar-group-toggle .sidebar-chevron,
-[data-sidebar-collapsed="true"] .sidebar-group-toggle .sidebar-meta {
+[data-sidebar-collapsed='true'] .sidebar-group-toggle .sidebar-label,
+[data-sidebar-collapsed='true'] .sidebar-group-toggle .sidebar-chevron,
+[data-sidebar-collapsed='true'] .sidebar-group-toggle .sidebar-meta {
   display: none !important;
 }
-[data-sidebar-collapsed="true"] .sidebar-group-toggle.active-parent::after {
+[data-sidebar-collapsed='true'] .sidebar-group-toggle.active-parent::after {
   display: none;
 }
 
-[dir="rtl"] .sidebar-sublink:hover {
+[dir='rtl'] .sidebar-sublink:hover {
   transform: translateX(-1px);
 }
-[dir="rtl"] .sidebar-subrail {
+[dir='rtl'] .sidebar-subrail {
   transform: translate(50%, -50%);
 }
-html[data-density="compact"] .sidebar-sublink {
+html[data-density='compact'] .sidebar-sublink {
   min-height: 32px;
   padding-block: 6px;
   font-size: 12.25px;
 }
-html[data-density="compact"] .sidebar-submenu {
+html[data-density='compact'] .sidebar-submenu {
   gap: 2px;
   margin-top: 4px;
   margin-bottom: 2px;
@@ -1029,7 +966,7 @@ html[data-density="compact"] .sidebar-submenu {
     overflow: visible !important;
   }
   #app-main,
-  [data-sidebar-collapsed="true"] #app-main {
+  [data-sidebar-collapsed='true'] #app-main {
     padding-inline-start: 72px !important;
   }
   #sidebar > .flex.h-\[72px\] {
@@ -1109,7 +1046,7 @@ html[data-density="compact"] .sidebar-submenu {
     );
   }
   .nav-rail-section.is-active > .nav-rail-trigger::before {
-    content: "";
+    content: '';
     position: absolute;
     inset-inline-start: -9px;
     top: 50%;
@@ -1404,7 +1341,7 @@ html[data-density="compact"] .sidebar-submenu {
     box-shadow: 26px 0 72px rgba(42, 50, 47, 0.16) !important;
   }
   #app-main,
-  [data-sidebar-collapsed="true"] #app-main {
+  [data-sidebar-collapsed='true'] #app-main {
     padding-inline-start: 78px !important;
   }
   #sidebar > .flex.h-\[72px\] {
@@ -1577,8 +1514,7 @@ html[data-density="compact"] .sidebar-submenu {
     gap: 4px;
     margin: 2px 4px 7px 54px;
     padding: 3px 0 4px 10px;
-    border-inline-start: 1px solid
-      color-mix(in srgb, var(--line) 90%, transparent);
+    border-inline-start: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
   }
   .sidebar-domain-link {
     display: flex;

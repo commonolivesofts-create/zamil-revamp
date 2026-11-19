@@ -13,8 +13,12 @@ export default function useAccountSubject(userId) {
   const { can } = usePermissions()
   const { user: me } = useAuth()
   const canView = can(SECURITY_ACTIONS.USER_ACCOUNTS_VIEW)
-  const detail = useResource(userId && canView ? `user:${userId}` : null, (signal) => securityAdminService.getUser(userId, { signal }))
-  const name = detail.data ? displayName(detail.data) || `Employee ${detail.data.employeeNumber}` : null
+  const detail = useResource(userId && canView ? `user:${userId}` : null, (signal) =>
+    securityAdminService.getUser(userId, { signal }),
+  )
+  const name = detail.data
+    ? displayName(detail.data) || `Employee ${detail.data.employeeNumber}`
+    : null
   return {
     label: name || `Account ${userId}`,
     employeeNumber: detail.data?.employeeNumber ?? null,

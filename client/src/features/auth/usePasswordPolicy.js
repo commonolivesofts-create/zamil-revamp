@@ -12,8 +12,12 @@ export default function usePasswordPolicy() {
   useEffect(() => {
     const controller = new AbortController()
     getPasswordPolicy({ signal: controller.signal })
-      .then((policy) => { if (!controller.signal.aborted) setState({ policy, error: null }) })
-      .catch((error) => { if (!controller.signal.aborted) setState({ policy: null, error }) })
+      .then((policy) => {
+        if (!controller.signal.aborted) setState({ policy, error: null })
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setState({ policy: null, error })
+      })
     return () => controller.abort()
   }, [getPasswordPolicy, attempt])
 

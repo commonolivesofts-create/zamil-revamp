@@ -29,15 +29,19 @@ export function SickLeaveReportPreview({ row, onClose }) {
   const ready = request?.status === 'ready'
   const failed = request?.status === 'error'
 
-  const loadInto = useCallback((controller) => {
-    sickLeaveService.getById(row.leaveId, { signal: controller.signal })
-      .then((record) => {
-        if (!controller.signal.aborted) setRequest({ status: 'ready', data: record })
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setRequest({ status: 'error' })
-      })
-  }, [row.leaveId])
+  const loadInto = useCallback(
+    (controller) => {
+      sickLeaveService
+        .getById(row.leaveId, { signal: controller.signal })
+        .then((record) => {
+          if (!controller.signal.aborted) setRequest({ status: 'ready', data: record })
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setRequest({ status: 'error' })
+        })
+    },
+    [row.leaveId],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -60,8 +64,18 @@ export function SickLeaveReportPreview({ row, onClose }) {
     <section className="zrv-ir-sick-leave-preview" aria-label={TEXT.label}>
       <div className="zrv-ir-sick-leave-preview__bar">
         <PreviewLanguageSwitch value={language} onChange={setLanguage} />
-        <SickLeaveReportActions row={row} language={language} previewRecord={ready ? request.data : null} />
-        <button type="button" className="zrv-hr-rp-drawer__x" onClick={onClose} aria-label={TEXT.close} title={TEXT.close}>
+        <SickLeaveReportActions
+          row={row}
+          language={language}
+          previewRecord={ready ? request.data : null}
+        />
+        <button
+          type="button"
+          className="zrv-hr-rp-drawer__x"
+          onClick={onClose}
+          aria-label={TEXT.close}
+          title={TEXT.close}
+        >
           <OrvexaIcon name="x" size={18} />
         </button>
       </div>
@@ -77,7 +91,9 @@ export function SickLeaveReportPreview({ row, onClose }) {
       ) : failed ? (
         <div className="zrv-admin-state zrv-admin-state--error" role="alert">
           <p>{TEXT.failed}</p>
-          <button type="button" className="btn-secondary" onClick={retry}>{TEXT.retry}</button>
+          <button type="button" className="btn-secondary" onClick={retry}>
+            {TEXT.retry}
+          </button>
         </div>
       ) : (
         <SickLeaveSkeleton label={TEXT.loading} />
@@ -92,16 +108,26 @@ export function SickLeaveReportPreview({ row, onClose }) {
 function SickLeaveSkeleton({ label }) {
   return (
     <div className="zrv-ir-sick-leave-skeleton" role="status" aria-label={label} aria-busy="true">
-      <div className="zrv-ir-sick-leave-skeleton__header"><i /><i /></div>
+      <div className="zrv-ir-sick-leave-skeleton__header">
+        <i />
+        <i />
+      </div>
       <div className="zrv-ir-sick-leave-skeleton__grid" aria-hidden="true">
         <i className="zrv-ir-sick-leave-skeleton__wide" />
-        <i /><i />
-        <i /><i />
-        <i /><i />
-        <i /><i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
       </div>
       <i className="zrv-ir-sick-leave-skeleton__comments" />
-      <div className="zrv-ir-sick-leave-skeleton__files"><i /><i /></div>
+      <div className="zrv-ir-sick-leave-skeleton__files">
+        <i />
+        <i />
+      </div>
       <i className="zrv-ir-sick-leave-skeleton__footer" />
     </div>
   )

@@ -97,10 +97,14 @@ export function previewEnforcement(columns, snapshot) {
   if (!columns.length || !snapshot) return { enforcement: 'DECLARED', enforcedBy: null }
   const byName = new Map(snapshot.columns.map((column) => [column.name, column]))
   const allNotNull = columns.every((name) => byName.get(name)?.nullable === false)
-  const covers = (enforced) => enforced.length > 0 && enforced.every((name) => columns.includes(name))
+  const covers = (enforced) =>
+    enforced.length > 0 && enforced.every((name) => columns.includes(name))
   const candidates = [
     ...snapshot.constraints
-      .filter((c) => c.status === 'ENABLED' && c.validated === 'VALIDATED' && (c.type === 'P' || allNotNull))
+      .filter(
+        (c) =>
+          c.status === 'ENABLED' && c.validated === 'VALIDATED' && (c.type === 'P' || allNotNull),
+      )
       .map((c) => ({ name: c.name, columns: c.columns })),
     ...snapshot.uniqueIndexes
       .filter((i) => i.status === 'VALID' && !i.functionBased && allNotNull)
@@ -128,27 +132,34 @@ export function validateEditor(state, snapshot) {
   const included = state.columns.filter((column) => column.included)
   if (!included.length) errors.columns = 'Include at least one column in the mapping.'
   else if (included.some((column) => column.missing)) {
-    errors.columns = 'Some saved columns no longer exist in the source. Remove them from the mapping.'
+    errors.columns =
+      'Some saved columns no longer exist in the source. Remove them from the mapping.'
   } else if (included.some((column) => column.exposed && !column.supported)) {
     errors.columns = 'A column of an unsupported type (for example BLOB) cannot be exposed.'
   }
   const exposed = new Set(included.filter((column) => column.exposed).map((column) => column.name))
-  if (state.keys.length > MAX_KEYS) errors.columns = errors.columns || `At most ${MAX_KEYS} key candidates are allowed.`
+  if (state.keys.length > MAX_KEYS)
+    errors.columns = errors.columns || `At most ${MAX_KEYS} key candidates are allowed.`
 
   const codes = state.keys.map((key) => key.code.trim())
   const payloadKeys = state.keys.map((key, index) => {
     const keyErrors = {}
     const code = codes[index]
     if (!code) keyErrors.code = 'Key code is required.'
-    else if (!CODE.test(code)) keyErrors.code = 'Use upper-case letters, digits and underscores, starting with a letter (at most 80).'
+    else if (!CODE.test(code))
+      keyErrors.code =
+        'Use upper-case letters, digits and underscores, starting with a letter (at most 80).'
     else if (codes.indexOf(code) !== index) keyErrors.code = 'Each key code must be unique.'
     if (!key.columns.length) keyErrors.columns = 'Choose at least one column.'
-    else if (key.columns.length > MAX_KEY_COLUMNS) keyErrors.columns = `At most ${MAX_KEY_COLUMNS} columns.`
-    else if (key.columns.some((name) => !exposed.has(name))) keyErrors.columns = 'Every key column must be included and exposed.'
+    else if (key.columns.length > MAX_KEY_COLUMNS)
+      keyErrors.columns = `At most ${MAX_KEY_COLUMNS} columns.`
+    else if (key.columns.some((name) => !exposed.has(name)))
+      keyErrors.columns = 'Every key column must be included and exposed.'
     const { enforcement } = previewEnforcement(key.columns, snapshot)
     const declared = enforcement === 'DECLARED'
     if (declared) {
-      if (!ASSURANCE_BASES.includes(key.basis)) keyErrors.basis = 'Choose how uniqueness is assured.'
+      if (!ASSURANCE_BASES.includes(key.basis))
+        keyErrors.basis = 'Choose how uniqueness is assured.'
       const evidence = textError(key.evidenceRef, 500, 'Evidence reference')
       if (evidence) keyErrors.evidenceRef = evidence
       const rationale = textError(key.rationale, 1000, 'Rationale')
@@ -158,14 +169,23 @@ export function validateEditor(state, snapshot) {
     return {
       code,
       columns: [...key.columns],
-      assurance: declared && key.basis
-        ? { basis: key.basis, evidenceRef: String(key.evidenceRef).trim(), rationale: String(key.rationale).trim() }
-        : null,
+      assurance:
+        declared && key.basis
+          ? {
+              basis: key.basis,
+              evidenceRef: String(key.evidenceRef).trim(),
+              rationale: String(key.rationale).trim(),
+            }
+          : null,
     }
   })
 
   const payload = {
-    columns: included.map((column) => ({ name: column.name, exposed: Boolean(column.exposed), dataClass: column.dataClass })),
+    columns: included.map((column) => ({
+      name: column.name,
+      exposed: Boolean(column.exposed),
+      dataClass: column.dataClass,
+    })),
     keyCandidates: payloadKeys,
   }
   const valid = !errors.columns && Object.keys(errors.keys).length === 0
@@ -174,10 +194,11 @@ export function validateEditor(state, snapshot) {
 
 /** Canonical comparison of two payloads (unsaved-changes indicator). */
 export function samePayload(a, b) {
-  const norm = (p) => JSON.stringify({
-    columns: [...p.columns].sort((x, y) => (x.name < y.name ? -1 : 1)),
-    keyCandidates: [...p.keyCandidates].sort((x, y) => (x.code < y.code ? -1 : 1)),
-  })
+  const norm = (p) =>
+    JSON.stringify({
+      columns: [...p.columns].sort((x, y) => (x.name < y.name ? -1 : 1)),
+      keyCandidates: [...p.keyCandidates].sort((x, y) => (x.code < y.code ? -1 : 1)),
+    })
   return norm(a) === norm(b)
 }
 
@@ -230,11 +251,21 @@ export function describePath(path, order) {
 
 /** Author draft of a stored configuration, in its stored order (what revalidation submits). */
 export const storedDraft = (config) => ({
-  columns: (config?.columns ?? []).map(({ name, exposed, dataClass }) => ({ name, exposed, dataClass })),
+  columns: (config?.columns ?? []).map(({ name, exposed, dataClass }) => ({
+    name,
+    exposed,
+    dataClass,
+  })),
   keyCandidates: (config?.keyCandidates ?? []).map(({ code, columns, assurance }) => ({
     code,
     columns: [...columns],
-    assurance: assurance ? { basis: assurance.basis, evidenceRef: assurance.evidenceRef, rationale: assurance.rationale } : null,
+    assurance: assurance
+      ? {
+          basis: assurance.basis,
+          evidenceRef: assurance.evidenceRef,
+          rationale: assurance.rationale,
+        }
+      : null,
   })),
 })
 

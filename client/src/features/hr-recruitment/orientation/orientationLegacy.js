@@ -2,9 +2,16 @@
 // Pure functions on YYYY-MM-DD dates and HH:MM[:SS] times; the server applies the same rules.
 
 // Legacy list labels of the stored statuses (Draft, INPROCESS, Approved, REJECTED, Rejected).
-export const ORIENTATION_LEGACY_STATUSES = Object.freeze(['Draft', 'Inprocess', 'Approved', 'Rejected'])
+export const ORIENTATION_LEGACY_STATUSES = Object.freeze([
+  'Draft',
+  'Inprocess',
+  'Approved',
+  'Rejected',
+])
 export function orientationStatus(value) {
-  const status = String(value ?? '').trim().toUpperCase()
+  const status = String(value ?? '')
+    .trim()
+    .toUpperCase()
   if (status === 'INPROCESS') return 'Inprocess'
   if (status === 'APPROVED') return 'Approved'
   if (status === 'REJECTED') return 'Rejected'
@@ -12,7 +19,8 @@ export function orientationStatus(value) {
 }
 // Saving sets Draft again, so a rejected request can be corrected and re-submitted; a request in
 // the workflow or approved is read only.
-export const isOrientationEditable = (status) => ['Draft', 'Rejected'].includes(orientationStatus(status))
+export const isOrientationEditable = (status) =>
+  ['Draft', 'Rejected'].includes(orientationStatus(status))
 export const statusTone = (status) => {
   const label = orientationStatus(status)
   return label === 'Rejected' ? 'bad' : label === 'Draft' ? 'warn' : 'ok'
@@ -25,7 +33,9 @@ export const ORIENTATION_FLAGS = Object.freeze(['Y', 'N'])
 // reversed (legacy wrote "Select To Date").
 export function orientationDays(fromDate, toDate) {
   if (!fromDate || !toDate || toDate < fromDate) return ''
-  return Math.round((Date.parse(`${toDate}T00:00:00Z`) - Date.parse(`${fromDate}T00:00:00Z`)) / 864e5)
+  return Math.round(
+    (Date.parse(`${toDate}T00:00:00Z`) - Date.parse(`${fromDate}T00:00:00Z`)) / 864e5,
+  )
 }
 
 const minutesOf = (time) => {
@@ -48,9 +58,14 @@ export function orientationPeriod(timeFrom, timeTo) {
 }
 
 // Lines whose dates or times run backwards (legacy saved "Select To Date" / "-2.-30 Hrs").
-export const reversedLines = (lines) => lines.filter((line) =>
-  (line.fromDate && line.toDate && line.toDate < line.fromDate)
-  || (minutesOf(line.timeFrom) !== null && minutesOf(line.timeTo) !== null && minutesOf(line.timeTo) < minutesOf(line.timeFrom)))
+export const reversedLines = (lines) =>
+  lines.filter(
+    (line) =>
+      (line.fromDate && line.toDate && line.toDate < line.fromDate) ||
+      (minutesOf(line.timeFrom) !== null &&
+        minutesOf(line.timeTo) !== null &&
+        minutesOf(line.timeTo) < minutesOf(line.timeFrom)),
+  )
 
 // Save rules: Name and From are required (legacy `required` and the empty-employee failure);
 // every row field is optional.
@@ -68,5 +83,7 @@ export function orientationSaveProblems({ employee, fromOrient, lines }) {
 const NOT_SUBMITTABLE = Object.freeze(['APPROVED', 'ACCEPTED', 'INPROCESS'])
 export function validateOrientationForSubmit(record) {
   if (!record?.scheduleId) return ['notSaved']
-  return NOT_SUBMITTABLE.includes(String(record.rawStatus ?? record.status ?? '').toUpperCase()) ? ['notSubmittable'] : []
+  return NOT_SUBMITTABLE.includes(String(record.rawStatus ?? record.status ?? '').toUpperCase())
+    ? ['notSubmittable']
+    : []
 }

@@ -6,16 +6,16 @@ permissions and every business rule are decided by the backend.
 
 ## 1. Technology
 
-| Item | Version / choice | Notes |
-|---|---|---|
-| UI | React 19 (`react`, `react-dom`) | Function components and hooks only |
-| Build | Vite 8 with `@vitejs/plugin-react` | `@` alias → `client/src` |
-| Routing | `react-router` (data router: `createBrowserRouter`) | Single route table in `src/app/router.jsx` |
-| HTTP | Native Fetch through `src/services/api/apiClient.js` | No other HTTP library |
-| QR rendering | `uqr` (pinned) | MFA enrollment only |
-| Styling | Precompiled Orvexa design-system CSS + app CSS in `src/styles/` | No CSS framework build step |
-| Language | JavaScript (ES modules), JSX | No TypeScript |
-| Tests | Node built-in test runner (`node --test`) | See [testing](FRONTEND-TESTING.md) |
+| Item         | Version / choice                                                | Notes                                      |
+| ------------ | --------------------------------------------------------------- | ------------------------------------------ |
+| UI           | React 19 (`react`, `react-dom`)                                 | Function components and hooks only         |
+| Build        | Vite 8 with `@vitejs/plugin-react`                              | `@` alias → `client/src`                   |
+| Routing      | `react-router` (data router: `createBrowserRouter`)             | Single route table in `src/app/router.jsx` |
+| HTTP         | Native Fetch through `src/services/api/apiClient.js`            | No other HTTP library                      |
+| QR rendering | `uqr` (pinned)                                                  | MFA enrollment only                        |
+| Styling      | Precompiled Orvexa design-system CSS + app CSS in `src/styles/` | No CSS framework build step                |
+| Language     | JavaScript (ES modules), JSX                                    | No TypeScript                              |
+| Tests        | Node built-in test runner (`node --test`)                       | See [testing](FRONTEND-TESTING.md)         |
 
 There is no global state library. State lives in two framework-free stores bound to React with
 `useSyncExternalStore` (authentication and permissions) and in component state for everything else.
@@ -100,22 +100,22 @@ also absent from the route table.
 
 ## 4. Layouts
 
-| Layout | File | Used by |
-|---|---|---|
+| Layout          | File                          | Used by                                                                                                                                                                         |
+| --------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Signed-in shell | `src/layouts/AdminLayout.jsx` | All authenticated pages. Renders `Sidebar`, `Header`, `CommandPalette` (Ctrl/Cmd+K), `LayoutCustomizer`, the password-expired banner and the `<main id="main-content">` outlet. |
-| Public pages | `src/layouts/AuthLayout.jsx` | Sign-in, MFA, password and recovery pages (each page owns its auth-shell markup). |
+| Public pages    | `src/layouts/AuthLayout.jsx`  | Sign-in, MFA, password and recovery pages (each page owns its auth-shell markup).                                                                                               |
 
 Feature pages render **inside** `AdminLayout`; they never render their own sidebar or header.
 
 ## 5. State boundaries
 
-| State | Owner | Access |
-|---|---|---|
-| Session (status, user, session info, password expiry, MFA challenge) | `src/features/auth/authSession.js` | `useAuth()` |
-| Effective permissions of the signed-in user | `src/features/access/permissionStore.js` | `usePermissions()` |
-| CSRF tokens | `src/services/api/csrfStore.js` (memory only) | Used by `apiClient`; never by features |
-| Layout preferences | `src/hooks/useOrvexaLayout.js` (`localStorage`, UI preferences only) | `AdminLayout` |
-| Feature data (lists, records) | The feature's page/hooks | Loaded per page through the feature service |
+| State                                                                | Owner                                                                | Access                                      |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------- |
+| Session (status, user, session info, password expiry, MFA challenge) | `src/features/auth/authSession.js`                                   | `useAuth()`                                 |
+| Effective permissions of the signed-in user                          | `src/features/access/permissionStore.js`                             | `usePermissions()`                          |
+| CSRF tokens                                                          | `src/services/api/csrfStore.js` (memory only)                        | Used by `apiClient`; never by features      |
+| Layout preferences                                                   | `src/hooks/useOrvexaLayout.js` (`localStorage`, UI preferences only) | `AdminLayout`                               |
+| Feature data (lists, records)                                        | The feature's page/hooks                                             | Loaded per page through the feature service |
 
 Session status values: `preview`, `loading`, `guest`, `authenticated`, `mfa_required`, `error`.
 Permission status values: `idle`, `loading`, `ready`, `error` — only `ready` grants anything.
@@ -138,11 +138,11 @@ src/features/security-administration/        (actual feature)
 └── pages/                       Route-level pages
 ```
 
-| Centralized infrastructure (reuse, do not copy) | Feature-specific (keep inside the feature) |
-|---|---|
+| Centralized infrastructure (reuse, do not copy)                      | Feature-specific (keep inside the feature)            |
+| -------------------------------------------------------------------- | ----------------------------------------------------- |
 | `src/services/api/*`, `src/features/auth/*`, `src/features/access/*` | The feature's service, contract, permission constants |
-| `src/config/appNavigation.js`, `src/app/router.jsx`, `src/routes/*` | Its pages, dialogs and page-specific components |
-| `src/layouts/*`, `src/components/*`, `src/styles/*` (shared CSS) | Its pure models, form checks, CSS that only it uses |
+| `src/config/appNavigation.js`, `src/app/router.jsx`, `src/routes/*`  | Its pages, dialogs and page-specific components       |
+| `src/layouts/*`, `src/components/*`, `src/styles/*` (shared CSS)     | Its pure models, form checks, CSS that only it uses   |
 
 ## 7. Design system
 

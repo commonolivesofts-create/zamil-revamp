@@ -19,9 +19,21 @@ export default function useLinkToken() {
   if (isNewLink(captured, location)) setCaptured(captureLink(location))
 
   useEffect(() => {
-    if (location.hash) navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: null })
+    if (location.hash)
+      navigate(
+        { pathname: location.pathname, search: location.search },
+        { replace: true, state: null },
+      )
   }, [location.hash, location.pathname, location.search, navigate])
 
-  const clearToken = useCallback((token) => setCaptured((current) => forgetToken(current, token)), [])
-  return { token: captured.token, hadFragment: captured.hadFragment, linkKey: captured.id, clearToken }
+  const clearToken = useCallback(
+    (token) => setCaptured((current) => forgetToken(current, token)),
+    [],
+  )
+  return {
+    token: captured.token,
+    hadFragment: captured.hadFragment,
+    linkKey: captured.id,
+    clearToken,
+  }
 }

@@ -6,7 +6,14 @@ import { employeeServicesFormsConfig } from '../employeeServicesFormsConfig.js'
 import { createIdeaDemoClient } from '../demo/ideaDemoClient.js'
 import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { invalidResponse, params, segment } from '../shared/formRecords.js'
-import { ideaBody, readIdeaEmployee, readIdeaEmployeeDetails, readIdeaLookups, readIdeaPage, readIdeaRecord } from './ideaContract.js'
+import {
+  ideaBody,
+  readIdeaEmployee,
+  readIdeaEmployeeDetails,
+  readIdeaLookups,
+  readIdeaPage,
+  readIdeaRecord,
+} from './ideaContract.js'
 
 export const IDEA_BASE = '/ideas'
 
@@ -31,35 +38,38 @@ function createListReadLimit(limit = 4) {
       })
     }
   }
-  return (operation, signal) => new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
-      return
-    }
-    const entry = { signal, resolve, reject, cancel: null }
-    entry.cancel = () => {
-      const index = queue.indexOf(entry)
-      if (index !== -1) queue.splice(index, 1)
-      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
-    }
-    signal?.addEventListener('abort', entry.cancel, { once: true })
-    queue.push(entry)
-    drain()
-  }).then(async (release) => {
-    try {
-      return await operation()
-    } finally {
-      release()
-    }
-  })
+  return (operation, signal) =>
+    new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+        return
+      }
+      const entry = { signal, resolve, reject, cancel: null }
+      entry.cancel = () => {
+        const index = queue.indexOf(entry)
+        if (index !== -1) queue.splice(index, 1)
+        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+      }
+      signal?.addEventListener('abort', entry.cancel, { once: true })
+      queue.push(entry)
+      drain()
+    }).then(async (release) => {
+      try {
+        return await operation()
+      } finally {
+        release()
+      }
+    })
 }
 
 export function createIdeaService({ client }) {
   const runListRead = createListReadLimit()
-  const getById = async (id, { signal } = {}) => readIdeaRecord((await client.get(`${IDEA_BASE}/${segment(id)}`, { signal })).data)
+  const getById = async (id, { signal } = {}) =>
+    readIdeaRecord((await client.get(`${IDEA_BASE}/${segment(id)}`, { signal })).data)
   // The picker's list, loaded with the form.
   const employees = createEmployeeList({
-    load: ({ signal } = {}) => client.get(`${IDEA_BASE}/lookups/employees`, { signal }).then(({ data }) => data),
+    load: ({ signal } = {}) =>
+      client.get(`${IDEA_BASE}/lookups/employees`, { signal }).then(({ data }) => data),
     shape: readIdeaEmployee,
   })
   return Object.freeze({
@@ -75,17 +85,43 @@ export function createIdeaService({ client }) {
       const term = String(search).trim()
       // Opening the field lists the employees loaded with the form.
       if (!term) return employeePage(await employees.list({ signal }))
-      const { data } = await client.get(`${IDEA_BASE}/lookups/employees`, { params: params({ q: term }), signal })
+      const { data } = await client.get(`${IDEA_BASE}/lookups/employees`, {
+        params: params({ q: term }),
+        signal,
+      })
       if (!Array.isArray(data)) throw invalidResponse('employee list')
       return employeePage(data.slice(0, 25).map(readIdeaEmployee))
     },
     async employeeDetails(employeeNumber, { signal } = {}) {
-      return readIdeaEmployeeDetails((await client.get(`${IDEA_BASE}/lookups/employees/${encodeURIComponent(employeeNumber)}`, { signal })).data)
+      return readIdeaEmployeeDetails(
+        (
+          await client.get(`${IDEA_BASE}/lookups/employees/${encodeURIComponent(employeeNumber)}`, {
+            signal,
+          })
+        ).data,
+      )
     },
     // The ideas API has no sort parameter: rows come newest first.
-    async list({ page = 1, pageSize = 25, q, status, division, category, invCategory, from, to } = {}, { signal } = {}) {
+    async list(
+      { page = 1, pageSize = 25, q, status, division, category, invCategory, from, to } = {},
+      { signal } = {},
+    ) {
       const { data } = await runListRead(
-        () => client.get(IDEA_BASE, { params: params({ page, pageSize, q, status, division, category, invCategory, from, to }), signal }),
+        () =>
+          client.get(IDEA_BASE, {
+            params: params({
+              page,
+              pageSize,
+              q,
+              status,
+              division,
+              category,
+              invCategory,
+              from,
+              to,
+            }),
+            signal,
+          }),
         signal,
       )
       return readIdeaPage(data)
@@ -93,7 +129,9 @@ export function createIdeaService({ client }) {
     getById,
     async save(id, form) {
       const body = ideaBody(form)
-      const { data } = id ? await client.put(`${IDEA_BASE}/${segment(id)}`, body) : await client.post(IDEA_BASE, body)
+      const { data } = id
+        ? await client.put(`${IDEA_BASE}/${segment(id)}`, body)
+        : await client.post(IDEA_BASE, body)
       const saved = readIdeaRecord(data)
       // PUT does not return the attachments; reload the full record.
       return id ? getById(saved.ideaId) : saved
@@ -102,4 +140,6 @@ export function createIdeaService({ client }) {
 }
 
 export const ideaDemo = employeeServicesFormsConfig.demo.idea
-export const ideaService = createIdeaService({ client: ideaDemo ? createIdeaDemoClient() : apiClient })
+export const ideaService = createIdeaService({
+  client: ideaDemo ? createIdeaDemoClient() : apiClient,
+})

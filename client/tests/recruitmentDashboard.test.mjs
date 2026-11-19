@@ -96,7 +96,9 @@ test('dashboard requests: at most N in flight, equal queries share one request',
 })
 
 test('dashboard page: registered, route-gated panels, counts from the list APIs only', async () => {
-  const page = await read('features/hr-recruitment/dashboard/RecruitmentDashboardPage.jsx')
+  const page = (
+    await read('features/hr-recruitment/dashboard/RecruitmentDashboardPage.jsx')
+  ).replace(/\s+/g, ' ')
   assert.match(
     page,
     /const opens = \(path\) => canAccessRoute\(findAppRoute\(path\), permissions\)/,
@@ -108,16 +110,14 @@ test('dashboard page: registered, route-gated panels, counts from the list APIs 
     ),
     'create needs the form and CREATE',
   )
-  assert.ok(
-    page.includes(
-      "ratioTile('perRequisition', 'requisitions', 'layers', P.perRequisition, m.interviews, m.raised",
-    ),
+  assert.match(
+    page,
+    /ratioTile\(\s*'perRequisition',\s*'requisitions',\s*'layers',\s*P\.perRequisition,\s*m\.interviews,\s*m\.raised/,
     'interviews per requisition',
   )
-  assert.ok(
-    page.includes(
-      "shareTile('rejection', 'interviews', 'circle-x', P.rejection, m.rejected, sumOf(m.approved, m.rejected)",
-    ),
+  assert.match(
+    page,
+    /shareTile\(\s*'rejection',\s*'interviews',\s*'circle-x',\s*P\.rejection,\s*m\.rejected,\s*sumOf\(m\.approved,\s*m\.rejected\)/,
     'requisition rejection',
   )
   assert.doesNotMatch(page, /recent/i, 'no recent-records panel')

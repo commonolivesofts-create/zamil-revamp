@@ -3,12 +3,26 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import { formatInstant } from '@/features/security-administration/adminFeedback.js'
-import { AdminPage, Badge, ConfirmDialog, Feedback, Pagination, Panel, ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
+import {
+  AdminPage,
+  Badge,
+  ConfirmDialog,
+  Feedback,
+  Pagination,
+  Panel,
+  ResourceState,
+} from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { ActiveBadge } from '../components/WorkflowUi.jsx'
 import useWorkflowAction from '../useWorkflowAction.js'
 import { LIFECYCLE_LABELS } from '../sourceMappingModel.js'
-import { LIFECYCLE_TONES, PAGE_SIZE, PATHS, WORKFLOW_ACTIONS, sourceObjectLabel } from '../workflowManagerModel.js'
+import {
+  LIFECYCLE_TONES,
+  PAGE_SIZE,
+  PATHS,
+  WORKFLOW_ACTIONS,
+  sourceObjectLabel,
+} from '../workflowManagerModel.js'
 import { workflowManagerService } from '../workflowManagerService.js'
 
 const ID = /^[1-9][0-9]{0,18}$/
@@ -30,10 +44,17 @@ export default function SourceVersionListPage() {
   const { can } = usePermissions()
   const validId = ID.test(sourceId ?? '')
   const page = readPage(searchParams)
-  const source = useResource(validId ? `wf-source:${sourceId}` : null, (signal) => workflowManagerService.getSource(sourceId, { signal }))
+  const source = useResource(validId ? `wf-source:${sourceId}` : null, (signal) =>
+    workflowManagerService.getSource(sourceId, { signal }),
+  )
   const versions = useResource(
     validId ? `wf-source-mappings:${sourceId}:${page}` : null,
-    (signal) => workflowManagerService.listSourceMappingVersions(sourceId, { page, pageSize: PAGE_SIZE }, { signal }),
+    (signal) =>
+      workflowManagerService.listSourceMappingVersions(
+        sourceId,
+        { page, pageSize: PAGE_SIZE },
+        { signal },
+      ),
   )
   const action = useWorkflowAction()
   const [confirm, setConfirm] = useState(null)
@@ -44,7 +65,14 @@ export default function SourceVersionListPage() {
   if (!validId) {
     return (
       <AdminPage eyebrow="Workflow Manager · Source mapping" title="Source versions">
-        <Panel><p className="zrv-admin-state" role="status">This data source address is not valid. <Link className="zrv-admin-link" to={PATHS.sources}>Back to the data source registry</Link></p></Panel>
+        <Panel>
+          <p className="zrv-admin-state" role="status">
+            This data source address is not valid.{' '}
+            <Link className="zrv-admin-link" to={PATHS.sources}>
+              Back to the data source registry
+            </Link>
+          </p>
+        </Panel>
       </AdminPage>
     )
   }
@@ -52,11 +80,17 @@ export default function SourceVersionListPage() {
   const runClone = async (version) => {
     const outcome = await action.run(
       () => workflowManagerService.cloneSourceMappingVersion(sourceId, version.sourceVersionId),
-      { success: (saved) => `Version ${version.versionNo} cloned into draft version ${saved.version.versionNo}.` },
+      {
+        success: (saved) =>
+          `Version ${version.versionNo} cloned into draft version ${saved.version.versionNo}.`,
+      },
     )
     if (outcome.status === 'success') {
       navigate(PATHS.sourceVersion(sourceId, outcome.value.version.sourceVersionId), {
-        state: { notice: `Draft version ${outcome.value.version.versionNo} created from version ${version.versionNo}.`, validation: outcome.value.validation },
+        state: {
+          notice: `Draft version ${outcome.value.version.versionNo} created from version ${version.versionNo}.`,
+          validation: outcome.value.validation,
+        },
       })
       return
     }
@@ -68,7 +102,12 @@ export default function SourceVersionListPage() {
 
   const runDelete = async (version) => {
     const outcome = await action.run(
-      () => workflowManagerService.deleteSourceMappingVersion(sourceId, version.sourceVersionId, version.rowVersion),
+      () =>
+        workflowManagerService.deleteSourceMappingVersion(
+          sourceId,
+          version.sourceVersionId,
+          version.rowVersion,
+        ),
       { success: `Draft version ${version.versionNo} deleted.` },
     )
     if (outcome.status === 'ignored') return
@@ -82,28 +121,61 @@ export default function SourceVersionListPage() {
       eyebrow="Workflow Manager · Source mapping"
       title={data ? `Source versions · ${data.sourceCode}` : 'Source versions'}
       description="Each version records which columns of the source are exposed to forms, how each is classified, and which columns identify a record. Drafts can be edited; other versions are read-only and can be cloned into a new draft."
-      actions={(
+      actions={
         <>
-          <Link className="btn-secondary" to={PATHS.sources}>Back to registry</Link>
+          <Link className="btn-secondary" to={PATHS.sources}>
+            Back to registry
+          </Link>
           {canCreate && data && (
             <Link className="btn-primary" to={PATHS.newSourceVersion(sourceId)}>
               <OrvexaIcon name="plus" className="size-4" /> New version
             </Link>
           )}
         </>
-      )}
+      }
     >
-      {notice && <Feedback feedback={{ kind: 'success', message: notice, details: [] }} onDismiss={() => setNotice(null)} />}
-      {!confirm && <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />}
+      {notice && (
+        <Feedback
+          feedback={{ kind: 'success', message: notice, details: [] }}
+          onDismiss={() => setNotice(null)}
+        />
+      )}
+      {!confirm && (
+        <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
+      )}
 
-      <ResourceState resource={source} label="data source" notFound="This data source is not registered." empty="This data source is not registered.">
+      <ResourceState
+        resource={source}
+        label="data source"
+        notFound="This data source is not registered."
+        empty="This data source is not registered."
+      >
         {(record) => (
           <Panel className="zwf-context">
             <dl className="zwf-context__list">
-              <div><dt>Source</dt><dd><b>{record.sourceName}</b></dd></div>
-              <div><dt>Object</dt><dd><span className="zwf-code">{sourceObjectLabel(record)}</span> <Badge tone="neutral">{record.sourceKind}</Badge></dd></div>
-              <div><dt>Status</dt><dd><ActiveBadge active={record.isActive} /></dd></div>
-              <div><dt>Versions</dt><dd>{record.versionCount}</dd></div>
+              <div>
+                <dt>Source</dt>
+                <dd>
+                  <b>{record.sourceName}</b>
+                </dd>
+              </div>
+              <div>
+                <dt>Object</dt>
+                <dd>
+                  <span className="zwf-code">{sourceObjectLabel(record)}</span>{' '}
+                  <Badge tone="neutral">{record.sourceKind}</Badge>
+                </dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>
+                  <ActiveBadge active={record.isActive} />
+                </dd>
+              </div>
+              <div>
+                <dt>Versions</dt>
+                <dd>{record.versionCount}</dd>
+              </div>
             </dl>
           </Panel>
         )}
@@ -114,12 +186,19 @@ export default function SourceVersionListPage() {
           <ResourceState
             resource={versions}
             label="source versions"
-            empty={canCreate ? 'No versions yet. Use New version to map the columns of this source.' : 'No versions yet.'}
+            empty={
+              canCreate
+                ? 'No versions yet. Use New version to map the columns of this source.'
+                : 'No versions yet.'
+            }
           >
             {({ items, pagination }) => (
               <>
                 <div className="ux-table-wrap">
-                  <table className="ux-table zrv-admin-table zwf-table" aria-busy={versions.refreshing || undefined}>
+                  <table
+                    className="ux-table zrv-admin-table zwf-table"
+                    aria-busy={versions.refreshing || undefined}
+                  >
                     <caption className="sr-only">Versions of the source mapping</caption>
                     <thead>
                       <tr>
@@ -128,34 +207,79 @@ export default function SourceVersionListPage() {
                         <th scope="col">Validated</th>
                         <th scope="col">Last updated</th>
                         <th scope="col">Fingerprint</th>
-                        <th scope="col"><span className="sr-only">Actions</span></th>
+                        <th scope="col">
+                          <span className="sr-only">Actions</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {!items.length && <tr><td colSpan={6} className="zrv-admin-state">No versions on this page. Use Previous to go back.</td></tr>}
+                      {!items.length && (
+                        <tr>
+                          <td colSpan={6} className="zrv-admin-state">
+                            No versions on this page. Use Previous to go back.
+                          </td>
+                        </tr>
+                      )}
                       {items.map((version) => (
                         <tr key={version.sourceVersionId}>
                           <th scope="row">
-                            <Link className="zrv-admin-link" to={PATHS.sourceVersion(sourceId, version.sourceVersionId)}><b>Version {version.versionNo}</b></Link>
+                            <Link
+                              className="zrv-admin-link"
+                              to={PATHS.sourceVersion(sourceId, version.sourceVersionId)}
+                            >
+                              <b>Version {version.versionNo}</b>
+                            </Link>
                             {version.isDefault && <Badge tone="good">DEFAULT</Badge>}
                           </th>
-                          <td><Badge tone={LIFECYCLE_TONES[version.lifecycleState]}>{LIFECYCLE_LABELS[version.lifecycleState]}</Badge></td>
+                          <td>
+                            <Badge tone={LIFECYCLE_TONES[version.lifecycleState]}>
+                              {LIFECYCLE_LABELS[version.lifecycleState]}
+                            </Badge>
+                          </td>
                           <td>{formatInstant(version.validatedAt)}</td>
                           <td>{formatInstant(version.updatedAt)}</td>
-                          <td><span className="zwf-code" title={version.configSha256}>{version.configSha256.slice(0, 12)}…</span></td>
+                          <td>
+                            <span className="zwf-code" title={version.configSha256}>
+                              {version.configSha256.slice(0, 12)}…
+                            </span>
+                          </td>
                           <td>
                             <span className="zwf-row-actions">
-                              <Link className="zrv-admin-link" to={PATHS.sourceVersion(sourceId, version.sourceVersionId)}>
-                                {version.editable && can(WORKFLOW_ACTIONS.MAPPING_UPDATE) ? 'Edit' : 'View'}<span className="sr-only"> version {version.versionNo}</span>
+                              <Link
+                                className="zrv-admin-link"
+                                to={PATHS.sourceVersion(sourceId, version.sourceVersionId)}
+                              >
+                                {version.editable && can(WORKFLOW_ACTIONS.MAPPING_UPDATE)
+                                  ? 'Edit'
+                                  : 'View'}
+                                <span className="sr-only"> version {version.versionNo}</span>
                               </Link>
                               {canCreate && (
-                                <button type="button" className="zrv-admin-link" onClick={() => { action.reset(); setConfirm({ type: 'clone', version }) }}>
+                                <button
+                                  type="button"
+                                  className="zrv-admin-link"
+                                  onClick={() => {
+                                    action.reset()
+                                    setConfirm({ type: 'clone', version })
+                                  }}
+                                >
                                   Clone<span className="sr-only"> version {version.versionNo}</span>
                                 </button>
                               )}
                               {canDelete && version.editable && (
-                                <button type="button" className="zrv-admin-link zrv-admin-danger-text" onClick={() => { action.reset(); setConfirm({ type: 'delete', version }) }}>
-                                  Delete<span className="sr-only"> draft version {version.versionNo}</span>
+                                <button
+                                  type="button"
+                                  className="zrv-admin-link zrv-admin-danger-text"
+                                  onClick={() => {
+                                    action.reset()
+                                    setConfirm({ type: 'delete', version })
+                                  }}
+                                >
+                                  Delete
+                                  <span className="sr-only">
+                                    {' '}
+                                    draft version {version.versionNo}
+                                  </span>
                                 </button>
                               )}
                             </span>
@@ -165,7 +289,12 @@ export default function SourceVersionListPage() {
                     </tbody>
                   </table>
                 </div>
-                <Pagination pagination={pagination} onPage={(next) => setSearchParams(next > 1 ? { page: String(next) } : {})} disabled={versions.refreshing} label="Source version pages" />
+                <Pagination
+                  pagination={pagination}
+                  onPage={(next) => setSearchParams(next > 1 ? { page: String(next) } : {})}
+                  disabled={versions.refreshing}
+                  label="Source version pages"
+                />
               </>
             )}
           </ResourceState>

@@ -32,7 +32,8 @@ export function previousRange(range) {
 export const trendMonths = (today) => monthRanges(today, TREND_MONTHS)
 
 // A query limited to a date window (unchanged for all time).
-export const within = (query, range) => (range ? { ...query, dateFrom: range.from, dateTo: range.to } : query)
+export const within = (query, range) =>
+  range ? { ...query, dateFrom: range.from, dateTo: range.to } : query
 
 // Whole-percent change from `previous` to `current`; null when there is nothing to compare.
 export function change(current, previous) {
@@ -52,15 +53,19 @@ export function createLimiter(max) {
     if (active >= max || !queue.length) return
     active += 1
     const { task, resolve, reject } = queue.shift()
-    Promise.resolve().then(task).then(resolve, reject).finally(() => {
-      active -= 1
+    Promise.resolve()
+      .then(task)
+      .then(resolve, reject)
+      .finally(() => {
+        active -= 1
+        next()
+      })
+  }
+  return (task) =>
+    new Promise((resolve, reject) => {
+      queue.push({ task, resolve, reject })
       next()
     })
-  }
-  return (task) => new Promise((resolve, reject) => {
-    queue.push({ task, resolve, reject })
-    next()
-  })
 }
 
 // count(source, query) → the total of that source's list for the query. Equal
@@ -92,7 +97,8 @@ export function niceMax(value) {
 
 const isTransientFailure = (error) =>
   ['NETWORK_ERROR', 'TIMEOUT', 'INVALID_RESPONSE'].includes(error?.code) ||
-  error?.status === 500 || [502, 503, 504].includes(error?.status)
+  error?.status === 500 ||
+  [502, 503, 504].includes(error?.status)
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
@@ -100,13 +106,15 @@ const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mill
 // connection and server failures; validation and authorization errors are
 // returned immediately. Sharing happens in createCounter, so concurrent
 // panels still share the same retry sequence for an equal query.
-export const totalOf = (list, { attempts = 3, retryDelay = 250 } = {}) => async (query) => {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return (await list({ ...query, page: 1, limit: 1 })).pagination.total
-    } catch (error) {
-      if (!isTransientFailure(error) || attempt >= attempts) throw error
-      await wait(retryDelay * attempt)
+export const totalOf =
+  (list, { attempts = 3, retryDelay = 250 } = {}) =>
+  async (query) => {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return (await list({ ...query, page: 1, limit: 1 })).pagination.total
+      } catch (error) {
+        if (!isTransientFailure(error) || attempt >= attempts) throw error
+        await wait(retryDelay * attempt)
+      }
     }
   }
-}

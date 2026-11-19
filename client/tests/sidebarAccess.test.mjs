@@ -8,27 +8,41 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { readMyPermissions } from '../src/features/access/permissionContract.js'
 import { createPermissionStore, resolveAccess } from '../src/features/access/permissionStore.js'
-import { appRoutes, authorizedNavigation, findAppRoute, paletteCommands, routeAccess } from '../src/config/appNavigation.js'
+import {
+  appRoutes,
+  authorizedNavigation,
+  findAppRoute,
+  paletteCommands,
+  routeAccess,
+} from '../src/config/appNavigation.js'
 import { authUser, deferred } from './helpers/http.mjs'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 const SA = 'SECURITY_ADMINISTRATION'
-const auth ={ status: 'authenticated', user: authUser }
+const auth = { status: 'authenticated', user: authUser }
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 // What the backend returns: the user's *effective* permissions only. A DENY override, an
 // inactive module/resource/permission, an inactive role or grant removes a key from this list
 // (server/tests/rbac-authorization.test.js), so the frontend never sees it.
-const effective = (keys, { mfaVerified = true, adminMfaRequired = true } = {}) => readMyPermissions({
-  userId: authUser.id,
-  mfaVerified,
-  adminMfaRequired,
-  permissions: keys.map((key, index) => {
-    const [moduleCode, rest] = key.split('.')
-    const [resourceCode, actionCode] = rest.split(':')
-    return { permissionId: String(index + 1), moduleCode, resourceCode, actionCode, viaRole: true, viaOverride: false }
-  }),
-})
+const effective = (keys, { mfaVerified = true, adminMfaRequired = true } = {}) =>
+  readMyPermissions({
+    userId: authUser.id,
+    mfaVerified,
+    adminMfaRequired,
+    permissions: keys.map((key, index) => {
+      const [moduleCode, rest] = key.split('.')
+      const [resourceCode, actionCode] = rest.split(':')
+      return {
+        permissionId: String(index + 1),
+        moduleCode,
+        resourceCode,
+        actionCode,
+        viaRole: true,
+        viaOverride: false,
+      }
+    }),
+  })
 
 function signedInStore() {
   const calls = []
@@ -42,7 +56,8 @@ function signedInStore() {
     },
   })
   const access = () => resolveAccess(store.getSnapshot(), auth)
-  const sidebar = () => authorizedNavigation(access()).flatMap((section) => section.items.map((item) => item.id))
+  const sidebar = () =>
+    authorizedNavigation(access()).flatMap((section) => section.items.map((item) => item.id))
   const answer = async (keys, options) => {
     calls.at(-1).resolve(effective(keys, options))
     await settle()
@@ -71,7 +86,13 @@ test('a registered page appears once its permission is effective; a missing perm
 
   s.store.reload()
   await s.answer(HR_PERMISSIONS)
-  assert.deepEqual(s.sidebar(), ['dashboard', 'pending-worklist', ...HR, 'account-password', 'account-authenticator'])
+  assert.deepEqual(s.sidebar(), [
+    'dashboard',
+    'pending-worklist',
+    ...HR,
+    'account-password',
+    'account-authenticator',
+  ])
   assert.equal(routeAccess(findAppRoute('/hr/recruitment/requisition'), s.access()), 'allowed')
   assert.equal(routeAccess(findAppRoute('/hr/recruitment/offer'), s.access()), 'allowed')
 
@@ -79,10 +100,28 @@ test('a registered page appears once its permission is effective; a missing perm
   // administrator's own permissions; other users after a page reload or new sign-in).
   s.store.reload()
   await s.answer([`${SA}.ROLES:VIEW`])
-  assert.deepEqual(s.sidebar(), ['dashboard', 'pending-worklist', 'roles', 'account-password', 'account-authenticator'])
-  assert.equal(routeAccess(findAppRoute('/security/roles'), s.access()), 'allowed', 'direct URL: same decision')
-  assert.equal(routeAccess(findAppRoute('/security/users'), s.access()), 'denied', 'direct URL without the permission')
-  assert.deepEqual(paletteCommands(s.access(), 'authenticated').map((c) => c.id), s.sidebar(), 'command palette lists the same pages')
+  assert.deepEqual(s.sidebar(), [
+    'dashboard',
+    'pending-worklist',
+    'roles',
+    'account-password',
+    'account-authenticator',
+  ])
+  assert.equal(
+    routeAccess(findAppRoute('/security/roles'), s.access()),
+    'allowed',
+    'direct URL: same decision',
+  )
+  assert.equal(
+    routeAccess(findAppRoute('/security/users'), s.access()),
+    'denied',
+    'direct URL without the permission',
+  )
+  assert.deepEqual(
+    paletteCommands(s.access(), 'authenticated').map((c) => c.id),
+    s.sidebar(),
+    'command palette lists the same pages',
+  )
 })
 
 test('alsoRequires: a page needing two permissions appears only when both are effective', async () => {
@@ -94,7 +133,11 @@ test('alsoRequires: a page needing two permissions appears only when both are ef
   s.store.reload()
   await s.answer([`${SA}.USER_ROLES:VIEW`, `${SA}.USER_ACCOUNTS:VIEW`])
   assert.ok(s.sidebar().includes('user-roles') && s.sidebar().includes('user-accounts'))
-  assert.equal(routeAccess(findAppRoute('/security/user-roles/105'), s.access()), 'allowed', 'detail page (not listed) follows the same rule')
+  assert.equal(
+    routeAccess(findAppRoute('/security/user-roles/105'), s.access()),
+    'allowed',
+    'detail page (not listed) follows the same rule',
+  )
   assert.ok(!s.sidebar().includes('user-role-assignments'), 'hidden detail pages are never listed')
 })
 
@@ -123,17 +166,45 @@ test('a DENY override or inactive catalogue chain (absent from effective permiss
 test('permissions never create navigation: only registered, implemented pages are listed', async () => {
   const s = signedInStore()
   s.store.sync(auth)
-  const allSecurity = ['USER_ACCOUNTS', 'ROLES', 'PERMISSION_CATALOG', 'ROLE_PERMISSIONS', 'USER_ROLES', 'USER_PERMISSION_OVERRIDES']
-    .map((resource) => `${SA}.${resource}:VIEW`)
+  const allSecurity = [
+    'USER_ACCOUNTS',
+    'ROLES',
+    'PERMISSION_CATALOG',
+    'ROLE_PERMISSIONS',
+    'USER_ROLES',
+    'USER_PERMISSION_OVERRIDES',
+  ].map((resource) => `${SA}.${resource}:VIEW`)
   await s.answer(allSecurity)
   const before = s.sidebar()
   s.store.reload()
   // ACCOUNT_RECOVERY has no page; SECURITY_AUDIT's page is not implemented (no retrieval API).
-  await s.answer([...allSecurity, `${SA}.ACCOUNT_RECOVERY:ISSUE`, `${SA}.SECURITY_AUDIT:VIEW`, `${SA}.SECURITY_AUDIT:EXPORT`])
+  await s.answer([
+    ...allSecurity,
+    `${SA}.ACCOUNT_RECOVERY:ISSUE`,
+    `${SA}.SECURITY_AUDIT:VIEW`,
+    `${SA}.SECURITY_AUDIT:EXPORT`,
+  ])
   assert.deepEqual(s.sidebar(), before)
   assert.ok(!s.sidebar().includes('security-audit'))
-  assert.equal(routeAccess(appRoutes.find((r) => r.id === 'security-audit'), s.access()), 'unavailable')
-  assert.deepEqual(before, ['dashboard', 'pending-worklist', 'user-accounts', 'roles', 'user-roles', 'role-permissions', 'permission-catalog', 'permission-overrides', 'account-password', 'account-authenticator'])
+  assert.equal(
+    routeAccess(
+      appRoutes.find((r) => r.id === 'security-audit'),
+      s.access(),
+    ),
+    'unavailable',
+  )
+  assert.deepEqual(before, [
+    'dashboard',
+    'pending-worklist',
+    'user-accounts',
+    'roles',
+    'user-roles',
+    'role-permissions',
+    'permission-catalog',
+    'permission-overrides',
+    'account-password',
+    'account-authenticator',
+  ])
 })
 
 test('loading and error states never list protected pages; a failed refresh denies until retried', async () => {

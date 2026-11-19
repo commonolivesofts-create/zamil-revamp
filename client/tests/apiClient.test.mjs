@@ -3,7 +3,12 @@ import assert from 'node:assert/strict'
 import { ApiError, createApiClient } from '../src/services/api/apiClient.js'
 import { createCsrfStore } from '../src/services/api/csrfStore.js'
 import {
-  REQUEST_ID, failure, jsonResponse, noContent, recordingFetch, success,
+  REQUEST_ID,
+  failure,
+  jsonResponse,
+  noContent,
+  recordingFetch,
+  success,
 } from './helpers/http.mjs'
 
 function setup(responder, options = {}) {
@@ -11,17 +16,35 @@ function setup(responder, options = {}) {
   const csrfStore = createCsrfStore()
   let unauthorized = 0
   const client = createApiClient({
-    baseUrl: '/api/v1', fetchImpl, csrfStore, onUnauthorized: () => { unauthorized += 1 }, ...options,
+    baseUrl: '/api/v1',
+    fetchImpl,
+    csrfStore,
+    onUnauthorized: () => {
+      unauthorized += 1
+    },
+    ...options,
   })
   return { client, calls, csrfStore, unauthorizedCount: () => unauthorized }
 }
 
-const pagination = { page: 1, limit: 20, total: 41, totalPages: 3, hasNextPage: true, hasPreviousPage: false }
+const pagination = {
+  page: 1,
+  limit: 20,
+  total: 41,
+  totalPages: 3,
+  hasNextPage: true,
+  hasPreviousPage: false,
+}
 
 test('success envelopes resolve to data, pagination and request ID', async () => {
   const { client } = setup(() => success({ id: '1' }))
   const result = await client.get('/users/1')
-  assert.deepEqual(result, { status: 200, data: { id: '1' }, pagination: null, requestId: REQUEST_ID })
+  assert.deepEqual(result, {
+    status: 200,
+    data: { id: '1' },
+    pagination: null,
+    requestId: REQUEST_ID,
+  })
   assert.ok(Object.isFrozen(result))
 })
 
@@ -36,7 +59,12 @@ test('paginated envelopes keep validated pagination metadata', async () => {
 
 test('HTTP 204 resolves without a body', async () => {
   const { client } = setup(() => noContent())
-  assert.deepEqual(await client.post('/auth/logout'), { status: 204, data: null, pagination: null, requestId: REQUEST_ID })
+  assert.deepEqual(await client.post('/auth/logout'), {
+    status: 204,
+    data: null,
+    pagination: null,
+    requestId: REQUEST_ID,
+  })
 })
 
 test('non-envelope or malformed success bodies are rejected', async () => {
@@ -47,14 +75,17 @@ test('non-envelope or malformed success bodies are rejected', async () => {
     () => new Response('', { status: 200 }),
   ]) {
     const { client } = setup(response)
-    await assert.rejects(client.get('/x'), (error) => error instanceof ApiError && error.code === 'INVALID_RESPONSE')
+    await assert.rejects(
+      client.get('/x'),
+      (error) => error instanceof ApiError && error.code === 'INVALID_RESPONSE',
+    )
   }
 })
 
 test('GET retries transient failures and returns the recovered lookup response', async () => {
-  const recovered = setup((_url, _init, call) => call < 3
-    ? new Response('', { status: 503 })
-    : success([{ id: 'ready' }]))
+  const recovered = setup((_url, _init, call) =>
+    call < 3 ? new Response('', { status: 503 }) : success([{ id: 'ready' }]),
+  )
   const result = await recovered.client.get('/hr/lookups')
   assert.deepEqual(result.data, [{ id: 'ready' }])
   assert.equal(recovered.calls.length, 3)
@@ -68,21 +99,27 @@ test('GET retry can be disabled when a caller owns the retry policy', async () =
 
 test('GET retry delay honors cancellation and mutations are never retried', async () => {
   const controller = new AbortController()
-  const flakyRead = setup(() => { throw new TypeError('Failed to fetch') })
+  const flakyRead = setup(() => {
+    throw new TypeError('Failed to fetch')
+  })
   const pending = flakyRead.client.get('/hr/lookups', { signal: controller.signal })
   await new Promise((resolve) => setTimeout(resolve, 0))
   controller.abort()
   await assert.rejects(pending, { code: 'ABORTED' })
   assert.equal(flakyRead.calls.length, 1)
 
-  const failedWrite = setup(() => { throw new TypeError('Failed to fetch') })
+  const failedWrite = setup(() => {
+    throw new TypeError('Failed to fetch')
+  })
   await assert.rejects(failedWrite.client.post('/hr/records', {}), { code: 'NETWORK_ERROR' })
   assert.equal(failedWrite.calls.length, 1)
 })
 
 test('structured errors keep code, status, safe message, details and request ID', async () => {
   const details = [{ field: 'username', message: '"username" is required' }, { bogus: true }]
-  const { client } = setup(() => failure(400, 'VALIDATION_ERROR', 'Request validation failed', { details }))
+  const { client } = setup(() =>
+    failure(400, 'VALIDATION_ERROR', 'Request validation failed', { details }),
+  )
   await assert.rejects(client.post('/auth/login', {}), (error) => {
     assert.ok(error instanceof ApiError)
     assert.equal(error.code, 'VALIDATION_ERROR')
@@ -96,17 +133,39 @@ test('structured errors keep code, status, safe message, details and request ID'
 
 test('non-envelope and unsafe error bodies fall back to generic messages', async () => {
   const html = setup(() => new Response('<html>Bad gateway</html>', { status: 502 }))
-  await assert.rejects(html.client.get('/x'), { code: 'HTTP_ERROR', status: 502, message: 'The application server could not be reached. Try again in a moment.' })
+  await assert.rejects(html.client.get('/x'), {
+    code: 'HTTP_ERROR',
+    status: 502,
+    message: 'The application server could not be reached. Try again in a moment.',
+  })
   const unavailable = setup(() => new Response('', { status: 503 }))
-  await assert.rejects(unavailable.client.get('/x'), { code: 'HTTP_ERROR', status: 503, message: 'The service is temporarily unavailable.' })
+  await assert.rejects(unavailable.client.get('/x'), {
+    code: 'HTTP_ERROR',
+    status: 503,
+    message: 'The service is temporarily unavailable.',
+  })
 
   const unsafe = setup(() => failure(400, 'lower-case', 'x'.repeat(600)))
-  await assert.rejects(unsafe.client.get('/x'), { code: 'HTTP_ERROR', message: 'The request could not be completed.' })
+  await assert.rejects(unsafe.client.get('/x'), {
+    code: 'HTTP_ERROR',
+    message: 'The request could not be completed.',
+  })
 })
 
 test('rate limiting exposes Retry-After', async () => {
-  const { client } = setup(() => failure(429, 'RATE_LIMITED', 'Too many attempts. Please wait and try again.', {}, { 'Retry-After': '42' }))
-  await assert.rejects(client.post('/auth/login', {}), { code: 'RATE_LIMITED', retryAfterSeconds: 42 })
+  const { client } = setup(() =>
+    failure(
+      429,
+      'RATE_LIMITED',
+      'Too many attempts. Please wait and try again.',
+      {},
+      { 'Retry-After': '42' },
+    ),
+  )
+  await assert.rejects(client.post('/auth/login', {}), {
+    code: 'RATE_LIMITED',
+    retryAfterSeconds: 42,
+  })
 })
 
 test('every request uses the secure fetch settings and a same-origin path', async () => {
@@ -125,7 +184,15 @@ test('every request uses the secure fetch settings and a same-origin path', asyn
 
 test('unsafe paths and base URLs are refused before fetch', async () => {
   const { client, calls } = setup(() => success({}))
-  for (const path of ['//evil.example/x', '/a/../b', '/a?b=1', '/a#b', 'relative', '/a\\b', '/a%2F..']) {
+  for (const path of [
+    '//evil.example/x',
+    '/a/../b',
+    '/a?b=1',
+    '/a#b',
+    'relative',
+    '/a\\b',
+    '/a%2F..',
+  ]) {
     await assert.rejects(client.get(path), { code: 'INVALID_PATH' })
   }
   const bad = createApiClient({ baseUrl: 'javascript:alert(1)', fetchImpl: () => assert.fail() })
@@ -153,9 +220,17 @@ test('challenge and none CSRF modes never send the session token', async () => {
   await client.post('/auth/login', {}, { csrf: 'none' })
   await client.post('/auth/mfa/verify', {}, { csrf: 'challenge' })
   assert.equal(calls[0].init.headers.get('X-CSRF-Token'), 'challenge-token')
-  assert.equal(calls[1].init.headers.has('X-CSRF-Token'), false, 'no session token while only a challenge exists')
+  assert.equal(
+    calls[1].init.headers.has('X-CSRF-Token'),
+    false,
+    'no session token while only a challenge exists',
+  )
   assert.equal(calls[2].init.headers.has('X-CSRF-Token'), false)
-  assert.equal(calls[3].init.headers.has('X-CSRF-Token'), false, 'challenge token was replaced by the session')
+  assert.equal(
+    calls[3].init.headers.has('X-CSRF-Token'),
+    false,
+    'challenge token was replaced by the session',
+  )
   await assert.rejects(client.post('/x', {}, { csrf: 'meta' }), { code: 'INVALID_CSRF_MODE' })
 })
 
@@ -166,24 +241,32 @@ test('callers cannot inject their own CSRF header', async () => {
 })
 
 test('only session 401 responses emit the unauthorized event', async () => {
-  const { client, unauthorizedCount } = setup(() => failure(401, 'UNAUTHENTICATED', 'Authentication is required'))
+  const { client, unauthorizedCount } = setup(() =>
+    failure(401, 'UNAUTHENTICATED', 'Authentication is required'),
+  )
   await assert.rejects(client.get('/users'), { code: 'UNAUTHENTICATED', status: 401 })
   assert.equal(unauthorizedCount(), 1)
-  await assert.rejects(client.post('/auth/login', {}, { csrf: 'none', notifyUnauthorized: false }), { status: 401 })
+  await assert.rejects(
+    client.post('/auth/login', {}, { csrf: 'none', notifyUnauthorized: false }),
+    { status: 401 },
+  )
   assert.equal(unauthorizedCount(), 1)
 })
 
 test('403 responses, including CSRF rejection, are not replayed or treated as 401', async () => {
-  const { client, calls, unauthorizedCount } = setup(() => failure(403, 'CSRF_REJECTED', 'The request could not be verified. Reload and try again.'))
+  const { client, calls, unauthorizedCount } = setup(() =>
+    failure(403, 'CSRF_REJECTED', 'The request could not be verified. Reload and try again.'),
+  )
   await assert.rejects(client.post('/users/1/disable', {}), { code: 'CSRF_REJECTED', status: 403 })
   assert.equal(calls.length, 1)
   assert.equal(unauthorizedCount(), 0)
 })
 
 test('timeouts, caller aborts and network failures map to stable codes', async () => {
-  const hang = (_url, init) => new Promise((_resolve, reject) => {
-    init.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
-  })
+  const hang = (_url, init) =>
+    new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+    })
   const timed = setup(hang)
   await assert.rejects(timed.client.get('/x', { timeout: 10 }), { code: 'TIMEOUT' })
 
@@ -194,9 +277,13 @@ test('timeouts, caller aborts and network failures map to stable codes', async (
   await assert.rejects(pending, { code: 'ABORTED' })
 
   const preAborted = setup(() => assert.fail('fetch must not run'))
-  await assert.rejects(preAborted.client.get('/x', { signal: AbortSignal.abort() }), { code: 'ABORTED' })
+  await assert.rejects(preAborted.client.get('/x', { signal: AbortSignal.abort() }), {
+    code: 'ABORTED',
+  })
 
-  const offline = setup(() => { throw new TypeError('Failed to fetch') })
+  const offline = setup(() => {
+    throw new TypeError('Failed to fetch')
+  })
   await assert.rejects(offline.client.get('/x'), { code: 'NETWORK_ERROR' })
 })
 

@@ -9,9 +9,11 @@ export function authenticatorQr(otpauthUri) {
   if (typeof otpauthUri !== 'string' || !otpauthUri.startsWith('otpauth://totp/')) return null
   const { size, data } = encode(otpauthUri, { ecc: 'M', border: 0 })
   let path = ''
-  data.forEach((row, y) => row.forEach((dark, x) => {
-    if (dark) path += `M${x} ${y}h1v1h-1z`
-  }))
+  data.forEach((row, y) =>
+    row.forEach((dark, x) => {
+      if (dark) path += `M${x} ${y}h1v1h-1z`
+    }),
+  )
   return Object.freeze({ size, path })
 }
 
@@ -19,4 +21,5 @@ export function authenticatorQr(otpauthUri) {
 export const formatSetupKey = (secret) => secret.replace(/(.{4})(?=.)/g, '$1 ')
 
 // Local clock time for challenge and setup expiry hints.
-export const formatClockTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+export const formatClockTime = (iso) =>
+  new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

@@ -8,17 +8,47 @@
 // requester's answers plus the two consistency assertions it requires.
 import { apiClient, ApiError } from '../../../services/api/apiClient.js'
 import { createEmployeeList, employeePage } from '../shared/employeeList.js'
-import { ID, invalidResponse, isoDate, optionalNumber, pageOf, params, text } from '../shared/formRecords.js'
+import {
+  ID,
+  invalidResponse,
+  isoDate,
+  optionalNumber,
+  pageOf,
+  params,
+  text,
+} from '../shared/formRecords.js'
 
 export const LANGUAGES = Object.freeze({
-  en: Object.freeze({ code: 'en', label: 'English', native: 'English', base: '/salary-certificates', permission: 'HR.SALARY_CERTIFICATES', dir: 'ltr' }),
-  ar: Object.freeze({ code: 'ar', label: 'Arabic', native: 'العربية', base: '/salary-certificates-ar', permission: 'HR.SALARY_CERTIFICATES_AR', dir: 'rtl' }),
+  en: Object.freeze({
+    code: 'en',
+    label: 'English',
+    native: 'English',
+    base: '/salary-certificates',
+    permission: 'HR.SALARY_CERTIFICATES',
+    dir: 'ltr',
+  }),
+  ar: Object.freeze({
+    code: 'ar',
+    label: 'Arabic',
+    native: 'العربية',
+    base: '/salary-certificates-ar',
+    permission: 'HR.SALARY_CERTIFICATES_AR',
+    dir: 'rtl',
+  }),
 })
 export const TO_MAX = 1000
-export const SALARY_KEYS = Object.freeze(['basicSalary', 'housingAllowance', 'transportAllowance', 'commAllowance', 'carAllowance', 'totalSalary'])
+export const SALARY_KEYS = Object.freeze([
+  'basicSalary',
+  'housingAllowance',
+  'transportAllowance',
+  'commAllowance',
+  'carAllowance',
+  'totalSalary',
+])
 
 const language = (code) => {
-  if (!LANGUAGES[code]) throw new ApiError('The selected certificate is invalid.', { code: 'INVALID_ID' })
+  if (!LANGUAGES[code])
+    throw new ApiError('The selected certificate is invalid.', { code: 'INVALID_ID' })
   return LANGUAGES[code]
 }
 
@@ -30,7 +60,8 @@ export function parseCertificateId(value) {
 }
 export const certificateId = (lang, id) => `${lang}-${id}`
 
-const salaries = (data) => Object.freeze(Object.fromEntries(SALARY_KEYS.map((key) => [key, optionalNumber(data?.[key])])))
+const salaries = (data) =>
+  Object.freeze(Object.fromEntries(SALARY_KEYS.map((key) => [key, optionalNumber(data?.[key])])))
 
 export function readEmployee(lang, data) {
   if (!data || !text(data.employeeNo)) throw invalidResponse('employee')
@@ -44,8 +75,11 @@ export function readEmployee(lang, data) {
     nationality: text(arabic ? data.nationalityAr || data.nationality : data.nationality),
     jobTitle: text(arabic ? data.positionAr || data.jobTitle : data.jobTitle),
     // The English values the Arabic lookup also returns (used as a hint under the Arabic text).
-    nameOther: arabic ? text(data.name) : '', jobTitleOther: arabic ? text(data.position) : '',
-    nationalIdentifier: text(data.nationalIdentifier), joiningDate: isoDate(data.joiningDate), division: text(data.division),
+    nameOther: arabic ? text(data.name) : '',
+    jobTitleOther: arabic ? text(data.position) : '',
+    nationalIdentifier: text(data.nationalIdentifier),
+    joiningDate: isoDate(data.joiningDate),
+    division: text(data.division),
     allowanceFlag: data.allowanceFlag === 'Yes' ? 'Yes' : 'No',
     ...salaries(data),
   })
@@ -53,13 +87,18 @@ export function readEmployee(lang, data) {
 
 export function readApprovers(lang, data) {
   if (!Array.isArray(data)) throw invalidResponse('approver list')
-  return Object.freeze(data.map((item) => Object.freeze({
-    employeeNo: text(item?.employeeNo),
-    name: text(lang === 'ar' ? item?.nameAr : item?.name),
-    position: text(lang === 'ar' ? item?.positionAr : item?.position),
-  }))
-    // The backend rejects a signer without a position, so do not offer one.
-    .filter((item) => item.name && item.position))
+  return Object.freeze(
+    data
+      .map((item) =>
+        Object.freeze({
+          employeeNo: text(item?.employeeNo),
+          name: text(lang === 'ar' ? item?.nameAr : item?.name),
+          position: text(lang === 'ar' ? item?.positionAr : item?.position),
+        }),
+      )
+      // The backend rejects a signer without a position, so do not offer one.
+      .filter((item) => item.name && item.position),
+  )
 }
 
 export function readCertificate(lang, data) {
@@ -81,16 +120,28 @@ export function readCertificate(lang, data) {
 export function readCertificatePage(lang, data) {
   if (!data || !Array.isArray(data.items)) throw invalidResponse('salary certificate list')
   return Object.freeze({
-    items: Object.freeze(data.items.map((item) => {
-      if (!item || !ID.test(String(item.id ?? ''))) throw invalidResponse('salary certificate list')
-      return Object.freeze({
-        certificateId: certificateId(lang, item.id), language: lang, refNo: text(item.refNo), certDate: isoDate(item.certDate),
-        employeeNo: text(item.employeeNo), employeeName: text(item.employeeName), nationality: text(item.nationality),
-        nationalIdentifier: text(item.nationalIdentifier), joiningDate: isoDate(item.joiningDate), division: text(item.division),
-        totalSalary: optionalNumber(item.totalSalary), toEmpName: text(item.toEmpName), status: text(item.status).toUpperCase(),
-        createdAt: isoDate(item.createdAt),
-      })
-    })),
+    items: Object.freeze(
+      data.items.map((item) => {
+        if (!item || !ID.test(String(item.id ?? '')))
+          throw invalidResponse('salary certificate list')
+        return Object.freeze({
+          certificateId: certificateId(lang, item.id),
+          language: lang,
+          refNo: text(item.refNo),
+          certDate: isoDate(item.certDate),
+          employeeNo: text(item.employeeNo),
+          employeeName: text(item.employeeName),
+          nationality: text(item.nationality),
+          nationalIdentifier: text(item.nationalIdentifier),
+          joiningDate: isoDate(item.joiningDate),
+          division: text(item.division),
+          totalSalary: optionalNumber(item.totalSalary),
+          toEmpName: text(item.toEmpName),
+          status: text(item.status).toUpperCase(),
+          createdAt: isoDate(item.createdAt),
+        })
+      }),
+    ),
     pagination: pageOf(data),
   })
 }
@@ -111,12 +162,15 @@ export function certificateBody(form) {
 export function validateCertificate(form, { approvers }) {
   const errors = {}
   if (!form.employee) errors.employee = 'Choose the employee.'
-  else if (!form.employee.joiningDate) errors.employee = 'This employee has no joining date in the master.'
+  else if (!form.employee.joiningDate)
+    errors.employee = 'This employee has no joining date in the master.'
   if (!form.certDate) errors.certDate = 'Date is required.'
   if (!form.toEmpName.trim()) errors.toEmpName = 'Enter who the certificate is addressed to.'
-  else if (form.toEmpName.trim().length > TO_MAX) errors.toEmpName = `Keep it within ${TO_MAX} characters.`
+  else if (form.toEmpName.trim().length > TO_MAX)
+    errors.toEmpName = `Keep it within ${TO_MAX} characters.`
   if (!form.approvalName) errors.approvalName = 'Choose the approver.'
-  else if (approvers.filter((item) => item.name === form.approvalName).length !== 1) errors.approvalName = 'Choose the approver from the list.'
+  else if (approvers.filter((item) => item.name === form.approvalName).length !== 1)
+    errors.approvalName = 'Choose the approver from the list.'
   return errors
 }
 
@@ -130,22 +184,37 @@ const employeeNumberOption = (item) => {
 export function createSalaryCertificateService({ client }) {
   const getById = async (value, { signal } = {}) => {
     const { language: lang, id } = parseCertificateId(value)
-    return readCertificate(lang, (await client.get(`${language(lang).base}/${id}`, { signal })).data)
+    return readCertificate(
+      lang,
+      (await client.get(`${language(lang).base}/${id}`, { signal })).data,
+    )
   }
   const lists = new Map()
   const numbersFor = (lang) => {
     if (!lists.has(lang)) {
-      lists.set(lang, createEmployeeList({
-        load: ({ signal } = {}) => client.get(`${language(lang).base}/lookups/employee-numbers`, { params: params({ pageSize: 100 }), signal }).then(({ data }) => data),
-        shape: employeeNumberOption,
-      }))
+      lists.set(
+        lang,
+        createEmployeeList({
+          load: ({ signal } = {}) =>
+            client
+              .get(`${language(lang).base}/lookups/employee-numbers`, {
+                params: params({ pageSize: 100 }),
+                signal,
+              })
+              .then(({ data }) => data),
+          shape: employeeNumberOption,
+        }),
+      )
     }
     return lists.get(lang)
   }
   return Object.freeze({
     getById,
     async approvers(lang, { signal } = {}) {
-      return readApprovers(lang, (await client.get(`${language(lang).base}/lookups/approvers`, { signal })).data)
+      return readApprovers(
+        lang,
+        (await client.get(`${language(lang).base}/lookups/approvers`, { signal })).data,
+      )
     },
     // The picker's list of employee numbers (the legacy datalist), loaded once per language
     // with the form.
@@ -155,15 +224,43 @@ export function createSalaryCertificateService({ client }) {
       const q = String(search).trim()
       // Opening the field lists the numbers loaded with the form.
       if (!q) return employeePage(await numbersFor(lang).list({ signal }))
-      const { data } = await client.get(`${language(lang).base}/lookups/employee-numbers`, { params: params({ q, pageSize: 20 }), signal })
+      const { data } = await client.get(`${language(lang).base}/lookups/employee-numbers`, {
+        params: params({ q, pageSize: 20 }),
+        signal,
+      })
       if (!Array.isArray(data)) throw invalidResponse('employee list')
       return employeePage(data.map(employeeNumberOption).filter(Boolean))
     },
     async employee(lang, employeeNo, { signal } = {}) {
-      return readEmployee(lang, (await client.get(`${language(lang).base}/lookups/employees/${encodeURIComponent(employeeNo)}`, { signal })).data)
+      return readEmployee(
+        lang,
+        (
+          await client.get(
+            `${language(lang).base}/lookups/employees/${encodeURIComponent(employeeNo)}`,
+            { signal },
+          )
+        ).data,
+      )
     },
-    async list(lang, { page = 1, pageSize = 25, q, employeeNo, division, from, to, createdFrom, createdTo } = {}, { signal } = {}) {
-      const { data } = await client.get(language(lang).base, { params: params({ page, pageSize, q, employeeNo, division, from, to, createdFrom, createdTo }), signal })
+    async list(
+      lang,
+      { page = 1, pageSize = 25, q, employeeNo, division, from, to, createdFrom, createdTo } = {},
+      { signal } = {},
+    ) {
+      const { data } = await client.get(language(lang).base, {
+        params: params({
+          page,
+          pageSize,
+          q,
+          employeeNo,
+          division,
+          from,
+          to,
+          createdFrom,
+          createdTo,
+        }),
+        signal,
+      })
       return readCertificatePage(lang, data)
     },
     // Creates (in the chosen language) or updates; returns the stored certificate.

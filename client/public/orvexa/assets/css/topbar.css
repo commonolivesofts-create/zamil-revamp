@@ -125,17 +125,17 @@ html.dark .topbar-tools .dropdown-panel {
   transform: scale(0.7);
   transition: 0.16s ease;
 }
-.language-option[aria-pressed="true"] {
+.language-option[aria-pressed='true'] {
   background: color-mix(in srgb, var(--mint) 8%, var(--surface-2));
 }
-.language-option[aria-pressed="true"] .language-check {
+.language-option[aria-pressed='true'] .language-check {
   opacity: 1;
   transform: scale(1);
 }
-[dir="rtl"] .language-option {
+[dir='rtl'] .language-option {
   text-align: right;
 }
-[dir="rtl"] .language-option:hover {
+[dir='rtl'] .language-option:hover {
   transform: translateX(-1px);
 }
 
@@ -459,10 +459,10 @@ html.dark .topbar-tools .dropdown-panel {
   color: var(--danger-text);
   background: color-mix(in srgb, var(--danger) 6%, transparent);
 }
-[dir="rtl"] .topbar-profile-copy {
+[dir='rtl'] .topbar-profile-copy {
   text-align: right;
 }
-[dir="rtl"] .topbar-profile-link:hover {
+[dir='rtl'] .topbar-profile-link:hover {
   transform: translateX(-1px);
 }
 

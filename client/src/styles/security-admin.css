@@ -2,8 +2,11 @@
    btn-* classes only; the original Orvexa CSS is unchanged. */
 
 .zrv-admin {
-  width: min(100%, 1320px);
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin-inline: 0;
+  box-sizing: border-box;
   color: var(--text);
 }
 .zrv-admin__head {
@@ -427,7 +430,7 @@
 .zrv-admin-menu button:hover {
   background: var(--surface-2);
 }
-.zrv-admin-menu button[aria-pressed="true"] {
+.zrv-admin-menu button[aria-pressed='true'] {
   border-color: var(--primary-text);
   background: color-mix(in srgb, var(--primary) 10%, transparent);
 }

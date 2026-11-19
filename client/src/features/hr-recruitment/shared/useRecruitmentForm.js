@@ -6,12 +6,14 @@ import { activeRecruitmentErrors, recruitmentValidation } from './recruitmentFie
 
 // Navigation state carries only the step to reopen and a plain message (never
 // record data): a new record moves to its own URL after its first save.
-const readStep = (state, stepCount) => (Number.isInteger(state?.step) && state.step >= 0 && state.step < stepCount ? state.step : 0)
-const readNotice = (state) => (
-  state?.notice && typeof state.notice.message === 'string' && ['success', 'error', 'unknown'].includes(state.notice.kind)
+const readStep = (state, stepCount) =>
+  Number.isInteger(state?.step) && state.step >= 0 && state.step < stepCount ? state.step : 0
+const readNotice = (state) =>
+  state?.notice &&
+  typeof state.notice.message === 'string' &&
+  ['success', 'error', 'unknown'].includes(state.notice.kind)
     ? { kind: state.notice.kind, message: state.notice.message, details: [] }
     : null
-)
 
 const outcomeFeedback = (outcome, success) => {
   if (outcome.status === 'success') return success ? { kind: 'success', message: success } : null
@@ -24,7 +26,14 @@ const outcomeFeedback = (outcome, success) => {
 // unsaved-change tracking and one change at a time through useAdminAction
 // (never auto-retried; unknown outcomes are explained, not reported as
 // success).
-export function useRecruitmentForm({ basePath, idKey, record: initialRecord, initialForm, validationFields = {}, stepCount = 4 }) {
+export function useRecruitmentForm({
+  basePath,
+  idKey,
+  record: initialRecord,
+  initialForm,
+  validationFields = {},
+  stepCount = 4,
+}) {
   const navigate = useNavigate()
   const location = useLocation()
   const action = useAdminAction()
@@ -42,7 +51,11 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
     const value = eventOrValue?.target ? eventOrValue.target.value : eventOrValue
     setForm((current) => ({ ...current, [key]: value }))
   }
-  const patch = (changes) => setForm((current) => ({ ...current, ...(typeof changes === 'function' ? changes(current) : changes) }))
+  const patch = (changes) =>
+    setForm((current) => ({
+      ...current,
+      ...(typeof changes === 'function' ? changes(current) : changes),
+    }))
 
   const showProblem = (message, details = []) => {
     setNotice(null)
@@ -58,7 +71,10 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
     setFocusError((value) => value + 1)
     // Field-level validation is already rendered beside the controls. A count
     // summary duplicates those errors and can linger after the user fixes them.
-    const isValidationSummary = /(?:\b\d+\s+items?\s+need attention\b|\bone item needs attention\b|\b\d+\s+criteria need attention\b|review the highlighted fields)/i.test(message ?? '')
+    const isValidationSummary =
+      /(?:\b\d+\s+items?\s+need attention\b|\bone item needs attention\b|\b\d+\s+criteria need attention\b|review the highlighted fields)/i.test(
+        message ?? '',
+      )
     if (message && !isValidationSummary) showProblem(message, details)
     else dismiss()
   }
@@ -85,22 +101,48 @@ export function useRecruitmentForm({ basePath, idKey, record: initialRecord, ini
       setRecord(saved)
     }
     const outcome = await action.run(() => operation({ saved: keep }), { success })
-    const validation = recruitmentValidation(outcome.error, typeof validationFields === 'function' ? validationFields(form) : validationFields, form)
+    const validation = recruitmentValidation(
+      outcome.error,
+      typeof validationFields === 'function' ? validationFields(form) : validationFields,
+      form,
+    )
     if (validation) {
       setServerErrors(validation.errors)
       reject(validation.step)
     }
     if (outcome.status === 'success') setBaseline(snapshot)
     if (created && navigateOnCreate) {
-      const message = typeof success === 'function' && outcome.status === 'success' ? success(outcome.value) : success
-      navigate(`${basePath}/${created[idKey]}`, { replace: true, state: { step, notice: outcomeFeedback(outcome, message) } })
+      const message =
+        typeof success === 'function' && outcome.status === 'success'
+          ? success(outcome.value)
+          : success
+      navigate(`${basePath}/${created[idKey]}`, {
+        replace: true,
+        state: { step, notice: outcomeFeedback(outcome, message) },
+      })
     }
     return outcome
   }
 
   return {
-    record, form, setForm, set, patch, resetToSaved, step, setStep, dirty, pending: action.pending,
-    feedback: action.feedback ?? notice, fieldErrors, dismiss, reject, showProblem, showNotice, perform, focusError,
+    record,
+    form,
+    setForm,
+    set,
+    patch,
+    resetToSaved,
+    step,
+    setStep,
+    dirty,
+    pending: action.pending,
+    feedback: action.feedback ?? notice,
+    fieldErrors,
+    dismiss,
+    reject,
+    showProblem,
+    showNotice,
+    perform,
+    focusError,
     recordId: record?.[idKey] ?? null,
   }
 }

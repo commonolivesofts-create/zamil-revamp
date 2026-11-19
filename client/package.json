@@ -30,5 +30,9 @@
     "globals": "^17.12.0",
     "prettier": "^3.10.1",
     "vite": "^8.3.0"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1",
+    "picomatch": "npm:@ryotsu/picomatch@4.0.7-a"
   }
 }

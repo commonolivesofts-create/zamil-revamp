@@ -32,7 +32,8 @@ const copy = {
     submit: 'Reset password',
     pending: 'Resetting password…',
     successTitle: 'Your password was reset',
-    success: 'All existing sessions of your account were signed out. Sign in with your new password; multi-factor verification is still required if your account uses it.',
+    success:
+      'All existing sessions of your account were signed out. Sign in with your new password; multi-factor verification is still required if your account uses it.',
     invalidHelp: 'Request a new reset link.',
   },
 }
@@ -50,7 +51,12 @@ function PasswordLinkFlow({ kind, link }) {
   const { completePasswordSetup, completePasswordReset } = useAuth()
   const { token, hadFragment } = link
   const clearToken = () => link.clearToken(token)
-  const { policy, error: policyError, loading: policyLoading, retry: retryPolicy } = usePasswordPolicy()
+  const {
+    policy,
+    error: policyError,
+    loading: policyLoading,
+    retry: retryPolicy,
+  } = usePasswordPolicy()
   const alertRef = useRef(null)
   const newPasswordRef = useRef(null)
   const confirmRef = useRef(null)
@@ -97,7 +103,9 @@ function PasswordLinkFlow({ kind, link }) {
         setFieldErrors({ newPassword: failure.message })
         focusLater(newPasswordRef)
       } else if (isOutcomeUnknown(failure)) {
-        showError('We could not confirm whether your password was saved. Try signing in with the new password; if that does not work, try again or request a new link.')
+        showError(
+          'We could not confirm whether your password was saved. Try signing in with the new password; if that does not work, try again or request a new link.',
+        )
       } else {
         showError(failure?.message || 'The password could not be saved.')
       }
@@ -110,7 +118,9 @@ function PasswordLinkFlow({ kind, link }) {
   if (done) {
     body = (
       <>
-        <p className="zrv-auth-feedback zrv-auth-feedback--success" role="status">{text.success}</p>
+        <p className="zrv-auth-feedback zrv-auth-feedback--success" role="status">
+          {text.success}
+        </p>
         <Link className="btn-primary mt-4 w-full zrv-auth-submit" to="/login" replace>
           <OrvexaIcon name="log-in" className="size-4" /> Go to sign in
         </Link>
@@ -120,29 +130,81 @@ function PasswordLinkFlow({ kind, link }) {
     body = (
       <>
         <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
-          {tokenError || (hadFragment ? 'This link is invalid or incomplete.' : 'Open this page from the link in your e-mail.')} {text.invalidHelp}
+          {tokenError ||
+            (hadFragment
+              ? 'This link is invalid or incomplete.'
+              : 'Open this page from the link in your e-mail.')}{' '}
+          {text.invalidHelp}
         </p>
-        {kind === 'reset' && <Link className="btn-primary mt-4 w-full zrv-auth-submit" to="/forgot-password" replace>Request a new link</Link>}
+        {kind === 'reset' && (
+          <Link className="btn-primary mt-4 w-full zrv-auth-submit" to="/forgot-password" replace>
+            Request a new link
+          </Link>
+        )}
       </>
     )
   } else {
     body = (
       <>
-        {policyLoading && <p className="zrv-auth-feedback" role="status">Loading the password requirements…</p>}
+        {policyLoading && (
+          <p className="zrv-auth-feedback" role="status">
+            Loading the password requirements…
+          </p>
+        )}
         {policyError && (
           <>
-            <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">The password requirements could not be loaded, so a new password cannot be checked yet. {policyError.message}</p>
-            <button type="button" className="btn-secondary mt-3" onClick={retryPolicy}>Try again</button>
+            <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
+              The password requirements could not be loaded, so a new password cannot be checked
+              yet. {policyError.message}
+            </p>
+            <button type="button" className="btn-secondary mt-3" onClick={retryPolicy}>
+              Try again
+            </button>
           </>
         )}
-        {error && <p ref={alertRef} tabIndex={-1} className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">{error}</p>}
+        {error && (
+          <p
+            ref={alertRef}
+            tabIndex={-1}
+            className="zrv-auth-feedback zrv-auth-feedback--error"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
         {policy && (
           <form className="mt-6 text-left" onSubmit={submit} noValidate>
-            <PasswordInput ref={newPasswordRef} id={`${kind}-new-password`} label="New password" value={newPassword} onChange={setNewPassword} error={fieldErrors.newPassword} disabled={pending} autoComplete="new-password" maxLength={PASSWORD_INPUT_MAX} describedBy={`${kind}-policy`} />
+            <PasswordInput
+              ref={newPasswordRef}
+              id={`${kind}-new-password`}
+              label="New password"
+              value={newPassword}
+              onChange={setNewPassword}
+              error={fieldErrors.newPassword}
+              disabled={pending}
+              autoComplete="new-password"
+              maxLength={PASSWORD_INPUT_MAX}
+              describedBy={`${kind}-policy`}
+            />
             <PasswordPolicyChecklist id={`${kind}-policy`} policy={policy} password={newPassword} />
-            <PasswordInput ref={confirmRef} id={`${kind}-confirm-password`} label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} error={fieldErrors.confirmPassword} disabled={pending} autoComplete="new-password" maxLength={PASSWORD_INPUT_MAX} />
-            <button className="btn-primary mt-4 w-full zrv-auth-submit" type="submit" disabled={pending}>
-              <OrvexaIcon name="shield-check" className="size-4" /> {pending ? text.pending : text.submit}
+            <PasswordInput
+              ref={confirmRef}
+              id={`${kind}-confirm-password`}
+              label="Confirm new password"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              error={fieldErrors.confirmPassword}
+              disabled={pending}
+              autoComplete="new-password"
+              maxLength={PASSWORD_INPUT_MAX}
+            />
+            <button
+              className="btn-primary mt-4 w-full zrv-auth-submit"
+              type="submit"
+              disabled={pending}
+            >
+              <OrvexaIcon name="shield-check" className="size-4" />{' '}
+              {pending ? text.pending : text.submit}
             </button>
           </form>
         )}
@@ -153,11 +215,23 @@ function PasswordLinkFlow({ kind, link }) {
   return (
     <main className="system-state zrv-auth-page">
       <section className="system-card !max-w-[520px]" aria-labelledby={`${kind}-title`}>
-        <span className="mx-auto flex size-14 items-center justify-center rounded-2xl" style={{ background: 'color-mix(in srgb,var(--primary) 11%,transparent)', color: 'var(--primary-text)' }}><OrvexaIcon name={text.icon} className="size-6" /></span>
+        <span
+          className="mx-auto flex size-14 items-center justify-center rounded-2xl"
+          style={{
+            background: 'color-mix(in srgb,var(--primary) 11%,transparent)',
+            color: 'var(--primary-text)',
+          }}
+        >
+          <OrvexaIcon name={text.icon} className="size-6" />
+        </span>
         <h1 id={`${kind}-title`}>{done ? text.successTitle : text.title}</h1>
         {!done && <p>{text.intro}</p>}
         {body}
-        {!done && <Link className="btn-secondary mt-3" to="/login" replace>Back to sign in</Link>}
+        {!done && (
+          <Link className="btn-secondary mt-3" to="/login" replace>
+            Back to sign in
+          </Link>
+        )}
       </section>
     </main>
   )

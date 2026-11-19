@@ -8,10 +8,17 @@ export const clone = (value) => structuredClone(value)
 
 function wait(ms, signal) {
   return new Promise((resolve, reject) => {
-    const aborted = () => reject(new ApiError('The API request was cancelled.', { code: 'ABORTED' }))
+    const aborted = () =>
+      reject(new ApiError('The API request was cancelled.', { code: 'ABORTED' }))
     if (signal?.aborted) return aborted()
-    const timer = setTimeout(() => { signal?.removeEventListener?.('abort', onAbort); resolve() }, ms)
-    function onAbort() { clearTimeout(timer); aborted() }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener?.('abort', onAbort)
+      resolve()
+    }, ms)
+    function onAbort() {
+      clearTimeout(timer)
+      aborted()
+    }
     signal?.addEventListener?.('abort', onAbort, { once: true })
   })
 }
@@ -23,7 +30,12 @@ export function createDemoTransport({ latencyMs, routes }) {
       throw new ApiError(message, { code, status, details, requestId: `demo-${requests}` })
     },
     respond(data, { status = 200, pagination = null } = {}) {
-      return Object.freeze({ status, data: clone(data), pagination: pagination && Object.freeze(pagination), requestId: `demo-${requests}` })
+      return Object.freeze({
+        status,
+        data: clone(data),
+        pagination: pagination && Object.freeze(pagination),
+        requestId: `demo-${requests}`,
+      })
     },
     // The standard pagination object for a page of `items`.
     paginate(items, page = 1, limit = 25) {
@@ -31,7 +43,14 @@ export function createDemoTransport({ latencyMs, routes }) {
       const totalPages = Math.ceil(total / limit)
       return {
         items: items.slice((page - 1) * limit, page * limit),
-        pagination: { page, limit, total, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 },
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
       }
     },
   }
@@ -52,4 +71,7 @@ export function createDemoTransport({ latencyMs, routes }) {
   })
 }
 
-export const containsText = (value, term) => String(value ?? '').toLowerCase().includes(String(term ?? '').toLowerCase())
+export const containsText = (value, term) =>
+  String(value ?? '')
+    .toLowerCase()
+    .includes(String(term ?? '').toLowerCase())

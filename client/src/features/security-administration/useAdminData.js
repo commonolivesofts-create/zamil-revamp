@@ -11,7 +11,13 @@ import { describeFailure } from './adminFeedback.js'
 export function useResource(key, load) {
   const [request] = useState(createLatestRequest)
   const [version, setVersion] = useState(0)
-  const [result, setResult] = useState({ base: null, requestKey: null, status: 'loading', data: null, error: null })
+  const [result, setResult] = useState({
+    base: null,
+    requestKey: null,
+    status: 'loading',
+    data: null,
+    error: null,
+  })
   const fetchData = useEffectEvent((signal) => load(signal))
   const requestKey = key === null ? null : `${key}#${version}`
 
@@ -21,17 +27,23 @@ export function useResource(key, load) {
     Promise.resolve()
       .then(() => fetchData(signal))
       .then(
-        (data) => { if (isCurrent()) setResult({ base: key, requestKey, status: 'ready', data, error: null }) },
-        (error) => { if (isCurrent()) setResult({ base: key, requestKey, status: 'error', data: null, error }) },
+        (data) => {
+          if (isCurrent()) setResult({ base: key, requestKey, status: 'ready', data, error: null })
+        },
+        (error) => {
+          if (isCurrent()) setResult({ base: key, requestKey, status: 'error', data: null, error })
+        },
       )
     return () => request.cancel()
   }, [key, requestKey, request])
 
   const reload = useCallback(() => setVersion((value) => value + 1), [])
 
-  if (requestKey === null) return { status: 'idle', data: null, error: null, refreshing: false, reload }
+  if (requestKey === null)
+    return { status: 'idle', data: null, error: null, refreshing: false, reload }
   if (result.requestKey === requestKey) return { ...result, refreshing: false, reload }
-  if (result.base === key && result.status === 'ready') return { ...result, refreshing: true, reload }
+  if (result.base === key && result.status === 'ready')
+    return { ...result, refreshing: true, reload }
   return { status: 'loading', data: null, error: null, refreshing: false, reload }
 }
 
@@ -49,23 +61,27 @@ export function useAdminAction() {
   const [pending, setPending] = useState(false)
   const [feedback, setFeedback] = useState(null)
 
-  const run = useCallback(async (operation, { success, refreshAccess = false } = {}) => {
-    if (guard.isPending()) return { status: 'ignored' }
-    setPending(true)
-    setFeedback(null)
-    const outcome = await guard.run(operation)
-    setPending(false)
-    if (refreshAccess && (outcome.status === 'success' || outcome.status === 'unknown')) reloadPermissions()
-    if (outcome.status === 'success') {
-      const message = typeof success === 'function' ? success(outcome.value) : success
-      if (message) setFeedback({ kind: 'success', message, details: [] })
-    } else if (outcome.status !== 'ignored') {
-      const failure = describeFailure(outcome.error)
-      if (failure.permissionChanged) reloadPermissions()
-      setFeedback(failure)
-    }
-    return outcome
-  }, [guard, reloadPermissions])
+  const run = useCallback(
+    async (operation, { success, refreshAccess = false } = {}) => {
+      if (guard.isPending()) return { status: 'ignored' }
+      setPending(true)
+      setFeedback(null)
+      const outcome = await guard.run(operation)
+      setPending(false)
+      if (refreshAccess && (outcome.status === 'success' || outcome.status === 'unknown'))
+        reloadPermissions()
+      if (outcome.status === 'success') {
+        const message = typeof success === 'function' ? success(outcome.value) : success
+        if (message) setFeedback({ kind: 'success', message, details: [] })
+      } else if (outcome.status !== 'ignored') {
+        const failure = describeFailure(outcome.error)
+        if (failure.permissionChanged) reloadPermissions()
+        setFeedback(failure)
+      }
+      return outcome
+    },
+    [guard, reloadPermissions],
+  )
 
   return { pending, feedback, setFeedback, run }
 }

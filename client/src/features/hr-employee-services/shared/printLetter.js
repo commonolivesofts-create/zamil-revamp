@@ -57,21 +57,33 @@ export function usePrintLetter() {
     setPrintRecord(record)
   }, [])
 
-  const printLetter = useCallback(async (record) => {
-    if (record) updateRecord(record)
-    setPrintError('')
-    setPrinting(true)
-    // Allow the caller to commit the hidden print target before querying it.
-    await nextFrame()
-    const target = await waitForTarget()
-    if (!target) {
-      setPrinting(false)
-      return false
-    }
-    const printed = await printLetterTarget(target)
-    if (!printed) setPrinting(false)
-    return printed
-  }, [updateRecord])
+  const printLetter = useCallback(
+    async (record) => {
+      if (record) updateRecord(record)
+      setPrintError('')
+      setPrinting(true)
+      // Allow the caller to commit the hidden print target before querying it.
+      await nextFrame()
+      const target = await waitForTarget()
+      if (!target) {
+        setPrinting(false)
+        return false
+      }
+      const printed = await printLetterTarget(target)
+      if (!printed) setPrinting(false)
+      return printed
+    },
+    [updateRecord],
+  )
 
-  return { printLetter, printRecord, setPrintRecord, updateRecord, printing, setPrinting, printError, setPrintError }
+  return {
+    printLetter,
+    printRecord,
+    setPrintRecord,
+    updateRecord,
+    printing,
+    setPrinting,
+    printError,
+    setPrintError,
+  }
 }

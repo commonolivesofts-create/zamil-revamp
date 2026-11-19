@@ -9,6 +9,7 @@ export function RecruitmentPending({ message }) {
         <p>Please wait while we process your request.</p>
         <span className="zrv-hr-submitting__note">This may take a moment.</span>
       </div>
-    </div>, document.body,
+    </div>,
+    document.body,
   )
 }

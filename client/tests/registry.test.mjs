@@ -1477,7 +1477,10 @@ test('external entries are permission-filtered, hidden when unresolved and never
     'no external entry is an app route',
   )
   assert.equal(findAppRoute('https://reports.example.com/'), null)
-  const link = await read('../src/components/navigation/ExternalNavigationLink.jsx')
+  const link = (await read('../src/components/navigation/ExternalNavigationLink.jsx')).replace(
+    /\s+/g,
+    ' ',
+  )
   assert.match(link, /target=\{EXTERNAL_LINK_TARGET\} rel=\{EXTERNAL_LINK_REL\}/)
   const destinations = await read('../src/config/externalDestinations.js')
   assert.match(destinations, /EXTERNAL_LINK_TARGET = '_blank'/)

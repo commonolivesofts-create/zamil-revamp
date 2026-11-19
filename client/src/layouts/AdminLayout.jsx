@@ -1,17 +1,6 @@
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
-
-import {
-  Link,
-  Outlet,
-  useLocation,
-} from 'react-router'
+import { Link, Outlet, useLocation } from 'react-router'
 
 import Sidebar from '@/components/layout/Sidebar.jsx'
 import Header from '@/components/layout/Header.jsx'
@@ -23,9 +12,7 @@ import useOrvexaLayout from '@/hooks/useOrvexaLayout.js'
 import useAuth from '@/features/auth/useAuth.js'
 import RouteLoading from '@/components/feedback/RouteLoading.jsx'
 
-import {
-  NavigationRevealProvider,
-} from '@/components/navigation/NavigationRevealContext.jsx'
+import { NavigationRevealProvider } from '@/components/navigation/NavigationRevealContext.jsx'
 
 import '@/styles/workspace.css'
 
@@ -59,14 +46,11 @@ export default function AdminLayout() {
   //
   // No routing, RBAC, or business logic is changed here.
   const handleNavigationReveal = useCallback(() => {
-    if (
-      typeof window === 'undefined'
-    ) {
+    if (typeof window === 'undefined') {
       return
     }
 
-    const mobile =
-      window.matchMedia('(max-width: 1023px)').matches
+    const mobile = window.matchMedia('(max-width: 1023px)').matches
 
     if (mobile) {
       // Reuse the existing mobile sidebar drawer.
@@ -82,16 +66,9 @@ export default function AdminLayout() {
       window.clearTimeout(noticeTimer.current)
     }
 
-    setNotice(
-      label.startsWith('Sign out failed')
-        ? label
-        : `${label} is not available.`,
-    )
+    setNotice(label.startsWith('Sign out failed') ? label : `${label} is not available.`)
 
-    noticeTimer.current = window.setTimeout(
-      () => setNotice(null),
-      4000,
-    )
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 4000)
 
     setMobileOpen(false)
   }
@@ -115,8 +92,7 @@ export default function AdminLayout() {
   // Existing page metadata
   // -------------------------------------------------------
   useEffect(() => {
-    document.body.dataset.activePage =
-      location.pathname.split('/').pop()
+    document.body.dataset.activePage = location.pathname.split('/').pop()
 
     return () => {
       delete document.body.dataset.activePage
@@ -130,19 +106,12 @@ export default function AdminLayout() {
     if (mobileOpen) {
       mobileWasOpen.current = true
 
-      document
-        .getElementById('mobile-close')
-        ?.focus()
+      document.getElementById('mobile-close')?.focus()
     } else if (mobileWasOpen.current) {
       mobileWasOpen.current = false
 
-      if (
-        document.activeElement?.closest('#sidebar') ||
-        document.activeElement === document.body
-      ) {
-        document
-          .getElementById('mobile-menu')
-          ?.focus()
+      if (document.activeElement?.closest('#sidebar') || document.activeElement === document.body) {
+        document.getElementById('mobile-menu')?.focus()
       }
     }
   }, [mobileOpen])
@@ -151,30 +120,16 @@ export default function AdminLayout() {
   // Existing body scroll locking
   // -------------------------------------------------------
   useEffect(() => {
-    document.documentElement.classList.toggle(
-      'mobile-sidebar-open',
-      mobileOpen,
-    )
+    document.documentElement.classList.toggle('mobile-sidebar-open', mobileOpen)
 
-    document.body.classList.toggle(
-      'overflow-hidden',
-      mobileOpen || settingsOpen || commandOpen,
-    )
+    document.body.classList.toggle('overflow-hidden', mobileOpen || settingsOpen || commandOpen)
 
     return () => {
-      document.documentElement.classList.remove(
-        'mobile-sidebar-open',
-      )
+      document.documentElement.classList.remove('mobile-sidebar-open')
 
-      document.body.classList.remove(
-        'overflow-hidden',
-      )
+      document.body.classList.remove('overflow-hidden')
     }
-  }, [
-    mobileOpen,
-    settingsOpen,
-    commandOpen,
-  ])
+  }, [mobileOpen, settingsOpen, commandOpen])
 
   // -------------------------------------------------------
   // Existing keyboard and responsive behavior
@@ -184,10 +139,7 @@ export default function AdminLayout() {
       const key = event.key.toLowerCase()
 
       // Ctrl/Cmd + K opens the authorized command palette.
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        key === 'k'
-      ) {
+      if ((event.ctrlKey || event.metaKey) && key === 'k') {
         event.preventDefault()
 
         setCommandOpen((current) => !current)
@@ -197,36 +149,21 @@ export default function AdminLayout() {
       }
 
       // Preserve focus trapping in the mobile sidebar.
-      if (
-        event.key === 'Tab' &&
-        mobileOpen &&
-        window.innerWidth < 1024
-      ) {
-        const sidebar =
-          document.getElementById('sidebar')
+      if (event.key === 'Tab' && mobileOpen && window.innerWidth < 1024) {
+        const sidebar = document.getElementById('sidebar')
 
         const focusable = Array.from(
-          sidebar?.querySelectorAll(
-            'a[href],button:not([disabled])',
-          ) || [],
-        ).filter(
-          (node) => node.getClientRects().length > 0,
-        )
+          sidebar?.querySelectorAll('a[href],button:not([disabled])') || [],
+        ).filter((node) => node.getClientRects().length > 0)
 
         if (focusable.length) {
           const first = focusable[0]
           const last = focusable[focusable.length - 1]
 
-          if (
-            event.shiftKey &&
-            document.activeElement === first
-          ) {
+          if (event.shiftKey && document.activeElement === first) {
             event.preventDefault()
             last.focus()
-          } else if (
-            !event.shiftKey &&
-            document.activeElement === last
-          ) {
+          } else if (!event.shiftKey && document.activeElement === last) {
             event.preventDefault()
             first.focus()
           }
@@ -238,21 +175,15 @@ export default function AdminLayout() {
         if (commandOpen) {
           setCommandOpen(false)
 
-          document
-            .getElementById('command-trigger')
-            ?.focus()
+          document.getElementById('command-trigger')?.focus()
         } else if (settingsOpen) {
           setSettingsOpen(false)
 
-          document
-            .getElementById('layout-settings-trigger')
-            ?.focus()
+          document.getElementById('layout-settings-trigger')?.focus()
         } else if (mobileOpen) {
           setMobileOpen(false)
 
-          document
-            .getElementById('mobile-menu')
-            ?.focus()
+          document.getElementById('mobile-menu')?.focus()
         }
       }
     }
@@ -263,40 +194,22 @@ export default function AdminLayout() {
       }
     }
 
-    document.addEventListener(
-      'keydown',
-      onKeyDown,
-    )
+    document.addEventListener('keydown', onKeyDown)
 
-    window.addEventListener(
-      'resize',
-      onResize,
-    )
+    window.addEventListener('resize', onResize)
 
     return () => {
-      document.removeEventListener(
-        'keydown',
-        onKeyDown,
-      )
+      document.removeEventListener('keydown', onKeyDown)
 
-      window.removeEventListener(
-        'resize',
-        onResize,
-      )
+      window.removeEventListener('resize', onResize)
     }
-  }, [
-    commandOpen,
-    settingsOpen,
-    mobileOpen,
-  ])
+  }, [commandOpen, settingsOpen, mobileOpen])
 
   // -------------------------------------------------------
   // Application layout
   // -------------------------------------------------------
   return (
-    <NavigationRevealProvider
-      onReveal={handleNavigationReveal}
-    >
+    <NavigationRevealProvider onReveal={handleNavigationReveal}>
       <>
         {/* Accessibility: skip to main content */}
         <a
@@ -307,16 +220,10 @@ export default function AdminLayout() {
         </a>
 
         {/* Existing Sidebar */}
-        <Sidebar
-          mobileOpen={mobileOpen}
-          onMobileClose={() => setMobileOpen(false)}
-        />
+        <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
 
         {/* Existing main application area */}
-        <div
-          id="app-main"
-          className="min-h-screen transition-[padding] duration-300 lg:pl-72"
-        >
+        <div id="app-main" className="min-h-screen transition-[padding] duration-300 lg:pl-72">
           <Header
             onMobileOpen={() => setMobileOpen(true)}
             mobileOpen={mobileOpen}
@@ -338,8 +245,7 @@ export default function AdminLayout() {
           {/* Password expiry notification */}
           {status === 'authenticated' &&
             password?.expired &&
-            location.pathname !==
-              '/account/password' && (
+            location.pathname !== '/account/password' && (
               <div
                 role="status"
                 className="border-b px-4 py-2 text-center text-xs"
@@ -374,21 +280,14 @@ export default function AdminLayout() {
                 color: 'var(--amber-text)',
               }}
             >
-              Development preview — not authenticated.
-              This mode is unavailable in production builds.
+              Development preview — not authenticated. This mode is unavailable in production
+              builds.
             </div>
           )}
 
           {/* Existing route content */}
-          <main
-            id="main-content"
-            className="px-3 py-5 sm:px-5 lg:px-6"
-            tabIndex={-1}
-          >
-            <Suspense
-              key={location.pathname}
-              fallback={<RouteLoading />}
-            >
+          <main id="main-content" className="px-3 py-5 sm:px-5 lg:px-6" tabIndex={-1}>
+            <Suspense key={location.pathname} fallback={<RouteLoading />}>
               <Outlet />
             </Suspense>
           </main>
@@ -401,9 +300,7 @@ export default function AdminLayout() {
             onClose={() => {
               setCommandOpen(false)
 
-              document
-                .getElementById('command-trigger')
-                ?.focus()
+              document.getElementById('command-trigger')?.focus()
             }}
           />
         )}
@@ -414,11 +311,7 @@ export default function AdminLayout() {
           onClose={() => {
             setSettingsOpen(false)
 
-            document
-              .getElementById(
-                'layout-settings-trigger',
-              )
-              ?.focus()
+            document.getElementById('layout-settings-trigger')?.focus()
           }}
           sidebarMode={preferences.sidebarMode}
           setSidebarMode={preferences.setSidebarMode}
@@ -444,20 +337,14 @@ export default function AdminLayout() {
               <span
                 className="flex size-8 shrink-0 items-center justify-center rounded-xl"
                 style={{
-                  background:
-                    'color-mix(in srgb,var(--primary) 14%,transparent)',
+                  background: 'color-mix(in srgb,var(--primary) 14%,transparent)',
                   color: 'var(--primary-text)',
                 }}
               >
-                <OrvexaIcon
-                  name="info"
-                  className="size-4"
-                />
+                <OrvexaIcon name="info" className="size-4" />
               </span>
 
-              <span className="min-w-0 flex-1 text-xs font-bold">
-                {notice}
-              </span>
+              <span className="min-w-0 flex-1 text-xs font-bold">{notice}</span>
 
               <button
                 type="button"
@@ -465,10 +352,7 @@ export default function AdminLayout() {
                 aria-label="Dismiss notification"
                 onClick={() => setNotice(null)}
               >
-                <OrvexaIcon
-                  name="x"
-                  className="size-3.5"
-                />
+                <OrvexaIcon name="x" className="size-3.5" />
               </button>
             </div>
           )}

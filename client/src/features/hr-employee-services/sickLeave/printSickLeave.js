@@ -57,21 +57,33 @@ export function usePrintSickLeave() {
     setPrintRecord(record)
   }, [])
 
-  const printRequest = useCallback(async (record) => {
-    if (record) updateRecord(record)
-    setPrintError('')
-    setPrinting(true)
-    // Allow the caller to commit the hidden print target before querying it.
-    await nextFrame()
-    const preview = await waitForTarget()
-    if (!preview) {
-      setPrinting(false)
-      return false
-    }
-    const printed = await printSickLeaveRequest(preview)
-    if (!printed) setPrinting(false)
-    return printed
-  }, [updateRecord])
+  const printRequest = useCallback(
+    async (record) => {
+      if (record) updateRecord(record)
+      setPrintError('')
+      setPrinting(true)
+      // Allow the caller to commit the hidden print target before querying it.
+      await nextFrame()
+      const preview = await waitForTarget()
+      if (!preview) {
+        setPrinting(false)
+        return false
+      }
+      const printed = await printSickLeaveRequest(preview)
+      if (!printed) setPrinting(false)
+      return printed
+    },
+    [updateRecord],
+  )
 
-  return { printRequest, printRecord, setPrintRecord, updateRecord, printing, setPrinting, printError, setPrintError }
+  return {
+    printRequest,
+    printRecord,
+    setPrintRecord,
+    updateRecord,
+    printing,
+    setPrinting,
+    printError,
+    setPrintError,
+  }
 }

@@ -2,7 +2,10 @@
 // (views/probation/probation.php to create, prf_uplines.php to edit a saved evaluation).
 import { resultFor } from './probationModel.js'
 
-export const RESULT_TEXT = Object.freeze({ ACCEPTABLE: 'Acceptable', NOT_ACCEPTABLE: 'Not Acceptable' })
+export const RESULT_TEXT = Object.freeze({
+  ACCEPTABLE: 'Acceptable',
+  NOT_ACCEPTABLE: 'Not Acceptable',
+})
 export const RESULT_TONE = Object.freeze({ ACCEPTABLE: 'ok', NOT_ACCEPTABLE: 'warn' })
 
 // The legacy dropSelect values and their labels.
@@ -21,7 +24,8 @@ export const ALLOCATED_POINTS = 5
 // Legacy band of the total rating: 71–100 Acceptable, 0–70 Not Acceptable.
 export const evaluationResult = (total) => resultFor(Number(total) || 0)
 
-export const totalRating = (lines) => lines.reduce((sum, line) => sum + (Number(line.rating) || 0), 0)
+export const totalRating = (lines) =>
+  lines.reduce((sum, line) => sum + (Number(line.rating) || 0), 0)
 
 // The result shows once a criterion is rated (an unrated form has no result yet).
 export function formResult(lines) {
@@ -31,10 +35,12 @@ export function formResult(lines) {
 
 // Draft and Rejected evaluations can be saved again; the legacy workflow cannot be restarted while
 // a request is Inprocess or Approved, so those are read only.
-export const isEditable = (status) => ['DRAFT', 'REJECTED'].includes(String(status ?? '').toUpperCase())
+export const isEditable = (status) =>
+  ['DRAFT', 'REJECTED'].includes(String(status ?? '').toUpperCase())
 
 // The legacy "Approved by" box shows HR SUPERVISOR once the request is approved.
-export const approvedBy = (status) => (String(status ?? '').toUpperCase() === 'APPROVED' ? 'HR SUPERVISOR' : '')
+export const approvedBy = (status) =>
+  String(status ?? '').toUpperCase() === 'APPROVED' ? 'HR SUPERVISOR' : ''
 
 const blank = (value) => !String(value ?? '').trim()
 
@@ -47,7 +53,8 @@ export function validateForCreate(form, { employee, criteria }) {
   if (!employee?.name || !employee?.employeeNumber) errors.employee = 'Select Employee.'
   if (!form.fromDate) errors.fromDate = 'Evaluation period From is required.'
   if (!form.toDate) errors.toDate = 'Evaluation period To is required.'
-  if (form.fromDate && form.toDate && form.toDate < form.fromDate) errors.toDate = 'To must be on or after From.'
+  if (form.fromDate && form.toDate && form.toDate < form.fromDate)
+    errors.toDate = 'To must be on or after From.'
   return { errors, valid: Object.keys(errors).length === 0 }
 }
 
@@ -59,7 +66,14 @@ export function validateForSubmit(form) {
   if (blank(form.comments)) errors.comments = 'Suggestion is required.'
   form.lines.forEach((line, index) => {
     const rating = Number(line.rating)
-    if (line.rating === '' || line.rating == null || !Number.isInteger(rating) || rating < 1 || rating > 5) errors[`rating:${index}`] = 'Rate this criterion from 1 to 5.'
+    if (
+      line.rating === '' ||
+      line.rating == null ||
+      !Number.isInteger(rating) ||
+      rating < 1 ||
+      rating > 5
+    )
+      errors[`rating:${index}`] = 'Rate this criterion from 1 to 5.'
   })
   return { errors, valid: Object.keys(errors).length === 0 }
 }

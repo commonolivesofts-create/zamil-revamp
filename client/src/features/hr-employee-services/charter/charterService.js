@@ -2,12 +2,19 @@
 // apiClient; the backend exists, so there is no demo adapter).
 import { apiClient } from '../../../services/api/apiClient.js'
 import { ID, invalidResponse, params, segment } from '../shared/formRecords.js'
-import { charterBody, readCharterPage, readCharterRecord, readEmployeeOption, readIdeaOption } from './charterContract.js'
+import {
+  charterBody,
+  readCharterPage,
+  readCharterRecord,
+  readEmployeeOption,
+  readIdeaOption,
+} from './charterContract.js'
 
 export const CHARTER_BASE = '/projects/charters'
 
 export function createCharterService({ client }) {
-  const getById = async (id, { signal } = {}) => readCharterRecord((await client.get(`${CHARTER_BASE}/${segment(id)}`, { signal })).data)
+  const getById = async (id, { signal } = {}) =>
+    readCharterRecord((await client.get(`${CHARTER_BASE}/${segment(id)}`, { signal })).data)
   return Object.freeze({
     // Approved ideas (legacy "Select Idea No").
     async getLookups({ signal } = {}) {
@@ -17,17 +24,43 @@ export function createCharterService({ client }) {
     },
     // Legacy proj_name: project name and business unit of the chosen idea.
     async idea(ideaId, { signal } = {}) {
-      return readIdeaOption((await client.get(`${CHARTER_BASE}/lookups/ideas/${segment(ideaId)}`, { signal })).data)
+      return readIdeaOption(
+        (await client.get(`${CHARTER_BASE}/lookups/ideas/${segment(ideaId)}`, { signal })).data,
+      )
     },
     // Names for the project manager suggestions (legacy datalist of all employees).
     async searchEmployees(search = '', { signal } = {}) {
-      const { data } = await client.get(`${CHARTER_BASE}/lookups/employees`, { params: params({ q: String(search).trim(), pageSize: 20 }), signal })
+      const { data } = await client.get(`${CHARTER_BASE}/lookups/employees`, {
+        params: params({ q: String(search).trim(), pageSize: 20 }),
+        signal,
+      })
       if (!Array.isArray(data)) throw invalidResponse('employee list')
       return Object.freeze(data.map(readEmployeeOption))
     },
-    async list({ page = 1, pageSize = 25, q, ideaNo, projectManager, processOwner, createdFrom, createdTo } = {}, { signal } = {}) {
+    async list(
+      {
+        page = 1,
+        pageSize = 25,
+        q,
+        ideaNo,
+        projectManager,
+        processOwner,
+        createdFrom,
+        createdTo,
+      } = {},
+      { signal } = {},
+    ) {
       const { data } = await client.get(CHARTER_BASE, {
-        params: params({ page, pageSize, q, ideaNo, projectManager, processOwner, createdFrom, createdTo }),
+        params: params({
+          page,
+          pageSize,
+          q,
+          ideaNo,
+          projectManager,
+          processOwner,
+          createdFrom,
+          createdTo,
+        }),
         signal,
       })
       return readCharterPage(data)
@@ -40,7 +73,10 @@ export function createCharterService({ client }) {
         if (!ID.test(String(data?.headerId ?? ''))) throw invalidResponse('project charter')
         return readCharterRecord(data)
       }
-      return readCharterRecord((await client.put(`${CHARTER_BASE}/${segment(id)}`, charterBody(form, { isNew: false }))).data)
+      return readCharterRecord(
+        (await client.put(`${CHARTER_BASE}/${segment(id)}`, charterBody(form, { isNew: false })))
+          .data,
+      )
     },
   })
 }

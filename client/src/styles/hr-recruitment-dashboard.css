@@ -70,7 +70,7 @@
   list-style: none;
 }
 .zrv-rd-crumb li + li::before {
-  content: "/";
+  content: '/';
   margin-right: 8px;
 }
 .zrv-rd-title {
@@ -134,7 +134,7 @@
 .zrv-rd-periods button:hover {
   color: var(--text);
 }
-.zrv-rd-periods button[aria-checked="true"] {
+.zrv-rd-periods button[aria-checked='true'] {
   background: var(--zrv-hr-accent);
   color: var(--zrv-hr-on-accent);
   box-shadow: 0 6px 14px -8px var(--zrv-hr-accent);
@@ -155,7 +155,7 @@
     border-color 0.2s;
 }
 .zrv-rd-icon:hover:not(:disabled),
-.zrv-rd-icon[aria-pressed="true"] {
+.zrv-rd-icon[aria-pressed='true'] {
   border-color: color-mix(in srgb, var(--rd-requisitions) 45%, var(--line));
   color: var(--text);
 }
@@ -226,7 +226,7 @@
   animation: zrv-rd-rise 0.6s var(--zrv-hr-ease) both;
 }
 .zrv-rd-banner::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background-image: radial-gradient(
@@ -238,7 +238,7 @@
   pointer-events: none;
 }
 .zrv-rd-banner::after {
-  content: "";
+  content: '';
   position: absolute;
   right: 22%;
   bottom: -120px;
@@ -372,9 +372,7 @@
   fill: none;
   stroke-width: 16;
   stroke-linecap: round;
-  filter: drop-shadow(
-    0 0 8px color-mix(in srgb, var(--primary) 55%, transparent)
-  );
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--primary) 55%, transparent));
   transition: stroke-dashoffset 1.2s var(--zrv-hr-ease);
 }
 .zrv-rd-banner__stop-1 {
@@ -507,11 +505,7 @@
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: linear-gradient(
-    135deg,
-    var(--c),
-    color-mix(in srgb, var(--c) 60%, #000)
-  );
+  background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 60%, #000));
   color: #fff;
   box-shadow: 0 8px 18px -8px var(--c);
 }
@@ -598,11 +592,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--c) 55%, #fff),
-    var(--c)
-  );
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 55%, #fff), var(--c));
   transition: width 1s var(--zrv-hr-ease);
 }
 .zrv-rd-stage__hint {
@@ -632,7 +622,7 @@
   background: linear-gradient(90deg, var(--c), var(--c2));
 }
 .zrv-rd-stage__link i::after {
-  content: "";
+  content: '';
   position: absolute;
   right: -2px;
   top: 50%;
@@ -839,12 +829,12 @@
   border-radius: 50%;
   background: var(--c);
 }
-.zrv-rd-tabs button[aria-pressed="true"] {
+.zrv-rd-tabs button[aria-pressed='true'] {
   border-color: transparent;
   background: var(--c);
   color: #fff;
 }
-.zrv-rd-tabs button[aria-pressed="true"] i {
+.zrv-rd-tabs button[aria-pressed='true'] i {
   background: #fff;
 }
 
@@ -875,7 +865,7 @@
 .zrv-rd-modtabs button:hover {
   border-color: color-mix(in srgb, var(--c) 45%, var(--line));
 }
-.zrv-rd-modtabs button[aria-pressed="true"] {
+.zrv-rd-modtabs button[aria-pressed='true'] {
   border-color: var(--c);
   background: color-mix(in srgb, var(--c) 9%, var(--surface-solid));
   box-shadow: inset 0 -3px 0 var(--c);
@@ -1015,11 +1005,7 @@
 }
 .zrv-rd-bars__cols .zrv-rd-is-now i,
 .zrv-rd-bars__cols .zrv-rd-is-on i {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--c) 75%, #fff),
-    var(--c)
-  );
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 75%, #fff), var(--c));
   box-shadow: 0 10px 20px -10px var(--c);
 }
 .zrv-rd-bars__cols em {
@@ -1115,11 +1101,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--c) 55%, #fff),
-    var(--c)
-  );
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 55%, #fff), var(--c));
   transition: width 0.9s var(--zrv-hr-ease);
 }
 .zrv-rd-funnel__rate {
@@ -1311,7 +1293,7 @@
   box-shadow: 0 14px 28px -20px var(--c);
 }
 .zrv-rd-tile::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
@@ -1329,11 +1311,7 @@
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: linear-gradient(
-    135deg,
-    var(--c),
-    color-mix(in srgb, var(--c) 62%, #000)
-  );
+  background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 62%, #000));
   color: #fff;
   box-shadow: 0 6px 14px -8px var(--c);
 }

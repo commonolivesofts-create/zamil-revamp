@@ -14,9 +14,14 @@ export const success = (data, status = 200, extra = {}) =>
   jsonResponse(status, { success: true, data, meta: { requestId: REQUEST_ID }, ...extra })
 
 export const failure = (status, code, message, extra = {}, headers = {}) =>
-  jsonResponse(status, { success: false, error: { code, message, ...extra }, meta: { requestId: REQUEST_ID } }, headers)
+  jsonResponse(
+    status,
+    { success: false, error: { code, message, ...extra }, meta: { requestId: REQUEST_ID } },
+    headers,
+  )
 
-export const noContent = () => new Response(null, { status: 204, headers: { 'X-Request-Id': REQUEST_ID } })
+export const noContent = () =>
+  new Response(null, { status: 204, headers: { 'X-Request-Id': REQUEST_ID } })
 
 // `responder` receives (url, init, callNumber) and returns a Response or throws.
 export function recordingFetch(responder) {
@@ -49,8 +54,15 @@ export const authUser = Object.freeze({
   department: 'IT',
 })
 
-export const sessionInfo = Object.freeze({ expiresAt: '2026-10-21T16:00:00.000Z', idleTimeoutSeconds: 1800, mfaVerified: false })
-export const passwordState = Object.freeze({ expired: false, expiresAt: '2027-01-01T00:00:00.000Z' })
+export const sessionInfo = Object.freeze({
+  expiresAt: '2026-10-21T16:00:00.000Z',
+  idleTimeoutSeconds: 1800,
+  mfaVerified: false,
+})
+export const passwordState = Object.freeze({
+  expired: false,
+  expiresAt: '2027-01-01T00:00:00.000Z',
+})
 export const SESSION_TOKEN = 'session-csrf-token-AAAA'
 export const CHALLENGE_TOKEN = 'challenge-csrf-token-BBBB'
 export const RESTORED_TOKEN = 'restored-csrf-token-CCCC'
@@ -94,11 +106,14 @@ export function forbidBrowserStorage() {
   for (const name of names) {
     Object.defineProperty(globalThis, name, {
       configurable: true,
-      get() { throw new Error(`${name} must not be used for authentication state`) },
+      get() {
+        throw new Error(`${name} must not be used for authentication state`)
+      },
     })
   }
-  return () => names.forEach((name, index) => {
-    if (previous[index]) Object.defineProperty(globalThis, name, previous[index])
-    else delete globalThis[name]
-  })
+  return () =>
+    names.forEach((name, index) => {
+      if (previous[index]) Object.defineProperty(globalThis, name, previous[index])
+      else delete globalThis[name]
+    })
 }

@@ -39,15 +39,20 @@ export function LetterReportPreview({
   const ready = record.status === 'ready'
   const isFailed = record.status === 'error'
 
-  const loadInto = useCallback((controller) => {
-    loadRef.current(controller.signal)
-      .then((loaded) => {
-        if (!controller.signal.aborted) setRecord({ status: 'ready', data: loaded })
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setRecord({ status: 'error', message: error?.message || failed })
-      })
-  }, [failed])
+  const loadInto = useCallback(
+    (controller) => {
+      loadRef
+        .current(controller.signal)
+        .then((loaded) => {
+          if (!controller.signal.aborted) setRecord({ status: 'ready', data: loaded })
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted)
+            setRecord({ status: 'error', message: error?.message || failed })
+        })
+    },
+    [failed],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -67,18 +72,31 @@ export function LetterReportPreview({
 
   const saved = ready ? record.data : null
   return (
-    <section className={`zrv-ir-letter-preview${moduleClass ? ` ${moduleClass}` : ''}`} aria-label={label}>
+    <section
+      className={`zrv-ir-letter-preview${moduleClass ? ` ${moduleClass}` : ''}`}
+      aria-label={label}
+    >
       <div className="zrv-ir-letter-preview__bar">
         {languageSwitch && <PreviewLanguageSwitch value={language} onChange={setLanguage} />}
         {actions?.({ row, record: saved, language })}
-        <button type="button" className="zrv-hr-rp-drawer__x" onClick={onClose} aria-label={closeLabel} title={closeLabel}>
+        <button
+          type="button"
+          className="zrv-hr-rp-drawer__x"
+          onClick={onClose}
+          aria-label={closeLabel}
+          title={closeLabel}
+        >
           <OrvexaIcon name="x" size={18} />
         </button>
       </div>
-      {ready ? paper(saved, language) : isFailed ? (
+      {ready ? (
+        paper(saved, language)
+      ) : isFailed ? (
         <div className="zrv-admin-state zrv-admin-state--error" role="alert">
           <p>{record.message || failed}</p>
-          <button type="button" className="btn-secondary" onClick={retry}>{retryText}</button>
+          <button type="button" className="btn-secondary" onClick={retry}>
+            {retryText}
+          </button>
         </div>
       ) : (
         <LetterReportSkeleton label={loading} />
@@ -93,16 +111,26 @@ export function LetterReportPreview({
 export function LetterReportSkeleton({ label }) {
   return (
     <div className="zrv-ir-letter-skeleton" role="status" aria-label={label} aria-busy="true">
-      <div className="zrv-ir-letter-skeleton__header"><i /><i /></div>
+      <div className="zrv-ir-letter-skeleton__header">
+        <i />
+        <i />
+      </div>
       <div className="zrv-ir-letter-skeleton__grid" aria-hidden="true">
         <i className="zrv-ir-letter-skeleton__wide" />
-        <i /><i />
-        <i /><i />
-        <i /><i />
-        <i /><i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
       </div>
       <i className="zrv-ir-letter-skeleton__comments" />
-      <div className="zrv-ir-letter-skeleton__files"><i /><i /></div>
+      <div className="zrv-ir-letter-skeleton__files">
+        <i />
+        <i />
+      </div>
       <i className="zrv-ir-letter-skeleton__footer" />
     </div>
   )

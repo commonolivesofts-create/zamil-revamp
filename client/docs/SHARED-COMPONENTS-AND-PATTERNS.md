@@ -14,21 +14,21 @@ import { apiClient, ApiError, isOutcomeUnknown } from '@/services/api/apiClient.
 
 // ILLUSTRATIVE path — /example-module/widgets does not exist.
 const { data, pagination, requestId, status } = await apiClient.get('/example-module/widgets', {
-  params: { page: 1, limit: 25, search: 'abc' },   // undefined/null values are omitted
-  signal,                                         // AbortSignal for cancellation
+  params: { page: 1, limit: 25, search: 'abc' }, // undefined/null values are omitted
+  signal, // AbortSignal for cancellation
 })
-await apiClient.post('/example-module/widgets', { name: 'x' })   // CSRF header added automatically
+await apiClient.post('/example-module/widgets', { name: 'x' }) // CSRF header added automatically
 ```
 
-| Option | Default | Meaning |
-|---|---|---|
-| `params` | — | Query parameters (primitives or `Date`) |
-| `body` | — | JSON-serialized for `post`/`put`/`patch` |
-| `signal` | — | Caller cancellation (`ABORTED`) |
-| `timeout` | 15000 ms | Then `TIMEOUT` |
-| `csrf` | `'session'` | `'session'`, `'challenge'` (MFA challenge endpoints only) or `'none'` (public endpoints) |
-| `notifyUnauthorized` | `true` | A 401 ends the signed-in session; set `false` only for auth endpoints whose 401 means something else |
-| `responseType` | `'json'` | `'json'`, `'text'`, `'blob'`, `'void'` |
+| Option               | Default     | Meaning                                                                                              |
+| -------------------- | ----------- | ---------------------------------------------------------------------------------------------------- |
+| `params`             | —           | Query parameters (primitives or `Date`)                                                              |
+| `body`               | —           | JSON-serialized for `post`/`put`/`patch`                                                             |
+| `signal`             | —           | Caller cancellation (`ABORTED`)                                                                      |
+| `timeout`            | 15000 ms    | Then `TIMEOUT`                                                                                       |
+| `csrf`               | `'session'` | `'session'`, `'challenge'` (MFA challenge endpoints only) or `'none'` (public endpoints)             |
+| `notifyUnauthorized` | `true`      | A 401 ends the signed-in session; set `false` only for auth endpoints whose 401 means something else |
+| `responseType`       | `'json'`    | `'json'`, `'text'`, `'blob'`, `'void'`                                                               |
 
 Paths are relative to the API base (`/api/v1` by default, `config/apiConfig.js`) and must start
 with `/`. The client rejects absolute URLs, `..` segments and query strings in the path.
@@ -52,7 +52,7 @@ export function createSecurityAdminService({ client }) {
   return Object.freeze({
     async getUser(userId, { signal } = {}) {
       const { data } = await client.get(`/users/${segment(userId)}`, { signal })
-      return readUserDetail(data)          // from securityAdminContract.js; throws INVALID_RESPONSE
+      return readUserDetail(data) // from securityAdminContract.js; throws INVALID_RESPONSE
     },
   })
 }
@@ -70,13 +70,13 @@ import useAuth from '@/features/auth/useAuth.js'
 const { status, user, session, password, signOut } = useAuth()
 ```
 
-| Field | Meaning |
-|---|---|
-| `status` | `preview` · `loading` · `guest` · `authenticated` · `mfa_required` · `error` |
-| `user` | `{ id, username, employeeNumber, fullName, email, jobTitle, department }` (strings or null) |
-| `session` | `{ expiresAt, idleTimeoutSeconds, mfaVerified }` |
-| `password` | `{ expired, expiresAt }` |
-| actions | `signIn`, `signOut`, `retrySession`, MFA, password and recovery operations used by the auth pages |
+| Field      | Meaning                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------- |
+| `status`   | `preview` · `loading` · `guest` · `authenticated` · `mfa_required` · `error`                      |
+| `user`     | `{ id, username, employeeNumber, fullName, email, jobTitle, department }` (strings or null)       |
+| `session`  | `{ expiresAt, idleTimeoutSeconds, mfaVerified }`                                                  |
+| `password` | `{ expired, expiresAt }`                                                                          |
+| actions    | `signIn`, `signOut`, `retrySession`, MFA, password and recovery operations used by the auth pages |
 
 Feature pages normally need only `user` and `status`. Route guards already guarantee an
 authenticated session inside `AdminLayout`. Never call auth endpoints directly from a feature.
@@ -86,7 +86,9 @@ authenticated session inside `AdminLayout`. Never call auth endpoints directly f
 ```js
 import usePermissions from '@/features/access/usePermissions.js'
 const { status, can, mfaVerified, permissions, reload } = usePermissions()
-if (can('EXAMPLE_MODULE.WIDGETS:CREATE')) { /* show the Create button */ }
+if (can('EXAMPLE_MODULE.WIDGETS:CREATE')) {
+  /* show the Create button */
+}
 ```
 
 - Loaded from `GET /api/v1/access-control/me/permissions` after sign-in/restore; cleared on
@@ -102,26 +104,26 @@ if (can('EXAMPLE_MODULE.WIDGETS:CREATE')) { /* show the Create button */ }
 
 ## 4. Navigation and route protection
 
-| File | Role |
-|---|---|
-| `config/registry/` | Developer-controlled module registry: `modules/*.module.js` (modules, resources, actions, navigation), `index.js` (`registeredModules`, the only registration list), `actions.js` (standard action codes), `navigationGroups.js` (sidebar sections), `defineModule.js` (validation), `module-registry.example.js` (documentation only, never imported). Plain JavaScript shared with Node.js tooling |
-| `config/appNavigation.js` | The route/navigation/permission interface derived from the registry: `PERMISSIONS`, `navigationSections`, `navigationEntries` (internal and external), `appRoutes` (internal only), `routeAccess`, `canAccessRoute`, `authorizedNavigation`, `paletteCommands`, `findAppRoute` |
-| `config/externalDestinations.js`, `components/navigation/ExternalNavigationLink.jsx` | Resolution of external destinations (`VITE_EXTERNAL_*`, https only) and their new-tab link (`noopener noreferrer`) |
-| `app/router.jsx` | Registers each implemented route with `handle: { routeId }` under `AppRouteAccess` |
-| `routes/RouteGuards.jsx` | `ProtectedRoute`, `GuestOnlyRoute`, `MfaChallengeRoute`, `AppRouteAccess`, `TemplateDemoRoute`, `RootRedirect` |
-| `routes/RouteComponents.jsx` | Lazy page components and the screen-reader route announcer (labels come from `appNavigation.js`) |
+| File                                                                                 | Role                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config/registry/`                                                                   | Developer-controlled module registry: `modules/*.module.js` (modules, resources, actions, navigation), `index.js` (`registeredModules`, the only registration list), `actions.js` (standard action codes), `navigationGroups.js` (sidebar sections), `defineModule.js` (validation), `module-registry.example.js` (documentation only, never imported). Plain JavaScript shared with Node.js tooling |
+| `config/appNavigation.js`                                                            | The route/navigation/permission interface derived from the registry: `PERMISSIONS`, `navigationSections`, `navigationEntries` (internal and external), `appRoutes` (internal only), `routeAccess`, `canAccessRoute`, `authorizedNavigation`, `paletteCommands`, `findAppRoute`                                                                                                                       |
+| `config/externalDestinations.js`, `components/navigation/ExternalNavigationLink.jsx` | Resolution of external destinations (`VITE_EXTERNAL_*`, https only) and their new-tab link (`noopener noreferrer`)                                                                                                                                                                                                                                                                                   |
+| `app/router.jsx`                                                                     | Registers each implemented route with `handle: { routeId }` under `AppRouteAccess`                                                                                                                                                                                                                                                                                                                   |
+| `routes/RouteGuards.jsx`                                                             | `ProtectedRoute`, `GuestOnlyRoute`, `MfaChallengeRoute`, `AppRouteAccess`, `TemplateDemoRoute`, `RootRedirect`                                                                                                                                                                                                                                                                                       |
+| `routes/RouteComponents.jsx`                                                         | Lazy page components and the screen-reader route announcer (labels come from `appNavigation.js`)                                                                                                                                                                                                                                                                                                     |
 
 `appRoutes` entry fields (derived from the registry: `title` → `label`, `group` → `section`, `hidden` → `nav: false`; external entries in `navigationEntries` have `type: 'external'` and `href` instead of `path`):
 
-| Field | Meaning |
-|---|---|
-| `id`, `path`, `label`, `icon`, `section` | Identity, URL (may contain `:param`), sidebar text, Lucide icon, sidebar section (`workspace`, `security`, `account`; a new business-domain section is added as part of normal feature registration — agree its label and icon in the requirement) |
-| `permission` | Required effective permission; omit for session-only pages |
-| `alsoRequires` | Extra permissions the page needs to function (e.g. a picker that reads another list) |
-| `requiresMfa` | The backend requires an MFA-verified session (all `SECURITY_ADMINISTRATION` pages) |
-| `implemented` | `false` = approved destination with no screen yet: never routed, listed or searchable |
-| `enabledBy` | Internal entries only: `{ env: 'VITE_FEATURE_<NAME>' }`. A public build-time switch resolved by `isFeatureEnabled()` in `appNavigation.js`: `'true'` shows the page, `'false'` hides it, unset shows it in development builds only. While off, the entry is `implemented: false` and `router.jsx` (`implementedOnly`) leaves its route out. Never put a secret in it. |
-| `nav: false` | Detail page: guarded, but not shown in the sidebar/command palette |
+| Field                                    | Meaning                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `path`, `label`, `icon`, `section` | Identity, URL (may contain `:param`), sidebar text, Lucide icon, sidebar section (`workspace`, `security`, `account`; a new business-domain section is added as part of normal feature registration — agree its label and icon in the requirement)                                                                                                                    |
+| `permission`                             | Required effective permission; omit for session-only pages                                                                                                                                                                                                                                                                                                            |
+| `alsoRequires`                           | Extra permissions the page needs to function (e.g. a picker that reads another list)                                                                                                                                                                                                                                                                                  |
+| `requiresMfa`                            | The backend requires an MFA-verified session (all `SECURITY_ADMINISTRATION` pages)                                                                                                                                                                                                                                                                                    |
+| `implemented`                            | `false` = approved destination with no screen yet: never routed, listed or searchable                                                                                                                                                                                                                                                                                 |
+| `enabledBy`                              | Internal entries only: `{ env: 'VITE_FEATURE_<NAME>' }`. A public build-time switch resolved by `isFeatureEnabled()` in `appNavigation.js`: `'true'` shows the page, `'false'` hides it, unset shows it in development builds only. While off, the entry is `implemented: false` and `router.jsx` (`implementedOnly`) leaves its route out. Never put a secret in it. |
+| `nav: false`                             | Detail page: guarded, but not shown in the sidebar/command palette                                                                                                                                                                                                                                                                                                    |
 
 The sidebar (`components/layout/Sidebar.jsx`), command palette (`components/layout/CommandPalette.jsx`),
 header account links, dashboard and guard all derive from this table. Never add a menu link,
@@ -137,13 +139,13 @@ not import them.
 
 ### Generic states
 
-| Component | Path | Use |
-|---|---|---|
-| `PageState` | `components/feedback/PageState.jsx` | Full-screen loading/error state (session checks); not inside the shell |
-| `RouteNotice` | `pages/RouteNotice.jsx` | In-shell notice panel with an optional action link or button |
-| `AccessDeniedPage`, `AccessUnavailablePage`, `NotFoundPage` | `pages/PhasePages.jsx` | Used by the guards |
-| `StartupLoading`, `RouteLoading`, `ContentSkeleton` | `components/feedback/` | Shared startup indicator and content skeletons; pending access uses `RouteLoading` |
-| `OrvexaIcon` | `components/icons/OrvexaIcon.jsx` | Icons |
+| Component                                                   | Path                                | Use                                                                                |
+| ----------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------- |
+| `PageState`                                                 | `components/feedback/PageState.jsx` | Full-screen loading/error state (session checks); not inside the shell             |
+| `RouteNotice`                                               | `pages/RouteNotice.jsx`             | In-shell notice panel with an optional action link or button                       |
+| `AccessDeniedPage`, `AccessUnavailablePage`, `NotFoundPage` | `pages/PhasePages.jsx`              | Used by the guards                                                                 |
+| `StartupLoading`, `RouteLoading`, `ContentSkeleton`         | `components/feedback/`              | Shared startup indicator and content skeletons; pending access uses `RouteLoading` |
+| `OrvexaIcon`                                                | `components/icons/OrvexaIcon.jsx`   | Icons                                                                              |
 
 ### Data-page building blocks (currently in `features/security-administration/`)
 
@@ -170,21 +172,21 @@ its needs:
   [delivery workflow](../../docs/FEATURE-DELIVERY-WORKFLOW.md#approval-gates)). If a building block
   does not fit, raise it rather than forking it.
 
-| Export | File | Purpose |
-|---|---|---|
-| `AdminPage` | `components/AdminUi.jsx` | Page header (eyebrow, title, description, actions) + content |
-| `Panel` | same | Card section with title, description and actions |
-| `ResourceState` | same | Loading / error-with-retry / not-found / empty states for a `useResource()` result |
-| `Pagination` | same | Previous/next with page and total (stays usable past the last page) |
-| `Badge`, `ActiveBadge`, `DetailList` | same | Status pills and label/value lists |
-| `Dialog`, `DialogActions`, `ConfirmDialog` | same | Accessible modal: focus moves in, Tab is trapped, Escape/backdrop close unless busy, focus returns |
-| `Feedback` | same | Success (`role=status`), failure or unknown-outcome (`role=alert`) message |
-| `Field` | same | Label, hint and error wrapper for an input |
-| `useResource(key, load)` | `useAdminData.js` | Load data for a key with cancellation; newer requests always win; `reload()` |
-| `useAdminAction()` | same | One change at a time (double clicks ignored), outcome feedback, permission refresh |
-| `createLatestRequest`, `createSubmissionGuard` | `adminRequests.js` | Framework-free race/duplicate primitives |
-| `fieldProps`, `checkSearch`, `checkCode`, `checkName`, `readFutureInstant`, … | `adminForms.js` | Accessible input attributes and checks mirroring backend Joi rules |
-| `describeFailure`, `formatInstant` | `adminFeedback.js` | Safe error explanation; local date-time |
+| Export                                                                        | File                     | Purpose                                                                                            |
+| ----------------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |
+| `AdminPage`                                                                   | `components/AdminUi.jsx` | Page header (eyebrow, title, description, actions) + content                                       |
+| `Panel`                                                                       | same                     | Card section with title, description and actions                                                   |
+| `ResourceState`                                                               | same                     | Loading / error-with-retry / not-found / empty states for a `useResource()` result                 |
+| `Pagination`                                                                  | same                     | Previous/next with page and total (stays usable past the last page)                                |
+| `Badge`, `ActiveBadge`, `DetailList`                                          | same                     | Status pills and label/value lists                                                                 |
+| `Dialog`, `DialogActions`, `ConfirmDialog`                                    | same                     | Accessible modal: focus moves in, Tab is trapped, Escape/backdrop close unless busy, focus returns |
+| `Feedback`                                                                    | same                     | Success (`role=status`), failure or unknown-outcome (`role=alert`) message                         |
+| `Field`                                                                       | same                     | Label, hint and error wrapper for an input                                                         |
+| `useResource(key, load)`                                                      | `useAdminData.js`        | Load data for a key with cancellation; newer requests always win; `reload()`                       |
+| `useAdminAction()`                                                            | same                     | One change at a time (double clicks ignored), outcome feedback, permission refresh                 |
+| `createLatestRequest`, `createSubmissionGuard`                                | `adminRequests.js`       | Framework-free race/duplicate primitives                                                           |
+| `fieldProps`, `checkSearch`, `checkCode`, `checkName`, `readFutureInstant`, … | `adminForms.js`          | Accessible input attributes and checks mirroring backend Joi rules                                 |
+| `describeFailure`, `formatInstant`                                            | `adminFeedback.js`       | Safe error explanation; local date-time                                                            |
 
 Usage pattern (actual, from `pages/RolesPage.jsx`, abridged):
 
@@ -211,13 +213,13 @@ await action.run(() => securityAdminService.deactivateRole(id), { success: 'Role
 
 ## 7. Styling and theme
 
-| Source | Use for |
-|---|---|
+| Source                                                      | Use for                                                                                                                                                                         |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `public/orvexa/assets/css/*.css` (precompiled, do not edit) | Layout shell, `ux-*` and `btn-*` classes: `ux-panel`, `ux-input`, `ux-select`, `ux-textarea`, `ux-table-wrap` + `ux-table`, `ux-badge`, `btn-primary`, `btn-secondary`, `field` |
-| `src/styles/workspace.css` | Dashboard cards and sidebar states (`zrv-card`, `zrv-dash*`) |
-| `src/styles/security-admin.css` | Admin pages, dialogs, badges, tables (`zrv-admin-*`, `zrv-dialog*`, `zrv-catalog*`) |
-| `src/styles/auth.css`, `route-states.css` | Auth pages and in-shell notices |
-| Feature CSS | Only for genuinely feature-specific layout, `zrv-<feature>-` prefix, theme tokens only |
+| `src/styles/workspace.css`                                  | Dashboard cards and sidebar states (`zrv-card`, `zrv-dash*`)                                                                                                                    |
+| `src/styles/security-admin.css`                             | Admin pages, dialogs, badges, tables (`zrv-admin-*`, `zrv-dialog*`, `zrv-catalog*`)                                                                                             |
+| `src/styles/auth.css`, `route-states.css`                   | Auth pages and in-shell notices                                                                                                                                                 |
+| Feature CSS                                                 | Only for genuinely feature-specific layout, `zrv-<feature>-` prefix, theme tokens only                                                                                          |
 
 Rules: use the theme tokens (never hard-coded colours), keep spacing and typography consistent with
 existing pages, support dark mode via tokens, and make layouts work from mobile widths (tables sit
@@ -226,11 +228,11 @@ in `ux-table-wrap`, which scrolls horizontally; grids collapse to one column und
 
 ## 8. Keep local vs. reuse — summary
 
-| Reuse (shared) | Keep feature-local |
-|---|---|
-| `apiClient`, `ApiError`, `isOutcomeUnknown` | Endpoint functions and response readers for your API |
-| `useAuth`, `usePermissions` | Your permission-key constants |
-| `appNavigation.js`, router, guards | Your page components |
-| Layout shell, `PageState`, `RouteNotice`, `OrvexaIcon` | Business-specific widgets |
-| Generic AdminUi building blocks, `useResource`, `useAdminAction` (when they fit) | Pure helpers and business logic for your data |
-| Theme tokens and existing CSS classes | CSS used by your feature only |
+| Reuse (shared)                                                                   | Keep feature-local                                   |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `apiClient`, `ApiError`, `isOutcomeUnknown`                                      | Endpoint functions and response readers for your API |
+| `useAuth`, `usePermissions`                                                      | Your permission-key constants                        |
+| `appNavigation.js`, router, guards                                               | Your page components                                 |
+| Layout shell, `PageState`, `RouteNotice`, `OrvexaIcon`                           | Business-specific widgets                            |
+| Generic AdminUi building blocks, `useResource`, `useAdminAction` (when they fit) | Pure helpers and business logic for your data        |
+| Theme tokens and existing CSS classes                                            | CSS used by your feature only                        |

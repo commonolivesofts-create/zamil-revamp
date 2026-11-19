@@ -41,18 +41,30 @@ export function usePrintOfferLetter() {
     setPrintRecord(record)
   }, [])
 
-  const printOffer = useCallback(async (record) => {
-    if (record) updateRecord(record)
-    setPrintError('')
-    setPrinting(true)
-    // Allow the caller to commit the hidden print target before querying it.
-    await nextFrame()
-    await nextFrame()
-    const letter = document.querySelector('.zrv-hr--offer .zrv-offer-letter')
-    const printed = await printOfferLetter(letter)
-    if (!printed) setPrinting(false)
-    return printed
-  }, [updateRecord])
+  const printOffer = useCallback(
+    async (record) => {
+      if (record) updateRecord(record)
+      setPrintError('')
+      setPrinting(true)
+      // Allow the caller to commit the hidden print target before querying it.
+      await nextFrame()
+      await nextFrame()
+      const letter = document.querySelector('.zrv-hr--offer .zrv-offer-letter')
+      const printed = await printOfferLetter(letter)
+      if (!printed) setPrinting(false)
+      return printed
+    },
+    [updateRecord],
+  )
 
-  return { printOffer, printRecord, setPrintRecord, updateRecord, printing, setPrinting, printError, setPrintError }
+  return {
+    printOffer,
+    printRecord,
+    setPrintRecord,
+    updateRecord,
+    printing,
+    setPrinting,
+    printError,
+    setPrintError,
+  }
 }

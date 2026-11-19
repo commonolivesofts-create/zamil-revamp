@@ -2,8 +2,12 @@
 // Request, Performance Appraisal). English with the Arabic labels of the
 // original forms.
 
-const money = (value) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value) || 0)
-const signed = (value, format = money) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${format(Math.abs(value))}`
+const money = (value) =>
+  new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(
+    Number(value) || 0,
+  )
+const signed = (value, format = money) =>
+  `${value > 0 ? '+' : value < 0 ? '−' : ''}${format(Math.abs(value))}`
 
 export const EMPLOYEE_SERVICES_BREADCRUMB = Object.freeze(['Human resources', 'Employee Services'])
 
@@ -27,17 +31,32 @@ export const ES_COMMON_TEXT = Object.freeze({
   resetTitle: 'Reset to current',
   chooseEmployeeFirst: 'Choose the employee first',
   searchingEmployees: 'Search by employee number or name',
-  reviewProblems: (count) => (count === 1 ? 'One item needs attention.' : `${count} items need attention.`),
+  reviewProblems: (count) =>
+    count === 1 ? 'One item needs attention.' : `${count} items need attention.`,
   counter: (length, max) => `${length} / ${max}`,
   // Step hints of the compact forms: progress instead of a description.
   step: Object.freeze({
-    done: 'Done', open: 'To do',
+    done: 'Done',
+    open: 'To do',
     changed: (count) => `${count} changed`,
     rated: (count, total) => `${count}/${total} rated`,
     files: (count) => (count === 1 ? '1 file' : `${count} files`),
   }),
-  status: Object.freeze({ NEW: 'New', DRAFT: 'Draft', INPROCESS: 'In process', SUBMITTED: 'Submitted', APPROVED: 'Approved', REJECTED: 'Rejected' }),
-  approval: Object.freeze({ DRAFT: 'After submit', PENDING: 'Pending', WAITING: 'Waiting', APPROVED: 'Approved', REJECTED: 'Rejected' }),
+  status: Object.freeze({
+    NEW: 'New',
+    DRAFT: 'Draft',
+    INPROCESS: 'In process',
+    SUBMITTED: 'Submitted',
+    APPROVED: 'Approved',
+    REJECTED: 'Rejected',
+  }),
+  approval: Object.freeze({
+    DRAFT: 'After submit',
+    PENDING: 'Pending',
+    WAITING: 'Waiting',
+    APPROVED: 'Approved',
+    REJECTED: 'Rejected',
+  }),
   list: Object.freeze({
     all: 'All',
     statusLabel: 'Status',
@@ -61,7 +80,8 @@ const CHANGE_TYPE_TEXT = Object.freeze({
 
 export const RECORD_CHANGE_TEXT = Object.freeze({
   title: 'Personnel Record Change',
-  subtitle: 'Request a change to an employee’s position, pay, grade or family status. Current values fill in; you only change what’s different.',
+  subtitle:
+    'Request a change to an employee’s position, pay, grade or family status. Current values fill in; you only change what’s different.',
   formCode: 'PCR · 1110',
   formTitleEn: 'Personnel Record Change Form',
   formTitleAr: 'نموذج تعديل حالة موظف',
@@ -73,7 +93,13 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
   ]),
   tools: Object.freeze({ newRequest: 'Request form', requests: 'Change requests' }),
   submit: 'Save as draft',
-  ticket: Object.freeze({ ref: 'Ref #', date: 'Date', hijri: 'التاريخ', employee: 'Employee', status: 'Status' }),
+  ticket: Object.freeze({
+    ref: 'Ref #',
+    date: 'Date',
+    hijri: 'التاريخ',
+    employee: 'Employee',
+    status: 'Status',
+  }),
   card: Object.freeze({
     label: 'Change summary',
     draft: 'PCR · DRAFT',
@@ -87,11 +113,27 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
   }),
   routeTitle: 'Approval route (submission unavailable)',
   route: Object.freeze([
-    Object.freeze({ code: 'REQUESTER', label: 'Requester', note: 'The backend currently saves a draft only' }),
-    Object.freeze({ code: 'NOTED_BY', label: 'Noted by HR & Admin. Manager', note: 'Approval endpoint not available' }),
-    Object.freeze({ code: 'APPROVED_BY', label: 'Approved by President', note: 'Approval endpoint not available', added: true }),
+    Object.freeze({
+      code: 'REQUESTER',
+      label: 'Requester',
+      note: 'The backend currently saves a draft only',
+    }),
+    Object.freeze({
+      code: 'NOTED_BY',
+      label: 'Noted by HR & Admin. Manager',
+      note: 'Approval endpoint not available',
+    }),
+    Object.freeze({
+      code: 'APPROVED_BY',
+      label: 'Approved by President',
+      note: 'Approval endpoint not available',
+      added: true,
+    }),
   ]),
-  approvers: Object.freeze({ NOTED_BY: Object.freeze(['HR & Admin. Manager', 'Noted by']), APPROVED_BY: Object.freeze(['President', 'Approved by']) }),
+  approvers: Object.freeze({
+    NOTED_BY: Object.freeze(['HR & Admin. Manager', 'Noted by']),
+    APPROVED_BY: Object.freeze(['President', 'Approved by']),
+  }),
   orbit: Object.freeze({
     chooseEmployee: 'Start by choosing the employee.',
     changeSomething: 'Change at least one value in the revised record.',
@@ -105,8 +147,12 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
     effective: 'Effective date',
     currentInfo: 'Current information · معلومات حالية عن الموظف',
     info: Object.freeze({
-      name: 'Name · الاسم', nationality: 'Nationality · الجنسية', section: 'Section · القسم', department: 'Department · الدائرة',
-      startDate: 'Start date · تاريخ البدء', position: 'Position · الوظيفة',
+      name: 'Name · الاسم',
+      nationality: 'Nationality · الجنسية',
+      section: 'Section · القسم',
+      department: 'Department · الدائرة',
+      startDate: 'Start date · تاريخ البدء',
+      position: 'Position · الوظيفة',
     }),
     currentFamilyStatus: 'Current family status · الحالة العائلية',
     beforeStart: 'The effective date is before the employee’s start date.',
@@ -167,33 +213,56 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
   errors: Object.freeze({
     employee: Object.freeze({ required: 'Choose the employee' }),
     employeeLookup: 'The employee details could not be loaded. Try again.',
-    effectiveDate: Object.freeze({ required: 'Effective date is required', invalid: 'Enter a valid date' }),
+    effectiveDate: Object.freeze({
+      required: 'Effective date is required',
+      invalid: 'Enter a valid date',
+    }),
     currentFamilyStatus: Object.freeze({ invalid: 'Choose Single or Married' }),
     positionCode: Object.freeze({ required: 'Position is required' }),
     familyStatusCode: Object.freeze({ required: 'Family status is required' }),
     gradeCode: Object.freeze({ tooLong: 'Keep the grade to 50 characters or fewer' }),
     levelCode: Object.freeze({ tooLong: 'Keep the level to 50 characters or fewer' }),
-    amount: Object.freeze({ required: (label) => `${label} is required`, amount: 'Enter an amount of 0 or more: up to 7 characters, with up to 2 decimals' }),
+    amount: Object.freeze({
+      required: (label) => `${label} is required`,
+      amount: 'Enter an amount of 0 or more: up to 7 characters, with up to 2 decimals',
+    }),
     remarks: Object.freeze({ tooLong: 'Keep remarks to 2000 characters or fewer' }),
     views: Object.freeze({ tooLong: 'Keep views to 2000 characters or fewer' }),
   }),
   // The legacy printout labels (form.php).
   print: Object.freeze({
-    title: 'PERSONNEL RECORD CHANGE FORM', status: 'Status', date: 'Date', ref: 'Ref#', effective: 'Effective Date', empNo: 'Emp#', name: 'Name',
-    nationality: 'Nationality', section: 'Section', department: 'Department', startDate: 'Start Date', item: 'Item',
-    current: 'Current Employee’s Record', revised: 'Revised Employee’s Record', total: 'Total SR', remarks: 'Remarks', views: 'Views & Suggestions',
+    title: 'PERSONNEL RECORD CHANGE FORM',
+    status: 'Status',
+    date: 'Date',
+    ref: 'Ref#',
+    effective: 'Effective Date',
+    empNo: 'Emp#',
+    name: 'Name',
+    nationality: 'Nationality',
+    section: 'Section',
+    department: 'Department',
+    startDate: 'Start Date',
+    item: 'Item',
+    current: 'Current Employee’s Record',
+    revised: 'Revised Employee’s Record',
+    total: 'Total SR',
+    remarks: 'Remarks',
+    views: 'Views & Suggestions',
   }),
   saved: (number) => `Draft ${number} saved.`,
-  savedForReview: (number) => `Draft ${number} saved. The current API does not support submission yet.`,
+  savedForReview: (number) =>
+    `Draft ${number} saved. The current API does not support submission yet.`,
   confirm: Object.freeze({
     title: 'Save personnel record change?',
     action: 'Save draft',
-    body: (name, effective, types, from, to) => `${name} · effective ${effective}. ${types || 'No changes yet'}. Total SR ${from} → ${to}. The current API saves drafts; submission and approval are not available yet.`,
+    body: (name, effective, types, from, to) =>
+      `${name} · effective ${effective}. ${types || 'No changes yet'}. Total SR ${from} → ${to}. The current API saves drafts; submission and approval are not available yet.`,
   }),
   list: Object.freeze({
     title: 'Change requests',
     noun: 'change requests',
-    subtitle: 'Every personnel record change request, with its status. Open one to view or continue it.',
+    subtitle:
+      'Every personnel record change request, with its status. Open one to view or continue it.',
     newRequest: 'New request',
     heading: 'Requests',
     search: 'Search requests',
@@ -201,20 +270,43 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
     export: 'Export CSV',
     // The legacy report columns (Change Requests).
     columns: Object.freeze({
-      number: 'Ref #', empNo: 'Emp No', employee: 'Emp name', position: 'Position', section: 'Section', department: 'Department',
-      previous: 'Previous salary', revised: 'Revised salary', remarks: 'Remarks', requestor: 'Requestor', pendingAt: 'Pending at', status: 'Status',
+      number: 'Ref #',
+      empNo: 'Emp No',
+      employee: 'Emp name',
+      position: 'Position',
+      section: 'Section',
+      department: 'Department',
+      previous: 'Previous salary',
+      revised: 'Revised salary',
+      remarks: 'Remarks',
+      requestor: 'Requestor',
+      pendingAt: 'Pending at',
+      status: 'Status',
     }),
     csvFile: 'personnel_record_changes.csv',
     open: 'Open request',
     empty: 'No change requests match these filters.',
-    filters: Object.freeze({ search: 'Ref, employee, position, section or requester', from: 'Requested from', to: 'Requested to' }),
+    filters: Object.freeze({
+      search: 'Ref, employee, position, section or requester',
+      from: 'Requested from',
+      to: 'Requested to',
+    }),
     overview: Object.freeze({
-      impact: 'Salary impact', perMonth: 'SR a month, revised against previous',
-      raises: 'Raise', cuts: 'Reduction', same: 'No change',
-      status: 'Approval status', requests: (count) => `${count} requests`,
+      impact: 'Salary impact',
+      perMonth: 'SR a month, revised against previous',
+      raises: 'Raise',
+      cuts: 'Reduction',
+      same: 'No change',
+      status: 'Approval status',
+      requests: (count) => `${count} requests`,
       departments: 'Departments',
     }),
-    breakdown: Object.freeze({ title: 'Requested', month: 'This month', quarter: 'Last 3 months', year: 'This year' }),
+    breakdown: Object.freeze({
+      title: 'Requested',
+      month: 'This month',
+      quarter: 'Last 3 months',
+      year: 'This year',
+    }),
     facts: Object.freeze({ change: 'Change', effective: 'Effective date', requested: 'Requested' }),
   }),
 })
@@ -230,8 +322,22 @@ export const TRANSFER_TEXT = Object.freeze({
   tools: Object.freeze({ newTransfer: 'Form', report: 'Report' }),
   submit: 'Submit transfer',
   saveDraft: 'Save transfer draft',
-  document: Object.freeze({ label: 'Controlled document', control: 'Control no.', version: 'Version', issued: 'Issue date', pages: 'Pages', company: 'Company' }),
-  ticket: Object.freeze({ ref: 'Ref #', onSave: 'On save', requestedBy: 'Requested by', employeeNumber: 'Employee no.', date: 'Date', status: 'Status' }),
+  document: Object.freeze({
+    label: 'Controlled document',
+    control: 'Control no.',
+    version: 'Version',
+    issued: 'Issue date',
+    pages: 'Pages',
+    company: 'Company',
+  }),
+  ticket: Object.freeze({
+    ref: 'Ref #',
+    onSave: 'On save',
+    requestedBy: 'Requested by',
+    employeeNumber: 'Employee no.',
+    date: 'Date',
+    status: 'Status',
+  }),
   card: Object.freeze({
     label: 'Transfer card',
     draft: 'TRF · DRAFT',
@@ -241,7 +347,11 @@ export const TRANSFER_TEXT = Object.freeze({
     from: 'From',
     to: 'To',
     noMove: 'No move yet',
-    move: Object.freeze({ jobTitleCode: 'Job title change', departmentCode: 'Department change', sectionCode: 'Section change' }),
+    move: Object.freeze({
+      jobTitleCode: 'Job title change',
+      departmentCode: 'Department change',
+      sectionCode: 'Section change',
+    }),
     salaryChange: 'Salary change',
     effective: 'Effective',
     starts: 'Starts',
@@ -249,7 +359,11 @@ export const TRANSFER_TEXT = Object.freeze({
     today: 'Today',
     inDays: (days) => `In ${days} day${days === 1 ? '' : 's'}`,
   }),
-  orbit: Object.freeze({ start: 'Start with the employee.', fill: 'Fill in the move and the details.', ready: 'Ready to save.' }),
+  orbit: Object.freeze({
+    start: 'Start with the employee.',
+    fill: 'Fill in the move and the details.',
+    ready: 'Ready to save.',
+  }),
   moveStep: Object.freeze({
     eyebrow: 'Step 01 · Move',
     title: 'Who is moving, and where?',
@@ -259,7 +373,13 @@ export const TRANSFER_TEXT = Object.freeze({
     loading: 'Loading the employee’s record…',
     current: 'Current',
     transferTo: 'Transfer to',
-    rows: Object.freeze({ employeeNumber: 'Employee no.', joined: 'D.O.J.', jobTitle: 'Job title', department: 'Department', section: 'Section' }),
+    rows: Object.freeze({
+      employeeNumber: 'Employee no.',
+      joined: 'D.O.J.',
+      jobTitle: 'Job title',
+      department: 'Department',
+      section: 'Section',
+    }),
     jobTitle: 'Job title',
     department: 'Department',
     section: 'Section',
@@ -283,7 +403,8 @@ export const TRANSFER_TEXT = Object.freeze({
     budgetedSalary: 'Budgeted salary',
     yes: 'Yes',
     no: 'No',
-    salaryNote: 'A salary change also needs a Personnel Record Change request with the new amounts.',
+    salaryNote:
+      'A salary change also needs a Personnel Record Change request with the new amounts.',
     salaryLink: 'Open a Personnel Record Change',
   }),
   approvalsStep: Object.freeze({
@@ -304,7 +425,13 @@ export const TRANSFER_TEXT = Object.freeze({
     routeCurrent: (name) => `Currently awaiting ${name}.`,
     routeProgress: (done, total) => `${done} of ${total} approvals complete.`,
     approverStep: (step, total) => `Approver ${step} of ${total}`,
-    state: Object.freeze({ DRAFT: 'Not started', PENDING: 'Next approver', WAITING: 'Waiting', APPROVED: 'Approved', REJECTED: 'Rejected' }),
+    state: Object.freeze({
+      DRAFT: 'Not started',
+      PENDING: 'Next approver',
+      WAITING: 'Waiting',
+      APPROVED: 'Approved',
+      REJECTED: 'Rejected',
+    }),
     stateDetail: Object.freeze({
       DRAFT: 'Starts after the request is submitted.',
       PENDING: 'This approver needs to review the request next.',
@@ -322,7 +449,8 @@ export const TRANSFER_TEXT = Object.freeze({
     director: 'Director',
     salary: 'Salary',
     company: 'Company',
-    salaryText: (change, budgeted) => `${change === 'YES' ? 'Changes' : 'No change'} · ${budgeted === 'YES' ? 'budgeted' : budgeted === 'NO' ? 'not budgeted' : '—'}`,
+    salaryText: (change, budgeted) =>
+      `${change === 'YES' ? 'Changes' : 'No change'} · ${budgeted === 'YES' ? 'budgeted' : budgeted === 'NO' ? 'not budgeted' : '—'}`,
   }),
   route: Object.freeze({
     NEW_DEPARTMENT_HEAD: 'Receiving department head',
@@ -331,15 +459,27 @@ export const TRANSFER_TEXT = Object.freeze({
     HR_ADMIN_MANAGER: 'HR & Admin Manager',
     GENERAL_MANAGER: 'General Manager',
   }),
-  office: Object.freeze({ HR_SUPERVISOR: 'HR Supervisor approval', IT: 'IT approval', ADMIN_MANAGER: 'Admin. Manager approval' }),
+  office: Object.freeze({
+    HR_SUPERVISOR: 'HR Supervisor approval',
+    IT: 'IT approval',
+    ADMIN_MANAGER: 'Admin. Manager approval',
+  }),
   errors: Object.freeze({
     employee: Object.freeze({ required: 'Choose the employee' }),
     employeeLookup: 'The employee details could not be loaded. Try again.',
     jobTitleCode: Object.freeze({ required: 'Choose the new job title' }),
     departmentCode: Object.freeze({ required: 'Choose the new department' }),
-    sectionCode: Object.freeze({ required: 'Choose the new section', invalid: 'Choose a section from the available list', notInDepartment: 'Choose a section of the new department' }),
+    sectionCode: Object.freeze({
+      required: 'Choose the new section',
+      invalid: 'Choose a section from the available list',
+      notInDepartment: 'Choose a section of the new department',
+    }),
     to: Object.freeze({ noMove: 'The new job, department and section are the same as now' }),
-    effectiveDate: Object.freeze({ required: 'Effective date is required', invalid: 'Enter a valid date', beforeJoining: 'Effective date is before the date of joining' }),
+    effectiveDate: Object.freeze({
+      required: 'Effective date is required',
+      invalid: 'Enter a valid date',
+      beforeJoining: 'Effective date is before the date of joining',
+    }),
     directorId: Object.freeze({ required: 'Choose the director' }),
     bloodType: Object.freeze({ required: 'Choose the employee blood type' }),
     salaryChange: Object.freeze({ required: 'Answer change in salary' }),
@@ -351,8 +491,10 @@ export const TRANSFER_TEXT = Object.freeze({
     title: 'Submit transfer request?',
     action: 'Submit',
     saveTitle: 'Save transfer draft?',
-    draftBody: (name, from, to, section, effective) => `${name}: ${from} to ${to} / ${section}. Effective ${effective}. This saves the request as a draft.`,
-    body: (name, from, to, section, effective) => `${name}: ${from} → ${to} · ${section}. Effective ${effective}. It goes to the five department approvers, then HR, IT and Admin.`,
+    draftBody: (name, from, to, section, effective) =>
+      `${name}: ${from} to ${to} / ${section}. Effective ${effective}. This saves the request as a draft.`,
+    body: (name, from, to, section, effective) =>
+      `${name}: ${from} → ${to} · ${section}. Effective ${effective}. It goes to the five department approvers, then HR, IT and Admin.`,
   }),
   report: Object.freeze({
     title: 'Transfer requests',
@@ -362,23 +504,48 @@ export const TRANSFER_TEXT = Object.freeze({
     heading: 'Requests',
     search: 'Search transfers',
     searchPlaceholder: 'Search ref, employee or department',
-    columns: Object.freeze({ number: 'Ref #', employee: 'Employee', from: 'From', to: 'To', effective: 'Effective', salary: 'Salary change', status: 'Status' }),
-    salary: (change, budgeted) => (change === 'YES' ? `Yes · ${budgeted === 'YES' ? 'budgeted' : 'not budgeted'}` : change === 'NO' ? 'No' : '—'),
+    columns: Object.freeze({
+      number: 'Ref #',
+      employee: 'Employee',
+      from: 'From',
+      to: 'To',
+      effective: 'Effective',
+      salary: 'Salary change',
+      status: 'Status',
+    }),
+    salary: (change, budgeted) =>
+      change === 'YES'
+        ? `Yes · ${budgeted === 'YES' ? 'budgeted' : 'not budgeted'}`
+        : change === 'NO'
+          ? 'No'
+          : '—',
     open: 'Open transfer',
     empty: 'No transfer requests match these filters.',
-    filters: Object.freeze({ search: 'Ref, employee or department', from: 'Effective from', to: 'Effective to' }),
+    filters: Object.freeze({
+      search: 'Ref, employee or department',
+      from: 'Effective from',
+      to: 'Effective to',
+    }),
     overview: Object.freeze({
-      pipeline: 'Approval pipeline', rejected: (count) => `${count} rejected`,
-      moves: 'Department moves', movesOf: (moving, all) => `${moving} of ${all} move to another department`,
+      pipeline: 'Approval pipeline',
+      rejected: (count) => `${count} rejected`,
+      moves: 'Department moves',
+      movesOf: (moving, all) => `${moving} of ${all} move to another department`,
       destinations: 'Top destinations',
     }),
-    breakdown: Object.freeze({ title: 'Effective', past: 'Already effective', month: 'This month', upcoming: 'Upcoming' }),
+    breakdown: Object.freeze({
+      title: 'Effective',
+      past: 'Already effective',
+      month: 'This month',
+      upcoming: 'Upcoming',
+    }),
   }),
 })
 
 export const APPRAISAL_TEXT = Object.freeze({
   title: 'Performance Appraisal',
-  subtitle: 'Annual employee performance appraisal: rate 20 criteria, agree development goals, and record the review meeting.',
+  subtitle:
+    'Annual employee performance appraisal: rate 20 criteria, agree development goals, and record the review meeting.',
   formCode: 'EPA · ANNUAL',
   steps: Object.freeze([
     Object.freeze(['Employee', 'Period and details']),
@@ -388,18 +555,40 @@ export const APPRAISAL_TEXT = Object.freeze({
   ]),
   tools: Object.freeze({ report: 'Report', newAppraisal: 'New' }),
   common: Object.freeze({
-    home: 'Home', print: 'Print', notSelected: 'Not selected', fillsFromEmployee: 'Fills from employee', empty: 'No records match.',
-    done: 'Done', open: 'To do', rated: (count, total) => `${count}/${total} rated`,
-    reviewProblems: (count) => (count === 1 ? 'One item needs attention.' : `${count} items need attention.`),
-    status: Object.freeze({ NEW: 'New', DRAFT: 'Draft', INPROCESS: 'In process', SUBMITTED: 'Submitted', APPROVED: 'Approved', REJECTED: 'Rejected' }),
+    home: 'Home',
+    print: 'Print',
+    notSelected: 'Not selected',
+    fillsFromEmployee: 'Fills from employee',
+    empty: 'No records match.',
+    done: 'Done',
+    open: 'To do',
+    rated: (count, total) => `${count}/${total} rated`,
+    reviewProblems: (count) =>
+      count === 1 ? 'One item needs attention.' : `${count} items need attention.`,
+    status: Object.freeze({
+      NEW: 'New',
+      DRAFT: 'Draft',
+      INPROCESS: 'In process',
+      SUBMITTED: 'Submitted',
+      APPROVED: 'Approved',
+      REJECTED: 'Rejected',
+    }),
   }),
   save: 'Create appraisal',
   submit: 'Create in-process appraisal',
   deleteAction: 'Delete appraisal',
   deleteTitle: 'Delete this performance appraisal?',
-  deleteBody: (number) => `Appraisal ${number} will be permanently deleted. This action cannot be undone.`,
+  deleteBody: (number) =>
+    `Appraisal ${number} will be permanently deleted. This action cannot be undone.`,
   deleted: 'Performance appraisal deleted.',
-  ticket: Object.freeze({ number: 'Appraisal no.', onSave: 'On save', employee: 'Employee', period: 'Period of review', appraiser: 'Appraiser', status: 'Status' }),
+  ticket: Object.freeze({
+    number: 'Appraisal no.',
+    onSave: 'On save',
+    employee: 'Employee',
+    period: 'Period of review',
+    appraiser: 'Appraiser',
+    status: 'Status',
+  }),
   card: Object.freeze({
     label: 'Appraisal card',
     draft: (period) => `EPA · ${period}`,
@@ -430,8 +619,14 @@ export const APPRAISAL_TEXT = Object.freeze({
     selectEmployee: 'Select employee',
     option: (name, number) => `${name} · #${number}`,
     info: Object.freeze({
-      employeeNumber: 'Employee number', jobTitle: 'Job title', grade: 'Job grade', company: 'Company name', department: 'Department',
-      yearsCompany: 'Years in the company', yearsPosition: 'Years in current position', appraiser: 'Name of appraiser',
+      employeeNumber: 'Employee number',
+      jobTitle: 'Job title',
+      grade: 'Job grade',
+      company: 'Company name',
+      department: 'Department',
+      yearsCompany: 'Years in the company',
+      yearsPosition: 'Years in current position',
+      appraiser: 'Name of appraiser',
     }),
     scale: 'Performance rating scale',
     loadingTeam: 'the team',
@@ -463,14 +658,16 @@ export const APPRAISAL_TEXT = Object.freeze({
     percentage: 'Percentage',
     allowed: 'Employees allowed',
     allocated: 'Employees allocated',
-    overQuota: (grade, percent) => `Grade ${grade} is over its ${percent}% share for this team. You can still submit; explain it in the appraiser’s remarks.`,
+    overQuota: (grade, percent) =>
+      `Grade ${grade} is over its ${percent}% share for this team. You can still submit; explain it in the appraiser’s remarks.`,
     development: 'Development',
     goalsTab: (count) => `Development goals (${count})`,
     trainingTab: (count) => `Training needs (${count})`,
     goals: 'Agree on and list 3 to 5 developmental goals for the next review period',
     goalsPlaceholder: 'e.g. Complete forklift certification by June',
     training: 'Training needs',
-    trainingHint: 'List any specific training needed to improve job performance or make progress toward the agreed development goals.',
+    trainingHint:
+      'List any specific training needed to improve job performance or make progress toward the agreed development goals.',
     trainingPlaceholder: 'e.g. Advanced Excel',
     add: 'Add another',
     remove: (label, n) => `Remove ${label.toLowerCase()} ${n}`,
@@ -480,7 +677,8 @@ export const APPRAISAL_TEXT = Object.freeze({
     eyebrow: 'Step 04 · Meeting',
     title: 'Employee performance evaluation meeting.',
     desc: 'Record both sides’ remarks and sign. The appraiser signs to submit; the employee can acknowledge now or later.',
-    acknowledgement: 'I have read and discussed the performance rating and the performance improvement plan with my supervisor / manager. These are my comments (if any).',
+    acknowledgement:
+      'I have read and discussed the performance rating and the performance improvement plan with my supervisor / manager. These are my comments (if any).',
     employeeRemarks: 'Employee’s remarks',
     employeeRemarksPlaceholder: 'Comments (if any)',
     appraiserRemarks: 'Appraiser’s remarks',
@@ -495,11 +693,27 @@ export const APPRAISAL_TEXT = Object.freeze({
   }),
   errors: Object.freeze({
     employeeId: Object.freeze({ required: 'Choose the employee' }),
-    criterion: Object.freeze({ required: 'Choose a rating', explain: 'Explain a rating of 1 or 5', tooLong: 'Keep the explanation to 500 characters or fewer' }),
-    goals: Object.freeze({ tooFew: 'List at least 3 development goals', tooMany: 'List at most 5 development goals' }),
-    training: Object.freeze({ tooFew: 'Add at least one training need', tooMany: 'List at most 5 training needs' }),
-    employeeRemarks: Object.freeze({ tooLong: 'Keep the employee’s remarks to 2000 characters or fewer' }),
-    appraiserRemarks: Object.freeze({ tooLong: 'Keep the appraiser’s remarks to 2000 characters or fewer', overQuota: (grade, percent) => `Grade ${grade} is over its ${percent}% share; explain in the appraiser’s remarks` }),
+    criterion: Object.freeze({
+      required: 'Choose a rating',
+      explain: 'Explain a rating of 1 or 5',
+      tooLong: 'Keep the explanation to 500 characters or fewer',
+    }),
+    goals: Object.freeze({
+      tooFew: 'List at least 3 development goals',
+      tooMany: 'List at most 5 development goals',
+    }),
+    training: Object.freeze({
+      tooFew: 'Add at least one training need',
+      tooMany: 'List at most 5 training needs',
+    }),
+    employeeRemarks: Object.freeze({
+      tooLong: 'Keep the employee’s remarks to 2000 characters or fewer',
+    }),
+    appraiserRemarks: Object.freeze({
+      tooLong: 'Keep the appraiser’s remarks to 2000 characters or fewer',
+      overQuota: (grade, percent) =>
+        `Grade ${grade} is over its ${percent}% share; explain in the appraiser’s remarks`,
+    }),
     appraiser: Object.freeze({ required: 'The appraiser must sign' }),
     criteriaCount: (count) => `${count} criteria need attention.`,
   }),
@@ -520,18 +734,34 @@ export const APPRAISAL_TEXT = Object.freeze({
     heading: 'Appraisals',
     search: 'Search appraisals',
     searchPlaceholder: 'Search number or employee',
-    columns: Object.freeze({ number: 'Appraisal no.', employee: 'Employee', period: 'Period', rating: 'Rating', grade: 'Grade', status: 'Status' }),
+    columns: Object.freeze({
+      number: 'Appraisal no.',
+      employee: 'Employee',
+      period: 'Period',
+      rating: 'Rating',
+      grade: 'Grade',
+      status: 'Status',
+    }),
     open: 'Open appraisal',
     deleteAction: 'Delete appraisal',
     deleteTitle: 'Delete this performance appraisal?',
-    deleteBody: (number) => `Appraisal ${number} will be permanently deleted. This action cannot be undone.`,
+    deleteBody: (number) =>
+      `Appraisal ${number} will be permanently deleted. This action cannot be undone.`,
     deleted: 'Performance appraisal deleted.',
     empty: 'No appraisals match these filters.',
-    filters: Object.freeze({ search: 'Number or employee', from: 'Created from', to: 'Created to' }),
+    filters: Object.freeze({
+      search: 'Number or employee',
+      from: 'Created from',
+      to: 'Created to',
+    }),
     overview: Object.freeze({
-      months: 'Appraisals by month', thisMonth: 'this month',
-      average: 'Average rating', averageOf: (value, rated) => `${value} of 5 across ${rated} rated`, unrated: 'No rated appraisals yet',
-      status: 'Status', appraisals: (count) => `${count} appraisals`,
+      months: 'Appraisals by month',
+      thisMonth: 'this month',
+      average: 'Average rating',
+      averageOf: (value, rated) => `${value} of 5 across ${rated} rated`,
+      unrated: 'No rated appraisals yet',
+      status: 'Status',
+      appraisals: (count) => `${count} appraisals`,
     }),
     breakdown: Object.freeze({ title: 'Grade' }),
   }),
@@ -541,7 +771,8 @@ export const APPRAISAL_TEXT = Object.freeze({
 // `aprf.php`). Same keys as APPRAISAL_TEXT so the page can swap languages.
 export const APPRAISAL_TEXT_AR = Object.freeze({
   title: 'تقييم الأداء الوظيفي',
-  subtitle: 'تقييم الأداء السنوي للموظف: تقييم 20 معياراً، والاتفاق على أهداف التطوير، وتسجيل اجتماع المراجعة.',
+  subtitle:
+    'تقييم الأداء السنوي للموظف: تقييم 20 معياراً، والاتفاق على أهداف التطوير، وتسجيل اجتماع المراجعة.',
   formCode: 'EPA · سنوي',
   steps: Object.freeze([
     Object.freeze(['الموظف', 'الفترة والبيانات']),
@@ -551,10 +782,24 @@ export const APPRAISAL_TEXT_AR = Object.freeze({
   ]),
   tools: Object.freeze({ report: 'التقرير', newAppraisal: 'جديد' }),
   common: Object.freeze({
-    home: 'الرئيسية', print: 'طباعة', notSelected: 'لم يتم الاختيار', fillsFromEmployee: 'يُعبأ من بيانات الموظف', empty: 'لا توجد سجلات مطابقة.',
-    done: 'تم', open: 'للإنجاز', rated: (count, total) => `${count}/${total} تم تقييمه`,
-    reviewProblems: (count) => (count === 1 ? 'عنصر واحد يحتاج إلى مراجعة.' : `${count} عناصر تحتاج إلى مراجعة.`),
-    status: Object.freeze({ NEW: 'جديد', DRAFT: 'مسودة', INPROCESS: 'قيد الإجراء', SUBMITTED: 'مُرسل', APPROVED: 'معتمد', REJECTED: 'مرفوض' }),
+    home: 'الرئيسية',
+    print: 'طباعة',
+    notSelected: 'لم يتم الاختيار',
+    fillsFromEmployee: 'يُعبأ من بيانات الموظف',
+    empty: 'لا توجد سجلات مطابقة.',
+    done: 'تم',
+    open: 'للإنجاز',
+    rated: (count, total) => `${count}/${total} تم تقييمه`,
+    reviewProblems: (count) =>
+      count === 1 ? 'عنصر واحد يحتاج إلى مراجعة.' : `${count} عناصر تحتاج إلى مراجعة.`,
+    status: Object.freeze({
+      NEW: 'جديد',
+      DRAFT: 'مسودة',
+      INPROCESS: 'قيد الإجراء',
+      SUBMITTED: 'مُرسل',
+      APPROVED: 'معتمد',
+      REJECTED: 'مرفوض',
+    }),
   }),
   save: 'إنشاء تقييم الأداء',
   submit: 'إنشاء التقييم قيد الإجراء',
@@ -562,7 +807,14 @@ export const APPRAISAL_TEXT_AR = Object.freeze({
   deleteTitle: 'هل تريد حذف تقييم الأداء هذا؟',
   deleteBody: (number) => `سيتم حذف التقييم ${number} نهائيًا. لا يمكن التراجع عن هذا الإجراء.`,
   deleted: 'تم حذف تقييم الأداء.',
-  ticket: Object.freeze({ number: 'رقم التقييم', onSave: 'عند الحفظ', employee: 'الموظف', period: 'فترة المراجعة', appraiser: 'المقيّم', status: 'الحالة' }),
+  ticket: Object.freeze({
+    number: 'رقم التقييم',
+    onSave: 'عند الحفظ',
+    employee: 'الموظف',
+    period: 'فترة المراجعة',
+    appraiser: 'المقيّم',
+    status: 'الحالة',
+  }),
   card: Object.freeze({
     label: 'بطاقة التقييم',
     draft: (period) => `EPA · ${period}`,
@@ -593,8 +845,14 @@ export const APPRAISAL_TEXT_AR = Object.freeze({
     selectEmployee: 'اختر الموظف',
     option: (name, number) => `${name} · #${number}`,
     info: Object.freeze({
-      employeeNumber: 'رقم الموظف', jobTitle: 'المسمى الوظيفي', grade: 'درجة الوظيفة', company: 'اسم الشركة', department: 'القسم',
-      yearsCompany: 'عدد سنوات الخدمة بالشركة', yearsPosition: 'عدد السنوات بالمنصب الحالي', appraiser: 'اسم المقيم',
+      employeeNumber: 'رقم الموظف',
+      jobTitle: 'المسمى الوظيفي',
+      grade: 'درجة الوظيفة',
+      company: 'اسم الشركة',
+      department: 'القسم',
+      yearsCompany: 'عدد سنوات الخدمة بالشركة',
+      yearsPosition: 'عدد السنوات بالمنصب الحالي',
+      appraiser: 'اسم المقيم',
     }),
     scale: 'مقياس تقييم الأداء',
     loadingTeam: 'الفريق',
@@ -626,14 +884,16 @@ export const APPRAISAL_TEXT_AR = Object.freeze({
     percentage: 'النسبة المئوية',
     allowed: 'عدد الموظفين المسموح',
     allocated: 'عدد الموظفين المخصص',
-    overQuota: (grade, percent) => `الدرجة ${grade} تجاوزت حصتها ${percent}% لهذا الفريق. يمكنك الإرسال مع توضيح ذلك في ملاحظات المقيم.`,
+    overQuota: (grade, percent) =>
+      `الدرجة ${grade} تجاوزت حصتها ${percent}% لهذا الفريق. يمكنك الإرسال مع توضيح ذلك في ملاحظات المقيم.`,
     development: 'التطوير',
     goalsTab: (count) => `أهداف التطوير (${count})`,
     trainingTab: (count) => `الاحتياجات التدريبية (${count})`,
     goals: 'الاتفاق على قائمة من 3 إلى 5 أهداف تطويرية للفترة القادمة',
     goalsPlaceholder: 'مثال: إكمال شهادة الرافعة الشوكية بحلول يونيو',
     training: 'الاحتياجات التدريبية',
-    trainingHint: 'اذكر أي تدريب محدد مطلوب لتحسين الأداء الوظيفي أو للتقدم نحو أهداف التطوير المتفق عليها.',
+    trainingHint:
+      'اذكر أي تدريب محدد مطلوب لتحسين الأداء الوظيفي أو للتقدم نحو أهداف التطوير المتفق عليها.',
     trainingPlaceholder: 'مثال: إكسل المتقدم',
     add: 'إضافة آخر',
     remove: (label, n) => `حذف ${label} ${n}`,
@@ -643,7 +903,8 @@ export const APPRAISAL_TEXT_AR = Object.freeze({
     eyebrow: 'الخطوة 04 · الاجتماع',
     title: 'اجتماع تقييم الأداء الوظيفي.',
     desc: 'سجّل ملاحظات الطرفين ووقّع. يوقّع المقيّم للإرسال؛ ويمكن للموظف الإقرار الآن أو لاحقاً.',
-    acknowledgement: 'لقد قرأت وناقشت تقييم الأداء وخطة تحسين الأداء مع المشرف/المدير. وهذه ملاحظاتي (إن وجدت).',
+    acknowledgement:
+      'لقد قرأت وناقشت تقييم الأداء وخطة تحسين الأداء مع المشرف/المدير. وهذه ملاحظاتي (إن وجدت).',
     employeeRemarks: 'ملاحظات الموظف',
     employeeRemarksPlaceholder: 'ملاحظات (إن وجدت)',
     appraiserRemarks: 'ملاحظات المقيم',
@@ -658,11 +919,25 @@ export const APPRAISAL_TEXT_AR = Object.freeze({
   }),
   errors: Object.freeze({
     employeeId: Object.freeze({ required: 'اختر الموظف' }),
-    criterion: Object.freeze({ required: 'اختر تقييماً', explain: 'اشرح التقييم 1 أو 5', tooLong: 'اجعل الشرح 500 حرف أو أقل' }),
-    goals: Object.freeze({ tooFew: 'أضف 3 أهداف تطويرية على الأقل', tooMany: 'أضف 5 أهداف تطويرية كحد أقصى' }),
-    training: Object.freeze({ tooFew: 'أضف احتياجاً تدريبياً واحداً على الأقل', tooMany: 'أضف 5 احتياجات تدريبية كحد أقصى' }),
+    criterion: Object.freeze({
+      required: 'اختر تقييماً',
+      explain: 'اشرح التقييم 1 أو 5',
+      tooLong: 'اجعل الشرح 500 حرف أو أقل',
+    }),
+    goals: Object.freeze({
+      tooFew: 'أضف 3 أهداف تطويرية على الأقل',
+      tooMany: 'أضف 5 أهداف تطويرية كحد أقصى',
+    }),
+    training: Object.freeze({
+      tooFew: 'أضف احتياجاً تدريبياً واحداً على الأقل',
+      tooMany: 'أضف 5 احتياجات تدريبية كحد أقصى',
+    }),
     employeeRemarks: Object.freeze({ tooLong: 'اجعل ملاحظات الموظف 2000 حرف أو أقل' }),
-    appraiserRemarks: Object.freeze({ tooLong: 'اجعل ملاحظات المقيم 2000 حرف أو أقل', overQuota: (grade, percent) => `الدرجة ${grade} تجاوزت حصتها ${percent}%؛ وضّح ذلك في ملاحظات المقيم` }),
+    appraiserRemarks: Object.freeze({
+      tooLong: 'اجعل ملاحظات المقيم 2000 حرف أو أقل',
+      overQuota: (grade, percent) =>
+        `الدرجة ${grade} تجاوزت حصتها ${percent}%؛ وضّح ذلك في ملاحظات المقيم`,
+    }),
     appraiser: Object.freeze({ required: 'يجب أن يوقّع المقيم' }),
     criteriaCount: (count) => `${count} معايير تحتاج إلى مراجعة.`,
   }),
