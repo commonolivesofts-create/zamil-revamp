@@ -14,8 +14,7 @@ export default defineModule({
   name: 'Workflow Manager',
   // Registered on Oracle TEST by M1 (#56). Registration never updates existing rows, so a changed
   // name or description here becomes a CONFLICT that also blocks every new resource below.
-  description:
-    'Master Workflow Manager configuration: registered forms and approved data sources.',
+  description: 'Master Workflow Manager configuration: registered forms and approved data sources.',
   displayOrder: 0,
   resources: [
     {
