@@ -1398,3 +1398,41 @@ describe('RBAC catalogue registration CLI', () => {
     );
   });
 });
+
+// Records already registered on Oracle TEST by Workflow Manager M1 (#56). The registration CLI
+// never updates existing rows: any drift in these names or descriptions is reported as CONFLICT
+// and also blocks every new child record (M2-A SOURCE_MAPPING was blocked this way).
+describe('registered WORKFLOW_MANAGER records stay unchanged', () => {
+  const M1_REGISTERED = {
+    module: {
+      name: 'Workflow Manager',
+      description:
+        'Master Workflow Manager configuration: registered forms and approved data sources.',
+    },
+    resources: {
+      OVERVIEW: {
+        name: 'Workflow Manager Overview',
+        description: 'Open the Workflow Manager overview.',
+      },
+      FORM_REGISTRY: {
+        name: 'Form Registry',
+        description: 'Business forms registered for workflow configuration.',
+      },
+      DATA_SOURCE_REGISTRY: {
+        name: 'Data Source Registry',
+        description: 'Approved tables, views and handlers that workflow forms may use.',
+      },
+    },
+  };
+
+  it('keeps the module and M1 resource names and descriptions registered on TEST', () => {
+    assert.equal(workflowModule.name, M1_REGISTERED.module.name);
+    assert.equal(workflowModule.description, M1_REGISTERED.module.description);
+    for (const [code, expected] of Object.entries(M1_REGISTERED.resources)) {
+      const resource = workflowModule.resources.find((entry) => entry.code === code);
+      assert.ok(resource, `${code} is still registered`);
+      assert.equal(resource.name, expected.name, `${code} name`);
+      assert.equal(resource.description, expected.description, `${code} description`);
+    }
+  });
+});
