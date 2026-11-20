@@ -7,6 +7,35 @@
  * The navigation rail follows Zamil's collapsed-by-default, hover-expand behavior.
  */
 /* Shared Zamil workspace canvas for every Training Hub route. */
+/* Shared responsive containment, including dialogs rendered through a portal. */
+:is(.th-shell, .th-dialog) :is(input, select, textarea) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.th-notification-menu {
+  max-inline-size: calc(100vw - 24px);
+  max-block-size: calc(100dvh - 90px);
+  overflow-y: auto;
+}
+@media (max-width: 639px) {
+  .th-topbar .th-notification-menu {
+    position: fixed;
+    inset-inline: 12px;
+    inset-block-start: 72px;
+    inline-size: auto;
+  }
+}
+@media (pointer: coarse) {
+  :is(.th-shell, .th-dialog) :is(button, [role='tab']),
+  .th-button {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+  }
+  :is(.th-shell, .th-dialog) :is(input, select, textarea):not([type='checkbox'], [type='radio']),
+  .th-control {
+    font-size: 16px;
+  }
+}
 .th-shell {
   min-height: 100dvh;
   background:
@@ -2077,6 +2106,8 @@
 }
 .th-report-pager__nav {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   gap: 4px;
   margin-left: auto;

@@ -73,8 +73,9 @@ test('RecruitmentShell options: flow, compact and banner default to the earlier 
   assert.match(shell, /secondaryAction/)
   assert.match(
     shell,
-    /className=\{`zrv-hr zrv-hr--\$\{current\}\$\{compact \? ' zrv-hr--compact' : ''\}`\}/,
+    /className=\{`zrv-hr zrv-hr--\$\{current\} zrv-hr--responsive\$\{compact \? ' zrv-hr--compact' : ''\}`\}/,
   )
+  assert.match(shell, /@\/styles\/hr-recruitment-responsive\.css/)
   assert.match(shell, /\{flow && <FlowNav current=\{current\} status=\{flowStatus\} \/>\}/)
   assert.match(
     shell,
@@ -116,6 +117,12 @@ test('RecruitmentShell options: flow, compact and banner default to the earlier 
     selectors.length >= 20 &&
       selectors.every((selector) => selector.startsWith('.zrv-hr--compact')),
   )
+})
+
+test('InsightReport uses the shared responsive report layout', async () => {
+  const report = await read(`${SHARED}InsightReport.jsx`)
+  assert.match(report, /@\/styles\/hr-recruitment-responsive\.css/)
+  assert.match(report, /zrv-ir zrv-ir--fitted zrv-ir--responsive/)
 })
 
 test('RecruitmentLoader options: flow, identify and breadcrumb keep the recruitment defaults', async () => {

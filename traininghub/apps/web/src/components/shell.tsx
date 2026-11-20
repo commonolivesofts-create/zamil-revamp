@@ -299,7 +299,7 @@ function TopBar({ me, onMenu, open }: { me: Me; onMenu: () => void; open: boolea
             )}
           </button>
           {menu === 'bell' && (
-            <div className="absolute right-0 top-11 w-[340px] animate-pop rounded-2xl border border-line bg-surface shadow-pop">
+            <div className="th-notification-menu absolute right-0 top-11 w-[340px] animate-pop rounded-2xl border border-line bg-surface shadow-pop">
               <div className="flex items-center border-b border-line-2 px-4 py-2.5">
                 <b className="flex-1 text-[12.5px]">Notifications</b>
                 <button

@@ -17,6 +17,7 @@ import {
 } from '../shared/components/InsightCards.jsx'
 import { OfferReportActions } from './OfferReportActions.jsx'
 import { OfferPreview } from './OfferPreview.jsx'
+import '@/styles/hr-offer-report.css'
 
 const BASE = '/hr/recruitment/offer'
 const R = T.report

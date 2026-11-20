@@ -659,7 +659,12 @@ function Report({ departments }) {
                 {T.table.legend.left}
               </span>
             </div>
-            <div className={`zrv-hr-rp-tablewrap${compact ? ' zrv-hr-is-compact' : ''}`}>
+            <div
+              className={`zrv-hr-rp-tablewrap${compact ? ' zrv-hr-is-compact' : ''}`}
+              tabIndex={0}
+              role="region"
+              aria-label={T.table.caption}
+            >
               <table className="zrv-hr-rp-table">
                 <caption className="zrv-hr-sr">{T.table.caption}</caption>
                 <thead>
