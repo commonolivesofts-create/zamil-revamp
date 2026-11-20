@@ -43,7 +43,52 @@ const only = (query, keys) =>
 // Counts of list queries (page size 1, the total only); one load asks the
 // server once per distinct query. `countIn` limits a date window to the
 // report's own date filter.
-function counter(list, signal) {
+function createRequestGate(maxConcurrent) {
+  let active = 0
+  const queue = []
+  const abortError = () =>
+    Object.assign(new Error('The request was cancelled.'), {
+      name: 'AbortError',
+    })
+  const drain = () => {
+    while (active < maxConcurrent && queue.length) {
+      const entry = queue.shift()
+      entry.signal?.removeEventListener('abort', entry.onAbort)
+      if (entry.signal?.aborted) {
+        entry.reject(abortError())
+        continue
+      }
+      active += 1
+      Promise.resolve()
+        .then(entry.run)
+        .then(entry.resolve, entry.reject)
+        .finally(() => {
+          active -= 1
+          drain()
+        })
+    }
+  }
+  return (run, signal) =>
+    new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(abortError())
+        return
+      }
+      const entry = { run, signal, resolve, reject }
+      entry.onAbort = () => {
+        const index = queue.indexOf(entry)
+        if (index !== -1) {
+          queue.splice(index, 1)
+          reject(abortError())
+        }
+      }
+      signal?.addEventListener('abort', entry.onAbort, { once: true })
+      queue.push(entry)
+      drain()
+    })
+}
+
+function counter(list, signal, requestGate) {
   const memo = new Map()
   const count = (query) => {
     const clean = Object.entries(query)
@@ -53,8 +98,12 @@ function counter(list, signal) {
     if (!memo.has(key))
       memo.set(
         key,
-        list({ ...Object.fromEntries(clean), page: 1, limit: 1 }, { signal }).then(
-          (result) => result.pagination.total,
+        requestGate(
+          () =>
+            list({ ...Object.fromEntries(clean), page: 1, limit: 1 }, { signal }).then(
+              (result) => result.pagination.total,
+            ),
+          signal,
         ),
       )
     return memo.get(key)
@@ -109,6 +158,18 @@ export function InsightReport({
   groups: groupsOf = [],
   summary,
   renderDetail,
+  highlight = null,
+  highlightLabel = 'Suggestions',
+  // A first-class action that opens another page (for example the standalone
+  // Hiring suggestions page) instead of expanding a panel inside the report.
+  // headerLink: { to, label, icon?, title? }
+  headerLink = null,
+  // Optional row selection for reports whose rows can be compared: a leading
+  // checkbox column and the page's own tools beside the table heading.
+  // rowSelection: { selectedKeys, onToggle(row), max?, label?(row),
+  //   disabled?(row) → reason }
+  rowSelection = null,
+  tableTools = null,
   closeInDetail = false,
   resizableDrawer = false,
   breadcrumb = COMMON_TEXT.breadcrumb,
@@ -124,6 +185,7 @@ export function InsightReport({
   const permissions = usePermissions()
   const canCreate = create && (!create.permission || permissions.can(create.permission))
   const fieldKeys = fields.map((field) => field.key)
+  const [highlightOpen, setHighlightOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [errors, setErrors] = useState({})
   const [draft, setDraft] = useState(() => only(initial, fieldKeys))
@@ -131,6 +193,8 @@ export function InsightReport({
   const [sort, setSort] = useState(defaultSort)
   const [page, setPage] = useState(1)
   const reportRef = useRef(null)
+  const countRequestGate = useRef(null)
+  if (countRequestGate.current == null) countRequestGate.current = createRequestGate(3)
   const [selected, setSelected] = useState(null)
   const [closing, setClosing] = useState(false)
   const closeTimer = useRef(0)
@@ -161,7 +225,7 @@ export function InsightReport({
   const overview = useResource(
     `${resourceKey}:overview:${JSON.stringify(query)}:${today}`,
     (signal) => {
-      const { count, countIn } = counter(list, signal)
+      const { count, countIn } = counter(list, signal, countRequestGate.current)
       return Promise.all(
         cards.map((card) =>
           card.load({
@@ -178,7 +242,7 @@ export function InsightReport({
   const breakdown = useResource(
     groups.length ? `${resourceKey}:breakdown:${JSON.stringify(query)}` : null,
     async (signal) => {
-      const { count } = counter(list, signal)
+      const { count } = counter(list, signal, countRequestGate.current)
       return Promise.all(
         groups.map((group) =>
           Promise.all(
@@ -350,6 +414,27 @@ export function InsightReport({
           {subtitle && <p className="zrv-hr-sub">{subtitle}</p>}
         </div>
         <div className="zrv-ir-head__actions">
+          {headerLink && (
+            <Link className="zrv-ir-btn" to={headerLink.to} title={headerLink.title}>
+              <OrvexaIcon name={headerLink.icon || 'arrow-up-right'} size={16} />
+              {headerLink.label}
+            </Link>
+          )}
+          {highlight && (
+            <button
+              type="button"
+              className={`zrv-ir-btn zrv-ir-btn--suggestions${highlightOpen ? ' zrv-ir-is-on' : ''}`}
+              aria-expanded={highlightOpen}
+              aria-controls={`${id}-highlight`}
+              onClick={() => setHighlightOpen((value) => !value)}
+            >
+              <OrvexaIcon name="badge-check" size={16} />
+              {highlightLabel}
+              <span className="zrv-ir-btn__chevron" aria-hidden="true">
+                <OrvexaIcon name="chevron-down" size={14} />
+              </span>
+            </button>
+          )}
           {records.data?.loadedAt && (
             <span className="zrv-ir-stamp" role="status">
               <i aria-hidden="true" />
@@ -422,6 +507,12 @@ export function InsightReport({
             {T.close}
           </button>
         </p>
+      )}
+
+      {highlight && (
+        <div id={`${id}-highlight`} className="zrv-ir-highlight" hidden={!highlightOpen}>
+          {highlightOpen && highlight}
+        </div>
       )}
 
       <div
@@ -550,6 +641,7 @@ export function InsightReport({
         <section className="zrv-ir-card zrv-ir-stream" aria-labelledby={`${id}-heading`}>
           <header className="zrv-ir-card__head">
             <h2 id={`${id}-heading`}>{heading}</h2>
+            {tableTools && <div className="zrv-ir-tabletools">{tableTools}</div>}
           </header>
           <ResourceState
             resource={records}
@@ -595,23 +687,29 @@ export function InsightReport({
                   aria-busy={records.refreshing || undefined}
                 >
                   <table
-                    className={`zrv-ir-table zrv-report-table${columns.length > 10 ? ' zrv-ir-table--wide' : ''}`}
+                    className={`zrv-ir-table zrv-report-table${columns.length > 10 ? ' zrv-ir-table--wide' : ''}${rowSelection ? ' zrv-ir-table--picks' : ''}`}
                   >
                     <caption className="zrv-hr-sr">{heading}</caption>
                     <colgroup>
+                      {rowSelection && <col style={{ width: '44px' }} />}
                       {columns.map((column) => (
                         <col
                           key={column.key}
                           style={{
                             width: fixedColumnWidth(column)
                               ? `${fixedColumnWidth(column)}px`
-                              : `calc((100% - ${fixedWidth}px) * ${columnWeight(column) / totalWeight})`,
+                              : `calc((100% - ${fixedWidth + (rowSelection ? 44 : 0)}px) * ${columnWeight(column) / totalWeight})`,
                           }}
                         />
                       ))}
                     </colgroup>
                     <thead>
                       <tr>
+                        {rowSelection && (
+                          <th scope="col" className="zrv-ir-col-pick">
+                            <span className="zrv-hr-sr">Select for comparison</span>
+                          </th>
+                        )}
                         {columns.map((column) => (
                           <th
                             key={column.key}
@@ -651,6 +749,35 @@ export function InsightReport({
                           }
                           onClick={() => open(row)}
                         >
+                          {rowSelection &&
+                            (() => {
+                              const key = rowKey(row)
+                              const picked = rowSelection.selectedKeys.includes(key)
+                              const atLimit =
+                                !picked &&
+                                rowSelection.selectedKeys.length >= (rowSelection.max ?? Infinity)
+                              const blocked = picked ? null : rowSelection.disabled?.(row)
+                              return (
+                                <td
+                                  className="zrv-ir-col-pick"
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={picked}
+                                    disabled={atLimit || Boolean(blocked)}
+                                    onChange={() => rowSelection.onToggle(row)}
+                                    title={
+                                      blocked ||
+                                      (atLimit
+                                        ? `Compare up to ${rowSelection.max} assessments at a time`
+                                        : undefined)
+                                    }
+                                    aria-label={`Select ${rowSelection.label?.(row) ?? key} for comparison`}
+                                  />
+                                </td>
+                              )
+                            })()}
                           <td className={`zrv-ir-col-${first.key}`}>
                             <button
                               type="button"
