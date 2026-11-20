@@ -92,6 +92,9 @@
   color: #172b23;
   font: inherit;
 }
+.zrv-offer-letter__table-wrap {
+  min-width: 0;
+}
 .zrv-offer-letter__number {
   width: 6%;
 }
@@ -260,7 +263,32 @@
 }
 @media (max-width: 420px) {
   .zrv-ir-offer-preview__bar {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 44px;
+    gap: 6px;
+  }
+
+  .zrv-ir-offer-preview__bar .zrv-ir-offer-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .zrv-ir-offer-preview__bar .zrv-ir-offer-actions .zrv-ir-btn {
+    min-width: 0;
+    min-height: 44px;
+    justify-content: center;
+    padding-inline: 5px;
+  }
+
+  .zrv-ir-offer-preview__bar .zrv-hr-rp-drawer__x {
+    grid-column: 3;
+    grid-row: 1;
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
   }
 }
 .zrv-ir-offer-preview .zrv-ir-offer-actions {
@@ -279,6 +307,66 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
+}
+
+@media (max-width: 640px) {
+  .zrv-ir-offer-preview,
+  .zrv-ir-offer-preview__bar {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .zrv-ir-offer-preview article.zrv-offer-letter {
+    gap: 8px;
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .zrv-ir-offer-preview .zrv-hr-seg button,
+  .zrv-ir-offer-preview__bar .zrv-ir-offer-actions .zrv-ir-btn {
+    min-height: 44px;
+  }
+
+  .zrv-ir-offer-preview .zrv-offer-letter__header {
+    grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .zrv-ir-offer-preview .zrv-offer-letter__company {
+    font-size: 11px;
+  }
+
+  .zrv-ir-offer-preview .zrv-offer-letter__table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .zrv-ir-offer-preview article[data-lang='bi'] .zrv-offer-letter__table {
+    width: 480px;
+    min-width: 480px;
+  }
+
+  .zrv-ir-offer-preview article:is([data-lang='en'], [data-lang='ar']) .zrv-offer-letter__table {
+    width: 340px;
+    min-width: 340px;
+  }
+
+  .zrv-ir-offer-preview .zrv-offer-letter__acceptance {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .zrv-ir-offer-preview .zrv-offer-letter__signatures {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 14px 8px;
+  }
+
+  .zrv-ir-offer-preview .zrv-offer-letter__signatures > div {
+    width: calc(50% - 4px);
+  }
 }
 
 /* Letter-shaped placeholder while the saved offer is loading. */

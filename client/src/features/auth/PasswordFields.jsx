@@ -18,6 +18,7 @@ export const PasswordInput = forwardRef(function PasswordInput(
     labelAddon,
     leadingIcon,
     placeholder,
+    inputClassName = 'ux-input',
   },
   ref,
 ) {
@@ -35,7 +36,7 @@ export const PasswordInput = forwardRef(function PasswordInput(
         <input
           ref={ref}
           id={id}
-          className="ux-input"
+          className={inputClassName}
           type={visible ? 'text' : 'password'}
           autoComplete={autoComplete}
           autoCapitalize="none"
@@ -80,7 +81,10 @@ export function PasswordPolicyChecklist({ id, policy, password }) {
           const met = Boolean(password) && rule.met(password)
           return (
             <li key={rule.code} className={met ? 'is-met' : undefined}>
-              <OrvexaIcon name={met ? 'circle-check' : 'circle'} className="size-3.5" />
+              <OrvexaIcon
+                name={met ? 'check-square' : 'square'}
+                className="zrv-password-policy-checkbox"
+              />
               <span>
                 {rule.label}
                 <span className="sr-only">{met ? ' (met)' : ' (not met)'}</span>

@@ -41,7 +41,7 @@ export const Button = forwardRef<
       type="button"
       disabled={disabled || loading}
       className={cn(
-        'inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-[10px] border font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
+        'th-button inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-[10px] border font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
         size === 'sm' ? 'h-7 px-2.5 text-[11.5px]' : 'h-9 px-3.5 text-[12.5px]',
         VARIANTS[variant],
         className,
@@ -61,7 +61,7 @@ export function Card({
   ...rest
 }: { className?: string; children: ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('rounded-card border border-line bg-surface shadow-card', className)} {...rest}>
+    <div className={cn('min-w-0 rounded-card border border-line bg-surface shadow-card', className)} {...rest}>
       {children}
     </div>
   );
@@ -401,7 +401,7 @@ export function Field({
   );
 }
 const inputCls =
-  'w-full rounded-[9px] border border-line bg-surface px-2.5 py-2 text-[12.5px] outline-none transition placeholder:text-fine focus:border-req focus:ring-2 focus:ring-req/15 aria-[invalid=true]:border-bad';
+  'th-control min-w-0 max-w-full w-full rounded-[9px] border border-line bg-surface px-2.5 py-2 text-[12.5px] outline-none transition placeholder:text-fine focus:border-req focus:ring-2 focus:ring-req/15 aria-[invalid=true]:border-bad';
 export const Input = forwardRef<
   HTMLInputElement,
   InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }
@@ -566,13 +566,13 @@ export function Modal({
         />
         <Dialog.Content
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 flex max-h-[90dvh] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 animate-pop flex-col rounded-[18px] border border-line bg-surface shadow-pop',
+            'th-dialog fixed left-1/2 top-1/2 z-50 flex max-h-[90dvh] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 animate-pop flex-col rounded-[18px] border border-line bg-surface shadow-pop',
             wide ? 'max-w-3xl' : 'max-w-lg',
             drawer && 'th-drawer-content',
             aboveDrawer && 'z-[71]',
           )}
         >
-          <div className="flex items-start gap-3 border-b border-line-2 px-5 py-4">
+          <div className="flex shrink-0 items-start gap-3 border-b border-line-2 px-5 py-4">
             <div className="min-w-0 flex-1">
               <Dialog.Title className="text-[15px] font-bold">{title}</Dialog.Title>
               {sub ? (
@@ -585,9 +585,9 @@ export function Modal({
               <X className="size-4" />
             </Dialog.Close>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 scroll-thin">{children}</div>
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4 scroll-thin">{children}</div>
           {footer && (
-            <div className="flex flex-wrap justify-end gap-2 border-t border-line-2 px-5 py-3">{footer}</div>
+            <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-line-2 px-5 py-3">{footer}</div>
           )}
         </Dialog.Content>
       </Dialog.Portal>
@@ -620,7 +620,7 @@ export function Table({
   const visibleRows = pageSize ? rows.slice((currentPage - 1) * pageSize, currentPage * pageSize) : rows;
   return (
     <div className={cn('th-report-table', className)}>
-      <div className="overflow-x-auto scroll-thin">
+      <div className="min-w-0 max-w-full overflow-x-auto scroll-thin" tabIndex={0} role="region" aria-label={pagerLabel ?? 'Report table'}>
         <table className="w-full border-collapse text-left text-[12px]">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-wide text-fine">

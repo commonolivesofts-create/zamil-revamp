@@ -1,0 +1,543 @@
+/* Shared responsive contract for every RecruitmentShell form and InsightReport.
+   Page styles should add only content-specific rules to these shell patterns. */
+.zrv-hr--responsive,
+.zrv-hr--responsive .zrv-hr-form-header > *,
+.zrv-hr--responsive .zrv-hr-toolbar > *,
+.zrv-hr--responsive .zrv-hr-body > *,
+.zrv-hr--responsive .zrv-hr-field,
+.zrv-hr--responsive .zrv-hr-input,
+.zrv-ir--responsive,
+.zrv-ir--responsive .zrv-ir-head,
+.zrv-ir--responsive .zrv-ir-head__title,
+.zrv-ir--responsive .zrv-ir-head__actions,
+.zrv-ir--responsive .zrv-ir-filters,
+.zrv-ir--responsive .zrv-ir-card__head,
+.zrv-ir--responsive .zrv-ir-pager,
+.zrv-ir--responsive .zrv-ir-tabletools {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.zrv-hr--responsive .zrv-hr-grid.zrv-hr-is-3,
+.zrv-hr--responsive .zrv-hr-grid.zrv-hr-is-4 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+}
+
+.zrv-hr--responsive .zrv-hr-tools button,
+.zrv-hr--responsive .zrv-hr-track__step,
+.zrv-hr--responsive .zrv-hr-stage__nav .zrv-hr-btn {
+  min-height: 44px;
+}
+
+.zrv-hr--responsive .zrv-hr-review,
+.zrv-hr--responsive .zrv-hr-exp__track,
+.zrv-hr--responsive .zrv-hr-choices {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.zrv-hr--responsive :is(.zrv-hr-title, .zrv-hr-review dd, .zrv-hr-orbit small) {
+  overflow-wrap: anywhere;
+}
+
+.zrv-ir--responsive .zrv-ir-tablewrap {
+  min-width: 0;
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.zrv-ir--responsive .zrv-ir-mobile-sort {
+  display: none;
+}
+
+/* Shared wide reports (more than ten columns) switch to labelled record
+   cards before laptop widths become cramped. InsightReport marks these tables
+   automatically, so each module inherits the same breakpoint and layout. */
+@media (min-width: 901px) and (max-width: 1280px) {
+  .zrv-ir--responsive .zrv-ir-table--wide,
+  .zrv-ir--responsive .zrv-ir-table--wide thead,
+  .zrv-ir--responsive .zrv-ir-table--wide tbody {
+    display: block;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide colgroup {
+    display: none;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide thead {
+    overflow-x: auto;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide thead tr {
+    display: flex;
+    width: max-content;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide th {
+    position: static;
+    flex: none;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--row) 7%, transparent);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--row) 55%, transparent);
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide tbody tr:hover {
+    background: color-mix(in srgb, var(--row) 14%, transparent);
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide tbody tr.zrv-ir-is-on {
+    background: color-mix(in srgb, var(--row) 20%, transparent);
+    box-shadow: inset 4px 0 0 var(--row);
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide tbody td,
+  .zrv-ir--responsive .zrv-ir-table--wide tbody :is(td, tr:hover td, tr.zrv-ir-is-on td) {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    overflow-wrap: anywhere;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide tbody td:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table--wide tbody td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Rows already repeat their column labels as cards. Replace the compressed
+     table heading with one predictable, touch-friendly sorting control. */
+  .zrv-ir--responsive .zrv-ir-mobile-sort {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  }
+
+  .zrv-ir--responsive .zrv-ir-mobile-sort label {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .zrv-ir--responsive .zrv-ir-mobile-sort select {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-solid);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+
+  .zrv-ir--responsive .zrv-ir-mobile-sort__direction {
+    min-width: 124px;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table thead {
+    display: none;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table tbody td:last-child :is(a, button, .zrv-ir-btn) {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 900px) {
+  .zrv-hr--responsive .zrv-hr-toolbar {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .zrv-hr--responsive .zrv-hr-tools,
+  .zrv-hr--responsive .zrv-hr-toolbar__actions {
+    flex: 1 1 100%;
+  }
+
+  .zrv-hr--responsive .zrv-hr-toolbar__actions {
+    justify-content: flex-end;
+  }
+
+  .zrv-hr--responsive .zrv-hr-side {
+    flex-basis: 100%;
+  }
+
+  .zrv-ir--responsive .zrv-ir-head {
+    align-items: stretch;
+  }
+
+  .zrv-ir--responsive .zrv-ir-head__actions {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .zrv-hr--responsive {
+    gap: 12px;
+  }
+
+  .zrv-hr--responsive .zrv-hr-form-header {
+    gap: 10px;
+  }
+
+  .zrv-hr--responsive .zrv-hr-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+    border-radius: 16px;
+  }
+
+  .zrv-hr--responsive .zrv-hr-tools {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr));
+    gap: 6px;
+    width: 100%;
+  }
+
+  .zrv-hr--responsive .zrv-hr-tools button {
+    justify-content: center;
+    gap: 7px;
+    min-width: 0;
+    min-height: 44px;
+    padding: 7px 8px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-solid);
+    font-size: 12px;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .zrv-hr--responsive .zrv-hr-tools button span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .zrv-hr--responsive .zrv-hr-toolbar__actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .zrv-hr--responsive .zrv-hr-toolbar__actions > :is(.btn-primary, .btn-secondary) {
+    width: 100%;
+    min-width: 0;
+    min-height: 48px !important;
+    padding-inline: 12px !important;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .zrv-hr--responsive .zrv-hr-track {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .zrv-hr--responsive .zrv-hr-track__step {
+    min-width: 0;
+    min-height: 48px;
+    padding: 6px 3px;
+  }
+
+  .zrv-hr--responsive .zrv-hr-track__n {
+    flex: none;
+  }
+
+  .zrv-hr--responsive .zrv-hr-stage__nav {
+    gap: 8px;
+    padding-block: 10px;
+  }
+
+  .zrv-hr--responsive .zrv-hr-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zrv-hr--responsive .zrv-hr-stage__nav .zrv-hr-btn {
+    min-height: 48px;
+    padding-inline: 12px !important;
+  }
+
+  .zrv-hr--responsive .zrv-hr-review {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zrv-ir--responsive {
+    --ir-gap: 10px;
+  }
+
+  .zrv-ir--responsive .zrv-ir-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .zrv-ir--responsive .zrv-ir-head__title {
+    overflow-wrap: anywhere;
+  }
+
+  .zrv-ir--responsive .zrv-ir-head__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 7px;
+  }
+
+  .zrv-ir--responsive .zrv-ir-head__actions > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .zrv-ir--responsive .zrv-ir-head__actions > .zrv-ir-stamp,
+  .zrv-ir--responsive .zrv-ir-head__actions > .zrv-ir-btn--primary {
+    grid-column: 1 / -1;
+  }
+
+  .zrv-ir--responsive .zrv-ir-stamp {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .zrv-ir--responsive .zrv-ir-head__actions > .zrv-ir-btn,
+  .zrv-ir--responsive .zrv-ir-filters__actions .zrv-ir-btn,
+  .zrv-ir--responsive .zrv-ir-tabletools .zrv-ir-btn,
+  .zrv-ir--responsive .zrv-ir-drawer__actions > .zrv-ir-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 7px 9px;
+    white-space: normal;
+    line-height: 1.25;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .zrv-ir--responsive .zrv-ir-filters {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .zrv-ir--responsive .zrv-ir-field select,
+  .zrv-ir--responsive .zrv-ir-field input,
+  .zrv-ir--responsive .zrv-ir-search {
+    min-height: 44px;
+    height: auto;
+  }
+
+  .zrv-ir--responsive .zrv-ir-search input {
+    min-height: 42px;
+    height: 42px;
+  }
+
+  .zrv-ir--responsive .zrv-ir-filters__actions,
+  .zrv-ir--responsive .zrv-ir-tabletools {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .zrv-ir--responsive .zrv-ir-filters__actions {
+    grid-column: 1 / -1;
+  }
+
+  .zrv-ir--responsive .zrv-ir-tabletools__count {
+    grid-column: 1 / -1;
+  }
+
+  .zrv-ir--responsive .zrv-ir-card__head {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .zrv-ir--responsive .zrv-ir-tablewrap {
+    overflow-x: auto;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table tbody tr {
+    padding-inline: 12px;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table tbody td:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .zrv-ir--responsive .zrv-ir-table tbody td:last-child .zrv-ir-btn {
+    min-height: 44px;
+  }
+
+  .zrv-ir--responsive .zrv-ir-num {
+    min-height: 44px;
+    text-align: start;
+  }
+
+  .zrv-ir--responsive .zrv-ir-pager {
+    align-items: flex-start;
+    padding-inline: 12px;
+  }
+
+  .zrv-ir--responsive .zrv-ir-pager__nav {
+    gap: 5px;
+    margin-inline-start: 0;
+  }
+
+  .zrv-ir--responsive .zrv-ir-pager__nav button {
+    min-width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 420px) {
+  .zrv-hr--responsive .zrv-hr-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zrv-hr--responsive .zrv-hr-toolbar__actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zrv-hr--responsive .zrv-hr-stage__nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zrv-hr--responsive .zrv-hr-stage__nav .zrv-hr-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .zrv-hr--responsive .zrv-hr-dots {
+    display: none;
+  }
+
+  .zrv-ir--responsive .zrv-ir-head__actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zrv-ir--responsive .zrv-ir-tabletools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zrv-ir--responsive .zrv-ir-head__actions > .zrv-ir-stamp,
+  .zrv-ir--responsive .zrv-ir-head__actions > .zrv-ir-btn--primary {
+    grid-column: 1 / -1;
+  }
+
+  .zrv-ir--responsive .zrv-ir-tabletools__count {
+    grid-column: auto;
+  }
+
+  .zrv-ir--responsive .zrv-ir-pager {
+    flex-direction: column;
+  }
+}
+
+/* The report preview's plain drawer used to stay fixed at 440px while the
+   resizable details drawer alone got responsive sizing. Give both variants
+   the same useful reading width, bounded by the viewport. */
+.zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog {
+  box-sizing: border-box;
+  width: min(var(--zrv-ir-drawer-width, 680px), calc(100vw - 24px));
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
+    height: 100dvh;
+    padding: max(12px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  }
+
+  .zrv-ir-drawer .zrv-hr-rp-drawer__x {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .zrv-ir-drawer__body {
+    min-width: 0;
+    gap: 10px;
+    overscroll-behavior: contain;
+  }
+
+  .zrv-ir-drawer__actions > .zrv-ir-btn,
+  .zrv-ir-offer-actions .zrv-ir-btn {
+    min-height: 44px;
+  }
+
+  .zrv-ir-offer-preview .zrv-ir-offer-actions {
+    flex-wrap: wrap;
+  }
+
+  .zrv-ir-drawer .zrv-ir-offer-preview__bar .zrv-hr-rp-drawer__x {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (pointer: coarse) {
+  .zrv-hr--responsive .zrv-hr-tools button,
+  .zrv-hr--responsive .zrv-hr-track__step,
+  .zrv-hr--responsive .zrv-hr-stage__nav .zrv-hr-btn,
+  .zrv-ir--responsive .zrv-ir-pager__nav button {
+    min-height: 44px;
+  }
+
+  .zrv-ir--responsive .zrv-ir-pager__nav button {
+    min-width: 44px;
+  }
+}

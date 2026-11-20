@@ -20,7 +20,7 @@ export function DropdownMenuContent({
         sideOffset={sideOffset}
         align={align}
         className={cn(
-          'z-50 min-w-56 overflow-hidden rounded-card border border-border bg-surface p-1.5 text-ink shadow-raised',
+          'z-50 min-w-56 overflow-y-auto [max-inline-size:calc(100vw-16px)] [max-block-size:var(--radix-dropdown-menu-content-available-height)] rounded-card border border-border bg-surface p-1.5 text-ink shadow-raised',
           'origin-(--radix-dropdown-menu-content-transform-origin) motion-safe:animate-pop',
           className,
         )}
