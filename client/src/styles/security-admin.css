@@ -604,6 +604,9 @@
 }
 .zrv-dialog {
   width: min(100%, 520px);
+  min-width: 0;
+  flex-shrink: 0;
+  overflow-wrap: anywhere;
   margin: auto;
   padding: clamp(18px, 3vw, 26px);
   border: 1px solid var(--line);
@@ -646,6 +649,11 @@
   width: auto;
 }
 @media (max-width: 520px) {
+  .zrv-admin-dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
   .zrv-dialog__actions > * {
     flex: 1;
   }

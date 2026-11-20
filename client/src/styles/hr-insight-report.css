@@ -669,7 +669,7 @@
 }
 .zrv-ir-filters {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
   align-items: end;
   gap: 10px 12px;
   padding: 12px 14px;
@@ -997,7 +997,7 @@
   gap: 6px;
   margin-top: auto;
 }
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .zrv-ir-legend {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1955,7 +1955,7 @@
 /* Breakdown card: its groups side by side, each row a label and count over a thin bar */
 .zrv-ir-breaks {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 110px), 1fr));
   gap: 4px 12px;
   margin-top: auto;
 }
@@ -2075,6 +2075,10 @@
 
 .zrv-ir-tablewrap {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   border-top: 1px solid var(--line);
 }
 .zrv-ir-table {
@@ -2761,7 +2765,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .zrv-ir-tabletools {
     min-width: 0;
     max-width: 100%;
@@ -2901,6 +2905,7 @@
     min-width: 0;
   }
 }
+
 .zrv-ir-offer-actions {
   display: flex;
   flex-wrap: wrap;
@@ -3216,7 +3221,7 @@
    requisition. Opening a card drops its evidence panel into the same grid, so
    the detail appears where the reader clicked and nothing else grows. */
 .zrv-ia-suggestions__grid {
-  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 232px), 1fr));
   gap: 9px;
 }
 .zrv-ia-card {
@@ -3375,7 +3380,7 @@
 /* Candidate cards: identity, both score bands, and the decision. */
 .zrv-ia-cands {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 258px), 1fr));
   gap: 8px;
 }
 .zrv-ia-cand {
@@ -3497,4 +3502,66 @@
 .zrv-ir-band__track b {
   background: color-mix(in srgb, var(--text) 18%, transparent);
   box-shadow: none;
+}
+
+@media screen and (max-width: 900px) {
+  .zrv-ir-table {
+    min-width: 680px;
+  }
+  .zrv-ir--fitted .zrv-ir-tablewrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+}
+
+/* Keep the card-style report table genuinely viewport-width at phone and
+   narrow tablet sizes; the separate sort strip provides horizontal access
+   to every column heading without widening each record card. */
+@media screen and (max-width: 900px) {
+  .zrv-ir .zrv-ir-table {
+    width: 100%;
+    min-width: 0;
+  }
+  .zrv-ir .zrv-ir-table tbody tr,
+  .zrv-ir .zrv-ir-table tbody td {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .zrv-ir .zrv-ir-table tbody td {
+    overflow-wrap: anywhere;
+  }
+  .zrv-ir .zrv-ir-table th button {
+    min-height: 44px;
+  }
+  .zrv-ir .zrv-ir-table tbody td:first-child .zrv-ir-num {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+    text-align: start;
+  }
+  .zrv-ir .zrv-ir-table--picks tbody tr {
+    grid-template-columns: 34px repeat(2, minmax(0, 1fr));
+  }
+  .zrv-ir .zrv-ir-table--picks tbody td.zrv-ir-col-pick {
+    grid-column: 1;
+    grid-row: 1;
+    display: grid;
+    place-items: center;
+  }
+  .zrv-ir .zrv-ir-table--picks tbody td:nth-child(2) {
+    grid-column: 2 / -1;
+  }
+  .zrv-ir .zrv-ir-table--picks tbody td.zrv-ir-col-pick input {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .zrv-ir .zrv-ir-table--picks tbody tr {
+    grid-template-columns: 30px repeat(2, minmax(0, 1fr));
+    gap: 7px 8px;
+  }
 }

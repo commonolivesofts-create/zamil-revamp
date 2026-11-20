@@ -18,6 +18,7 @@ import {
   Splits,
 } from '../shared/components/InsightCards.jsx'
 import { MAX_COMPARE, requisitionOf } from './interviewComparisonModel.js'
+import '@/styles/hr-interview-responsive.css'
 
 const BASE = '/hr/recruitment/interview'
 const R = T.report

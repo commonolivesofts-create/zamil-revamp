@@ -72,6 +72,7 @@ export function OfferLetter({ form, language = 'bi', focusRow, printSource = fal
       >
         {T.letterAr.offer} ({placeholder(form.position)}) {T.letterAr.terms}
       </p>
+      <div className="zrv-offer-letter__table-wrap">
       <table className="zrv-offer-letter__table">
         <colgroup>
           <col className="zrv-offer-letter__number" data-l="en" />
@@ -120,6 +121,7 @@ export function OfferLetter({ form, language = 'bi', focusRow, printSource = fal
           ))}
         </tbody>
       </table>
+      </div>
       <div className="zrv-offer-letter__acceptance">
         <p data-l="en">
           Please signify your acceptance by signing this offer and return copy to our Administration

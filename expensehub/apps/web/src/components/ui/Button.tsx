@@ -7,7 +7,7 @@ import { Spinner } from './Spinner';
 
 const buttonVariants = cva(
   [
-    'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap font-medium',
+    'eh-button inline-flex select-none items-center justify-center gap-2 whitespace-nowrap font-medium',
     'transition-[background-color,color,box-shadow,transform] duration-150 ease-out',
     'active:translate-y-px disabled:pointer-events-none disabled:opacity-50',
     '[&_svg]:size-4 [&_svg]:shrink-0',

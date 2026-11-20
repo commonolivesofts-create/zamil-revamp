@@ -6,6 +6,7 @@ import { COMMON_TEXT, FLOW_TEXT } from '../../hrRecruitmentText.js'
 import { titleWords } from '../hrFormat.js'
 import { RECRUITMENT_FLOW as FLOW } from '../recruitmentFlow.js'
 import '@/styles/hr-recruitment.css'
+import '@/styles/hr-recruitment-responsive.css'
 import { RecruitmentToast } from './RecruitmentToast.jsx'
 import { RecruitmentPending } from './RecruitmentPending.jsx'
 
@@ -191,7 +192,7 @@ export function RecruitmentShell({
 
   return (
     <div
-      className={`zrv-hr zrv-hr--${current}${compact ? ' zrv-hr--compact' : ''}`}
+      className={`zrv-hr zrv-hr--${current} zrv-hr--responsive${compact ? ' zrv-hr--compact' : ''}`}
       dir={dir}
       aria-busy={pending || undefined}
       inert={pending ? true : undefined}

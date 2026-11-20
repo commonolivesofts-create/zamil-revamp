@@ -4200,6 +4200,7 @@ html:not(.dark) .zrv-ws .zamil-core {
     grid-template-columns: 1fr;
   }
 }
+
 @media (max-width: 650px) {
   .zrv-ws .hero-meta {
     margin-bottom: 29px;
@@ -8880,5 +8881,273 @@ html[data-accent-theme='yellow'] .hero-photo-reset-backdrop .zrv-dialog__actions
 
   .zrv-ws .book-hr-workspace {
     gap: 6px;
+  }
+}
+
+/* Keep the dashboard hero stacked until the app shell has room for both
+   columns alongside its desktop sidebar. */
+@media (min-width: 1271px) and (max-width: 1400px) {
+  .zrv-ws .gateway-layout {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    gap: 0;
+  }
+
+  .zrv-ws .gateway-copy {
+    max-width: 790px;
+  }
+
+  .zrv-ws .book-visual {
+    width: 100%;
+    max-width: 920px;
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 650px) {
+  .zrv-ws .book-chapter {
+    min-height: 56px;
+    padding-inline: 3px;
+  }
+
+  .zrv-ws .book-chapter strong {
+    font-size: clamp(9px, 2.5vw, 11px);
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Avoid transformed text layers on phones; they can soften small folio copy on
+   mobile GPUs even when the decorative parent perspective has been removed. */
+@media (max-width: 1180px) {
+  .zrv-ws .book-scene,
+  .zrv-ws .book-stack {
+    transform: none !important;
+    transform-style: flat;
+    filter: none !important;
+  }
+
+  .zrv-ws .book-scene {
+    animation: none !important;
+  }
+
+  .zrv-ws .book-leaf,
+  .zrv-ws .book-leaf.is-active,
+  .zrv-ws .book-leaf.is-active:hover {
+    backface-visibility: visible;
+    filter: none !important;
+    will-change: auto;
+    transform: none !important;
+  }
+}
+
+/* Keep workspace navigation in the mobile folio's normal flow so the tabs
+   sit beneath the active page instead of covering its content. */
+@media (max-width: 650px) {
+  .zrv-ws .book-visual {
+    height: auto;
+    min-height: 0;
+    padding-bottom: 8px;
+  }
+
+  .zrv-ws .book-scene {
+    position: relative;
+    inset: auto;
+    height: auto;
+    margin-top: 70px;
+  }
+
+  .zrv-ws .book-stack {
+    position: relative;
+    inset: auto;
+    width: auto;
+    margin-inline: 9px 16px;
+  }
+
+  .zrv-ws .book-chapters {
+    position: relative;
+    inset: auto;
+    display: grid;
+    width: auto;
+    margin: 12px 2px 0;
+  }
+}
+
+/* Keep the profile and folio side by side on every non-phone layout. The
+   folio switches to a full-width card with a tab row beneath it on tablet and
+   compact laptop widths, where a vertical rail would squeeze the page. */
+@media (min-width: 651px) and (max-width: 1400px) {
+  .zrv-ws .gateway-layout {
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    align-items: start;
+    gap: clamp(12px, 1.8vw, 24px);
+    min-height: 0;
+    margin-bottom: clamp(28px, 4vw, 44px);
+  }
+
+  .zrv-ws .gateway-copy {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .zrv-ws .book-visual {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    height: 700px;
+    margin: 0;
+  }
+}
+
+@media (min-width: 651px) and (max-width: 1180px) {
+  .zrv-ws .book-visual {
+    height: auto;
+    min-height: 0;
+    padding-bottom: 8px;
+    translate: 0 0;
+  }
+
+  .zrv-ws .book-visual.is-hr-workspace {
+    height: auto;
+  }
+
+  .zrv-ws .book-scene {
+    position: relative;
+    inset: auto;
+    height: auto;
+    margin-top: 70px;
+  }
+
+  .zrv-ws .book-stack,
+  .zrv-ws .book-visual .book-stack {
+    position: relative;
+    inset: auto;
+    width: auto;
+    height: clamp(400px, 45vw, 475px);
+    margin-inline: 10px 16px;
+  }
+
+  .zrv-ws .book-visual.is-hr-workspace .book-stack {
+    height: clamp(400px, 45vw, 475px);
+  }
+
+  .zrv-ws .book-chapters {
+    position: relative;
+    inset: auto;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: auto;
+    margin: 12px 2px 0;
+  }
+
+  .zrv-ws .book-visual .book-chapters {
+    top: auto;
+    bottom: auto;
+    right: auto;
+    left: auto;
+    width: auto;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .zrv-ws .book-chapter {
+    flex-direction: column;
+    min-width: 0;
+    min-height: 56px;
+    justify-content: center;
+    padding: 6px 3px;
+    text-align: center;
+  }
+
+  .zrv-ws .book-chapter strong {
+    font-size: clamp(9px, 1.1vw, 11px);
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .zrv-ws .book-chapter small {
+    display: none;
+  }
+}
+
+/* Keep profile content inside its grid track so share actions never intrude
+   into the neighboring folio column. */
+.zrv-ws .gateway-copy,
+.zrv-ws .hero-profile,
+.zrv-ws .hero-profile-copy {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.zrv-ws .hero-profile-copy {
+  width: 100%;
+}
+
+.zrv-ws .hero-profile-details,
+.zrv-ws .hero-profile-social-row {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.zrv-ws .hero-profile-detail {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.zrv-ws .hero-profile-detail strong {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.zrv-ws .hero-profile-social-row .hero-social-fan.is-persistent {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+}
+
+.zrv-ws .hero-profile-social-row .is-persistent .hero-social-fan-menu {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.zrv-ws .hero-profile-photo-actions {
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .zrv-ws .hero-profile-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+
+  .zrv-ws .hero-profile-detail,
+  .zrv-ws .hero-profile-detail:first-child {
+    padding: 0;
+    border: 0;
+  }
+
+  .zrv-ws .hero-profile-detail:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 650px) {
+  .zrv-ws .hero-profile-social-row .hero-social-fan.is-persistent {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .zrv-ws .hero-profile-social-row .is-persistent .hero-social-link {
+    min-height: 38px;
   }
 }
