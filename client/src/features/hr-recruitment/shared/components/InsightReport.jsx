@@ -1,82 +1,71 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
-import OrvexaIcon from "@/components/icons/OrvexaIcon.jsx";
-import usePermissions from "@/features/access/usePermissions.js";
+import { useEffect, useId, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
+import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
+import usePermissions from '@/features/access/usePermissions.js'
 import {
   Badge,
   Dialog,
   ResourceState,
-} from "@/features/security-administration/components/AdminUi.jsx";
-import { cellText, downloadCsv, loadAllRows, printPdf } from "../reportExport.js";
-import { ReportPager } from "./ReportPager.jsx";
-import { useResource } from "@/features/security-administration/useAdminData.js";
-import { COMMON_TEXT, INSIGHT_TEXT as T } from "../../hrRecruitmentText.js";
-import { businessToday } from "../hrFormat.js";
-import { Card } from "./InsightCards.jsx";
-import { clampRange } from "../insightDates.js";
-import "@/styles/hr-recruitment.css";
-import "@/styles/hr-insight-report.css";
-import "@/styles/report-table.css";
-import "@/styles/hr-recruitment-responsive.css";
+} from '@/features/security-administration/components/AdminUi.jsx'
+import { cellText, downloadCsv, loadAllRows, printPdf } from '../reportExport.js'
+import { ReportPager } from './ReportPager.jsx'
+import { useResource } from '@/features/security-administration/useAdminData.js'
+import { COMMON_TEXT, INSIGHT_TEXT as T } from '../../hrRecruitmentText.js'
+import { businessToday } from '../hrFormat.js'
+import { Card } from './InsightCards.jsx'
+import { clampRange } from '../insightDates.js'
+import '@/styles/hr-recruitment.css'
+import '@/styles/hr-insight-report.css'
+import '@/styles/report-table.css'
+import '@/styles/hr-recruitment-responsive.css'
 
-const PAGE_SIZE = 15;
-const DRAWER_EXIT_MS = 320;
-const DRAWER_MIN_WIDTH = 420;
-const DRAWER_STEP = 24;
+const PAGE_SIZE = 15
+const DRAWER_EXIT_MS = 320
+const DRAWER_MIN_WIDTH = 420
+const DRAWER_STEP = 24
 // A widened drawer always leaves a sliver of the page in view.
 const clampDrawerWidth = (value) =>
   Math.round(
-    Math.min(
-      Math.max(value, DRAWER_MIN_WIDTH),
-      Math.max(DRAWER_MIN_WIDTH, window.innerWidth - 24),
-    ),
-  );
+    Math.min(Math.max(value, DRAWER_MIN_WIDTH), Math.max(DRAWER_MIN_WIDTH, window.innerWidth - 24)),
+  )
 const reducedMotion = () =>
-  typeof window !== "undefined" &&
-  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 const clock = (date) =>
-  new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 const omit = (query, keys) =>
-  Object.fromEntries(
-    Object.entries(query).filter(([key]) => !keys.includes(key)),
-  );
+  Object.fromEntries(Object.entries(query).filter(([key]) => !keys.includes(key)))
 const only = (query, keys) =>
-  Object.fromEntries(
-    Object.entries(query).filter(([key]) => keys.includes(key)),
-  );
+  Object.fromEntries(Object.entries(query).filter(([key]) => keys.includes(key)))
 
 // Counts of list queries (page size 1, the total only); one load asks the
 // server once per distinct query. `countIn` limits a date window to the
 // report's own date filter.
 function counter(list, signal) {
-  const memo = new Map();
+  const memo = new Map()
   const count = (query) => {
     const clean = Object.entries(query)
-      .filter(
-        ([, value]) => value !== "" && value !== null && value !== undefined,
-      )
-      .sort(([a], [b]) => a.localeCompare(b));
-    const key = JSON.stringify(clean);
+      .filter(([, value]) => value !== '' && value !== null && value !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b))
+    const key = JSON.stringify(clean)
     if (!memo.has(key))
       memo.set(
         key,
-        list(
-          { ...Object.fromEntries(clean), page: 1, limit: 1 },
-          { signal },
-        ).then((result) => result.pagination.total),
-      );
-    return memo.get(key);
-  };
+        list({ ...Object.fromEntries(clean), page: 1, limit: 1 }, { signal }).then(
+          (result) => result.pagination.total,
+        ),
+      )
+    return memo.get(key)
+  }
   const countIn = (query, range) => {
-    const window = clampRange(range, query);
+    const window = clampRange(range, query)
     return window
       ? count({ ...query, dateFrom: window.from, dateTo: window.to })
-      : Promise.resolve(0);
-  };
-  return { count, countIn };
+      : Promise.resolve(0)
+  }
+  return { count, countIn }
 }
 
 // The recruitment report layout: header and actions, a collapsible filter
@@ -130,29 +119,28 @@ export function InsightReport({
   validate,
   exportable = true,
 }) {
-  const id = useId();
-  const navigate = useNavigate();
-  const permissions = usePermissions();
-  const canCreate =
-    create && (!create.permission || permissions.can(create.permission));
-  const fieldKeys = fields.map((field) => field.key);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [draft, setDraft] = useState(() => only(initial, fieldKeys));
-  const [query, setQuery] = useState(initial);
-  const [sort, setSort] = useState(defaultSort);
-  const [page, setPage] = useState(1);
-  const reportRef = useRef(null);
-  const [selected, setSelected] = useState(null);
-  const [closing, setClosing] = useState(false);
-  const closeTimer = useRef(0);
-  const [exporting, setExporting] = useState(null);
-  const [exportError, setExportError] = useState(null);
-  const today = businessToday();
-  const groups = typeof groupsOf === "function" ? groupsOf(today) : groupsOf;
+  const id = useId()
+  const navigate = useNavigate()
+  const permissions = usePermissions()
+  const canCreate = create && (!create.permission || permissions.can(create.permission))
+  const fieldKeys = fields.map((field) => field.key)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [errors, setErrors] = useState({})
+  const [draft, setDraft] = useState(() => only(initial, fieldKeys))
+  const [query, setQuery] = useState(initial)
+  const [sort, setSort] = useState(defaultSort)
+  const [page, setPage] = useState(1)
+  const reportRef = useRef(null)
+  const [selected, setSelected] = useState(null)
+  const [closing, setClosing] = useState(false)
+  const closeTimer = useRef(0)
+  const [exporting, setExporting] = useState(null)
+  const [exportError, setExportError] = useState(null)
+  const today = businessToday()
+  const groups = typeof groupsOf === 'function' ? groupsOf(today) : groupsOf
   const activeFilters = Object.entries(query).filter(
     ([key, value]) => value && !required.includes(key),
-  ).length;
+  ).length
 
   const records = useResource(
     `${resourceKey}:${JSON.stringify({ query, sort, page })}`,
@@ -169,11 +157,11 @@ export function InsightReport({
       )),
       loadedAt: new Date(),
     }),
-  );
+  )
   const overview = useResource(
     `${resourceKey}:overview:${JSON.stringify(query)}:${today}`,
     (signal) => {
-      const { count, countIn } = counter(list, signal);
+      const { count, countIn } = counter(list, signal)
       return Promise.all(
         cards.map((card) =>
           card.load({
@@ -184,13 +172,13 @@ export function InsightReport({
             omit: (keys) => omit(query, keys),
           }),
         ),
-      );
+      )
     },
-  );
+  )
   const breakdown = useResource(
     groups.length ? `${resourceKey}:breakdown:${JSON.stringify(query)}` : null,
     async (signal) => {
-      const { count } = counter(list, signal);
+      const { count } = counter(list, signal)
       return Promise.all(
         groups.map((group) =>
           Promise.all(
@@ -199,139 +187,142 @@ export function InsightReport({
             ),
           ),
         ),
-      );
+      )
     },
-  );
+  )
 
-  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+  useEffect(() => () => window.clearTimeout(closeTimer.current), [])
 
-  const isActive = (patch) =>
-    Object.entries(patch).every(([key, value]) => query[key] === value);
+  const isActive = (patch) => Object.entries(patch).every(([key, value]) => query[key] === value)
   // Picks a quick filter; picking the active one again clears it (required keys stay).
   const select = (patch) => {
-    const keys = Object.keys(patch);
-    const active = isActive(patch);
-    if (active && keys.every((key) => required.includes(key))) return;
+    const keys = Object.keys(patch)
+    const active = isActive(patch)
+    if (active && keys.every((key) => required.includes(key))) return
     const next = active
-      ? Object.fromEntries(
-          keys.map((key) => [key, required.includes(key) ? query[key] : ""]),
-        )
-      : patch;
-    setQuery((current) => ({ ...current, ...next }));
-    setDraft((current) => ({ ...current, ...only(next, fieldKeys) }));
-    setPage(1);
-  };
+      ? Object.fromEntries(keys.map((key) => [key, required.includes(key) ? query[key] : '']))
+      : patch
+    setQuery((current) => ({ ...current, ...next }))
+    setDraft((current) => ({ ...current, ...only(next, fieldKeys) }))
+    setPage(1)
+  }
   const pick = (patch) => ({
     active: isActive(patch),
     onPick: () => select(patch),
-  });
-  const ctx = { query, today, pick };
+  })
+  const ctx = { query, today, pick }
   const refresh = () => {
-    onRefresh?.();
-    for (const resource of [records, overview, breakdown]) resource.reload();
-  };
+    onRefresh?.()
+    for (const resource of [records, overview, breakdown]) resource.reload()
+  }
   const setDraftValue = (key) => (event) => {
-    setDraft((current) => ({ ...current, [key]: event.target.value }));
-    setErrors((current) => ({ ...current, [key]: undefined }));
-  };
+    setDraft((current) => ({ ...current, [key]: event.target.value }))
+    setErrors((current) => ({ ...current, [key]: undefined }))
+  }
   const apply = (event) => {
-    event.preventDefault();
+    event.preventDefault()
     const found = Object.fromEntries(
       Object.entries(validate?.(draft) ?? {}).filter(([, message]) => message),
-    );
-    setErrors(found);
+    )
+    setErrors(found)
     if (Object.keys(found).length) {
-      document.getElementById(`${id}-${Object.keys(found)[0]}`)?.focus();
-      return;
+      document.getElementById(`${id}-${Object.keys(found)[0]}`)?.focus()
+      return
     }
-    setQuery((current) => ({ ...current, ...draft }));
-    setPage(1);
-  };
+    setQuery((current) => ({ ...current, ...draft }))
+    setPage(1)
+  }
   const reset = () => {
-    setErrors({});
-    setDraft(only(initial, fieldKeys));
-    setQuery({ ...initial, ...only(query, required) });
-    setPage(1);
-  };
+    setErrors({})
+    setDraft(only(initial, fieldKeys))
+    setQuery({ ...initial, ...only(query, required) })
+    setPage(1)
+  }
   const exportColumns = columns
     .filter((column) => column.export !== false)
     .flatMap((column) => [
       { label: column.label, value: (row) => column.text?.(row) ?? cellText(column.render(row)) },
-      ...(column.sub && column.subLabel ? [{ label: column.subLabel, value: (row) => cellText(column.sub(row)) }] : []),
-    ]);
+      ...(column.sub && column.subLabel
+        ? [{ label: column.subLabel, value: (row) => cellText(column.sub(row)) }]
+        : []),
+    ])
   // Exports every row of the current filter and sort (paged from the server).
   const runExport = async (kind) => {
-    setExporting(kind);
-    setExportError(null);
+    setExporting(kind)
+    setExportError(null)
     try {
       const rows = await loadAllRows(list, {
         ...query,
         sortBy: sort.key,
         sortDir: sort.order,
-      });
-      if (kind === "csv") downloadCsv(rows, exportColumns, resourceKey);
-      else printPdf(rows, exportColumns, title);
+      })
+      if (kind === 'csv') downloadCsv(rows, exportColumns, resourceKey)
+      else printPdf(rows, exportColumns, title)
     } catch (error) {
-      setExportError(error?.message || T.exportFailed);
+      setExportError(error?.message || T.exportFailed)
     } finally {
-      setExporting(null);
+      setExporting(null)
     }
-  };
+  }
   const sortBy = (key) => {
     setSort((current) => ({
       key,
-      order: current.key === key && current.order === "asc" ? "desc" : "asc",
-    }));
-    setPage(1);
-  };
+      order: current.key === key && current.order === 'asc' ? 'desc' : 'asc',
+    }))
+    setPage(1)
+  }
   const changeSortColumn = (event) => {
-    const key = event.target.value;
+    const key = event.target.value
     setSort((current) => ({
       key,
-      order: current.key === key ? current.order : "asc",
-    }));
-    setPage(1);
-  };
+      order: current.key === key ? current.order : 'asc',
+    }))
+    setPage(1)
+  }
   const ariaSort = (key) =>
-    sort.key === key
-      ? sort.order === "asc"
-        ? "ascending"
-        : "descending"
-      : "none";
+    sort.key === key ? (sort.order === 'asc' ? 'ascending' : 'descending') : 'none'
   const open = (row) => {
-    window.clearTimeout(closeTimer.current);
-    setClosing(false);
-    setSelected(row);
-  };
+    window.clearTimeout(closeTimer.current)
+    setClosing(false)
+    setSelected(row)
+  }
   // The drawer plays its exit animation before it unmounts.
   const close = () => {
-    if (closing) return;
-    setClosing(true);
+    if (closing) return
+    setClosing(true)
     closeTimer.current = window.setTimeout(
       () => {
-        setSelected(null);
-        setClosing(false);
+        setSelected(null)
+        setClosing(false)
       },
       reducedMotion() ? 0 : DRAWER_EXIT_MS,
-    );
-  };
-  const [first, ...rest] = columns;
+    )
+  }
+  const [first, ...rest] = columns
   const sortableColumns = columns.filter(
     (column, index) =>
       column.sort && columns.findIndex((candidate) => candidate.sort === column.sort) === index,
-  );
+  )
   const fixedColumnWidth = (column) => {
-    if (column.key === "ticket") return 130;
-    if (/^(status|outcome)$/.test(column.key)) return 100;
-    return 0;
-  };
+    if (column.key === 'ticket') return 130
+    if (/^(status|outcome)$/.test(column.key)) return 100
+    return 0
+  }
   const columnWeight = (column) => {
-    if (/^(actions|assessment|offer|position|candidate|employee|name|requester|scheduledBy)$/.test(column.key)) return 1.8;
-    if (/^(department|division|section|pendingAt)$/.test(column.key)) return 1.3;
-    return 1;
-  };
-  const totalWeight = columns.reduce((sum, column) => sum + (fixedColumnWidth(column) ? 0 : columnWeight(column)), 0);
-  const fixedWidth = columns.reduce((sum, column) => sum + fixedColumnWidth(column), 0);
+    if (
+      /^(actions|assessment|offer|position|candidate|employee|name|requester|scheduledBy)$/.test(
+        column.key,
+      )
+    )
+      return 1.8
+    if (/^(department|division|section|pendingAt)$/.test(column.key)) return 1.3
+    return 1
+  }
+  const totalWeight = columns.reduce(
+    (sum, column) => sum + (fixedColumnWidth(column) ? 0 : columnWeight(column)),
+    0,
+  )
+  const fixedWidth = columns.reduce((sum, column) => sum + fixedColumnWidth(column), 0)
 
   return (
     <div
@@ -351,7 +342,7 @@ export function InsightReport({
             {title}
             {demo && (
               <span title={COMMON_TEXT.demoNote}>
-                {" "}
+                {' '}
                 <Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge>
               </span>
             )}
@@ -367,16 +358,14 @@ export function InsightReport({
           )}
           <button
             type="button"
-            className={`zrv-ir-btn${filtersOpen ? " zrv-ir-is-on" : ""}`}
+            className={`zrv-ir-btn${filtersOpen ? ' zrv-ir-is-on' : ''}`}
             aria-expanded={filtersOpen}
             aria-controls={`${id}-filters`}
             onClick={() => setFiltersOpen((value) => !value)}
           >
             <OrvexaIcon name="sliders-horizontal" size={16} />
             {T.filter}
-            {activeFilters > 0 && (
-              <span className="zrv-ir-btn__badge">{activeFilters}</span>
-            )}
+            {activeFilters > 0 && <span className="zrv-ir-btn__badge">{activeFilters}</span>}
           </button>
           <button
             type="button"
@@ -387,11 +376,7 @@ export function InsightReport({
             <OrvexaIcon name="refresh-cw" size={16} />
             {T.refresh}
           </button>
-          <button
-            type="button"
-            className="zrv-ir-btn"
-            onClick={() => window.print()}
-          >
+          <button type="button" className="zrv-ir-btn" onClick={() => window.print()}>
             <OrvexaIcon name="printer" size={16} />
             {printLabel}
           </button>
@@ -400,20 +385,20 @@ export function InsightReport({
               <button
                 type="button"
                 className="zrv-ir-btn"
-                onClick={() => runExport("csv")}
+                onClick={() => runExport('csv')}
                 disabled={Boolean(exporting) || !records.data?.pagination?.total}
               >
                 <OrvexaIcon name="download" size={16} />
-                {exporting === "csv" ? T.exporting : T.exportCsv}
+                {exporting === 'csv' ? T.exporting : T.exportCsv}
               </button>
               <button
                 type="button"
                 className="zrv-ir-btn"
-                onClick={() => runExport("pdf")}
+                onClick={() => runExport('pdf')}
                 disabled={Boolean(exporting) || !records.data?.pagination?.total}
               >
                 <OrvexaIcon name="file-text" size={16} />
-                {exporting === "pdf" ? T.exporting : T.exportPdf}
+                {exporting === 'pdf' ? T.exporting : T.exportPdf}
               </button>
             </>
           )}
@@ -432,7 +417,7 @@ export function InsightReport({
       </header>
       {exportError && (
         <p className="zrv-ir-error" role="alert">
-          {exportError}{" "}
+          {exportError}{' '}
           <button type="button" onClick={() => setExportError(null)}>
             {T.close}
           </button>
@@ -441,24 +426,24 @@ export function InsightReport({
 
       <div
         id={`${id}-filters`}
-        className={`zrv-ir-collapse${filtersOpen ? " zrv-ir-is-open" : ""}`}
+        className={`zrv-ir-collapse${filtersOpen ? ' zrv-ir-is-open' : ''}`}
         inert={!filtersOpen}
       >
         <div className="zrv-ir-collapse__inner">
           <form
             className="zrv-ir-filters"
-            style={{ "--fields": fields.length }}
+            style={{ '--fields': fields.length }}
             onSubmit={apply}
             aria-label={T.filter}
           >
             {fields.map((field) => (
               <label
                 key={field.key}
-                className={`zrv-ir-field${field.type === "search" ? " zrv-ir-field--search" : ""}`}
+                className={`zrv-ir-field${field.type === 'search' ? ' zrv-ir-field--search' : ''}`}
                 htmlFor={`${id}-${field.key}`}
               >
                 <span>{field.label}</span>
-                {field.type === "select" ? (
+                {field.type === 'select' ? (
                   <select
                     id={`${id}-${field.key}`}
                     value={draft[field.key]}
@@ -471,16 +456,14 @@ export function InsightReport({
                       </option>
                     ))}
                   </select>
-                ) : field.type === "date" ? (
+                ) : field.type === 'date' ? (
                   <input
                     id={`${id}-${field.key}`}
                     type="date"
                     value={draft[field.key]}
                     onChange={setDraftValue(field.key)}
                     aria-invalid={Boolean(errors[field.key]) || undefined}
-                    aria-describedby={
-                      errors[field.key] ? `${id}-${field.key}-error` : undefined
-                    }
+                    aria-describedby={errors[field.key] ? `${id}-${field.key}-error` : undefined}
                   />
                 ) : (
                   <span className="zrv-ir-search">
@@ -496,10 +479,7 @@ export function InsightReport({
                   </span>
                 )}
                 {errors[field.key] && (
-                  <small
-                    id={`${id}-${field.key}-error`}
-                    className="zrv-auth-field-error"
-                  >
+                  <small id={`${id}-${field.key}-error`} className="zrv-auth-field-error">
                     {errors[field.key]}
                   </small>
                 )}
@@ -522,11 +502,11 @@ export function InsightReport({
       <section
         className="zrv-ir-overview"
         aria-label={T.overview}
-        aria-busy={overview.status !== "ready" || undefined}
+        aria-busy={overview.status !== 'ready' || undefined}
       >
-        {overview.status === "error" ? (
+        {overview.status === 'error' ? (
           <p className="zrv-ir-error zrv-ir-overview__error" role="alert">
-            {T.unavailable}{" "}
+            {T.unavailable}{' '}
             <button type="button" onClick={overview.reload}>
               {T.refresh}
             </button>
@@ -540,15 +520,10 @@ export function InsightReport({
         )}
         {groups.length > 0 && (
           <div className="zrv-ir-overview__slot">
-            <Card
-              index={cards.length}
-              icon="list-filter"
-              label={T.breakdown}
-              theme="primary"
-            >
-              {breakdown.status === "error" ? (
+            <Card index={cards.length} icon="list-filter" label={T.breakdown} theme="primary">
+              {breakdown.status === 'error' ? (
                 <p className="zrv-ir-error" role="alert">
-                  {T.breakdownUnavailable}{" "}
+                  {T.breakdownUnavailable}{' '}
                   <button type="button" onClick={breakdown.reload}>
                     {T.refresh}
                   </button>
@@ -572,10 +547,7 @@ export function InsightReport({
       </section>
 
       <div className="zrv-ir-main">
-        <section
-          className="zrv-ir-card zrv-ir-stream"
-          aria-labelledby={`${id}-heading`}
-        >
+        <section className="zrv-ir-card zrv-ir-stream" aria-labelledby={`${id}-heading`}>
           <header className="zrv-ir-card__head">
             <h2 id={`${id}-heading`}>{heading}</h2>
           </header>
@@ -604,14 +576,14 @@ export function InsightReport({
                       className="zrv-ir-btn zrv-ir-mobile-sort__direction"
                       onClick={() => sortBy(sort.key)}
                       aria-label={T.changeSortDirection(
-                        sort.order === "asc" ? T.descending : T.ascending,
+                        sort.order === 'asc' ? T.descending : T.ascending,
                       )}
                     >
                       <OrvexaIcon
-                        name={sort.order === "asc" ? "arrow-up" : "arrow-down"}
+                        name={sort.order === 'asc' ? 'arrow-up' : 'arrow-down'}
                         size={16}
                       />
-                      {sort.order === "asc" ? T.ascending : T.descending}
+                      {sort.order === 'asc' ? T.ascending : T.descending}
                     </button>
                   </div>
                 )}
@@ -622,10 +594,21 @@ export function InsightReport({
                   aria-label={heading}
                   aria-busy={records.refreshing || undefined}
                 >
-                  <table className={`zrv-ir-table zrv-report-table${columns.length > 10 ? " zrv-ir-table--wide" : ""}`}>
+                  <table
+                    className={`zrv-ir-table zrv-report-table${columns.length > 10 ? ' zrv-ir-table--wide' : ''}`}
+                  >
                     <caption className="zrv-hr-sr">{heading}</caption>
                     <colgroup>
-                      {columns.map((column) => <col key={column.key} style={{ width: fixedColumnWidth(column) ? `${fixedColumnWidth(column)}px` : `calc((100% - ${fixedWidth}px) * ${columnWeight(column) / totalWeight})` }} />)}
+                      {columns.map((column) => (
+                        <col
+                          key={column.key}
+                          style={{
+                            width: fixedColumnWidth(column)
+                              ? `${fixedColumnWidth(column)}px`
+                              : `calc((100% - ${fixedWidth}px) * ${columnWeight(column) / totalWeight})`,
+                          }}
+                        />
+                      ))}
                     </colgroup>
                     <thead>
                       <tr>
@@ -633,23 +616,18 @@ export function InsightReport({
                           <th
                             key={column.key}
                             scope="col"
-                            aria-sort={
-                              column.sort ? ariaSort(column.sort) : undefined
-                            }
+                            aria-sort={column.sort ? ariaSort(column.sort) : undefined}
                           >
                             {column.sort ? (
-                              <button
-                                type="button"
-                                onClick={() => sortBy(column.sort)}
-                              >
+                              <button type="button" onClick={() => sortBy(column.sort)}>
                                 {column.label}
                                 <OrvexaIcon
                                   name={
                                     sort.key !== column.sort
-                                      ? "chevrons-up-down"
-                                      : sort.order === "asc"
-                                        ? "chevron-up"
-                                        : "chevron-down"
+                                      ? 'chevrons-up-down'
+                                      : sort.order === 'asc'
+                                        ? 'chevron-up'
+                                        : 'chevron-down'
                                   }
                                   size={13}
                                 />
@@ -665,10 +643,10 @@ export function InsightReport({
                       {data.items.map((row, index) => (
                         <tr
                           key={rowKey(row)}
-                          style={{ "--i": index }}
+                          style={{ '--i': index }}
                           className={
                             selected && rowKey(selected) === rowKey(row)
-                              ? "zrv-ir-is-on"
+                              ? 'zrv-ir-is-on'
                               : undefined
                           }
                           onClick={() => open(row)}
@@ -678,8 +656,8 @@ export function InsightReport({
                               type="button"
                               className="zrv-ir-num"
                               onClick={(event) => {
-                                event.stopPropagation();
-                                open(row);
+                                event.stopPropagation()
+                                open(row)
                               }}
                             >
                               {first.render(row)}
@@ -730,8 +708,8 @@ export function InsightReport({
                   current && rowKey(current) === rowKey(selected)
                     ? { ...current, ...updated }
                     : current,
-                );
-                refresh();
+                )
+                refresh()
               },
             })
           }
@@ -743,11 +721,11 @@ export function InsightReport({
         />
       )}
     </div>
-  );
+  )
 }
 
 function Breakdown({ group, counts, isActive, onPick }) {
-  const max = Math.max(1, ...(counts ?? []));
+  const max = Math.max(1, ...(counts ?? []))
   return (
     <div className={`zrv-ir-break zrv-ir-tone--${group.tone}`}>
       <h3>{group.title}</h3>
@@ -767,19 +745,13 @@ function Breakdown({ group, counts, isActive, onPick }) {
                   }}
                 />
               </span>
-              <b>
-                {counts ? (
-                  counts[index]
-                ) : (
-                  <i className="zrv-ir-skel" aria-hidden="true" />
-                )}
-              </b>
+              <b>{counts ? counts[index] : <i className="zrv-ir-skel" aria-hidden="true" />}</b>
             </button>
           </li>
         ))}
       </ul>
     </div>
-  );
+  )
 }
 
 // Side summary of one listed record (the list's own fields; the full record
@@ -798,65 +770,53 @@ function Summary({
   onClose,
   extra,
 }) {
-  const [copiedOf, setCopiedOf] = useState(null);
-  const [drawerWidth, setDrawerWidth] = useState(null);
-  const drag = useRef(null);
+  const [copiedOf, setCopiedOf] = useState(null)
+  const [drawerWidth, setDrawerWidth] = useState(null)
+  const drag = useRef(null)
   const startResize = (event) => {
-    const dialog = event.currentTarget.closest(".zrv-dialog");
-    if (!dialog) return;
-    event.preventDefault();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    const dialog = event.currentTarget.closest('.zrv-dialog')
+    if (!dialog) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture?.(event.pointerId)
     drag.current = {
       x: event.clientX,
       width: dialog.getBoundingClientRect().width,
-    };
-  };
-  const resize = (event) => {
-    if (!drag.current) return;
-    setDrawerWidth(
-      clampDrawerWidth(
-        drag.current.width + drag.current.x - event.clientX,
-      ),
-    );
-  };
-  const stopResize = (event) => {
-    drag.current = null;
-    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
     }
-  };
+  }
+  const resize = (event) => {
+    if (!drag.current) return
+    setDrawerWidth(clampDrawerWidth(drag.current.width + drag.current.x - event.clientX))
+  }
+  const stopResize = (event) => {
+    drag.current = null
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
   // The grip also widens and narrows the drawer from the keyboard.
   const keyResize = (event) => {
     const step =
-      event.key === "ArrowLeft"
-        ? DRAWER_STEP
-        : event.key === "ArrowRight"
-          ? -DRAWER_STEP
-          : 0;
-    if (!step) return;
-    event.preventDefault();
-    const dialog = event.currentTarget.closest(".zrv-dialog");
+      event.key === 'ArrowLeft' ? DRAWER_STEP : event.key === 'ArrowRight' ? -DRAWER_STEP : 0
+    if (!step) return
+    event.preventDefault()
+    const dialog = event.currentTarget.closest('.zrv-dialog')
     setDrawerWidth(
       clampDrawerWidth(
-        (drawerWidth ?? dialog?.getBoundingClientRect().width ?? DRAWER_MIN_WIDTH) +
-          step,
+        (drawerWidth ?? dialog?.getBoundingClientRect().width ?? DRAWER_MIN_WIDTH) + step,
       ),
-    );
-  };
-  const copied = copiedOf === row;
-  const canCopy =
-    typeof navigator !== "undefined" && Boolean(navigator.clipboard?.writeText);
+    )
+  }
+  const copied = copiedOf === row
+  const canCopy = typeof navigator !== 'undefined' && Boolean(navigator.clipboard?.writeText)
   const copy = () =>
     navigator.clipboard.writeText(String(number)).then(
       () => setCopiedOf(row),
       () => setCopiedOf(null),
-    );
+    )
   return (
     <div
-      className={`zrv-hr-rp-drawer zrv-ir-drawer${detail ? "" : " zrv-ir-drawer--plain"}${resizable ? " zrv-ir-drawer--resizable" : ""}${closing ? " zrv-ir-is-closing" : ""}`}
-      style={
-        drawerWidth ? { "--zrv-ir-drawer-width": `${drawerWidth}px` } : undefined
-      }
+      className={`zrv-hr-rp-drawer zrv-ir-drawer${detail ? '' : ' zrv-ir-drawer--plain'}${resizable ? ' zrv-ir-drawer--resizable' : ''}${closing ? ' zrv-ir-is-closing' : ''}`}
+      style={drawerWidth ? { '--zrv-ir-drawer-width': `${drawerWidth}px` } : undefined}
     >
       <Dialog title={String(number)} onClose={onClose}>
         {(!detail || resizable) && (
@@ -885,8 +845,14 @@ function Summary({
         <div key={String(number)} className="zrv-ir-drawer__body">
           {detail && (
             <>
-              <div className={`zrv-ir-drawer__hero${detail.avatar ? " zrv-ir-drawer__hero--profile" : ""}`}>
-                {detail.avatar && <span className="zrv-ir-drawer__avatar" aria-hidden="true">{detail.avatar}</span>}
+              <div
+                className={`zrv-ir-drawer__hero${detail.avatar ? ' zrv-ir-drawer__hero--profile' : ''}`}
+              >
+                {detail.avatar && (
+                  <span className="zrv-ir-drawer__avatar" aria-hidden="true">
+                    {detail.avatar}
+                  </span>
+                )}
                 <span className="zrv-ir-drawer__identity">
                   {detail.eyebrow && <small>{detail.eyebrow}</small>}
                   <b>{detail.heading || COMMON_TEXT.dash}</b>
@@ -903,9 +869,7 @@ function Summary({
                 ))}
               </dl>
               {detail.timing && (
-                <div
-                  className={`zrv-ir-drawer__due zrv-ir-is-${detail.timing.tone}`}
-                >
+                <div className={`zrv-ir-drawer__due zrv-ir-is-${detail.timing.tone}`}>
                   <span>{T.timing}</span>
                   <b>{detail.timing.text}</b>
                 </div>
@@ -923,17 +887,17 @@ function Summary({
               )}
               {canCopy && (
                 <button type="button" className="zrv-ir-btn" onClick={copy}>
-                  <OrvexaIcon name={copied ? "check" : "copy"} size={16} />
+                  <OrvexaIcon name={copied ? 'check' : 'copy'} size={16} />
                   {copied ? T.copied : T.copy}
                 </button>
               )}
               <span className="zrv-hr-sr" role="status">
-                {copied ? T.copied : ""}
+                {copied ? T.copied : ''}
               </span>
             </div>
           )}
         </div>
       </Dialog>
     </div>
-  );
+  )
 }

@@ -2098,16 +2098,37 @@
   text-align: start;
 }
 .zrv-ir-table th button:hover,
-.zrv-ir-table th[aria-sort="ascending"] button,
-.zrv-ir-table th[aria-sort="descending"] button { color: var(--text); }
-.zrv-ir-table svg { flex-shrink: 0; }
-.zrv-ir-table :is(.zrv-ir-chip, .zrv-hr-pill, .zrv-ir-ticket,
-  .zrv-ir-col-status, .zrv-ir-col-outcome, .zrv-ir-col-ticket) {
+.zrv-ir-table th[aria-sort='ascending'] button,
+.zrv-ir-table th[aria-sort='descending'] button {
+  color: var(--text);
+}
+.zrv-ir-table svg {
+  flex-shrink: 0;
+}
+.zrv-ir-table
+  :is(
+    .zrv-ir-chip,
+    .zrv-hr-pill,
+    .zrv-ir-ticket,
+    .zrv-ir-col-status,
+    .zrv-ir-col-outcome,
+    .zrv-ir-col-ticket
+  ) {
   white-space: nowrap;
 }
-.zrv-ir-table .zrv-hr-pill { justify-content: center; text-align: center; }
-.zrv-ir-table .zrv-ir-btn { gap: 5px; min-height: 30px; padding: 5px 7px; font-size: 11.5px; }
-.zrv-ir-table .zrv-ir-ticket::before { flex-shrink: 0; }
+.zrv-ir-table .zrv-hr-pill {
+  justify-content: center;
+  text-align: center;
+}
+.zrv-ir-table .zrv-ir-btn {
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 7px;
+  font-size: 11.5px;
+}
+.zrv-ir-table .zrv-ir-ticket::before {
+  flex-shrink: 0;
+}
 .zrv-ir-table tbody tr {
   cursor: pointer;
   animation: zrv-hr-reveal 0.45s var(--zrv-hr-ease) both;

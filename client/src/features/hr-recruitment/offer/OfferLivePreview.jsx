@@ -59,55 +59,55 @@ export function OfferLivePreview({ form, language = 'bi', focusRow, offerId }) {
         aria-label={T.letter.benefits}
         tabIndex={0}
       >
-      <table className="zrv-hr-paper__tbl">
-        <thead>
-          <tr>
-            <th scope="col" data-l="en">
-              {T.letter.number}
-            </th>
-            <th scope="col" data-l="en">
-              {T.letter.description}
-            </th>
-            <th scope="col" data-l="en">
-              {T.letter.benefits}
-            </th>
-            <th scope="col" dir="rtl" lang="ar" data-l="ar">
-              {T.letterAr.benefits}
-            </th>
-            <th scope="col" dir="rtl" lang="ar" data-l="ar">
-              {T.letterAr.description}
-            </th>
-            <th scope="col" dir="rtl" lang="ar" data-l="ar">
-              {T.letterAr.number}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {BENEFIT_KEYS.map((key, index) => (
-            <tr key={key} className={focusRow === key ? 'zrv-hr-is-hl' : undefined}>
-              <td className="zrv-hr-is-n" data-l="en">
-                {index + 1}
-              </td>
-              <td data-l="en">{T.benefits[key].en}</td>
-              <td data-l="en">
-                {placeholder(
-                  englishDisplay(key, form.benefits[key].en, currency),
-                  COMMON_TEXT.dash,
-                )}
-              </td>
-              <td dir="rtl" lang="ar" data-l="ar">
-                {placeholder(form.benefits[key].ar, COMMON_TEXT.dash)}
-              </td>
-              <td dir="rtl" lang="ar" data-l="ar">
-                {T.benefits[key].ar}
-              </td>
-              <td className="zrv-hr-is-n" dir="rtl" lang="ar" data-l="ar">
-                {(index + 1).toLocaleString('ar-EG')}
-              </td>
+        <table className="zrv-hr-paper__tbl">
+          <thead>
+            <tr>
+              <th scope="col" data-l="en">
+                {T.letter.number}
+              </th>
+              <th scope="col" data-l="en">
+                {T.letter.description}
+              </th>
+              <th scope="col" data-l="en">
+                {T.letter.benefits}
+              </th>
+              <th scope="col" dir="rtl" lang="ar" data-l="ar">
+                {T.letterAr.benefits}
+              </th>
+              <th scope="col" dir="rtl" lang="ar" data-l="ar">
+                {T.letterAr.description}
+              </th>
+              <th scope="col" dir="rtl" lang="ar" data-l="ar">
+                {T.letterAr.number}
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {BENEFIT_KEYS.map((key, index) => (
+              <tr key={key} className={focusRow === key ? 'zrv-hr-is-hl' : undefined}>
+                <td className="zrv-hr-is-n" data-l="en">
+                  {index + 1}
+                </td>
+                <td data-l="en">{T.benefits[key].en}</td>
+                <td data-l="en">
+                  {placeholder(
+                    englishDisplay(key, form.benefits[key].en, currency),
+                    COMMON_TEXT.dash,
+                  )}
+                </td>
+                <td dir="rtl" lang="ar" data-l="ar">
+                  {placeholder(form.benefits[key].ar, COMMON_TEXT.dash)}
+                </td>
+                <td dir="rtl" lang="ar" data-l="ar">
+                  {T.benefits[key].ar}
+                </td>
+                <td className="zrv-hr-is-n" dir="rtl" lang="ar" data-l="ar">
+                  {(index + 1).toLocaleString('ar-EG')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       <p data-l="en">{T.acceptEn}</p>
       <p data-l="ar" dir="rtl" lang="ar">

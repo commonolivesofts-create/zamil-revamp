@@ -1,4 +1,3 @@
-
 /* =====================================================
    ZAMIL DIGITALIZATION
    SECURITY ADMINISTRATION
@@ -72,8 +71,7 @@
   height: 16px;
 }
 
-.zrv-permission-catalog-page
-button.zrv-pc-add-module:hover:not(:disabled) {
+.zrv-permission-catalog-page button.zrv-pc-add-module:hover:not(:disabled) {
   background: var(--pc-green-dark);
   color: #fff !important;
 }
@@ -733,36 +731,36 @@ button.zrv-pc-add-module:hover:not(:disabled) {
    DARK THEME
    ========================================== */
 
-[data-theme="dark"] .zrv-permission-catalog-page {
+[data-theme='dark'] .zrv-permission-catalog-page {
   --pc-border: var(--line);
   --pc-text: var(--text);
   --pc-muted: var(--muted);
 }
 
-[data-theme="dark"] .zrv-pc-stat,
-[data-theme="dark"] .zrv-pc-panel,
-[data-theme="dark"] .zrv-pc-module,
-[data-theme="dark"] .zrv-pc-resource {
+[data-theme='dark'] .zrv-pc-stat,
+[data-theme='dark'] .zrv-pc-panel,
+[data-theme='dark'] .zrv-pc-module,
+[data-theme='dark'] .zrv-pc-resource {
   background: var(--surface-solid);
   border-color: var(--line);
 }
 
-[data-theme="dark"] .zrv-pc-stat__title,
-[data-theme="dark"] .zrv-pc-stat__number {
+[data-theme='dark'] .zrv-pc-stat__title,
+[data-theme='dark'] .zrv-pc-stat__number {
   color: var(--text);
 }
 
-[data-theme="dark"] .zrv-pc-stat__wave {
+[data-theme='dark'] .zrv-pc-stat__wave {
   opacity: 0.12;
 }
 
-[data-theme="dark"] .zrv-pc-module__head,
-[data-theme="dark"] .zrv-pc-table thead th,
-[data-theme="dark"] .zrv-pc-table tbody tr:hover {
+[data-theme='dark'] .zrv-pc-module__head,
+[data-theme='dark'] .zrv-pc-table thead th,
+[data-theme='dark'] .zrv-pc-table tbody tr:hover {
   background: var(--surface-2);
 }
 
-[data-theme="dark"] .zrv-pc-protected {
+[data-theme='dark'] .zrv-pc-protected {
   background: var(--surface-2);
   color: var(--text);
 }
@@ -778,41 +776,32 @@ button.zrv-pc-add-module:hover:not(:disabled) {
 }
 
 /* Consistent column widths */
-.zrv-permission-catalog-page
-.zrv-pc-table th:nth-child(1),
-.zrv-permission-catalog-page
-.zrv-pc-table td:nth-child(1) {
+.zrv-permission-catalog-page .zrv-pc-table th:nth-child(1),
+.zrv-permission-catalog-page .zrv-pc-table td:nth-child(1) {
   width: 16%;
 }
 
-.zrv-permission-catalog-page
-.zrv-pc-table th:nth-child(2),
-.zrv-permission-catalog-page
-.zrv-pc-table td:nth-child(2) {
+.zrv-permission-catalog-page .zrv-pc-table th:nth-child(2),
+.zrv-permission-catalog-page .zrv-pc-table td:nth-child(2) {
   width: 48%;
 }
 
-.zrv-permission-catalog-page
-.zrv-pc-table th:nth-child(3),
-.zrv-permission-catalog-page
-.zrv-pc-table td:nth-child(3) {
+.zrv-permission-catalog-page .zrv-pc-table th:nth-child(3),
+.zrv-permission-catalog-page .zrv-pc-table td:nth-child(3) {
   width: 16%;
   text-align: center;
   vertical-align: middle;
 }
 
-.zrv-permission-catalog-page
-.zrv-pc-table th:nth-child(4),
-.zrv-permission-catalog-page
-.zrv-pc-table td:nth-child(4) {
+.zrv-permission-catalog-page .zrv-pc-table th:nth-child(4),
+.zrv-permission-catalog-page .zrv-pc-table td:nth-child(4) {
   width: 20%;
   text-align: center;
   vertical-align: middle;
 }
 
 /* Center Active / Inactive badges */
-.zrv-permission-catalog-page
-.zrv-pc-table td:nth-child(3) .zrv-admin-badge {
+.zrv-permission-catalog-page .zrv-pc-table td:nth-child(3) .zrv-admin-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;

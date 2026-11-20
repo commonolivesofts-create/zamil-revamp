@@ -5,38 +5,49 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 // dashboard starts itself (the CSS does the same for purely visual effects).
 export function shouldReduceMotion() {
   if (typeof window === 'undefined') return true
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true ||
+  return (
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true ||
     document.documentElement.dataset.motion === 'reduced'
+  )
 }
 
 export function scrollToSection(id, behavior) {
   const target = document.getElementById(id)
   if (!target) return
-  target.scrollIntoView({ behavior: behavior ?? (shouldReduceMotion() ? 'auto' : 'smooth'), block: 'start' })
+  target.scrollIntoView({
+    behavior: behavior ?? (shouldReduceMotion() ? 'auto' : 'smooth'),
+    block: 'start',
+  })
 }
 
 // Mark dashboard panels visible before the first paint. Intersection-based
 // hiding made loaded content appear in a delayed sequence and reanimated it
 // while scrolling. Keep motionEnabled for the scroll progress indicator.
 export function useRevealOnScroll(rootRef, refreshKey = null) {
-  const [enabled] = useState(() => !shouldReduceMotion() && typeof IntersectionObserver !== 'undefined')
+  const [enabled] = useState(
+    () => !shouldReduceMotion() && typeof IntersectionObserver !== 'undefined',
+  )
 
   useLayoutEffect(() => {
     const root = rootRef.current
     if (!root) return undefined
-    const nodes = Array.from(root.querySelectorAll([
-      '.quick-shell',
-      '.section-intelligence',
-      '.employee-spotlight',
-      '.attention-announcement',
-      '.attention-section-line',
-      '.attention-queue',
-      '.habit-shell',
-      '.feature-grid > *',
-      '.domain-grid > .domain-card',
-      '.stat-strip > *',
-      '.module-grid > .module-tile',
-    ].join(', ')))
+    const nodes = Array.from(
+      root.querySelectorAll(
+        [
+          '.quick-shell',
+          '.section-intelligence',
+          '.employee-spotlight',
+          '.attention-announcement',
+          '.attention-section-line',
+          '.attention-queue',
+          '.habit-shell',
+          '.feature-grid > *',
+          '.domain-grid > .domain-card',
+          '.stat-strip > *',
+          '.module-grid > .module-tile',
+        ].join(', '),
+      ),
+    )
     root.classList.toggle('motion-enabled', enabled)
     nodes.forEach((node) => {
       node.classList.add('reveal', 'is-visible')

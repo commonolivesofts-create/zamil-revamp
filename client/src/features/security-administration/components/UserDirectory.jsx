@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
@@ -7,30 +6,16 @@ import HorizontalTableScroll from '@/components/ui/HorizontalTableScroll.jsx'
 
 import { checkSearch, fieldProps } from '../adminForms.js'
 
-import {
-  USER_SORTS,
-  displayName,
-  readUserFilters,
-  userListQuery,
-} from '../adminModel.js'
+import { USER_SORTS, displayName, readUserFilters, userListQuery } from '../adminModel.js'
 
 import { formatInstant } from '../adminFeedback.js'
 import { securityAdminService } from '../securityAdminService.js'
 import { useResource } from '../useAdminData.js'
 import '@/styles/report-table.css'
 
-import {
-  downloadCsv,
-  loadAllRows,
-} from '@/features/hr-recruitment/shared/reportExport.js'
+import { downloadCsv, loadAllRows } from '@/features/hr-recruitment/shared/reportExport.js'
 
-import {
-  Badge,
-  Field,
-  Pagination,
-  Panel,
-  ResourceState,
-} from './AdminUi.jsx'
+import { Badge, Field, Pagination, Panel, ResourceState } from './AdminUi.jsx'
 
 // ======================================================
 // SUMMARY QUERIES
@@ -50,8 +35,7 @@ const SUMMARY_QUERIES = Object.freeze([
 const EXPORT_COLUMNS = Object.freeze([
   {
     label: 'Employee',
-    value: (u) =>
-      displayName(u) || 'Name not recorded',
+    value: (u) => displayName(u) || 'Name not recorded',
   },
   {
     label: 'Employee number',
@@ -79,8 +63,7 @@ const EXPORT_COLUMNS = Object.freeze([
   },
   {
     label: 'Authenticator',
-    value: (u) =>
-      u.mfaEnrolled ? 'Enrolled' : 'Not enrolled',
+    value: (u) => (u.mfaEnrolled ? 'Enrolled' : 'Not enrolled'),
   },
   {
     label: 'Last sign-in',
@@ -115,10 +98,7 @@ const SUMMARY_CARDS = Object.freeze([
   },
 ])
 
-const formatCount = (value) =>
-  typeof value === 'number'
-    ? value.toLocaleString('en-US')
-    : '—'
+const formatCount = (value) => (typeof value === 'number' ? value.toLocaleString('en-US') : '—')
 
 // ======================================================
 // PDF EXPORT HELPERS
@@ -134,24 +114,18 @@ const escapeHtml = (value) =>
         '>': '&gt;',
         '"': '&quot;',
         "'": '&#39;',
-      })[ch]
+      })[ch],
   )
 
 function writePdfView(view, rows) {
-  const head = EXPORT_COLUMNS.map(
-    (column) =>
-      `<th>${escapeHtml(column.label)}</th>`
-  ).join('')
+  const head = EXPORT_COLUMNS.map((column) => `<th>${escapeHtml(column.label)}</th>`).join('')
 
   const body = rows
     .map(
       (row) =>
-        `<tr>${EXPORT_COLUMNS.map(
-          (column) =>
-            `<td>${escapeHtml(
-              column.value(row)
-            )}</td>`
-        ).join('')}</tr>`
+        `<tr>${EXPORT_COLUMNS.map((column) => `<td>${escapeHtml(column.value(row))}</td>`).join(
+          '',
+        )}</tr>`,
     )
     .join('')
 
@@ -236,35 +210,25 @@ export default function UserDirectory({
   // Enable horizontal scroll arrows on selected directory pages.
   horizontalScrollControls = false,
 }) {
-  const [searchParams, setSearchParams] =
-    useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const filters = readUserFilters(searchParams)
 
-  const [searchText, setSearchText] = useState(
-    filters.search
-  )
+  const [searchText, setSearchText] = useState(filters.search)
 
-  const [searchError, setSearchError] =
-    useState(null)
+  const [searchError, setSearchError] = useState(null)
 
-  const [syncedSearch, setSyncedSearch] =
-    useState(filters.search)
+  const [syncedSearch, setSyncedSearch] = useState(filters.search)
 
-  const [filtersOpen, setFiltersOpen] =
-    useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
-  const [refreshKey, setRefreshKey] =
-    useState(0)
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  const [exporting, setExporting] =
-    useState(false)
+  const [exporting, setExporting] = useState(false)
 
-  const [exportError, setExportError] =
-    useState('')
+  const [exportError, setExportError] = useState('')
 
-  const [updatedAt, setUpdatedAt] =
-    useState(() => new Date())
+  const [updatedAt, setUpdatedAt] = useState(() => new Date())
 
   // ====================================================
   // KEEP SEARCH STATE SYNCHRONIZED
@@ -283,13 +247,11 @@ export default function UserDirectory({
   // ====================================================
 
   const users = useResource(
-    `users:${JSON.stringify(query)}:${
-      dashboard ? refreshKey : 0
-    }`,
+    `users:${JSON.stringify(query)}:${dashboard ? refreshKey : 0}`,
     (signal) =>
       securityAdminService.listUsers(query, {
         signal,
-      })
+      }),
   )
 
   // ====================================================
@@ -297,9 +259,7 @@ export default function UserDirectory({
   // ====================================================
 
   const summary = useResource(
-    dashboard
-      ? `users:summary:${refreshKey}`
-      : null,
+    dashboard ? `users:summary:${refreshKey}` : null,
 
     async (signal) => {
       const result = await Promise.allSettled(
@@ -312,9 +272,9 @@ export default function UserDirectory({
               sortOrder: 'asc',
               ...extra,
             },
-            { signal }
-          )
-        )
+            { signal },
+          ),
+        ),
       )
 
       const totals = result.map((entry) => {
@@ -322,25 +282,17 @@ export default function UserDirectory({
           return null
         }
 
-        const total = Number(
-          entry.value?.pagination?.total
-        )
+        const total = Number(entry.value?.pagination?.total)
 
-        return Number.isFinite(total)
-          ? total
-          : null
+        return Number.isFinite(total) ? total : null
       })
 
-      if (
-        totals.every((value) => value === null)
-      ) {
-        throw new Error(
-          'Unable to load account summary.'
-        )
+      if (totals.every((value) => value === null)) {
+        throw new Error('Unable to load account summary.')
       }
 
       return totals
-    }
+    },
   )
 
   // ====================================================
@@ -349,8 +301,7 @@ export default function UserDirectory({
 
   // Keep the accounts dashboard table within its panel; other directories
   // can opt into the horizontal controls when their data requires them.
-  const useHorizontalScroll =
-    !dashboard && !compactReportTable && horizontalScrollControls
+  const useHorizontalScroll = !dashboard && !compactReportTable && horizontalScrollControls
 
   // ====================================================
   // UPDATE FILTERS
@@ -372,10 +323,7 @@ export default function UserDirectory({
         sortOrder: 'asc',
       }
 
-      if (
-        value !== '' &&
-        value !== defaults[name]
-      ) {
+      if (value !== '' && value !== defaults[name]) {
         params.set(name, String(value))
       }
     }
@@ -386,10 +334,7 @@ export default function UserDirectory({
   const sortByColumn = (sortBy) => {
     update({
       sortBy,
-      sortOrder:
-        filters.sortBy === sortBy && filters.sortOrder === 'asc'
-          ? 'desc'
-          : 'asc',
+      sortOrder: filters.sortBy === sortBy && filters.sortOrder === 'asc' ? 'desc' : 'asc',
     })
   }
 
@@ -400,13 +345,7 @@ export default function UserDirectory({
     return (
       <th
         scope="col"
-        aria-sort={
-          order === 'asc'
-            ? 'ascending'
-            : order === 'desc'
-              ? 'descending'
-              : 'none'
-        }
+        aria-sort={order === 'asc' ? 'ascending' : order === 'desc' ? 'descending' : 'none'}
       >
         <button
           type="button"
@@ -415,13 +354,7 @@ export default function UserDirectory({
         >
           <span>{label}</span>
           <OrvexaIcon
-            name={
-              !active
-                ? 'chevrons-up-down'
-                : order === 'asc'
-                  ? 'chevron-up'
-                  : 'chevron-down'
-            }
+            name={!active ? 'chevrons-up-down' : order === 'asc' ? 'chevron-up' : 'chevron-down'}
             size={13}
             aria-hidden="true"
           />
@@ -437,8 +370,7 @@ export default function UserDirectory({
   const submitSearch = (event) => {
     event.preventDefault()
 
-    const { term, error } =
-      checkSearch(searchText)
+    const { term, error } = checkSearch(searchText)
 
     setSearchError(error)
 
@@ -454,42 +386,27 @@ export default function UserDirectory({
   const exportList = async (kind) => {
     if (exporting) return
 
-    const pdfView =
-      kind === 'pdf'
-        ? window.open('', '_blank')
-        : null
+    const pdfView = kind === 'pdf' ? window.open('', '_blank') : null
 
     if (kind === 'pdf' && !pdfView) {
-      setExportError(
-        'Allow popups to export the accounts PDF.'
-      )
+      setExportError('Allow popups to export the accounts PDF.')
       return
     }
 
     if (pdfView) {
-      pdfView.document.title =
-        'Preparing user accounts PDF'
+      pdfView.document.title = 'Preparing user accounts PDF'
 
-      pdfView.document.body.textContent =
-        'Preparing user accounts PDF…'
+      pdfView.document.body.textContent = 'Preparing user accounts PDF…'
     }
 
     setExporting(true)
     setExportError('')
 
     try {
-      const rows = await loadAllRows(
-        (params) =>
-          securityAdminService.listUsers(params),
-        query
-      )
+      const rows = await loadAllRows((params) => securityAdminService.listUsers(params), query)
 
       if (kind === 'csv') {
-        downloadCsv(
-          rows,
-          EXPORT_COLUMNS,
-          'user_accounts'
-        )
+        downloadCsv(rows, EXPORT_COLUMNS, 'user_accounts')
       } else {
         writePdfView(pdfView, rows)
       }
@@ -498,10 +415,7 @@ export default function UserDirectory({
         pdfView.close()
       }
 
-      setExportError(
-        error?.message ||
-          'Unable to export accounts. Please retry.'
-      )
+      setExportError(error?.message || 'Unable to export accounts. Please retry.')
     } finally {
       setExporting(false)
     }
@@ -513,9 +427,7 @@ export default function UserDirectory({
 
   const filtersForm = (
     <form
-      className={`zrv-admin-toolbar ${
-        dashboard ? 'zrv-ua-filters' : ''
-      }`}
+      className={`zrv-admin-toolbar ${dashboard ? 'zrv-ua-filters' : ''}`}
       onSubmit={submitSearch}
       role="search"
       aria-label="Search accounts"
@@ -526,11 +438,7 @@ export default function UserDirectory({
       <Field
         id="users-search"
         label="Search"
-        hint={
-          dashboard
-            ? undefined
-            : 'Employee number, username or name'
-        }
+        hint={dashboard ? undefined : 'Employee number, username or name'}
         error={searchError}
       >
         <input
@@ -540,25 +448,16 @@ export default function UserDirectory({
           })}
           className="ux-input"
           type="search"
-          placeholder={
-            dashboard
-              ? 'Employee number, username or name'
-              : undefined
-          }
+          placeholder={dashboard ? 'Employee number, username or name' : undefined}
           value={searchText}
           maxLength={100}
-          onChange={(event) =>
-            setSearchText(event.target.value)
-          }
+          onChange={(event) => setSearchText(event.target.value)}
         />
       </Field>
 
       {/* Account status */}
 
-      <Field
-        id="users-status"
-        label="Status"
-      >
+      <Field id="users-status" label="Status">
         <select
           id="users-status"
           className="ux-select"
@@ -569,30 +468,19 @@ export default function UserDirectory({
             })
           }
         >
-          <option value="">
-            All statuses
-          </option>
+          <option value="">All statuses</option>
 
-          <option value="PENDING">
-            Pending
-          </option>
+          <option value="PENDING">Pending</option>
 
-          <option value="ACTIVE">
-            Active
-          </option>
+          <option value="ACTIVE">Active</option>
 
-          <option value="DISABLED">
-            Disabled
-          </option>
+          <option value="DISABLED">Disabled</option>
         </select>
       </Field>
 
       {/* Authenticator */}
 
-      <Field
-        id="users-mfa"
-        label="Authenticator"
-      >
+      <Field id="users-mfa" label="Authenticator">
         <select
           id="users-mfa"
           className="ux-select"
@@ -605,18 +493,13 @@ export default function UserDirectory({
         >
           <option value="">Any</option>
           <option value="true">Enrolled</option>
-          <option value="false">
-            Not enrolled
-          </option>
+          <option value="false">Not enrolled</option>
         </select>
       </Field>
 
       {/* Lockout */}
 
-      <Field
-        id="users-locked"
-        label="Lockout"
-      >
+      <Field id="users-locked" label="Lockout">
         <select
           id="users-locked"
           className="ux-select"
@@ -629,27 +512,19 @@ export default function UserDirectory({
         >
           <option value="">Any</option>
           <option value="true">Locked</option>
-          <option value="false">
-            Not locked
-          </option>
+          <option value="false">Not locked</option>
         </select>
       </Field>
 
       {/* Sort */}
 
-      <Field
-        id="users-sort"
-        label="Sort by"
-      >
+      <Field id="users-sort" label="Sort by">
         <select
           id="users-sort"
           className="ux-select"
-          value={
-            `${filters.sortBy}:${filters.sortOrder}`
-          }
+          value={`${filters.sortBy}:${filters.sortOrder}`}
           onChange={(event) => {
-            const [sortBy, sortOrder] =
-              event.target.value.split(':')
+            const [sortBy, sortOrder] = event.target.value.split(':')
 
             update({
               sortBy,
@@ -657,33 +532,22 @@ export default function UserDirectory({
             })
           }}
         >
-          {Object.entries(USER_SORTS).flatMap(
-            ([value, label]) => [
-              <option
-                key={`${value}:asc`}
-                value={`${value}:asc`}
-              >
-                {label} ↑
-              </option>,
+          {Object.entries(USER_SORTS).flatMap(([value, label]) => [
+            <option key={`${value}:asc`} value={`${value}:asc`}>
+              {label} ↑
+            </option>,
 
-              <option
-                key={`${value}:desc`}
-                value={`${value}:desc`}
-              >
-                {label} ↓
-              </option>,
-            ]
-          )}
+            <option key={`${value}:desc`} value={`${value}:desc`}>
+              {label} ↓
+            </option>,
+          ])}
         </select>
       </Field>
 
       {/* Search button */}
 
       <div className="zrv-admin-toolbar__submit">
-        <button
-          type="submit"
-          className="btn-primary zrv-ua-white-text"
-        >
+        <button type="submit" className="btn-primary zrv-ua-white-text">
           Search
         </button>
       </div>
@@ -707,13 +571,9 @@ export default function UserDirectory({
             ? 'zrv-directory-report-table'
             : 'ux-table zrv-admin-table'
       }`}
-      aria-busy={
-        users.refreshing || undefined
-      }
+      aria-busy={users.refreshing || undefined}
     >
-      <caption className="sr-only">
-        Application accounts
-      </caption>
+      <caption className="sr-only">Application accounts</caption>
 
       {/* ==================================
           TABLE HEADER
@@ -727,23 +587,15 @@ export default function UserDirectory({
 
               {sortHeader('employeeNumber', 'Employee Number')}
 
-              <th scope="col">
-                Department
-              </th>
+              <th scope="col">Department</th>
 
-              <th scope="col">
-                Position
-              </th>
+              <th scope="col">Position</th>
 
               {sortHeader('username', 'Username')}
 
-              <th scope="col">
-                Status
-              </th>
+              <th scope="col">Status</th>
 
-              <th scope="col">
-                Authenticator
-              </th>
+              <th scope="col">Authenticator</th>
 
               {sortHeader('lastLoginAt', 'Last sign-in')}
             </>
@@ -753,32 +605,18 @@ export default function UserDirectory({
 
               {sortHeader('username', 'Username')}
 
-              <th scope="col">
-                Department
-              </th>
+              <th scope="col">Department</th>
 
-              <th scope="col">
-                Status
-              </th>
+              <th scope="col">Status</th>
 
-              <th scope="col">
-                Authenticator
-              </th>
+              <th scope="col">Authenticator</th>
 
               {sortHeader('lastLoginAt', 'Last sign-in')}
             </>
           )}
 
           <th scope="col">
-            <span
-              className={
-                dashboard
-                  ? ''
-                  : 'sr-only'
-              }
-            >
-              Action
-            </span>
+            <span className={dashboard ? '' : 'sr-only'}>Action</span>
           </th>
         </tr>
       </thead>
@@ -790,12 +628,8 @@ export default function UserDirectory({
       <tbody>
         {!items.length && (
           <tr>
-            <td
-              colSpan={dashboard ? 9 : 7}
-              className="zrv-admin-state"
-            >
-              No accounts on this page.
-              Use Previous to go back.
+            <td colSpan={dashboard ? 9 : 7} className="zrv-admin-state">
+              No accounts on this page. Use Previous to go back.
             </td>
           </tr>
         )}
@@ -807,65 +641,45 @@ export default function UserDirectory({
                 {/* Employee name */}
 
                 <td className="zrv-ua-employee-name">
-                  <b>
-                    {displayName(user) ||
-                      'Name not recorded'}
-                  </b>
+                  <b>{displayName(user) || 'Name not recorded'}</b>
                 </td>
 
                 {/* Employee number */}
 
-                <td className="zrv-ua-employee-number">
-                  {user.employeeNumber || '—'}
-                </td>
+                <td className="zrv-ua-employee-number">{user.employeeNumber || '—'}</td>
 
                 {/* Department */}
 
-                <td className="zrv-ua-department">
-                  {user.department || '—'}
-                </td>
+                <td className="zrv-ua-department">{user.department || '—'}</td>
 
                 {/* Position */}
 
-                <td className="zrv-ua-position">
-                  {user.jobTitle || '—'}
-                </td>
+                <td className="zrv-ua-position">{user.jobTitle || '—'}</td>
 
                 {/* Username */}
 
-                <td>
-                  {user.username || '—'}
-                </td>
+                <td>{user.username || '—'}</td>
               </>
             ) : (
               <>
                 {/* Employee and number */}
 
                 <td>
-                  <b>
-                    {displayName(user) ||
-                      'Name not recorded'}
-                  </b>
+                  <b>{displayName(user) || 'Name not recorded'}</b>
 
-                  <small className="zrv-admin-sub">
-                    {user.employeeNumber}
-                  </small>
+                  <small className="zrv-admin-sub">{user.employeeNumber}</small>
                 </td>
 
                 {/* Username */}
 
-                <td>
-                  {user.username || '—'}
-                </td>
+                <td>{user.username || '—'}</td>
 
                 {/* Department and position */}
 
                 <td>
                   {user.department || '—'}
 
-                  <small className="zrv-admin-sub">
-                    {user.jobTitle || ''}
-                  </small>
+                  <small className="zrv-admin-sub">{user.jobTitle || ''}</small>
                 </td>
               </>
             )}
@@ -873,47 +687,26 @@ export default function UserDirectory({
             {/* Account status */}
 
             <td>
-              <Badge>
-                {user.accountStatus}
-              </Badge>
+              <Badge>{user.accountStatus}</Badge>
 
-              {user.locked && (
-                <Badge tone="bad">
-                  LOCKED
-                </Badge>
-              )}
+              {user.locked && <Badge tone="bad">LOCKED</Badge>}
             </td>
 
             {/* Authenticator */}
 
-            <td>
-              {user.mfaEnrolled
-                ? 'Enrolled'
-                : 'Not enrolled'}
-            </td>
+            <td>{user.mfaEnrolled ? 'Enrolled' : 'Not enrolled'}</td>
 
             {/* Last sign-in */}
 
-            <td>
-              {formatInstant(
-                user.lastLoginAt
-              )}
-            </td>
+            <td>{formatInstant(user.lastLoginAt)}</td>
 
             {/* Existing row action */}
 
             <td>
-              <Link
-                className="zrv-admin-link"
-                to={rowLink(user)}
-              >
+              <Link className="zrv-admin-link" to={rowLink(user)}>
                 {rowAction}
 
-                <span className="sr-only">
-                  {' '}
-                  {displayName(user) ||
-                    user.employeeNumber}
-                </span>
+                <span className="sr-only"> {displayName(user) || user.employeeNumber}</span>
               </Link>
             </td>
           </tr>
@@ -927,11 +720,7 @@ export default function UserDirectory({
   // ====================================================
 
   const accountsTable = (
-    <ResourceState
-      resource={users}
-      label="accounts"
-      empty="No accounts match these filters."
-    >
+    <ResourceState resource={users} label="accounts" empty="No accounts match these filters.">
       {({ items, pagination }) => (
         <>
           {/* ==================================
@@ -941,15 +730,22 @@ export default function UserDirectory({
           {useHorizontalScroll ? (
             <HorizontalTableScroll
               className={
-                dashboard
-                  ? 'zrv-ua-horizontal-scroll'
-                  : 'zrv-user-roles-horizontal-scroll'
-              } zrv-security-table-scroll
+                dashboard ? 'zrv-ua-horizontal-scroll' : 'zrv-user-roles-horizontal-scroll'
+              }
+              zrv-security-table-scroll
             >
               {renderAccountsTable(items)}
             </HorizontalTableScroll>
           ) : (
-            <div className={dashboard ? 'zrv-ua-table-wrap' : compactReportTable ? 'zrv-report-table-wrap' : 'ux-table-wrap'}>
+            <div
+              className={
+                dashboard
+                  ? 'zrv-ua-table-wrap'
+                  : compactReportTable
+                    ? 'zrv-report-table-wrap'
+                    : 'ux-table-wrap'
+              }
+            >
               {renderAccountsTable(items)}
             </div>
           )}
@@ -958,22 +754,16 @@ export default function UserDirectory({
               EXISTING PAGINATION
              ================================== */}
 
-          {dashboard &&
-            pagination.totalPages === 1 && (
-              <p className="zrv-ua-onepage">
-                Page {pagination.page} of{' '}
-                {pagination.totalPages} ·{' '}
-                {pagination.total} total
-              </p>
-            )}
+          {dashboard && pagination.totalPages === 1 && (
+            <p className="zrv-ua-onepage">
+              Page {pagination.page} of {pagination.totalPages} · {pagination.total} total
+            </p>
+          )}
 
-          {(!dashboard ||
-            pagination.totalPages !== 1) && (
+          {(!dashboard || pagination.totalPages !== 1) && (
             <Pagination
               pagination={pagination}
-              onPage={(page) =>
-                update({ page })
-              }
+              onPage={(page) => update({ page })}
               disabled={users.refreshing}
               label="Account pages"
             />
@@ -1011,24 +801,14 @@ export default function UserDirectory({
         <div className="zrv-ua-heading">
           <div className="zrv-ua-breadcrumb">
             <span className="zrv-ua-dot" />
-
             SECURITY ADMINISTRATION
-
-            <span className="zrv-ua-slash">
-              /
-            </span>
-
+            <span className="zrv-ua-slash">/</span>
             USER MANAGEMENT
           </div>
 
-          <h1>
-            User accounts
-          </h1>
+          <h1>User accounts</h1>
 
-          <p>
-            Manage employee accounts,
-            authentication and access.
-          </p>
+          <p>Manage employee accounts, authentication and access.</p>
         </div>
 
         {/* ==================================
@@ -1040,16 +820,11 @@ export default function UserDirectory({
 
           <span className="zrv-ua-updated">
             <span className="zrv-ua-dot" />
-
             Updated{' '}
-
-            {updatedAt.toLocaleTimeString(
-              'en-GB',
-              {
-                hour: '2-digit',
-                minute: '2-digit',
-              }
-            )}
+            {updatedAt.toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
           </span>
 
           {/* Filters */}
@@ -1059,15 +834,9 @@ export default function UserDirectory({
             type="button"
             aria-expanded={filtersOpen}
             aria-controls="zrv-ua-filter-region"
-            onClick={() =>
-              setFiltersOpen(
-                (value) => !value
-              )
-            }
+            onClick={() => setFiltersOpen((value) => !value)}
           >
-            <OrvexaIcon
-              name="sliders-horizontal"
-            />
+            <OrvexaIcon name="sliders-horizontal" />
             Filters
           </button>
 
@@ -1078,16 +847,12 @@ export default function UserDirectory({
             type="button"
             disabled={users.refreshing}
             onClick={() => {
-              setRefreshKey(
-                (value) => value + 1
-              )
+              setRefreshKey((value) => value + 1)
 
               setUpdatedAt(new Date())
             }}
           >
-            <OrvexaIcon
-              name="refresh-cw"
-            />
+            <OrvexaIcon name="refresh-cw" />
             Refresh
           </button>
 
@@ -1096,13 +861,8 @@ export default function UserDirectory({
           <button
             className="zrv-ua-button"
             type="button"
-            disabled={
-              exporting ||
-              users.status !== 'ready'
-            }
-            onClick={() =>
-              exportList('csv')
-            }
+            disabled={exporting || users.status !== 'ready'}
+            onClick={() => exportList('csv')}
             title="Export all filtered accounts"
           >
             <OrvexaIcon name="download" />
@@ -1114,13 +874,8 @@ export default function UserDirectory({
           <button
             className="zrv-ua-button"
             type="button"
-            disabled={
-              exporting ||
-              users.status !== 'ready'
-            }
-            onClick={() =>
-              exportList('pdf')
-            }
+            disabled={exporting || users.status !== 'ready'}
+            onClick={() => exportList('pdf')}
             title="Open PDF export of filtered accounts"
           >
             <OrvexaIcon name="file-text" />
@@ -1135,81 +890,42 @@ export default function UserDirectory({
           ACCOUNT SUMMARY CARDS
          ====================================== */}
 
-      <section
-        className="zrv-ua-metrics"
-        aria-label="Account overview"
-      >
-        {SUMMARY_CARDS.map(
-          (card, index) => {
-            const value =
-              summary.status === 'ready'
-                ? summary.data[index]
-                : null
+      <section className="zrv-ua-metrics" aria-label="Account overview">
+        {SUMMARY_CARDS.map((card, index) => {
+          const value = summary.status === 'ready' ? summary.data[index] : null
 
-            const total =
-              summary.status === 'ready'
-                ? summary.data[0]
-                : 0
+          const total = summary.status === 'ready' ? summary.data[0] : 0
 
-            const percentage =
-              index && total
-                ? `${(
-                    (value / total) *
-                    100
-                  ).toFixed(1)}%`
-                : null
+          const percentage = index && total ? `${((value / total) * 100).toFixed(1)}%` : null
 
-            return (
-              <div
-                className={`zrv-ua-card zrv-ua-card--${card.className}`}
-                key={card.label}
-              >
-                <span className="zrv-ua-card__icon">
-                  <OrvexaIcon
-                    name={card.icon}
-                  />
-                </span>
+          return (
+            <div className={`zrv-ua-card zrv-ua-card--${card.className}`} key={card.label}>
+              <span className="zrv-ua-card__icon">
+                <OrvexaIcon name={card.icon} />
+              </span>
 
-                <div className="zrv-ua-card__text">
-                  <span className="zrv-ua-card__label">
-                    {card.label}
-                  </span>
+              <div className="zrv-ua-card__text">
+                <span className="zrv-ua-card__label">{card.label}</span>
 
-                  <div className="zrv-ua-card__value">
-                    {formatCount(value)}
+                <div className="zrv-ua-card__value">
+                  {formatCount(value)}
 
-                    {percentage && (
-                      <span className="zrv-ua-card__percent">
-                        {percentage}
-                      </span>
-                    )}
-                  </div>
+                  {percentage && <span className="zrv-ua-card__percent">{percentage}</span>}
                 </div>
-
-                <span
-                  className="zrv-ua-card__wave"
-                  aria-hidden="true"
-                />
               </div>
-            )
-          }
-        )}
+
+              <span className="zrv-ua-card__wave" aria-hidden="true" />
+            </div>
+          )
+        })}
       </section>
 
       {/* Summary loading error */}
 
       {summary.status === 'error' && (
-        <p
-          className="zrv-ua-notice"
-          role="alert"
-        >
+        <p className="zrv-ua-notice" role="alert">
           Account summary is unavailable.
-
-          <button
-            type="button"
-            className="zrv-admin-link"
-            onClick={summary.reload}
-          >
+          <button type="button" className="zrv-admin-link" onClick={summary.reload}>
             Retry summary
           </button>
         </p>
@@ -1218,19 +934,10 @@ export default function UserDirectory({
       {/* Export error */}
 
       {exportError && (
-        <div
-          className="zrv-ua-notice"
-          role="alert"
-        >
+        <div className="zrv-ua-notice" role="alert">
           {exportError}
 
-          <button
-            type="button"
-            className="zrv-admin-link"
-            onClick={() =>
-              setExportError('')
-            }
-          >
+          <button type="button" className="zrv-admin-link" onClick={() => setExportError('')}>
             Dismiss
           </button>
         </div>
@@ -1240,16 +947,10 @@ export default function UserDirectory({
           ACCOUNTS TABLE PANEL
          ====================================== */}
 
-      <Panel
-        title="Accounts"
-        className="zrv-ua-panel"
-      >
+      <Panel title="Accounts" className="zrv-ua-panel">
         {/* Existing filters */}
 
-        <div
-          id="zrv-ua-filter-region"
-          hidden={!filtersOpen}
-        >
+        <div id="zrv-ua-filter-region" hidden={!filtersOpen}>
           {filtersForm}
         </div>
 
