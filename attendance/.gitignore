@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.vite/
+.env
+.env.*
+!.env.example
+storage/
+# Copied from ../client/public by scripts/sync-orvexa.mjs (client/ is the source of truth)
+apps/web/public/orvexa/
+apps/web/public/theme-init.js
+apps/web/public/favicon.svg

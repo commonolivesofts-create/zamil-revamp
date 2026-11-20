@@ -1,0 +1,175 @@
+/*
+ * Attendance-only additions (zat- prefix). Everything else comes from the main Zamil client's
+ * Orvexa CSS and feature stylesheets. Design tokens only; no hard-coded colours.
+ */
+
+.zat-report {
+  max-width: 100%;
+}
+
+.zat-col-num {
+  width: 56px;
+  text-align: center;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.zat-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.zat-page-size select {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-solid);
+  color: var(--text);
+  padding: 0 8px;
+}
+
+.zat-toast-region {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 120;
+  display: grid;
+  gap: 8px;
+  width: min(380px, calc(100vw - 32px));
+}
+
+.zat-toast-region .zrv-admin-feedback {
+  box-shadow: var(--shadow);
+  background: var(--surface-solid);
+}
+
+.zat-muted {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.zat-result-line {
+  margin: 4px 2px 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.zat-feature-filters {
+  margin-bottom: 12px;
+}
+
+.zat-feature-group {
+  margin-bottom: 16px;
+}
+
+.zat-feature-group h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zat-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 12px 16px 16px;
+  list-style: none;
+}
+
+.zat-feature-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.zat-feature-card h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.zat-feature-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.zat-feature-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.zat-feature-card__benefit {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  color: var(--primary-text) !important;
+}
+
+.zat-feature-card__benefit svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.zat-planned {
+  display: grid;
+  gap: 16px;
+}
+
+.zat-available__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 12px 16px 16px;
+  list-style: none;
+}
+
+.zat-available__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.zat-available__link span {
+  flex: 1;
+  font-weight: 600;
+}
+
+.zat-available__link:hover,
+.zat-available__link:focus-visible {
+  border-color: var(--primary);
+  color: var(--primary-text);
+}
+
+/* Rows become cards below 900px (hr-insight-report.css); the row number adds nothing there. */
+@media (max-width: 900px) {
+  /* Must out-rank `.zrv-ir-table tbody :is(td, tr.zrv-ir-is-on td)` in hr-insight-report.css. */
+  .zat-report .zrv-ir-table tbody td.zat-col-num,
+  .zat-report .zrv-ir-table thead th.zat-col-num {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .zat-page-size span {
+    display: none;
+  }
+}
