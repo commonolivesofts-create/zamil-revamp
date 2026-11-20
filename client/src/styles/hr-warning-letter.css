@@ -3,7 +3,7 @@
    (hr-recruitment.css). */
 .zrv-hr-wl-reasons {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   gap: 8px;
 }
 .zrv-hr-wl-check {
@@ -104,7 +104,7 @@
 }
 .zrv-hr-wl-preview__two {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 8px 16px;
 }
 .zrv-hr-wl-preview__signs {

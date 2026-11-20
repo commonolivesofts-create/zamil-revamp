@@ -3,7 +3,7 @@
 
 .zwf-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -54,7 +54,7 @@ a.zwf-stat:focus-visible {
 
 .zwf-tasks {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 10px;
   margin: 0;
   padding: 0;
@@ -180,7 +180,7 @@ a.zwf-stat:focus-visible {
 /* --- M2-A source version mapping ------------------------------------------------------- */
 .zwf-context__list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 12px 20px;
   margin: 0;
 }
@@ -271,7 +271,7 @@ a.zwf-stat:focus-visible {
 }
 .zwf-legend {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: 6px 16px;
   margin: 12px 0 0;
   font-size: 12px;
@@ -358,7 +358,7 @@ a.zwf-stat:focus-visible {
 }
 .zwf-key-assurance {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   gap: 0 16px;
   margin-top: 12px;
   padding-top: 12px;
@@ -377,7 +377,7 @@ a.zwf-stat:focus-visible {
 }
 .zwf-evidence {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 8px 16px;
   margin: 12px 0 0;
   padding: 10px 12px;

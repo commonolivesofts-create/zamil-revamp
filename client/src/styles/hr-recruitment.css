@@ -350,6 +350,15 @@
     justify-content: center;
   }
 }
+@media screen and (max-width: 480px) {
+  .zrv-hr-toolbar__actions {
+    width: 100%;
+  }
+  .zrv-hr-toolbar__actions > :is(.btn-primary, .btn-secondary) {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
 .zrv-hr > .zrv-admin-feedback {
   margin: 0;
 }
@@ -1054,7 +1063,7 @@
 /* fields */
 .zrv-hr-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 14px 16px;
 }
 .zrv-hr-grid.zrv-hr-is-2 {
@@ -1367,7 +1376,7 @@
 /* choice cards */
 .zrv-hr-choices {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: 12px;
 }
 .zrv-hr-choice {
@@ -1471,7 +1480,7 @@
 /* tiles */
 .zrv-hr-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 10px;
 }
 .zrv-hr-tile {
@@ -1731,7 +1740,7 @@
 }
 .zrv-hr-review {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: 10px;
   margin: 0;
 }
@@ -1811,6 +1820,7 @@
 }
 .zrv-hr-pips {
   display: flex;
+  flex-wrap: wrap;
   gap: 3px;
   padding: 3px;
   border: 1px solid var(--line);
@@ -1847,6 +1857,21 @@
     color 0.3s,
     transform 0.4s var(--zrv-hr-spring),
     box-shadow 0.3s;
+}
+@media screen and (max-width: 480px) {
+  .zrv-hr-row {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+  .zrv-hr-row > .zrv-hr-pips {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+@media screen and (pointer: coarse) {
+  .zrv-hr-pips span {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 .zrv-hr-pips input:focus-visible + span {
   outline: 2px solid var(--zrv-hr-accent-text);
@@ -2350,7 +2375,7 @@
 }
 .zrv-hr-signs {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: 12px;
 }
 .zrv-hr-sign {
@@ -2489,6 +2514,13 @@
   margin: 6px 0 10px;
   border-collapse: collapse;
   font-size: 11px;
+}
+@media screen {
+  .zrv-offer-live__table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
 }
 .zrv-hr-paper__tbl th {
   padding: 5px;
@@ -3512,10 +3544,10 @@
   gap: 12px;
 }
 .zrv-hr-radios--choice {
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
 }
 .zrv-hr-radios--type {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
   gap: 10px;
 }
 .zrv-hr-radio {
@@ -4304,6 +4336,10 @@
 }
 .zrv-hr-rp-tablewrap {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface-solid);
@@ -4393,6 +4429,11 @@
 }
 .zrv-hr-rp-table .zrv-hr-rp-dot {
   flex-shrink: 0;
+}
+@media screen and (max-width: 760px) {
+  .zrv-hr-rp-table {
+    min-width: 680px;
+  }
 }
 .zrv-hr-rp-table tbody tr:hover td {
   background: color-mix(in srgb, var(--zrv-hr-accent) 7%, transparent);
@@ -5504,7 +5545,7 @@
     .zrv-hr--warning-letter
   )
   .zrv-hr-grid.zrv-hr-is-4 {
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
 }
 @media (min-width: 700px) {
   .zrv-hr--interview .zrv-hr-field:is(:has(#ia-pos), :has(#ia-candidateName)) {
@@ -6251,7 +6292,7 @@
 /* Personnel Requisition controls: reason and budget cards side by side, smaller
    tiles, experience track, skill tags, file drop and review grid */
 .zrv-hr--requisition .zrv-hr-choices {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 10px;
 }
 .zrv-hr--requisition .zrv-hr-choice small {
@@ -6273,7 +6314,7 @@
   margin-bottom: 4px;
 }
 .zrv-hr--requisition .zrv-hr-tiles {
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
   gap: 8px;
 }
 .zrv-hr--requisition .zrv-hr-tile {
@@ -6343,7 +6384,7 @@
   height: 28px;
 }
 .zrv-hr--requisition .zrv-hr-review {
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
   gap: 8px;
 }
 .zrv-hr--requisition .zrv-hr-review div {
@@ -7219,6 +7260,26 @@
   margin-top: 10px;
 }
 
+/* Personnel requisition content that complements the shared responsive form shell. */
+.zrv-hr--requisition .zrv-hr-exp__stop {
+  min-width: 0;
+  min-height: 56px;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.zrv-hr--requisition .zrv-hr-dark__title,
+.zrv-hr--requisition .zrv-hr-dark__sub {
+  overflow-wrap: anywhere;
+}
+
+@media (pointer: coarse) {
+  .zrv-hr--requisition .zrv-hr-tag button,
+  .zrv-hr--requisition .zrv-hr-file button {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 /* Employment Offer: 65% form / 35% preview, stacked when space is limited. */
 @media screen {
   .zrv-hr--offer .zrv-hr-stage {
@@ -7247,7 +7308,7 @@
 .zrv-hr--offer .zrv-hr-benefits,
 .zrv-hr--orientation .zrv-hr-benefits {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr));
   gap: 10px;
 }
 @media (max-width: 620px) {
@@ -7318,7 +7379,7 @@
   margin: 14px 0;
 }
 .zrv-hr--orientation .zrv-hr-review {
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
   gap: 8px;
 }
 .zrv-hr--orientation .zrv-hr-review div {

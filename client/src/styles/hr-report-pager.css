@@ -17,6 +17,9 @@
 }
 .zrv-ir-pager__nav {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
   align-items: center;
   gap: 4px;
   margin-left: auto;

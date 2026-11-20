@@ -7,6 +7,42 @@ body {
   min-height: 100vh;
 }
 
+/* Native controls have intrinsic minimum widths (notably dates and files).
+   Let them fit the existing form grids and flex rows at every viewport size. */
+:is(.zrv-hr, .zrv-admin, .zrv-auth-page, .zrv-dialog) :is(input, select, textarea) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+@media screen and (max-width: 640px) {
+  :is(.zrv-hr, .zrv-admin, .zrv-auth-page, .zrv-dialog) :is(.btn-primary, .btn-secondary) {
+    max-inline-size: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Keep mobile browsers from zooming the whole page when a field receives
+   focus. Coarse pointers also need enough space between compact controls. */
+@media screen and (pointer: coarse) {
+  #root
+    :is(.zrv-hr, .zrv-admin, .zrv-auth-page, .zrv-dialog)
+    :is(input, select, textarea):not([type='checkbox'], [type='radio']) {
+    font-size: 16px;
+  }
+
+  #root :is(.zrv-hr, .zrv-admin, .zrv-dialog) :is(button, .btn-primary, .btn-secondary),
+  #root .zrv-auth-page .zrv-password-toggle {
+    /* The purchased theme and compact form buttons use !important sizing. */
+    min-block-size: 44px !important;
+    min-inline-size: 44px;
+  }
+
+  #root .zrv-auth-page .zrv-password-input .ux-input {
+    padding-inline-end: 56px;
+  }
+}
+
 /* Visually hidden but announced by screen readers (route announcements,
    checklist states, dialog headings). The template's precompiled tailwind.css
    does not include Tailwind's sr-only utility, so it is defined here with the
