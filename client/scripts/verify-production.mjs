@@ -17,16 +17,14 @@ const required = [
   'theme-init.js',
 ]
 // Template and scaffold leftovers that must not ship (ZRV-FE-005).
-const forbidden = [
-  'orvexa/assets/images',
-  'icons.svg',
-]
+const forbidden = ['orvexa/assets/images', 'icons.svg']
 const errors = []
 for (const relative of required) {
   if (!existsSync(path.join(dist, relative))) errors.push(`Missing build asset: ${relative}`)
 }
 for (const relative of forbidden) {
-  if (existsSync(path.join(dist, relative))) errors.push(`Template asset must not ship: ${relative}`)
+  if (existsSync(path.join(dist, relative)))
+    errors.push(`Template asset must not ship: ${relative}`)
 }
 
 if (existsSync(path.join(dist, 'index.html'))) {
@@ -35,9 +33,11 @@ if (existsSync(path.join(dist, 'index.html'))) {
   if (!html.includes('id="root"')) errors.push('Missing React root')
   // The deployment CSP (vercel.json) allows no inline script.
   for (const [tag] of html.matchAll(/<script\b[^>]*>/g)) {
-    if (!/\bsrc=/.test(tag)) errors.push('Inline <script> in built HTML is blocked by the Content-Security-Policy')
+    if (!/\bsrc=/.test(tag))
+      errors.push('Inline <script> in built HTML is blocked by the Content-Security-Policy')
   }
-  if (/orvexa/i.test(html.replace(/\/orvexa\/assets\/(css|vendor)\//g, ''))) errors.push('Template branding in built HTML')
+  if (/orvexa/i.test(html.replace(/\/orvexa\/assets\/(css|vendor)\//g, '')))
+    errors.push('Template branding in built HTML')
   // Vite's default deployment base is /. Other bases must be verified on their host.
   for (const [, url] of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
     if (/^(?:https?:|data:|#)/i.test(url)) continue
@@ -67,12 +67,17 @@ else {
     }
   }
   const large = chunks.filter((item) => item.bytes > 500 * 1024)
-  if (large.length) console.log(`${large.length} chunk(s) exceed 500 KiB; inspect lazy-loaded vendor bundles. This is not an automatic failure.`)
+  if (large.length)
+    console.log(
+      `${large.length} chunk(s) exceed 500 KiB; inspect lazy-loaded vendor bundles. This is not an automatic failure.`,
+    )
 }
 
 if (errors.length) {
   console.error('Release checks failed:\n' + errors.map((error) => `  - ${error}`).join('\n'))
   process.exitCode = 1
 } else {
-  console.log('Release checks: PASS (static build and local assets only; not a deployment or browser test).')
+  console.log(
+    'Release checks: PASS (static build and local assets only; not a deployment or browser test).',
+  )
 }

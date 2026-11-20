@@ -19,7 +19,10 @@ Merged into `main` via [PR #74](https://github.com/commonolivesofts-create/zamil
 
 Owner-approved for code on 9 November 2026. Branch `feat/workflow-manager-m2-a-source-mapping` (from `main` `4bb0588`): nine `SOURCE_MAPPING` endpoints (dictionary, list/detail, create, edit, re-validate, drift, clone, restricted delete) writing **DRAFT** rows of `XX_ZRV_WF_SOURCE_VERSIONS` only, the Source versions / Source version screens reached from **Manage mapping** in the Data source registry, guide 05, OpenAPI and automated tests. Fixes the first-version vs. source-identity race: M1 identity updates and every M2-A write take the same parent `SELECT … FOR UPDATE` lock. Details and evidence: `docs/handoffs/FEATURE-WORKFLOW-MANAGER-M2-A.md`.
 
-**Pending, owner-gated:** G1 registration of `WORKFLOW_MANAGER.SOURCE_MAPPING` (expected scoped TEST preview: MISSING 5) and a role grant — until then every M2-A route denies; read-only verification of the deployed `XX_ZRV_WF_SOURCE_VERSIONS` / `XX_ZRV_WF_FORM_VERSIONS` dictionary (constraints, `TR_WF_SV_IMM`, foreign keys) — not performed in this package; owner-executed TEST acceptance. Next after M2-A: M2-B (form mapping), M2-C (secure preview, G2), then M6 governance.
+**Pending, owner-gated:** G1 registration of `WORKFLOW_MANAGER.SOURCE_MAPPING` and a role grant; until then every M2-A route denies.
+- The scoped TEST preview of 14 November 2026 was MATCH 47 / MISSING 5 / CONFLICT 0, but only with the follow-up fix that restores the M1 module description. As merged in #83, the registry gives CONFLICT 6 / MISSING 0.
+- The read-only verification of the deployed `XX_ZRV_WF_*` dictionary passed on 14 November 2026 (M2-A handoff §7).
+- Owner-executed TEST acceptance is still pending. Next after M2-A: M2-B (form mapping), M2-C (secure preview, G2), then M6 governance.
 
 ## M2 — Versioned form and data source mapping (remaining: M2-B, M2-C)
 

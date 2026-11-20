@@ -1,0 +1,1114 @@
+/* ======================================================
+   ZAMIL DIGITALIZATION — SECURITY ADMINISTRATION
+   ROLE PERMISSIONS | ITSAZZ PREMIUM DESIGN
+   ====================================================== */
+
+.zrv-role-permissions-page {
+  --rp-green: #087343;
+  --rp-green-dark: #07663c;
+  --rp-mint: #e6f7ed;
+  --rp-border: #dce5e1;
+  --rp-muted: #67768a;
+  --rp-text: #17243b;
+
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+/* FULL WIDTH */
+
+.zrv-role-permissions-page > .zrv-admin {
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+}
+
+/* PAGE HEADER */
+
+.zrv-role-permissions-page .zrv-admin__head {
+  align-items: center;
+  padding: 8px 2px 20px;
+}
+
+.zrv-role-permissions-page .zrv-admin__head h1 {
+  margin: 5px 0 3px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.zrv-role-permissions-page .zrv-admin__lead {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* FOUR SUMMARY CARDS */
+
+.zrv-rp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 13px;
+  margin-bottom: 18px;
+}
+
+.zrv-rp-stat {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  min-width: 0;
+  min-height: 103px;
+  padding: 17px 14px;
+
+  overflow: hidden;
+  isolation: isolate;
+
+  background: #f9fcfa;
+  border: 1px solid #b8dec9;
+  border-radius: 15px;
+
+  box-shadow: 0 2px 8px rgb(15 65 42 / 4%);
+}
+
+.zrv-rp-stat__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 40px;
+
+  width: 40px;
+  height: 40px;
+
+  color: var(--rp-green);
+  background: #e6f7ed;
+  border-radius: 50%;
+}
+
+.zrv-rp-stat__icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.zrv-rp-stat__content {
+  position: relative;
+  z-index: 1;
+
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  min-width: 0;
+}
+
+.zrv-rp-stat__title {
+  color: #172b24;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.zrv-rp-stat__value {
+  color: #132b22;
+  font-size: 27px;
+  font-weight: 750;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.zrv-rp-stat__subtitle {
+  color: #617769;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.zrv-rp-stat__wave {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+
+  width: 55%;
+  height: 43px;
+
+  color: #d6f1e1;
+  pointer-events: none;
+}
+
+.zrv-rp-stat.is-amber .zrv-rp-stat__icon {
+  color: #b97b00;
+  background: #fff2da;
+}
+
+.zrv-rp-stat.is-amber .zrv-rp-stat__wave {
+  color: #ffefd0;
+}
+
+/* MAIN LAYOUT */
+
+.zrv-role-permissions-page .zrv-rp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 31fr) minmax(0, 69fr);
+  gap: 16px;
+
+  width: 100%;
+  max-width: none;
+
+  align-items: stretch;
+}
+
+/* PANELS */
+
+.zrv-role-permissions-page .zrv-rp-roles-panel,
+.zrv-role-permissions-page .zrv-rp-permissions-panel {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+
+  background: var(--surface-solid, #fff);
+  border: 1px solid var(--rp-border);
+  border-radius: 11px;
+
+  box-shadow: 0 2px 8px rgb(15 42 32 / 4%);
+}
+
+.zrv-role-permissions-page .zrv-rp-roles-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 560px;
+}
+
+.zrv-role-permissions-page .zrv-rp-roles-panel .zrv-admin-panel__head,
+.zrv-role-permissions-page .zrv-rp-permissions-panel .zrv-admin-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 10px;
+  min-height: 54px;
+  margin: 0;
+  padding: 12px 15px;
+
+  border-bottom: 1px solid var(--rp-border);
+}
+
+.zrv-role-permissions-page .zrv-admin-panel__head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--rp-text);
+}
+
+/* SEARCH AND FILTER */
+
+.zrv-rp-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 38%);
+  gap: 8px;
+
+  padding: 9px 12px;
+
+  border-bottom: 1px solid var(--rp-border);
+}
+
+.zrv-rp-search,
+.zrv-rp-filter {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 10px;
+
+  background: var(--surface-solid, #fff);
+  border: 1px solid var(--rp-border);
+  border-radius: 7px;
+
+  color: var(--rp-muted);
+}
+
+.zrv-rp-search svg,
+.zrv-rp-filter svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.zrv-rp-search input,
+.zrv-rp-filter select {
+  width: 100%;
+  min-width: 0;
+
+  border: 0;
+  outline: 0;
+
+  background: transparent;
+  color: var(--text, #17243b);
+
+  font: inherit;
+  font-size: 11px;
+}
+
+/* ROLE LIST */
+
+.zrv-rp-role-list {
+  flex: 1;
+  min-height: 0;
+}
+
+.zrv-rp-role {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  width: 100%;
+  min-height: 62px;
+  padding: 10px 13px;
+
+  border: 0;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--rp-border);
+  border-radius: 0;
+
+  background: transparent;
+  color: var(--text, #17243b);
+
+  text-align: left;
+  cursor: pointer;
+}
+
+.zrv-rp-role:hover {
+  background: #f0f8f3;
+}
+
+.zrv-rp-role.is-selected {
+  background: #e4f6ed;
+  border-left-color: var(--rp-green);
+}
+
+.zrv-rp-role__copy {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 3px;
+
+  min-width: 0;
+}
+
+.zrv-rp-role__copy strong {
+  font-size: 12px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.zrv-rp-role__copy small {
+  font-size: 10px;
+  color: var(--rp-muted);
+  overflow-wrap: anywhere;
+}
+
+.zrv-rp-role > svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--rp-muted);
+}
+
+/* ROLE LIST FOOTER */
+
+.zrv-rp-role-footer {
+  margin-top: auto;
+  padding: 11px 13px;
+
+  border-top: 1px solid var(--rp-border);
+
+  color: var(--rp-muted);
+  font-size: 11px;
+}
+
+.zrv-rp-role-footer .zrv-admin-pagination {
+  margin-top: 7px;
+}
+
+/* GRANT PERMISSIONS BUTTON */
+
+.zrv-role-permissions-page button.zrv-rp-grant {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  width: auto;
+  min-height: 36px;
+  padding: 8px 13px;
+
+  border: 1px solid var(--rp-green);
+  border-radius: 7px;
+
+  background: var(--rp-green);
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.zrv-role-permissions-page button.zrv-rp-grant:hover:not(:disabled) {
+  background: var(--rp-green-dark);
+  color: #fff !important;
+}
+
+.zrv-rp-grant svg {
+  width: 15px;
+  height: 15px;
+  color: #fff;
+}
+
+/* EMPTY STATE */
+
+.zrv-rp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 300px;
+  padding: 35px 20px;
+
+  text-align: center;
+}
+
+.zrv-rp-empty__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 58px;
+  height: 58px;
+
+  color: var(--rp-green);
+  background: var(--rp-mint);
+  border-radius: 17px;
+}
+
+.zrv-rp-empty__icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.zrv-rp-empty h3 {
+  margin: 13px 0 5px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.zrv-rp-empty p {
+  max-width: 320px;
+  margin: 0;
+
+  color: var(--rp-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* SELECTED ROLE */
+
+.zrv-rp-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  margin: 14px;
+  padding: 13px 15px;
+
+  background: #eff9f3;
+  border: 1px solid #cce6d5;
+  border-radius: 9px;
+}
+
+.zrv-rp-selected__label {
+  display: block;
+  margin-bottom: 4px;
+
+  color: #668171;
+  font-size: 10px;
+}
+
+.zrv-rp-selected h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.zrv-rp-selected small {
+  font-size: 10px;
+  color: #64766b;
+}
+
+/* PERMISSION TOOLBAR */
+
+.zrv-rp-permission-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  padding: 0 14px 13px;
+}
+
+.zrv-rp-permission-toolbar .zrv-rp-search {
+  flex: 1;
+  max-width: 310px;
+}
+
+.zrv-rp-show-revoked {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  color: var(--text, #17243b);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.zrv-rp-show-revoked input {
+  accent-color: var(--rp-green);
+}
+
+/* PERMISSION MODULES */
+
+.zrv-rp-module-list {
+  display: grid;
+  gap: 9px;
+  padding: 0 14px 16px;
+}
+
+.zrv-rp-module {
+  min-width: 0;
+  overflow: hidden;
+
+  border: 1px solid var(--rp-border);
+  border-radius: 8px;
+
+  background: var(--surface-solid, #fff);
+}
+
+.zrv-rp-module__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+
+  color: var(--text, #17243b);
+  text-align: left;
+  cursor: pointer;
+}
+
+.zrv-rp-module__header[aria-expanded='true'] {
+  background: #e5f6ed;
+}
+
+.zrv-rp-module__header strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.zrv-rp-module__icon {
+  width: 17px;
+  height: 17px;
+  color: var(--rp-green);
+}
+
+.zrv-rp-module__count {
+  padding: 3px 9px;
+  border-radius: 999px;
+
+  background: #d3f0e0;
+  color: #087343;
+
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.zrv-rp-module__chevron {
+  width: 15px;
+  height: 15px;
+  margin-left: auto;
+}
+
+/* PERMISSION TABLE */
+
+.zrv-rp-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.zrv-rp-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 11px;
+}
+
+.zrv-rp-table thead th {
+  padding: 10px 12px;
+
+  border-bottom: 1px solid var(--rp-border);
+  background: #f8faf9;
+
+  color: #46556a;
+  font-size: 10px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.zrv-rp-table tbody td {
+  padding: 10px 12px;
+
+  border-bottom: 1px solid var(--rp-border);
+
+  vertical-align: middle;
+  font-size: 11px;
+}
+
+.zrv-rp-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.zrv-rp-table tbody tr:hover {
+  background: #f5faf7;
+}
+
+.zrv-rp-table td strong,
+.zrv-rp-table td small {
+  display: block;
+}
+
+.zrv-rp-table td strong {
+  font-weight: 600;
+}
+
+.zrv-rp-table td small {
+  margin-top: 3px;
+  color: var(--rp-muted);
+  font-size: 9px;
+}
+
+.zrv-rp-action-label {
+  font-weight: 600;
+}
+
+/* REVOKE ACTION */
+
+.zrv-rp-revoke {
+  padding: 6px 9px;
+
+  border: 1px solid #f0c7c7;
+  border-radius: 6px;
+
+  background: #fff7f7;
+  color: #bb3434;
+
+  font-size: 10px;
+  font-weight: 650;
+
+  cursor: pointer;
+}
+
+.zrv-rp-revoke:hover {
+  background: #feecec;
+}
+
+/* FOCUS STATES */
+
+.zrv-role-permissions-page button:focus-visible,
+.zrv-role-permissions-page input:focus-visible,
+.zrv-role-permissions-page select:focus-visible {
+  outline: 2px solid var(--rp-green);
+  outline-offset: 2px;
+}
+
+/* TABLET */
+
+@media (max-width: 1100px) {
+  .zrv-rp-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zrv-role-permissions-page .zrv-rp-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zrv-role-permissions-page .zrv-rp-roles-panel {
+    min-height: 0;
+  }
+
+  .zrv-rp-role-list {
+    max-height: 380px;
+    overflow-y: auto;
+  }
+}
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+  .zrv-rp-stats {
+    gap: 9px;
+  }
+
+  .zrv-rp-stat {
+    min-height: 100px;
+    padding: 12px 10px;
+    gap: 8px;
+  }
+
+  .zrv-rp-stat__icon {
+    width: 33px;
+    height: 33px;
+    flex-basis: 33px;
+  }
+
+  .zrv-rp-stat__icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .zrv-rp-stat__value {
+    font-size: 23px;
+  }
+
+  .zrv-rp-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zrv-rp-selected {
+    align-items: flex-start;
+  }
+
+  .zrv-rp-permission-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .zrv-rp-permission-toolbar .zrv-rp-search {
+    max-width: none;
+    width: 100%;
+  }
+
+  .zrv-rp-table {
+    min-width: 540px;
+  }
+}
+
+/* DARK THEME */
+
+[data-theme='dark'] .zrv-role-permissions-page {
+  --rp-border: var(--line);
+  --rp-text: var(--text);
+  --rp-muted: var(--muted);
+}
+
+[data-theme='dark'] .zrv-rp-stat {
+  background: var(--surface-solid);
+  border-color: var(--line);
+}
+
+[data-theme='dark'] .zrv-rp-stat__title,
+[data-theme='dark'] .zrv-rp-stat__value,
+[data-theme='dark'] .zrv-rp-stat__subtitle {
+  color: var(--text);
+}
+
+[data-theme='dark'] .zrv-rp-stat__wave {
+  opacity: 0.12;
+}
+
+[data-theme='dark'] .zrv-rp-role:hover,
+[data-theme='dark'] .zrv-rp-role.is-selected,
+[data-theme='dark'] .zrv-rp-selected,
+[data-theme='dark'] .zrv-rp-module__header[aria-expanded='true'],
+[data-theme='dark'] .zrv-rp-table tbody tr:hover {
+  background: var(--surface-2);
+}
+
+[data-theme='dark'] .zrv-rp-selected,
+[data-theme='dark'] .zrv-rp-module {
+  border-color: var(--line);
+}
+
+[data-theme='dark'] .zrv-rp-selected h3,
+[data-theme='dark'] .zrv-rp-selected small,
+[data-theme='dark'] .zrv-rp-selected__label {
+  color: var(--text);
+}
+
+[data-theme='dark'] .zrv-rp-table thead th {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ======================================================
+   ZAMIL DIGITALIZATION — ROLE PERMISSIONS
+   BORDER, CORNER AND UI CONSISTENCY REFINEMENT
+   ====================================================== */
+
+.zrv-role-permissions-page {
+  --rp-panel-radius: 16px;
+  --rp-control-radius: 10px;
+  --rp-button-radius: 10px;
+  --rp-inner-radius: 12px;
+  --rp-line-refined: #d8e5dc;
+  --rp-soft-green: #e5f5ec;
+  --rp-accent-green: #087343;
+
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+/* 1. Keep page full width */
+
+.zrv-role-permissions-page > .zrv-admin {
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+}
+
+/* 2. Two-column layout */
+
+.zrv-role-permissions-page .zrv-rp-layout {
+  display: grid;
+
+  width: 100%;
+  max-width: none;
+
+  grid-template-columns:
+    minmax(0, 31fr)
+    minmax(0, 69fr);
+
+  gap: 15px;
+  align-items: stretch;
+}
+
+/* 3. Main panels */
+
+.zrv-role-permissions-page .zrv-rp-roles-panel,
+.zrv-role-permissions-page .zrv-rp-permissions-panel {
+  box-sizing: border-box;
+
+  width: 100%;
+  min-width: 0;
+
+  padding: 0;
+  margin: 0;
+
+  background: var(--surface-solid, #fff);
+
+  border: 1px solid var(--rp-line-refined);
+  border-radius: var(--rp-panel-radius);
+
+  overflow: hidden;
+  background-clip: padding-box;
+
+  box-shadow: 0 4px 16px rgba(20, 65, 42, 0.045);
+}
+
+/* 4. Consistent panel headers */
+
+.zrv-role-permissions-page .zrv-rp-roles-panel .zrv-admin-panel__head,
+.zrv-role-permissions-page .zrv-rp-permissions-panel .zrv-admin-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 62px;
+  margin: 0;
+  padding: 13px 17px;
+
+  background: var(--surface-solid, #fff);
+
+  border: 0;
+  border-bottom: 1px solid var(--rp-line-refined);
+
+  border-radius: var(--rp-panel-radius) var(--rp-panel-radius) 0 0;
+}
+
+.zrv-role-permissions-page .zrv-admin-panel__head h2 {
+  margin: 0;
+
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* 5. Search and status filter */
+
+.zrv-role-permissions-page .zrv-rp-filters {
+  gap: 9px;
+  padding: 10px 13px;
+
+  background: var(--surface-solid, #fff);
+  border-bottom: 1px solid var(--rp-line-refined);
+}
+
+.zrv-role-permissions-page .zrv-rp-search,
+.zrv-role-permissions-page .zrv-rp-filter {
+  box-sizing: border-box;
+
+  min-height: 38px;
+
+  background: var(--surface-solid, #fff);
+
+  border: 1px solid var(--rp-line-refined);
+  border-radius: var(--rp-control-radius);
+
+  overflow: hidden;
+}
+
+.zrv-role-permissions-page .zrv-rp-search:focus-within,
+.zrv-role-permissions-page .zrv-rp-filter:focus-within {
+  border-color: var(--rp-accent-green);
+
+  box-shadow: 0 0 0 3px rgba(8, 115, 67, 0.08);
+}
+
+/* 6. Role list rows */
+
+.zrv-role-permissions-page .zrv-rp-role-list {
+  min-width: 0;
+}
+
+.zrv-role-permissions-page .zrv-rp-role {
+  box-sizing: border-box;
+
+  width: 100%;
+  min-height: 64px;
+
+  margin: 0;
+  padding: 10px 15px;
+
+  border: 0;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--rp-line-refined);
+  border-radius: 0;
+
+  background: transparent;
+  text-align: left;
+
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+/* 7. Selected role appearance */
+
+.zrv-role-permissions-page .zrv-rp-role.is-selected {
+  background: var(--rp-soft-green);
+  border-left-color: var(--rp-accent-green);
+}
+
+.zrv-role-permissions-page .zrv-rp-role:hover {
+  background: #eef8f2;
+}
+
+.zrv-role-permissions-page .zrv-rp-role.is-selected:hover {
+  background: #ddf1e6;
+}
+
+/* 8. Last role row and footer */
+
+.zrv-role-permissions-page .zrv-rp-role-list .zrv-rp-role:last-child {
+  border-bottom: 0;
+}
+
+.zrv-role-permissions-page .zrv-rp-role-footer {
+  margin-top: auto;
+  padding: 12px 14px;
+
+  border-top: 1px solid var(--rp-line-refined);
+
+  background: var(--surface-solid, #fff);
+
+  border-radius: 0 0 var(--rp-panel-radius) var(--rp-panel-radius);
+}
+
+/* 9. Summary card corners */
+
+.zrv-role-permissions-page .zrv-rp-stat {
+  border-radius: 16px;
+  border-color: #b8dec9;
+
+  overflow: hidden;
+  background-clip: padding-box;
+}
+
+/* 10. Empty-state area */
+
+.zrv-role-permissions-page .zrv-rp-empty {
+  min-height: 300px;
+
+  padding: 35px 20px;
+
+  border-radius: 0;
+}
+
+.zrv-role-permissions-page .zrv-rp-empty__icon {
+  border-radius: 15px;
+}
+
+/* 11. Selected role card */
+
+.zrv-role-permissions-page .zrv-rp-selected {
+  border: 1px solid var(--rp-line-refined);
+  border-radius: var(--rp-inner-radius);
+
+  background: #eff9f3;
+}
+
+/* 12. Grant Permissions button */
+
+.zrv-role-permissions-page button.zrv-rp-grant {
+  min-height: 38px;
+
+  padding: 8px 14px;
+
+  border-radius: var(--rp-button-radius);
+
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* 13. Permission search toolbar */
+
+.zrv-role-permissions-page .zrv-rp-permission-toolbar {
+  gap: 10px;
+  padding: 0 14px 13px;
+}
+
+/* 14. Permission module accordions */
+
+.zrv-role-permissions-page .zrv-rp-module {
+  border: 1px solid var(--rp-line-refined);
+  border-radius: var(--rp-inner-radius);
+
+  overflow: hidden;
+
+  box-shadow: 0 2px 6px rgba(20, 65, 42, 0.035);
+}
+
+.zrv-role-permissions-page .zrv-rp-module__header {
+  min-height: 46px;
+
+  padding: 11px 14px;
+
+  border: 0;
+  border-radius: 0;
+}
+
+/* 15. Tables inside permission modules */
+
+.zrv-role-permissions-page .zrv-rp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.zrv-role-permissions-page .zrv-rp-table th,
+.zrv-role-permissions-page .zrv-rp-table td {
+  border-color: var(--rp-line-refined);
+}
+
+/* 16. Status badges */
+
+.zrv-role-permissions-page .zrv-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 22px;
+  padding: 3px 9px;
+
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* 17. Revoke button */
+
+.zrv-role-permissions-page .zrv-rp-revoke {
+  border-radius: var(--rp-button-radius);
+}
+
+/* 18. Consistent keyboard focus */
+
+.zrv-role-permissions-page button:focus-visible,
+.zrv-role-permissions-page input:focus-visible,
+.zrv-role-permissions-page select:focus-visible {
+  outline: 2px solid var(--rp-accent-green);
+  outline-offset: 2px;
+}
+
+/* 19. Tablet */
+
+@media (max-width: 1100px) {
+  .zrv-role-permissions-page .zrv-rp-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+}
+
+/* 20. Mobile */
+
+@media (max-width: 600px) {
+  .zrv-role-permissions-page .zrv-rp-roles-panel,
+  .zrv-role-permissions-page .zrv-rp-permissions-panel {
+    border-radius: 13px;
+  }
+
+  .zrv-role-permissions-page .zrv-rp-roles-panel .zrv-admin-panel__head,
+  .zrv-role-permissions-page .zrv-rp-permissions-panel .zrv-admin-panel__head {
+    padding: 11px 13px;
+    border-radius: 13px 13px 0 0;
+  }
+
+  .zrv-role-permissions-page .zrv-rp-stat {
+    border-radius: 13px;
+  }
+
+  .zrv-role-permissions-page .zrv-rp-selected,
+  .zrv-role-permissions-page .zrv-rp-module {
+    border-radius: 10px;
+  }
+}
+
+/* 21. Dark theme */
+
+[data-theme='dark'] .zrv-role-permissions-page {
+  --rp-line-refined: var(--line);
+  --rp-soft-green: color-mix(in srgb, var(--primary) 20%, var(--surface-solid));
+}
+
+[data-theme='dark'] .zrv-role-permissions-page .zrv-rp-role:hover {
+  background: var(--surface-2);
+}
+
+[data-theme='dark'] .zrv-role-permissions-page .zrv-rp-role.is-selected:hover {
+  background: var(--rp-soft-green);
+}
+
+[data-theme='dark'] .zrv-role-permissions-page .zrv-rp-selected {
+  background: var(--surface-2);
+}

@@ -171,6 +171,12 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+@media screen and (max-width: 480px) {
+  .zrv-hr-sv-filters__grid,
+  .zrv-hr-sv-cat {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .zrv-hr-sv-bars li,
   .zrv-hr-sv-bars__t i {

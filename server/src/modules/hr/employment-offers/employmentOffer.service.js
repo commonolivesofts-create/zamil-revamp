@@ -4,6 +4,7 @@ import {
   withConnection as defaultWithConnection,
   withTransaction as defaultWithTransaction,
 } from '../../../database/oracle.js';
+import { cachedCounts } from '../../../shared/cache/cachedCounts.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as defaultRepository from './employmentOffer.repository.js';
 import { BU_VALUES } from './employmentOffer.validation.js';
@@ -53,6 +54,7 @@ export function createEmploymentOfferService({
   auditService,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
+  countsCache,
 }) {
   const read = (work) => withConnection(POOLS.LOW, work);
 
@@ -118,6 +120,22 @@ export function createEmploymentOfferService({
         });
         return { headerId, uuid };
       });
+    },
+
+    /** The list total of each filter set for the dashboard, in the list's scope, one statement. */
+    async counts(actor, { queries, fresh }) {
+      return cachedCounts(
+        countsCache,
+        { module: 'offers', userId: actor.userId, queries, fresh },
+        (missing) =>
+          read(async (c) => {
+            const isHr = await repository.isHrUser(c, actor.userId);
+            return repository.countOffers(c, {
+              queries: missing,
+              createdBy: isHr ? null : actor.userId,
+            });
+          }),
+      );
     },
 
     async list(actor, { page, pageSize, sortBy, sortDir, search, createdBy, ...rest }) {

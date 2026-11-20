@@ -1,61 +1,59 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 // The app stores its motion choice on <html data-motion>. Respect both that
 // explicit preference and the operating-system setting for every animation the
 // dashboard starts itself (the CSS does the same for purely visual effects).
 export function shouldReduceMotion() {
   if (typeof window === 'undefined') return true
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true ||
+  return (
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true ||
     document.documentElement.dataset.motion === 'reduced'
+  )
 }
 
 export function scrollToSection(id, behavior) {
   const target = document.getElementById(id)
   if (!target) return
-  target.scrollIntoView({ behavior: behavior ?? (shouldReduceMotion() ? 'auto' : 'smooth'), block: 'start' })
+  target.scrollIntoView({
+    behavior: behavior ?? (shouldReduceMotion() ? 'auto' : 'smooth'),
+    block: 'start',
+  })
 }
 
-// Reveal section blocks once they approach the viewport, and let them settle
-// back when they leave. The observer is disconnected on unmount and while the
-// reduced-motion preference is active.
+// Mark dashboard panels visible before the first paint. Intersection-based
+// hiding made loaded content appear in a delayed sequence and reanimated it
+// while scrolling. Keep motionEnabled for the scroll progress indicator.
 export function useRevealOnScroll(rootRef, refreshKey = null) {
-  const [enabled] = useState(() => !shouldReduceMotion() && typeof IntersectionObserver !== 'undefined')
+  const [enabled] = useState(
+    () => !shouldReduceMotion() && typeof IntersectionObserver !== 'undefined',
+  )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = rootRef.current
     if (!root) return undefined
-    // Match the HTML dashboard's reveal targets at card level so each item
-    // enters as it reaches the viewport, rather than animating a whole row.
-    const nodes = Array.from(root.querySelectorAll([
-      '.quick-shell',
-      '.section-intelligence',
-      '.employee-spotlight',
-      '.attention-announcement',
-      '.attention-section-line',
-      '.attention-queue',
-      '.habit-shell',
-      '.feature-grid > *',
-      '.domain-grid > .domain-card',
-      '.stat-strip > *',
-      '.module-grid > .module-tile',
-    ].join(', ')))
-    if (!enabled) {
-      root.classList.remove('motion-enabled')
-      nodes.forEach((node) => node.classList.add('is-visible'))
-      return undefined
-    }
-
-    root.classList.add('motion-enabled')
-    nodes.forEach((node, index) => {
-      node.classList.add('reveal')
-      node.style.setProperty('--reveal-delay', `${(index % 4) * 50}ms`)
+    const nodes = Array.from(
+      root.querySelectorAll(
+        [
+          '.quick-shell',
+          '.section-intelligence',
+          '.employee-spotlight',
+          '.attention-announcement',
+          '.attention-section-line',
+          '.attention-queue',
+          '.habit-shell',
+          '.feature-grid > *',
+          '.domain-grid > .domain-card',
+          '.stat-strip > *',
+          '.module-grid > .module-tile',
+        ].join(', '),
+      ),
+    )
+    root.classList.toggle('motion-enabled', enabled)
+    nodes.forEach((node) => {
+      node.classList.add('reveal', 'is-visible')
+      node.style.removeProperty('--reveal-delay')
     })
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => entry.target.classList.toggle('is-visible', entry.isIntersecting))
-    }, { threshold: 0.08, rootMargin: '-12px 0px -46px 0px' })
-    nodes.forEach((node) => observer.observe(node))
     return () => {
-      observer.disconnect()
       root.classList.remove('motion-enabled')
     }
   }, [enabled, refreshKey, rootRef])

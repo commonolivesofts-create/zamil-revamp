@@ -32,7 +32,9 @@ export function BusinessVisaLetterReportPreview({ row, onClose, lookups = null }
           editPermission={`${RESOURCE}:UPDATE`}
           viewPermission={`${RESOURCE}:VIEW`}
           loadRecord={() => service.getById(row.letterId)}
-          paper={(saved, previewLanguage) => <Paper record={saved} language={previewLanguage} lookups={lookups} />}
+          paper={(saved, previewLanguage) => (
+            <Paper record={saved} language={previewLanguage} lookups={lookups} />
+          )}
           moduleClass="zrv-hr--business-visa-letter"
           printNoun="business visa letter"
           language={language}

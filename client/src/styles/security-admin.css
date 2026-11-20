@@ -2,8 +2,11 @@
    btn-* classes only; the original Orvexa CSS is unchanged. */
 
 .zrv-admin {
-  width: min(100%, 1320px);
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin-inline: 0;
+  box-sizing: border-box;
   color: var(--text);
 }
 .zrv-admin__head {
@@ -333,6 +336,50 @@
 .zrv-admin-toolbar .zrv-admin-field {
   margin: 0;
 }
+.zrv-admin-toolbar .zrv-admin-hint {
+  max-width: 26ch;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.zrv-admin-field--directory-search > label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+.zrv-admin-field--directory-search > input[type='search'] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 10px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 13px;
+  background: var(--surface-solid);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  box-shadow: none;
+}
+.zrv-admin-field--directory-search > input[type='search']::placeholder {
+  color: var(--muted);
+  opacity: 0.85;
+}
+.zrv-admin-field--directory-search > input[type='search']:focus-visible {
+  border-color: var(--mint-text);
+  outline: 3px solid color-mix(in srgb, var(--mint) 24%, transparent);
+  outline-offset: 1px;
+}
+.zrv-admin-field--directory-search > .zrv-admin-hint {
+  width: 100%;
+  max-width: 24ch;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+}
 .zrv-admin-toolbar__submit .btn-primary,
 .zrv-admin-toolbar__submit .btn-secondary {
   width: 100%;
@@ -427,7 +474,7 @@
 .zrv-admin-menu button:hover {
   background: var(--surface-2);
 }
-.zrv-admin-menu button[aria-pressed="true"] {
+.zrv-admin-menu button[aria-pressed='true'] {
   border-color: var(--primary-text);
   background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
@@ -557,6 +604,9 @@
 }
 .zrv-dialog {
   width: min(100%, 520px);
+  min-width: 0;
+  flex-shrink: 0;
+  overflow-wrap: anywhere;
   margin: auto;
   padding: clamp(18px, 3vw, 26px);
   border: 1px solid var(--line);
@@ -599,6 +649,11 @@
   width: auto;
 }
 @media (max-width: 520px) {
+  .zrv-admin-dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
   .zrv-dialog__actions > * {
     flex: 1;
   }

@@ -97,24 +97,31 @@ export default function ModuleAtlas({ initialDomain, onBack }) {
       </div>
 
       <div className="atlas-count">
-        <span>{filtered.length} matching module{filtered.length === 1 ? '' : 's'} · {Math.min(filtered.length, visible)} displayed</span>
+        <span>
+          {filtered.length} matching module{filtered.length === 1 ? '' : 's'} ·{' '}
+          {Math.min(filtered.length, visible)} displayed
+        </span>
         <span>Only matching entries are rendered · Lightweight discovery</span>
       </div>
 
       <div className="module-grid" data-zrv-reveal>
-        {shown.length ? shown.map((module) => (
-          <article className="module-tile" key={module.id}>
-            <span className="tile-icon"><OrvexaIcon name={module.icon} /></span>
-            <div>
-              <strong>{module.name}</strong>
-              <small>{module.domain}</small>
-            </div>
-            <div className="tile-bottom">
-              <span className="tag mock">Catalog preview</span>
-              <OrvexaIcon name="arrow-right" className="icon-sm" />
-            </div>
-          </article>
-        )) : (
+        {shown.length ? (
+          shown.map((module) => (
+            <article className="module-tile" key={module.id}>
+              <span className="tile-icon">
+                <OrvexaIcon name={module.icon} />
+              </span>
+              <div>
+                <strong>{module.name}</strong>
+                <small>{module.domain}</small>
+              </div>
+              <div className="tile-bottom">
+                <span className="tag mock">Catalog preview</span>
+                <OrvexaIcon name="arrow-right" className="icon-sm" />
+              </div>
+            </article>
+          ))
+        ) : (
           <div className="empty" style={{ gridColumn: '1 / -1' }}>
             No modules found. Try a shorter term or another business space.
           </div>
@@ -123,7 +130,11 @@ export default function ModuleAtlas({ initialDomain, onBack }) {
 
       {filtered.length > visible && (
         <div style={{ textAlign: 'center', padding: '28px 0' }}>
-          <button className="btn ghost" type="button" onClick={() => setVisible((value) => value + MODULES_PER_PAGE)}>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => setVisible((value) => value + MODULES_PER_PAGE)}
+          >
             Show more modules <OrvexaIcon name="arrow-right" />
           </button>
         </div>

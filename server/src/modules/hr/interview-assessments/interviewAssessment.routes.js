@@ -7,6 +7,7 @@ import {
   emptyQuerySchema,
   headerIdParams,
   listQuerySchema,
+  countsBody,
   writeBodySchema,
 } from './interviewAssessment.validation.js';
 
@@ -47,6 +48,8 @@ export function createInterviewAssessmentRouter({
   });
 
   router.get('/', ...read('VIEW', { query: listQuerySchema }), controller.list);
+  // Read-only: the list totals of many filter sets (dashboard). POST for the body, so CSRF too.
+  router.post('/counts', ...write('VIEW', { body: countsBody }), controller.counts);
   router.get('/lookups/payroll-units', ...read('VIEW'), controller.payrollUnits);
   router.get('/lookups/nationalities', ...read('VIEW'), controller.nationalities);
   router.get('/lookups/requisitions', ...read('VIEW'), controller.requisitions);

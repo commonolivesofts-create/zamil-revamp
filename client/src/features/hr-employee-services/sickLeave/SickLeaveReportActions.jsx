@@ -44,33 +44,58 @@ export function SickLeaveReportActions({ row, language = 'bi', previewRecord = n
     }
   }
 
-  return <div className="zrv-ir-sick-leave-actions">
-    {canWrite && isEditable(status) && (
-      <Link className="zrv-ir-btn" to={path} onClick={(event) => event.stopPropagation()}
-        aria-label={`Edit sick leave request ${reference}`} title={`Edit sick leave request ${reference}`}>
-        <OrvexaIcon name="pencil" size={15} /><span>Edit</span>
-      </Link>
-    )}
-    {permissions.can(`${RESOURCE}:VIEW`) && (
-      <button type="button" className="zrv-ir-btn zrv-ir-btn--primary zrv-ir-sick-leave-print-btn" onClick={printRequest} disabled={printing}
-        aria-label={`${printing ? 'Preparing' : 'Print'} sick leave request ${reference}`} title={`Print sick leave request ${reference}`}>
-        <OrvexaIcon name="printer" size={15} /><span>{printing ? 'Preparing' : 'Print'}</span>
-      </button>
-    )}
-    {printError && <span className="zrv-ir-sick-leave-print-error" role="status">{printError}</span>}
-    {printer.printRecord && createPortal(<div className="zrv-hr zrv-hr--sick-leave zrv-ir-sick-leave-print" aria-hidden="true">
-      <div className="zrv-hr-body"><div className="zrv-hr-side">
-        <SickLeavePreview
-          form={sickLeaveFormFromRecord(printer.printRecord)}
-          record={printer.printRecord}
-          days={printer.printRecord.days}
-          single={singleOf(sickLeaveFormFromRecord(printer.printRecord))}
-          files={printer.printRecord.attachments}
-          language={language}
-        />
-      </div></div>
-    </div>, document.body)}
-  </div>
+  return (
+    <div className="zrv-ir-sick-leave-actions">
+      {canWrite && isEditable(status) && (
+        <Link
+          className="zrv-ir-btn"
+          to={path}
+          onClick={(event) => event.stopPropagation()}
+          aria-label={`Edit sick leave request ${reference}`}
+          title={`Edit sick leave request ${reference}`}
+        >
+          <OrvexaIcon name="pencil" size={15} />
+          <span>Edit</span>
+        </Link>
+      )}
+      {permissions.can(`${RESOURCE}:VIEW`) && (
+        <button
+          type="button"
+          className="zrv-ir-btn zrv-ir-btn--primary zrv-ir-sick-leave-print-btn"
+          onClick={printRequest}
+          disabled={printing}
+          aria-label={`${printing ? 'Preparing' : 'Print'} sick leave request ${reference}`}
+          title={`Print sick leave request ${reference}`}
+        >
+          <OrvexaIcon name="printer" size={15} />
+          <span>{printing ? 'Preparing' : 'Print'}</span>
+        </button>
+      )}
+      {printError && (
+        <span className="zrv-ir-sick-leave-print-error" role="status">
+          {printError}
+        </span>
+      )}
+      {printer.printRecord &&
+        createPortal(
+          <div className="zrv-hr zrv-hr--sick-leave zrv-ir-sick-leave-print" aria-hidden="true">
+            <div className="zrv-hr-body">
+              <div className="zrv-hr-side">
+                <SickLeavePreview
+                  form={sickLeaveFormFromRecord(printer.printRecord)}
+                  record={printer.printRecord}
+                  days={printer.printRecord.days}
+                  single={singleOf(sickLeaveFormFromRecord(printer.printRecord))}
+                  files={printer.printRecord.attachments}
+                  language={language}
+                />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  )
 }
 
 // The approval decision belongs below the saved request, never in the toolbar
@@ -84,25 +109,40 @@ export function SickLeaveWorkflowActions({ row, previewRecord = null }) {
   const canDecide = canWrite && status === 'INPROCESS'
   const [notice, setNotice] = useState(null)
 
-  const pendingWorkflow = (decision) => setNotice({
-    kind: 'info',
-    message: `The approval workflow is pending setup. This sick leave request has not been ${decision}.`,
-  })
+  const pendingWorkflow = (decision) =>
+    setNotice({
+      kind: 'info',
+      message: `The approval workflow is pending setup. This sick leave request has not been ${decision}.`,
+    })
 
   if (!canDecide) return null
 
-  return <div className="zrv-ir-sick-leave-workflow">
-    <span className="zrv-ir-sick-leave-workflow__label">Approval decision</span>
-    <div className="zrv-ir-sick-leave-workflow__actions">
-      <button type="button" className="zrv-ir-btn zrv-ir-sick-leave-approve" onClick={() => pendingWorkflow('approved')}
-        aria-label={`Approve sick leave request ${reference}`} title={`Approve sick leave request ${reference}`}>
-        <OrvexaIcon name="check" size={15} /><span>Approve</span>
-      </button>
-      <button type="button" className="zrv-ir-btn zrv-ir-sick-leave-reject" onClick={() => pendingWorkflow('rejected')}
-        aria-label={`Reject sick leave request ${reference}`} title={`Reject sick leave request ${reference}`}>
-        <OrvexaIcon name="x" size={15} /><span>Reject</span>
-      </button>
+  return (
+    <div className="zrv-ir-sick-leave-workflow">
+      <span className="zrv-ir-sick-leave-workflow__label">Approval decision</span>
+      <div className="zrv-ir-sick-leave-workflow__actions">
+        <button
+          type="button"
+          className="zrv-ir-btn zrv-ir-sick-leave-approve"
+          onClick={() => pendingWorkflow('approved')}
+          aria-label={`Approve sick leave request ${reference}`}
+          title={`Approve sick leave request ${reference}`}
+        >
+          <OrvexaIcon name="check" size={15} />
+          <span>Approve</span>
+        </button>
+        <button
+          type="button"
+          className="zrv-ir-btn zrv-ir-sick-leave-reject"
+          onClick={() => pendingWorkflow('rejected')}
+          aria-label={`Reject sick leave request ${reference}`}
+          title={`Reject sick leave request ${reference}`}
+        >
+          <OrvexaIcon name="x" size={15} />
+          <span>Reject</span>
+        </button>
+      </div>
+      <RecruitmentToast feedback={notice} onDismiss={() => setNotice(null)} />
     </div>
-    <RecruitmentToast feedback={notice} onDismiss={() => setNotice(null)} />
-  </div>
+  )
 }

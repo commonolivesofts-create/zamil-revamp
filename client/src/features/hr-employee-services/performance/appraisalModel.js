@@ -52,11 +52,31 @@ export const APPRAISAL_CRITERIA_AR = Object.freeze([
 ])
 
 export const APPRAISAL_SCALE_AR = Object.freeze({
-  A: Object.freeze({ title: 'يتفوق باستمرار', description: 'يحقق ويتجاوز باستمرار الأهداف المطلوبة بحسب معايير الأداء الموضوعة. كما يشارك مشاركة استثنائية وفعالة، ويضيف قيمة للعمل تتجاوز الدور المنوط به.' }),
-  B: Object.freeze({ title: 'يحقق ويتجاوز', description: 'يحقق الأهداف المطلوبة باستمرار وغالباً يتجاوزها حسب معايير الأداء الموضوعة. كما يتميز بالمشاركة الفعالة في تحقيق الأهداف الكلية للقسم الذي يعمل فيه.' }),
-  C: Object.freeze({ title: 'يحقق النجاح المتوقع', description: 'يحقق الأهداف المطلوبة ويتجاوزها في بعض الأحيان حسب معايير الأداء الموضوعة. كما يضيف قيمة للدور المتوقع منه.' }),
-  D: Object.freeze({ title: 'يحقق بعض الأهداف', description: 'يحقق بعض الأهداف وليست جميعها حسب المعايير الموضوعة. كما أنه غير ثابت ويحتاج لإشراف أكثر، ويجب وضع خطة لتحسين الأداء.' }),
-  E: Object.freeze({ title: 'دون التوقعات', description: 'لا يحقق الأهداف المحددة بصورة دائمة حسب معايير الأداء الموضوعة. يتطلب مراقبة وتوجيهاً مستمراً من المشرف، ومن الضروري عمل خطة شاملة لتحسين الأداء.' }),
+  A: Object.freeze({
+    title: 'يتفوق باستمرار',
+    description:
+      'يحقق ويتجاوز باستمرار الأهداف المطلوبة بحسب معايير الأداء الموضوعة. كما يشارك مشاركة استثنائية وفعالة، ويضيف قيمة للعمل تتجاوز الدور المنوط به.',
+  }),
+  B: Object.freeze({
+    title: 'يحقق ويتجاوز',
+    description:
+      'يحقق الأهداف المطلوبة باستمرار وغالباً يتجاوزها حسب معايير الأداء الموضوعة. كما يتميز بالمشاركة الفعالة في تحقيق الأهداف الكلية للقسم الذي يعمل فيه.',
+  }),
+  C: Object.freeze({
+    title: 'يحقق النجاح المتوقع',
+    description:
+      'يحقق الأهداف المطلوبة ويتجاوزها في بعض الأحيان حسب معايير الأداء الموضوعة. كما يضيف قيمة للدور المتوقع منه.',
+  }),
+  D: Object.freeze({
+    title: 'يحقق بعض الأهداف',
+    description:
+      'يحقق بعض الأهداف وليست جميعها حسب المعايير الموضوعة. كما أنه غير ثابت ويحتاج لإشراف أكثر، ويجب وضع خطة لتحسين الأداء.',
+  }),
+  E: Object.freeze({
+    title: 'دون التوقعات',
+    description:
+      'لا يحقق الأهداف المحددة بصورة دائمة حسب معايير الأداء الموضوعة. يتطلب مراقبة وتوجيهاً مستمراً من المشرف، ومن الضروري عمل خطة شاملة لتحسين الأداء.',
+  }),
 })
 
 export const isAppraisalLocked = (status) => status === 'SUBMITTED' || status === 'INPROCESS'
@@ -72,22 +92,35 @@ const ratingOf = (ratings, code) => ratings[code]?.rating ?? null
 // Average of the rated criteria, to two decimals (null when none is rated).
 // Submitting needs all of them, so the submitted rating is the average of all 20.
 export function averageRating(ratings, criteria) {
-  const values = criteria.map((item) => ratingOf(ratings, item.code)).filter((value) => RATINGS.includes(value))
+  const values = criteria
+    .map((item) => ratingOf(ratings, item.code))
+    .filter((value) => RATINGS.includes(value))
   if (!values.length) return null
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 100) / 100
 }
 
-export const ratedCount = (ratings, criteria) => criteria.filter((item) => RATINGS.includes(ratingOf(ratings, item.code))).length
+export const ratedCount = (ratings, criteria) =>
+  criteria.filter((item) => RATINGS.includes(ratingOf(ratings, item.code))).length
 
 // A rating of 1 or 5 must be explained.
 export const needsExplanation = (rating) => rating === 1 || rating === 5
-export const missingExplanations = (ratings, criteria) => criteria
-  .filter((item) => needsExplanation(ratingOf(ratings, item.code)) && !String(ratings[item.code]?.explanation ?? '').trim())
-  .map((item) => item.code)
+export const missingExplanations = (ratings, criteria) =>
+  criteria
+    .filter(
+      (item) =>
+        needsExplanation(ratingOf(ratings, item.code)) &&
+        !String(ratings[item.code]?.explanation ?? '').trim(),
+    )
+    .map((item) => item.code)
 
 // Employees allowed per grade: ceil(percentage × team size), at least 1.
 export function gradeQuotas(teamSize, distribution = DEFAULT_DISTRIBUTION) {
-  return Object.fromEntries(GRADES.map((grade) => [grade, Math.max(1, Math.ceil(((distribution[grade] ?? 0) / 100) * teamSize))]))
+  return Object.fromEntries(
+    GRADES.map((grade) => [
+      grade,
+      Math.max(1, Math.ceil(((distribution[grade] ?? 0) / 100) * teamSize)),
+    ]),
+  )
 }
 
 // Employees allocated per grade: the grades already given in the team (other
@@ -103,7 +136,8 @@ export function gradeAllocation(team, employeeId, grade) {
 }
 
 // Over a grade's share: a warning that needs the appraiser's remark (not a block).
-export const isOverQuota = (grade, allocation, quotas) => Boolean(grade) && allocation[grade] > quotas[grade]
+export const isOverQuota = (grade, allocation, quotas) =>
+  Boolean(grade) && allocation[grade] > quotas[grade]
 
 // Years from `from` to the period end or today, whichever is earlier, to one decimal.
 export function yearsUntil(from, periodEnd, today) {
@@ -117,7 +151,13 @@ export function yearsUntil(from, periodEnd, today) {
 export const filledLines = (lines) => lines.map((line) => line.trim()).filter(Boolean)
 
 export const blankAppraisal = (periodCode) => ({
-  periodCode, employeeId: '', ratings: {}, goals: ['', '', ''], training: [''], employeeRemarks: '', appraiserRemarks: '',
+  periodCode,
+  employeeId: '',
+  ratings: {},
+  goals: ['', '', ''],
+  training: [''],
+  employeeRemarks: '',
+  appraiserRemarks: '',
   signatures: { employee: null, appraiser: null },
 })
 
@@ -128,23 +168,41 @@ export function appraisalResult(form, criteria, team, scale, distribution, grade
   const band = average === null ? null : scaleFor(average, scale)
   const quotas = gradeStats?.target ?? gradeQuotas(team.length, distribution)
   const allocation = gradeStats?.allocated
-    ? Object.fromEntries(GRADES.map((grade) => [grade, (gradeStats.allocated[grade] ?? 0) + (complete && band.grade === grade ? 1 : 0)]))
+    ? Object.fromEntries(
+        GRADES.map((grade) => [
+          grade,
+          (gradeStats.allocated[grade] ?? 0) + (complete && band.grade === grade ? 1 : 0),
+        ]),
+      )
     : gradeAllocation(team, form.employeeId, complete ? band.grade : null)
-  return { average, complete, band, quotas, allocation, overQuota: complete && isOverQuota(band.grade, allocation, quotas) }
+  return {
+    average,
+    complete,
+    band,
+    quotas,
+    allocation,
+    overQuota: complete && isOverQuota(band.grade, allocation, quotas),
+  }
 }
 
 // Problems as { field, code, step } in step order (0 employee, 1 criteria,
 // 2 result and development, 3 meeting). A draft needs the employee and texts
 // within their limits; `submit` adds every rule of a submission.
-export function validateAppraisal(form, { criteria, team, scale, distribution }, { submit, appraiserSignature = true }) {
+export function validateAppraisal(
+  form,
+  { criteria, team, scale, distribution },
+  { submit, appraiserSignature = true },
+) {
   const problems = []
   const add = (field, code, step) => problems.push({ field, code, step })
-  if (!team.some((member) => member.employeeId === form.employeeId)) add('employeeId', 'required', 0)
+  if (!team.some((member) => member.employeeId === form.employeeId))
+    add('employeeId', 'required', 0)
   for (const item of criteria) {
     const entry = form.ratings[item.code]
     if (submit && !RATINGS.includes(entry?.rating)) add(item.code, 'required', 1)
     else if (String(entry?.explanation ?? '').length > EXPLANATION_MAX) add(item.code, 'tooLong', 1)
-    else if (submit && missingExplanations(form.ratings, [item]).length) add(item.code, 'explain', 1)
+    else if (submit && missingExplanations(form.ratings, [item]).length)
+      add(item.code, 'explain', 1)
   }
   const goals = filledLines(form.goals)
   if (submit && goals.length < GOALS_MIN) add('goals', 'tooFew', 2)
@@ -153,7 +211,12 @@ export function validateAppraisal(form, { criteria, team, scale, distribution },
   if (filledLines(form.training).length > TRAINING_MAX) add('training', 'tooMany', 2)
   if (form.employeeRemarks.length > TEXT_MAX) add('employeeRemarks', 'tooLong', 3)
   if (form.appraiserRemarks.length > TEXT_MAX) add('appraiserRemarks', 'tooLong', 3)
-  else if (submit && appraisalResult(form, criteria, team, scale, distribution).overQuota && !form.appraiserRemarks.trim()) add('appraiserRemarks', 'overQuota', 3)
+  else if (
+    submit &&
+    appraisalResult(form, criteria, team, scale, distribution).overQuota &&
+    !form.appraiserRemarks.trim()
+  )
+    add('appraiserRemarks', 'overQuota', 3)
   if (submit && appraiserSignature && !form.signatures.appraiser) add('appraiser', 'required', 3)
   return problems
 }
@@ -164,14 +227,24 @@ export function appraisalPayload(form, criteria) {
   return {
     periodCode: form.periodCode,
     employeeId: form.employeeId || null,
-    ratings: Object.fromEntries(criteria.map((item) => [item.code, {
-      rating: RATINGS.includes(form.ratings[item.code]?.rating) ? form.ratings[item.code].rating : null,
-      explanation: String(form.ratings[item.code]?.explanation ?? ''),
-    }])),
+    ratings: Object.fromEntries(
+      criteria.map((item) => [
+        item.code,
+        {
+          rating: RATINGS.includes(form.ratings[item.code]?.rating)
+            ? form.ratings[item.code].rating
+            : null,
+          explanation: String(form.ratings[item.code]?.explanation ?? ''),
+        },
+      ]),
+    ),
     goals: filledLines(form.goals),
     training: filledLines(form.training),
     employeeRemarks: form.employeeRemarks,
     appraiserRemarks: form.appraiserRemarks,
-    signatures: { employee: form.signatures.employee ?? null, appraiser: form.signatures.appraiser ?? null },
+    signatures: {
+      employee: form.signatures.employee ?? null,
+      appraiser: form.signatures.appraiser ?? null,
+    },
   }
 }

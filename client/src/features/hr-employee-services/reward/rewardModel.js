@@ -17,17 +17,27 @@ export const RATING_ORDER = Object.freeze(['A', 'AS', 'BS', 'CS'])
 export const RATING_TONE = Object.freeze({ AS: 'ok', A: 'ok', CS: 'warn', BS: 'bad' })
 
 export const DEPARTMENT_TEXT = Object.freeze({
-  production: Object.freeze({ name: 'Production', icon: 'factory', desc: 'Operators, technicians and supervisors on the shop floor' }),
-  'shared-services': Object.freeze({ name: 'Shared Services', icon: 'users', desc: 'HR, Finance, IT, Sales, Procurement and support teams' }),
+  production: Object.freeze({
+    name: 'Production',
+    icon: 'factory',
+    desc: 'Operators, technicians and supervisors on the shop floor',
+  }),
+  'shared-services': Object.freeze({
+    name: 'Shared Services',
+    icon: 'users',
+    desc: 'HR, Finance, IT, Sales, Procurement and support teams',
+  }),
 })
-
 
 export const monthOf = (iso) => (isIsoDate(iso) ? iso.slice(0, 7) : '')
 export function monthRange(iso) {
   if (!isIsoDate(iso)) return null
   const [year, month] = iso.split('-').map(Number)
   const last = new Date(Date.UTC(year, month, 0)).getUTCDate()
-  return { from: `${iso.slice(0, 7)}-01`, to: `${iso.slice(0, 7)}-${String(last).padStart(2, '0')}` }
+  return {
+    from: `${iso.slice(0, 7)}-01`,
+    to: `${iso.slice(0, 7)}-${String(last).padStart(2, '0')}`,
+  }
 }
 
 // Rating counts in legacy report order (A, AS, BS, CS) plus how many are rated.
@@ -41,8 +51,15 @@ export function ratingSummary(lines) {
 export function duplicateOf(existing, { nominationId, employeeNumber, activityDate }) {
   const month = monthOf(activityDate)
   if (!month || !employeeNumber) return null
-  return existing.find((item) => item.nominationId !== nominationId && item.employeeNumber === employeeNumber &&
-    monthOf(item.activityDate) === month && item.status !== 'REJECTED') ?? null
+  return (
+    existing.find(
+      (item) =>
+        item.nominationId !== nominationId &&
+        item.employeeNumber === employeeNumber &&
+        monthOf(item.activityDate) === month &&
+        item.status !== 'REJECTED',
+    ) ?? null
+  )
 }
 
 // Field errors keyed by field ('department', 'employee', 'activityDate',
@@ -52,7 +69,8 @@ export function validateReward(form, { employee, requestor, criteria, duplicate 
   if (!form.department) errors.department = 'Choose the department.'
   if (!employee) errors.employee = 'Choose the employee.'
   else if (!employee.email || !employee.position || !employee.departmentName) {
-    errors.employee = 'This employee has incomplete HR details (email, position or department) and cannot be nominated.'
+    errors.employee =
+      'This employee has incomplete HR details (email, position or department) and cannot be nominated.'
   } else if (requestor && employee.employeeNumber === requestor.employeeNumber) {
     errors.employee = 'You cannot nominate yourself.'
   } else if (duplicate) {
@@ -64,11 +82,13 @@ export function validateReward(form, { employee, requestor, criteria, duplicate 
     const line = form.lines[index] ?? { rating: '', remark: '' }
     if (!line.rating) errors[`rating:${index}`] = 'Choose a rating.'
     if (!line.remark.trim()) errors[`remark:${index}`] = 'Add evidence for this rating.'
-    else if (line.remark.length > LINE_REMARK_MAX) errors[`remark:${index}`] = `Keep the evidence within ${LINE_REMARK_MAX} characters.`
+    else if (line.remark.length > LINE_REMARK_MAX)
+      errors[`remark:${index}`] = `Keep the evidence within ${LINE_REMARK_MAX} characters.`
   })
   if (!form.overallRating) errors.overallRating = 'Choose the overall feedback.'
   if (!form.remark.trim()) errors.remark = 'Remark is required.'
-  else if (form.remark.length > REMARK_MAX) errors.remark = `Keep the remark within ${REMARK_MAX} characters.`
+  else if (form.remark.length > REMARK_MAX)
+    errors.remark = `Keep the remark within ${REMARK_MAX} characters.`
   return errors
 }
 

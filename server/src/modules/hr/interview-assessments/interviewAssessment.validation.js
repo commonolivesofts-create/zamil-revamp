@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { countsBodySchema } from '../../../shared/validation/countsBody.js';
 import { dbText } from '../formText.validation.js';
 
 /*
@@ -58,6 +59,18 @@ export const listQuerySchema = Joi.object({
     .default('HEADER_ID'),
   sortDir: Joi.string().valid('asc', 'desc').default('desc'),
 });
+
+// The dashboard's counts: the list's filters (README §7.1), many filter sets per request.
+export const countsBody = countsBodySchema(listQuerySchema, [
+  'status',
+  'evaluationStatus',
+  'requisitionNo',
+  'positionName',
+  'division',
+  'interviewType',
+  'dateFrom',
+  'dateTo',
+]);
 
 // Ratings are "1"–"5" or "N/A"; empty is accepted and stored as '-' (README §1.2, §9).
 const rating = Joi.string().valid('1', '2', '3', '4', '5', 'N/A').allow('').optional();

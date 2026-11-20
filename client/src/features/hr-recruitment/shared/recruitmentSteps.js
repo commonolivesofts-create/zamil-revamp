@@ -13,7 +13,14 @@ export function recruitmentStepProgress(errorsByStep, furthest = 0, readOnly = f
 
 export function reviewField(label, value, required = false, error = '') {
   const hasValue = value !== null && value !== undefined && String(value).trim() !== ''
-  return { label, value: hasValue ? value : '', hasValue, required, complete: hasValue && !error, error }
+  return {
+    label,
+    value: hasValue ? value : '',
+    hasValue,
+    required,
+    complete: hasValue && !error,
+    error,
+  }
 }
 
 export function reviewCompletion(sections) {

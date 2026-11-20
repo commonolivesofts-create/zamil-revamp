@@ -129,7 +129,7 @@
   overflow: hidden;
 }
 .cp-metric:after {
-  content: "";
+  content: '';
   position: absolute;
   right: -48px;
   bottom: -58px;
@@ -202,18 +202,14 @@
   overflow: hidden;
 }
 .cp-app-card:after {
-  content: "";
+  content: '';
   position: absolute;
   right: -52px;
   top: -62px;
   width: 150px;
   height: 150px;
   border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(78, 214, 196, 0.08),
-    transparent 70%
-  );
+  background: radial-gradient(circle, rgba(78, 214, 196, 0.08), transparent 70%);
 }
 .cp-app-top,
 .cp-app-route,
@@ -535,7 +531,7 @@
   background: #151f28;
 }
 .cp-pipeline-step:not(:last-child):after {
-  content: "";
+  content: '';
   position: absolute;
   right: -10px;
   top: 34px;

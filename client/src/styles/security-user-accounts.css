@@ -1,0 +1,895 @@
+/*
+ * Zamil Digitalization
+ * Security Administration - User Accounts
+ *
+ * Premium Report-style redesign.
+ * Scoped to the User Accounts page only.
+ */
+
+.zrv-ua-page {
+  width: 100%;
+  max-width: none;
+  padding: 6px 2px 0;
+  color: var(--text);
+}
+
+/* Page header */
+
+.zrv-ua-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px 22px;
+  flex-wrap: wrap;
+  margin: 0 0 18px;
+}
+
+.zrv-ua-heading {
+  min-width: 210px;
+}
+
+.zrv-ua-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  font-size: 11px;
+  letter-spacing: 0.055em;
+  font-weight: 850;
+  color: var(--primary-text);
+}
+
+.zrv-ua-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #6bbd8b;
+  box-shadow: 0 0 0 4px #def3e6;
+}
+
+.zrv-ua-slash {
+  color: var(--muted);
+  padding: 0 5px;
+}
+
+.zrv-ua-heading h1 {
+  font-size: clamp(23px, 2vw, 29px);
+  line-height: 1.14;
+  letter-spacing: -0.045em;
+  font-weight: 850;
+  margin: 8px 0 4px;
+}
+
+.zrv-ua-heading p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Top action toolbar */
+
+.zrv-ua-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.zrv-ua-button,
+.zrv-ua-provision {
+  display: inline-flex;
+  width: auto;
+  min-height: 39px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.zrv-ua-button {
+  color: var(--text);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px #163b2210;
+}
+
+.zrv-ua-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
+  background: var(--surface-2);
+}
+
+.zrv-ua-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.zrv-ua-button svg,
+.zrv-ua-provision svg {
+  width: 16px;
+  height: 16px;
+}
+
+.zrv-ua-provision {
+  background: linear-gradient(110deg, #087343, #218f59);
+  border: 1px solid #087343;
+  box-shadow: 0 6px 16px #126b3b1d;
+}
+
+.zrv-ua-button:focus-visible,
+.zrv-ua-provision:focus-visible {
+  outline: 2px solid var(--primary-text);
+  outline-offset: 3px;
+}
+
+.zrv-ua-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.zrv-ua-updated .zrv-ua-dot {
+  width: 7px;
+  height: 7px;
+  box-shadow: none;
+}
+
+/* KPI cards */
+
+.zrv-ua-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.zrv-ua-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 108px;
+  gap: 12px;
+  padding: 17px;
+  border-radius: 18px;
+
+  border: 1px solid color-mix(in srgb, #76bd99 42%, var(--line));
+
+  background: color-mix(in srgb, var(--surface-solid) 95%, #effcf4);
+
+  box-shadow: 0 4px 18px #17472b08;
+}
+
+.zrv-ua-card__icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  background: #eaf8ee;
+  border-radius: 50%;
+  color: #087342;
+}
+
+.zrv-ua-card__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.zrv-ua-card__text {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.zrv-ua-card__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.zrv-ua-card__value {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 5px;
+  font-size: clamp(22px, 2vw, 29px);
+  letter-spacing: -0.05em;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.zrv-ua-card__percent {
+  padding: 4px 8px;
+  border-radius: 100px;
+  background: #e2f5e8;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0;
+  font-weight: 800;
+  color: #096237;
+}
+
+/* Decorative mint-green waves */
+
+.zrv-ua-card__wave {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 55%;
+  height: 52%;
+  opacity: 0.85;
+
+  background: linear-gradient(0deg, #c6ecd4, transparent);
+
+  clip-path: polygon(
+    0 100%,
+    0 88%,
+    20% 80%,
+    38% 76%,
+    56% 56%,
+    71% 63%,
+    85% 33%,
+    100% 14%,
+    100% 100%
+  );
+}
+
+/* Locked accounts amber variant */
+
+.zrv-ua-card--locked .zrv-ua-card__icon {
+  color: #a66b00;
+  background: #fff7e6;
+}
+
+.zrv-ua-card--locked .zrv-ua-card__percent {
+  color: #996200;
+  background: #fff1d6;
+}
+
+.zrv-ua-card--locked .zrv-ua-card__wave {
+  background: linear-gradient(0deg, #f8e4bd, transparent);
+}
+
+/* Main account panel */
+
+.zrv-ua-panel {
+  padding: 16px 20px 11px;
+  border-radius: 20px;
+  box-shadow: 0 4px 18px #153f2607;
+}
+
+.zrv-ua-panel .zrv-admin-panel__head {
+  margin: 0 0 10px;
+}
+
+.zrv-ua-panel .zrv-admin-panel__head h2 {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+/* Search and filter row */
+
+.zrv-ua-filters {
+  display: grid;
+
+  grid-template-columns:
+    minmax(200px, 1.45fr)
+    repeat(4, minmax(120px, 1fr))
+    minmax(115px, 0.8fr);
+
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 15px;
+}
+
+.zrv-ua-filters .zrv-admin-field label {
+  font-size: 11.5px;
+  font-weight: 750;
+  margin-bottom: 6px;
+}
+
+.zrv-ua-filters .zrv-admin-field:first-child label {
+  visibility: hidden;
+}
+
+.zrv-ua-filters .ux-input,
+.zrv-ua-filters .ux-select {
+  width: 100%;
+  min-height: 41px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-solid);
+  font-size: 12px;
+}
+
+.zrv-ua-filters .zrv-admin-toolbar__submit .btn-primary {
+  min-height: 41px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+/* Accounts table */
+
+.zrv-ua-table {
+  min-width: 0;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.zrv-ua-table tbody td b {
+  font-weight: 750;
+}
+
+.zrv-ua-table .zrv-admin-sub {
+  font-size: 10.5px;
+}
+
+.zrv-ua-table .zrv-admin-badge {
+  background: color-mix(in srgb, #f0fcf3 80%, var(--surface-solid));
+  padding: 3px 10px;
+}
+
+.zrv-ua-table .zrv-admin-badge--bad {
+  background: #fff2eb;
+}
+
+.zrv-ua-table .zrv-admin-badge--warn {
+  background: #fff6dc;
+}
+
+.zrv-ua-table .zrv-admin-link {
+  color: #086b39;
+  font-weight: 800;
+}
+
+/* Footer and pagination */
+
+.zrv-ua-onepage {
+  color: var(--muted);
+  margin: 12px 2px 0;
+  font-size: 11.5px;
+}
+
+.zrv-ua-panel .zrv-admin-pagination {
+  margin: 14px 2px 0;
+}
+
+/* Messages */
+
+.zrv-ua-notice {
+  padding: 10px 13px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-solid);
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.zrv-ua-notice .zrv-admin-link {
+  margin-left: 6px;
+}
+
+/* Medium desktop */
+
+@media (max-width: 1350px) {
+  .zrv-ua-metrics {
+    gap: 10px;
+  }
+
+  .zrv-ua-card {
+    padding: 12px;
+  }
+
+  .zrv-ua-card__icon {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  .zrv-ua-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Tablet */
+
+@media (max-width: 900px) {
+  .zrv-ua-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zrv-ua-header {
+    align-items: flex-start;
+  }
+
+  .zrv-ua-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .zrv-ua-page {
+    padding: 2px 0;
+  }
+
+  .zrv-ua-metrics {
+    gap: 9px;
+  }
+
+  .zrv-ua-card {
+    min-height: 110px;
+    padding: 11px;
+    gap: 7px;
+  }
+
+  .zrv-ua-card__icon {
+    width: 33px;
+    height: 33px;
+    flex-basis: 33px;
+  }
+
+  .zrv-ua-card__icon svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .zrv-ua-card__value {
+    font-size: 21px;
+  }
+
+  .zrv-ua-card__label {
+    font-size: 11px;
+  }
+
+  .zrv-ua-actions {
+    width: 100%;
+  }
+
+  .zrv-ua-button {
+    flex: 1 1 auto;
+  }
+
+  .zrv-ua-provision {
+    flex: 1 1 100%;
+  }
+
+  .zrv-ua-panel {
+    padding: 13px 11px;
+  }
+
+  .zrv-ua-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zrv-ua-filters .zrv-admin-field:first-child label {
+    visibility: visible;
+  }
+}
+
+/* Motion */
+
+@media (prefers-reduced-motion: no-preference) {
+  .zrv-ua-button,
+  .zrv-ua-card {
+    transition:
+      border-color 0.18s ease,
+      background-color 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+}
+
+/* =====================================================
+   System Administrator - Minor UI Corrections
+   ===================================================== */
+
+/* 1. Completely hide collapsed filters */
+.zrv-ua-page #zrv-ua-filter-region[hidden] {
+  display: none !important;
+}
+
+/* 2. Search button - white text */
+.zrv-ua-page .zrv-ua-filters .zrv-admin-toolbar__submit .btn-primary {
+  color: #ffffff !important;
+}
+
+/* 3. Previous Account button - white text */
+/* Scoped to the System Administrator UI */
+.zrv-admin .btn-primary {
+  color: #ffffff;
+}
+
+/* 4. Maintain white text on hover */
+.zrv-admin .btn-primary:hover:not(:disabled),
+.zrv-ua-page .zrv-ua-filters .zrv-admin-toolbar__submit .btn-primary:hover:not(:disabled) {
+  color: #ffffff;
+}
+
+/* ==========================================
+   User Accounts - White Button Text
+   ========================================== */
+
+/* Provision account button */
+.zrv-ua-page .zrv-ua-provision,
+.zrv-ua-page .zrv-ua-provision:hover {
+  color: #ffffff !important;
+}
+
+/* Search button */
+.zrv-ua-page .zrv-ua-filters .zrv-admin-toolbar__submit .btn-primary,
+.zrv-ua-page .zrv-ua-filters .zrv-admin-toolbar__submit .btn-primary:hover {
+  color: #ffffff !important;
+}
+
+/* Keep button icons white */
+.zrv-ua-page .zrv-ua-provision svg {
+  color: #ffffff !important;
+  stroke: currentColor;
+}
+
+/* Force white text on the two approved buttons only */
+
+.zrv-ua-page button.zrv-ua-white-text,
+.zrv-ua-page button.zrv-ua-white-text:hover,
+.zrv-ua-page button.zrv-ua-white-text:focus,
+.zrv-ua-page button.zrv-ua-white-text:active,
+.zrv-ua-page button.zrv-ua-white-text:disabled {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.zrv-ua-page button.zrv-ua-white-text svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* =========================================================
+   ZAMIL DIGITALIZATION - USER ACCOUNTS
+   Compact Report Table + Smaller Page Header
+   ========================================================= */
+
+/* 1. Smaller page heading - same scale as Roles page */
+
+.zrv-ua-page .zrv-ua-heading h1 {
+  font-size: 19px !important;
+  line-height: 1.25;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  margin: 5px 0 3px;
+}
+
+.zrv-ua-page .zrv-ua-heading p {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.zrv-ua-page .zrv-ua-breadcrumb {
+  font-size: 10px;
+  letter-spacing: 0.045em;
+}
+
+/* 2. Compact Accounts panel */
+
+.zrv-ua-page .zrv-ua-panel {
+  padding: 12px 13px 10px;
+  border-radius: 17px;
+}
+
+/* Let the accounts table reach the panel edges like the HR report table. */
+.zrv-ua-page .zrv-ua-panel .zrv-ua-table-wrap {
+  width: calc(100% + 26px);
+  margin-inline: -13px;
+  min-width: 0;
+  overflow-x: clip;
+}
+.zrv-ua-page .zrv-ua-panel .zrv-ua-table-wrap {
+  border-top: 1px solid var(--line);
+}
+
+.zrv-ua-page .zrv-ua-panel .zrv-admin-panel__head h2 {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+/* 3. Reference-style compact table */
+
+.zrv-ua-page .zrv-ua-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 11px;
+}
+
+/* Column headings */
+
+/* Employee name */
+
+.zrv-ua-page .zrv-ua-table tbody td b {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+/* Secondary values */
+
+.zrv-ua-page .zrv-ua-table .zrv-admin-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 9.5px;
+  line-height: 1.2;
+  color: var(--muted);
+}
+
+/* 4. Report-style alternating row backgrounds */
+
+/* 5. Smaller status badges */
+
+.zrv-ua-page .zrv-ua-table .zrv-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  min-height: 19px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+/* 6. Compact Open action */
+
+.zrv-ua-page .zrv-ua-table .zrv-admin-link {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #087345;
+  text-decoration: none;
+}
+
+.zrv-ua-page .zrv-ua-table .zrv-admin-link:hover {
+  text-decoration: underline;
+}
+
+/* 7. Compact footer */
+
+.zrv-ua-page .zrv-ua-onepage {
+  font-size: 10px;
+  margin: 9px 2px 0;
+  color: var(--muted);
+}
+
+.zrv-ua-page .zrv-ua-panel .zrv-admin-pagination {
+  margin-top: 10px;
+  font-size: 10px;
+}
+
+/* 8. Responsive behavior */
+
+@media (max-width: 900px) {
+  .zrv-ua-page .zrv-ua-panel {
+    padding: 11px 10px;
+  }
+
+  .zrv-ua-page .zrv-ua-panel .zrv-ua-table-wrap {
+    width: calc(100% + 20px);
+    margin-inline: -10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .zrv-ua-page .zrv-ua-heading h1 {
+    font-size: 18px !important;
+  }
+
+  .zrv-ua-page .zrv-ua-table th:nth-child(3),
+  .zrv-ua-page .zrv-ua-table td:nth-child(3),
+  .zrv-ua-page .zrv-ua-table th:nth-child(4),
+  .zrv-ua-page .zrv-ua-table td:nth-child(4),
+  .zrv-ua-page .zrv-ua-table th:nth-child(7),
+  .zrv-ua-page .zrv-ua-table td:nth-child(7),
+  .zrv-ua-page .zrv-ua-table th:nth-child(8),
+  .zrv-ua-page .zrv-ua-table td:nth-child(8) {
+    display: none;
+  }
+
+  .zrv-ua-page .zrv-ua-table th:nth-child(1),
+  .zrv-ua-page .zrv-ua-table td:nth-child(1) {
+    width: 30%;
+  }
+  .zrv-ua-page .zrv-ua-table th:nth-child(2),
+  .zrv-ua-page .zrv-ua-table td:nth-child(2) {
+    width: 18%;
+  }
+  .zrv-ua-page .zrv-ua-table th:nth-child(5),
+  .zrv-ua-page .zrv-ua-table td:nth-child(5) {
+    width: 23%;
+  }
+  .zrv-ua-page .zrv-ua-table th:nth-child(6),
+  .zrv-ua-page .zrv-ua-table td:nth-child(6) {
+    width: 17%;
+  }
+  .zrv-ua-page .zrv-ua-table th:nth-child(9),
+  .zrv-ua-page .zrv-ua-table td:nth-child(9) {
+    width: 12%;
+  }
+
+  .zrv-ua-page .zrv-ua-table th,
+  .zrv-ua-page .zrv-ua-table td {
+    padding: 7px 6px;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+}
+
+/* Preserve row readability in dark mode */
+
+[data-theme='dark'] .zrv-ua-page .zrv-ua-table tbody tr {
+  background: var(--surface-2);
+}
+
+[data-theme='dark'] .zrv-ua-page .zrv-ua-table tbody tr:nth-child(even) {
+  background: var(--surface-solid);
+}
+
+/* Employee account table: distinct employee fields, aligned compact rows. */
+.zrv-ua-page .zrv-ua-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.zrv-ua-page .zrv-ua-table th,
+.zrv-ua-page .zrv-ua-table td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.zrv-ua-page .zrv-ua-table th:nth-child(1),
+.zrv-ua-page .zrv-ua-table td:nth-child(1) {
+  width: 16%;
+}
+.zrv-ua-page .zrv-ua-table th:nth-child(2),
+.zrv-ua-page .zrv-ua-table td:nth-child(2) {
+  width: 11%;
+}
+.zrv-ua-page .zrv-ua-table th:nth-child(3),
+.zrv-ua-page .zrv-ua-table td:nth-child(3) {
+  width: 11%;
+}
+.zrv-ua-page .zrv-ua-table th:nth-child(4),
+.zrv-ua-page .zrv-ua-table td:nth-child(4) {
+  width: 12%;
+}
+.zrv-ua-page .zrv-ua-table th:nth-child(5),
+.zrv-ua-page .zrv-ua-table td:nth-child(5) {
+  width: 12%;
+}
+.zrv-ua-page .zrv-ua-table th:nth-child(6),
+.zrv-ua-page .zrv-ua-table td:nth-child(6) {
+  width: 9%;
+}
+.zrv-ua-page .zrv-ua-table th:nth-child(7),
+.zrv-ua-page .zrv-ua-table td:nth-child(7) {
+  width: 11%;
+}
+.zrv-ua-page .zrv-ua-table th:nth-child(8),
+.zrv-ua-page .zrv-ua-table td:nth-child(8) {
+  width: 11%;
+}
+.zrv-ua-page .zrv-ua-table th:nth-child(9),
+.zrv-ua-page .zrv-ua-table td:nth-child(9) {
+  width: 7%;
+}
+
+.zrv-ua-page .zrv-ua-table tbody td.zrv-ua-employee-name b {
+  overflow: visible;
+  font-size: 11px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.zrv-ua-page .zrv-ua-table .zrv-ua-employee-number {
+  font-variant-numeric: tabular-nums;
+}
+
+html.dark .zrv-ua-page .zrv-ua-table tbody td,
+[data-theme='dark'] .zrv-ua-page .zrv-ua-table tbody td {
+  border-bottom-color: color-mix(in srgb, var(--line) 88%, #8fbaa0);
+}
+
+/* ============================================
+   USER ACCOUNTS TABLE
+   ORVEXA LIVE REQUEST STREAM STYLE
+   ============================================ */
+
+/* Table container */
+.zrv-ua-panel {
+  overflow: hidden;
+  border: 1px solid #e1e6e1;
+  border-radius: 16px;
+  background: var(--surface-solid, #fff);
+}
+
+/* Status indicators */
+.zrv-ua-panel .zrv-ua-table .zrv-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 9px;
+  min-height: 21px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* Open action */
+.zrv-ua-panel .zrv-ua-table .zrv-admin-link {
+  color: #087343;
+  font-weight: 650;
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.zrv-ua-panel .zrv-ua-table .zrv-admin-link:hover {
+  text-decoration: underline;
+}
+
+/* Horizontal table scroll remains functional */
+.zrv-ua-panel .zrv-horizontal-table__viewport {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Keyboard focus */
+.zrv-ua-panel .zrv-ua-table a:focus-visible {
+  outline: 2px solid #087343;
+  outline-offset: 2px;
+}
+
+/* ==========================================
+   USER ACCOUNTS — MORE VISIBLE PASTEL COLORS
+   ========================================== */
+
+/* Row 1 — Green */
+
+/* Row 2 — Pink */
+
+/* Row 3 — Blue */
+
+/* Row 4 — Yellow */
+
+/* Row 5 — Lavender */
+
+/* Row 6 — Mint */
+
+/* Ensure individual cells don't hide the row colors */
+
+/* Hover — slightly deeper green */
+
+/* Stronger row separators */
+
+/* Optional: colored left accents */

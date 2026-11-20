@@ -160,6 +160,7 @@ test('only pages backed by a working backend contract are implemented; no placeh
       'hr-transfer',
       'hr-transfer-report',
       'hr-transfer-record',
+      'hr-talent-dashboard',
       'hr-appraisal',
       'hr-appraisal-report',
       'hr-appraisal-record',
@@ -352,7 +353,7 @@ test('sidebar: implemented security pages appear only with their permission and 
 })
 
 test('sidebar source lists only authorized navigation; template demos only in the preview', async () => {
-  const sidebar = await read('../src/components/layout/Sidebar.jsx')
+  const sidebar = (await read('../src/components/layout/Sidebar.jsx')).replace(/\s+/g, ' ')
   assert.match(sidebar, /const sections = authorizedNavigation\(access\)/)
   assert.match(
     sidebar,
@@ -470,7 +471,7 @@ test('application routes are guarded by the shared configuration; demos stay pre
       `${route.id} is not routed before it exists`,
     )
   }
-  const guards = await read('../src/routes/RouteGuards.jsx')
+  const guards = (await read('../src/routes/RouteGuards.jsx')).replace(/\s+/g, ' ')
   assert.match(guards, /switch \(routeAccess\(route, access\)\)/)
   assert.match(guards, /case 'allowed': return <Outlet \/>/)
   assert.match(

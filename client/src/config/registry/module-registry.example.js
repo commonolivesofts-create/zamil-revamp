@@ -50,7 +50,8 @@
 //   path          internal only: '/area/page' or '/area/page/:id'
 //   href          external only: an absolute https URL (loopback http for local development),
 //                 no credentials) or { env: 'VITE_EXTERNAL_<NAME>' } for an
-//                 environment-specific approved URL. Build-time VITE_ values are
+//                 environment-specific approved URL; add `path: '/page'` to
+//                 open a page under it. Build-time VITE_ values are
 //                 public: never put tokens, passwords or keys in them. A missing
 //                 or invalid environment value hides the entry.
 //                 External links open in a new tab (noopener, noreferrer).
@@ -82,11 +83,34 @@ export const exampleSalesModule = defineModule({
       actions: ['VIEW', 'CREATE', 'UPDATE', 'SUBMIT', 'APPROVE', 'CANCEL', 'PRINT', 'EXPORT'],
       navigation: [
         // No `type`: internal by default.
-        { id: 'example-sales-orders', path: '/example/sales/orders', title: 'Sales orders', icon: 'receipt', group: 'example-sales', order: 10 },
+        {
+          id: 'example-sales-orders',
+          path: '/example/sales/orders',
+          title: 'Sales orders',
+          icon: 'receipt',
+          group: 'example-sales',
+          order: 10,
+        },
         // Detail page: guarded like any page, never listed.
-        { id: 'example-sales-order', path: '/example/sales/orders/:orderId', title: 'Sales order', icon: 'receipt', group: 'example-sales', order: 11, hidden: true },
+        {
+          id: 'example-sales-order',
+          path: '/example/sales/orders/:orderId',
+          title: 'Sales order',
+          icon: 'receipt',
+          group: 'example-sales',
+          order: 11,
+          hidden: true,
+        },
         // Listed only for users who may approve.
-        { id: 'example-sales-approvals', path: '/example/sales/approvals', title: 'Order approvals', icon: 'check-check', group: 'example-sales', order: 20, requiredAction: 'APPROVE' },
+        {
+          id: 'example-sales-approvals',
+          path: '/example/sales/approvals',
+          title: 'Order approvals',
+          icon: 'check-check',
+          group: 'example-sales',
+          order: 20,
+          requiredAction: 'APPROVE',
+        },
       ],
     },
   ],
@@ -106,7 +130,15 @@ export const exampleProductionModule = defineModule({
       actions: ['VIEW', 'CREATE', 'UPDATE', 'SCHEDULE', 'RELEASE', 'START', 'COMPLETE', 'CLOSE'],
       navigation: [
         // Explicit internal type (same as omitting it).
-        { id: 'example-work-orders', type: 'internal', path: '/example/production/work-orders', title: 'Work orders', icon: 'clipboard-list', group: 'example-production', order: 10 },
+        {
+          id: 'example-work-orders',
+          type: 'internal',
+          path: '/example/production/work-orders',
+          title: 'Work orders',
+          icon: 'clipboard-list',
+          group: 'example-production',
+          order: 10,
+        },
       ],
     },
     {
@@ -115,7 +147,15 @@ export const exampleProductionModule = defineModule({
       actions: ['VIEW', 'CREATE', 'ISSUE', 'REVERSE'],
       navigation: [
         // The page also reads work orders, so it needs that permission too.
-        { id: 'example-material-issues', path: '/example/production/material-issues', title: 'Material issues', icon: 'package-minus', group: 'example-production', order: 20, alsoRequires: ['EXAMPLE_WORK_ORDERS:VIEW'] },
+        {
+          id: 'example-material-issues',
+          path: '/example/production/material-issues',
+          title: 'Material issues',
+          icon: 'package-minus',
+          group: 'example-production',
+          order: 20,
+          alsoRequires: ['EXAMPLE_WORK_ORDERS:VIEW'],
+        },
       ],
     },
     {
@@ -130,10 +170,27 @@ export const exampleProductionModule = defineModule({
       actions: ['VIEW', 'RUN', 'EXPORT'],
       navigation: [
         // External destination with a fixed approved URL (example.com is reserved for examples).
-        { id: 'example-production-dashboard', type: 'external', href: 'https://reports.example.com/production', title: 'Production dashboard', icon: 'external-link', group: 'example-production', order: 30 },
+        {
+          id: 'example-production-dashboard',
+          type: 'external',
+          href: 'https://reports.example.com/production',
+          title: 'Production dashboard',
+          icon: 'external-link',
+          group: 'example-production',
+          order: 30,
+        },
         // Environment-specific approved URL: set VITE_EXTERNAL_EXAMPLE_PLANT_PORTAL
         // per environment; unset or invalid hides the entry. Requires RUN.
-        { id: 'example-plant-portal', type: 'external', href: { env: 'VITE_EXTERNAL_EXAMPLE_PLANT_PORTAL' }, title: 'Plant portal', icon: 'external-link', group: 'example-production', order: 40, requiredAction: 'RUN' },
+        {
+          id: 'example-plant-portal',
+          type: 'external',
+          href: { env: 'VITE_EXTERNAL_EXAMPLE_PLANT_PORTAL' },
+          title: 'Plant portal',
+          icon: 'external-link',
+          group: 'example-production',
+          order: 40,
+          requiredAction: 'RUN',
+        },
       ],
     },
   ],

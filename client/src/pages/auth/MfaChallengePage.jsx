@@ -21,7 +21,9 @@ export default function MfaChallengePage() {
   const [fieldError, setFieldError] = useState('')
   const focusLater = useFocusWhenEnabled(pending)
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
 
   const submit = async (event) => {
     event.preventDefault()
@@ -57,18 +59,51 @@ export default function MfaChallengePage() {
   return (
     <main className="system-state zrv-auth-page">
       <section className="system-card !max-w-[520px]" aria-labelledby="mfa-verify-title">
-        <span className="mx-auto flex size-14 items-center justify-center rounded-2xl" style={{ background: 'color-mix(in srgb,var(--primary) 11%,transparent)', color: 'var(--primary-text)' }}><OrvexaIcon name="key-round" className="size-6" /></span>
+        <span
+          className="mx-auto flex size-14 items-center justify-center rounded-2xl"
+          style={{
+            background: 'color-mix(in srgb,var(--primary) 11%,transparent)',
+            color: 'var(--primary-text)',
+          }}
+        >
+          <OrvexaIcon name="key-round" className="size-6" />
+        </span>
         <h1 id="mfa-verify-title">Verify your sign-in</h1>
-        <p>Enter the current 6-digit code from your authenticator app. You are not signed in until the code is verified.</p>
-        {mfa?.expiresAt && <p className="zrv-mfa-meta">Complete verification before {formatClockTime(mfa.expiresAt)}.</p>}
-        {error && <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">{error}</p>}
+        <p>
+          Enter the current 6-digit code from your authenticator app. You are not signed in until
+          the code is verified.
+        </p>
+        {mfa?.expiresAt && (
+          <p className="zrv-mfa-meta">
+            Complete verification before {formatClockTime(mfa.expiresAt)}.
+          </p>
+        )}
+        {error && (
+          <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
+            {error}
+          </p>
+        )}
         <form className="mt-6 text-left" onSubmit={submit} noValidate>
-          <MfaCodeInput ref={inputRef} id="mfa-verify-code" value={code} onChange={setCode} error={fieldError} disabled={pending} />
-          <button className="btn-primary mt-4 w-full zrv-auth-submit" type="submit" disabled={pending}>
-            <OrvexaIcon name="shield-check" className="size-4" /> {pending ? 'Verifying…' : 'Verify and sign in'}
+          <MfaCodeInput
+            ref={inputRef}
+            id="mfa-verify-code"
+            value={code}
+            onChange={setCode}
+            error={fieldError}
+            disabled={pending}
+          />
+          <button
+            className="btn-primary mt-4 w-full zrv-auth-submit"
+            type="submit"
+            disabled={pending}
+          >
+            <OrvexaIcon name="shield-check" className="size-4" />{' '}
+            {pending ? 'Verifying…' : 'Verify and sign in'}
           </button>
         </form>
-        <button type="button" className="btn-secondary mt-3" onClick={cancel} disabled={pending}>Use a different account</button>
+        <button type="button" className="btn-secondary mt-3" onClick={cancel} disabled={pending}>
+          Use a different account
+        </button>
       </section>
     </main>
   )

@@ -1,0 +1,456 @@
+/* ======================================================
+   ZAMIL DIGITALIZATION
+   SECURITY ADMINISTRATION
+   PERMISSION OVERRIDES — PREMIUM DESIGN
+   ====================================================== */
+
+.zrv-permission-overrides-page {
+  --po-green: #087343;
+  --po-green-dark: #06683c;
+  --po-mint: #e8f7ef;
+  --po-border: #b8dec9;
+  --po-text: #17243b;
+  --po-muted: #64748b;
+
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+/* FULL-WIDTH PAGE */
+
+.zrv-permission-overrides-page > .zrv-admin {
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+}
+
+/* PAGE HEADER */
+
+.zrv-permission-overrides-page .zrv-admin__head {
+  align-items: center;
+  padding: 8px 2px 20px;
+}
+
+.zrv-permission-overrides-page .zrv-admin__head h1 {
+  margin: 5px 0 3px;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.zrv-permission-overrides-page .zrv-admin__lead {
+  max-width: 850px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ==========================================
+   FOUR SUMMARY CARDS
+   ========================================== */
+
+.zrv-po-summary {
+  width: 100%;
+  margin-bottom: 18px;
+}
+
+.zrv-po-summary__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 13px;
+}
+
+/* SUMMARY CARD */
+
+.zrv-po-stat {
+  position: relative;
+  isolation: isolate;
+
+  display: flex;
+  align-items: flex-start;
+
+  min-width: 0;
+  min-height: 100px;
+  padding: 17px 15px;
+
+  overflow: hidden;
+
+  background: #f9fcfa;
+  border: 1px solid var(--po-border);
+  border-radius: 15px;
+
+  box-shadow: 0 2px 8px rgb(15 65 42 / 4%);
+}
+
+.zrv-po-stat__content {
+  position: relative;
+  z-index: 1;
+
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  width: 100%;
+  min-width: 0;
+}
+
+/* ICON */
+
+.zrv-po-stat__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+
+  color: var(--po-green);
+  background: #e6f7ed;
+
+  border-radius: 50%;
+}
+
+.zrv-po-stat__icon svg {
+  width: 21px;
+  height: 21px;
+  stroke-width: 1.8;
+}
+
+/* CARD CONTENT */
+
+.zrv-po-stat__details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  min-width: 0;
+}
+
+.zrv-po-stat__title {
+  margin: 2px 0 0;
+
+  color: #172c23;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.zrv-po-stat__values {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.zrv-po-stat__number {
+  color: #122a20;
+
+  font-size: 27px;
+  font-weight: 750;
+  line-height: 1.1;
+
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* PERCENTAGE BADGE */
+
+.zrv-po-stat__percentage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 3px 8px;
+
+  color: var(--po-green);
+  background: #def5e8;
+
+  border-radius: 999px;
+
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+
+  white-space: nowrap;
+}
+
+/* DECORATIVE WAVE */
+
+.zrv-po-stat__wave {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+
+  width: 57%;
+  height: 46px;
+
+  color: #d6f1e1;
+  pointer-events: none;
+}
+
+.zrv-po-stat--amber .zrv-po-stat__icon {
+  color: #bb7b00;
+  background: #fff2db;
+}
+
+.zrv-po-stat--amber .zrv-po-stat__percentage {
+  color: #ab7100;
+  background: #fff0d3;
+}
+
+.zrv-po-stat--amber .zrv-po-stat__wave {
+  color: #fff0d2;
+}
+
+/* ==========================================
+   EXISTING DIRECTORY
+   ========================================== */
+
+.zrv-po-directory {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Clean white directory panel */
+
+.zrv-permission-overrides-page .zrv-po-directory .zrv-admin-panel {
+  width: 100%;
+  max-width: none;
+
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+
+  box-shadow: 0 2px 10px rgb(15 65 42 / 4%);
+}
+
+/* Search toolbar spacing */
+
+.zrv-permission-overrides-page .zrv-admin-toolbar {
+  gap: 12px;
+}
+
+/* GREEN SEARCH BUTTON WITH WHITE TEXT */
+
+.zrv-permission-overrides-page .zrv-admin-toolbar button.btn-primary {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+
+  background: var(--po-green);
+  border-color: var(--po-green);
+
+  border-radius: 8px;
+  font-weight: 650;
+}
+
+.zrv-permission-overrides-page .zrv-admin-toolbar button.btn-primary:hover:not(:disabled) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+
+  background: var(--po-green-dark);
+}
+
+/* TABLE TYPOGRAPHY */
+
+.zrv-permission-overrides-page .zrv-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.zrv-permission-overrides-page .zrv-admin-table thead th {
+  padding: 12px;
+
+  color: var(--po-muted);
+  font-size: 10px;
+  font-weight: 700;
+
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+
+  white-space: nowrap;
+}
+
+.zrv-permission-overrides-page .zrv-admin-table tbody td {
+  padding: 13px 12px;
+
+  font-size: 11px;
+  line-height: 1.5;
+
+  vertical-align: middle;
+}
+
+/* ROW HOVER */
+
+.zrv-permission-overrides-page .zrv-admin-table tbody tr:hover {
+  background: #f2faf5;
+}
+
+/* EMPLOYEE TEXT */
+
+.zrv-permission-overrides-page .zrv-admin-table tbody td b {
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.zrv-permission-overrides-page .zrv-admin-table .zrv-admin-sub {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--po-muted);
+}
+
+/* MANAGE OVERRIDES LINK */
+
+.zrv-permission-overrides-page .zrv-admin-table .zrv-admin-link {
+  color: var(--po-green);
+
+  font-size: 11px;
+  font-weight: 700;
+
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.zrv-permission-overrides-page .zrv-admin-table .zrv-admin-link:hover {
+  color: var(--po-green-dark);
+  text-decoration: underline;
+}
+
+/* Match the compact, edge-to-edge report table layout. */
+.zrv-permission-overrides-page .zrv-po-directory .zrv-report-table-wrap {
+  width: calc(100% + clamp(32px, 4.4vw, 44px));
+  min-width: 0;
+  margin-inline: calc(clamp(16px, 2.2vw, 22px) * -1);
+  overflow-x: clip;
+  border-top: 1px solid var(--line);
+}
+
+/* ==========================================
+   STATISTICS ERROR
+   ========================================== */
+
+.zrv-po-summary__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  margin-top: 10px;
+  padding: 11px 13px;
+
+  color: #94541c;
+  background: #fff8f2;
+
+  border: 1px solid #efd6bc;
+  border-radius: 9px;
+
+  font-size: 12px;
+}
+
+/* ACCESSIBILITY */
+
+.zrv-permission-overrides-page button:focus-visible,
+.zrv-permission-overrides-page a:focus-visible,
+.zrv-permission-overrides-page input:focus-visible,
+.zrv-permission-overrides-page select:focus-visible {
+  outline: 2px solid var(--po-green);
+  outline-offset: 2px;
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (max-width: 1100px) {
+  .zrv-po-summary__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .zrv-po-summary__grid {
+    gap: 9px;
+  }
+
+  .zrv-po-stat {
+    min-height: 100px;
+    padding: 12px 10px;
+    border-radius: 12px;
+  }
+
+  .zrv-po-stat__content {
+    gap: 8px;
+  }
+
+  .zrv-po-stat__icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
+  .zrv-po-stat__icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .zrv-po-stat__title {
+    font-size: 10px;
+  }
+
+  .zrv-po-stat__number {
+    font-size: 23px;
+  }
+
+  .zrv-po-stat__percentage {
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+
+  .zrv-po-summary {
+    margin-bottom: 14px;
+  }
+
+  .zrv-po-summary__error {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .zrv-permission-overrides-page .ux-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 360px) {
+  .zrv-po-summary__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ==========================================
+   DARK THEME
+   ========================================== */
+
+[data-theme='dark'] .zrv-permission-overrides-page {
+  --po-text: var(--text);
+  --po-muted: var(--muted);
+}
+
+[data-theme='dark'] .zrv-po-stat {
+  background: var(--surface-solid);
+  border-color: var(--line);
+}
+
+[data-theme='dark'] .zrv-po-stat__title,
+[data-theme='dark'] .zrv-po-stat__number {
+  color: var(--text);
+}
+
+[data-theme='dark'] .zrv-po-stat__wave {
+  opacity: 0.12;
+}
+
+[data-theme='dark'] .zrv-permission-overrides-page .zrv-admin-table tbody tr:hover {
+  background: var(--surface-2);
+}

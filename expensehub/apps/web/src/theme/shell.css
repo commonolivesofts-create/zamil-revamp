@@ -3,6 +3,22 @@
  * Keep hub-specific layout and loading styles scoped to .eh-* so they do not leak
  * into the parent application; shared colors and typography live in tokens.css.
  */
+/* Fit native controls to narrow form columns and keep touch controls usable. */
+:is(.eh-shell, .eh-drawer) :is(input, select, textarea) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+@media (pointer: coarse) {
+  :is(.eh-shell, .eh-drawer) button,
+  .eh-button {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+  }
+  :is(.eh-shell, .eh-drawer) :is(input, select, textarea):not([type='checkbox'], [type='radio']),
+  .eh-control {
+    font-size: 16px;
+  }
+}
 .eh-shell {
   --eh-sidebar-rail-width: 78px;
   --eh-page-gutter: 16px;
@@ -1548,6 +1564,7 @@
 
   .eh-dev-fusion__table tbody {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     padding: 10px;
   }

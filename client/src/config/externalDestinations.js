@@ -1,5 +1,7 @@
 // Resolves registry external destinations for the browser. The registry holds
-// either a literal https URL (or loopback http for local development) or { env: 'VITE_EXTERNAL_<NAME>' }; the variable
+// either a literal https URL (or loopback http for local development) or
+// { env: 'VITE_EXTERNAL_<NAME>', path? }; `path` opens a page under that base
+// URL (joined relatively, so a base such as https://host/hub/ keeps /hub). The variable
 // is a public build-time value (compiled into the bundle), so it must never
 // contain a secret, token or credential. An unresolved or invalid destination
 // resolves to null and its entry is hidden (never listed or searchable).
@@ -11,7 +13,14 @@ const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
 
 export function resolveExternalHref(href, env = buildEnv) {
   const value = typeof href === 'string' ? href : env?.[href?.env]
-  const approved = validateExternalUrl(typeof value === 'string' ? value.trim() : value)
+  let approved = validateExternalUrl(typeof value === 'string' ? value.trim() : value)
+  if (approved && href?.path) {
+    const base = new URL(approved)
+    if (!base.pathname.endsWith('/')) base.pathname += '/'
+    base.search = ''
+    base.hash = ''
+    approved = validateExternalUrl(new URL(href.path.slice(1), base).href)
+  }
   if (!approved || typeof window === 'undefined') return approved
 
   // Local hub destinations use loopback URLs in configuration so they remain
@@ -19,8 +28,10 @@ export function resolveExternalHref(href, env = buildEnv) {
   // for the sibling app links instead of sending the user to their own device.
   const destination = new URL(approved)
   const currentHost = window.location.hostname
-  if (LOOPBACK_HOSTS.has(destination.hostname.toLowerCase())
-    && !LOOPBACK_HOSTS.has(currentHost.toLowerCase())) {
+  if (
+    LOOPBACK_HOSTS.has(destination.hostname.toLowerCase()) &&
+    !LOOPBACK_HOSTS.has(currentHost.toLowerCase())
+  ) {
     destination.hostname = currentHost
   }
   return destination.href

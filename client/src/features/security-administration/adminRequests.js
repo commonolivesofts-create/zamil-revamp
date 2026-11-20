@@ -11,7 +11,10 @@ export function createLatestRequest() {
       current?.abort()
       const controller = new AbortController()
       current = controller
-      return { signal: controller.signal, isCurrent: () => current === controller && !controller.signal.aborted }
+      return {
+        signal: controller.signal,
+        isCurrent: () => current === controller && !controller.signal.aborted,
+      }
     },
     cancel() {
       current?.abort()

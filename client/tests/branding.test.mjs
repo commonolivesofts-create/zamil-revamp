@@ -13,7 +13,7 @@ async function walk(dir) {
   const files = []
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const url = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir)
-    if (entry.isDirectory()) files.push(...await walk(url))
+    if (entry.isDirectory()) files.push(...(await walk(url)))
     else files.push(url)
   }
   return files
@@ -34,26 +34,39 @@ test('the version is shown only in the login footer and the sidebar footer', asy
     const source = await readFile(file, 'utf8')
     const relative = file.pathname.split('/src/')[1]
     if (source.includes('appConfig.displayVersion')) uses.push(relative)
-    if (relative !== 'config/appConfig.js') assert.equal(/\b2\.1\.0\b/.test(source), false, `${relative} duplicates the version`)
+    if (relative !== 'config/appConfig.js')
+      assert.equal(/\b2\.1\.0\b/.test(source), false, `${relative} duplicates the version`)
   }
   assert.deepEqual(uses.sort(), ['components/layout/Sidebar.jsx', 'pages/auth/LoginPage.jsx'])
   const login = await read('../src/pages/auth/LoginPage.jsx')
   assert.match(login, /<p className="zrv-app-version">\{appConfig\.displayVersion\}<\/p>/)
   assert.match(login, /<h1>\{appConfig\.name\}<\/h1>/, 'name alone as the primary heading')
   const sidebar = await read('../src/components/layout/Sidebar.jsx')
-  assert.match(sidebar, /<p className="zrv-sidebar-version" title="Application version">\{appConfig\.displayVersion\}<\/p>/)
+  assert.match(
+    sidebar,
+    /<p\s+className="zrv-sidebar-version"\s+title="Application version">\s*\{appConfig\.displayVersion\}\s*<\/p>/,
+  )
 })
 
 test('browser title and metadata use the name without the version', async () => {
   const html = await read('../index.html')
   assert.match(html, /<title>Zamil Digitalization<\/title>/)
-  assert.match(html, /<meta name="description" content="Zamil Digitalization enterprise application" \/>/)
+  assert.match(
+    html,
+    /<meta name="description" content="Zamil Digitalization enterprise application" \/>/,
+  )
   assert.equal(/V 2\.1\.0|2\.1\.0/.test(html), false)
   assert.match(await read('../.env.example'), /^VITE_APP_NAME=Zamil Digitalization$/m)
 })
 
 test('auth screens name the application through appConfig', async () => {
-  for (const file of ['features/auth/PasswordLinkForm.jsx', 'pages/auth/ForgotPasswordPage.jsx', 'pages/auth/ChangePasswordPage.jsx', 'pages/auth/MfaRecoveryPage.jsx', 'pages/auth/LoginPage.jsx']) {
+  for (const file of [
+    'features/auth/PasswordLinkForm.jsx',
+    'pages/auth/ForgotPasswordPage.jsx',
+    'pages/auth/ChangePasswordPage.jsx',
+    'pages/auth/MfaRecoveryPage.jsx',
+    'pages/auth/LoginPage.jsx',
+  ]) {
     const source = await read(`../src/${file}`)
     assert.ok(source.includes('appConfig.name'), file)
     assert.match(source, /import \{ appConfig \} from '@\/config\/appConfig\.js'/, file)
@@ -62,7 +75,7 @@ test('auth screens name the application through appConfig', async () => {
 
 test('no former product name remains in the active frontend', async () => {
   const files = [
-    ...await walk(new URL('../src/', import.meta.url)),
+    ...(await walk(new URL('../src/', import.meta.url))),
     new URL('../index.html', import.meta.url),
     new URL('../public/favicon.svg', import.meta.url),
     new URL('../public/theme-init.js', import.meta.url),

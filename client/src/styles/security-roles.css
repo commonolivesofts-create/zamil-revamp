@@ -1,0 +1,981 @@
+/* ======================================================
+   ZAMIL DIGITALIZATION — ROLE MANAGEMENT
+   ITSAZZ PREMIUM REFERENCE DESIGN
+   ====================================================== */
+
+.zrv-roles-page {
+  --roles-green: #087c46;
+  --roles-green-hover: #066a3b;
+  --roles-selected: #e5f7ee;
+  --roles-border: #dce5eb;
+  --roles-text: #15243b;
+  --roles-subtle: #65738d;
+
+  width: 100%;
+}
+
+/* PAGE HEADER */
+
+.zrv-roles-page .zrv-admin__head {
+  padding: 12px 4px 20px;
+  align-items: center;
+}
+
+.zrv-roles-page .zrv-admin__head h1 {
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.zrv-roles-page .zrv-admin__lead {
+  font-size: 13px;
+}
+
+/* CREATE ROLE */
+
+.zrv-roles-page button.zrv-roles-create {
+  min-height: 38px;
+  border-radius: 7px;
+  padding: 8px 17px;
+
+  background: #078a4b;
+  border-color: #078a4b;
+  box-shadow: none;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* TWO-COLUMN LAYOUT */
+
+.zrv-roles-page .zrv-roles-layout {
+  display: grid;
+  grid-template-columns: minmax(290px, 31%) minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+/* PANELS */
+
+.zrv-roles-page .zrv-roles-list-panel,
+.zrv-roles-page .zrv-roles-detail-panel {
+  min-width: 0;
+
+  background: var(--surface-solid, #ffffff);
+  border: 1px solid var(--roles-border);
+  border-radius: 9px;
+
+  box-shadow: 0 2px 8px rgb(17 42 72 / 5%);
+  padding: 0;
+  overflow: hidden;
+}
+
+.zrv-roles-page .zrv-admin-panel__head {
+  margin: 0;
+  min-height: 51px;
+  padding: 12px 15px;
+
+  border-bottom: 1px solid var(--roles-border);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.zrv-roles-page .zrv-admin-panel__head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--roles-text);
+}
+
+.zrv-roles-page .zrv-roles-list-panel .zrv-admin-panel__head h2::before {
+  content: '♟';
+  color: var(--roles-green);
+  margin-right: 9px;
+}
+
+.zrv-roles-page .zrv-roles-detail-panel .zrv-admin-panel__head h2::before {
+  content: '⬟';
+  color: var(--roles-green);
+  margin-right: 9px;
+}
+
+/* ROLE SEARCH AND STATUS FILTER */
+
+.zrv-roles-page .zrv-roles-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(125px, 40%);
+  gap: 8px;
+
+  padding: 7px 12px 10px;
+  border-bottom: 1px solid var(--roles-border);
+}
+
+.zrv-roles-page .zrv-roles-search,
+.zrv-roles-page .zrv-roles-status-filter {
+  min-width: 0;
+  min-height: 35px;
+
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 0 9px;
+
+  border: 1px solid #d8e2e9;
+  background: var(--surface-solid, #ffffff);
+  border-radius: 7px;
+
+  color: var(--roles-subtle);
+}
+
+.zrv-roles-page .zrv-roles-search svg,
+.zrv-roles-page .zrv-roles-status-filter svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.zrv-roles-page .zrv-roles-search input,
+.zrv-roles-page .zrv-roles-status-filter select {
+  width: 100%;
+  min-width: 0;
+
+  background: transparent;
+  color: inherit;
+
+  font: inherit;
+  font-size: 12px;
+
+  border: 0;
+  outline: 0;
+}
+
+/* ROLE LIST */
+
+.zrv-roles-page .zrv-roles-list-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 650px;
+}
+
+.zrv-roles-page .zrv-roles-list-panel > .zrv-roles-filters {
+  flex: none;
+}
+
+.zrv-roles-page .zrv-roles-list-panel .zrv-roles-list {
+  flex: 1;
+}
+
+.zrv-roles-page .zrv-roles-list-item {
+  border-bottom: 1px solid var(--roles-border);
+}
+
+.zrv-roles-page .zrv-roles-item-button {
+  width: 100%;
+  min-height: 63px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 9px 15px;
+
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+
+  cursor: pointer;
+  background: transparent;
+  color: var(--roles-text);
+  text-align: left;
+}
+
+.zrv-roles-page .zrv-roles-item-button:hover {
+  background: #f1f9f5;
+}
+
+.zrv-roles-page .zrv-roles-item-button.is-selected {
+  background: var(--roles-selected);
+  border-left-color: var(--roles-green);
+}
+
+.zrv-roles-page .zrv-roles-item-copy {
+  flex: 1;
+  min-width: 0;
+
+  display: grid;
+  gap: 3px;
+}
+
+.zrv-roles-page .zrv-roles-item-copy strong {
+  font-size: 13px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.zrv-roles-page .zrv-roles-item-copy small {
+  font-size: 11px;
+  color: var(--roles-subtle);
+  overflow-wrap: anywhere;
+}
+
+.zrv-roles-page .zrv-roles-item-chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* ROLE LIST FOOTER */
+
+.zrv-roles-page .zrv-roles-list-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--roles-border);
+
+  padding: 10px 12px;
+  color: var(--roles-subtle);
+  font-size: 11px;
+}
+
+.zrv-roles-page .zrv-roles-list-footer .zrv-admin-pagination {
+  margin-top: 8px;
+}
+
+/* STATUS */
+
+.zrv-roles-page .zrv-admin-badge--good {
+  background: #e4f7ed;
+  color: #078043;
+}
+
+/* ACTION BUTTONS */
+
+.zrv-roles-page .zrv-roles-detail-panel .zrv-admin__actions {
+  gap: 8px;
+}
+
+.zrv-roles-page .zrv-roles-detail-panel .btn-secondary {
+  min-height: 33px;
+
+  border-radius: 6px;
+  padding: 6px 11px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  font-size: 12px;
+}
+
+.zrv-roles-page .zrv-roles-detail-panel .btn-secondary svg {
+  width: 14px;
+  height: 14px;
+}
+
+.zrv-roles-page .zrv-roles-edit {
+  color: var(--roles-green);
+  border-color: #28a569;
+}
+
+/* ROLE DETAILS INFORMATION */
+
+.zrv-roles-page .zrv-roles-info {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr);
+
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--roles-border);
+}
+
+.zrv-roles-page .zrv-roles-info-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  padding: 0 14px;
+  min-width: 0;
+}
+
+.zrv-roles-page .zrv-roles-info-column:first-child {
+  padding-left: 0;
+  border-right: 1px solid var(--roles-border);
+}
+
+.zrv-roles-page .zrv-roles-info-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  min-width: 0;
+}
+
+.zrv-roles-page .zrv-roles-info-field > span:first-child {
+  color: var(--roles-subtle);
+  font-size: 12px;
+}
+
+.zrv-roles-page .zrv-roles-info-field strong {
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* GRANTED PERMISSIONS */
+
+.zrv-roles-page .zrv-roles-permissions {
+  padding: 12px 13px 14px;
+}
+
+.zrv-roles-page .zrv-roles-permissions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.zrv-roles-page .zrv-roles-permissions-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 16px;
+  margin: 0;
+  font-weight: 700;
+}
+
+.zrv-roles-page .zrv-roles-permissions-header h3 svg {
+  width: 19px;
+  height: 19px;
+  color: var(--roles-green);
+}
+
+.zrv-roles-page .zrv-roles-permissions-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.zrv-roles-page .zrv-roles-permissions-actions .zrv-roles-search {
+  width: 190px;
+}
+
+/* MANAGE PERMISSIONS BUTTON */
+
+.zrv-roles-page .zrv-roles-manage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  min-height: 34px;
+  padding: 7px 12px;
+
+  color: #ffffff;
+  background: #087e45;
+  text-decoration: none;
+
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.zrv-roles-page .zrv-roles-manage svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* PERMISSION ACCORDIONS */
+
+.zrv-roles-page .zrv-roles-permission-groups {
+  display: grid;
+  gap: 8px;
+}
+
+.zrv-roles-page .zrv-roles-permission-group {
+  overflow: hidden;
+  border: 1px solid var(--roles-border);
+  border-radius: 7px;
+
+  box-shadow: 0 1px 3px rgb(8 28 45 / 6%);
+}
+
+.zrv-roles-page .zrv-roles-permission-toggle {
+  border: 0;
+  background: transparent;
+
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  padding: 10px 13px;
+  font-size: 12px;
+  text-align: left;
+  color: var(--roles-text);
+  cursor: pointer;
+}
+
+.zrv-roles-page .zrv-roles-permission-toggle[aria-expanded='true'] {
+  background: #e6f7ee;
+}
+
+.zrv-roles-page .zrv-roles-permission-toggle strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.zrv-roles-page .zrv-roles-permission-toggle svg {
+  width: 15px;
+  height: 15px;
+}
+
+.zrv-roles-page .zrv-roles-permission-toggle svg:first-child:not(.is-expanded) {
+  transform: rotate(-90deg);
+}
+
+.zrv-roles-page .zrv-roles-toggle-end {
+  margin-left: auto;
+}
+
+.zrv-roles-page .zrv-roles-toggle-end.is-expanded {
+  transform: rotate(180deg);
+}
+
+/* PERMISSION COUNT */
+
+.zrv-roles-page .zrv-roles-permission-count {
+  background: #cbefdb;
+  border-radius: 40px;
+
+  padding: 3px 10px;
+
+  color: #08773f;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* PERMISSION TABLE */
+
+.zrv-roles-page .zrv-roles-permission-table-wrap {
+  overflow-x: auto;
+}
+
+.zrv-roles-page .zrv-roles-permission-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.zrv-roles-page .zrv-roles-permission-table th,
+.zrv-roles-page .zrv-roles-permission-table td {
+  border: 1px solid var(--roles-border);
+  padding: 9px 10px;
+}
+
+.zrv-roles-page .zrv-roles-permission-table thead th {
+  font-size: 11px;
+  background: #f8fafb;
+  text-align: center;
+  font-weight: 650;
+}
+
+.zrv-roles-page .zrv-roles-permission-table thead th:first-child {
+  text-align: left;
+  min-width: 140px;
+}
+
+.zrv-roles-page .zrv-roles-permission-table tbody th {
+  text-align: left;
+  font-weight: 500;
+}
+
+.zrv-roles-page .zrv-roles-permission-table tbody td {
+  text-align: center;
+}
+
+.zrv-roles-page .zrv-roles-granted {
+  color: var(--roles-green);
+  width: 15px;
+  height: 15px;
+}
+
+/* ACCESSIBILITY */
+
+.zrv-roles-page button:focus-visible,
+.zrv-roles-page a:focus-visible,
+.zrv-roles-page input:focus-visible,
+.zrv-roles-page select:focus-visible {
+  outline: 2px solid var(--roles-green);
+  outline-offset: 2px;
+}
+
+/* TABLET */
+
+@media (max-width: 1100px) {
+  .zrv-roles-page .zrv-roles-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zrv-roles-page .zrv-roles-list-panel {
+    min-height: 0;
+  }
+
+  .zrv-roles-page .zrv-roles-list {
+    max-height: 350px;
+    overflow-y: auto;
+  }
+}
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+  .zrv-roles-page .zrv-roles-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .zrv-roles-page .zrv-roles-info {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .zrv-roles-page .zrv-roles-info-column {
+    padding: 0;
+  }
+
+  .zrv-roles-page .zrv-roles-info-column:first-child {
+    border-right: 0;
+    border-bottom: 1px solid var(--roles-border);
+    padding-bottom: 12px;
+  }
+
+  .zrv-roles-page .zrv-roles-permissions-actions {
+    width: 100%;
+  }
+
+  .zrv-roles-page .zrv-roles-permissions-actions .zrv-roles-search {
+    flex: 1;
+    width: auto;
+  }
+}
+
+/* DARK THEME */
+
+[data-theme='dark'] .zrv-roles-page {
+  --roles-selected: color-mix(in srgb, var(--primary) 20%, var(--surface-solid));
+
+  --roles-border: var(--line);
+  --roles-text: var(--text);
+  --roles-subtle: var(--muted);
+}
+
+[data-theme='dark'] .zrv-roles-page .zrv-roles-permission-toggle[aria-expanded='true'],
+[data-theme='dark'] .zrv-roles-page .zrv-roles-item-button:hover {
+  background: var(--surface-2);
+}
+
+[data-theme='dark'] .zrv-roles-page .zrv-roles-permission-table thead th {
+  background: var(--surface-2);
+}
+/* ==========================================
+   ROLE MANAGEMENT — FULL WIDTH LAYOUT
+   ========================================== */
+
+/* Remove maximum width restrictions */
+.zrv-roles-page {
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+}
+
+/* Override AdminPage container restrictions */
+.zrv-roles-page > .zrv-admin,
+.zrv-roles-page .zrv-admin {
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+}
+
+/* Full-width roles layout */
+.zrv-roles-page .zrv-roles-layout {
+  display: grid;
+  width: 100%;
+  max-width: none;
+
+  grid-template-columns:
+    minmax(300px, 31%)
+    minmax(0, 1fr);
+
+  gap: 14px;
+  align-items: stretch;
+}
+
+/* Both panels fill their grid columns */
+.zrv-roles-page .zrv-roles-list-panel,
+.zrv-roles-page .zrv-roles-detail-panel {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+/* Responsive layout */
+@media (max-width: 1100px) {
+  .zrv-roles-page .zrv-roles-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ======================================================
+   ZAMIL DIGITALIZATION — ROLE MANAGEMENT
+   BORDER, CURVE AND UI CONSISTENCY REFINEMENTS
+   ====================================================== */
+
+.zrv-roles-page {
+  --roles-panel-radius: 16px;
+  --roles-control-radius: 10px;
+  --roles-button-radius: 10px;
+  --roles-inner-radius: 12px;
+  --roles-line-refined: #d8e5dc;
+  --roles-soft-green: #e5f5ec;
+  --roles-accent-green: #087343;
+
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+/* 1. Preserve full-width layout */
+
+.zrv-roles-page > .zrv-admin {
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+}
+
+.zrv-roles-page .zrv-roles-layout {
+  width: 100%;
+  max-width: none;
+
+  display: grid;
+  grid-template-columns:
+    minmax(0, 31fr)
+    minmax(0, 69fr);
+
+  gap: 15px;
+  align-items: stretch;
+}
+
+/* 2. Main panels: smooth outer corners */
+
+.zrv-roles-page .zrv-roles-list-panel,
+.zrv-roles-page .zrv-roles-detail-panel {
+  box-sizing: border-box;
+
+  width: 100%;
+  min-width: 0;
+
+  padding: 0;
+
+  background: var(--surface-solid, #fff);
+  border: 1px solid var(--roles-line-refined);
+  border-radius: var(--roles-panel-radius);
+
+  overflow: hidden;
+  background-clip: padding-box;
+
+  box-shadow: 0 4px 16px rgba(20, 65, 42, 0.045);
+}
+
+/* 3. Consistent panel headers */
+
+.zrv-roles-page .zrv-roles-list-panel .zrv-admin-panel__head,
+.zrv-roles-page .zrv-roles-detail-panel .zrv-admin-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 62px;
+  margin: 0;
+  padding: 13px 17px;
+
+  background: var(--surface-solid, #fff);
+
+  border: 0;
+  border-bottom: 1px solid var(--roles-line-refined);
+
+  border-radius: var(--roles-panel-radius) var(--roles-panel-radius) 0 0;
+}
+
+.zrv-roles-page .zrv-admin-panel__head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* 4. Search and filter controls */
+
+.zrv-roles-page .zrv-roles-filters {
+  padding: 10px 13px;
+
+  gap: 9px;
+
+  background: var(--surface-solid, #fff);
+  border-bottom: 1px solid var(--roles-line-refined);
+}
+
+.zrv-roles-page .zrv-roles-search,
+.zrv-roles-page .zrv-roles-status-filter {
+  box-sizing: border-box;
+
+  min-height: 38px;
+
+  border: 1px solid var(--roles-line-refined);
+  border-radius: var(--roles-control-radius);
+
+  background: var(--surface-solid, #fff);
+
+  overflow: hidden;
+}
+
+.zrv-roles-page .zrv-roles-search:focus-within,
+.zrv-roles-page .zrv-roles-status-filter:focus-within {
+  border-color: var(--roles-accent-green);
+
+  box-shadow: 0 0 0 3px rgba(8, 115, 67, 0.08);
+}
+
+/* 5. Remove unnecessary row rounding */
+
+.zrv-roles-page .zrv-roles-list {
+  min-width: 0;
+}
+
+.zrv-roles-page .zrv-roles-list-item {
+  margin: 0;
+
+  border: 0;
+  border-bottom: 1px solid var(--roles-line-refined);
+
+  border-radius: 0;
+}
+
+.zrv-roles-page .zrv-roles-item-button {
+  box-sizing: border-box;
+
+  width: 100%;
+  min-height: 64px;
+
+  margin: 0;
+  padding: 10px 15px;
+
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+
+  background: transparent;
+  text-align: left;
+
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+/* 6. Selected role: clean green highlight */
+
+.zrv-roles-page .zrv-roles-item-button.is-selected {
+  background: var(--roles-soft-green);
+
+  border-left: 3px solid var(--roles-accent-green);
+  border-radius: 0;
+}
+
+.zrv-roles-page .zrv-roles-item-button:hover {
+  background: #eef8f2;
+}
+
+.zrv-roles-page .zrv-roles-item-button.is-selected:hover {
+  background: #ddf1e6;
+}
+
+/* 7. Role footer */
+
+.zrv-roles-page .zrv-roles-list-footer {
+  margin-top: auto;
+
+  padding: 12px 14px;
+
+  border-top: 0;
+
+  background: var(--surface-solid, #fff);
+  border-radius: 0 0 var(--roles-panel-radius) var(--roles-panel-radius);
+}
+
+/* 8. Role details information */
+
+.zrv-roles-page .zrv-roles-info {
+  padding: 15px 16px;
+
+  border-bottom: 1px solid var(--roles-line-refined);
+}
+
+.zrv-roles-page .zrv-roles-info-column:first-child {
+  border-right: 1px solid var(--roles-line-refined);
+}
+
+/* 9. Edit / Deactivate buttons */
+
+.zrv-roles-page .zrv-roles-detail-panel .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 36px;
+
+  padding: 8px 14px;
+
+  border-radius: var(--roles-button-radius);
+
+  font-size: 11px;
+  font-weight: 650;
+
+  box-shadow: none;
+}
+
+/* 10. Create Role button */
+
+.zrv-roles-page button.zrv-roles-create {
+  min-height: 40px;
+
+  padding: 9px 17px;
+
+  border-radius: var(--roles-button-radius);
+
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* 11. Granted Permissions area */
+
+.zrv-roles-page .zrv-roles-permissions {
+  padding: 15px 16px 18px;
+}
+
+.zrv-roles-page .zrv-roles-permissions-header {
+  margin-bottom: 13px;
+}
+
+/* 12. Manage Permissions button */
+
+.zrv-roles-page .zrv-roles-manage {
+  min-height: 36px;
+
+  padding: 8px 13px;
+
+  border-radius: var(--roles-button-radius);
+
+  color: #fff;
+  background: var(--roles-accent-green);
+}
+
+/* 13. Permission accordion borders */
+
+.zrv-roles-page .zrv-roles-permission-group {
+  border: 1px solid var(--roles-line-refined);
+  border-radius: var(--roles-inner-radius);
+
+  overflow: hidden;
+
+  box-shadow: 0 2px 6px rgba(20, 65, 42, 0.035);
+}
+
+.zrv-roles-page .zrv-roles-permission-toggle {
+  min-height: 46px;
+
+  border: 0;
+  border-radius: 0;
+
+  padding: 11px 14px;
+}
+
+/* 14. Keep table borders inside accordion */
+
+.zrv-roles-page .zrv-roles-permission-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.zrv-roles-page .zrv-roles-permission-table th,
+.zrv-roles-page .zrv-roles-permission-table td {
+  border-color: var(--roles-line-refined);
+}
+
+/* 15. Status badges */
+
+.zrv-roles-page .zrv-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 22px;
+  padding: 3px 9px;
+
+  border-radius: 999px;
+
+  white-space: nowrap;
+}
+
+/* 16. Focus accessibility */
+
+.zrv-roles-page button:focus-visible,
+.zrv-roles-page a:focus-visible {
+  outline: 2px solid var(--roles-accent-green);
+  outline-offset: 2px;
+}
+
+/* 17. Responsive layout */
+
+@media (max-width: 1100px) {
+  .zrv-roles-page .zrv-roles-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .zrv-roles-page .zrv-roles-list-panel,
+  .zrv-roles-page .zrv-roles-detail-panel {
+    border-radius: 13px;
+  }
+
+  .zrv-roles-page .zrv-roles-list-panel .zrv-admin-panel__head,
+  .zrv-roles-page .zrv-roles-detail-panel .zrv-admin-panel__head {
+    padding: 11px 13px;
+    border-radius: 13px 13px 0 0;
+  }
+
+  .zrv-roles-page .zrv-roles-info,
+  .zrv-roles-page .zrv-roles-permissions {
+    padding: 12px;
+  }
+}
+
+/* 18. Dark theme */
+
+[data-theme='dark'] .zrv-roles-page {
+  --roles-line-refined: var(--line);
+  --roles-soft-green: color-mix(in srgb, var(--primary) 20%, var(--surface-solid));
+}
+
+[data-theme='dark'] .zrv-roles-page .zrv-roles-item-button:hover {
+  background: var(--surface-2);
+}
+
+[data-theme='dark'] .zrv-roles-page .zrv-roles-item-button.is-selected:hover {
+  background: var(--roles-soft-green);
+}

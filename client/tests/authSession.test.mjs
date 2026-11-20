@@ -6,18 +6,30 @@ import { createAuthService } from '../src/features/auth/authService.js'
 import { createAuthSession } from '../src/features/auth/authSession.js'
 import { readCurrentUser, readLoginResult } from '../src/features/auth/authContract.js'
 import {
-  CHALLENGE_TOKEN, RESTORED_TOKEN, SESSION_TOKEN, currentUser, deferred, failure,
-  forbidBrowserStorage, loginResult, mfaChallenge, noContent, recordingFetch, success,
+  CHALLENGE_TOKEN,
+  RESTORED_TOKEN,
+  SESSION_TOKEN,
+  currentUser,
+  deferred,
+  failure,
+  forbidBrowserStorage,
+  loginResult,
+  mfaChallenge,
+  noContent,
+  recordingFetch,
+  success,
 } from './helpers/http.mjs'
 
 // A controllable fake service: every call is pending until the test settles it.
 function fakeService() {
   const calls = []
-  const call = (name) => (...args) => {
-    const pending = deferred()
-    calls.push({ name, args, ...pending })
-    return pending.promise
-  }
+  const call =
+    (name) =>
+    (...args) => {
+      const pending = deferred()
+      calls.push({ name, args, ...pending })
+      return pending.promise
+    }
   return {
     calls,
     last: (name) => calls.filter((item) => item.name === name).at(-1),
@@ -43,7 +55,9 @@ function setup({ preview = false } = {}) {
     preview,
     subscribeUnauthorized(listener) {
       emitUnauthorized = listener
-      return () => { emitUnauthorized = () => {} }
+      return () => {
+        emitUnauthorized = () => {}
+      }
     },
   })
   sessions.push(auth)
@@ -51,7 +65,8 @@ function setup({ preview = false } = {}) {
 }
 
 const tick = () => new Promise((resolve) => setImmediate(resolve))
-const unauthenticated = () => new ApiError('Authentication is required', { code: 'UNAUTHENTICATED', status: 401 })
+const unauthenticated = () =>
+  new ApiError('Authentication is required', { code: 'UNAUTHENTICATED', status: 401 })
 
 async function authenticate(ctx) {
   ctx.auth.start()
@@ -63,7 +78,9 @@ async function authenticate(ctx) {
 }
 
 let restoreStorage
-test.beforeEach(() => { restoreStorage = forbidBrowserStorage() })
+test.beforeEach(() => {
+  restoreStorage = forbidBrowserStorage()
+})
 test.afterEach(() => {
   restoreStorage()
   for (const auth of sessions.splice(0)) auth.stop()
@@ -105,7 +122,9 @@ test('restoration without a session becomes guest; other failures become a retry
   const down = setup()
   down.auth.start()
   // A non-transient failure is not retried automatically (see authReliability.test.mjs).
-  down.fake.last('getCurrentUser').reject(new ApiError('failed', { code: 'INTERNAL_ERROR', status: 500 }))
+  down.fake
+    .last('getCurrentUser')
+    .reject(new ApiError('failed', { code: 'INTERNAL_ERROR', status: 500 }))
   await tick()
   assert.equal(down.auth.getSnapshot().status, 'error')
   const retry = down.auth.restore()
@@ -126,7 +145,11 @@ test('Strict Mode cleanup aborts the first restore and ignores its late response
   ctx.auth.start()
   first.resolve(readCurrentUser(currentUser()))
   await tick()
-  assert.equal(ctx.fake.calls.filter((c) => c.name === 'getCsrfToken').length, 0, 'stale restore must not continue')
+  assert.equal(
+    ctx.fake.calls.filter((c) => c.name === 'getCsrfToken').length,
+    0,
+    'stale restore must not continue',
+  )
   ctx.fake.last('getCurrentUser').reject(unauthenticated())
   await tick()
   assert.equal(ctx.auth.getSnapshot().status, 'guest')
@@ -176,7 +199,11 @@ test('an MFA challenge is pending, never authenticated', async () => {
   assert.equal(ctx.csrfStore.getChallengeToken(), CHALLENGE_TOKEN)
 
   ctx.emitUnauthorized()
-  assert.equal(ctx.auth.getSnapshot().status, 'mfa_required', 'a session 401 does not affect a challenge')
+  assert.equal(
+    ctx.auth.getSnapshot().status,
+    'mfa_required',
+    'a session 401 does not affect a challenge',
+  )
   ctx.auth.cancelMfa()
   assert.equal(ctx.auth.getSnapshot().status, 'guest')
   assert.equal(ctx.csrfStore.getChallengeToken(), null)
@@ -228,7 +255,9 @@ test('a failed login returns to guest and preserves the backend error', async ()
   ctx.fake.last('getCurrentUser').reject(unauthenticated())
   await tick()
   const pending = ctx.auth.signIn({ username: 'x', password: 'y' })
-  ctx.fake.last('login').reject(new ApiError('Sign-in failed.', { code: 'AUTHENTICATION_FAILED', status: 401 }))
+  ctx.fake
+    .last('login')
+    .reject(new ApiError('Sign-in failed.', { code: 'AUTHENTICATION_FAILED', status: 401 }))
   await assert.rejects(pending, { code: 'AUTHENTICATION_FAILED' })
   assert.equal(ctx.auth.getSnapshot().status, 'guest')
 })
@@ -291,7 +320,11 @@ test('logout: 204 and 401 are confirmed; other failures clear locally without cl
     assert.equal(state.user, null)
     assert.equal(state.notice, confirmed ? null : 'signout_unconfirmed')
     assert.equal(ctx.csrfStore.getSessionToken(), null)
-    assert.equal(ctx.fake.calls.filter((c) => c.name === 'logout').length, 1, 'logout is never replayed')
+    assert.equal(
+      ctx.fake.calls.filter((c) => c.name === 'logout').length,
+      1,
+      'logout is never replayed',
+    )
   }
 })
 
@@ -309,16 +342,24 @@ test('development preview never contacts the backend and cannot sign in', async 
 test('end to end over the real client: restore, then logout with the restored CSRF token', async () => {
   const { fetchImpl, calls } = recordingFetch((url) => {
     if (url.endsWith('/auth/me')) return success(currentUser())
-    if (url.endsWith('/auth/csrf')) return success({ token: RESTORED_TOKEN, headerName: 'X-CSRF-Token' })
+    if (url.endsWith('/auth/csrf'))
+      return success({ token: RESTORED_TOKEN, headerName: 'X-CSRF-Token' })
     if (url.endsWith('/auth/logout')) return noContent()
     return failure(404, 'RESOURCE_NOT_FOUND', 'Not found')
   })
   const csrfStore = createCsrfStore()
   const client = createApiClient({ baseUrl: '/api/v1', fetchImpl, csrfStore })
-  const auth = createAuthSession({ service: createAuthService({ client }), csrfStore, subscribeUnauthorized: () => () => {} })
+  const auth = createAuthSession({
+    service: createAuthService({ client }),
+    csrfStore,
+    subscribeUnauthorized: () => () => {},
+  })
   await auth.restore()
   assert.equal(auth.getSnapshot().status, 'authenticated')
   assert.deepEqual(await auth.signOut(), { serverConfirmed: true, error: null })
-  assert.deepEqual(calls.map((c) => c.url), ['/api/v1/auth/me', '/api/v1/auth/csrf', '/api/v1/auth/logout'])
+  assert.deepEqual(
+    calls.map((c) => c.url),
+    ['/api/v1/auth/me', '/api/v1/auth/csrf', '/api/v1/auth/logout'],
+  )
   assert.equal(calls[2].init.headers.get('X-CSRF-Token'), RESTORED_TOKEN)
 })

@@ -16,24 +16,27 @@ export default function useWorkflowAction() {
   const [feedback, setFeedback] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
 
-  const run = useCallback(async (operation, { success } = {}) => {
-    if (guard.isPending()) return { status: 'ignored' }
-    setPending(true)
-    setFeedback(null)
-    setFieldErrors({})
-    const outcome = await guard.run(operation)
-    setPending(false)
-    if (outcome.status === 'success') {
-      const message = typeof success === 'function' ? success(outcome.value) : success
-      if (message) setFeedback({ kind: 'success', message, details: [] })
-    } else if (outcome.status !== 'ignored') {
-      const failure = describeWorkflowFailure(outcome.error)
-      if (failure.permissionChanged) reloadPermissions()
-      setFieldErrors(fieldErrorsFrom(outcome.error))
-      setFeedback(failure)
-    }
-    return outcome
-  }, [guard, reloadPermissions])
+  const run = useCallback(
+    async (operation, { success } = {}) => {
+      if (guard.isPending()) return { status: 'ignored' }
+      setPending(true)
+      setFeedback(null)
+      setFieldErrors({})
+      const outcome = await guard.run(operation)
+      setPending(false)
+      if (outcome.status === 'success') {
+        const message = typeof success === 'function' ? success(outcome.value) : success
+        if (message) setFeedback({ kind: 'success', message, details: [] })
+      } else if (outcome.status !== 'ignored') {
+        const failure = describeWorkflowFailure(outcome.error)
+        if (failure.permissionChanged) reloadPermissions()
+        setFieldErrors(fieldErrorsFrom(outcome.error))
+        setFeedback(failure)
+      }
+      return outcome
+    },
+    [guard, reloadPermissions],
+  )
 
   const reset = useCallback(() => {
     setFeedback(null)

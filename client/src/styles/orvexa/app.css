@@ -1,12 +1,12 @@
 /* Orvexa 1.0.0 — App styles. */
-@import "tailwindcss";
+@import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
 @source "../..*.js";
 
 @theme {
   --font-sans:
-    "Manrope", "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui,
-    -apple-system, BlinkMacSystemFont, sans-serif;
+    'Manrope', 'Segoe UI Variable', 'Segoe UI', ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
   --radius-xl: 1rem;
   --radius-2xl: 1.25rem;
   --radius-3xl: 1.75rem;
@@ -173,7 +173,7 @@ input {
     height: 20px;
     border-radius: 99px;
     background: linear-gradient(var(--primary-2), var(--primary));
-    content: "";
+    content: '';
     box-shadow: 0 0 18px var(--glow);
   }
 
@@ -218,7 +218,7 @@ input {
       color-mix(in srgb, var(--primary) 14%, transparent),
       transparent 68%
     );
-    content: "";
+    content: '';
     transition: transform 0.35s ease;
   }
 
@@ -325,16 +325,11 @@ input {
 }
 
 .font-display {
-  font-family: "Manrope", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Manrope', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
 }
 
 .gradient-text {
-  background: linear-gradient(
-    100deg,
-    var(--primary-2),
-    var(--primary) 58%,
-    var(--cyan)
-  );
+  background: linear-gradient(100deg, var(--primary-2), var(--primary) 58%, var(--cyan));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -421,7 +416,7 @@ input {
 }
 
 .hero-stat {
-  font-family: "Manrope", "Segoe UI", sans-serif;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
   font-size: clamp(1.35rem, 1.8vw, 1.8rem);
   font-weight: 700;
   letter-spacing: -0.045em;
@@ -513,7 +508,7 @@ input {
 
 .metric-value {
   margin-top: 0.2rem;
-  font-family: "Manrope", "Segoe UI", sans-serif;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
   font-size: 1.92rem;
   font-weight: 700;
   line-height: 1;
@@ -538,7 +533,7 @@ input {
 }
 
 .section-title {
-  font-family: "Manrope", "Segoe UI", sans-serif;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
   font-size: 1.03rem;
   font-weight: 750;
   letter-spacing: -0.025em;
@@ -633,11 +628,11 @@ input {
   background: var(--mint);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--mint) 8%, transparent);
 }
-.approval-risk[data-risk="medium"] {
+.approval-risk[data-risk='medium'] {
   background: var(--amber);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--amber) 8%, transparent);
 }
-.approval-risk[data-risk="high"] {
+.approval-risk[data-risk='high'] {
   background: var(--danger);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 8%, transparent);
 }
@@ -679,12 +674,8 @@ input {
 .media-preview::before {
   position: absolute;
   inset: 0;
-  content: "";
-  background: linear-gradient(
-    145deg,
-    transparent 15%,
-    rgba(255, 255, 255, 0.12)
-  );
+  content: '';
+  background: linear-gradient(145deg, transparent 15%, rgba(255, 255, 255, 0.12));
 }
 
 .media-preview:hover {
@@ -729,7 +720,7 @@ input {
 }
 .signal-tile b {
   display: block;
-  font-family: "Manrope", "Segoe UI", sans-serif;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
   font-size: 1.05rem;
   letter-spacing: -0.04em;
 }
@@ -797,16 +788,16 @@ input {
   border-radius: 999px;
   background: var(--primary);
 }
-.workload-row[data-color="cyan"] > span {
+.workload-row[data-color='cyan'] > span {
   background: var(--cyan);
 }
-.workload-row[data-color="mint"] > span {
+.workload-row[data-color='mint'] > span {
   background: var(--mint);
 }
-.workload-row[data-color="amber"] > span {
+.workload-row[data-color='amber'] > span {
   background: var(--amber);
 }
-.workload-row[data-color="danger"] > span {
+.workload-row[data-color='danger'] > span {
   background: var(--danger);
 }
 .workload-row > div > div:first-child {
@@ -865,22 +856,14 @@ input {
 .ai-orb::after {
   position: absolute;
   border-radius: inherit;
-  content: "";
+  content: '';
 }
 
 .ai-orb::before {
   inset: 11%;
   background:
-    radial-gradient(
-      circle at 30% 28%,
-      rgba(255, 255, 255, 0.85),
-      transparent 9%
-    ),
-    radial-gradient(
-      circle at 60% 70%,
-      rgba(184, 207, 115, 0.42),
-      transparent 24%
-    ),
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.85), transparent 9%),
+    radial-gradient(circle at 60% 70%, rgba(184, 207, 115, 0.42), transparent 24%),
     radial-gradient(
       circle at 54% 44%,
       rgba(242, 195, 95, 0.94),
@@ -909,7 +892,7 @@ input {
   inset: 0;
   border-radius: 50%;
   border: 1px solid color-mix(in srgb, var(--primary-2) 25%, transparent);
-  content: "";
+  content: '';
 }
 
 .orb-ring {
@@ -959,7 +942,7 @@ input {
   bottom: -22px;
   width: 1px;
   background: linear-gradient(var(--line-strong), transparent);
-  content: "";
+  content: '';
 }
 
 .reveal {
@@ -975,32 +958,32 @@ input {
     transform 0.55s ease;
 }
 
-[data-sidebar-collapsed="true"] #sidebar {
+[data-sidebar-collapsed='true'] #sidebar {
   width: 5rem;
 }
 
-[data-sidebar-collapsed="true"] #app-main {
+[data-sidebar-collapsed='true'] #app-main {
   padding-inline-start: 5rem;
 }
 
-[data-sidebar-collapsed="true"] .sidebar-label,
-[data-sidebar-collapsed="true"] .nav-heading,
-[data-sidebar-collapsed="true"] .sidebar-chevron,
-[data-sidebar-collapsed="true"] .sidebar-meta,
-[data-sidebar-collapsed="true"] #sidebar-footer-copy {
+[data-sidebar-collapsed='true'] .sidebar-label,
+[data-sidebar-collapsed='true'] .nav-heading,
+[data-sidebar-collapsed='true'] .sidebar-chevron,
+[data-sidebar-collapsed='true'] .sidebar-meta,
+[data-sidebar-collapsed='true'] #sidebar-footer-copy {
   display: none;
 }
 
-[data-sidebar-collapsed="true"] .sidebar-link {
+[data-sidebar-collapsed='true'] .sidebar-link {
   justify-content: center;
   padding-inline: 0.65rem;
 }
 
-[data-sidebar-collapsed="true"] #sidebar-brand {
+[data-sidebar-collapsed='true'] #sidebar-brand {
   justify-content: center;
 }
 
-[data-sidebar-collapsed="true"] #sidebar-brand-copy {
+[data-sidebar-collapsed='true'] #sidebar-brand-copy {
   display: none;
 }
 
@@ -1040,7 +1023,7 @@ input {
 
 @media (max-width: 1023px) {
   #app-main,
-  [data-sidebar-collapsed="true"] #app-main {
+  [data-sidebar-collapsed='true'] #app-main {
     padding-inline-start: 0;
   }
 
@@ -1049,7 +1032,7 @@ input {
     box-shadow: 24px 0 80px rgba(0, 0, 0, 0.25);
   }
 
-  [dir="rtl"] #sidebar {
+  [dir='rtl'] #sidebar {
     transform: translateX(105%);
   }
 
@@ -1061,11 +1044,7 @@ input {
 .dark .section-card,
 .dark .metric-card,
 .dark .surface-card {
-  background: linear-gradient(
-    145deg,
-    rgba(18, 19, 17, 0.98),
-    rgba(13, 14, 12, 0.98)
-  );
+  background: linear-gradient(145deg, rgba(18, 19, 17, 0.98), rgba(13, 14, 12, 0.98));
 }
 
 .dark .glass-panel {
@@ -1084,11 +1063,7 @@ input {
 }
 
 .dark .sidebar-link.active {
-  background: linear-gradient(
-    90deg,
-    rgba(242, 195, 95, 0.14),
-    rgba(242, 195, 95, 0.035)
-  );
+  background: linear-gradient(90deg, rgba(242, 195, 95, 0.14), rgba(242, 195, 95, 0.035));
 }
 
 .dark .btn-secondary {
@@ -1111,9 +1086,9 @@ input {
   border-radius: 1rem;
 }
 
-input[type="checkbox"],
-input[type="radio"],
-input[type="range"] {
+input[type='checkbox'],
+input[type='radio'],
+input[type='range'] {
   accent-color: var(--primary-text) !important;
 }
 
@@ -1146,40 +1121,40 @@ input[type="range"] {
   }
 }
 
-[dir="rtl"] #sidebar {
+[dir='rtl'] #sidebar {
   left: auto !important;
   right: 0;
   border-right: 0 !important;
   border-left: 1px solid var(--line);
 }
-[dir="rtl"] .sidebar-link:hover {
+[dir='rtl'] .sidebar-link:hover {
   transform: translateX(-2px);
 }
-[dir="rtl"] .sidebar-link.active::before {
+[dir='rtl'] .sidebar-link.active::before {
   left: auto;
   right: -1px;
 }
-[dir="rtl"] .dropdown-panel.right-0 {
+[dir='rtl'] .dropdown-panel.right-0 {
   right: auto;
   left: 0;
 }
-[dir="rtl"] #toast-region {
+[dir='rtl'] #toast-region {
   right: auto;
   left: 1rem;
 }
-html[data-density="compact"] .sidebar-link {
+html[data-density='compact'] .sidebar-link {
   min-height: 36px !important;
 }
-html[data-density="compact"] .nav-heading {
+html[data-density='compact'] .nav-heading {
   margin-top: 14px;
   margin-bottom: 5px;
 }
 @media (min-width: 1024px) {
-  [dir="rtl"] #app-main {
+  [dir='rtl'] #app-main {
     padding-left: 0 !important;
     padding-right: 18rem;
   }
-  [dir="rtl"][data-sidebar-collapsed="true"] #app-main {
+  [dir='rtl'][data-sidebar-collapsed='true'] #app-main {
     padding-right: 5.25rem;
   }
 }
@@ -1204,8 +1179,8 @@ html[data-density="compact"] .nav-heading {
 }
 
 /* Phase 08: honor the template's reduced-motion setting for the SVG flow particles. */
-html[data-motion="reduced"] .cc25-flow-particles,
-html[data-motion="reduced"] .cc25-flow-map animateMotion {
+html[data-motion='reduced'] .cc25-flow-particles,
+html[data-motion='reduced'] .cc25-flow-map animateMotion {
   visibility: hidden;
 }
 @media (prefers-reduced-motion: reduce) {

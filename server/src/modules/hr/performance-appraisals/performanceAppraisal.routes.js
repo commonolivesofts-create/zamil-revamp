@@ -11,6 +11,7 @@ import {
   emptyQuerySchema,
   headerIdParams,
   listQuerySchema,
+  countsBody,
   updateBodySchema,
 } from './performanceAppraisal.validation.js';
 
@@ -42,6 +43,8 @@ export function createPerformanceAppraisalRouter({
   });
 
   router.get('/', ...read({ query: listQuerySchema }), controller.list);
+  // Read-only: the list totals of many filter sets (dashboard). POST for the body, so CSRF too.
+  router.post('/counts', ...write('VIEW', { body: countsBody }), controller.counts);
   router.get(
     '/lookups/employees',
     ...read({ query: employeeLookupQuerySchema }),

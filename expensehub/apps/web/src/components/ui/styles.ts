@@ -2,7 +2,7 @@
 import { cn } from '../../lib/cn';
 
 export const inputClasses = cn(
-  'h-10 w-full rounded-input border border-border bg-surface px-3 text-sm text-ink shadow-card',
+  'eh-control min-w-0 max-w-full h-10 w-full rounded-input border border-border bg-surface px-3 text-sm text-ink shadow-card',
   'placeholder:text-muted transition-[border-color,box-shadow] duration-150',
   'hover:border-muted/60 focus-visible:border-brand focus-visible:outline-none',
   'focus-visible:ring-4 focus-visible:ring-brand/15',

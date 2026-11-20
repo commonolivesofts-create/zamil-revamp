@@ -669,7 +669,7 @@
 }
 .zrv-ir-filters {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
   align-items: end;
   gap: 10px 12px;
   padding: 12px 14px;
@@ -997,7 +997,7 @@
   gap: 6px;
   margin-top: auto;
 }
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .zrv-ir-legend {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1955,7 +1955,7 @@
 /* Breakdown card: its groups side by side, each row a label and count over a thin bar */
 .zrv-ir-breaks {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 110px), 1fr));
   gap: 4px 12px;
   margin-top: auto;
 }
@@ -2075,82 +2075,46 @@
 
 .zrv-ir-tablewrap {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   border-top: 1px solid var(--line);
 }
 .zrv-ir-table {
-  width: 100%;
   min-width: 0;
   table-layout: auto;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 12px;
-  line-height: 1.4;
-}
-.zrv-ir-table th {
-  position: sticky;
-  z-index: 2;
-  top: 0;
-  padding: 0;
-  border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--surface-2) 92%, var(--surface-solid));
-  color: var(--muted);
-  font-size: 11.5px;
-  font-weight: 700;
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: normal;
-  word-break: normal;
-}
-.zrv-ir-table th:not(:has(button)) {
-  padding: 9px 14px;
 }
 .zrv-ir-table th button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   width: 100%;
-  padding: 9px 14px;
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
+  text-align: start;
 }
 .zrv-ir-table th button:hover,
 .zrv-ir-table th[aria-sort='ascending'] button,
 .zrv-ir-table th[aria-sort='descending'] button {
   color: var(--text);
 }
-.zrv-ir-table td {
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
-  white-space: normal;
-  overflow-wrap: normal;
-  word-break: normal;
-  transition: background 0.2s;
-}
-.zrv-ir-table th:not(:has(button)),
-.zrv-ir-table th button {
-  padding: 8px;
-}
-.zrv-ir-table th button {
-  text-align: start;
-}
 .zrv-ir-table svg {
   flex-shrink: 0;
 }
-.zrv-ir-table :is(button, a, .zrv-ir-chip) {
-  max-width: 100%;
-  white-space: normal;
-  overflow-wrap: normal;
-  word-break: normal;
-}
-.zrv-ir-table :is(.zrv-hr-pill, .zrv-ir-ticket),
-.zrv-ir-table :is(.zrv-ir-col-status, .zrv-ir-col-outcome, .zrv-ir-col-ticket) {
+.zrv-ir-table
+  :is(
+    .zrv-ir-chip,
+    .zrv-hr-pill,
+    .zrv-ir-ticket,
+    .zrv-ir-col-status,
+    .zrv-ir-col-outcome,
+    .zrv-ir-col-ticket
+  ) {
   white-space: nowrap;
-  overflow-wrap: normal;
-  word-break: normal;
 }
 .zrv-ir-table .zrv-hr-pill {
   justify-content: center;
@@ -2170,44 +2134,11 @@
   animation: zrv-hr-reveal 0.45s var(--zrv-hr-ease) both;
   animation-delay: calc(var(--i) * 25ms);
 }
-.zrv-ir-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-/* Rows cycle through three soft theme tints (mint, amber, primary), each with
-   a matching accent at the row start; hover and selection deepen the tint. */
-.zrv-ir-table tbody tr {
-  --row: var(--mint);
-}
-.zrv-ir-table tbody tr:nth-child(3n + 2) {
-  --row: var(--amber);
-}
-.zrv-ir-table tbody tr:nth-child(3n) {
-  --row: var(--primary);
-}
-.zrv-ir-table tbody td {
-  background: color-mix(in srgb, var(--row) 7%, transparent);
-}
-.zrv-ir-table tbody td:first-child {
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--row) 55%, transparent);
-}
-.zrv-ir-table tbody tr:hover td {
-  background: color-mix(in srgb, var(--row) 14%, transparent);
-}
 .zrv-ir-table tbody tr.zrv-ir-is-on td {
-  background: color-mix(in srgb, var(--row) 20%, transparent);
+  background: color-mix(in srgb, var(--report-row) 20%, transparent);
 }
 .zrv-ir-table tbody tr.zrv-ir-is-on td:first-child {
-  box-shadow: inset 4px 0 0 var(--row);
-}
-.zrv-ir-table td b {
-  display: block;
-  font-weight: 650;
-}
-.zrv-ir-table td small {
-  display: block;
-  margin-top: 1px;
-  color: var(--zrv-hr-fine);
-  font-size: 11px;
+  box-shadow: inset 4px 0 0 var(--report-row);
 }
 .zrv-ir-col-position {
   max-width: 300px;
@@ -2855,7 +2786,76 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
+  .zrv-ir-tabletools {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .zrv-ir-tabletools__count {
+    min-height: 0;
+    padding-block: 6px;
+    white-space: normal;
+  }
+  /* Result rows become cards; the header stays as a scrollable sort strip. */
+  .zrv-ir-table,
+  .zrv-ir-table thead,
+  .zrv-ir-table tbody {
+    display: block;
+  }
+  .zrv-ir-table colgroup {
+    display: none;
+  }
+  .zrv-ir-table thead {
+    overflow-x: auto;
+    border-bottom: 1px solid var(--line);
+  }
+  .zrv-ir-table thead tr {
+    display: flex;
+    width: max-content;
+  }
+  .zrv-ir-table th {
+    position: static;
+    flex: none;
+  }
+  .zrv-ir-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--row) 7%, transparent);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--row) 55%, transparent);
+  }
+  .zrv-ir-table tbody tr:hover {
+    background: color-mix(in srgb, var(--row) 14%, transparent);
+  }
+  .zrv-ir-table tbody tr.zrv-ir-is-on {
+    background: color-mix(in srgb, var(--row) 20%, transparent);
+    box-shadow: inset 4px 0 0 var(--row);
+  }
+  .zrv-ir-table td,
+  .zrv-ir-table tbody :is(td, tr:hover td, tr.zrv-ir-is-on td) {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    overflow-wrap: anywhere;
+  }
+  .zrv-ir-table td:first-child {
+    grid-column: 1 / -1;
+  }
+  .zrv-ir-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
   .zrv-ir-drawer--resizable .zrv-dialog {
     width: 100%;
   }
@@ -2926,6 +2926,7 @@
     min-width: 0;
   }
 }
+
 .zrv-ir-offer-actions {
   display: flex;
   flex-wrap: wrap;
@@ -3241,7 +3242,7 @@
    requisition. Opening a card drops its evidence panel into the same grid, so
    the detail appears where the reader clicked and nothing else grows. */
 .zrv-ia-suggestions__grid {
-  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 232px), 1fr));
   gap: 9px;
 }
 .zrv-ia-card {
@@ -3400,7 +3401,7 @@
 /* Candidate cards: identity, both score bands, and the decision. */
 .zrv-ia-cands {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 258px), 1fr));
   gap: 8px;
 }
 .zrv-ia-cand {
@@ -3522,4 +3523,66 @@
 .zrv-ir-band__track b {
   background: color-mix(in srgb, var(--text) 18%, transparent);
   box-shadow: none;
+}
+
+@media screen and (max-width: 900px) {
+  .zrv-ir-table {
+    min-width: 680px;
+  }
+  .zrv-ir--fitted .zrv-ir-tablewrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+}
+
+/* Keep the card-style report table genuinely viewport-width at phone and
+   narrow tablet sizes; the separate sort strip provides horizontal access
+   to every column heading without widening each record card. */
+@media screen and (max-width: 900px) {
+  .zrv-ir .zrv-ir-table {
+    width: 100%;
+    min-width: 0;
+  }
+  .zrv-ir .zrv-ir-table tbody tr,
+  .zrv-ir .zrv-ir-table tbody td {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .zrv-ir .zrv-ir-table tbody td {
+    overflow-wrap: anywhere;
+  }
+  .zrv-ir .zrv-ir-table th button {
+    min-height: 44px;
+  }
+  .zrv-ir .zrv-ir-table tbody td:first-child .zrv-ir-num {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+    text-align: start;
+  }
+  .zrv-ir .zrv-ir-table--picks tbody tr {
+    grid-template-columns: 34px repeat(2, minmax(0, 1fr));
+  }
+  .zrv-ir .zrv-ir-table--picks tbody td.zrv-ir-col-pick {
+    grid-column: 1;
+    grid-row: 1;
+    display: grid;
+    place-items: center;
+  }
+  .zrv-ir .zrv-ir-table--picks tbody td:nth-child(2) {
+    grid-column: 2 / -1;
+  }
+  .zrv-ir .zrv-ir-table--picks tbody td.zrv-ir-col-pick input {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .zrv-ir .zrv-ir-table--picks tbody tr {
+    grid-template-columns: 30px repeat(2, minmax(0, 1fr));
+    gap: 7px 8px;
+  }
 }

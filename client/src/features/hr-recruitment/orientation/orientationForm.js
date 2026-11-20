@@ -14,10 +14,20 @@ export function inheritOrientationDates(lines, fromOrient, previousFromOrient = 
   }))
 }
 export const orientationFormFromRecord = (record) => ({
-  employee: record.employee, flag: record.flag, fromOrient: record.fromDate,
+  employee: record.employee,
+  flag: record.flag,
+  fromOrient: record.fromDate,
   lines: record.lines.map((line) => ({ ...line, remarks: line.remarks ?? '' })),
 })
-const labels = { department: 'Training', departmentHead: 'Department head', fromDate: 'From date', toDate: 'To date', timeFrom: 'Time from', timeTo: 'Time to', remarks: 'Remark' }
+const labels = {
+  department: 'Training',
+  departmentHead: 'Department head',
+  fromDate: 'From date',
+  toDate: 'To date',
+  timeFrom: 'Time from',
+  timeTo: 'Time to',
+  remarks: 'Remark',
+}
 export const orientationLineKey = (index, field) => `line:${index}:${field}`
 export function orientationValidationFields(lines) {
   const fields = {
@@ -25,9 +35,16 @@ export function orientationValidationFields(lines) {
     fromOrient: { key: 'fromOrient', step: 0, label: 'From date' },
     lines: { key: 'lines', step: 1, label: 'Training rows' },
   }
-  lines.forEach((_, index) => Object.entries(labels).forEach(([field, label]) => {
-    fields[`lines.${index}.${field}`] = { key: orientationLineKey(index, field), step: 1, label, fields: [`lines.${index}.${field}`] }
-  }))
+  lines.forEach((_, index) =>
+    Object.entries(labels).forEach(([field, label]) => {
+      fields[`lines.${index}.${field}`] = {
+        key: orientationLineKey(index, field),
+        step: 1,
+        label,
+        fields: [`lines.${index}.${field}`],
+      }
+    }),
+  )
   return fields
 }
 const validTime = (value) => /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(value)
@@ -35,8 +52,12 @@ const seconds = (value) => {
   const [hours, mins, secs = '0'] = value.split(':')
   return Number(hours) * 3600 + Number(mins) * 60 + Number(secs)
 }
-const hasDateRange = (line) => isIsoDate(line.fromDate) && isIsoDate(line.toDate) && line.toDate >= line.fromDate
-const hasTimeRange = (line) => validTime(line.timeFrom) && validTime(line.timeTo) && seconds(line.timeTo) > seconds(line.timeFrom)
+const hasDateRange = (line) =>
+  isIsoDate(line.fromDate) && isIsoDate(line.toDate) && line.toDate >= line.fromDate
+const hasTimeRange = (line) =>
+  validTime(line.timeFrom) &&
+  validTime(line.timeTo) &&
+  seconds(line.timeTo) > seconds(line.timeFrom)
 
 // Session fields remain optional. Check provided values, row order and
 // cross-row time clashes; a blank session must not block a legacy draft.
@@ -50,20 +71,31 @@ export function orientationStepErrors(form, { setupLoading = false, setupError =
   if (!form.fromOrient) employee.fromOrient = 'From date is required.'
   else if (!isIsoDate(form.fromOrient)) employee.fromOrient = 'Enter a valid From date.'
   form.lines.forEach((line, index) => {
-    const fail = (field, message) => { sessions[orientationLineKey(index, field)] = message }
-    if (!line.department?.trim()) fail('department', 'The training name is missing. Reload the employee details.')
+    const fail = (field, message) => {
+      sessions[orientationLineKey(index, field)] = message
+    }
+    if (!line.department?.trim())
+      fail('department', 'The training name is missing. Reload the employee details.')
     const headError = textLimitError(line.departmentHead, 1000, 'Department head')
     if (headError) fail('departmentHead', headError)
     for (const field of ['fromDate', 'toDate']) {
       if (line[field] && !isIsoDate(line[field])) fail(field, 'Enter a valid date.')
     }
-    if (Boolean(line.fromDate) !== Boolean(line.toDate)) fail(line.fromDate ? 'toDate' : 'fromDate', 'Enter both From and To dates for this training.')
-    if (isIsoDate(line.fromDate) && isIsoDate(line.toDate) && line.toDate < line.fromDate) fail('toDate', 'To date must be on or after From date.')
+    if (Boolean(line.fromDate) !== Boolean(line.toDate))
+      fail(line.fromDate ? 'toDate' : 'fromDate', 'Enter both From and To dates for this training.')
+    if (isIsoDate(line.fromDate) && isIsoDate(line.toDate) && line.toDate < line.fromDate)
+      fail('toDate', 'To date must be on or after From date.')
     for (const field of ['timeFrom', 'timeTo']) {
       if (line[field] && !validTime(line[field])) fail(field, 'Enter a valid time.')
     }
-    if (Boolean(line.timeFrom) !== Boolean(line.timeTo)) fail(line.timeFrom ? 'timeTo' : 'timeFrom', 'Enter both From and To times for this training.')
-    if (validTime(line.timeFrom) && validTime(line.timeTo) && seconds(line.timeTo) <= seconds(line.timeFrom)) fail('timeTo', 'To time must be after From time.')
+    if (Boolean(line.timeFrom) !== Boolean(line.timeTo))
+      fail(line.timeFrom ? 'timeTo' : 'timeFrom', 'Enter both From and To times for this training.')
+    if (
+      validTime(line.timeFrom) &&
+      validTime(line.timeTo) &&
+      seconds(line.timeTo) <= seconds(line.timeFrom)
+    )
+      fail('timeTo', 'To time must be after From time.')
     const remarkError = textLimitError(line.remarks, 1000, 'Remark', { multiline: true })
     if (remarkError) fail('remarks', remarkError)
   })
@@ -74,41 +106,79 @@ export function orientationStepErrors(form, { setupLoading = false, setupError =
       const second = form.lines[secondIndex]
       if (!hasDateRange(second) || !hasTimeRange(second)) continue
       const datesOverlap = first.fromDate <= second.toDate && second.fromDate <= first.toDate
-      const timesOverlap = seconds(first.timeFrom) < seconds(second.timeTo) && seconds(second.timeFrom) < seconds(first.timeTo)
+      const timesOverlap =
+        seconds(first.timeFrom) < seconds(second.timeTo) &&
+        seconds(second.timeFrom) < seconds(first.timeTo)
       if (datesOverlap && timesOverlap) {
-        sessions[orientationLineKey(secondIndex, 'timeFrom')] = `This time overlaps with ${first.department}. Choose another time for this date.`
+        sessions[orientationLineKey(secondIndex, 'timeFrom')] =
+          `This time overlaps with ${first.department}. Choose another time for this date.`
       }
     }
   }
   return [employee, sessions, {}, {}]
 }
-const date = (value) => isIsoDate(value) ? enDate(value) : value
+const date = (value) => (isIsoDate(value) ? enDate(value) : value)
 export function orientationReviewSections(form, record, errors = {}) {
   const employee = form.employee
   return [
-    { title: 'Employee details', rows: [
-      reviewField('Employee name', employee?.name, true, errors.employee),
-      reviewField('Employee number', employee?.employeeNumber),
-      reviewField('Position', employee?.position), reviewField('Section', employee?.section),
-      reviewField('Division', employee?.divisionName || employee?.division), reviewField('Type', employee?.employmentType),
-      reviewField('Start date', date(employee?.startDate)),
-    ] },
-    { title: 'Orientation schedule', rows: [
-      reviewField('From', date(form.fromOrient), true, errors.fromOrient),
-      reviewField('To (same as From)', date(form.fromOrient)),
-      reviewField('Scheduled by', record?.scheduledByName),
-      reviewField('Training rows', form.lines.length || '', true, errors.lines),
-    ] },
+    {
+      title: 'Employee details',
+      rows: [
+        reviewField('Employee name', employee?.name, true, errors.employee),
+        reviewField('Employee number', employee?.employeeNumber),
+        reviewField('Position', employee?.position),
+        reviewField('Section', employee?.section),
+        reviewField('Division', employee?.divisionName || employee?.division),
+        reviewField('Type', employee?.employmentType),
+        reviewField('Start date', date(employee?.startDate)),
+      ],
+    },
+    {
+      title: 'Orientation schedule',
+      rows: [
+        reviewField('From', date(form.fromOrient), true, errors.fromOrient),
+        reviewField('To (same as From)', date(form.fromOrient)),
+        reviewField('Scheduled by', record?.scheduledByName),
+        reviewField('Training rows', form.lines.length || '', true, errors.lines),
+      ],
+    },
     ...form.lines.map((line, index) => {
-      const field = (label, key) => reviewField(label, ['fromDate', 'toDate'].includes(key) ? date(line[key]) : line[key], false, errors[orientationLineKey(index, key)])
-      return { title: `${index + 1}. ${line.department}`, rows: [
-        reviewField('Training name', line.department, true, errors[orientationLineKey(index, 'department')]),
-        field('Department head', 'departmentHead'), field('From date', 'fromDate'), field('To date', 'toDate'),
-        reviewField('Orientation days', isIsoDate(line.fromDate) && isIsoDate(line.toDate) ? orientationDays(line.fromDate, line.toDate) : ''),
-        field('Time from', 'timeFrom'), field('Time to', 'timeTo'),
-        reviewField('Orientation time', validTime(line.timeFrom) && validTime(line.timeTo) ? orientationPeriod(line.timeFrom, line.timeTo) : ''),
-        field('Remark', 'remarks'),
-      ] }
+      const field = (label, key) =>
+        reviewField(
+          label,
+          ['fromDate', 'toDate'].includes(key) ? date(line[key]) : line[key],
+          false,
+          errors[orientationLineKey(index, key)],
+        )
+      return {
+        title: `${index + 1}. ${line.department}`,
+        rows: [
+          reviewField(
+            'Training name',
+            line.department,
+            true,
+            errors[orientationLineKey(index, 'department')],
+          ),
+          field('Department head', 'departmentHead'),
+          field('From date', 'fromDate'),
+          field('To date', 'toDate'),
+          reviewField(
+            'Orientation days',
+            isIsoDate(line.fromDate) && isIsoDate(line.toDate)
+              ? orientationDays(line.fromDate, line.toDate)
+              : '',
+          ),
+          field('Time from', 'timeFrom'),
+          field('Time to', 'timeTo'),
+          reviewField(
+            'Orientation time',
+            validTime(line.timeFrom) && validTime(line.timeTo)
+              ? orientationPeriod(line.timeFrom, line.timeTo)
+              : '',
+          ),
+          field('Remark', 'remarks'),
+        ],
+      }
     }),
   ]
 }

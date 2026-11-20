@@ -18,14 +18,16 @@ export function checkSearch(value) {
   const term = String(value ?? '').trim()
   if (!term) return { term: '', error: null }
   if (term.length < 2) return { term, error: 'Enter at least 2 characters.' }
-  if (term.length > 100 || CONTROL_CHARACTERS.test(term)) return { term, error: 'Enter at most 100 characters.' }
+  if (term.length > 100 || CONTROL_CHARACTERS.test(term))
+    return { term, error: 'Enter at most 100 characters.' }
   return { term, error: null }
 }
 
 export function checkCode(value, max, label = 'Code') {
   if (!value) return `${label} is required.`
   if (value.length > max) return `${label} must be at most ${max} characters.`
-  if (!CODE_PATTERN.test(value)) return `${label} must use upper-case letters, digits and underscores, starting with a letter.`
+  if (!CODE_PATTERN.test(value))
+    return `${label} must use upper-case letters, digits and underscores, starting with a letter.`
   return null
 }
 
@@ -50,7 +52,8 @@ export function checkJustification(value) {
   const text = String(value ?? '').trim()
   if (!text) return 'A justification is required.'
   if (text.length > 500) return 'The justification must be at most 500 characters.'
-  if (CONTROL_CHARACTERS.test(text)) return 'The justification contains characters that are not allowed.'
+  if (CONTROL_CHARACTERS.test(text))
+    return 'The justification contains characters that are not allowed.'
   return null
 }
 

@@ -4,6 +4,7 @@ import {
   withConnection as defaultWithConnection,
   withTransaction as defaultWithTransaction,
 } from '../../../database/oracle.js';
+import { cachedCounts } from '../../../shared/cache/cachedCounts.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import { parsePermission } from '../../access-control/authorization.service.js';
 import * as defaultRepository from './probationEvaluation.repository.js';
@@ -59,6 +60,7 @@ export function createProbationEvaluationService({
   withTransaction = defaultWithTransaction,
   // `authorizationService.holds`; denies by default so a missing wiring never widens access.
   holds = async () => false,
+  countsCache,
 }) {
   const read = (work) => withConnection(POOLS.LOW, work);
 
@@ -190,6 +192,22 @@ export function createProbationEvaluationService({
         }
         return { headerId, uuid };
       });
+    },
+
+    /** The list total of each filter set for the dashboard, in the list's scope, one statement. */
+    async counts(actor, { queries, fresh }) {
+      return cachedCounts(
+        countsCache,
+        { module: 'probations', userId: actor.userId, queries, fresh },
+        (missing) =>
+          read(async (c) => {
+            const isHr = await repository.isHrUser(c, actor.employeeNumber);
+            return repository.countEvaluations(c, {
+              queries: missing,
+              createdBy: isHr ? null : actor.userId,
+            });
+          }),
+      );
     },
 
     async list(actor, { page, pageSize, sortBy, sortDir, search, ...filters }) {

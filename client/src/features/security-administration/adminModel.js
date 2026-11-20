@@ -17,7 +17,12 @@ export const isRecordId = (value) => typeof value === 'string' && ID_PATTERN.tes
 
 const positiveInteger = (value, fallback, max) => {
   const number = Number.parseInt(value, 10)
-  return Number.isInteger(number) && number >= 1 && number <= max && String(number) === String(value) ? number : fallback
+  return Number.isInteger(number) &&
+    number >= 1 &&
+    number <= max &&
+    String(number) === String(value)
+    ? number
+    : fallback
 }
 const booleanFilter = (value) => (value === 'true' || value === 'false' ? value : '')
 
@@ -52,42 +57,84 @@ export function userListQuery(filters) {
 }
 
 export function displayName(user) {
-  return user?.fullName?.trim() || user?.employee?.fullName?.trim() || user?.username?.trim() || user?.employee?.username?.trim() || null
+  return (
+    user?.fullName?.trim() ||
+    user?.employee?.fullName?.trim() ||
+    user?.username?.trim() ||
+    user?.employee?.username?.trim() ||
+    null
+  )
 }
 
 // Every catalogue permission with its key; `grantable` when the module,
 // resource and permission are all active (the backend refuses others).
 export function flattenCatalog(catalog = []) {
-  return catalog.flatMap((module) => module.resources.flatMap((resource) => resource.permissions.map((permission) => Object.freeze({
-    permissionId: permission.permissionId,
-    moduleCode: module.moduleCode,
-    moduleName: module.moduleName,
-    resourceCode: resource.resourceCode,
-    resourceName: resource.resourceName,
-    actionCode: permission.actionCode,
-    description: permission.description,
-    key: permissionKey({ moduleCode: module.moduleCode, resourceCode: resource.resourceCode, actionCode: permission.actionCode }),
-    grantable: module.isActive && resource.isActive && permission.isActive,
-  }))))
+  return catalog.flatMap((module) =>
+    module.resources.flatMap((resource) =>
+      resource.permissions.map((permission) =>
+        Object.freeze({
+          permissionId: permission.permissionId,
+          moduleCode: module.moduleCode,
+          moduleName: module.moduleName,
+          resourceCode: resource.resourceCode,
+          resourceName: resource.resourceName,
+          actionCode: permission.actionCode,
+          description: permission.description,
+          key: permissionKey({
+            moduleCode: module.moduleCode,
+            resourceCode: resource.resourceCode,
+            actionCode: permission.actionCode,
+          }),
+          grantable: module.isActive && resource.isActive && permission.isActive,
+        }),
+      ),
+    ),
+  )
 }
 
-const matches = (term, ...values) => values.some((value) => typeof value === 'string' && value.toLowerCase().includes(term))
+const matches = (term, ...values) =>
+  values.some((value) => typeof value === 'string' && value.toLowerCase().includes(term))
 
 // Catalogue tree filtered by a search term (codes and names) and activity.
 // A module or resource that matches keeps all its children.
 export function filterCatalog(catalog = [], { search = '', includeInactive = true } = {}) {
   const term = search.trim().toLowerCase()
   const active = (item) => includeInactive || item.isActive
-  return catalog.filter(active).map((module) => {
-    const moduleHit = !term || matches(term, module.moduleCode, module.moduleName)
-    const resources = module.resources.filter(active).map((resource) => {
-      const resourceHit = moduleHit || matches(term, resource.resourceCode, resource.resourceName)
-      const permissions = resource.permissions.filter(active)
-        .filter((permission) => resourceHit || matches(term, permission.actionCode, permission.description, `${module.moduleCode}.${resource.resourceCode}:${permission.actionCode}`.toLowerCase()))
-      return { ...resource, permissions }
-    }).filter((resource) => moduleHit || resource.permissions.length || matches(term, resource.resourceCode, resource.resourceName))
-    return { ...module, resources }
-  }).filter((module) => !term || module.resources.length || matches(term, module.moduleCode, module.moduleName))
+  return catalog
+    .filter(active)
+    .map((module) => {
+      const moduleHit = !term || matches(term, module.moduleCode, module.moduleName)
+      const resources = module.resources
+        .filter(active)
+        .map((resource) => {
+          const resourceHit =
+            moduleHit || matches(term, resource.resourceCode, resource.resourceName)
+          const permissions = resource.permissions
+            .filter(active)
+            .filter(
+              (permission) =>
+                resourceHit ||
+                matches(
+                  term,
+                  permission.actionCode,
+                  permission.description,
+                  `${module.moduleCode}.${resource.resourceCode}:${permission.actionCode}`.toLowerCase(),
+                ),
+            )
+          return { ...resource, permissions }
+        })
+        .filter(
+          (resource) =>
+            moduleHit ||
+            resource.permissions.length ||
+            matches(term, resource.resourceCode, resource.resourceName),
+        )
+      return { ...module, resources }
+    })
+    .filter(
+      (module) =>
+        !term || module.resources.length || matches(term, module.moduleCode, module.moduleName),
+    )
 }
 
 // Grantable permissions not in `excludeIds`, matching a search term.
@@ -96,7 +143,11 @@ export function grantablePermissions(catalog, { excludeIds = [], search = '' } =
   const term = search.trim().toLowerCase()
   return flattenCatalog(catalog)
     .filter((item) => item.grantable && !excluded.has(item.permissionId))
-    .filter((item) => !term || matches(term, item.key.toLowerCase(), item.description, item.moduleName, item.resourceName))
+    .filter(
+      (item) =>
+        !term ||
+        matches(term, item.key.toLowerCase(), item.description, item.moduleName, item.resourceName),
+    )
 }
 
 export const permissionLabel = (item) => permissionKey(item)
@@ -114,7 +165,11 @@ export function accountActions(user, { can, selfId }) {
     activate: manageable && can(SECURITY_ACTIONS.USER_ACCOUNTS_ACTIVATE) && status !== 'ACTIVE',
     disable: manageable && can(SECURITY_ACTIONS.USER_ACCOUNTS_DISABLE) && status !== 'DISABLED',
     revokeSessions: manageable && can(SECURITY_ACTIONS.USER_ACCOUNTS_REVOKE_SESSIONS),
-    passwordSetup: manageable && can(SECURITY_ACTIONS.USER_ACCOUNTS_CREATE) && status === 'PENDING' && !user.password.set,
+    passwordSetup:
+      manageable &&
+      can(SECURITY_ACTIONS.USER_ACCOUNTS_CREATE) &&
+      status === 'PENDING' &&
+      !user.password.set,
     recovery: manageable && can(SECURITY_ACTIONS.ACCOUNT_RECOVERY_ISSUE) && status === 'ACTIVE',
   }
 }

@@ -18,6 +18,7 @@ import { createSmtpDelivery } from '../modules/notifications/smtpDelivery.js';
 import { createMfaKeyring } from '../modules/auth/mfaSecret.js';
 import { createSessionService } from '../modules/auth/session.service.js';
 import { createEmploymentOfferRouter } from '../modules/hr/employment-offers/employmentOffer.routes.js';
+import { createTtlCache } from '../shared/cache/ttlCache.js';
 import { createEmploymentOfferService } from '../modules/hr/employment-offers/employmentOffer.service.js';
 import { createInterviewAssessmentRouter } from '../modules/hr/interview-assessments/interviewAssessment.routes.js';
 import { createInterviewAssessmentService } from '../modules/hr/interview-assessments/interviewAssessment.service.js';
@@ -200,13 +201,23 @@ export function createApiRouter(appConfig, deps = {}) {
     withTransaction: db.withTransaction,
   });
 
+  // One per-process cache of dashboard counts, shared by the modules; keys carry module and user.
+  const countsCache =
+    deps.countsCache ??
+    createTtlCache({
+      ttlMs: appConfig.dashboard?.countsCacheTtlMs ?? 0,
+      maxEntries: appConfig.dashboard?.countsCacheMaxEntries ?? 1,
+    });
+
   const interviewAssessmentService = createInterviewAssessmentService({
+    countsCache,
     repository: deps.interviewAssessmentRepository,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
   });
 
   const probationEvaluationService = createProbationEvaluationService({
+    countsCache,
     repository: deps.probationEvaluationRepository,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
@@ -214,6 +225,7 @@ export function createApiRouter(appConfig, deps = {}) {
   });
 
   const orientationTrainingService = createOrientationTrainingService({
+    countsCache,
     repository: deps.orientationTrainingRepository,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
@@ -233,6 +245,7 @@ export function createApiRouter(appConfig, deps = {}) {
   });
 
   const employmentOfferService = createEmploymentOfferService({
+    countsCache,
     auditService,
     repository: deps.employmentOfferRepository,
     withConnection: db.withConnection,
@@ -240,6 +253,7 @@ export function createApiRouter(appConfig, deps = {}) {
   });
 
   const requisitionService = createRequisitionService({
+    countsCache,
     auditService,
     repository: deps.requisitionRepository,
     // Physical attachment files land on local disk (README §6); tests inject a memory double.
@@ -265,6 +279,7 @@ export function createApiRouter(appConfig, deps = {}) {
   });
 
   const performanceAppraisalService = createPerformanceAppraisalService({
+    countsCache,
     repository: deps.performanceAppraisalRepository,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,
@@ -287,6 +302,7 @@ export function createApiRouter(appConfig, deps = {}) {
   );
 
   const employeeOfTheMonthService = createEmployeeOfTheMonthService({
+    countsCache,
     repository: deps.employeeOfTheMonthRepository,
     withConnection: db.withConnection,
     withTransaction: db.withTransaction,

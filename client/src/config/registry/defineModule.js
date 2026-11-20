@@ -28,11 +28,20 @@ const ROUTE_PATH = new RegExp(`^/(?:${SEGMENT}(?:/${SEGMENT})*)?$`)
 // Only these public build-time variables can supply an external URL, so an
 // entry can never read another configuration value.
 const EXTERNAL_ENV_NAME = /^VITE_EXTERNAL_[A-Z0-9_]+$/
+// Optional page inside that destination, such as /jsm (no query or fragment).
+const EXTERNAL_PATH = /^(?:\/[a-z0-9][a-z0-9-]*)+$/
 // Only these public build-time variables can switch an entry on or off.
 const FEATURE_ENV_NAME = /^VITE_FEATURE_[A-Z0-9_]+$/
 const PERMISSION_REF = /^(?:([A-Z][A-Z0-9_]*)\.)?([A-Z][A-Z0-9_]*):([A-Z][A-Z0-9_]*)$/
 // Locked XX_ZRV_* column lengths.
-const MAX = Object.freeze({ module: 60, resource: 80, action: 40, name: 120, description: 500, url: 2048 })
+const MAX = Object.freeze({
+  module: 60,
+  resource: 80,
+  action: 40,
+  name: 120,
+  description: 500,
+  url: 2048,
+})
 const NAVIGATION_TYPES = Object.freeze(['internal', 'external'])
 
 export class RegistryError extends Error {
@@ -102,25 +111,52 @@ export function validateExternalUrl(value) {
     return null
   }
   const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname.toLowerCase())
-  if ((url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) || !url.hostname || url.username || url.password) return null
+  if (
+    (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) ||
+    !url.hostname ||
+    url.username ||
+    url.password
+  )
+    return null
   return url.href
 }
 
 function normalizeHref(where, href) {
   if (typeof href === 'string') {
-    if (!validateExternalUrl(href)) fail(where, 'href must be an absolute https URL (or a loopback http URL for local development) without credentials')
+    if (!validateExternalUrl(href))
+      fail(
+        where,
+        'href must be an absolute https URL (or a loopback http URL for local development) without credentials',
+      )
     return href
   }
-  assertObject(where, href, ['env'])
+  assertObject(where, href, ['env', 'path'])
   if (typeof href.env !== 'string' || !EXTERNAL_ENV_NAME.test(href.env)) {
     fail(where, 'href.env must name a VITE_EXTERNAL_* variable')
   }
-  return { env: href.env }
+  if (href.path === undefined) return { env: href.env }
+  if (typeof href.path !== 'string' || !EXTERNAL_PATH.test(href.path)) {
+    fail(where, 'href.path must be a lower-case page path such as /area/page')
+  }
+  return { env: href.env, path: href.path }
 }
 
 const ENTRY_KEYS = [
-  'id', 'title', 'icon', 'group', 'subgroup', 'order', 'type', 'path', 'href', 'requiredAction', 'alsoRequires',
-  'requiresMfa', 'hidden', 'implemented', 'enabledBy',
+  'id',
+  'title',
+  'icon',
+  'group',
+  'subgroup',
+  'order',
+  'type',
+  'path',
+  'href',
+  'requiredAction',
+  'alsoRequires',
+  'requiresMfa',
+  'hidden',
+  'implemented',
+  'enabledBy',
 ]
 
 function normalizeEnabledBy(where, enabledBy) {
@@ -133,24 +169,37 @@ function normalizeEnabledBy(where, enabledBy) {
 
 function normalizeEntry(where, entry, resource) {
   assertObject(where, entry, ENTRY_KEYS)
-  if (typeof entry.id !== 'string' || !ENTRY_ID.test(entry.id)) fail(where, 'id must be lower-case kebab-case')
+  if (typeof entry.id !== 'string' || !ENTRY_ID.test(entry.id))
+    fail(where, 'id must be lower-case kebab-case')
   const at = `${where} "${entry.id}"`
   assertText(`${at} title`, entry.title, MAX.name)
   if (typeof entry.icon !== 'string' || !entry.icon.trim()) fail(at, 'icon is required')
   if (typeof entry.group !== 'string' || !entry.group) fail(at, 'group is required')
-  if (entry.subgroup !== undefined && (typeof entry.subgroup !== 'string' || !ENTRY_ID.test(entry.subgroup))) {
+  if (
+    entry.subgroup !== undefined &&
+    (typeof entry.subgroup !== 'string' || !ENTRY_ID.test(entry.subgroup))
+  ) {
     fail(at, 'subgroup must be a lower-case kebab-case sub-group id')
   }
-  if (!Number.isInteger(entry.order) || entry.order < 0) fail(at, 'order must be a non-negative integer')
+  if (!Number.isInteger(entry.order) || entry.order < 0)
+    fail(at, 'order must be a non-negative integer')
   // Missing type means internal; only an explicit 'external' is external.
   const type = entry.type === undefined ? 'internal' : entry.type
   if (!NAVIGATION_TYPES.includes(type)) fail(at, `unknown navigation type "${String(entry.type)}"`)
-  for (const key of ['requiresMfa', 'hidden', 'implemented']) assertBoolean(`${at} ${key}`, entry[key])
+  for (const key of ['requiresMfa', 'hidden', 'implemented'])
+    assertBoolean(`${at} ${key}`, entry[key])
 
   const normalized = {
-    id: entry.id, type, title: entry.title, icon: entry.icon, group: entry.group,
-    ...(entry.subgroup && { subgroup: entry.subgroup }), order: entry.order,
-    requiresMfa: entry.requiresMfa === true, hidden: entry.hidden === true, implemented: entry.implemented !== false,
+    id: entry.id,
+    type,
+    title: entry.title,
+    icon: entry.icon,
+    group: entry.group,
+    ...(entry.subgroup && { subgroup: entry.subgroup }),
+    order: entry.order,
+    requiresMfa: entry.requiresMfa === true,
+    hidden: entry.hidden === true,
+    implemented: entry.implemented !== false,
   }
   if (type === 'internal') {
     if (entry.href !== undefined) fail(at, 'an internal entry has a path, not an href')
@@ -158,7 +207,8 @@ function normalizeEntry(where, entry, resource) {
       fail(at, 'path must be an absolute application route such as /area/page or /area/page/:id')
     }
     normalized.path = entry.path
-    if (entry.enabledBy !== undefined) normalized.enabledBy = normalizeEnabledBy(`${at} enabledBy`, entry.enabledBy)
+    if (entry.enabledBy !== undefined)
+      normalized.enabledBy = normalizeEnabledBy(`${at} enabledBy`, entry.enabledBy)
   } else {
     if (entry.path !== undefined) fail(at, 'an external entry has an href, not a path')
     if (entry.enabledBy !== undefined) fail(at, 'enabledBy applies to internal entries only')
@@ -172,8 +222,11 @@ function normalizeEntry(where, entry, resource) {
       fail(at, `requiredAction ${requiredAction} is not an action of resource ${resource.code}`)
     }
     normalized.requiredAction = requiredAction
-    normalized.alsoRequires = assertArray(`${at} alsoRequires`, entry.alsoRequires, { optional: true }).map((ref) => {
-      if (typeof ref !== 'string' || !PERMISSION_REF.test(ref)) fail(at, `invalid alsoRequires reference ${String(ref)}`)
+    normalized.alsoRequires = assertArray(`${at} alsoRequires`, entry.alsoRequires, {
+      optional: true,
+    }).map((ref) => {
+      if (typeof ref !== 'string' || !PERMISSION_REF.test(ref))
+        fail(at, `invalid alsoRequires reference ${String(ref)}`)
       return ref
     })
   } else if (entry.requiredAction !== undefined || entry.alsoRequires !== undefined) {
@@ -186,7 +239,15 @@ function normalizeEntry(where, entry, resource) {
 
 /** Validates one module definition and returns its normalized, frozen form. */
 export function defineModule(definition) {
-  assertObject('module', definition, ['code', 'name', 'description', 'displayOrder', 'rbac', 'resources', 'navigation'])
+  assertObject('module', definition, [
+    'code',
+    'name',
+    'description',
+    'displayOrder',
+    'rbac',
+    'resources',
+    'navigation',
+  ])
   assertCode('module code', definition.code, MAX.module)
   const where = `module ${definition.code}`
   assertText(`${where} name`, definition.name, MAX.name)
@@ -198,46 +259,70 @@ export function defineModule(definition) {
     if (definition.resources !== undefined || definition.displayOrder !== undefined) {
       fail(where, 'a session-only module (rbac: false) has no resources or displayOrder')
     }
-    const navigation = assertArray(`${where} navigation`, definition.navigation, { nonEmpty: true })
-      .map((entry) => normalizeEntry(`${where} navigation`, entry, null))
-    return deepFreeze({ code: definition.code, name: definition.name, rbac, resources: [], navigation })
+    const navigation = assertArray(`${where} navigation`, definition.navigation, {
+      nonEmpty: true,
+    }).map((entry) => normalizeEntry(`${where} navigation`, entry, null))
+    return deepFreeze({
+      code: definition.code,
+      name: definition.name,
+      rbac,
+      resources: [],
+      navigation,
+    })
   }
 
-  if (definition.navigation !== undefined) fail(where, 'navigation belongs to a resource in an RBAC module')
+  if (definition.navigation !== undefined)
+    fail(where, 'navigation belongs to a resource in an RBAC module')
   if (!Number.isInteger(definition.displayOrder) || definition.displayOrder < 0) {
     fail(where, 'displayOrder must be a non-negative integer')
   }
   const resourceCodes = new Set()
-  const resources = assertArray(`${where} resources`, definition.resources, { nonEmpty: true }).map((resource) => {
-    assertObject(`${where} resource`, resource, ['code', 'name', 'description', 'actions', 'navigation'])
-    assertCode(`${where} resource code`, resource.code, MAX.resource)
-    const at = `${where}.${resource.code}`
-    if (resourceCodes.has(resource.code)) fail(at, 'duplicate resource code')
-    resourceCodes.add(resource.code)
-    assertText(`${at} name`, resource.name, MAX.name)
-    assertText(`${at} description`, resource.description, MAX.description, { optional: true })
-    const actions = assertArray(`${at} actions`, resource.actions, { nonEmpty: true })
-    for (const code of actions) {
-      assertCode(`${at} action`, code, MAX.action)
-      if (!isStandardAction(code)) fail(at, `action ${code} is not in the standard action catalogue`)
-    }
-    if (new Set(actions).size !== actions.length) fail(at, 'duplicate action code')
-    const normalized = {
-      code: resource.code, name: resource.name, ...(resource.description && { description: resource.description }),
-      actions: [...actions],
-    }
-    normalized.navigation = assertArray(`${at} navigation`, resource.navigation, { optional: true })
-      .map((entry) => normalizeEntry(`${at} navigation`, entry, normalized))
-    return normalized
-  })
+  const resources = assertArray(`${where} resources`, definition.resources, { nonEmpty: true }).map(
+    (resource) => {
+      assertObject(`${where} resource`, resource, [
+        'code',
+        'name',
+        'description',
+        'actions',
+        'navigation',
+      ])
+      assertCode(`${where} resource code`, resource.code, MAX.resource)
+      const at = `${where}.${resource.code}`
+      if (resourceCodes.has(resource.code)) fail(at, 'duplicate resource code')
+      resourceCodes.add(resource.code)
+      assertText(`${at} name`, resource.name, MAX.name)
+      assertText(`${at} description`, resource.description, MAX.description, { optional: true })
+      const actions = assertArray(`${at} actions`, resource.actions, { nonEmpty: true })
+      for (const code of actions) {
+        assertCode(`${at} action`, code, MAX.action)
+        if (!isStandardAction(code))
+          fail(at, `action ${code} is not in the standard action catalogue`)
+      }
+      if (new Set(actions).size !== actions.length) fail(at, 'duplicate action code')
+      const normalized = {
+        code: resource.code,
+        name: resource.name,
+        ...(resource.description && { description: resource.description }),
+        actions: [...actions],
+      }
+      normalized.navigation = assertArray(`${at} navigation`, resource.navigation, {
+        optional: true,
+      }).map((entry) => normalizeEntry(`${at} navigation`, entry, normalized))
+      return normalized
+    },
+  )
   return deepFreeze({
-    code: definition.code, name: definition.name,
+    code: definition.code,
+    name: definition.name,
     ...(definition.description && { description: definition.description }),
-    displayOrder: definition.displayOrder, rbac, resources,
+    displayOrder: definition.displayOrder,
+    rbac,
+    resources,
   })
 }
 
-export const permissionKey = (moduleCode, resourceCode, actionCode) => `${moduleCode}.${resourceCode}:${actionCode}`
+export const permissionKey = (moduleCode, resourceCode, actionCode) =>
+  `${moduleCode}.${resourceCode}:${actionCode}`
 
 /**
  * Cross-module validation and the derived data every consumer uses:
@@ -248,7 +333,9 @@ export const permissionKey = (moduleCode, resourceCode, actionCode) => `${module
 export function buildRegistry(modules, groups) {
   assertArray('registry modules', modules, { nonEmpty: true })
   const groupIndex = new Map(groups.map((group, index) => [group.id, index]))
-  const subgroupsOf = new Map(groups.map((group) => [group.id, new Set((group.subgroups ?? []).map((item) => item.id))]))
+  const subgroupsOf = new Map(
+    groups.map((group) => [group.id, new Set((group.subgroups ?? []).map((item) => item.id))]),
+  )
   const moduleCodes = new Set()
   const permissions = []
   const permissionSet = new Set()
@@ -261,7 +348,9 @@ export function buildRegistry(modules, groups) {
     for (const resource of module.resources) {
       for (const actionCode of resource.actions) {
         const key = permissionKey(module.code, resource.code, actionCode)
-        permissions.push(Object.freeze({ moduleCode: module.code, resourceCode: resource.code, actionCode, key }))
+        permissions.push(
+          Object.freeze({ moduleCode: module.code, resourceCode: resource.code, actionCode, key }),
+        )
         permissionSet.add(key)
       }
     }
@@ -286,7 +375,9 @@ export function buildRegistry(modules, groups) {
       if (paths.has(entry.path)) fail(at, `duplicate route path ${entry.path}`)
       paths.add(entry.path)
     }
-    const permission = resource ? permissionKey(module.code, resource.code, entry.requiredAction) : null
+    const permission = resource
+      ? permissionKey(module.code, resource.code, entry.requiredAction)
+      : null
     const alsoRequires = entry.alsoRequires.map((ref) => {
       const [, moduleCode = module.code, resourceCode, actionCode] = PERMISSION_REF.exec(ref)
       const key = permissionKey(moduleCode, resourceCode, actionCode)
@@ -297,7 +388,9 @@ export function buildRegistry(modules, groups) {
     // optional fields are present only when they apply.
     const route = {
       id: entry.id,
-      ...(entry.type === 'internal' ? { path: entry.path } : { type: 'external', href: entry.href }),
+      ...(entry.type === 'internal'
+        ? { path: entry.path }
+        : { type: 'external', href: entry.href }),
       label: entry.title,
       icon: entry.icon,
       section: entry.group,

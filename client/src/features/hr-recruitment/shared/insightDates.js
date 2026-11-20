@@ -2,7 +2,8 @@
 // in KSA business time (see hrFormat.js); every window is inclusive.
 const pad = (value) => String(value).padStart(2, '0')
 const utc = (iso) => new Date(`${iso}T00:00:00Z`)
-const isoOf = (date) => `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`
+const isoOf = (date) =>
+  `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`
 const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' })
 const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
@@ -20,7 +21,13 @@ export function monthRanges(today, count) {
   return Array.from({ length: count }, (_, index) => {
     const first = new Date(Date.UTC(year, month - 1 - (count - 1 - index), 1))
     const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0))
-    return { key: isoOf(first), label: MONTH.format(first), year: first.getUTCFullYear(), from: isoOf(first), to: isoOf(last) }
+    return {
+      key: isoOf(first),
+      label: MONTH.format(first),
+      year: first.getUTCFullYear(),
+      from: isoOf(first),
+      to: isoOf(last),
+    }
   })
 }
 
@@ -28,7 +35,9 @@ export function monthRanges(today, count) {
 // first) or forwards starting today.
 export function dayWindows(today, size, count, { forward = false } = {}) {
   return Array.from({ length: count }, (_, index) => {
-    const from = forward ? addDays(today, index * size) : addDays(today, -size * (count - index) + 1)
+    const from = forward
+      ? addDays(today, index * size)
+      : addDays(today, -size * (count - index) + 1)
     return { key: from, label: shortDay(from), from, to: addDays(from, size - 1) }
   })
 }

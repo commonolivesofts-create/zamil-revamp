@@ -16,7 +16,13 @@ test('authentication and API modules never use browser storage, cookies or a CSR
     const dir = new URL(root, import.meta.url)
     for (const name of await readdir(dir)) {
       const source = await readFile(new URL(name, dir), 'utf8')
-      for (const forbidden of ['localStorage', 'sessionStorage', 'indexedDB', 'document.cookie', 'csrf-token']) {
+      for (const forbidden of [
+        'localStorage',
+        'sessionStorage',
+        'indexedDB',
+        'document.cookie',
+        'csrf-token',
+      ]) {
         assert.equal(source.includes(forbidden), false, `${root}${name} references ${forbidden}`)
       }
     }

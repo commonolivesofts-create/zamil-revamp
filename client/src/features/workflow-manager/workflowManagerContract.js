@@ -6,7 +6,13 @@ import { ApiError } from '../../services/api/apiClient.js'
 
 export const ID_PATTERN = /^[1-9][0-9]{0,18}$/
 export const SOURCE_KINDS = Object.freeze(['TABLE', 'VIEW', 'HANDLER'])
-export const LIFECYCLE_STATES = Object.freeze(['DRAFT', 'REVIEW', 'APPROVED', 'PUBLISHED', 'RETIRED'])
+export const LIFECYCLE_STATES = Object.freeze([
+  'DRAFT',
+  'REVIEW',
+  'APPROVED',
+  'PUBLISHED',
+  'RETIRED',
+])
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
@@ -40,7 +46,11 @@ const count = (value) => {
   return value
 }
 const instant = (value) => {
-  check(value === null || value === undefined || (typeof value === 'string' && !Number.isNaN(Date.parse(value))))
+  check(
+    value === null ||
+      value === undefined ||
+      (typeof value === 'string' && !Number.isNaN(Date.parse(value))),
+  )
   return value ?? null
 }
 const oneOf = (allowed) => (value) => {
@@ -150,7 +160,11 @@ export function readSourcePolicy(data) {
     protectedObjectPrefixes: list(data.protectedObjectPrefixes, string),
     handlers: list(data.handlers, (handler) => {
       check(isObject(handler))
-      return Object.freeze({ code: string(handler.code), name: string(handler.name), description: text(handler.description) })
+      return Object.freeze({
+        code: string(handler.code),
+        name: string(handler.name),
+        description: text(handler.description),
+      })
     }),
   })
 }
@@ -167,7 +181,11 @@ export function readOverview(data) {
     check(isObject(data.dataSources) && isObject(data.dataSources.byKind))
     dataSources = Object.freeze({
       ...readCount(data.dataSources),
-      byKind: Object.freeze(Object.fromEntries(SOURCE_KINDS.map((kind) => [kind, readCount(data.dataSources.byKind[kind])]))),
+      byKind: Object.freeze(
+        Object.fromEntries(
+          SOURCE_KINDS.map((kind) => [kind, readCount(data.dataSources.byKind[kind])]),
+        ),
+      ),
     })
   }
   return Object.freeze({ forms: data.forms === null ? null : readCount(data.forms), dataSources })
@@ -185,12 +203,18 @@ export const readList = list
 // evidence and findings are read strictly: anything unexpected rejects the whole response.
 
 export const DATA_CLASSES = Object.freeze(['PUBLIC', 'INTERNAL', 'PERSONAL', 'SENSITIVE'])
-export const ASSURANCE_BASES = Object.freeze(['GENERATED_ALWAYS_IDENTITY', 'GENERATED_BY_DEFAULT_IDENTITY', 'APPLICATION_GENERATED', 'OWNER_ATTESTED'])
+export const ASSURANCE_BASES = Object.freeze([
+  'GENERATED_ALWAYS_IDENTITY',
+  'GENERATED_BY_DEFAULT_IDENTITY',
+  'APPLICATION_GENERATED',
+  'OWNER_ATTESTED',
+])
 export const ENFORCEMENTS = Object.freeze(['DATABASE_ENFORCED', 'DECLARED'])
 const INTEGRITY = Object.freeze(['VERIFIED', 'MISMATCH', 'UNREADABLE'])
 const SHA256 = /^[0-9a-f]{64}$/
 
-const optional = (reader) => (value) => (value === null || value === undefined ? null : reader(value))
+const optional = (reader) => (value) =>
+  value === null || value === undefined ? null : reader(value)
 const optionalCount = optional(count)
 const integer = (value) => {
   check(Number.isInteger(value))
@@ -205,7 +229,12 @@ const strings = (value) => list(value, string)
 
 export function readFinding(item) {
   check(isObject(item))
-  return Object.freeze({ severity: oneOf(['ERROR', 'WARNING'])(item.severity), code: string(item.code), path: string(item.path), message: string(item.message) })
+  return Object.freeze({
+    severity: oneOf(['ERROR', 'WARNING'])(item.severity),
+    code: string(item.code),
+    path: string(item.path),
+    message: string(item.message),
+  })
 }
 
 export function readBlocker(item) {
@@ -241,7 +270,11 @@ const readColumnFacts = (item) => ({
 
 function readLiveColumn(item) {
   check(isObject(item))
-  return Object.freeze({ ...readColumnFacts(item), supported: bool(item.supported), keyEligible: bool(item.keyEligible) })
+  return Object.freeze({
+    ...readColumnFacts(item),
+    supported: bool(item.supported),
+    keyEligible: bool(item.keyEligible),
+  })
 }
 
 function readSnapshot(s) {
@@ -254,18 +287,34 @@ function readSnapshot(s) {
     columns: list(s.columns, readLiveColumn),
     constraints: list(s.constraints, (c) => {
       check(isObject(c))
-      return Object.freeze({ name: string(c.name), type: oneOf(['P', 'U'])(c.type), status: string(c.status), validated: text(c.validated), columns: strings(c.columns) })
+      return Object.freeze({
+        name: string(c.name),
+        type: oneOf(['P', 'U'])(c.type),
+        status: string(c.status),
+        validated: text(c.validated),
+        columns: strings(c.columns),
+      })
     }),
     uniqueIndexes: list(s.uniqueIndexes, (i) => {
       check(isObject(i))
-      return Object.freeze({ name: string(i.name), status: string(i.status), functionBased: bool(i.functionBased), columns: strings(i.columns) })
+      return Object.freeze({
+        name: string(i.name),
+        status: string(i.status),
+        functionBased: bool(i.functionBased),
+        columns: strings(i.columns),
+      })
     }),
   })
 }
 
 function readHandlerContract(h) {
   check(isObject(h))
-  return Object.freeze({ code: string(h.code), name: text(h.name), contractVersion: count(h.contractVersion), fields: list(h.fields, readLiveColumn) })
+  return Object.freeze({
+    code: string(h.code),
+    name: text(h.name),
+    contractVersion: count(h.contractVersion),
+    fields: list(h.fields, readLiveColumn),
+  })
 }
 
 export function readSourceDictionary(data) {
@@ -307,7 +356,12 @@ const readEnforcedBy = optional((value) => {
 
 const readConfigDictionary = optional((value) => {
   check(isObject(value))
-  return Object.freeze({ objectType: string(value.objectType), status: string(value.status), capturedAt: instant(value.capturedAt), columnsSha256: sha(value.columnsSha256) })
+  return Object.freeze({
+    objectType: string(value.objectType),
+    status: string(value.status),
+    capturedAt: instant(value.capturedAt),
+    columnsSha256: sha(value.columnsSha256),
+  })
 })
 
 export const readSourceConfig = optional((value) => {
@@ -324,7 +378,11 @@ export const readSourceConfig = optional((value) => {
     dictionary: readConfigDictionary(value.dictionary),
     columns: list(value.columns, (c) => {
       check(isObject(c))
-      return Object.freeze({ ...readColumnFacts(c), exposed: bool(c.exposed), dataClass: oneOf(DATA_CLASSES)(c.dataClass) })
+      return Object.freeze({
+        ...readColumnFacts(c),
+        exposed: bool(c.exposed),
+        dataClass: oneOf(DATA_CLASSES)(c.dataClass),
+      })
     }),
     keyCandidates: list(value.keyCandidates, (k) => {
       check(isObject(k))
@@ -408,5 +466,9 @@ export function readSourceMappingDrift(data) {
 
 export function readSourceMappingDeleted(data) {
   check(isObject(data) && data.deleted === true)
-  return Object.freeze({ sourceId: id(data.sourceId), sourceVersionId: id(data.sourceVersionId), deleted: true })
+  return Object.freeze({
+    sourceId: id(data.sourceId),
+    sourceVersionId: id(data.sourceVersionId),
+    deleted: true,
+  })
 }

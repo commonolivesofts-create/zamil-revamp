@@ -3,14 +3,50 @@
 import { isIsoDate } from '../../hr-recruitment/shared/hrFormat.js'
 
 // Monthly pay items in form order (all SR per month).
-export const PAY_KEYS = Object.freeze(['basic', 'house', 'transport', 'other', 'communication', 'car'])
+export const PAY_KEYS = Object.freeze([
+  'basic',
+  'house',
+  'transport',
+  'other',
+  'communication',
+  'car',
+])
 // Coded values of the record that are chosen from a lookup.
-export const CODE_KEYS = Object.freeze(['positionCode', 'gradeCode', 'levelCode', 'familyStatusCode'])
-export const RECORD_KEYS = Object.freeze(['positionCode', ...PAY_KEYS, 'gradeCode', 'levelCode', 'familyStatusCode'])
-export const RECORD_CHANGE_STATUSES = Object.freeze(['DRAFT', 'INPROCESS', 'SUBMITTED', 'APPROVED', 'REJECTED'])
+export const CODE_KEYS = Object.freeze([
+  'positionCode',
+  'gradeCode',
+  'levelCode',
+  'familyStatusCode',
+])
+export const RECORD_KEYS = Object.freeze([
+  'positionCode',
+  ...PAY_KEYS,
+  'gradeCode',
+  'levelCode',
+  'familyStatusCode',
+])
+export const RECORD_CHANGE_STATUSES = Object.freeze([
+  'DRAFT',
+  'INPROCESS',
+  'SUBMITTED',
+  'APPROVED',
+  'REJECTED',
+])
 // Status values the legacy table holds (XX_REC_CHANGE.STATUS); the change requests tabs.
-export const LEGACY_RECORD_CHANGE_STATUSES = Object.freeze(['DRAFT', 'INPROCESS', 'APPROVED', 'REJECTED'])
-export const CHANGE_TYPES = Object.freeze(['POSITION', 'SALARY_INCREASE', 'SALARY_DECREASE', 'ALLOWANCE', 'GRADE_LEVEL', 'FAMILY_STATUS'])
+export const LEGACY_RECORD_CHANGE_STATUSES = Object.freeze([
+  'DRAFT',
+  'INPROCESS',
+  'APPROVED',
+  'REJECTED',
+])
+export const CHANGE_TYPES = Object.freeze([
+  'POSITION',
+  'SALARY_INCREASE',
+  'SALARY_DECREASE',
+  'ALLOWANCE',
+  'GRADE_LEVEL',
+  'FAMILY_STATUS',
+])
 // Remarks and views & suggestions.
 export const TEXT_MAX = 2000
 // An amount: 0 or more with up to two decimals.
@@ -27,14 +63,19 @@ export const isRecordChangeLocked = (status) => Boolean(status) && status !== 'D
 // Legacy family status values: the datalist offers S / M, but the input accepted free text, so
 // stored rows also hold Married, single, m, ... Read them as S or M; anything else as ''.
 export function familyStatusCode(value) {
-  const text = String(value ?? '').trim().toUpperCase()
+  const text = String(value ?? '')
+    .trim()
+    .toUpperCase()
   if (text === 'M' || text === 'MARRIED') return 'M'
   if (text === 'S' || text === 'SINGLE' || text === 'UNMARRIED') return 'S'
   return ''
 }
 
 // The legacy input filter (validateNumericInput: digits and dots only) and maxlength.
-export const amountInput = (value) => String(value ?? '').replace(/[^\d.]/g, '').slice(0, AMOUNT_MAX_LENGTH)
+export const amountInput = (value) =>
+  String(value ?? '')
+    .replace(/[^\d.]/g, '')
+    .slice(0, AMOUNT_MAX_LENGTH)
 
 const toCents = (value) => Math.round(Number(value) * 100)
 const filled = (value) => value !== '' && value !== null && value !== undefined
@@ -42,7 +83,13 @@ const filled = (value) => value !== '' && value !== null && value !== undefined
 // Total SR = basic + house + transport + other + communication + car.
 export function recordTotal(record) {
   if (!record) return 0
-  return PAY_KEYS.reduce((sum, key) => sum + (filled(record[key]) && AMOUNT.test(String(record[key])) ? toCents(record[key]) : 0), 0) / 100
+  return (
+    PAY_KEYS.reduce(
+      (sum, key) =>
+        sum + (filled(record[key]) && AMOUNT.test(String(record[key])) ? toCents(record[key]) : 0),
+      0,
+    ) / 100
+  )
 }
 
 // Difference of one amount: { amount, percent } (percent to one decimal, null
@@ -58,7 +105,11 @@ export function changedKeys(current, revised) {
   if (!current || !revised) return []
   return RECORD_KEYS.filter((key) => {
     if (!PAY_KEYS.includes(key)) return Boolean(revised[key]) && revised[key] !== current[key]
-    return filled(revised[key]) && AMOUNT.test(String(revised[key])) && toCents(revised[key]) !== toCents(current[key])
+    return (
+      filled(revised[key]) &&
+      AMOUNT.test(String(revised[key])) &&
+      toCents(revised[key]) !== toCents(current[key])
+    )
   })
 }
 
@@ -69,26 +120,40 @@ export function changeTypes(current, revised) {
     if (key === 'positionCode') types.add('POSITION')
     else if (key === 'gradeCode' || key === 'levelCode') types.add('GRADE_LEVEL')
     else if (key === 'familyStatusCode') types.add('FAMILY_STATUS')
-    else if (key === 'basic') types.add(toCents(revised.basic) > toCents(current.basic) ? 'SALARY_INCREASE' : 'SALARY_DECREASE')
+    else if (key === 'basic')
+      types.add(
+        toCents(revised.basic) > toCents(current.basic) ? 'SALARY_INCREASE' : 'SALARY_DECREASE',
+      )
     else types.add('ALLOWANCE')
   }
   return CHANGE_TYPES.filter((type) => types.has(type))
 }
 
 // A lower total is allowed but must be explained in the remarks (a reminder, not a block).
-export const totalGoesDown = (current, revised) => Boolean(current && revised) && recordTotal(revised) < recordTotal(current)
+export const totalGoesDown = (current, revised) =>
+  Boolean(current && revised) && recordTotal(revised) < recordTotal(current)
 
-export const blankRecordChange = (today) => ({ requestDate: today, effectiveDate: '', revised: null, currentFamilyStatus: '', remarks: '', views: '', attachments: [] })
+export const blankRecordChange = (today) => ({
+  requestDate: today,
+  effectiveDate: '',
+  revised: null,
+  currentFamilyStatus: '',
+  remarks: '',
+  views: '',
+  attachments: [],
+})
 
 // Start a newly selected employee's revised record from their current values. This keeps a new
 // draft from accidentally saving zero salary/allowances when the employee already has pay data.
 export function revisedAfterPick(revised, current) {
   const kept = revised ?? {}
   return {
-    ...Object.fromEntries(PAY_KEYS.map((key) => {
-      const value = filled(kept[key]) ? kept[key] : current?.[key]
-      return [key, filled(value) ? String(value) : '0']
-    })),
+    ...Object.fromEntries(
+      PAY_KEYS.map((key) => {
+        const value = filled(kept[key]) ? kept[key] : current?.[key]
+        return [key, filled(value) ? String(value) : '0']
+      }),
+    ),
     gradeCode: kept.gradeCode ?? '',
     levelCode: kept.levelCode ?? '',
     positionCode: current?.positionCode ?? '',
@@ -99,7 +164,12 @@ export function revisedAfterPick(revised, current) {
 
 // The effective date is before the employee's start date: a reminder only (legacy has no rule).
 export const effectiveBeforeStart = (effectiveDate, employee) =>
-  Boolean(effectiveDate && employee?.startDate && isIsoDate(effectiveDate) && effectiveDate < employee.startDate)
+  Boolean(
+    effectiveDate &&
+    employee?.startDate &&
+    isIsoDate(effectiveDate) &&
+    effectiveDate < employee.startDate,
+  )
 
 // Request body: only the requester's answers. The request number, status,
 // requester, employee snapshot and current record are server values.
@@ -109,9 +179,16 @@ export function recordChangePayload(form, employee) {
     employeeId: employee?.employeeId ?? null,
     effectiveDate: form.effectiveDate || null,
     revised: {
-      ...Object.fromEntries(RECORD_KEYS.map((key) => [key, PAY_KEYS.includes(key)
-        ? (filled(revised[key]) && AMOUNT.test(String(revised[key])) ? toCents(revised[key]) / 100 : null)
-        : (revised[key] || null)])),
+      ...Object.fromEntries(
+        RECORD_KEYS.map((key) => [
+          key,
+          PAY_KEYS.includes(key)
+            ? filled(revised[key]) && AMOUNT.test(String(revised[key]))
+              ? toCents(revised[key]) / 100
+              : null
+            : revised[key] || null,
+        ]),
+      ),
       // Position names keep the current employee's canonical value when it is absent from the
       // active positions lookup (for example, an older approved position still in use).
       positionName: revised.positionName || null,
@@ -133,14 +210,19 @@ export function validateRecordChange(form, employee) {
   if (!employee) add('employee', 'required', 0)
   if (!form.effectiveDate) add('effectiveDate', 'required', 0)
   else if (!isIsoDate(form.effectiveDate)) add('effectiveDate', 'invalid', 0)
-  if (form.currentFamilyStatus && !['S', 'M'].includes(form.currentFamilyStatus)) add('currentFamilyStatus', 'invalid', 0)
+  if (form.currentFamilyStatus && !['S', 'M'].includes(form.currentFamilyStatus))
+    add('currentFamilyStatus', 'invalid', 0)
   const revised = form.revised
   if (employee && revised) {
     if (!revised.positionCode) add('positionCode', 'required', 1)
     if (!revised.familyStatusCode) add('familyStatusCode', 'required', 1)
     for (const key of PAY_KEYS) {
       if (!filled(revised[key])) add(key, 'required', 1)
-      else if (String(revised[key]).length > AMOUNT_MAX_LENGTH || !AMOUNT.test(String(revised[key]))) add(key, 'amount', 1)
+      else if (
+        String(revised[key]).length > AMOUNT_MAX_LENGTH ||
+        !AMOUNT.test(String(revised[key]))
+      )
+        add(key, 'amount', 1)
     }
     for (const key of FREE_TEXT_KEYS) {
       if (String(revised[key] ?? '').length > GRADE_LEVEL_MAX) add(key, 'tooLong', 1)
@@ -152,7 +234,8 @@ export function validateRecordChange(form, employee) {
 }
 
 // Counter state of a limited text: '', 'near' (over 90 %) or 'over'.
-export const counterState = (length, max = TEXT_MAX) => (length > max ? 'over' : length > max * 0.9 ? 'near' : '')
+export const counterState = (length, max = TEXT_MAX) =>
+  length > max ? 'over' : length > max * 0.9 ? 'near' : ''
 
 // Approval route after submission: noted by the HR & Admin. Manager, then
 // approved by the President (states: shared/approvals.js).
@@ -168,7 +251,8 @@ export function validateRecordChangeForSubmit(record) {
   if (!record?.requestId) return [{ field: 'requestId', code: 'notSaved' }]
   const problems = []
   const add = (field, code) => problems.push({ field, code })
-  if (NOT_SUBMITTABLE.includes(String(record.status ?? '').toUpperCase())) add('status', 'notSubmittable')
+  if (NOT_SUBMITTABLE.includes(String(record.status ?? '').toUpperCase()))
+    add('status', 'notSubmittable')
   if (!record.employee) add('employee', 'required')
   if (!record.effectiveDate) add('effectiveDate', 'required')
   const revised = record.revised ?? {}

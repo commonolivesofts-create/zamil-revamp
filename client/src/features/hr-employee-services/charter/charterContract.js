@@ -6,17 +6,35 @@ import { MILESTONES, TEXT_FIELDS } from './charterModel.js'
 
 export function readIdeaOption(item) {
   if (!item || !ID.test(String(item.ideaId ?? ''))) throw invalidResponse('idea')
-  return Object.freeze({ ideaId: String(item.ideaId), ideaNum: text(item.ideaNum), title: text(item.title), businessUnit: text(item.businessUnit) })
+  return Object.freeze({
+    ideaId: String(item.ideaId),
+    ideaNum: text(item.ideaNum),
+    title: text(item.title),
+    businessUnit: text(item.businessUnit),
+  })
 }
 
 export function readEmployeeOption(item) {
   if (!item || !text(item.empNo)) throw invalidResponse('employee')
-  return Object.freeze({ empNo: text(item.empNo), name: text(item.fullName) || text(item.empNo), jobTitle: text(item.jobTitle) })
+  return Object.freeze({
+    empNo: text(item.empNo),
+    name: text(item.fullName) || text(item.empNo),
+    jobTitle: text(item.jobTitle),
+  })
 }
 
-const readMilestones = (data) => Object.freeze(Object.fromEntries(MILESTONES.map(({ key }) => [
-  key, Object.freeze({ start: data?.[key]?.start === true, complete: data?.[key]?.complete === true }),
-])))
+const readMilestones = (data) =>
+  Object.freeze(
+    Object.fromEntries(
+      MILESTONES.map(({ key }) => [
+        key,
+        Object.freeze({
+          start: data?.[key]?.start === true,
+          complete: data?.[key]?.complete === true,
+        }),
+      ]),
+    ),
+  )
 
 export function readCharterRecord(data) {
   if (!data || !ID.test(String(data.headerId ?? ''))) throw invalidResponse('project charter')
@@ -57,7 +75,10 @@ export function readCharterListItem(item) {
 
 export function readCharterPage(data) {
   if (!data || !Array.isArray(data.items)) throw invalidResponse('project charter list')
-  return Object.freeze({ items: Object.freeze(data.items.map(readCharterListItem)), pagination: pageOf(data) })
+  return Object.freeze({
+    items: Object.freeze(data.items.map(readCharterListItem)),
+    pagination: pageOf(data),
+  })
 }
 
 // Request body: the requester's answers only. Project name, business unit and
@@ -69,6 +90,14 @@ export function charterBody(form, { isNew }) {
     ...Object.fromEntries(Object.keys(TEXT_FIELDS).map((key) => [key, form[key].trim()])),
     expectedStartDate: form.expectedStartDate,
     expectedEndDate: form.expectedEndDate,
-    milestones: Object.fromEntries(MILESTONES.map(({ key }) => [key, { start: Boolean(form.milestones[key]?.start), complete: Boolean(form.milestones[key]?.complete) }])),
+    milestones: Object.fromEntries(
+      MILESTONES.map(({ key }) => [
+        key,
+        {
+          start: Boolean(form.milestones[key]?.start),
+          complete: Boolean(form.milestones[key]?.complete),
+        },
+      ]),
+    ),
   }
 }

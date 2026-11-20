@@ -52,13 +52,19 @@ test('catalogue filtering searches names and domains', () => {
 // ------------------------------------------------------------ dashboard content
 
 test('the folio and quick links keep the approved dashboard content', () => {
-  assert.deepEqual(BOOK_PAGES.map((page) => page.name), ['HR forms', 'Finance', 'Approvals', 'Insights', 'Explore'])
+  assert.deepEqual(
+    BOOK_PAGES.map((page) => page.name),
+    ['HR forms', 'Finance', 'Approvals', 'Insights', 'Explore'],
+  )
   assert.equal(BOOK_PAGES.find((page) => page.id === 'explore').view, 'atlas')
   assert.ok(BOOK_PAGES.filter((page) => page.id !== 'explore').every((page) => !('view' in page)))
   assert.deepEqual(QUICK_CATEGORY_IDS, ['HR', 'Finance', 'Supply', 'Projects'])
   for (const id of QUICK_CATEGORY_IDS) {
     assert.equal(QUICK_DEFINITIONS[id].forms.length, 4, id)
-    assert.ok(QUICK_DEFINITIONS[id].forms.every((form) => !('view' in form)), id)
+    assert.ok(
+      QUICK_DEFINITIONS[id].forms.every((form) => !('view' in form)),
+      id,
+    )
   }
   assert.equal(ATTENTION_ITEMS.length, 3)
   assert.equal(WORKFLOW_BARS.length, 9)
@@ -68,14 +74,17 @@ test('the folio and quick links keep the approved dashboard content', () => {
 // ------------------------------------------------------------ profile helpers
 
 test('profile helpers preserve real values and isolate preview values', () => {
-  const real = resolveProfile({
-    fullName: 'Amina Khan',
-    employeeNumber: '42',
-    username: 'amina',
-    email: 'a@example.com',
-    jobTitle: 'Engineer',
-    department: 'Ops',
-  }, 'ready')
+  const real = resolveProfile(
+    {
+      fullName: 'Amina Khan',
+      employeeNumber: '42',
+      username: 'amina',
+      email: 'a@example.com',
+      jobTitle: 'Engineer',
+      department: 'Ops',
+    },
+    'ready',
+  )
   assert.equal(real.isPreview, false)
   assert.equal(displayName(real), 'Amina Khan')
   assert.equal(initialsOf(displayName(real)), 'AK')
@@ -105,10 +114,7 @@ test('profile avatar paths are optional and limited to same-origin sources', () 
     resolveProfile({ ...input, avatarUrl: '/api/v1/users/42/avatar?v=2' }, 'ready').avatarUrl,
     '/api/v1/users/42/avatar?v=2',
   )
-  assert.equal(
-    profileAvatarUrl({ profileImageUrl: '/avatars/42.png' }),
-    '/avatars/42.png',
-  )
+  assert.equal(profileAvatarUrl({ profileImageUrl: '/avatars/42.png' }), '/avatars/42.png')
   for (const avatarUrl of [
     'javascript:alert(1)',
     'https://cdn.example.com/avatars/42.png',

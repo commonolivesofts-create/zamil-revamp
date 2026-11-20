@@ -6,17 +6,23 @@ import { appRoutes, routeAccess } from '@/config/appNavigation.js'
 import { mfaChallengePath, safeReturnTo, templateDemosAvailable } from '@/config/authRouting.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePermissions from '@/features/access/usePermissions.js'
-import {
-  AccessUnavailablePage, DeniedPage, NotFoundPage,
-} from '@/routes/RouteComponents.jsx'
+import { AccessUnavailablePage, DeniedPage, NotFoundPage } from '@/routes/RouteComponents.jsx'
 
 // Shown once session restoration (with its bounded automatic retries) could not
 // reach the authentication server. The state stays 'error': neither signed in
 // nor signed out. /login stays reachable because sign-in contacts the backend itself.
 function SessionCheckUnavailable({ retrySession, from }) {
   return (
-    <PageState kind="error" title="Session check unavailable" description="The authentication server could not be reached, so your session cannot be verified. Protected content was not loaded." actionLabel="Retry session check" onAction={retrySession}>
-      <Link className="zrv-page-state__action" to="/login" state={from ? { from } : undefined}>Go to Login</Link>
+    <PageState
+      kind="error"
+      title="Session check unavailable"
+      description="The authentication server could not be reached, so your session cannot be verified. Protected content was not loaded."
+      actionLabel="Retry session check"
+      onAction={retrySession}
+    >
+      <Link className="zrv-page-state__action" to="/login" state={from ? { from } : undefined}>
+        Go to Login
+      </Link>
     </PageState>
   )
 }
@@ -28,7 +34,8 @@ export function ProtectedRoute() {
   if (status === 'loading') return <StartupLoading />
   const from = safeReturnTo(`${location.pathname}${location.search}${location.hash}`)
   if (status === 'error') return <SessionCheckUnavailable retrySession={retrySession} from={from} />
-  if (status !== 'authenticated' && status !== 'preview') return <Navigate to="/login" state={{ from }} replace />
+  if (status !== 'authenticated' && status !== 'preview')
+    return <Navigate to="/login" state={{ from }} replace />
   return <Outlet />
 }
 
@@ -36,8 +43,10 @@ export function GuestOnlyRoute() {
   const location = useLocation()
   const { status, mfa } = useAuth()
   if (status === 'loading') return <StartupLoading />
-  if (status === 'authenticated') return <Navigate to={safeReturnTo(location.state?.from)} replace />
-  if (status === 'mfa_required') return <Navigate to={mfaChallengePath(mfa)} state={{ from: location.state?.from }} replace />
+  if (status === 'authenticated')
+    return <Navigate to={safeReturnTo(location.state?.from)} replace />
+  if (status === 'mfa_required')
+    return <Navigate to={mfaChallengePath(mfa)} state={{ from: location.state?.from }} replace />
   return <Outlet />
 }
 
@@ -47,10 +56,13 @@ export function MfaChallengeRoute() {
   const location = useLocation()
   const { status, mfa } = useAuth()
   if (status === 'loading') return <StartupLoading />
-  if (status === 'authenticated') return <Navigate to={safeReturnTo(location.state?.from)} replace />
-  if (status !== 'mfa_required') return <Navigate to="/login" state={{ from: location.state?.from }} replace />
+  if (status === 'authenticated')
+    return <Navigate to={safeReturnTo(location.state?.from)} replace />
+  if (status !== 'mfa_required')
+    return <Navigate to="/login" state={{ from: location.state?.from }} replace />
   const expected = mfaChallengePath(mfa)
-  if (location.pathname !== expected) return <Navigate to={expected} state={{ from: location.state?.from }} replace />
+  if (location.pathname !== expected)
+    return <Navigate to={expected} state={{ from: location.state?.from }} replace />
   return <Outlet />
 }
 
@@ -65,12 +77,18 @@ export function AppRouteAccess() {
   const routeId = matches.at(-1)?.handle?.routeId
   const route = appRoutes.find((item) => item.id === routeId)
   switch (routeAccess(route, access)) {
-    case 'allowed': return <Outlet />
-    case 'pending': return <RouteLoading />
-    case 'error': return <AccessUnavailablePage onRetry={access.reload} />
-    case 'mfa_required': return <DeniedPage reason="mfa" />
-    case 'denied': return <DeniedPage />
-    default: return <NotFoundPage />
+    case 'allowed':
+      return <Outlet />
+    case 'pending':
+      return <RouteLoading />
+    case 'error':
+      return <AccessUnavailablePage onRetry={access.reload} />
+    case 'mfa_required':
+      return <DeniedPage reason="mfa" />
+    case 'denied':
+      return <DeniedPage />
+    default:
+      return <NotFoundPage />
   }
 }
 
@@ -86,5 +104,10 @@ export function RootRedirect() {
   const { status, retrySession } = useAuth()
   if (status === 'loading') return <StartupLoading />
   if (status === 'error') return <SessionCheckUnavailable retrySession={retrySession} />
-  return <Navigate to={status === 'authenticated' || status === 'preview' ? '/dashboard' : '/login'} replace />
+  return (
+    <Navigate
+      to={status === 'authenticated' || status === 'preview' ? '/dashboard' : '/login'}
+      replace
+    />
+  )
 }

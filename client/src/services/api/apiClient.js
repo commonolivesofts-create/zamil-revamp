@@ -13,12 +13,16 @@ const MAX_DETAILS = 50
 const READ_RETRY_DELAYS_MS = [150, 400]
 
 function isRetryableReadError(error) {
-  return error?.code === 'NETWORK_ERROR' || error?.code === 'INVALID_RESPONSE' ||
+  return (
+    error?.code === 'NETWORK_ERROR' ||
+    error?.code === 'INVALID_RESPONSE' ||
     [500, 502, 503, 504].includes(error?.status)
+  )
 }
 
 function waitForRetry(delay, signal) {
-  if (signal?.aborted) return Promise.reject(new ApiError('The API request was cancelled.', { code: 'ABORTED' }))
+  if (signal?.aborted)
+    return Promise.reject(new ApiError('The API request was cancelled.', { code: 'ABORTED' }))
   return new Promise((resolve, reject) => {
     const finish = () => {
       signal?.removeEventListener('abort', cancel)
@@ -37,9 +41,16 @@ function waitForRetry(delay, signal) {
 // `message` is only taken from the backend's error envelope, whose messages are
 // documented as safe to display; anything else gets a generic message.
 export class ApiError extends Error {
-  constructor(message, {
-    code = 'API_ERROR', status = null, details = [], requestId = null, retryAfterSeconds = null,
-  } = {}) {
+  constructor(
+    message,
+    {
+      code = 'API_ERROR',
+      status = null,
+      details = [],
+      requestId = null,
+      retryAfterSeconds = null,
+    } = {},
+  ) {
     super(message)
     this.name = 'ApiError'
     this.code = code
@@ -54,7 +65,9 @@ export class ApiError extends Error {
 // response was lost (network, timeout), unreadable, or an internal error. UIs
 // must then neither claim success nor treat the change as rejected.
 export function isOutcomeUnknown(error) {
-  return ['NETWORK_ERROR', 'TIMEOUT', 'INVALID_RESPONSE'].includes(error?.code) || error?.status === 500
+  return (
+    ['NETWORK_ERROR', 'TIMEOUT', 'INVALID_RESPONSE'].includes(error?.code) || error?.status === 500
+  )
 }
 
 function containsControlCharacters(value) {
@@ -80,7 +93,13 @@ function assertBaseUrl(baseUrl) {
   }
   try {
     const url = new URL(baseUrl)
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    ) {
       throw new Error('Unsupported API URL')
     }
     return true // Explicit API origin.
@@ -90,9 +109,18 @@ function assertBaseUrl(baseUrl) {
 }
 
 function assertResourcePath(path) {
-  if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//') ||
-    path.includes('\\') || path.includes('?') || path.includes('#') || containsControlCharacters(path)) {
-    throw new ApiError('API requests require a local path beginning with /.', { code: 'INVALID_PATH' })
+  if (
+    typeof path !== 'string' ||
+    !path.startsWith('/') ||
+    path.startsWith('//') ||
+    path.includes('\\') ||
+    path.includes('?') ||
+    path.includes('#') ||
+    containsControlCharacters(path)
+  ) {
+    throw new ApiError('API requests require a local path beginning with /.', {
+      code: 'INVALID_PATH',
+    })
   }
   try {
     for (const segment of path.split('/')) {
@@ -118,7 +146,9 @@ function buildUrl(baseUrl, path, params) {
       for (const item of items) {
         if (item == null) continue
         if (typeof item === 'object' && !(item instanceof Date)) {
-          throw new ApiError('Query parameters must be primitive values or dates.', { code: 'INVALID_PARAMS' })
+          throw new ApiError('Query parameters must be primitive values or dates.', {
+            code: 'INVALID_PARAMS',
+          })
         }
         url.searchParams.append(key, item instanceof Date ? item.toISOString() : String(item))
       }
@@ -146,12 +176,16 @@ function headerRequestId(response) {
 
 function readRequestId(response, body) {
   const value = body?.meta?.requestId
-  return typeof value === 'string' && REQUEST_ID_PATTERN.test(value) ? value : headerRequestId(response)
+  return typeof value === 'string' && REQUEST_ID_PATTERN.test(value)
+    ? value
+    : headerRequestId(response)
 }
 
 function invalidResponse(response, requestId = headerRequestId(response)) {
   return new ApiError('The server returned an invalid response.', {
-    code: 'INVALID_RESPONSE', status: response.status, requestId,
+    code: 'INVALID_RESPONSE',
+    status: response.status,
+    requestId,
   })
 }
 
@@ -170,13 +204,22 @@ const isCount = (value) => Number.isInteger(value) && value >= 0
 function readPagination(response, body, requestId) {
   if (!('pagination' in body)) return null
   const p = body.pagination
-  if (!p || typeof p !== 'object' || ![p.page, p.limit, p.total, p.totalPages].every(isCount) ||
-    typeof p.hasNextPage !== 'boolean' || typeof p.hasPreviousPage !== 'boolean') {
+  if (
+    !p ||
+    typeof p !== 'object' ||
+    ![p.page, p.limit, p.total, p.totalPages].every(isCount) ||
+    typeof p.hasNextPage !== 'boolean' ||
+    typeof p.hasPreviousPage !== 'boolean'
+  ) {
     throw invalidResponse(response, requestId)
   }
   return Object.freeze({
-    page: p.page, limit: p.limit, total: p.total, totalPages: p.totalPages,
-    hasNextPage: p.hasNextPage, hasPreviousPage: p.hasPreviousPage,
+    page: p.page,
+    limit: p.limit,
+    total: p.total,
+    totalPages: p.totalPages,
+    hasNextPage: p.hasNextPage,
+    hasPreviousPage: p.hasPreviousPage,
   })
 }
 
@@ -185,7 +228,8 @@ function readPagination(response, body, requestId) {
 async function parseSuccess(response, responseType) {
   const result = (data, pagination = null, requestId = headerRequestId(response)) =>
     Object.freeze({ status: response.status, data, pagination, requestId })
-  if (responseType === 'void' || response.status === 204 || response.status === 205) return result(null)
+  if (responseType === 'void' || response.status === 204 || response.status === 205)
+    return result(null)
   if (responseType === 'blob') return result(await response.blob())
   if (responseType === 'text') return result(await response.text())
   const body = await readJson(response)
@@ -215,21 +259,34 @@ function fallbackError(status) {
   if (status === 429) return ['RATE_LIMITED', 'Too many attempts. Please wait and try again.']
   // A 502/504 without the backend's envelope comes from the proxy or gateway:
   // the backend itself was not reached (stopped, restarting or unreachable).
-  if (status === 502 || status === 504) return ['HTTP_ERROR', 'The application server could not be reached. Try again in a moment.']
-  return ['HTTP_ERROR', status >= 500 ? 'The service is temporarily unavailable.' : 'The request could not be completed.']
+  if (status === 502 || status === 504)
+    return ['HTTP_ERROR', 'The application server could not be reached. Try again in a moment.']
+  return [
+    'HTTP_ERROR',
+    status >= 500
+      ? 'The service is temporarily unavailable.'
+      : 'The request could not be completed.',
+  ]
 }
 
 // Errors keep the backend's stable code, safe message, validation details and
 // request ID. Non-envelope bodies (for example a proxy error page) are ignored.
 async function parseError(response) {
   const body = await readJson(response)
-  const error = body?.success === false && body.error && typeof body.error === 'object' ? body.error : null
+  const error =
+    body?.success === false && body.error && typeof body.error === 'object' ? body.error : null
   const [fallbackCode, fallbackMessage] = fallbackError(response.status)
-  const code = typeof error?.code === 'string' && ERROR_CODE_PATTERN.test(error.code) ? error.code : fallbackCode
-  const message = typeof error?.message === 'string' && error.message.trim() &&
-    error.message.length <= MAX_MESSAGE_LENGTH && !containsControlCharacters(error.message)
-    ? error.message
-    : fallbackMessage
+  const code =
+    typeof error?.code === 'string' && ERROR_CODE_PATTERN.test(error.code)
+      ? error.code
+      : fallbackCode
+  const message =
+    typeof error?.message === 'string' &&
+    error.message.trim() &&
+    error.message.length <= MAX_MESSAGE_LENGTH &&
+    !containsControlCharacters(error.message)
+      ? error.message
+      : fallbackMessage
   return new ApiError(message, {
     code,
     status: response.status,
@@ -246,13 +303,26 @@ async function parseError(response) {
 // `csrf` selects the memory-held token for unsafe methods: the authenticated
 // session token (default), the MFA challenge token, or none (login).
 export function createApiClient({
-  baseUrl, timeoutMs = 15000, onUnauthorized = () => {}, fetchImpl = fetch, csrfStore = null,
+  baseUrl,
+  timeoutMs = 15000,
+  onUnauthorized = () => {},
+  fetchImpl = fetch,
+  csrfStore = null,
 }) {
-  async function requestOnce(path, {
-    method = 'GET', params, body, headers: additionalHeaders,
-    signal, responseType = 'json', timeout = timeoutMs,
-    csrf = 'session', notifyUnauthorized = true,
-  } = {}) {
+  async function requestOnce(
+    path,
+    {
+      method = 'GET',
+      params,
+      body,
+      headers: additionalHeaders,
+      signal,
+      responseType = 'json',
+      timeout = timeoutMs,
+      csrf = 'session',
+      notifyUnauthorized = true,
+    } = {},
+  ) {
     const url = buildUrl(baseUrl, path, params)
     const verb = String(method).toUpperCase()
     if (!['json', 'text', 'blob', 'void'].includes(responseType)) {
@@ -273,7 +343,8 @@ export function createApiClient({
     // The client alone sets the CSRF header, from memory and only for unsafe methods.
     requestHeaders.delete(CSRF_HEADER)
     if (!SAFE_METHODS.has(verb) && csrf !== 'none') {
-      const token = csrf === 'challenge' ? csrfStore?.getChallengeToken() : csrfStore?.getSessionToken()
+      const token =
+        csrf === 'challenge' ? csrfStore?.getChallengeToken() : csrfStore?.getSessionToken()
       if (token) requestHeaders.set(CSRF_HEADER, token)
     }
     const payload = prepareBody(body, requestHeaders)
@@ -334,7 +405,8 @@ export function createApiClient({
         return await requestOnce(path, options)
       } catch (error) {
         const delay = READ_RETRY_DELAYS_MS[attempt]
-        if (delay === undefined || !isRetryableReadError(error) || options.signal?.aborted) throw error
+        if (delay === undefined || !isRetryableReadError(error) || options.signal?.aborted)
+          throw error
         await waitForRetry(delay, options.signal)
       }
     }

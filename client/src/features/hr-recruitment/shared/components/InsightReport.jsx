@@ -16,6 +16,8 @@ import { Card } from './InsightCards.jsx'
 import { clampRange } from '../insightDates.js'
 import '@/styles/hr-recruitment.css'
 import '@/styles/hr-insight-report.css'
+import '@/styles/report-table.css'
+import '@/styles/hr-recruitment-responsive.css'
 
 const PAGE_SIZE = 15
 const DRAWER_EXIT_MS = 320
@@ -333,6 +335,14 @@ export function InsightReport({
     }))
     setPage(1)
   }
+  const changeSortColumn = (event) => {
+    const key = event.target.value
+    setSort((current) => ({
+      key,
+      order: current.key === key ? current.order : 'asc',
+    }))
+    setPage(1)
+  }
   const ariaSort = (key) =>
     sort.key === key ? (sort.order === 'asc' ? 'ascending' : 'descending') : 'none'
   const open = (row) => {
@@ -353,6 +363,10 @@ export function InsightReport({
     )
   }
   const [first, ...rest] = columns
+  const sortableColumns = columns.filter(
+    (column, index) =>
+      column.sort && columns.findIndex((candidate) => candidate.sort === column.sort) === index,
+  )
   const fixedColumnWidth = (column) => {
     if (column.key === 'ticket') return 130
     if (/^(status|outcome)$/.test(column.key)) return 100
@@ -377,7 +391,7 @@ export function InsightReport({
   return (
     <div
       ref={reportRef}
-      className={`zrv-hr zrv-hr--${variant} zrv-hr--compact zrv-ir zrv-ir--fitted`}
+      className={`zrv-hr zrv-hr--${variant} zrv-hr--compact zrv-ir zrv-ir--fitted zrv-ir--responsive`}
     >
       <header className="zrv-ir-head">
         <div className="zrv-ir-head__title">
@@ -637,13 +651,43 @@ export function InsightReport({
           >
             {(data) => (
               <>
+                {sortableColumns.length > 0 && (
+                  <div className="zrv-ir-mobile-sort" role="group" aria-label={T.sortBy}>
+                    <label htmlFor={`${id}-mobile-sort`}>
+                      <span>{T.sortBy}</span>
+                      <select id={`${id}-mobile-sort`} value={sort.key} onChange={changeSortColumn}>
+                        {sortableColumns.map((column) => (
+                          <option key={column.sort} value={column.sort}>
+                            {column.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="zrv-ir-btn zrv-ir-mobile-sort__direction"
+                      onClick={() => sortBy(sort.key)}
+                      aria-label={T.changeSortDirection(
+                        sort.order === 'asc' ? T.descending : T.ascending,
+                      )}
+                    >
+                      <OrvexaIcon
+                        name={sort.order === 'asc' ? 'arrow-up' : 'arrow-down'}
+                        size={16}
+                      />
+                      {sort.order === 'asc' ? T.ascending : T.descending}
+                    </button>
+                  </div>
+                )}
                 <div
                   className="zrv-ir-tablewrap"
                   tabIndex={0}
+                  role="region"
+                  aria-label={heading}
                   aria-busy={records.refreshing || undefined}
                 >
                   <table
-                    className={`zrv-ir-table${columns.length > 10 ? ' zrv-ir-table--wide' : ''}${rowSelection ? ' zrv-ir-table--picks' : ''}`}
+                    className={`zrv-ir-table zrv-report-table${columns.length > 10 ? ' zrv-ir-table--wide' : ''}${rowSelection ? ' zrv-ir-table--picks' : ''}`}
                   >
                     <caption className="zrv-hr-sr">{heading}</caption>
                     <colgroup>
@@ -748,7 +792,11 @@ export function InsightReport({
                             {first.sub && <small>{first.sub(row)}</small>}
                           </td>
                           {rest.map((column) => (
-                            <td key={column.key} className={`zrv-ir-col-${column.key}`}>
+                            <td
+                              key={column.key}
+                              className={`zrv-ir-col-${column.key}`}
+                              data-label={column.label}
+                            >
                               {column.render(row)}
                             </td>
                           ))}

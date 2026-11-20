@@ -11,9 +11,8 @@ const EMPTY = blankRequest('')
 const nationality = (value) => NATIONALITIES.find((item) => item.value === value)?.label ?? value
 
 // The saved request is a flat record; the form is the same keys as a blank one.
-const formOf = (record) => Object.fromEntries(
-  Object.keys(EMPTY).map((key) => [key, record[key] ?? EMPTY[key]]),
-)
+const formOf = (record) =>
+  Object.fromEntries(Object.keys(EMPTY).map((key) => [key, record[key] ?? EMPTY[key]]))
 
 function Paper({ record, language }) {
   return (

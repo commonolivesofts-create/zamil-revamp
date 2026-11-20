@@ -1,5 +1,7 @@
 import Joi from 'joi';
 
+import { countsBodySchema } from '../../../shared/validation/countsBody.js';
+
 const rating = Joi.string().valid('A', 'AS', 'BS', 'CS');
 
 const department = Joi.string().valid('production', 'shared-services');
@@ -48,6 +50,15 @@ export const listQuerySchema = Joi.object({
 
   order: Joi.string().valid('asc', 'desc').default('desc'),
 });
+
+// The dashboard's counts: the list's filters, many filter sets per request.
+export const countsBody = countsBodySchema(listQuerySchema, [
+  'status',
+  'department',
+  'employeeNumber',
+  'date_from',
+  'date_to',
+]);
 
 const employee = Joi.object({
   number: Joi.string().required(),

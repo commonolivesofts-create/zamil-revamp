@@ -1,14 +1,21 @@
 # HR employee services: Personnel Record Change (1110), Transfer Request (ZPI.TCN.FM.01), Performance Appraisal
 
 These screens are under **Human resources** and are not part of the recruitment flow (no step bar).
-Personal Status Change appears in the **Employee Services** submodule; Transfer Request and
-Performance Appraisal remain in **Talent Management**. Each connects to its existing backend API.
+Personal Status Change and Transfer Request appear in the **Employee Services** submodule;
+Performance Appraisal remains in **Talent Management**. Each connects to its existing backend API.
+Transfer, Clearance and Project Charter moved to Employee Services but keep their
+`/hr/talent-management/...` routes so existing links, workflow URLs and bookmarks still work.
 
-| Screen | Route | Record route | List view |
-|---|---|---|---|
+**Talent Management** lists Performance Appraisal, Reward Nomination and three TrainingHub pages:
+Job Skill Matrix (`/jsm`), Training Catalog (`/catalog`) and Team Skills (`/team`). These are
+external entries (`href: { env: 'VITE_EXTERNAL_TRAINING_HUB', path }` in `common.module.js`) that
+open TrainingHub in a new tab with the shared sign-in; TrainingHub authorizes each page.
+
+| Screen                              | Route                                 | Record route                                     | List view                                                        |
+| ----------------------------------- | ------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------- |
 | Personnel Record Change (form 1110) | `/hr/employee-services/record-change` | `/hr/employee-services/record-change/:requestId` | `/hr/employee-services/record-change/requests` (Change requests) |
-| Transfer Request (ZPI.TCN.FM.01) | `/hr/talent-management/transfer` | `/hr/talent-management/transfer/:transferId` | `/hr/talent-management/transfer/report` (Transfer report) |
-| Performance Appraisal (annual) | `/hr/performance/appraisal` | `/hr/performance/appraisal/:appraisalId` | `/hr/performance/appraisal/report` |
+| Transfer Request (ZPI.TCN.FM.01)    | `/hr/talent-management/transfer`      | `/hr/talent-management/transfer/:transferId`     | `/hr/talent-management/transfer/report` (Transfer report)        |
+| Performance Appraisal (annual)      | `/hr/performance/appraisal`           | `/hr/performance/appraisal/:appraisalId`         | `/hr/performance/appraisal/report`                               |
 
 The list paths are matched before the record paths (a record id is digits only).
 
@@ -21,12 +28,12 @@ The list paths are matched before the record paths (a record id is digits only).
 Four build-time switches control the HR screens: two decide whether pages exist, two decide where
 shown pages get their data. Each follows the same rule.
 
-| Variable | Decides | `'true'` | `'false'` | unset |
-|---|---|---|---|---|
-| `VITE_FEATURE_HR_RECRUITMENT` | Whether the onboarding pages (orientation, probation, employee report) exist | shown | hidden | shown in development builds, hidden in production builds |
-| `VITE_FEATURE_HR_EMPLOYEE_SERVICES` | Whether these three screens and their list views exist | shown | hidden | shown in development builds, hidden in production builds |
-| `VITE_HR_RECRUITMENT_DEMO` | Data source of the recruitment screens that still use the demo adapter | demo adapter | `apiClient` | demo in development builds, API in production builds |
-| `VITE_HR_EMPLOYEE_SERVICES_DEMO` | Legacy demo mode for remaining employee service screens | demo adapter | `apiClient` | demo in development builds, API in production builds |
+| Variable                            | Decides                                                                      | `'true'`     | `'false'`   | unset                                                    |
+| ----------------------------------- | ---------------------------------------------------------------------------- | ------------ | ----------- | -------------------------------------------------------- |
+| `VITE_FEATURE_HR_RECRUITMENT`       | Whether the onboarding pages (orientation, probation, employee report) exist | shown        | hidden      | shown in development builds, hidden in production builds |
+| `VITE_FEATURE_HR_EMPLOYEE_SERVICES` | Whether these three screens and their list views exist                       | shown        | hidden      | shown in development builds, hidden in production builds |
+| `VITE_HR_RECRUITMENT_DEMO`          | Data source of the recruitment screens that still use the demo adapter       | demo adapter | `apiClient` | demo in development builds, API in production builds     |
+| `VITE_HR_EMPLOYEE_SERVICES_DEMO`    | Legacy demo mode for remaining employee service screens                      | demo adapter | `apiClient` | demo in development builds, API in production builds     |
 
 - **Visibility** uses the registry's `enabledBy` mechanism. Every entry of the session-only module
   `HR_EMPLOYEE_SERVICES` (`config/registry/modules/hrEmployeeServices.module.js`) carries
@@ -37,24 +44,24 @@ shown pages get their data. Each follows the same rule.
 - `.env.example` lists `VITE_HR_EMPLOYEE_SERVICES_DEMO=` (empty: the default rule), pinned by
   `tests/productionReadiness.test.mjs`. Override locally in your own `client/.env.local`.
 
-| `VITE_FEATURE_HR_EMPLOYEE_SERVICES` | `VITE_HR_EMPLOYEE_SERVICES_DEMO` | Result | Use |
-|---|---|---|---|
-| `true` | `true` | Pages visible; all three use APIs | Development or UAT |
-| `true` | `false` | Pages visible; all three use APIs | Production when all three backends are ready |
-| `false` | `true` or `false` | Pages hidden (the data source is irrelevant) | Production before the backend exists |
-| unset | unset | Development: visible with live API data. Production: hidden | Defaults |
+| `VITE_FEATURE_HR_EMPLOYEE_SERVICES` | `VITE_HR_EMPLOYEE_SERVICES_DEMO` | Result                                                      | Use                                          |
+| ----------------------------------- | -------------------------------- | ----------------------------------------------------------- | -------------------------------------------- |
+| `true`                              | `true`                           | Pages visible; all three use APIs                           | Development or UAT                           |
+| `true`                              | `false`                          | Pages visible; all three use APIs                           | Production when all three backends are ready |
+| `false`                             | `true` or `false`                | Pages hidden (the data source is irrelevant)                | Production before the backend exists         |
+| unset                               | unset                            | Development: visible with live API data. Production: hidden | Defaults                                     |
 
 ## Structure
 
-| Piece | Where |
-|---|---|
-| Business rules (pure, tested) | `recordChange/recordChangeModel.js`, `transfer/transferModel.js`, `performance/appraisalModel.js`, `shared/approvals.js`, `shared/esFormat.js` |
-| Pages | `recordChange/RecordChangePage.jsx`, `recordChange/RecordChangeRequestsPage.jsx`, `transfer/TransferPage.jsx`, `transfer/TransferReportPage.jsx`, `performance/AppraisalPage.jsx` |
-| Reports (collapsible filters, overview cards, sortable table, summary drawer) | `InsightReport` of `features/hr-recruitment/shared/components/`; `shared/localList.js` serves APIs that return every row at once (transfers, appraisals, change requests) |
-| Services and response contracts | `hrEmployeeServicesService.js`, `hrEmployeeServicesContract.js` |
-| Screen text | `hrEmployeeServicesText.js` |
-| Demo adapter and data (**demo only**) | `demo/employeeServicesDemoClient.js`, `demo/employeeServicesDemoData.js` |
-| Styles | `src/styles/hr-employee-services.css` (on top of `hr-recruitment.css`) |
+| Piece                                                                         | Where                                                                                                                                                                             |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Business rules (pure, tested)                                                 | `recordChange/recordChangeModel.js`, `transfer/transferModel.js`, `performance/appraisalModel.js`, `shared/approvals.js`, `shared/esFormat.js`                                    |
+| Pages                                                                         | `recordChange/RecordChangePage.jsx`, `recordChange/RecordChangeRequestsPage.jsx`, `transfer/TransferPage.jsx`, `transfer/TransferReportPage.jsx`, `performance/AppraisalPage.jsx` |
+| Reports (collapsible filters, overview cards, sortable table, summary drawer) | `InsightReport` of `features/hr-recruitment/shared/components/`; `shared/localList.js` serves APIs that return every row at once (transfers, appraisals, change requests)         |
+| Services and response contracts                                               | `hrEmployeeServicesService.js`, `hrEmployeeServicesContract.js`                                                                                                                   |
+| Screen text                                                                   | `hrEmployeeServicesText.js`                                                                                                                                                       |
+| Demo adapter and data (**demo only**)                                         | `demo/employeeServicesDemoClient.js`, `demo/employeeServicesDemoData.js`                                                                                                          |
+| Styles                                                                        | `src/styles/hr-employee-services.css` (on top of `hr-recruitment.css`)                                                                                                            |
 
 The screens reuse the HR shared components of `features/hr-recruitment/shared/` (`RecruitmentShell`,
 `RecruitmentLoader`, `RecruitmentHeader`, `EmployeePicker`, `HrField`, `RadioCards`, `FileDrop`,
@@ -95,30 +102,30 @@ record, remarks and views); the server computes the employee snapshot, `FORM_DAT
 are the earlier proposed contract that only the demo adapter serves.
 Performance Appraisal uses its existing backend-specific contract below.
 
-| Method and path | Purpose | Reader |
-|---|---|---|
-| `GET /hr/employee-services/lookups` | Positions, grades, levels, family statuses, departments with their sections, job titles, directors (`directorId`, name, area), blood types, companies, the transfer document strip (title, control number, version, issue date, pages) | `readEmployeeServicesLookups` |
-| `GET /hr/employee-services/employees?search&page&limit` | Employee search with the current record: position, the six monthly pay items, grade, level, family status; nationality, department, section, start date, job title, blood type | page of `readServiceEmployee` |
-| `GET /hr/employee-services/record-change-requests?page&limit` | Change requests list (with server-computed change types and total change) | page of `readRecordChangeListItem` |
-| `GET /hr/employee-services/record-change-requests/{id}` | One request | `readRecordChange` |
-| `POST` / `PUT /hr/employee-services/record-change-requests[/{id}]` | Save a draft: employee required; amounts 0 or more with 2 decimals; effective date not before the start date; remarks and views ≤ 2000 (422). Assigns the Ref #, requester, request date; snapshots the current record. 409 once submitted | `readRecordChange` |
-| `POST /hr/employee-services/record-change-requests/{id}/submit` | Also needs the effective date, position, all six pay items and at least one change (422); `SUBMITTED`, approvals Pending / Waiting | `readRecordChange` |
-| `POST /hr/employee-services/record-change-requests/{id}/attachments` | Supporting documents (multipart). **Stub**: not called; the demo keeps file names only | — |
-| `GET /hr/transfer-requests/?page&pageSize&sort&order` | Transfer report, paged under `meta` and `rows` | Transfer API adapter |
-| `GET /hr/transfer-requests/lookups/{jobs,sections,departments,directors,blood-types,requestor}` | Transfer form options and signed-in requestor | Transfer API adapter |
-| `GET /hr/transfer-requests/lookups/employees` and `GET /lookups/employees/{name}` | Employee names and current transfer snapshot | Transfer API adapter |
-| `GET /hr/transfer-requests/{headerId}` | One transfer request with current, destination, signatures and status | Transfer API adapter |
-| `POST` / `PUT /hr/transfer-requests[/{headerId}]` | Create or update a draft. Server requires plant, employee, job title, department, section, effective date, blood type, director and both salary flags. Draft and rejected requests are editable; Inprocess and Approved requests are locked. | Transfer API adapter |
-| `DELETE /hr/transfer-requests/{headerId}` | Delete an editable draft or rejected request | Transfer API adapter |
-| `GET /hr/performance-appraisals/lookups/employees?year` and `GET /lookups/employees/{name}?year` | Eligible direct reports and each employee snapshot | Performance appraisal adapter |
-| `GET /hr/performance-appraisals/lookups/requestor` | Signed-in appraiser identity | Performance appraisal adapter |
-| `GET /hr/performance-appraisals/lookups/grade-stats` | Grade quotas and allocations | Performance appraisal adapter |
-| `GET /hr/performance-appraisals/?year&page&pageSize&sort&order` | Appraisals report for a year; standard paginated response | Performance appraisal adapter |
-| `GET /hr/performance-appraisals/{headerId}` | One appraisal, including the server-computed rating and grade | Performance appraisal adapter |
-| `POST /hr/performance-appraisals/` | Creates the appraisal directly in `Inprocess`; requires an eligible employee snapshot, all 20 ratings, at least one development goal and one training need. Only one non-rejected appraisal per employee/year is allowed | Performance appraisal adapter |
-| `PUT /hr/performance-appraisals/{headerId}` | Backend supports updating rejected/non-Inprocess records; `Inprocess` records return 409 | Performance appraisal adapter |
-| `PUT /hr/performance-appraisals/{headerId}/employee-remarks` | Appraised employee can update their remarks | Performance appraisal adapter |
-| `DELETE /hr/performance-appraisals/{headerId}` | Deletes an appraisal | Performance appraisal adapter |
+| Method and path                                                                                  | Purpose                                                                                                                                                                                                                                      | Reader                             |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `GET /hr/employee-services/lookups`                                                              | Positions, grades, levels, family statuses, departments with their sections, job titles, directors (`directorId`, name, area), blood types, companies, the transfer document strip (title, control number, version, issue date, pages)       | `readEmployeeServicesLookups`      |
+| `GET /hr/employee-services/employees?search&page&limit`                                          | Employee search with the current record: position, the six monthly pay items, grade, level, family status; nationality, department, section, start date, job title, blood type                                                               | page of `readServiceEmployee`      |
+| `GET /hr/employee-services/record-change-requests?page&limit`                                    | Change requests list (with server-computed change types and total change)                                                                                                                                                                    | page of `readRecordChangeListItem` |
+| `GET /hr/employee-services/record-change-requests/{id}`                                          | One request                                                                                                                                                                                                                                  | `readRecordChange`                 |
+| `POST` / `PUT /hr/employee-services/record-change-requests[/{id}]`                               | Save a draft: employee required; amounts 0 or more with 2 decimals; effective date not before the start date; remarks and views ≤ 2000 (422). Assigns the Ref #, requester, request date; snapshots the current record. 409 once submitted   | `readRecordChange`                 |
+| `POST /hr/employee-services/record-change-requests/{id}/submit`                                  | Also needs the effective date, position, all six pay items and at least one change (422); `SUBMITTED`, approvals Pending / Waiting                                                                                                           | `readRecordChange`                 |
+| `POST /hr/employee-services/record-change-requests/{id}/attachments`                             | Supporting documents (multipart). **Stub**: not called; the demo keeps file names only                                                                                                                                                       | —                                  |
+| `GET /hr/transfer-requests/?page&pageSize&sort&order`                                            | Transfer report, paged under `meta` and `rows`                                                                                                                                                                                               | Transfer API adapter               |
+| `GET /hr/transfer-requests/lookups/{jobs,sections,departments,directors,blood-types,requestor}`  | Transfer form options and signed-in requestor                                                                                                                                                                                                | Transfer API adapter               |
+| `GET /hr/transfer-requests/lookups/employees` and `GET /lookups/employees/{name}`                | Employee names and current transfer snapshot                                                                                                                                                                                                 | Transfer API adapter               |
+| `GET /hr/transfer-requests/{headerId}`                                                           | One transfer request with current, destination, signatures and status                                                                                                                                                                        | Transfer API adapter               |
+| `POST` / `PUT /hr/transfer-requests[/{headerId}]`                                                | Create or update a draft. Server requires plant, employee, job title, department, section, effective date, blood type, director and both salary flags. Draft and rejected requests are editable; Inprocess and Approved requests are locked. | Transfer API adapter               |
+| `DELETE /hr/transfer-requests/{headerId}`                                                        | Delete an editable draft or rejected request                                                                                                                                                                                                 | Transfer API adapter               |
+| `GET /hr/performance-appraisals/lookups/employees?year` and `GET /lookups/employees/{name}?year` | Eligible direct reports and each employee snapshot                                                                                                                                                                                           | Performance appraisal adapter      |
+| `GET /hr/performance-appraisals/lookups/requestor`                                               | Signed-in appraiser identity                                                                                                                                                                                                                 | Performance appraisal adapter      |
+| `GET /hr/performance-appraisals/lookups/grade-stats`                                             | Grade quotas and allocations                                                                                                                                                                                                                 | Performance appraisal adapter      |
+| `GET /hr/performance-appraisals/?year&page&pageSize&sort&order`                                  | Appraisals report for a year; standard paginated response                                                                                                                                                                                    | Performance appraisal adapter      |
+| `GET /hr/performance-appraisals/{headerId}`                                                      | One appraisal, including the server-computed rating and grade                                                                                                                                                                                | Performance appraisal adapter      |
+| `POST /hr/performance-appraisals/`                                                               | Creates the appraisal directly in `Inprocess`; requires an eligible employee snapshot, all 20 ratings, at least one development goal and one training need. Only one non-rejected appraisal per employee/year is allowed                     | Performance appraisal adapter      |
+| `PUT /hr/performance-appraisals/{headerId}`                                                      | Backend supports updating rejected/non-Inprocess records; `Inprocess` records return 409                                                                                                                                                     | Performance appraisal adapter      |
+| `PUT /hr/performance-appraisals/{headerId}/employee-remarks`                                     | Appraised employee can update their remarks                                                                                                                                                                                                  | Performance appraisal adapter      |
+| `DELETE /hr/performance-appraisals/{headerId}`                                                   | Deletes an appraisal                                                                                                                                                                                                                         | Performance appraisal adapter      |
 
 The appraisal backend has no draft or submit endpoint and does not persist signature strokes. Creating the complete form with `POST` moves it straight to `Inprocess`; the frontend locks that record after creation. Criteria labels and grade bands follow the server's calculation rules, while employee eligibility, employee snapshots, grade percentages, grade allocations, rating, and grade come from the server.
 
@@ -149,6 +156,7 @@ The transfer endpoint returns `headerId`, which the report displays as its refer
   (one decimal); 3–5 goals; the appraiser signs to submit.
 
 > **Placeholders and assumptions.**
+>
 > - The **A–E grade letters per rating band are assumed**: the form shows the bands and the
 >   letters separately. The scale and the letters come from the lookup, so they stay configurable.
 > - Transfer lookup values are read from the backend. Some appraisal criteria labels and grade-band
@@ -177,11 +185,11 @@ Personal Status Change, Sick Leave and Share an Idea appear under **Human resour
 Reward Nomination remains under **Talent Management**. Each form uses its existing backend; handoff:
 `docs/handoffs/FEATURE-HR-EMPLOYEE-SERVICES-BATCH1.md`.
 
-| Screen | Form route | Report | Record | API | Permission |
-|---|---|---|---|---|---|
-| Sick Leave | `/hr/employee-services/sick-leave` | `…/sick-leave/report` | `…/sick-leave/:leaveId` | `/hr/sick-leave` | `HR.SICK_LEAVE` |
+| Screen            | Form route                                | Report                       | Record                              | API                         | Permission                 |
+| ----------------- | ----------------------------------------- | ---------------------------- | ----------------------------------- | --------------------------- | -------------------------- |
+| Sick Leave        | `/hr/employee-services/sick-leave`        | `…/sick-leave/report`        | `…/sick-leave/:leaveId`             | `/hr/sick-leave`            | `HR.SICK_LEAVE`            |
 | Reward Nomination | `/hr/talent-management/reward-nomination` | `…/reward-nomination/report` | `…/reward-nomination/:nominationId` | `/hr/employee-of-the-month` | `HR.EMPLOYEE_OF_THE_MONTH` |
-| Share an Idea | `/hr/employee-services/ideas` | `…/ideas/report` | `…/ideas/:ideaId` | `/ideas` | `HR.IDEAS` |
+| Share an Idea     | `/hr/employee-services/ideas`             | `…/ideas/report`             | `…/ideas/:ideaId`                   | `/ideas`                    | `HR.IDEAS`                 |
 
 Only the form is listed in the sidebar; the report and record pages are reached from it (`hidden`).
 
@@ -209,15 +217,15 @@ in the handoff). Sending a record for approval is not available: no backend has 
 ## Employee Clearance (1063)
 
 The legacy "Emp Clearance" form (`views/ZPIL/empclearance.php` create, `views/update/empClearance.php`
-edit) under **Human resources → Talent Management**, on its existing backend
+edit) under **Human resources → Employee Services**, on its existing backend
 `/api/v1/hr/employee-clearance`. Handoff: `docs/handoffs/FEATURE-EMPLOYEE-CLEARANCE.md`; legacy
 comparison: `docs/testing/employee-clearance-legacy-comparison.md`.
 
-| Screen | Route | Permission |
-|---|---|---|
-| Form | `/hr/talent-management/clearance` | `HR.EMPLOYEE_CLEARANCE:VIEW` (save: `CREATE` / `UPDATE`) |
-| Report | `/hr/talent-management/clearance/report` (hidden) | `…:VIEW` |
-| Record | `/hr/talent-management/clearance/:clearanceId` (hidden) | `…:VIEW` |
+| Screen | Route                                                   | Permission                                               |
+| ------ | ------------------------------------------------------- | -------------------------------------------------------- |
+| Form   | `/hr/talent-management/clearance`                       | `HR.EMPLOYEE_CLEARANCE:VIEW` (save: `CREATE` / `UPDATE`) |
+| Report | `/hr/talent-management/clearance/report` (hidden)       | `…:VIEW`                                                 |
+| Record | `/hr/talent-management/clearance/:clearanceId` (hidden) | `…:VIEW`                                                 |
 
 Switch: `VITE_FEATURE_HR_EMPLOYEE_CLEARANCE` (`'true'` on, `'false'` off, unset = development only).
 No demo adapter. Files: `clearance/` (`clearanceModel.js` rules, `clearanceContract.js` readers and
@@ -228,13 +236,14 @@ signature open only after the first save; drafts and rejected requests stay edit
 ## Project Charter (ZPI.IMS.FM.13) and Survey reports
 
 Handoff: `docs/handoffs/FEATURE-PROJECT-CHARTER-SURVEY-REPORT.md`. Both use their existing backends; no demo adapter.
+Project Charter is listed under **Human resources → Employee Services**.
 
-| Screen | Route | Permission | Switch |
-|---|---|---|---|
-| Project charter form | `/hr/talent-management/project-charter` (record: `…/:charterId`) | `HR.PROJECT_CHARTERS:VIEW` (save: `CREATE` / `UPDATE`) | `VITE_FEATURE_HR_PROJECT_CHARTER` |
-| Project charter report | `/hr/talent-management/project-charter/report` (hidden) | `…:VIEW` | same |
-| Survey report (graphical) | `/hr/reports/survey` | `HR.SURVEY_REPORTS:VIEW` | `VITE_FEATURE_HR_SURVEY_REPORT` |
-| Survey responses (textual) | `/hr/reports/survey/responses` (hidden) | `…:VIEW` | same |
+| Screen                     | Route                                                            | Permission                                             | Switch                            |
+| -------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------ | --------------------------------- |
+| Project charter form       | `/hr/talent-management/project-charter` (record: `…/:charterId`) | `HR.PROJECT_CHARTERS:VIEW` (save: `CREATE` / `UPDATE`) | `VITE_FEATURE_HR_PROJECT_CHARTER` |
+| Project charter report     | `/hr/talent-management/project-charter/report` (hidden)          | `…:VIEW`                                               | same                              |
+| Survey report (graphical)  | `/hr/reports/survey`                                             | `HR.SURVEY_REPORTS:VIEW`                               | `VITE_FEATURE_HR_SURVEY_REPORT`   |
+| Survey responses (textual) | `/hr/reports/survey/responses` (hidden)                          | `…:VIEW`                                               | same                              |
 
 Files: `charter/` (model, contract, service, `CharterPage.jsx`, `CharterReportPage.jsx`),
 `survey/` (`surveyService.js`, `SurveyReportPage.jsx`, `SurveyResponsesPage.jsx`),

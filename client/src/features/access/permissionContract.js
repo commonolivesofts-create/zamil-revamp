@@ -16,20 +16,30 @@ const MAX_PERMISSIONS = 1000
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
 function invalid() {
-  return new ApiError('Your access permissions could not be verified.', { code: 'INVALID_RESPONSE' })
+  return new ApiError('Your access permissions could not be verified.', {
+    code: 'INVALID_RESPONSE',
+  })
 }
 
 // The permission identity used everywhere in the frontend:
 // `MODULE_CODE.RESOURCE_CODE:ACTION_CODE`, as in the backend's authorize() keys.
-export const permissionKey = ({ moduleCode, resourceCode, actionCode }) => `${moduleCode}.${resourceCode}:${actionCode}`
+export const permissionKey = ({ moduleCode, resourceCode, actionCode }) =>
+  `${moduleCode}.${resourceCode}:${actionCode}`
 
 // One EffectivePermission entry; also used for another user's effective
 // permissions (GET /access-control/users/{userId}/effective-permissions).
 export function readPermission(entry) {
-  if (!isObject(entry) || typeof entry.moduleCode !== 'string' || !MODULE_CODE.test(entry.moduleCode) ||
-    typeof entry.resourceCode !== 'string' || !RESOURCE_CODE.test(entry.resourceCode) ||
-    typeof entry.actionCode !== 'string' || !ACTION_CODE.test(entry.actionCode) ||
-    typeof entry.viaRole !== 'boolean' || typeof entry.viaOverride !== 'boolean') {
+  if (
+    !isObject(entry) ||
+    typeof entry.moduleCode !== 'string' ||
+    !MODULE_CODE.test(entry.moduleCode) ||
+    typeof entry.resourceCode !== 'string' ||
+    !RESOURCE_CODE.test(entry.resourceCode) ||
+    typeof entry.actionCode !== 'string' ||
+    !ACTION_CODE.test(entry.actionCode) ||
+    typeof entry.viaRole !== 'boolean' ||
+    typeof entry.viaOverride !== 'boolean'
+  ) {
     throw invalid()
   }
   return Object.freeze({
@@ -45,10 +55,15 @@ export function readPermission(entry) {
 // `adminMfaRequired` is false only when the backend runs the local-development exception
 // (AUTH_ADMIN_MFA_REQUIRED=false); if absent it is treated as true (fail safe).
 export function readMyPermissions(data) {
-  if (!isObject(data) || typeof data.userId !== 'string' || !ID_PATTERN.test(data.userId) ||
-    typeof data.mfaVerified !== 'boolean' || !Array.isArray(data.permissions) ||
+  if (
+    !isObject(data) ||
+    typeof data.userId !== 'string' ||
+    !ID_PATTERN.test(data.userId) ||
+    typeof data.mfaVerified !== 'boolean' ||
+    !Array.isArray(data.permissions) ||
     data.permissions.length > MAX_PERMISSIONS ||
-    !(data.adminMfaRequired === undefined || typeof data.adminMfaRequired === 'boolean')) {
+    !(data.adminMfaRequired === undefined || typeof data.adminMfaRequired === 'boolean')
+  ) {
     throw invalid()
   }
   const unique = new Map()

@@ -25,7 +25,11 @@ export function groupPermissions(permissions = []) {
     resources: [...modules.get(moduleCode).keys()].sort(byCode).map((resourceCode) => ({
       resourceCode,
       label: humanizeCode(resourceCode),
-      actions: modules.get(moduleCode).get(resourceCode).slice().sort((a, b) => byCode(a.actionCode, b.actionCode)),
+      actions: modules
+        .get(moduleCode)
+        .get(resourceCode)
+        .slice()
+        .sort((a, b) => byCode(a.actionCode, b.actionCode)),
     })),
   }))
 }
@@ -35,5 +39,8 @@ export function formatDateTime(value, { dateOnly = false } = {}) {
   if (typeof value !== 'string') return null
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return null
-  return new Intl.DateTimeFormat(undefined, dateOnly ? { dateStyle: 'medium' } : { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+  return new Intl.DateTimeFormat(
+    undefined,
+    dateOnly ? { dateStyle: 'medium' } : { dateStyle: 'medium', timeStyle: 'short' },
+  ).format(date)
 }

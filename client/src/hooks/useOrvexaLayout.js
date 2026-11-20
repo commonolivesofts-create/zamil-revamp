@@ -57,10 +57,18 @@ function readSidebarMode() {
 export default function useOrvexaLayout() {
   const [theme, setThemeState] = useState(() => readPreference('theme', 'light', ['light', 'dark']))
   const [sidebarMode, setSidebarModeState] = useState(readSidebarMode)
-  const [sidebarTone, setSidebarToneState] = useState(() => readPreference('tone', 'pearl', ['pearl', 'warm', 'dark']))
-  const [density, setDensityState] = useState(() => readPreference('density', 'comfortable', ['comfortable', 'compact']))
-  const [motion, setMotionState] = useState(() => readPreference('motion', 'standard', ['standard', 'reduced']))
-  const [accentTheme, setAccentThemeState] = useState(() => readPreference('accent', 'green', ['green', 'yellow']))
+  const [sidebarTone, setSidebarToneState] = useState(() =>
+    readPreference('tone', 'pearl', ['pearl', 'warm', 'dark']),
+  )
+  const [density, setDensityState] = useState(() =>
+    readPreference('density', 'comfortable', ['comfortable', 'compact']),
+  )
+  const [motion, setMotionState] = useState(() =>
+    readPreference('motion', 'standard', ['standard', 'reduced']),
+  )
+  const [accentTheme, setAccentThemeState] = useState(() =>
+    readPreference('accent', 'green', ['green', 'yellow']),
+  )
 
   useEffect(() => {
     const root = document.documentElement
@@ -89,13 +97,41 @@ export default function useOrvexaLayout() {
   }, [])
 
   const setTheme = useCallback((value) => setThemeState(value === 'dark' ? 'dark' : 'light'), [])
-  const setSidebarMode = useCallback((value) => setSidebarModeState(value === 'full' ? 'full' : 'icon'), [])
-  const setSidebarTone = useCallback((value) => setSidebarToneState(['pearl', 'warm', 'dark'].includes(value) ? value : 'pearl'), [])
+  const setSidebarMode = useCallback(
+    (value) => setSidebarModeState(value === 'full' ? 'full' : 'icon'),
+    [],
+  )
+  const setSidebarTone = useCallback(
+    (value) => setSidebarToneState(['pearl', 'warm', 'dark'].includes(value) ? value : 'pearl'),
+    [],
+  )
 
-  const setDensity = useCallback((value) => setDensityState(value === 'compact' ? 'compact' : 'comfortable'), [])
-  const setMotion = useCallback((value) => setMotionState(value === 'reduced' ? 'reduced' : 'standard'), [])
+  const setDensity = useCallback(
+    (value) => setDensityState(value === 'compact' ? 'compact' : 'comfortable'),
+    [],
+  )
+  const setMotion = useCallback(
+    (value) => setMotionState(value === 'reduced' ? 'reduced' : 'standard'),
+    [],
+  )
 
-  const setAccentTheme = useCallback((value) => setAccentThemeState(value === 'yellow' ? 'yellow' : 'green'), [])
+  const setAccentTheme = useCallback(
+    (value) => setAccentThemeState(value === 'yellow' ? 'yellow' : 'green'),
+    [],
+  )
 
-  return { theme, setTheme, sidebarMode, setSidebarMode, sidebarTone, setSidebarTone, density, setDensity, motion, setMotion, accentTheme, setAccentTheme }
+  return {
+    theme,
+    setTheme,
+    sidebarMode,
+    setSidebarMode,
+    sidebarTone,
+    setSidebarTone,
+    density,
+    setDensity,
+    motion,
+    setMotion,
+    accentTheme,
+    setAccentTheme,
+  }
 }

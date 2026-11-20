@@ -1,0 +1,78 @@
+/* Shared table spacing for Security Administration data tables. */
+.zrv-admin .zrv-security-table-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.zrv-admin .zrv-security-table-scroll .zrv-horizontal-table__viewport {
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface-solid);
+}
+
+.zrv-admin .zrv-security-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.zrv-admin .zrv-security-table:not(.zrv-report-table) thead th {
+  padding: 12px 14px !important;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 10.5px !important;
+  font-weight: 700;
+  line-height: 1.35 !important;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.zrv-admin .zrv-security-table:not(.zrv-report-table) tbody tr {
+  background: var(--surface-solid);
+  transition: background-color 0.16s ease;
+}
+
+.zrv-admin .zrv-security-table:not(.zrv-report-table) tbody td,
+.zrv-admin .zrv-security-table:not(.zrv-report-table) tbody th {
+  padding: 13px 14px !important;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.zrv-admin .zrv-security-table:not(.zrv-report-table) tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.zrv-admin .zrv-security-table:not(.zrv-report-table) tbody tr:hover,
+.zrv-admin .zrv-security-table:not(.zrv-report-table) tbody tr:hover > * {
+  background: var(--surface-2);
+}
+
+.zrv-admin .zrv-security-table:not(.zrv-report-table) td b,
+.zrv-admin .zrv-security-table:not(.zrv-report-table) td strong {
+  color: inherit;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+}
+
+.zrv-admin .zrv-security-table:not(.zrv-report-table) .zrv-admin-badge {
+  border-radius: 999px;
+}
+
+@media (max-width: 640px) {
+  .zrv-admin .zrv-security-table:not(.zrv-report-table) thead th,
+  .zrv-admin .zrv-security-table:not(.zrv-report-table) tbody td,
+  .zrv-admin .zrv-security-table:not(.zrv-report-table) tbody th {
+    padding: 11px 12px !important;
+  }
+}

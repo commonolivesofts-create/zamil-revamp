@@ -9,7 +9,12 @@
 // never routed, listed or searchable.
 import { defineModule } from '../defineModule.js'
 
-const page = (entry) => ({ group: 'security', subgroup: 'security-admin', requiresMfa: true, ...entry })
+const page = (entry) => ({
+  group: 'security',
+  subgroup: 'security-admin',
+  requiresMfa: true,
+  ...entry,
+})
 
 export default defineModule({
   code: 'SECURITY_ADMINISTRATION',
@@ -22,8 +27,21 @@ export default defineModule({
       name: 'User Accounts',
       actions: ['VIEW', 'CREATE', 'ACTIVATE', 'DISABLE', 'REVOKE_SESSIONS'],
       navigation: [
-        page({ id: 'user-accounts', path: '/security/users', title: 'User accounts', icon: 'users', order: 10 }),
-        page({ id: 'user-account', path: '/security/users/:userId', title: 'User account', icon: 'user-round', order: 11, hidden: true }),
+        page({
+          id: 'user-accounts',
+          path: '/security/users',
+          title: 'User accounts',
+          icon: 'users',
+          order: 10,
+        }),
+        page({
+          id: 'user-account',
+          path: '/security/users/:userId',
+          title: 'User account',
+          icon: 'user-round',
+          order: 11,
+          hidden: true,
+        }),
       ],
     },
     {
@@ -39,7 +57,13 @@ export default defineModule({
       name: 'Permission Catalog',
       actions: ['VIEW', 'MANAGE'],
       navigation: [
-        page({ id: 'permission-catalog', path: '/security/permission-catalog', title: 'Permission catalog', icon: 'list-tree', order: 50 }),
+        page({
+          id: 'permission-catalog',
+          path: '/security/permission-catalog',
+          title: 'Permission catalog',
+          icon: 'list-tree',
+          order: 50,
+        }),
       ],
     },
     {
@@ -48,7 +72,14 @@ export default defineModule({
       actions: ['VIEW', 'GRANT', 'REVOKE'],
       navigation: [
         // The role picker reads the role list.
-        page({ id: 'role-permissions', path: '/security/role-permissions', title: 'Role permissions', icon: 'key-round', order: 40, alsoRequires: ['ROLES:VIEW'] }),
+        page({
+          id: 'role-permissions',
+          path: '/security/role-permissions',
+          title: 'Role permissions',
+          icon: 'key-round',
+          order: 40,
+          alsoRequires: ['ROLES:VIEW'],
+        }),
       ],
     },
     {
@@ -57,8 +88,22 @@ export default defineModule({
       actions: ['VIEW', 'ASSIGN', 'REVOKE'],
       navigation: [
         // The account picker reads the account list.
-        page({ id: 'user-roles', path: '/security/user-roles', title: 'User roles', icon: 'user-check', order: 30, alsoRequires: ['USER_ACCOUNTS:VIEW'] }),
-        page({ id: 'user-role-assignments', path: '/security/user-roles/:userId', title: 'User roles', icon: 'user-check', order: 31, hidden: true }),
+        page({
+          id: 'user-roles',
+          path: '/security/user-roles',
+          title: 'User roles',
+          icon: 'user-check',
+          order: 30,
+          alsoRequires: ['USER_ACCOUNTS:VIEW'],
+        }),
+        page({
+          id: 'user-role-assignments',
+          path: '/security/user-roles/:userId',
+          title: 'User roles',
+          icon: 'user-check',
+          order: 31,
+          hidden: true,
+        }),
       ],
     },
     {
@@ -66,8 +111,22 @@ export default defineModule({
       name: 'User Permission Overrides',
       actions: ['VIEW', 'GRANT', 'REVOKE'],
       navigation: [
-        page({ id: 'permission-overrides', path: '/security/permission-overrides', title: 'Permission overrides', icon: 'shield-half', order: 60, alsoRequires: ['USER_ACCOUNTS:VIEW'] }),
-        page({ id: 'user-permission-overrides', path: '/security/permission-overrides/:userId', title: 'Permission overrides', icon: 'shield-half', order: 61, hidden: true }),
+        page({
+          id: 'permission-overrides',
+          path: '/security/permission-overrides',
+          title: 'Permission overrides',
+          icon: 'shield-half',
+          order: 60,
+          alsoRequires: ['USER_ACCOUNTS:VIEW'],
+        }),
+        page({
+          id: 'user-permission-overrides',
+          path: '/security/permission-overrides/:userId',
+          title: 'Permission overrides',
+          icon: 'shield-half',
+          order: 61,
+          hidden: true,
+        }),
       ],
     },
     // Issued from the user account pages; no page of its own.
@@ -77,7 +136,14 @@ export default defineModule({
       name: 'Security Audit',
       actions: ['VIEW', 'EXPORT'],
       navigation: [
-        page({ id: 'security-audit', path: '/security/audit', title: 'Security audit', icon: 'file-search', order: 70, implemented: false }),
+        page({
+          id: 'security-audit',
+          path: '/security/audit',
+          title: 'Security audit',
+          icon: 'file-search',
+          order: 70,
+          implemented: false,
+        }),
       ],
     },
   ],

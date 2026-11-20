@@ -13,23 +13,25 @@ environment.** No form reads demo data. The backend authorizes every request and
 frontend only hides controls. Audit findings and open items are in
 [`docs/testing/hrms-recruitment-audit.md`](../../../../docs/testing/hrms-recruitment-audit.md).
 
-| Form | Route (record route) | API base (`/api/v1`) | Permission resource | Visibility switch |
-|---|---|---|---|---|
-| Personnel Requisition (1060) | `/hr/recruitment/requisition` (`/:requisitionId`) | `/hr/requisitions` | `HR.REQUISITIONS` | always |
-| Interview Assessment (1061) | `/hr/recruitment/interview` (`/:assessmentId`) | `/hr/interview-assessments` | `HR.INTERVIEW_ASSESSMENTS` | always |
-| Employment Offer (1062) | `/hr/recruitment/offer` (`/:offerId`) | `/hr/employment-offers` | `HR.EMPLOYMENT_OFFERS` | always |
-| Orientation Training (1101) | `/hr/recruitment/orientation` (`/:scheduleId`) | `/hr/orientation-trainings` | `HR.ORIENTATION_TRAININGS` | `VITE_FEATURE_HR_RECRUITMENT` |
-| Probation Evaluation (1064) | `/hr/recruitment/probation-evaluation` (`/:evaluationId`) | `/hr/probation-evaluations` | `HR.PROBATION_EVALUATIONS` | `VITE_FEATURE_HR_RECRUITMENT` |
-| Employee report (contractor employees) | `/hr/reports/contractor-employees` | `/hr/contractor-employees` | `HR.CONTRACTOR_EMPLOYEES` | `VITE_FEATURE_HR_RECRUITMENT` |
-| Periodwise Employees report | `/hr/reports/periodwise-employees` | `/hr/reports/periodwise-employees` | `HR.PERIODWISE_EMPLOYEES` (VIEW only) | `VITE_FEATURE_HR_RECRUITMENT` |
-| Recruitment dashboard | `/hr/recruitment/dashboard` | none of its own: counts (`page=1`, one row) and the five latest rows from the list APIs above | `HR.REQUISITIONS:VIEW`; each panel also needs its module's report page | `VITE_FEATURE_HR_RECRUITMENT` |
+| Form                                   | Route (record route)                                      | API base (`/api/v1`)                                                                          | Permission resource                                                    | Visibility switch             |
+| -------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------- |
+| Personnel Requisition (1060)           | `/hr/recruitment/requisition` (`/:requisitionId`)         | `/hr/requisitions`                                                                            | `HR.REQUISITIONS`                                                      | always                        |
+| Interview Assessment (1061)            | `/hr/recruitment/interview` (`/:assessmentId`)            | `/hr/interview-assessments`                                                                   | `HR.INTERVIEW_ASSESSMENTS`                                             | always                        |
+| Employment Offer (1062)                | `/hr/recruitment/offer` (`/:offerId`)                     | `/hr/employment-offers`                                                                       | `HR.EMPLOYMENT_OFFERS`                                                 | always                        |
+| Orientation Training (1101)            | `/hr/recruitment/orientation` (`/:scheduleId`)            | `/hr/orientation-trainings`                                                                   | `HR.ORIENTATION_TRAININGS`                                             | `VITE_FEATURE_HR_RECRUITMENT` |
+| Probation Evaluation (1064)            | `/hr/recruitment/probation-evaluation` (`/:evaluationId`) | `/hr/probation-evaluations`                                                                   | `HR.PROBATION_EVALUATIONS`                                             | `VITE_FEATURE_HR_RECRUITMENT` |
+| Employee report (contractor employees) | `/hr/reports/contractor-employees`                        | `/hr/contractor-employees`                                                                    | `HR.CONTRACTOR_EMPLOYEES`                                              | `VITE_FEATURE_HR_RECRUITMENT` |
+| Periodwise Employees report            | `/hr/reports/periodwise-employees`                        | `/hr/reports/periodwise-employees`                                                            | `HR.PERIODWISE_EMPLOYEES` (VIEW only)                                  | `VITE_FEATURE_HR_RECRUITMENT` |
+| Recruitment dashboard                  | `/hr/recruitment/dashboard`                               | none of its own: counts (`page=1`, one row) and the five latest rows from the list APIs above | `HR.REQUISITIONS:VIEW`; each panel also needs its module's report page | `VITE_FEATURE_HR_RECRUITMENT` |
 
 **Registry:**
+
 - Recruitment routes and resources are registered under the `HR` module in `config/registry/modules/hrForms.module.js`.
 - The router table is `app/router.jsx`.
 - Each record route is hidden from the sidebar and shares its form's permission.
 
 **Code layout:**
+
 - Services and response mappers: `hrRecruitmentService.js`.
 - Strict response readers: `hrRecruitmentContract.js`.
 - Visible text: `hrRecruitmentText.js`.
@@ -46,11 +48,13 @@ All list endpoints take `page` and `pageSize` and return the standard envelope w
 ### Personnel Requisition (1060)
 
 **Lookups** (`GET /hr/requisitions/lookups/â€¦`):
+
 - `job-titles`, `departments`, `requestor` and `replacement-for`.
 - `budget?fullName=`: the replacement's salary (the page trims the name).
 - `capabilities`: returns `{ canManageTicket }`. The ticket-status selector is shown only when this is true. The backend refuses ticket changes from non-HR users with 400, using the same `XXZP_HR` check.
 
 **Records:**
+
 - `GET /` (list) and `GET /:id`.
 - `POST /` and `PUT /:id`: JSON, or multipart with `files` parts when uploading.
 - `DELETE /:id`: Draft only.
@@ -58,14 +62,14 @@ All list endpoints take `page` and `pageSize` and return the standard envelope w
 
 **Field mapping:**
 
-| Frontend value | Backend field / value |
-|---|---|
-| Job title, department | `jobId`/`jobName`, `deptId`/`deptName` |
-| Needed date | `dateNeeded` (`YYYY-MM-DD`) |
-| Replacement / addition | `reasonOfReq`: `Replacement` / `Addition`; `replacementFor` / `reason` |
-| Budget and education answers | `Y` / `N` (`budgeted`, `highSchool`, `diploma`, `higherDiploma`, `degree`, `masterDegree`) |
-| Experience | `gccExp`, `workExp`: `0 - 2`, `2 - 5`, `5 - 10`, `> 10` |
-| Skills, other, remarks, package | `skills`, `other`, `remark`, `totalPackage` |
+| Frontend value                  | Backend field / value                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------ |
+| Job title, department           | `jobId`/`jobName`, `deptId`/`deptName`                                                     |
+| Needed date                     | `dateNeeded` (`YYYY-MM-DD`)                                                                |
+| Replacement / addition          | `reasonOfReq`: `Replacement` / `Addition`; `replacementFor` / `reason`                     |
+| Budget and education answers    | `Y` / `N` (`budgeted`, `highSchool`, `diploma`, `higherDiploma`, `degree`, `masterDegree`) |
+| Experience                      | `gccExp`, `workExp`: `0 - 2`, `2 - 5`, `5 - 10`, `> 10`                                    |
+| Skills, other, remarks, package | `skills`, `other`, `remark`, `totalPackage`                                                |
 
 **IDs:** the requisition ID and the attachment IDs come from Oracle identity columns. The requisition number equals the ID, as before. **Requisition numbers now step by 1** (the legacy `MAX + 20` step is gone; audit report Â§11).
 
@@ -78,6 +82,7 @@ The form follows HR, Personal specification, Competency, Evaluation and Review. 
 Requisition, interviewer and other lookup fields use searchable pickers. Save assessment stores an Incomplete record; Submit for Approval currently shows a workflow-pending notice. Approved assessments with a Passed result expose Create employment offer in the report and drawer for users with offer view/create permissions, opening a form filled from the current eligible-candidate lookup.
 
 **Lookups** (`GET /hr/interview-assessments/lookups/â€¦`):
+
 - `nationalities` and `requisitions` (approved only).
 - `employees` (interviewers).
 - `payroll-units`: `[{ code, name }]`, e.g. IPP and FPP. Business units are shown by name and sent as `attribute3`.
@@ -85,6 +90,7 @@ Requisition, interviewer and other lookup fields use searchable pickers. Save as
 **Records:** `GET /`, `GET /:id`, `POST /`, `PUT /:id` and `DELETE /:id`.
 
 **Payload notes:**
+
 - The position (`positionName`) comes from the linked approved requisition, and the backend requires it.
 - `managingDirector` and `hrRepresentative` are read and sent back unchanged.
 - Ratings are 1â€“5 or `N/A`. Remarks are limited to 500 characters, as on the backend.
@@ -94,6 +100,7 @@ Requisition, interviewer and other lookup fields use searchable pickers. Save as
 ### Employment Offer (1062)
 
 **Lookups** (`GET /hr/employment-offers/lookups/â€¦`):
+
 - `candidates` (approved, passed interviews), `titles` and `business-units` (raw IDs, as specified).
 - `allowances?type=` for `housing`, `transportation`, `annual-vacation`, `ticket`, `medical` and `contract-period`.
 - `number-to-arabic?number=` and `hijri-date?date=`.
@@ -110,12 +117,14 @@ Follows the legacy CI3 form `Newhiretrain` (`views/ZPIL/nht-new.php`); details i
 `docs/testing/orientation-legacy-comparison.md`.
 
 **Lookups** (`GET /hr/orientation-trainings/lookups/â€¦`):
+
 - `employees` (HR users: every current employee; others: themselves) and `managers`.
 - `employee-details?empNo=` (non-HR users: only themselves), `flag?empNo=` (always `N`: legacy saves
   every new request in the PRODUCTION tables) and `skills?empType=` (the training rows of the
   employee type; any other type is Employee).
 
 **Records:**
+
 - `GET /?flag=Y|N` (legacy report: Shared / Plant; HR all, others their own; legacy columns incl.
   Pending At, workflow Start/End and Last Action) and `GET /:id?flag=Y|N`. The two variants number
   their records independently, so the record URL carries `?flag=` (legacy `form/{id}/{flag}`).
@@ -125,6 +134,7 @@ Follows the legacy CI3 form `Newhiretrain` (`views/ZPIL/nht-new.php`); details i
 - `DELETE /:id`: Draft only. `DELETE /:id/lines/:lineId`: needs `MANAGE_LINES`.
 
 **Legacy rules** (`orientation/orientationLegacy.js`, server `orientationTraining.rules.js`):
+
 - Required: Name and From. **To = From** (read only). Every row field is optional; a row whose To
   Date or Time To is before its start is refused.
 - Orientation Days = to âˆ’ from (the same day is 0); Orientation Time = "H.MM Hrs"; times HH:MM:SS.
@@ -142,21 +152,25 @@ The Employee, Departments, Timeline and Review steps use the shared locked navig
 The page follows the legacy CI3 form (`docs/testing/probation-legacy-comparison.md`): `probation.php` to create an evaluation, `prf_uplines.php` to edit a saved one.
 
 **Lookups** (`GET /hr/probation-evaluations/lookups/â€¦`):
+
 - `form-types`, and `criteria?formType=` (the 20 criteria of a type, English and Arabic).
 - `employees` (the caller's hierarchy) and `employee-details?empName=` (hierarchy only, else 403).
 - `requestor` ("Prepared & Agreed by").
 
 **Create** (`POST /`): the form type, the employee, the joining date, Evaluation Period From / To, and optional points.
+
 - Choosing a form type loads its criteria (legacy `showDropInfo`). The user only gives points (1â€“5, or blank, stored as 0).
 - The payload sends the ratings by position. The server writes the criterion texts, the employee details from the master and the total.
 - The joining date (`formDate`, legacy `prf_date`) is filled from the employee and can be edited; a blank one is omitted.
 - Comments and Suggestion are read only until the first save. Job Grade is shown but never filled (legacy stores 0).
 
 **Edit** (`PUT /:id`): Comments, Suggestion and every criterion's points are required, and they are all that is saved.
+
 - The other header fields are shown read only. The status is kept.
 - Draft and Rejected records can be edited; Inprocess and Approved are read only (409).
 
 **Display:**
+
 - Evaluation Result: Acceptable at 71 or more, Not Acceptable at 70 or below.
 - "Approved by" shows HR SUPERVISOR once approved.
 - Report columns: Emp. #, Name, Job Title, Department, Total Rating, Evaluation, Status, Date and Pending At. Pending At is the open CI3 workflow step.
@@ -167,6 +181,7 @@ The Employee & period, Evaluation criteria, Comments and Review steps use the sh
 ## Record access and status rules (backend)
 
 **Orientation and probation records by ID** (`GET`/`PUT`/`DELETE /:id`, and orientation's line delete) are open only to:
+
 - the creator;
 - an HR user (the `XXZP_HR` lookup, which also widens the lists); or
 - a user in the employee's department (`XX_DIGI_EMP_MASTER.ORGANIZATION_ID`) who holds the resource's `VIEW` permission.
@@ -187,10 +202,10 @@ The registry's module and resource names, descriptions (none) and display orders
 
 ## Switches
 
-| Variable | Decides | `'true'` | `'false'` | unset |
-|---|---|---|---|---|
-| `VITE_FEATURE_HR_RECRUITMENT` | Whether the Recruitment dashboard, Orientation, Probation, Employee report and Periodwise report entries exist in this build (registry `enabledBy`) | shown | hidden | shown in development, hidden in production |
-| `VITE_HR_RECRUITMENT_DEMO` | Data source of the Periodwise Employees report only (`onboardingClient`) | demo adapter | `apiClient` | demo in development, API in production |
+| Variable                      | Decides                                                                                                                                             | `'true'`     | `'false'`   | unset                                      |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- | ------------------------------------------ |
+| `VITE_FEATURE_HR_RECRUITMENT` | Whether the Recruitment dashboard, Orientation, Probation, Employee report and Periodwise report entries exist in this build (registry `enabledBy`) | shown        | hidden      | shown in development, hidden in production |
+| `VITE_HR_RECRUITMENT_DEMO`    | Data source of the Periodwise Employees report only (`onboardingClient`)                                                                            | demo adapter | `apiClient` | demo in development, API in production     |
 
 The three recruitment forms (1060â€“1062) have no switch. The demo switch changes only the Periodwise report's data source; every form always uses the API. The demo default lives in `hrRecruitmentConfig.js`, because the repository ignores `.env.*` files other than `.env.example`. To override it locally, set the variable in your own `client/.env.local`.
 
@@ -199,22 +214,26 @@ The three recruitment forms (1060â€“1062) have no switch. The demo switch c
 `/hr/reports/periodwise-employees` opens `report/PeriodwiseEmployeesPage.jsx`, and the contractor **Employee report** has its own path, `/hr/reports/contractor-employees`. Handoff: `docs/handoffs/FEATURE-PERIODWISE-EMPLOYEES-REPORT.md`.
 
 **Endpoints** (`HR.PERIODWISE_EMPLOYEES:VIEW`):
+
 - `GET /hr/reports/periodwise-employees/lookups/departments` returns `[{ code, name }]`, the employee master's `ORGANIZATION_ID` and `DEPARTMENT`.
 - `GET /hr/reports/periodwise-employees` takes `dateFrom`, `dateTo` (required), `department` (`ALL` or a code), `status` (`ALL`/`ACTIVE`/`LEFT`), `search`, `nationality`, `ageBand`, `flagged`, `sortBy`, `sortDir`, `page` and `pageSize` (â‰¤100).
 
 **Response:** `data: { rows, summary }` plus `pagination`. The summary sits inside `data` because the shared client keeps only `data` and `pagination`.
+
 - **Scope:** the period, department and status select the scope. `summary` holds the KPIs and chart data of the whole scope.
 - **Refinements:** search, nationality, age band and "needs checking" narrow only the rows. Rows are then sorted and paged on the server.
 - **National ID:** rows carry `hasNationalId`, never the number.
 - **Department:** the employee's current department.
 
 **On the page:**
+
 - It renders the server's rows, page and summary.
 - Clicking a department bar narrows the scope; the other charts filter the table.
 - Export CSV and Print load every filtered row with `reports.allRows`.
 - `periodwiseModel.js` keeps the CSV helpers and the rules the demo adapter uses.
 
 **The demo adapter** (`demo/demoClient.js`, `demo/demoData.js`) is used only while `VITE_HR_RECRUITMENT_DEMO` selects it:
+
 - it serves the same contract, including numeric department codes and 400 validation errors;
 - it has the same interface as `apiClient`;
 - it keeps fictional records in memory only (never browser storage) and waits 350 ms per request.

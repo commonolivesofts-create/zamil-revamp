@@ -70,7 +70,7 @@
   list-style: none;
 }
 .zrv-rd-crumb li + li::before {
-  content: "/";
+  content: '/';
   margin-right: 8px;
 }
 .zrv-rd-title {
@@ -134,7 +134,7 @@
 .zrv-rd-periods button:hover {
   color: var(--text);
 }
-.zrv-rd-periods button[aria-checked="true"] {
+.zrv-rd-periods button[aria-checked='true'] {
   background: var(--zrv-hr-accent);
   color: var(--zrv-hr-on-accent);
   box-shadow: 0 6px 14px -8px var(--zrv-hr-accent);
@@ -155,7 +155,7 @@
     border-color 0.2s;
 }
 .zrv-rd-icon:hover:not(:disabled),
-.zrv-rd-icon[aria-pressed="true"] {
+.zrv-rd-icon[aria-pressed='true'] {
   border-color: color-mix(in srgb, var(--rd-requisitions) 45%, var(--line));
   color: var(--text);
 }
@@ -226,7 +226,7 @@
   animation: zrv-rd-rise 0.6s var(--zrv-hr-ease) both;
 }
 .zrv-rd-banner::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background-image: radial-gradient(
@@ -238,7 +238,7 @@
   pointer-events: none;
 }
 .zrv-rd-banner::after {
-  content: "";
+  content: '';
   position: absolute;
   right: 22%;
   bottom: -120px;
@@ -298,7 +298,7 @@
 }
 .zrv-rd-banner__counters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 10px;
   margin: 0;
   padding: 0;
@@ -372,9 +372,7 @@
   fill: none;
   stroke-width: 16;
   stroke-linecap: round;
-  filter: drop-shadow(
-    0 0 8px color-mix(in srgb, var(--primary) 55%, transparent)
-  );
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--primary) 55%, transparent));
   transition: stroke-dashoffset 1.2s var(--zrv-hr-ease);
 }
 .zrv-rd-banner__stop-1 {
@@ -507,11 +505,7 @@
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: linear-gradient(
-    135deg,
-    var(--c),
-    color-mix(in srgb, var(--c) 60%, #000)
-  );
+  background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 60%, #000));
   color: #fff;
   box-shadow: 0 8px 18px -8px var(--c);
 }
@@ -598,11 +592,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--c) 55%, #fff),
-    var(--c)
-  );
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 55%, #fff), var(--c));
   transition: width 1s var(--zrv-hr-ease);
 }
 .zrv-rd-stage__hint {
@@ -632,7 +622,7 @@
   background: linear-gradient(90deg, var(--c), var(--c2));
 }
 .zrv-rd-stage__link i::after {
-  content: "";
+  content: '';
   position: absolute;
   right: -2px;
   top: 50%;
@@ -663,7 +653,7 @@
 @media (max-width: 1280px) {
   .zrv-rd-journey__flow {
     grid-auto-flow: row;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
     gap: 12px;
   }
   .zrv-rd-stage__link {
@@ -839,19 +829,19 @@
   border-radius: 50%;
   background: var(--c);
 }
-.zrv-rd-tabs button[aria-pressed="true"] {
+.zrv-rd-tabs button[aria-pressed='true'] {
   border-color: transparent;
   background: var(--c);
   color: #fff;
 }
-.zrv-rd-tabs button[aria-pressed="true"] i {
+.zrv-rd-tabs button[aria-pressed='true'] i {
   background: #fff;
 }
 
 /* Activity: module tabs with their counts, then the columns */
 .zrv-rd-modtabs {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
   gap: 8px;
 }
 .zrv-rd-modtabs button {
@@ -875,7 +865,7 @@
 .zrv-rd-modtabs button:hover {
   border-color: color-mix(in srgb, var(--c) 45%, var(--line));
 }
-.zrv-rd-modtabs button[aria-pressed="true"] {
+.zrv-rd-modtabs button[aria-pressed='true'] {
   border-color: var(--c);
   background: color-mix(in srgb, var(--c) 9%, var(--surface-solid));
   box-shadow: inset 0 -3px 0 var(--c);
@@ -1015,11 +1005,7 @@
 }
 .zrv-rd-bars__cols .zrv-rd-is-now i,
 .zrv-rd-bars__cols .zrv-rd-is-on i {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--c) 75%, #fff),
-    var(--c)
-  );
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 75%, #fff), var(--c));
   box-shadow: 0 10px 20px -10px var(--c);
 }
 .zrv-rd-bars__cols em {
@@ -1115,11 +1101,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--c) 55%, #fff),
-    var(--c)
-  );
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 55%, #fff), var(--c));
   transition: width 0.9s var(--zrv-hr-ease);
 }
 .zrv-rd-funnel__rate {
@@ -1277,7 +1259,7 @@
 /* Performance tiles: four to a row, each tinted in its colour */
 .zrv-rd-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
   gap: 10px;
   margin: 0;
   padding: 0;
@@ -1311,7 +1293,7 @@
   box-shadow: 0 14px 28px -20px var(--c);
 }
 .zrv-rd-tile::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
@@ -1329,11 +1311,7 @@
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: linear-gradient(
-    135deg,
-    var(--c),
-    color-mix(in srgb, var(--c) 62%, #000)
-  );
+  background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 62%, #000));
   color: #fff;
   box-shadow: 0 6px 14px -8px var(--c);
 }
@@ -1469,5 +1447,156 @@
 @media (max-width: 760px) {
   .zrv-rd-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Keep the dashboard controls easy to reach and the card headings readable
+   when the available content width is limited by a phone or tablet sidebar. */
+.zrv-rd-head > div:first-child,
+.zrv-rd-card__title {
+  min-width: 0;
+}
+.zrv-rd-card__title h2,
+.zrv-rd-card__title p {
+  overflow-wrap: anywhere;
+}
+.zrv-rd-card__actions {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .zrv-rd {
+    --rd-gap: 12px;
+  }
+  .zrv-rd-head {
+    align-items: stretch;
+    gap: 12px;
+  }
+  .zrv-rd-head > div:first-child {
+    width: 100%;
+  }
+  .zrv-rd-title {
+    font-size: clamp(19px, 6vw, 23px);
+    overflow-wrap: anywhere;
+  }
+  .zrv-rd-sub {
+    max-width: 48ch;
+    line-height: 1.45;
+  }
+  .zrv-rd-head__tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    width: 100%;
+    gap: 8px;
+  }
+  .zrv-rd-stamp,
+  .zrv-rd-primary {
+    grid-column: 1 / -1;
+  }
+  .zrv-rd-stamp {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .zrv-rd-periods {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
+    width: 100%;
+  }
+  .zrv-rd-periods button {
+    min-width: 0;
+    min-height: 44px;
+    height: auto;
+    padding-inline: 6px;
+  }
+  .zrv-rd-head__tools > .zrv-rd-icon {
+    width: 44px;
+    height: 44px;
+  }
+  .zrv-rd-primary {
+    justify-content: center;
+    min-height: 44px;
+    height: auto;
+    padding: 9px 14px;
+    text-align: center;
+  }
+  .zrv-rd-banner,
+  .zrv-rd-journey {
+    border-radius: 18px;
+  }
+  .zrv-rd-banner {
+    gap: 16px;
+    padding: 18px;
+  }
+  .zrv-rd-journey {
+    padding: 16px;
+  }
+  .zrv-rd-card {
+    gap: 14px;
+    padding: 16px;
+    border-radius: 18px;
+  }
+  .zrv-rd-card__head {
+    align-items: flex-start;
+  }
+  .zrv-rd-card__title {
+    flex: 1 1 100%;
+  }
+  .zrv-rd-card__actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+  .zrv-rd-icon--sm {
+    width: 44px;
+    height: 44px;
+  }
+  .zrv-rd-modtabs button,
+  .zrv-rd-tabs button {
+    min-height: 44px;
+  }
+  .zrv-rd-modtabs button {
+    padding: 10px;
+  }
+  .zrv-rd-bars {
+    min-width: 0;
+  }
+  .zrv-rd-table {
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .zrv-rd-table table {
+    min-width: 440px;
+  }
+}
+
+@media (max-width: 380px) {
+  .zrv-rd-modtabs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zrv-rd-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zrv-rd-banner {
+    padding: 16px;
+  }
+  .zrv-rd-card {
+    padding: 14px;
+  }
+}
+
+@media (pointer: coarse) {
+  .zrv-rd-stage__go,
+  .zrv-rd-attention a {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .zrv-rd-stage__go {
+    display: inline-grid;
+    place-items: center;
+  }
+  .zrv-rd-error button {
+    min-height: 44px;
+    padding-inline: 8px;
   }
 }

@@ -6,14 +6,21 @@ import { isIsoDate } from '../../hr-recruitment/shared/hrFormat.js'
 // browser's time zone never moves them.
 export function hijriDate(iso) {
   if (!isIsoDate(iso)) return ''
-  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric', timeZone: 'UTC' })
-    .format(new Date(`${iso}T00:00:00Z`))
+  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${iso}T00:00:00Z`))
 }
-
 
 // Rows of a list view: status tab, then a case-insensitive search over
 // `searchText(row)`, then the sort ({ key, dir: 1 | -1 }, nulls last).
-export function filterAndSort(rows, { status = 'ALL', search = '', searchText, sort, valueFor = (row, key) => row[key] }) {
+export function filterAndSort(
+  rows,
+  { status = 'ALL', search = '', searchText, sort, valueFor = (row, key) => row[key] },
+) {
   const term = search.trim().toLocaleLowerCase()
   const kept = rows
     .filter((row) => status === 'ALL' || row.status === status)
@@ -25,6 +32,10 @@ export function filterAndSort(rows, { status = 'ALL', search = '', searchText, s
     if (x === y) return 0
     if (x === null || x === undefined) return 1
     if (y === null || y === undefined) return -1
-    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * sort.dir
+    return (
+      (typeof x === 'number' && typeof y === 'number'
+        ? x - y
+        : String(x).localeCompare(String(y))) * sort.dir
+    )
   })
 }
