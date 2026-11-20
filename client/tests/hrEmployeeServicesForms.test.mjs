@@ -1065,6 +1065,7 @@ test('sidebar: HR pages use sub-groups, TrainingHub pages sit in Talent Manageme
         'hr-talent-management',
         { env: 'VITE_EXTERNAL_TRAINING_HUB', path: '/team' },
       ],
+      ['attendance-system', undefined, { env: 'VITE_EXTERNAL_ATTENDANCE_SYSTEM' }],
       ['training-hub', undefined, { env: 'VITE_EXTERNAL_TRAINING_HUB' }],
     ],
     'TrainingHub pages are reused from Talent Management; the hub link stays standalone',

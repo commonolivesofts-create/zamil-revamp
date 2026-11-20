@@ -74,6 +74,18 @@ export default defineModule({
       subgroup: 'hr-talent-management',
       order: 320,
     },
+    // Attendance System: the zamil-attendance CI3 app (served by Apache/XAMPP).
+    // Same sign-in: it validates the Zamil session cookie server-side via
+    // GET /api/v1/auth/me and decides who may use each page.
+    {
+      id: 'attendance-system',
+      type: 'external',
+      href: { env: 'VITE_EXTERNAL_ATTENDANCE_SYSTEM' },
+      title: 'Attendance System',
+      icon: 'calendar-clock',
+      group: 'human-resources',
+      order: 998,
+    },
     {
       id: 'training-hub',
       type: 'external',

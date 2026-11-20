@@ -139,6 +139,13 @@ web proxies. Install dependencies once in `traininghub/` and `expensehub/`; Ctrl
 terminal stops all three frontends and both hub APIs. Use `npm run dev:web` in `client/` if you only
 need the Zamil frontend.
 
+**Attendance System** (Human resources → Attendance System) is the `zamil-attendance/` CodeIgniter 3
+app, served by XAMPP Apache at **http://localhost/zamil-attendance/** (not started by `npm run dev`).
+It signs users in with the Zamil session, like the hubs. Its sidebar link appears when `client/.env`
+sets `VITE_EXTERNAL_ATTENDANCE_SYSTEM=http://localhost/zamil-attendance/`. One-time setup (oci8,
+Instant Client, htdocs junction, `.env`):
+[`zamil-attendance/README_LOCAL_SETUP.md`](../zamil-attendance/README_LOCAL_SETUP.md).
+
 ### The same-origin `/api` proxy
 
 The browser only ever talks to `http://localhost:7382`. Vite forwards every request under `/api`

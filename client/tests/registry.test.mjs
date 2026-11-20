@@ -994,6 +994,15 @@ const EXTERNAL_HUBS = [
     implemented: false,
   })),
   {
+    id: 'attendance-system',
+    type: 'external',
+    href: null,
+    label: 'Attendance System',
+    icon: 'calendar-clock',
+    section: HR,
+    implemented: false,
+  },
+  {
     id: 'training-hub',
     type: 'external',
     href: null,
@@ -1039,6 +1048,7 @@ test('the derived routes, sections and permission names match the active modules
       { id: 'training-hub-job-skill-matrix', href: null, implemented: false },
       { id: 'training-hub-catalog', href: null, implemented: false },
       { id: 'training-hub-team-skills', href: null, implemented: false },
+      { id: 'attendance-system', href: null, implemented: false },
       { id: 'training-hub', href: null, implemented: false },
       { id: 'expense-hub', href: null, implemented: false },
     ],
