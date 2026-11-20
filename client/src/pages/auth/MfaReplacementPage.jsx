@@ -90,17 +90,23 @@ export default function MfaReplacementPage() {
 
   return (
     <section
-      className="ux-panel zrv-auth-page zrv-hr zrv-hr--compact zrv-mfa-panel zrv-account-panel zrv-account-panel--authenticator"
+      className="zrv-auth-page zrv-hr zrv-hr--compact zrv-mfa-panel zrv-account-panel zrv-account-panel--authenticator"
       aria-label="Authenticator settings"
     >
       <div className="zrv-hr-form-header">
-        <RecruitmentHeader title="Authenticator app" breadcrumb={['Account']} />
+        <RecruitmentHeader
+          title="Authenticator app"
+          subtitle="Manage the authenticator app used to verify your sign-in."
+          breadcrumb={['Account']}
+          rightContent={
+            <span className="zrv-account-status zrv-authenticator-header-status">
+              <span aria-hidden="true" /> Multi-factor authentication
+            </span>
+          }
+        />
       </div>
       <div className="zrv-authenticator-page-layout zrv-account-layout--authenticator">
         <div className="zrv-authenticator-page-main">
-          <span className="zrv-account-status">
-            <span aria-hidden="true" /> Multi-factor authentication
-          </span>
           <div className="ux-panel-body">
           <div className="zrv-account-layout__main">
             {preview ? (
