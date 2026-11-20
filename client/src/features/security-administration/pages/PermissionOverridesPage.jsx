@@ -201,6 +201,7 @@ export default function PermissionOverridesPage() {
             rowLink={(user) => `/security/permission-overrides/${user.userId}`}
             rowAction="Manage overrides"
             compactReportTable
+            searchPlaceholder="Search by Employee Number, Username, or Name..."
           />
         </section>
       </AdminPage>

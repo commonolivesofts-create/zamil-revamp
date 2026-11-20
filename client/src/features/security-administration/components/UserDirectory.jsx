@@ -203,6 +203,7 @@ export default function UserDirectory({
   rowLink,
   rowAction = 'Open',
   dashboard = false,
+  searchPlaceholder,
   compactReportTable = false,
   provisionAction = null,
 
@@ -430,7 +431,7 @@ export default function UserDirectory({
       className={`zrv-admin-toolbar ${dashboard ? 'zrv-ua-filters' : ''}`}
       onSubmit={submitSearch}
       role="search"
-      aria-label="Search accounts"
+      aria-label="Filter user accounts"
       noValidate
     >
       {/* Search */}
@@ -438,17 +439,18 @@ export default function UserDirectory({
       <Field
         id="users-search"
         label="Search"
-        hint={dashboard ? undefined : 'Employee number, username or name'}
+        className={!dashboard ? 'zrv-admin-field--directory-search' : ''}
+        hint={dashboard || searchPlaceholder ? undefined : 'Employee number, username or name'}
         error={searchError}
       >
         <input
           {...fieldProps('users-search', {
-            hint: !dashboard,
+            hint: !dashboard && !searchPlaceholder,
             error: searchError,
           })}
           className="ux-input"
           type="search"
-          placeholder={dashboard ? 'Employee number, username or name' : undefined}
+          placeholder={dashboard ? 'Employee number, username or name' : searchPlaceholder}
           value={searchText}
           maxLength={100}
           onChange={(event) => setSearchText(event.target.value)}

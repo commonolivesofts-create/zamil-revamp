@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { formatClockTime } from '@/features/auth/authenticatorQr.js'
 import { AuthenticatorSetup, MfaCodeInput } from '@/features/auth/MfaFields.jsx'
+import { RecruitmentHeader } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import useFocusWhenEnabled from '@/features/auth/focusWhenEnabled.js'
 import useAuth from '@/features/auth/useAuth.js'
 import '@/styles/auth.css'
@@ -88,107 +89,172 @@ export default function MfaReplacementPage() {
   const needsRecentMfa = error?.code === 'MFA_RECENT_VERIFICATION_REQUIRED'
 
   return (
-    <section className="ux-panel zrv-auth-page zrv-mfa-panel" aria-labelledby="mfa-replace-title">
-      <div className="ux-panel-head">
-        <div>
-          <h1 id="mfa-replace-title">Authenticator app</h1>
-          <p>Replace the authenticator used for multi-factor sign-in.</p>
-        </div>
-        <span className="ux-badge">
-          <OrvexaIcon name="shield-check" className="size-3.5" /> MFA
-        </span>
+    <section
+      className="ux-panel zrv-auth-page zrv-hr zrv-hr--compact zrv-mfa-panel zrv-account-panel zrv-account-panel--authenticator"
+      aria-label="Authenticator settings"
+    >
+      <div className="zrv-hr-form-header">
+        <RecruitmentHeader title="Authenticator app" breadcrumb={['Account']} />
       </div>
-      <div className="ux-panel-body">
-        {preview ? (
-          <p className="zrv-auth-feedback" role="status">
-            Development preview has no authenticated session; authenticator changes are unavailable.
-          </p>
-        ) : (
-          <>
-            <p className="zrv-mfa-meta">
-              For your protection this is only allowed within 5 minutes of signing in with your
-              current authenticator. After the replacement, every session of your account ends,
-              including this one, and you sign in again with the new authenticator.
-            </p>
-            {session && !session.mfaVerified && (
-              <p className="zrv-auth-feedback" role="status">
-                This session was not verified with an authenticator, so the server will ask you to
-                sign in again first.
-              </p>
-            )}
-            {notice && (
-              <p className="zrv-auth-feedback" role="status">
-                {notice}
-              </p>
-            )}
-            {error && (
-              <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
-                {error.message || 'The request could not be completed.'}
-              </p>
-            )}
-            {needsRecentMfa && (
-              <button
-                type="button"
-                className="btn-secondary mt-3"
-                onClick={() => {
-                  void signOut()
-                }}
-              >
-                Sign out and sign in again
-              </button>
-            )}
-            {material ? (
-              <>
-                <AuthenticatorSetup material={material} />
-                <p className="zrv-mfa-meta">
-                  Confirm before {formatClockTime(material.expiresAt)}. Codes from your current
-                  authenticator will stop working.
+      <div className="zrv-authenticator-page-layout zrv-account-layout--authenticator">
+        <div className="zrv-authenticator-page-main">
+          <span className="zrv-account-status">
+            <span aria-hidden="true" /> Multi-factor authentication
+          </span>
+          <div className="ux-panel-body">
+            <div className="zrv-account-layout__main">
+              {preview ? (
+                <p className="zrv-auth-feedback" role="status">
+                  Development preview has no authenticated session; authenticator changes are
+                  unavailable.
                 </p>
-                <form className="mt-4 zrv-mfa-form" onSubmit={submit} noValidate>
-                  <MfaCodeInput
-                    ref={inputRef}
-                    id="mfa-replace-code"
-                    value={code}
-                    onChange={setCode}
-                    error={fieldError}
-                    disabled={pending}
-                  />
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      className="btn-primary zrv-auth-submit"
-                      type="submit"
-                      disabled={pending}
-                    >
-                      <OrvexaIcon name="shield-check" className="size-4" />{' '}
-                      {pending ? 'Replacing…' : 'Confirm new authenticator'}
-                    </button>
+              ) : (
+                <>
+                  {session && !session.mfaVerified && (
+                    <div className="zrv-authenticator-warning" role="status">
+                      <span className="zrv-authenticator-warning__icon" aria-hidden="true">
+                        <OrvexaIcon name="triangle-alert" className="size-5" />
+                      </span>
+                      <div>
+                        <strong>This session was not verified with an authenticator.</strong>
+                        <p>
+                          For your security, sign in again with an authenticator before continuing.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {notice && (
+                    <p className="zrv-auth-feedback" role="status">
+                      {notice}
+                    </p>
+                  )}
+                  {error && (
+                    <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
+                      {error.message || 'The request could not be completed.'}
+                    </p>
+                  )}
+                  {needsRecentMfa && (
                     <button
                       type="button"
-                      className="btn-secondary"
-                      onClick={cancel}
-                      disabled={pending}
+                      className="btn-secondary mt-3"
+                      onClick={() => {
+                        void signOut()
+                      }}
                     >
-                      Cancel
+                      Sign out and sign in again
                     </button>
-                  </div>
-                </form>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="btn-primary mt-4 zrv-auth-submit"
-                onClick={start}
-                disabled={starting || status !== 'authenticated'}
-              >
-                <OrvexaIcon name="key-round" className="size-4" />{' '}
-                {starting ? 'Starting…' : 'Replace authenticator'}
-              </button>
-            )}
-          </>
-        )}
-        <Link className="btn-secondary mt-4" to="/account/password">
-          <OrvexaIcon name="lock-keyhole" className="size-4" /> Password
-        </Link>
+                  )}
+                  {material ? (
+                    <div className="zrv-authenticator-replace-card zrv-authenticator-replace-card--setup">
+                      <div className="zrv-authenticator-replace-card__heading">
+                        <span>
+                          <OrvexaIcon name="qr-code" className="size-6" />
+                        </span>
+                        <div>
+                          <h2>Set up your new authenticator</h2>
+                          <p>Scan the QR code, then confirm with a six-digit code.</p>
+                        </div>
+                      </div>
+                      <AuthenticatorSetup material={material} />
+                      <p className="zrv-mfa-meta zrv-authenticator-expiry">
+                        Confirm before {formatClockTime(material.expiresAt)}. Codes from your
+                        current authenticator will stop working.
+                      </p>
+                      <form className="zrv-mfa-form" onSubmit={submit} noValidate>
+                        <MfaCodeInput
+                          ref={inputRef}
+                          id="mfa-replace-code"
+                          value={code}
+                          onChange={setCode}
+                          error={fieldError}
+                          disabled={pending}
+                        />
+                        <div className="zrv-authenticator-actions">
+                          <button
+                            className="btn-primary zrv-auth-submit"
+                            type="submit"
+                            disabled={pending}
+                          >
+                            <OrvexaIcon name="shield-check" className="size-4" />{' '}
+                            {pending ? 'Replacing\u2026' : 'Confirm new authenticator'}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={cancel}
+                            disabled={pending}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  ) : (
+                    <section
+                      className="zrv-authenticator-replace-card"
+                      aria-labelledby="replace-authenticator-title"
+                    >
+                      <span className="zrv-authenticator-replace-card__icon" aria-hidden="true">
+                        <OrvexaIcon name="qr-code" className="size-7" />
+                      </span>
+                      <div className="zrv-authenticator-replace-card__copy">
+                        <h2 id="replace-authenticator-title">Replace authenticator</h2>
+                        <p>
+                          Set up a new authenticator for multi-factor sign-in. This ends all active
+                          sessions, and you will sign in again with the new authenticator.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-primary zrv-auth-submit"
+                        onClick={start}
+                        disabled={starting || status !== 'authenticated'}
+                      >
+                        <OrvexaIcon name="key-round" className="size-4" />{' '}
+                        <span className="zrv-authenticator-replace-card__label">
+                          {starting ? 'Starting\u2026' : 'Replace authenticator'}
+                        </span>
+                        <OrvexaIcon name="arrow-right" className="size-4" />
+                      </button>
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        <aside
+          className="zrv-account-aside zrv-authenticator-aside"
+          aria-label="Before you replace your authenticator"
+        >
+          <h2>Before you start</h2>
+          <ul className="zrv-authenticator-quick-facts">
+            <li>
+              <OrvexaIcon name="clock-3" className="size-4" />
+              <span>
+                <strong>Verify within 5 minutes</strong>
+                <small>Use your current authenticator first.</small>
+              </span>
+            </li>
+            <li>
+              <OrvexaIcon name="log-out" className="size-4" />
+              <span>
+                <strong>All sessions will end</strong>
+                <small>Sign in again with the new authenticator.</small>
+              </span>
+            </li>
+          </ul>
+          <Link className="zrv-account-aside__link" to="/account/password">
+            <span className="zrv-account-aside__link-icon">
+              <OrvexaIcon name="lock-keyhole" className="size-4" />
+            </span>
+            <span>
+              <strong>Password</strong>
+              <small>Review your password settings</small>
+            </span>
+            <OrvexaIcon name="arrow-up-right" className="size-4" />
+          </Link>
+        </aside>
       </div>
     </section>
   )
