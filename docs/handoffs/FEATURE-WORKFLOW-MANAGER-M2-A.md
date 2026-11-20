@@ -88,6 +88,39 @@ Errors: 400 `VALIDATION_ERROR` / `SOURCE_MAPPING_INVALID` (details = findings `{
 
 **No DDL, no DML outside the rows above, no grants.** **Live dictionary verification was not performed** in this package: the columns, check constraints, `(SOURCE_ID, VERSION_NO)` unique key, default index, `TR_WF_SV_IMM` and FK names/delete rules of the deployed TEST tables (which had manual fixes) are taken from `schema-reference/M1-ORACLE-TABLE-STRUCTURES.md` and the M1 handoff and must be checked read-only before TEST acceptance (for example with `schema-reference/READONLY-VERIFY-M1.sql`). In particular, confirm that the application user sees the FORM_VERSIONS → SOURCE_VERSIONS foreign key in `ALL_CONSTRAINTS` under `CURRENT_SCHEMA`; otherwise delete fails closed (`SOURCE_VERSION_DEPENDENCY_UNVERIFIED`).
 
+**Read-only TEST verification, 14 November 2026 (after #83 merged).** Connected as `XXZP` (CURRENT_SCHEMA `XXZP`) to `G480281AE328134_ZPADWTEST` (Oracle 19.33). The session ran `SET TRANSACTION READ ONLY`, ran only SELECTs and `DBMS_SQL.PARSE` (parse only, no execution), and ended with a rollback.
+- All three tables and both triggers are owned by `XXZP` and VALID. No synonyms or grants are involved.
+- `XX_ZRV_WF_SOURCE_VERSIONS` has 17 columns, matching every column the M2-A SQL uses:
+  - `SOURCE_VERSION_ID` is identity `BY DEFAULT`.
+  - `VERSION_NO` is `NUMBER(9)`; `SCHEMA_VERSION` is `NUMBER(9)`.
+  - `CONFIG_JSON` is a CLOB; `CONFIG_SHA256` is `VARCHAR2(64)`.
+  - The audit columns are `TIMESTAMP WITH TIME ZONE`.
+- Constraints on `XX_ZRV_WF_SOURCE_VERSIONS` (all ENABLED VALIDATED):
+  - Primary key `ZWF_PK_SV`.
+  - Unique key `ZWF_UQ_SV_1 (SOURCE_ID, VERSION_NO)`, which backs `MAX+1` allocation.
+  - Check constraints `ZWF_CK_SV_1`–`7`: lifecycle values, `IS_DEFAULT` values, default only when PUBLISHED, `VERSION_NO > 0`, `SCHEMA_VERSION > 0`, SHA length 64, and `IS JSON STRICT WITH UNIQUE KEYS`.
+  - FK `ZWF_FK_SV_1` to `ZWF_PK_SRC`, `NO ACTION`.
+  - Unique function-based index `ZWF_UX_SV_DEF` (`CASE IS_DEFAULT WHEN 'Y' THEN SOURCE_ID END`).
+- `TR_WF_SV_IMM` (`BEFORE UPDATE OR DELETE`, ENABLED) acts only on PUBLISHED/RETIRED rows:
+  - Deleting such a row raises -20981.
+  - Changing its payload or lifecycle, other than moving it to RETIRED, raises -20982.
+  - DRAFT writes by M2-A are unaffected.
+- Delete protection:
+  - The exact app query sees one referencing FK, `ZWF_FK_FV_2` (`XX_ZRV_WF_FORM_VERSIONS.HEADER_SOURCE_VERSION_ID` → `ZWF_PK_SV`), `NO ACTION`, ENABLED.
+  - Restricted delete therefore runs normally and does not fail closed.
+  - ORA-02292 remains the final guard.
+- Compatibility of the M2-A SQL:
+  - All read-only SELECTs, including the `JSON_EXISTS … PASSING` reference count, executed successfully.
+  - `INSERT`, `UPDATE`, `DELETE` and both `FOR UPDATE WAIT 10` statements parse without error against the live columns.
+- Data at the time:
+  - 1 data source (active).
+  - 0 source versions and 0 form versions.
+  - No existing rows conflict with the M2-A assumptions.
+- Note for M2-B, not a blocker: `HEADER_SOURCE_VERSION_ID` has no index.
+  - A source-version delete therefore full-scans `XX_ZRV_WF_FORM_VERSIONS`.
+  - The delete also takes Oracle's child-table lock for unindexed foreign keys, so it can wait on uncommitted form-version DML.
+  - Adding an index is DDL and needs separate owner approval.
+
 ### Concurrency and integrity decisions
 
 - **Lock order:** parent data source row → (delete only) version row. M1 `updateSource` and every M2-A write take the parent lock first; nothing locks in the opposite order.
@@ -103,7 +136,7 @@ Errors: 400 `VALIDATION_ERROR` / `SOURCE_MAPPING_INVALID` (details = findings `{
 Client registry delta (code only): resource `WORKFLOW_MANAGER.SOURCE_MAPPING` with `VIEW`, `CREATE`, `UPDATE`, `DELETE` — **1 resource + 4 permissions = 5 catalogue records**; module total 20 (15 M1 + 5). Pages use `alsoRequires: ['DATA_SOURCE_REGISTRY:VIEW']`; the backend enforces the same prerequisite on every route. Default deny (`PERMISSION_UNKNOWN`) until registered; no role was granted.
 
 **G1 actions pending owner approval (not executed):**
-1. From `server/`: `node --env-file-if-exists=.env .\scripts\rbac-register.js --target=TEST --module=WORKFLOW_MANAGER` (read-only preview). Expected on TEST: 15 MATCH, **MISSING 5**, CONFLICT 0. Review the plan and its fingerprint.
+1. From `server/`: `node --env-file-if-exists=.env .\scripts\rbac-register.js --target=TEST --module=WORKFLOW_MANAGER` (read-only preview). Expected on TEST: MATCH 47 (15 M1 + 32 protected `SECURITY_ADMINISTRATION`), **MISSING 5**, CONFLICT 0. Review the plan and its fingerprint. (As merged in #83 the module description had been extended, which TEST reported as CONFLICT 6 / MISSING 0; the follow-up fix restores the M1 text.)
 2. Only after owner approval of that exact fingerprint: the same command with `--apply --fingerprint=<approved-SHA256>` and the interactive confirmation.
 3. Grant the required `SOURCE_MAPPING` actions (and `DATA_SOURCE_REGISTRY:VIEW` if missing) to the intended role in Security Administration.
 4. Read-only dictionary verification of the M2-A tables (§7), then owner-executed TEST acceptance.
