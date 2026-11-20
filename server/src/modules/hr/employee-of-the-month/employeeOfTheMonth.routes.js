@@ -11,6 +11,7 @@ import {
   criteriaQuerySchema,
   employeeQuerySchema,
   listQuerySchema,
+  countsBody,
   createBodySchema,
   updateBodySchema,
 } from './employeeOfTheMonth.validation.js';
@@ -102,6 +103,9 @@ export function createEmployeeOfTheMonthRouter({ service, authenticate, authoriz
   router.get('/lookups/criteria', ...read({ query: criteriaQuerySchema }), controller.criteria);
 
   router.get('/', ...read({ query: listQuerySchema }), controller.list);
+
+  // Read-only: the list totals of many filter sets (dashboard). POST for the body, so CSRF too.
+  router.post('/counts', ...write('VIEW', { body: countsBody }), controller.counts);
 
   router.post('/', ...write('CREATE', { body: createBodySchema }), controller.create);
 

@@ -2,6 +2,9 @@ import { sendPaginated, sendSuccess } from '../../../shared/responses/apiRespons
 
 export function createOrientationTrainingController({ orientationTrainingService }) {
   return {
+    async counts(req, res) {
+      sendSuccess(res, { counts: await orientationTrainingService.counts(req.auth, req.body) });
+    },
     async list(req, res) {
       const { page, pageSize, ...filters } = req.query;
       const result = await orientationTrainingService.list(req.auth, {

@@ -1,5 +1,6 @@
 import Joi from 'joi';
 import { dbText } from '../formText.validation.js';
+import { countsBodySchema } from '../../../shared/validation/countsBody.js';
 
 /*
  * Personal Requisition Form request schemas (README_personal_requisition_form.md §3.2, §7.1, §9).
@@ -103,6 +104,19 @@ export const listQuerySchema = Joi.object({
     .default('requisitionId'),
   sortDir: Joi.string().valid('asc', 'desc').default('desc'),
 });
+
+// The dashboard's counts: the list's filters (README §7.2), many filter sets per request.
+export const countsBody = countsBodySchema(listQuerySchema, [
+  'requisitionStatus',
+  'ticketStatus',
+  'requisitionId',
+  'requesterName',
+  'jobName',
+  'deptName',
+  'reasonOfReq',
+  'dateFrom',
+  'dateTo',
+]);
 
 export const budgetQuerySchema = Joi.object({ fullName: requiredText(200) });
 export const replacementForQuerySchema = Joi.object({

@@ -298,7 +298,8 @@ export default function FolioBook({ onNavigate, hrPages = [], onOpenPage }) {
   const [selectedHrSubmodule, setSelectedHrSubmodule] = useState(null)
 
   const availableHrPages = useMemo(
-    () => hrPages.filter((page) => page.path && !page.external),
+    // Internal routes plus external pages placed in a sub-group (TrainingHub).
+    () => hrPages.filter((page) => page.path || (page.type === 'external' && page.href)),
     [hrPages],
   )
 

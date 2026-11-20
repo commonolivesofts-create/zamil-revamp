@@ -4,6 +4,7 @@ import {
   withConnection as defaultWithConnection,
   withTransaction as defaultWithTransaction,
 } from '../../../database/oracle.js';
+import { cachedCounts } from '../../../shared/cache/cachedCounts.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import { parsePermission } from '../../access-control/authorization.service.js';
 import * as defaultRepository from './orientationTraining.repository.js';
@@ -40,6 +41,7 @@ export function createOrientationTrainingService({
   withTransaction = defaultWithTransaction,
   // `authorizationService.holds`; denies by default so a missing wiring never widens access.
   holds = async () => false,
+  countsCache,
 }) {
   const read = (work) => withConnection(POOLS.LOW, work);
 
@@ -174,6 +176,40 @@ export function createOrientationTrainingService({
         }
         return { headerId, flag, reference };
       });
+    },
+
+    /**
+     * The list total of each filter set for the dashboard, in the list's scope (HR: every
+     * request of the variant; others: their own); one statement per variant table (flag).
+     */
+    async counts(actor, { queries, fresh }) {
+      return cachedCounts(
+        countsCache,
+        { module: 'orientations', userId: actor.userId, queries, fresh },
+        (missing) =>
+          read(async (connection) => {
+            const isHr = await repository.isHrUser(connection, actor.userId);
+            const counts = new Array(missing.length);
+            for (const flag of Object.keys(repository.TABLES)) {
+              const positions = missing.flatMap((query, index) =>
+                query.flag === flag ? [index] : [],
+              );
+              if (!positions.length) continue;
+              const values = await repository.countTrainings(connection, repository.TABLES[flag], {
+                queries: positions.map((index) =>
+                  Object.fromEntries(
+                    Object.entries(missing[index]).filter(([key]) => key !== 'flag'),
+                  ),
+                ),
+                createdBy: isHr ? null : actor.userId,
+              });
+              positions.forEach((index, position) => {
+                counts[index] = values[position];
+              });
+            }
+            return counts;
+          }),
+      );
     },
 
     async list(

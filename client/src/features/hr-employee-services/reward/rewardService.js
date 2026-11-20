@@ -2,6 +2,7 @@
 // apiClient, or the in-memory demo adapter when VITE_HR_REWARD_NOMINATION_DEMO
 // is 'true' in a development build).
 import { apiClient } from '../../../services/api/apiClient.js'
+import { postCounts } from '../../../services/api/listCounts.js'
 import { employeeServicesFormsConfig } from '../employeeServicesFormsConfig.js'
 import { createRewardDemoClient } from '../demo/rewardDemoClient.js'
 import { createEmployeeList, employeePage } from '../shared/employeeList.js'
@@ -108,6 +109,8 @@ export function createRewardService({ client }) {
     },
     list,
     spotlight,
+    // The list totals of many filter sets in one request (the dashboard; not in the demo adapter).
+    counts: (queries, options) => postCounts(client, REWARD_BASE, queries, options),
     // Nominations of one employee in the month of `activityDate` that the user can see.
     async sameMonth(employeeNumber, activityDate, { signal } = {}) {
       const range = monthRange(activityDate)

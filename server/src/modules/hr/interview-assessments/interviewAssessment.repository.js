@@ -1,4 +1,5 @@
 import oracledb from 'oracledb';
+import { countSets } from '../../../database/conditionalCounts.js';
 
 /*
  * Interview Assessment Form SQL (README_interview_assessment_form.md §3–§8). Values are always
@@ -346,18 +347,42 @@ const mapListItem = (row) => ({
  * by the caller; `sortBy` must be a key of SORT_COLUMNS; `createdBy` is the server-side scope
  * resolved by the service (HR: optional filter; non-HR: always the actor's own userId).
  */
-export async function listAssessments(
-  connection,
-  { limit, offset, filters = {}, createdBy, sortBy, sortDir },
-) {
-  const binds = {};
-  const conditions = ['1 = 1'];
+// The list's filter predicates (and their binds), shared by the list and the counts.
+function filterConditions(filters, binds) {
+  const conditions = [];
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null || value === '') continue;
     if (!FILTERS[key]) throw new Error(`Unsupported filter ${key}`);
     conditions.push(FILTERS[key](value));
     binds[key] = value;
   }
+  return conditions;
+}
+
+/**
+ * The list total of each filter set (as `listAssessments` would report it, distinct headers)
+ * in one statement, for the recruitment dashboard. `createdBy` as in `listAssessments`.
+ */
+export async function countAssessments(connection, { queries, createdBy }) {
+  const scoped = createdBy !== undefined && createdBy !== null;
+  return countSets((sql, binds) => rows(connection, sql, binds), {
+    from: FROM_JOIN,
+    where: scoped ? ['INV.CREATED_BY = :createdBy'] : [],
+    binds: scoped ? { createdBy } : {},
+    distinct: 'INV.HEADER_ID',
+    sets: queries.map((filters) => {
+      const binds = {};
+      return { conditions: filterConditions(filters, binds), binds };
+    }),
+  });
+}
+
+export async function listAssessments(
+  connection,
+  { limit, offset, filters = {}, createdBy, sortBy, sortDir },
+) {
+  const binds = {};
+  const conditions = ['1 = 1', ...filterConditions(filters, binds)];
   if (createdBy !== undefined && createdBy !== null) {
     conditions.push('INV.CREATED_BY = :createdBy');
     binds.createdBy = createdBy;

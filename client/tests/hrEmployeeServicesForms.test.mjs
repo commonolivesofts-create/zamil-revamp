@@ -1029,7 +1029,7 @@ test('sidebar: personal status change, sick leave and ideas appear in Employee S
   )
 })
 
-test('sidebar: internal HR pages use sub-groups and the Training Hub stays a standalone link', async () => {
+test('sidebar: HR pages use sub-groups, TrainingHub pages sit in Talent Management and the hub stays a standalone link', async () => {
   for (const entry of registry.entries.filter(
     (item) => item.section === 'human-resources' && item.type !== 'external',
   )) {
@@ -1048,9 +1048,49 @@ test('sidebar: internal HR pages use sub-groups and the Training Hub stays a sta
     (item) => item.section === 'human-resources' && item.type === 'external',
   )
   assert.deepEqual(
-    externalHrLinks.map((item) => [item.id, item.subgroup]),
-    [['training-hub', undefined]],
+    externalHrLinks.map((item) => [item.id, item.subgroup, item.href]),
+    [
+      [
+        'training-hub-job-skill-matrix',
+        'hr-talent-management',
+        { env: 'VITE_EXTERNAL_TRAINING_HUB', path: '/jsm' },
+      ],
+      [
+        'training-hub-catalog',
+        'hr-talent-management',
+        { env: 'VITE_EXTERNAL_TRAINING_HUB', path: '/catalog' },
+      ],
+      [
+        'training-hub-team-skills',
+        'hr-talent-management',
+        { env: 'VITE_EXTERNAL_TRAINING_HUB', path: '/team' },
+      ],
+      ['training-hub', undefined, { env: 'VITE_EXTERNAL_TRAINING_HUB' }],
+    ],
+    'TrainingHub pages are reused from Talent Management; the hub link stays standalone',
   )
+  // The forms listed in each flyout (record and report pages are hidden).
+  const listed = (subgroup) =>
+    registry.entries
+      .filter((item) => item.subgroup === subgroup && item.nav !== false)
+      .map((item) => item.id)
+  // The dashboard first (as in Recruitment), then the five forms.
+  assert.deepEqual(listed('hr-talent-management'), [
+    'hr-talent-dashboard',
+    'hr-appraisal',
+    'hr-reward',
+    'training-hub-job-skill-matrix',
+    'training-hub-catalog',
+    'training-hub-team-skills',
+  ])
+  assert.deepEqual(listed('hr-employee-services'), [
+    'hr-record-change',
+    'hr-transfer',
+    'hr-sick-leave',
+    'hr-idea',
+    'hr-clearance',
+    'hr-charter',
+  ])
   const sidebar = await read('../src/components/layout/Sidebar.jsx')
   const flyout = (await read('../src/components/layout/SidebarFlyout.jsx')).replace(/\s+/g, ' ')
   assert.match(sidebar, /item\.subgroup === subgroup\.id/)

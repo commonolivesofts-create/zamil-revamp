@@ -1,5 +1,7 @@
 import Joi from 'joi';
 
+import { countsBodySchema } from '../../../shared/validation/countsBody.js';
+
 const ID = /^[1-9][0-9]{0,18}$/;
 const CONTROL = /^[^\p{Cc}]+$/u;
 const text = (max, required = false) => {
@@ -36,6 +38,14 @@ export const listQuerySchema = Joi.object({
     .default('headerId'),
   order: Joi.string().valid('asc', 'desc').default('desc'),
 });
+
+// The dashboard's counts: the list's year and filters, many filter sets per request.
+export const countsBody = countsBodySchema(listQuerySchema, [
+  'year',
+  'status',
+  'grade',
+  'department',
+]);
 
 const body = Joi.object({
   year: Joi.any(),

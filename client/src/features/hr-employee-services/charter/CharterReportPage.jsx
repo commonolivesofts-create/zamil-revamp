@@ -9,7 +9,7 @@ import {
   Foot,
   Hero,
 } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
-import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB } from '../hrEmployeeServicesText.js'
 import { CHARTER_PATHS } from '../employeeServicesPaths.js'
 import { charterService } from './charterService.js'
 
@@ -148,7 +148,7 @@ export default function CharterReportPage() {
       variant="charter-report"
       title="Project charter report"
       heading="Charters"
-      breadcrumb={C.breadcrumb}
+      breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
       resourceKey="hr-charter-report"
       list={list}
       create={CREATE}

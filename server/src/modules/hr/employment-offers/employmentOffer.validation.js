@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { countsBodySchema } from '../../../shared/validation/countsBody.js';
 import { dbText } from '../formText.validation.js';
 
 /*
@@ -64,6 +65,16 @@ export const listQuerySchema = Joi.object({
     .default('HEADER_ID'),
   sortDir: Joi.string().valid('asc', 'desc').default('desc'),
 });
+
+// The dashboard's counts: the list's filters, many filter sets per request.
+export const countsBody = countsBodySchema(listQuerySchema, [
+  'intNo',
+  'requisitionNo',
+  'division',
+  'status',
+  'dateFrom',
+  'dateTo',
+]);
 
 // BASIC_SALARY is a NUMBER; legacy stripped commas client-side, so a comma string ("8,500")
 // is accepted and normalized to a number server-side (README §9).
