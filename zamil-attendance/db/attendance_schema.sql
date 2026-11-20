@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Zamil Attendance System: ADW tables (schema XXZP)
 -- =============================================================================
--- Created for the Zamil Revamp TEST ADW, where these tables did not exist.
+-- Created for the Zamil Revamp TEST ADW (applied 2026-11-20), where these tables did not exist.
 -- No original DDL was available, so the definitions are REVERSE-ENGINEERED from
 -- the application code (column lists, bind formats, form validation lengths).
 -- Replace them with the production DDL (DBMS_METADATA.GET_DDL) when available.
