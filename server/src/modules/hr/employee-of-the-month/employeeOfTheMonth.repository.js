@@ -1,4 +1,5 @@
 import oracledb from 'oracledb';
+import { countSets } from '../../../database/conditionalCounts.js';
 
 const rows = async (c, sql, binds = {}) =>
   (
@@ -320,20 +321,19 @@ const SORT = {
   createdAt: 'h.CREATED_AT',
 };
 
-export async function list(c, f) {
-  const binds = {};
+const LIST_FILTERS = {
+  status: 'UPPER(h.STATUS) = :status',
+  department: 'h.DEPT_TYPE = :department',
+  employeeNumber: 'h.EMPLOYEE_NUMBER = :employeeNumber',
+  requestNo: 'h.REQUEST_NO = :requestNo',
+  date_from: "h.ACTIVITY_DATE >= TO_DATE(:date_from,'YYYY-MM-DD')",
+  date_to: "h.ACTIVITY_DATE < TO_DATE(:date_to,'YYYY-MM-DD') + 1",
+};
+
+// The list's filter predicates (and their binds), shared by the list and the counts.
+function filterConditions(f, binds) {
   const conditions = [];
-
-  const filters = {
-    status: 'UPPER(h.STATUS) = :status',
-    department: 'h.DEPT_TYPE = :department',
-    employeeNumber: 'h.EMPLOYEE_NUMBER = :employeeNumber',
-    requestNo: 'h.REQUEST_NO = :requestNo',
-    date_from: "h.ACTIVITY_DATE >= TO_DATE(:date_from,'YYYY-MM-DD')",
-    date_to: "h.ACTIVITY_DATE < TO_DATE(:date_to,'YYYY-MM-DD') + 1",
-  };
-
-  for (const [key, sql] of Object.entries(filters)) {
+  for (const [key, sql] of Object.entries(LIST_FILTERS)) {
     if (f[key]) {
       conditions.push(sql);
 
@@ -345,6 +345,26 @@ export async function list(c, f) {
           : f[key];
     }
   }
+  return conditions;
+}
+
+/**
+ * The list total of each filter set (as `list` would report it) in one statement, for the
+ * Talent Management dashboard. The list has no per-user scope, so neither do the counts.
+ */
+export async function count(c, queries) {
+  return countSets((sql, binds) => rows(c, sql, binds), {
+    from: `FROM ${header} h`,
+    sets: queries.map((f) => {
+      const binds = {};
+      return { conditions: filterConditions(f, binds), binds };
+    }),
+  });
+}
+
+export async function list(c, f) {
+  const binds = {};
+  const conditions = filterConditions(f, binds);
 
   if (f.search) {
     conditions.push(

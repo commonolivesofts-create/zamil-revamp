@@ -3,6 +3,9 @@ import { sendPaginated, sendSuccess } from '../../../shared/responses/apiRespons
 /** HTTP adapter for the Employment Offer Form; rules live in employmentOffer.service.js. */
 export function createEmploymentOfferController({ employmentOfferService }) {
   return {
+    async counts(req, res) {
+      sendSuccess(res, { counts: await employmentOfferService.counts(req.auth, req.body) });
+    },
     async list(req, res) {
       const { page, pageSize, ...filters } = req.query;
       const { total, items } = await employmentOfferService.list(req.auth, {

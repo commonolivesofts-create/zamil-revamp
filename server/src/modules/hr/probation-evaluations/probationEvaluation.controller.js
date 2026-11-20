@@ -2,6 +2,9 @@ import { sendPaginated, sendSuccess } from '../../../shared/responses/apiRespons
 
 export function createProbationEvaluationController({ probationEvaluationService }) {
   return {
+    async counts(req, res) {
+      sendSuccess(res, { counts: await probationEvaluationService.counts(req.auth, req.body) });
+    },
     async list(req, res) {
       const { page, pageSize, ...filters } = req.query;
       const { total, items } = await probationEvaluationService.list(req.auth, {

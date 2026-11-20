@@ -34,6 +34,7 @@ import {
   PermissionOverridesPage,
   UserOverridesPage,
   RecruitmentDashboardPage,
+  TalentDashboardPage,
   RequisitionPage,
   RequisitionReportPage,
   InterviewPage,
@@ -216,6 +217,11 @@ export const router = createBrowserRouter([
                     path: 'hr/recruitment/dashboard',
                     handle: { routeId: 'hr-recruitment-dashboard' },
                     element: <RecruitmentDashboardPage />,
+                  },
+                  {
+                    path: 'hr/talent-management/dashboard',
+                    handle: { routeId: 'hr-talent-dashboard' },
+                    element: <TalentDashboardPage />,
                   },
                   {
                     path: 'hr/recruitment/requisition',

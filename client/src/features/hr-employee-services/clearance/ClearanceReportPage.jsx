@@ -11,7 +11,7 @@ import {
   Hero,
   Hint,
 } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
-import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB } from '../hrEmployeeServicesText.js'
 import { CLEARANCE_PATHS } from '../employeeServicesPaths.js'
 import { RECORD_STATUSES, STATUS_TEXT, STATUS_TONE } from '../shared/formRecords.js'
 import { clearanceService } from './clearanceService.js'
@@ -186,7 +186,7 @@ export default function ClearanceReportPage() {
       variant="clearance-report"
       title="Employee clearance report"
       heading="Requests"
-      breadcrumb={C.breadcrumb}
+      breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
       resourceKey="hr-clearance-report"
       list={list}
       create={CREATE}

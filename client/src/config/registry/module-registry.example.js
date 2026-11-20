@@ -50,7 +50,8 @@
 //   path          internal only: '/area/page' or '/area/page/:id'
 //   href          external only: an absolute https URL (loopback http for local development),
 //                 no credentials) or { env: 'VITE_EXTERNAL_<NAME>' } for an
-//                 environment-specific approved URL. Build-time VITE_ values are
+//                 environment-specific approved URL; add `path: '/page'` to
+//                 open a page under it. Build-time VITE_ values are
 //                 public: never put tokens, passwords or keys in them. A missing
 //                 or invalid environment value hides the entry.
 //                 External links open in a new tab (noopener, noreferrer).

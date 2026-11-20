@@ -952,10 +952,23 @@ const WORKFLOW_MANAGER_ROUTES = [
   },
 ]
 // Group order: workspace, human resources, workflow manager, security, account.
+// The Talent Management overview, switched with Performance Appraisal (each
+// area's figures follow that area's own access).
+const TALENT_DASHBOARD_ROUTE = {
+  id: 'hr-talent-dashboard',
+  path: '/hr/talent-management/dashboard',
+  label: 'Talent dashboard',
+  icon: 'layout-dashboard',
+  section: HR,
+  subgroup: TALENT_MANAGEMENT,
+  implemented: false,
+  enabledBy: ES_SWITCH,
+}
 const EXPECTED_ROUTES = [
   PRE_REGISTRY_ROUTES[0],
   PRE_REGISTRY_ROUTES[1],
   ...HR_RECRUITMENT_ROUTES,
+  TALENT_DASHBOARD_ROUTE,
   ...HR_EMPLOYEE_SERVICES_ROUTES,
   ...HR_EMPLOYEE_SERVICES_FORM_ROUTES,
   ...HR_EMPLOYEE_CLEARANCE_ROUTES,
@@ -967,6 +980,19 @@ const EXPECTED_ROUTES = [
 const withoutSubgroups = (routes) => routes.map(({ subgroup, ...route }) => route)
 // External hubs are navigation links only (no route); their address comes from the environment (unset in tests).
 const EXTERNAL_HUBS = [
+  ...[
+    ['training-hub-job-skill-matrix', 'Job skill matrix', 'grid-3x3'],
+    ['training-hub-catalog', 'Training catalog', 'book-open'],
+    ['training-hub-team-skills', 'Team skills', 'users'],
+  ].map(([id, label, icon]) => ({
+    id,
+    type: 'external',
+    href: null,
+    label,
+    icon,
+    section: HR,
+    implemented: false,
+  })),
   {
     id: 'training-hub',
     type: 'external',
@@ -1010,6 +1036,9 @@ test('the derived routes, sections and permission names match the active modules
       ({ id, href, implemented }) => ({ id, href, implemented }),
     ),
     [
+      { id: 'training-hub-job-skill-matrix', href: null, implemented: false },
+      { id: 'training-hub-catalog', href: null, implemented: false },
+      { id: 'training-hub-team-skills', href: null, implemented: false },
       { id: 'training-hub', href: null, implemented: false },
       { id: 'expense-hub', href: null, implemented: false },
     ],
@@ -1039,13 +1068,13 @@ test('the derived routes, sections and permission names match the active modules
           id: TALENT_MANAGEMENT,
           label: 'Talent Management',
           icon: 'layers',
-          description: 'Transfers, recognition and performance',
+          description: 'Performance, recognition and skills',
         },
         {
           id: EMPLOYEE_SERVICES,
           label: 'Employee Services',
           icon: 'briefcase-business',
-          description: 'Personal status, leave and ideas',
+          description: 'Personal status, transfers, leave, ideas and clearance',
         },
         {
           id: 'hr-letters',
@@ -1419,6 +1448,41 @@ test('navigation type: missing or internal is a route; only explicit external is
           { id: 'x', type, path: '/x', title: 'X', icon: 'circle', group: 'g', order: 1 },
         ]),
       /unknown navigation type/,
+    )
+  }
+})
+
+test('an env external destination can open a page under its base URL', () => {
+  const env = {
+    VITE_EXTERNAL_HUB: 'https://hub.example.com/',
+    VITE_EXTERNAL_SUB: 'https://example.com/hub?x=1#top',
+  }
+  assert.equal(
+    resolveExternalHref({ env: 'VITE_EXTERNAL_HUB', path: '/jsm' }, env),
+    'https://hub.example.com/jsm',
+  )
+  assert.equal(
+    resolveExternalHref({ env: 'VITE_EXTERNAL_SUB', path: '/team/skills' }, env),
+    'https://example.com/hub/team/skills',
+    'a base path is kept; its query and fragment are not',
+  )
+  assert.equal(resolveExternalHref({ env: 'VITE_EXTERNAL_MISSING', path: '/jsm' }, env), null)
+  for (const path of ['jsm', '/JSM', '/a?b', '/../x', '//evil.example.com', '/a/']) {
+    assert.throws(
+      () =>
+        moduleWith([
+          {
+            id: 'hub',
+            type: 'external',
+            href: { env: 'VITE_EXTERNAL_HUB', path },
+            title: 'Hub',
+            icon: 'circle',
+            group: 'g',
+            order: 1,
+          },
+        ]),
+      /href\.path must be a lower-case page path/,
+      path,
     )
   }
 })

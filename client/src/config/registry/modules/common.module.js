@@ -42,6 +42,38 @@ export default defineModule({
       subgroup: 'account-settings',
       order: 20,
     },
+    // Talent Management pages served by TrainingHub (same sign-in); TrainingHub
+    // decides who may use each page.
+    {
+      id: 'training-hub-job-skill-matrix',
+      type: 'external',
+      href: { env: 'VITE_EXTERNAL_TRAINING_HUB', path: '/jsm' },
+      title: 'Job skill matrix',
+      icon: 'grid-3x3',
+      group: 'human-resources',
+      subgroup: 'hr-talent-management',
+      order: 300,
+    },
+    {
+      id: 'training-hub-catalog',
+      type: 'external',
+      href: { env: 'VITE_EXTERNAL_TRAINING_HUB', path: '/catalog' },
+      title: 'Training catalog',
+      icon: 'book-open',
+      group: 'human-resources',
+      subgroup: 'hr-talent-management',
+      order: 310,
+    },
+    {
+      id: 'training-hub-team-skills',
+      type: 'external',
+      href: { env: 'VITE_EXTERNAL_TRAINING_HUB', path: '/team' },
+      title: 'Team skills',
+      icon: 'users',
+      group: 'human-resources',
+      subgroup: 'hr-talent-management',
+      order: 320,
+    },
     {
       id: 'training-hub',
       type: 'external',
@@ -62,4 +94,3 @@ export default defineModule({
     },
   ],
 })
-

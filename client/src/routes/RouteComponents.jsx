@@ -58,6 +58,10 @@ export const UserOverridesPage = lazy(
 export const RecruitmentDashboardPage = lazy(
   () => import('@/features/hr-recruitment/dashboard/RecruitmentDashboardPage.jsx'),
 )
+// Talent Management overview (appraisals, nominations and TrainingHub figures).
+export const TalentDashboardPage = lazy(
+  () => import('@/features/hr-talent-management/dashboard/TalentDashboardPage.jsx'),
+)
 export const RequisitionPage = lazy(
   () => import('@/features/hr-recruitment/requisition/RequisitionPage.jsx'),
 )

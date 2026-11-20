@@ -3,6 +3,9 @@ import { sendPaginated, sendSuccess } from '../../../shared/responses/apiRespons
 /** HTTP adapter for the Interview Assessment Form; rules live in interviewAssessment.service.js. */
 export function createInterviewAssessmentController({ interviewAssessmentService }) {
   return {
+    async counts(req, res) {
+      sendSuccess(res, { counts: await interviewAssessmentService.counts(req.auth, req.body) });
+    },
     async list(req, res) {
       const { page, pageSize, ...filters } = req.query;
       const { total, items } = await interviewAssessmentService.list(req.auth, {

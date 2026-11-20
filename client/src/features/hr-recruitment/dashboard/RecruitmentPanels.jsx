@@ -72,12 +72,33 @@ function Change({ current, previous }) {
   )
 }
 
+// A stage or item link: a route, or (with `href`) an external page in a new tab.
+function Go({ to, href, className, label, children }) {
+  return href ? (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+      aria-label={label}
+    >
+      {children}
+      <span className="zrv-hr-sr"> (opens in a new tab)</span>
+    </a>
+  ) : (
+    <Link to={to} className={className} aria-label={label}>
+      {children}
+    </Link>
+  )
+}
+
 // The banner: the headline number, three counters and the hiring-rate gauge.
-export function Banner({ hero, counters, gauge }) {
+// `label` names the banner for assistive technology (another dashboard's own).
+export function Banner({ hero, counters, gauge, label = T.banner.label }) {
   const share = percentOf(gauge?.part, gauge?.of)
   const length = Math.PI * 80
   return (
-    <section className="zrv-rd-banner" aria-label={T.banner.label}>
+    <section className="zrv-rd-banner" aria-label={label}>
       <div className="zrv-rd-banner__hero">
         {hero && (
           <>
@@ -159,12 +180,15 @@ export function Banner({ hero, counters, gauge }) {
 // The recruitment journey: numbered stages in hiring order, each in its
 // module colour with its KPIs (counts, or rates with a meter), and the
 // conversion from one stage's lead count to the next between them.
-export function Journey({ stages }) {
+// Another dashboard passes its own `title` and `hint`; `flow={false}` keeps
+// the arrows but drops the conversion where stages are not one pipeline. A
+// stage with `href` opens an external page; a rate KPI's `hint` replaces "x of y".
+export function Journey({ stages, title = T.journey.title, hint = T.journey.hint, flow = true }) {
   return (
-    <section className="zrv-rd-journey" aria-label={T.journey.title}>
+    <section className="zrv-rd-journey" aria-label={title}>
       <header className="zrv-rd-journey__head">
-        <h2>{T.journey.title}</h2>
-        <p>{T.journey.hint}</p>
+        <h2>{title}</h2>
+        <p>{hint}</p>
       </header>
       <ol className="zrv-rd-journey__flow">
         {stages.map((stage, index) => {
@@ -185,13 +209,14 @@ export function Journey({ stages }) {
                     <small>{T.journey.step(index + 1)}</small>
                     <b>{stage.title}</b>
                   </span>
-                  <Link
+                  <Go
                     to={stage.to}
+                    href={stage.href}
                     className="zrv-rd-stage__go"
-                    aria-label={`${T.viewAll}: ${stage.title}`}
+                    label={`${T.viewAll}: ${stage.title}`}
                   >
                     <OrvexaIcon name="arrow-up-right" size={14} />
-                  </Link>
+                  </Go>
                 </header>
                 <ul className="zrv-rd-stage__kpis">
                   {stage.kpis.map((kpi) => {
@@ -224,7 +249,7 @@ export function Journey({ stages }) {
                         <small className="zrv-rd-stage__hint">
                           {isRate
                             ? kpi.part !== undefined && kpi.of !== undefined
-                              ? T.rates.of(kpi.part, kpi.of, kpi.unit)
+                              ? (kpi.hint ?? T.rates.of(kpi.part, kpi.of, kpi.unit))
                               : ''
                             : (kpi.hint ?? '')}
                         </small>
@@ -233,7 +258,12 @@ export function Journey({ stages }) {
                   })}
                 </ul>
               </div>
-              {next && (
+              {next && !flow && (
+                <span className="zrv-rd-stage__link" style={{ '--c2': `var(--rd-${next.color})` }}>
+                  <i aria-hidden="true" />
+                </span>
+              )}
+              {next && flow && (
                 <span className="zrv-rd-stage__link" style={{ '--c2': `var(--rd-${next.color})` }}>
                   <i aria-hidden="true" />
                   <em>
@@ -494,7 +524,7 @@ export function KpiTiles({ items }) {
               ) : (
                 <>
                   {times}
-                  <small>{item.key.endsWith('ace') ? '' : '×'}</small>
+                  <small>{item.suffix ?? (item.key.endsWith('ace') ? '' : '×')}</small>
                 </>
               )}
             </b>
@@ -507,7 +537,8 @@ export function KpiTiles({ items }) {
   )
 }
 
-// Open items with their counts, each in its module colour.
+// Open items with their counts, each in its module colour; an item with
+// `href` opens an external page.
 export function AttentionList({ items }) {
   const ready = items.every((item) => item.count !== undefined)
   const open = ready ? items.filter((item) => item.count > 0) : items
@@ -522,13 +553,13 @@ export function AttentionList({ items }) {
     <ul className="zrv-rd-attention">
       {open.map((item) => (
         <li key={item.key} style={tint(item.color)}>
-          <Link to={item.to}>
+          <Go to={item.to} href={item.href}>
             <span className="zrv-rd-attention__icon" aria-hidden="true">
               <OrvexaIcon name={item.icon} size={15} />
             </span>
             <span>{item.label}</span>
             <b>{item.count === undefined ? <Skeleton /> : item.count}</b>
-          </Link>
+          </Go>
         </li>
       ))}
     </ul>

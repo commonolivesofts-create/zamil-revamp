@@ -43,12 +43,16 @@ export default function ChangePasswordPage() {
   const rules = policy ? policyRules(policy) : []
   const metRules = rules.filter((rule) => rule.met(newPassword)).length
   const requirementProgress = rules.length ? Math.round((metRules / rules.length) * 100) : 0
-  const animationRequirements = ['MIN_LENGTH', 'UPPERCASE', 'LOWERCASE', 'DIGIT', 'SPECIAL_CHARACTER'].map(
-    (code) => ({
-      code,
-      met: rules.find((rule) => rule.code === code)?.met(newPassword) ?? null,
-    }),
-  )
+  const animationRequirements = [
+    'MIN_LENGTH',
+    'UPPERCASE',
+    'LOWERCASE',
+    'DIGIT',
+    'SPECIAL_CHARACTER',
+  ].map((code) => ({
+    code,
+    met: rules.find((rule) => rule.code === code)?.met(newPassword) ?? null,
+  }))
   const strengthLabel = !newPassword
     ? 'Not entered'
     : requirementProgress === 100
@@ -57,15 +61,17 @@ export default function ChangePasswordPage() {
         ? 'Medium'
         : 'Weak'
 
-  const updatePasswordField = (key, setter, alsoClear = []) => (value) => {
-    setter(value)
-    setFieldErrors((current) => {
-      const next = { ...current }
-      delete next[key]
-      alsoClear.forEach((field) => delete next[field])
-      return next
-    })
-  }
+  const updatePasswordField =
+    (key, setter, alsoClear = []) =>
+    (value) => {
+      setter(value)
+      setFieldErrors((current) => {
+        const next = { ...current }
+        delete next[key]
+        alsoClear.forEach((field) => delete next[field])
+        return next
+      })
+    }
 
   const showError = (message) => {
     setError(message)
@@ -139,54 +145,133 @@ export default function ChangePasswordPage() {
             <>
               {password?.expired && (
                 <p className="zrv-auth-feedback zrv-auth-feedback--error" role="status">
-                  Your password has expired. Change it now; you cannot sign in again with the expired password.
+                  Your password has expired. Change it now; you cannot sign in again with the
+                  expired password.
                 </p>
               )}
-            {policyLoading && <p className="zrv-auth-feedback" role="status">Loading password requirements…</p>}
-            {policyError && (
-              <>
-                <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
-                  The password requirements could not be loaded, so a new password cannot be checked yet. {policyError.message}
+              {policyLoading && (
+                <p className="zrv-auth-feedback" role="status">
+                  Loading password requirements…
                 </p>
-                <button type="button" className="btn-secondary mt-3" onClick={retryPolicy}>Try again</button>
-              </>
-            )}
-            {error && <p ref={alertRef} tabIndex={-1} className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">{error}</p>}
-            {policy && (
-              <form className="zrv-password-form" onSubmit={submit} noValidate>
-                <PasswordInput ref={currentRef} id="change-current-password" label="Current password" placeholder="Enter your current password" value={currentPassword} onChange={updatePasswordField('currentPassword', setCurrentPassword)} error={fieldErrors.currentPassword} disabled={pending} autoComplete="current-password" maxLength={PASSWORD_INPUT_MAX} inputClassName="ux-input zrv-hr-input" />
-                <PasswordInput ref={newRef} id="change-new-password" label="New password" placeholder="Enter a new password" value={newPassword} onChange={updatePasswordField('newPassword', setNewPassword, ['confirmPassword'])} error={fieldErrors.newPassword} disabled={pending} autoComplete="new-password" maxLength={PASSWORD_INPUT_MAX} describedBy="change-policy" inputClassName="ux-input zrv-hr-input" />
-                <PasswordInput ref={confirmRef} id="change-confirm-password" label="Confirm new password" placeholder="Re-enter your new password" value={confirmPassword} onChange={updatePasswordField('confirmPassword', setConfirmPassword)} error={fieldErrors.confirmPassword} disabled={pending} autoComplete="new-password" maxLength={PASSWORD_INPUT_MAX} inputClassName="ux-input zrv-hr-input" />
-                <div className="sr-only">
-                  <p>Password strength: {newPassword ? requirementProgress : 0} percent, {strengthLabel}.</p>
-                  <PasswordPolicyChecklist id="change-policy" policy={policy} password={newPassword} />
-                </div>
-                <div className="zrv-password-form__actions">
-                  <button className="btn-secondary" type="button" onClick={resetForm} disabled={pending}>Cancel</button>
-                  <button className="btn-primary zrv-auth-submit" type="submit" disabled={pending || status !== 'authenticated'}>
-                    <OrvexaIcon name="lock-keyhole" className="size-4" />{' '}
-                    <span className="zrv-password-submit-label">
-                      {pending ? 'Updating password…' : 'Update password'}
-                    </span>
+              )}
+              {policyError && (
+                <>
+                  <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
+                    The password requirements could not be loaded, so a new password cannot be
+                    checked yet. {policyError.message}
+                  </p>
+                  <button type="button" className="btn-secondary mt-3" onClick={retryPolicy}>
+                    Try again
                   </button>
-                </div>
-              </form>
-            )}
-          </>
-        )}
+                </>
+              )}
+              {error && (
+                <p
+                  ref={alertRef}
+                  tabIndex={-1}
+                  className="zrv-auth-feedback zrv-auth-feedback--error"
+                  role="alert"
+                >
+                  {error}
+                </p>
+              )}
+              {policy && (
+                <form className="zrv-password-form" onSubmit={submit} noValidate>
+                  <PasswordInput
+                    ref={currentRef}
+                    id="change-current-password"
+                    label="Current password"
+                    placeholder="Enter your current password"
+                    value={currentPassword}
+                    onChange={updatePasswordField('currentPassword', setCurrentPassword)}
+                    error={fieldErrors.currentPassword}
+                    disabled={pending}
+                    autoComplete="current-password"
+                    maxLength={PASSWORD_INPUT_MAX}
+                    inputClassName="ux-input zrv-hr-input"
+                  />
+                  <PasswordInput
+                    ref={newRef}
+                    id="change-new-password"
+                    label="New password"
+                    placeholder="Enter a new password"
+                    value={newPassword}
+                    onChange={updatePasswordField('newPassword', setNewPassword, [
+                      'confirmPassword',
+                    ])}
+                    error={fieldErrors.newPassword}
+                    disabled={pending}
+                    autoComplete="new-password"
+                    maxLength={PASSWORD_INPUT_MAX}
+                    describedBy="change-policy"
+                    inputClassName="ux-input zrv-hr-input"
+                  />
+                  <PasswordInput
+                    ref={confirmRef}
+                    id="change-confirm-password"
+                    label="Confirm new password"
+                    placeholder="Re-enter your new password"
+                    value={confirmPassword}
+                    onChange={updatePasswordField('confirmPassword', setConfirmPassword)}
+                    error={fieldErrors.confirmPassword}
+                    disabled={pending}
+                    autoComplete="new-password"
+                    maxLength={PASSWORD_INPUT_MAX}
+                    inputClassName="ux-input zrv-hr-input"
+                  />
+                  <div className="sr-only">
+                    <p>
+                      Password strength: {newPassword ? requirementProgress : 0} percent,{' '}
+                      {strengthLabel}.
+                    </p>
+                    <PasswordPolicyChecklist
+                      id="change-policy"
+                      policy={policy}
+                      password={newPassword}
+                    />
+                  </div>
+                  <div className="zrv-password-form__actions">
+                    <button
+                      className="btn-secondary"
+                      type="button"
+                      onClick={resetForm}
+                      disabled={pending}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-primary zrv-auth-submit"
+                      type="submit"
+                      disabled={pending || status !== 'authenticated'}
+                    >
+                      <OrvexaIcon name="lock-keyhole" className="size-4" />{' '}
+                      <span className="zrv-password-submit-label">
+                        {pending ? 'Updating password…' : 'Update password'}
+                      </span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </>
+          )}
         </section>
-        <aside
-          className="zrv-password-side"
-          aria-label={`Password security for ${appConfig.name}`}
-        >
+        <aside className="zrv-password-side" aria-label={`Password security for ${appConfig.name}`}>
           <AnimatedSecurityShield
             strength={newPassword ? requirementProgress : 0}
             requirements={animationRequirements}
             hasInput={Boolean(newPassword)}
           />
           <div className="zrv-password-session-strip" role="note">
-            <span><OrvexaIcon name="shield-check" className="size-5" /></span>
-            <div><strong>Keep your account protected</strong><p>Changing your password ends all active sessions. You’ll sign in again with your new password.</p></div>
+            <span>
+              <OrvexaIcon name="shield-check" className="size-5" />
+            </span>
+            <div>
+              <strong>Keep your account protected</strong>
+              <p>
+                Changing your password ends all active sessions. You’ll sign in again with your new
+                password.
+              </p>
+            </div>
           </div>
         </aside>
       </div>

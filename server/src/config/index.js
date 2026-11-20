@@ -111,6 +111,9 @@ const envSchema = Joi.object({
   }),
   HEALTH_READY_TIMEOUT_MS: Joi.number().integer().min(100).default(3000),
   HEALTH_READY_CACHE_MS: Joi.number().integer().min(0).default(5000),
+  // Dashboard counts cache (per user and module; 0 disables it). Refresh always bypasses it.
+  DASHBOARD_COUNTS_CACHE_TTL_MS: Joi.number().integer().min(0).max(600000).default(30000),
+  DASHBOARD_COUNTS_CACHE_MAX_ENTRIES: Joi.number().integer().min(1).max(100000).default(5000),
 
   ORACLE_USER: requiredOutsideTest(Joi.string()),
   ORACLE_PASSWORD: requiredOutsideTest(Joi.string()),
@@ -377,6 +380,10 @@ export function loadConfig(env) {
     health: Object.freeze({
       readyTimeoutMs: value.HEALTH_READY_TIMEOUT_MS,
       readyCacheMs: value.HEALTH_READY_CACHE_MS,
+    }),
+    dashboard: Object.freeze({
+      countsCacheTtlMs: value.DASHBOARD_COUNTS_CACHE_TTL_MS,
+      countsCacheMaxEntries: value.DASHBOARD_COUNTS_CACHE_MAX_ENTRIES,
     }),
     auth: Object.freeze({
       cookie: Object.freeze({

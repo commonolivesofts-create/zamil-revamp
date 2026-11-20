@@ -4,6 +4,7 @@ import {
   withConnection as defaultWithConnection,
   withTransaction as defaultWithTransaction,
 } from '../../../database/oracle.js';
+import { cachedCounts } from '../../../shared/cache/cachedCounts.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as defaultRepository from './interviewAssessment.repository.js';
 import { PAYROLL_UNITS } from './interviewAssessment.validation.js';
@@ -55,6 +56,7 @@ export function createInterviewAssessmentService({
   repository = defaultRepository,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
+  countsCache,
 }) {
   const read = (work) => withConnection(POOLS.LOW, work);
 
@@ -250,6 +252,22 @@ export function createInterviewAssessmentService({
         await repository.insertEvaluation(c, { ...sections.insertEvaluation, headerId });
         return { headerId, intNo, uuid };
       });
+    },
+
+    /** The list total of each filter set for the dashboard, in the list's §7.4 scope, one statement. */
+    async counts(actor, { queries, fresh }) {
+      return cachedCounts(
+        countsCache,
+        { module: 'interviews', userId: actor.userId, queries, fresh },
+        (missing) =>
+          read(async (c) => {
+            const isHr = await repository.isHrUser(c, actor.userId);
+            return repository.countAssessments(c, {
+              queries: missing,
+              createdBy: isHr ? null : actor.userId,
+            });
+          }),
+      );
     },
 
     async list(actor, { page, pageSize, sortBy, sortDir, search, createdBy, ...rest }) {

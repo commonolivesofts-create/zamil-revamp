@@ -1,4 +1,5 @@
 import oracledb from 'oracledb';
+import { countSets } from '../../../database/conditionalCounts.js';
 import { CRITERIA_COUNT } from './probationEvaluation.rules.js';
 
 const ID = { type: oracledb.STRING };
@@ -227,18 +228,41 @@ const mapListItem = (row) => ({
   pendingAt: row.PENDING_AT ?? null,
 });
 
-export async function listEvaluations(
-  connection,
-  { limit, offset, filters = {}, createdBy, sortBy, sortDir },
-) {
-  const binds = {};
-  const conditions = ['1 = 1'];
+// The list's filter predicates (and their binds), shared by the list and the counts.
+function filterConditions(filters, binds) {
+  const conditions = [];
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null || value === '') continue;
     if (!FILTERS[key]) throw new Error(`Unsupported filter ${key}`);
     conditions.push(FILTERS[key](value));
     binds[key] = value;
   }
+  return conditions;
+}
+
+/**
+ * The list total of each filter set (as `listEvaluations` would report it) in one statement, for the
+ * recruitment dashboard. `createdBy` as in `listEvaluations`.
+ */
+export async function countEvaluations(connection, { queries, createdBy }) {
+  const scoped = createdBy !== undefined && createdBy !== null;
+  return countSets((sql, binds) => rows(connection, sql, binds), {
+    from: 'FROM XXZP.XXZP_PAF_PROBATION_HEADER H',
+    where: scoped ? ['H.CREATED_BY = :createdBy'] : [],
+    binds: scoped ? { createdBy } : {},
+    sets: queries.map((filters) => {
+      const binds = {};
+      return { conditions: filterConditions(filters, binds), binds };
+    }),
+  });
+}
+
+export async function listEvaluations(
+  connection,
+  { limit, offset, filters = {}, createdBy, sortBy, sortDir },
+) {
+  const binds = {};
+  const conditions = ['1 = 1', ...filterConditions(filters, binds)];
   if (createdBy !== undefined && createdBy !== null) {
     conditions.push('H.CREATED_BY = :createdBy');
     binds.createdBy = createdBy;
