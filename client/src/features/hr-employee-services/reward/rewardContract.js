@@ -10,6 +10,12 @@ export const REWARD_DEPARTMENTS = Object.freeze(['production', 'shared-services'
 export const REWARD_RATING_CODES = Object.freeze(['A', 'AS', 'BS', 'CS'])
 export const departmentFromApi = (value) =>
   String(value ?? '').toLowerCase() === 'production' ? 'production' : 'shared-services'
+const ratingCode = (value) => {
+  const normalized = String(value ?? '')
+    .trim()
+    .toUpperCase()
+  return REWARD_RATING_CODES.includes(normalized) ? normalized : ''
+}
 
 const fail = () => {
   throw invalidResponse('reward nomination')
@@ -79,17 +85,17 @@ export function readRewardRecord(data) {
       departmentName: text(data.employeeDepartment),
     }),
     activityDate: isoDate(data.activityDate),
-    overallRating: REWARD_RATING_CODES.includes(data.overallRating) ? data.overallRating : '',
+    overallRating: ratingCode(data.overallRating),
     remark: text(data.remark),
     status: normalizeStatus(data.status),
     createdAt: isoDate(data.createdAt),
     lines: Object.freeze(
       data.lines.map((line, index) => {
-        if (line?.lineNumber !== index) fail()
+        if (Number(line?.lineNumber) !== index) fail()
         return Object.freeze({
           lineNumber: index,
           criterion: text(line.criterion),
-          rating: REWARD_RATING_CODES.includes(line.rating) ? line.rating : '',
+          rating: ratingCode(line.rating),
           remark: text(line.remark),
         })
       }),
@@ -108,7 +114,7 @@ export function readRewardListItem(item) {
     employeeName: text(item.employeeName),
     employeePosition: text(item.employeePosition),
     activityDate: isoDate(item.activityDate),
-    overallRating: REWARD_RATING_CODES.includes(item.overallRating) ? item.overallRating : '',
+    overallRating: ratingCode(item.overallRating),
     remark: text(item.remark),
     ratings: Object.freeze(
       Object.fromEntries(REWARD_RATING_CODES.map((code) => [code, Number(ratings[code]) || 0])),
