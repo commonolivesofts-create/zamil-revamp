@@ -43,10 +43,13 @@ export interface ReportRouteOptions<F, T> {
   path: string;
   permission: Permission;
   listSchema: z.ZodType<ListQuery<F> & { page: number; limit: number }>;
-  exportSchema: z.ZodType<ListQuery<F>>;
   repository: ReportRepository<F, T>;
-  columns: readonly CsvColumn<T>[];
-  filePrefix: string;
+  /** Omit for lists without a CSV export. */
+  csv?: {
+    exportSchema: z.ZodType<ListQuery<F>>;
+    columns: readonly CsvColumn<T>[];
+    filePrefix: string;
+  };
 }
 
 export function reportRoutes<F, T>(options: ReportRouteOptions<F, T>): Router {
@@ -58,8 +61,10 @@ export function reportRoutes<F, T>(options: ReportRouteOptions<F, T>): Router {
     res.json(await options.repository.list(query));
   });
 
+  const csv = options.csv;
+  if (!csv) return router;
   router.post(`${options.path}/export`, guard, async (req, res) => {
-    const query = options.exportSchema.parse(req.body ?? {});
+    const query = csv.exportSchema.parse(req.body ?? {});
     const rows = await options.repository.exportRows(query, MAX_EXPORT_ROWS);
     if (rows.length > MAX_EXPORT_ROWS) {
       throw new AppError(
@@ -67,7 +72,7 @@ export function reportRoutes<F, T>(options: ReportRouteOptions<F, T>): Router {
         `More than ${MAX_EXPORT_ROWS.toLocaleString('en')} rows match. Narrow the filters and export again.`,
       );
     }
-    sendCsv(res, options.filePrefix, options.columns, rows);
+    sendCsv(res, csv.filePrefix, csv.columns, rows);
   });
 
   return router;

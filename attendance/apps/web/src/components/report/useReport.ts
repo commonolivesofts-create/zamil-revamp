@@ -17,7 +17,7 @@ export function compactFilters<F extends FilterValues>(filters: F): Partial<F> {
 export function useReport<F extends FilterValues, T>(config: ReportConfig<F, T>) {
   const toast = useToast();
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
+  const [limit, setLimit] = useState(config.pageSize ?? DEFAULT_PAGE_SIZE);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<F>(config.initialFilters);

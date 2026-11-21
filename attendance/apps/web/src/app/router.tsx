@@ -8,10 +8,18 @@ import { AppShell } from '../shell/AppShell';
 import { AuthGate } from './AuthGate';
 import { ALL_NAV_ITEMS } from './navigation';
 
+const ShiftWeekPage = lazy(() => import('../features/setup/ShiftWeekPage'));
+
 const PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   'employee-details': lazy(() => import('../features/employees/EmployeeDetailsPage')),
   absence: lazy(() => import('../features/absences/AbsencePage')),
   'function-feature': lazy(() => import('../features/functionFeature/FunctionFeaturePage')),
+  shifts: lazy(() => import('../features/setup/ShiftsPage')),
+  'shift-details': lazy(() => import('../features/setup/SubShiftsPage')),
+  timetable: lazy(() => import('../features/setup/TimetablePage')),
+  occasion: lazy(() => import('../features/setup/OccasionsPage')),
+  'attendance-card': lazy(() => import('../features/attendanceCard/AttendanceCardPage')),
+  interface: lazy(() => import('../features/attendanceCard/InterfacePage')),
 };
 
 export const router = createBrowserRouter([
@@ -26,6 +34,8 @@ export const router = createBrowserRouter([
         const Page = PAGES[item.id];
         return { path: item.path, element: Page ? <Page /> : <PlannedPage item={item} /> };
       }),
+      { path: '/shift-details/manage', element: <ShiftWeekPage /> },
+      { path: '/shift-details/:uuid', element: <ShiftWeekPage /> },
       // CI3 aliases, so old bookmarks keep working.
       { path: '/employee_details', element: <Navigate to="/report/employee-details" replace /> },
       { path: '/function_feature', element: <Navigate to="/function-feature" replace /> },

@@ -14,19 +14,14 @@ import type { revokeZamilSession } from './auth/zamil-sso';
 import type { AppConfig } from './config';
 import type { Db } from './db/oracle';
 import { errorHandler, notFound, requireAppHeader } from './middleware/http';
-import { absenceRepository } from './modules/absences/repository';
 import { absenceRoutes } from './modules/absences/routes';
-import { employeeRepository } from './modules/employees/repository';
 import { employeeRoutes } from './modules/employees/routes';
 import { healthRoutes } from './modules/health/routes';
-import type { ReportRepository } from './modules/report';
-import type { AbsenceFilters, AbsenceRow, EmployeeFilters, EmployeeRow } from '@attendance/shared';
-
-export interface Repositories {
-  identities: IdentityRepository;
-  employees: ReportRepository<EmployeeFilters, EmployeeRow>;
-  absences: ReportRepository<AbsenceFilters, AbsenceRow>;
-}
+import { attendanceCardRoutes } from './modules/attendanceCard/routes';
+import { occasionRoutes } from './modules/occasions/routes';
+import { shiftRoutes } from './modules/shifts/routes';
+import { timetableRoutes } from './modules/timetables/routes';
+import { buildRepositories, type Repositories } from './services';
 
 export interface AppDeps {
   config: AppConfig;
@@ -35,15 +30,14 @@ export interface AppDeps {
   sessions: SessionService;
   identities: IdentityRepository;
   /** Overrides for tests (default: Oracle repositories over `db`). */
-  repositories?: Partial<Omit<Repositories, 'identities'>>;
+  repositories?: Partial<Repositories>;
   resolveZamil?: ZamilResolver;
   revokeZamil?: typeof revokeZamilSession;
 }
 
 export function createApp(deps: AppDeps): Express {
   const { config, logger, db, sessions } = deps;
-  const employees = deps.repositories?.employees ?? employeeRepository(db);
-  const absences = deps.repositories?.absences ?? absenceRepository(db);
+  const r = buildRepositories(db, deps.repositories);
 
   const app = express();
   app.disable('x-powered-by');
@@ -83,8 +77,12 @@ export function createApp(deps: AppDeps): Express {
       revokeZamil: deps.revokeZamil,
     }),
   );
-  api.use(employeeRoutes(employees));
-  api.use(absenceRoutes(absences));
+  api.use(employeeRoutes(r.employees));
+  api.use(absenceRoutes(r.absences));
+  api.use(shiftRoutes({ shifts: r.shifts, list: r.shiftList, weekList: r.shiftWeekList }));
+  api.use(timetableRoutes({ timetables: r.timetables, list: r.timetableList }));
+  api.use(occasionRoutes({ occasions: r.occasions, list: r.occasionList }));
+  api.use(attendanceCardRoutes({ list: r.attendanceCardList, importer: r.attendanceImporter }));
   app.use(API_BASE, api);
 
   app.use(notFound);

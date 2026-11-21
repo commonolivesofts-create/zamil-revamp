@@ -152,7 +152,17 @@ export const NAVIGATION: readonly NavSection[] = [
 ];
 
 /** Pages rebuilt so far (README phase table). */
-export const BUILT_PAGES = new Set(['employee-details', 'absence', 'function-feature']);
+export const BUILT_PAGES = new Set([
+  'employee-details',
+  'absence',
+  'function-feature',
+  'shifts',
+  'shift-details',
+  'timetable',
+  'occasion',
+  'attendance-card',
+  'interface',
+]);
 
 export const ALL_NAV_ITEMS: readonly NavItem[] = NAVIGATION.flatMap((section) => section.items);
 
@@ -161,5 +171,11 @@ export function findNavItem(pathname: string): NavItem | undefined {
 }
 
 export function sectionOf(pathname: string): NavSection | undefined {
-  return NAVIGATION.find((section) => section.items.some((item) => item.path === pathname));
+  // Sub-pages (e.g. /shift-details/<uuid>) belong to their parent menu item.
+  return NAVIGATION.find((section) =>
+    section.items.some(
+      (item) =>
+        item.path === pathname || (item.path !== '/' && pathname.startsWith(`${item.path}/`)),
+    ),
+  );
 }

@@ -7,7 +7,7 @@ import type { Identity, IdentityRepository } from './auth/identity';
 import type { ZamilResolver } from './auth/middleware';
 import { SessionService } from './auth/session';
 import type { AppConfig } from './config';
-import type { Db } from './db/oracle';
+import type { Binds, Db, ExecuteResult, Row, Tx } from './db/oracle';
 import { AppError } from './lib/errors';
 import { silentLogger } from './lib/logger';
 import type { ReportRepository } from './modules/report';
@@ -37,9 +37,64 @@ export const fakeDb = (adwUp = true): Db => ({
   query: async () => {
     throw new Error('fake db: use repository fakes');
   },
+  execute: async () => {
+    throw new Error('fake db: use repository fakes');
+  },
+  transaction: async () => {
+    throw new Error('fake db: use repository fakes');
+  },
   ping: async (pool) => (pool === 'adw' ? adwUp : null),
   close: async () => {},
 });
+
+export interface RecordedStatement {
+  kind: 'query' | 'execute';
+  sql: string;
+  binds: Binds;
+  inTransaction: boolean;
+}
+
+/**
+ * A Db that records every statement and answers from `respond` (rows for queries,
+ * rowsAffected/outBinds for writes). Transactions record commit or rollback.
+ */
+export function scriptedDb(
+  respond: (statement: RecordedStatement) => Row[] | Partial<ExecuteResult> | undefined = () =>
+    undefined,
+) {
+  const statements: RecordedStatement[] = [];
+  const outcomes: ('commit' | 'rollback')[] = [];
+  const run = (kind: 'query' | 'execute', sql: string, binds: Binds, inTransaction: boolean) => {
+    const statement = { kind, sql: sql.replace(/\s+/g, ' ').trim(), binds, inTransaction };
+    statements.push(statement);
+    return respond(statement);
+  };
+  const tx = (inTransaction: boolean): Tx => ({
+    query: async <T extends Row = Row>(sql: string, binds: Binds = {}) =>
+      ((run('query', sql, binds, inTransaction) as T[] | undefined) ?? []) as T[],
+    execute: async (sql, binds = {}) => {
+      const result = (run('execute', sql, binds, inTransaction) ?? {}) as Partial<ExecuteResult>;
+      return { rowsAffected: result.rowsAffected ?? 1, outBinds: result.outBinds ?? {} };
+    },
+  });
+  const db: Db = {
+    query: (_pool, sql, binds) => tx(false).query(sql, binds),
+    execute: (_pool, sql, binds) => tx(false).execute(sql, binds),
+    transaction: async (_pool, work) => {
+      try {
+        const result = await work(tx(true));
+        outcomes.push('commit');
+        return result;
+      } catch (error) {
+        outcomes.push('rollback');
+        throw error;
+      }
+    },
+    ping: async () => true,
+    close: async () => {},
+  };
+  return { db, statements, outcomes };
+}
 
 export const identity = (overrides: Partial<Identity> = {}): Identity => ({
   userId: 501,

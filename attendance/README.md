@@ -10,8 +10,8 @@ as a TypeScript monorepo:
 It follows the architecture of [`../traininghub/`](../traininghub/) and [`../expensehub/`](../expensehub/),
 and **looks exactly like the main Zamil Digitalization client** ([`../client/`](../client/)).
 
-> **Status:** Phases 0–2 done: platform plus Employee Details, Absence and Function & Feature.
-> Other menu items show a "planned" notice. See [Phases](#phases) and [`docs/parity/`](docs/parity/).
+> **Status:** Phases 0–4 done: platform; Employee Details, Absence, Function & Feature; Shifts, Sub
+> Shifts, Timetable, Occasions; Attendance Card with file upload. Other menu items show a "planned" notice. See [Phases](#phases) and [`docs/parity/`](docs/parity/).
 
 ## Hard rules
 
@@ -101,7 +101,8 @@ Provisional source of roles, chosen in Phase 1 because no role data exists:
 - **Manager:** the employee has direct reports (`SUPERVISOR_ID` in `XX_DIGI_EMP_MASTER`).
 - **Viewer:** everyone else who is signed in.
 
-Read-only reports stay visible to every role, as in CI3. Write permissions arrive with Phase 3.
+Viewing stays open to every role, as in CI3. Adding, editing and deleting setup data (shifts, timetables,
+occasions) and importing attendance files require **HR admin**; CI3 let any signed-in user do it.
 
 ## Databases
 
@@ -226,8 +227,8 @@ A phase starts only when it is requested.
 | 0   | Plan              | This README, the parity template                                                                                                                                                                 | —                   | **Done**                         |
 | 1   | Platform          | Workspace scaffold, config/env, ADW + EBS pools, SSO + session, roles, error envelope, logging; web shell with Orvexa sync, the DRY building blocks; entry in `client/scripts/dev-with-hubs.mjs` | 0                   | **Done**                         |
 | 2   | Read-only reports | Employee Details, Absence, Function & Feature (proves the list/filter/export pattern)                                                                                                            | 1                   | **Done**: [parity](docs/parity/) |
-| 3   | Setup data        | Shifts → Sub Shifts → Timetable → Occasions                                                                                                                                                      | 1                   | Not started                      |
-| 4   | Raw punches       | Attendance Card list, file upload preview + import (CSV/XLSX, batched MERGE), Interface page                                                                                                     | 3                   | Not started                      |
+| 3   | Setup data        | Shifts → Sub Shifts → Timetable → Occasions                                                                                                                                                      | 1                   | **Done**                         |
+| 4   | Raw punches       | Attendance Card list, file upload preview + import (CSV/XLSX, batched MERGE), Interface page                                                                                                     | 3                   | **Done**                         |
 | 5   | Processing engine | Port `ProcessAttendanceModel` as pure functions; golden tests against CI3 output on the same data; background job with progress                                                                  | 3, 4                | Not started                      |
 | 6   | Processed outputs | Timesheet, Payroll File + adjustment, Alerts & Exceptions, Dashboard                                                                                                                             | 5                   | Not started                      |
 | 7   | EBS live + people | Daily Attendance, Leave Requests, Manager View + approvals                                                                                                                                       | 1 + EBS test access | Not started                      |
@@ -265,11 +266,11 @@ reason), or **Changed** (approved).
 | Manager Approve/Deny buttons never rendered                                                           | `views/pages/manager/index.php`, `mgrDecideAbsence()`                        | Wire it, with permission checks             |
 | High-overtime alert compares hours with a 120-minute threshold                                        | `Alerts_exceptions_model::build_query`                                       | Compare in consistent units                 |
 | Daily Attendance `status` filter ignored; summary loads every row                                     | `Daily_attendance_model`                                                     | Implement the filter; aggregate in SQL      |
-| Timetable "Overtime allowed" / "Exclude timesheet" never saved                                        | `Timetable_model::insert_timetable`                                          | Save both flags                             |
+| Timetable "Overtime allowed" / "Exclude timesheet" never saved                                        | `Timetable_model::insert_timetable`                                          | Fixed in phase 3: both flags saved          |
 | `TRIM(x) <> ''` never true in Oracle (empty department lists)                                         | `ProcessAttendanceModel:28`, `Manager_model:61`, `Attendance_card_model:274` | Use `IS NOT NULL`                           |
 | Payroll overtime netted against lateness twice; NULL late zeroes OT                                   | `Payroll_file_model::get_payroll_file_list`                                  | Needs business sign-off before porting      |
 | Processing makes about 7 queries per employee-day, synchronously                                      | `ProcessAttendanceModel::process_attendance_range`                           | Batch reads, background job                 |
-| Shift delete leaves timetables pointing at it                                                         | `Shift_model`                                                                | Block or cascade, as decided                |
+| Shift delete leaves timetables pointing at it                                                         | `Shift_model`                                                                | Fixed in phase 3: refused while in use      |
 | Dead code: legacy month processor, `contractor/form`, `occasion/view`, `Shifts::create`, duplicate JS | various                                                                      | Not ported                                  |
 
 ## Definition of done (per phase)
@@ -296,6 +297,8 @@ npm run dev         # API http://127.0.0.1:7387, web http://localhost:7388
 - **Sign-in:** start Zamil first (`server`: `npm run dev`; `client`: `npm run dev`). Sign in at
   `http://localhost:7382`, then open `http://localhost:7388` on the same hostname. Without a Zamil
   session you are sent to the Zamil login.
+- **Edit rights:** setup pages and the attendance import are read-only unless your employee number
+  is in `ATTENDANCE_HR_ADMINS` in `attendance/.env` (comma-separated). Restart the API after changing it.
 - **One command for everything:** once `attendance/` is installed, `client` `npm run dev` also starts
   this app, alongside TrainingHub and ExpenseHub.
 - **The Zamil sidebar link:** **Human resources → Attendance System** still points at the CI3 app until

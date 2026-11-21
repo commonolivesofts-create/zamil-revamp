@@ -30,6 +30,14 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, req, res, _next)
     });
   } else if (isBodyParseError(err)) {
     appError = new AppError('VALIDATION', 'Malformed JSON body');
+  } else if (err instanceof Error && err.name === 'MulterError') {
+    const code = (err as Error & { code?: string }).code;
+    appError = new AppError(
+      'VALIDATION',
+      code === 'LIMIT_FILE_SIZE'
+        ? 'File size must not exceed 10 MB.'
+        : 'Upload one CSV or XLSX file.',
+    );
   } else {
     // Unexpected (e.g. ORA- errors): log the real error, return nothing internal.
     req.log.error({ err }, 'unhandled error');

@@ -13,8 +13,10 @@ export const employeeRoutes = (repository: ReportRepository<EmployeeFilters, Emp
     path: '/employees',
     permission: 'employees:view',
     listSchema: employeeListQuerySchema,
-    exportSchema: employeeExportQuerySchema,
     repository,
-    columns: EMPLOYEE_COLUMNS,
-    filePrefix: 'employee_details',
+    csv: {
+      exportSchema: employeeExportQuerySchema,
+      columns: EMPLOYEE_COLUMNS,
+      filePrefix: 'employee_details',
+    },
   });

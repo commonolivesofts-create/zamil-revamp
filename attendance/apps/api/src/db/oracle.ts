@@ -6,11 +6,31 @@ import type { OraclePoolConfig } from '../config';
 import { AppError } from '../lib/errors';
 
 export type PoolName = 'adw' | 'ebs';
-export type Binds = Record<string, string | number | null>;
+/** An OUT bind (e.g. RETURNING id INTO :newId). */
+export interface OutBind {
+  out: 'number' | 'string';
+}
+export type BindValue = string | number | null | OutBind;
+export type Binds = Record<string, BindValue>;
 export type Row = Record<string, unknown>;
+
+export interface ExecuteResult {
+  rowsAffected: number;
+  outBinds: Record<string, unknown>;
+}
+
+/** Statements that run on one connection inside a transaction. */
+export interface Tx {
+  query<T extends Row = Row>(sql: string, binds?: Binds): Promise<T[]>;
+  execute(sql: string, binds?: Binds): Promise<ExecuteResult>;
+}
 
 export interface Db {
   query<T extends Row = Row>(pool: PoolName, sql: string, binds?: Binds): Promise<T[]>;
+  /** One write, committed on success. */
+  execute(pool: PoolName, sql: string, binds?: Binds): Promise<ExecuteResult>;
+  /** Several statements committed together; any error rolls everything back. */
+  transaction<T>(pool: PoolName, work: (tx: Tx) => Promise<T>): Promise<T>;
   /** null when the pool is not configured (EBS before Phase 7). */
   ping(pool: PoolName): Promise<boolean | null>;
   close(): Promise<void>;
@@ -46,16 +66,37 @@ export class OracleDb implements Db {
     return pool;
   }
 
-  async query<T extends Row = Row>(pool: PoolName, sql: string, binds: Binds = {}): Promise<T[]> {
+  private async withConnection<T>(pool: PoolName, use: (c: oracledb.Connection) => Promise<T>) {
     const connection = await (await this.pool(pool)).getConnection();
     try {
-      const result = await connection.execute<T>(sql, binds, {
-        outFormat: oracledb.OUT_FORMAT_OBJECT,
-      });
-      return result.rows ?? [];
+      return await use(connection);
     } finally {
       await connection.close();
     }
+  }
+
+  async query<T extends Row = Row>(pool: PoolName, sql: string, binds: Binds = {}): Promise<T[]> {
+    return this.withConnection(pool, (c) => runQuery<T>(c, sql, binds));
+  }
+
+  async execute(pool: PoolName, sql: string, binds: Binds = {}): Promise<ExecuteResult> {
+    return this.withConnection(pool, (c) => runExecute(c, sql, binds, true));
+  }
+
+  async transaction<T>(pool: PoolName, work: (tx: Tx) => Promise<T>): Promise<T> {
+    return this.withConnection(pool, async (c) => {
+      try {
+        const result = await work({
+          query: (sql, binds = {}) => runQuery(c, sql, binds),
+          execute: (sql, binds = {}) => runExecute(c, sql, binds, false),
+        });
+        await c.commit();
+        return result;
+      } catch (error) {
+        await c.rollback().catch(() => undefined);
+        throw error;
+      }
+    });
   }
 
   async ping(pool: PoolName): Promise<boolean | null> {
@@ -73,6 +114,45 @@ export class OracleDb implements Db {
     this.pools.clear();
     await Promise.allSettled(pools.map(async (pool) => (await pool).close(5)));
   }
+}
+
+function toOracleBinds(binds: Binds): oracledb.BindParameters {
+  return Object.fromEntries(
+    Object.entries(binds).map(([name, value]) =>
+      value !== null && typeof value === 'object'
+        ? [
+            name,
+            {
+              dir: oracledb.BIND_OUT,
+              type: value.out === 'number' ? oracledb.NUMBER : oracledb.STRING,
+              ...(value.out === 'string' && { maxSize: 4000 }),
+            },
+          ]
+        : [name, value],
+    ),
+  );
+}
+
+async function runQuery<T extends Row>(c: oracledb.Connection, sql: string, binds: Binds) {
+  const result = await c.execute<T>(sql, toOracleBinds(binds), {
+    outFormat: oracledb.OUT_FORMAT_OBJECT,
+  });
+  return result.rows ?? [];
+}
+
+async function runExecute(
+  c: oracledb.Connection,
+  sql: string,
+  binds: Binds,
+  autoCommit: boolean,
+): Promise<ExecuteResult> {
+  const result = await c.execute(sql, toOracleBinds(binds), { autoCommit });
+  const outBinds = (result.outBinds ?? {}) as Record<string, unknown>;
+  // RETURNING ... INTO yields one-element arrays; unwrap them.
+  for (const [key, value] of Object.entries(outBinds)) {
+    if (Array.isArray(value)) outBinds[key] = value[0];
+  }
+  return { rowsAffected: result.rowsAffected ?? 0, outBinds };
 }
 
 /** Reads a column as string | null (Oracle returns numbers for NUMBER columns). */

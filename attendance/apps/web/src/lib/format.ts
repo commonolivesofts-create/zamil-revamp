@@ -23,3 +23,13 @@ export function display(value: string | number | null | undefined): string {
 export function formatCount(value: number): string {
   return value.toLocaleString('en');
 }
+
+/** '2026-11-20 14:30:05' -> '20 Nov 2026, 02:30 PM' (CI3 "d M Y, h:i A"). */
+export function formatDateTime(value: string | null | undefined): string {
+  const match = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/.exec(value ?? '');
+  if (!match) return value || '—';
+  const hours = Number(match[2]);
+  const suffix = hours >= 12 ? 'PM' : 'AM';
+  const h12 = String(hours % 12 || 12).padStart(2, '0');
+  return `${formatIsoDate(match[1])}, ${h12}:${match[3]} ${suffix}`;
+}

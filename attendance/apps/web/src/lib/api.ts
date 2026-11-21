@@ -24,12 +24,14 @@ export class ApiError extends Error {
 }
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
   signal?: AbortSignal;
 }
 
 async function send(path: string, { method = 'GET', body, signal }: RequestOptions) {
+  // FormData (file upload): the browser sets the multipart boundary itself.
+  const isForm = body instanceof FormData;
   try {
     return await fetch(`${API_BASE}${path}`, {
       method,
@@ -38,9 +40,9 @@ async function send(path: string, { method = 'GET', body, signal }: RequestOptio
       headers: {
         Accept: 'application/json',
         [CSRF_HEADER]: CSRF_HEADER_VALUE,
-        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        ...(body !== undefined && !isForm && { 'Content-Type': 'application/json' }),
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch (error) {
     if (signal?.aborted) throw error;

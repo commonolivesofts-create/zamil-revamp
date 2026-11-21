@@ -35,6 +35,7 @@ export function ReportPage<F extends FilterValues, T>({ config }: { config: Repo
           {config.subtitle && <p className="zrv-hr-sub">{config.subtitle}</p>}
         </div>
         <div className="zrv-ir-head__actions">
+          {config.headerActions}
           <button
             type="button"
             className={`zrv-ir-btn${filtersOpen ? ' zrv-ir-is-on' : ''}`}
@@ -55,15 +56,17 @@ export function ReportPage<F extends FilterValues, T>({ config }: { config: Repo
             <OrvexaIcon name="refresh-cw" size={16} />
             Refresh
           </button>
-          <button
-            type="button"
-            className="zrv-ir-btn zrv-ir-btn--primary"
-            onClick={() => void report.exportCsv()}
-            disabled={report.exporting || !query.data?.pagination.total}
-          >
-            <OrvexaIcon name="download" size={16} />
-            {report.exporting ? 'Exporting…' : 'Export CSV'}
-          </button>
+          {config.exportable !== false && (
+            <button
+              type="button"
+              className="zrv-ir-btn zrv-ir-btn--primary"
+              onClick={() => void report.exportCsv()}
+              disabled={report.exporting || !query.data?.pagination.total}
+            >
+              <OrvexaIcon name="download" size={16} />
+              {report.exporting ? 'Exporting…' : 'Export CSV'}
+            </button>
+          )}
         </div>
       </header>
 

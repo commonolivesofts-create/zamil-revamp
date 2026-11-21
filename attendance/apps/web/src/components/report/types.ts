@@ -8,7 +8,7 @@ export type FilterValues = Record<string, string | undefined>;
 export interface FilterField<F extends FilterValues> {
   key: keyof F & string;
   label: string;
-  type: 'text' | 'date' | 'select';
+  type: 'text' | 'date' | 'time' | 'select';
   placeholder?: string;
   options?: readonly { value: string; label: string }[];
 }
@@ -37,4 +37,10 @@ export interface ReportConfig<F extends FilterValues, T> {
   rowKey: (row: T, index: number) => string;
   searchPlaceholder: string;
   emptyMessage: string;
+  /** Show the CSV export button (default true; needs a POST {endpoint}/export route). */
+  exportable?: boolean;
+  /** Rows per page on first load (default 10; CI3 used 30 on setup pages). */
+  pageSize?: number;
+  /** Extra buttons in the page header (e.g. "Add shift"), shown before Filter. */
+  headerActions?: ReactNode;
 }

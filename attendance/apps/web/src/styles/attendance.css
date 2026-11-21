@@ -173,3 +173,240 @@
     display: none;
   }
 }
+
+/* Forms (FormDialog) */
+.zat-form {
+  display: grid;
+  gap: 16px;
+}
+
+.zat-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.zat-form-wide {
+  grid-column: 1 / -1;
+}
+
+.zat-choice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.zat-choice legend {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.zat-choice__row {
+  display: flex;
+  gap: 16px;
+}
+
+.zat-choice__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px 12px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-solid);
+}
+
+.zat-choice__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.zat-choice__option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+/* Row actions in tables */
+.zat-row-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.zat-row-actions button,
+.zat-row-actions a {
+  flex: none;
+  min-width: 32px;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-solid);
+  color: var(--muted);
+}
+
+.zat-row-actions button:hover,
+.zat-row-actions a:hover,
+.zat-row-actions button:focus-visible,
+.zat-row-actions a:focus-visible {
+  color: var(--primary-text);
+  border-color: var(--primary);
+}
+
+.zat-row-actions .is-danger:hover,
+.zat-row-actions .is-danger:focus-visible {
+  color: var(--danger-text, var(--danger));
+  border-color: var(--danger);
+}
+
+@media (max-width: 640px) {
+  .zat-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Setup pages */
+.zat-section {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+}
+
+.zat-shift-picker {
+  display: grid;
+  max-width: 420px;
+  padding: 12px 16px 0;
+}
+
+.zat-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0 16px 4px;
+}
+
+.zat-facts > div {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.zat-facts dt {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.zat-facts dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.zat-day-cell {
+  display: grid;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.zat-day-cell small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.zat-week-table input {
+  min-width: 120px;
+}
+
+.zat-week-table th[scope='row'] {
+  font-weight: 700;
+  text-align: left;
+}
+
+/* Upload dialog and interface jobs */
+.zat-note {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.zat-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.zat-mini-table {
+  margin-top: 12px;
+}
+
+.zat-mini-table h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.zat-mini-table .zrv-ir-tablewrap {
+  max-height: 260px;
+  overflow: auto;
+}
+
+.zat-danger-text {
+  color: var(--danger-text, var(--danger)) !important;
+}
+
+.zat-job-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.zat-job {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px 16px;
+  align-items: start;
+  padding: 18px;
+}
+
+.zat-job > :last-child {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.zat-job h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.zat-job__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary-text);
+}

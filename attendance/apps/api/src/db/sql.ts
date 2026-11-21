@@ -37,6 +37,18 @@ export const onDay =
     return `(${column} >= TO_DATE(${day}, 'YYYY-MM-DD') AND ${column} < TO_DATE(${day}, 'YYYY-MM-DD') + 1)`;
   };
 
+/** Exact match: expr = value (optionally upper-casing the value, for UPPER(expr) = ...). */
+export const equals =
+  (expr: string, { upper = false }: { upper?: boolean } = {}) =>
+  (value: string, b: Binder): string =>
+    `${expr} = ${b.add(upper ? value.toUpperCase() : value)}`;
+
+/** Shift-ID lists stored as "1,2,3": the list contains the value. */
+export const csvContains =
+  (column: string) =>
+  (value: string, b: Binder): string =>
+    `INSTR(',' || ${column} || ',', ',' || ${b.add(value)} || ',') > 0`;
+
 export type FilterRule = (value: string, b: Binder) => string;
 
 export interface ListSpec<F> {
@@ -51,6 +63,8 @@ export interface ListSpec<F> {
   /** Columns matched by the free-text search (OR, case-insensitive contains). */
   search: string[];
   orderBy: string;
+  /** For aggregated lists (e.g. the weekly pivot); counting then counts groups. */
+  groupBy?: string;
 }
 
 export interface ListQuery<F> {
@@ -78,11 +92,14 @@ export function buildListSql<F>(
 ) {
   const b = new Binder();
   const where = buildWhere(spec, query, b);
-  const countSql = `SELECT COUNT(1) AS TOTAL FROM ${spec.from}${where}`;
+  const group = spec.groupBy ? ` GROUP BY ${spec.groupBy}` : '';
+  const countSql = spec.groupBy
+    ? `SELECT COUNT(1) AS TOTAL FROM (SELECT 1 FROM ${spec.from}${where}${group})`
+    : `SELECT COUNT(1) AS TOTAL FROM ${spec.from}${where}`;
   const countBinds = { ...b.binds };
   const offset = b.add((query.page - 1) * query.limit);
   const limit = b.add(query.limit);
-  const listSql = `SELECT ${spec.select} FROM ${spec.from}${where} ORDER BY ${spec.orderBy} OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY`;
+  const listSql = `SELECT ${spec.select} FROM ${spec.from}${where}${group} ORDER BY ${spec.orderBy} OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY`;
   return { countSql, countBinds, listSql, listBinds: b.binds };
 }
 
@@ -92,7 +109,7 @@ export function buildExportSql<F>(spec: ListSpec<F>, query: ListQuery<F>, maxRow
   const where = buildWhere(spec, query, b);
   const limit = b.add(maxRows);
   return {
-    sql: `SELECT ${spec.select} FROM ${spec.from}${where} ORDER BY ${spec.orderBy} FETCH FIRST ${limit} ROWS ONLY`,
+    sql: `SELECT ${spec.select} FROM ${spec.from}${where}${spec.groupBy ? ` GROUP BY ${spec.groupBy}` : ''} ORDER BY ${spec.orderBy} FETCH FIRST ${limit} ROWS ONLY`,
     binds: b.binds,
   };
 }

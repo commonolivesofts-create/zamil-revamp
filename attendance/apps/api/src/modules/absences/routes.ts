@@ -13,8 +13,10 @@ export const absenceRoutes = (repository: ReportRepository<AbsenceFilters, Absen
     path: '/absences',
     permission: 'absences:view',
     listSchema: absenceListQuerySchema,
-    exportSchema: absenceExportQuerySchema,
     repository,
-    columns: ABSENCE_COLUMNS,
-    filePrefix: 'absence_details',
+    csv: {
+      exportSchema: absenceExportQuerySchema,
+      columns: ABSENCE_COLUMNS,
+      filePrefix: 'absence_details',
+    },
   });
