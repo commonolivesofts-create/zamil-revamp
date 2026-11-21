@@ -1,5 +1,5 @@
 // Collapsible filter form (markup of client InsightReport filters). Edits stay in a draft until
-// Apply; Reset restores the page's initial filters.
+// Apply; Reset applies the page's reset filters.
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { OrvexaIcon } from '../OrvexaIcon';
 import type { FilterField, FilterValues } from './types';
@@ -58,7 +58,7 @@ export function FilterPanel<F extends FilterValues>({
                     value={value}
                     onChange={(event) => set(field.key, event.target.value)}
                   >
-                    <option value="">All</option>
+                    <option value="">{field.placeholder ?? 'All'}</option>
                     {field.options?.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}

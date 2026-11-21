@@ -10,6 +10,7 @@ const config: ReportConfig<Filters, EmployeeRow> = {
   id: 'employees',
   endpoint: '/employees',
   pageSchema: employeePageSchema,
+  pageSize: 30,
   breadcrumb: ['Attendance', 'Reports', 'Employee Details'],
   title: 'Employee Details',
   subtitle: 'All current employee records from the employee master.',

@@ -1,5 +1,6 @@
-// CSV export, written like CI3's fputcsv: header row, "\n" line endings, no BOM, a field quoted
-// when it contains a comma, quote, space, tab or line break. Each report defines CI3's own
+// CSV export, written like CI3's fputcsv: header row, "\n" line endings, no BOM (unless that CI3
+// export wrote one), a field quoted when it contains a comma, quote, backslash, space, tab or line
+// break. Each report defines CI3's own
 // columns (headers and value formats) so exported files stay the same as before.
 import type { Response } from 'express';
 import { AppError } from './errors';
@@ -12,7 +13,7 @@ export interface CsvColumn<T> {
 function cell(value: unknown): string {
   if (value === null || value === undefined) return '';
   const text = String(value);
-  return /[",\s]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  return /[",\s\\]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 export function toCsv<T>(columns: readonly CsvColumn<T>[], rows: readonly T[]): string {
@@ -34,15 +35,27 @@ export interface CsvExport<T> {
   columns: readonly CsvColumn<T>[];
   /** CI3 message when nothing matches, e.g. 'No employee data found to export.' */
   emptyMessage: string;
+  /** CI3 wrote a header-only file instead of an error (Alerts). */
+  allowEmpty?: boolean;
+  /** CI3 started the file with a UTF-8 byte order mark (Alerts). */
+  bom?: boolean;
 }
 
 export function sendCsv<T>(res: Response, spec: CsvExport<T>, rows: readonly T[]): void {
-  if (rows.length === 0) throw new AppError('NOT_FOUND', spec.emptyMessage);
+  if (rows.length === 0 && !spec.allowEmpty) throw new AppError('NOT_FOUND', spec.emptyMessage);
   res
     .status(200)
-    .type('text/csv')
+    .type(spec.bom ? 'text/csv; charset=UTF-8' : 'text/csv')
     .attachment(csvFileName(spec.filePrefix))
-    .send(toCsv(spec.columns, rows));
+    .send(`${spec.bom ? '﻿' : ''}${toCsv(spec.columns, rows)}`);
+}
+
+/** Server time as PHP date('d M Y, h:i A'), e.g. '21 Nov 2026, 02:30 PM' (CI3 "generated at"). */
+export function nowDMYTime(now = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return dMYTime(
+    `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}`,
+  )!;
 }
 
 /* ---- CI3 value formats ---- */

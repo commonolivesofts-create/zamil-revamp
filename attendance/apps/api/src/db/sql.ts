@@ -112,3 +112,15 @@ export function buildExportSql<F>(spec: ListSpec<F>, query: ListQuery<F>) {
     binds: b.binds,
   };
 }
+
+/** A DATE column on or after a calendar day. */
+export const fromDay =
+  (column: string) =>
+  (isoDay: string, b: Binder): string =>
+    `${column} >= TO_DATE(${b.add(isoDay)}, 'YYYY-MM-DD')`;
+
+/** A DATE column on or before a calendar day (any time that day). */
+export const toDay =
+  (column: string) =>
+  (isoDay: string, b: Binder): string =>
+    `${column} < TO_DATE(${b.add(isoDay)}, 'YYYY-MM-DD') + 1`;

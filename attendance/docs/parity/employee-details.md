@@ -33,18 +33,18 @@ Legend: **Same** = as CI3 · **Fixed** = real CI3 bug corrected · **Design** = 
 
 ## 2. Filters, search and pagination
 
-| Filter                               | CI3 behaviour                                     | New behaviour                                               | Outcome |
-| ------------------------------------ | ------------------------------------------------- | ----------------------------------------------------------- | ------- |
-| Employee (full name)                 | `UPPER(FULL_NAME) LIKE %v%`                       | Same                                                        | Same    |
-| Emp No, Email, Job title, Department | case-insensitive contains                         | Same                                                        | Same    |
-| User ID                              | contains (API only)                               | Same (API only)                                             | Same    |
-| Joining date                         | `TO_CHAR(JOINING_DATE,'YYYY-MM-DD') = v`          | `JOINING_DATE` in [day, day+1), same result, index friendly | Same    |
-| Current employees only               | `CURRENT_EMP_FLAG = 'Y'`                          | Same                                                        | Same    |
-| `%` and `_` typed by the user        | acted as SQL wildcards                            | matched literally (`ESCAPE`)                                | Fixed   |
-| Free-text search                     | supported by the API, but the UI always sent `''` | same: no search box                                         | Same    |
-| Page size                            | fixed 10                                          | fixed 10                                                    | Same    |
-| Order                                | `HEADER_ID DESC`                                  | `HEADER_ID DESC, EMPLOYEE_NUMBER` (stable paging)           | Same    |
-| Invalid input                        | invalid JSON → 400; other values unchecked        | zod validation → 400 with field issues                      | Fixed   |
+| Filter                               | CI3 behaviour                                     | New behaviour                                               | Outcome                             |
+| ------------------------------------ | ------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------- |
+| Employee (full name)                 | `UPPER(FULL_NAME) LIKE %v%`                       | Same                                                        | Same                                |
+| Emp No, Email, Job title, Department | case-insensitive contains                         | Same                                                        | Same                                |
+| User ID                              | contains (API only)                               | Same (API only)                                             | Same                                |
+| Joining date                         | `TO_CHAR(JOINING_DATE,'YYYY-MM-DD') = v`          | `JOINING_DATE` in [day, day+1), same result, index friendly | Same                                |
+| Current employees only               | `CURRENT_EMP_FLAG = 'Y'`                          | Same                                                        | Same                                |
+| `%` and `_` typed by the user        | acted as SQL wildcards                            | matched literally (`ESCAPE`)                                | Fixed                               |
+| Free-text search                     | supported by the API, but the UI always sent `''` | same: no search box                                         | Same                                |
+| Page size                            | 30 (`paginate.pageLimit = 30`)                    | 30                                                          | Same (corrected 2026-11-21; was 10) |
+| Order                                | `HEADER_ID DESC`                                  | `HEADER_ID DESC, EMPLOYEE_NUMBER` (stable paging)           | Same                                |
+| Invalid input                        | invalid JSON → 400; other values unchecked        | zod validation → 400 with field issues                      | Fixed                               |
 
 ## 3. Response fields and table columns (in order)
 

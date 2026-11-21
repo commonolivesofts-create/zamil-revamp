@@ -165,3 +165,9 @@ export const num = (value: unknown): number | null => {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 };
+
+/** CI3 serializeRow "clean": trimmed text, empty -> null. */
+export const clean = (value: unknown): string | null => {
+  const text = str(value);
+  return text === null || text === '' ? null : text.trim();
+};

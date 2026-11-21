@@ -7,10 +7,15 @@ import { OrvexaIcon } from '../OrvexaIcon';
 import { DataTable } from './DataTable';
 import { FilterPanel } from './FilterPanel';
 import { ReportPager } from './ReportPager';
+import type { Paged } from '@attendance/shared';
 import type { FilterValues, ReportConfig } from './types';
 import { compactFilters, useReport } from './useReport';
 
-export function ReportPage<F extends FilterValues, T>({ config }: { config: ReportConfig<F, T> }) {
+export function ReportPage<F extends FilterValues, T, P extends Paged<T> = Paged<T>>({
+  config,
+}: {
+  config: ReportConfig<F, T, P>;
+}) {
   const id = useId().replace(/:/g, '');
   const report = useReport(config);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -33,6 +38,9 @@ export function ReportPage<F extends FilterValues, T>({ config }: { config: Repo
           </nav>
           <h1 className="zrv-hr-title">{config.title}</h1>
           {config.subtitle && <p className="zrv-hr-sub">{config.subtitle}</p>}
+          {config.headerNote && query.data && (
+            <p className="zat-period">{config.headerNote(query.data)}</p>
+          )}
         </div>
         <div className="zrv-ir-head__actions">
           {config.headerActions}
@@ -61,7 +69,9 @@ export function ReportPage<F extends FilterValues, T>({ config }: { config: Repo
               type="button"
               className="zrv-ir-btn zrv-ir-btn--primary"
               onClick={() => void report.exportCsv()}
-              disabled={report.exporting || !query.data?.pagination.total}
+              disabled={
+                report.exporting || (!config.exportWhenEmpty && !query.data?.pagination.total)
+              }
             >
               <OrvexaIcon name="download" size={16} />
               {report.exporting ? 'Exporting…' : 'Export CSV'}
@@ -75,9 +85,11 @@ export function ReportPage<F extends FilterValues, T>({ config }: { config: Repo
         open={filtersOpen}
         fields={config.filters}
         applied={report.filters}
-        initial={config.initialFilters}
+        initial={config.resetFilters ?? config.initialFilters}
         onApply={report.applyFilters}
       />
+
+      {config.summary && query.data && config.summary(query.data)}
 
       <div className="zrv-ir-main">
         <section className="zrv-ir-card zrv-ir-stream" aria-labelledby={`${id}-heading`}>
@@ -104,7 +116,12 @@ export function ReportPage<F extends FilterValues, T>({ config }: { config: Repo
             <>
               <DataTable
                 caption={config.heading}
-                columns={config.columns}
+                columns={
+                  typeof config.columns === 'function'
+                    ? config.columns(report.filters)
+                    : config.columns
+                }
+                rowClassName={config.rowClassName}
                 rows={query.data.items}
                 rowKey={config.rowKey}
                 firstRowNumber={(query.data.pagination.page - 1) * query.data.pagination.limit + 1}

@@ -15,12 +15,16 @@ import type { AppConfig } from './config';
 import type { Db } from './db/oracle';
 import { errorHandler, notFound, requireAppHeader } from './middleware/http';
 import { absenceRoutes } from './modules/absences/routes';
+import { alertRoutes } from './modules/alerts/routes';
+import { dashboardRoutes } from './modules/dashboard/routes';
 import { employeeRoutes } from './modules/employees/routes';
 import { healthRoutes } from './modules/health/routes';
 import { attendanceCardRoutes } from './modules/attendanceCard/routes';
 import { occasionRoutes } from './modules/occasions/routes';
+import { payrollFileRoutes } from './modules/payrollFile/routes';
 import { processingRoutes } from './modules/processing/routes';
 import { shiftRoutes } from './modules/shifts/routes';
+import { timesheetRoutes } from './modules/timesheet/routes';
 import { timetableRoutes } from './modules/timetables/routes';
 import { buildRepositories, type Repositories } from './services';
 
@@ -82,6 +86,10 @@ export function createApp(deps: AppDeps): Express {
   api.use(shiftRoutes({ shifts: r.shifts, list: r.shiftList, weekList: r.shiftWeekList }));
   api.use(timetableRoutes({ timetables: r.timetables, list: r.timetableList }));
   api.use(processingRoutes({ processing: r.processing }));
+  api.use(timesheetRoutes({ list: r.timesheet }));
+  api.use(payrollFileRoutes({ payroll: r.payroll }));
+  api.use(alertRoutes({ alerts: r.alerts }));
+  api.use(dashboardRoutes({ dashboard: r.dashboard }));
   api.use(occasionRoutes({ occasions: r.occasions, list: r.occasionList }));
   api.use(attendanceCardRoutes({ list: r.attendanceCardList, importer: r.attendanceImporter }));
   app.use(API_BASE, api);

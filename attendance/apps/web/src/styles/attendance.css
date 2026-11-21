@@ -405,3 +405,58 @@
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   padding: 0;
 }
+
+/* Timesheet: CI3 highlighted late punch-ins / early punch-outs and absent days */
+.zat-text-danger {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
+.zat-report .zrv-ir-table tr.zat-row-danger > td {
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+}
+
+/* Dashboard and Alerts summary tiles (Zamil report KPI tiles, CI3 tile counts) */
+.zat-report .zat-kpis-5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.zat-report .zat-kpis-7 {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1100px) {
+  .zat-report .zat-kpis-5,
+  .zat-report .zat-kpis-7 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .zat-report .zat-kpis-5,
+  .zat-report .zat-kpis-7 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.zat-period {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.zat-dashboard {
+  display: grid;
+  gap: 12px;
+}
+
+.zat-person {
+  display: grid;
+  gap: 2px;
+}
+
+.zat-person small {
+  color: var(--muted);
+}

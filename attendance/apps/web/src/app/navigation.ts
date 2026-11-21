@@ -156,6 +156,10 @@ export const BUILT_PAGES = new Set([
   'occasion',
   'attendance-card',
   'interface',
+  'dashboard',
+  'timesheet',
+  'payroll-file',
+  'alerts-exceptions',
 ]);
 
 export const ALL_NAV_ITEMS: readonly NavItem[] = NAVIGATION.flatMap((section) => section.items);

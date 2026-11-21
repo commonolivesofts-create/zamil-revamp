@@ -20,6 +20,10 @@ const PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   occasion: lazy(() => import('../features/setup/OccasionsPage')),
   'attendance-card': lazy(() => import('../features/attendanceCard/AttendanceCardPage')),
   interface: lazy(() => import('../features/attendanceCard/InterfacePage')),
+  dashboard: lazy(() => import('../features/dashboard/DashboardPage')),
+  timesheet: lazy(() => import('../features/timesheet/TimesheetPage')),
+  'payroll-file': lazy(() => import('../features/payrollFile/PayrollFilePage')),
+  'alerts-exceptions': lazy(() => import('../features/alerts/AlertsPage')),
 };
 
 export const router = createBrowserRouter([

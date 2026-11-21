@@ -15,10 +15,23 @@ import { statusTone } from './absenceStatus';
 
 type Filters = Required<{ [K in keyof AbsenceFilters]: string | undefined }>;
 
+const NO_FILTERS: Filters = {
+  empNo: '',
+  empName: '',
+  departmentName: '',
+  position: '',
+  leaveType: '',
+  approvalStatus: '',
+  totalDays: '',
+  leaveFrom: '',
+  leaveTo: '',
+};
+
 const config: ReportConfig<Filters, AbsenceRow> = {
   id: 'absences',
   endpoint: '/absences',
   pageSchema: absencePageSchema,
+  pageSize: 30,
   breadcrumb: ['Attendance', 'Reports', 'Absence'],
   title: 'Absence Details',
   subtitle: 'Leave and absence records, from the 21st of last month to the 20th of this month.',
@@ -40,18 +53,10 @@ const config: ReportConfig<Filters, AbsenceRow> = {
   ],
   initialFilters: () => {
     const period = payrollPeriodEndingThisMonth(new Date());
-    return {
-      empNo: '',
-      empName: '',
-      departmentName: '',
-      position: '',
-      leaveType: '',
-      approvalStatus: '',
-      totalDays: '',
-      leaveFrom: period.from,
-      leaveTo: period.to,
-    };
+    return { ...NO_FILTERS, leaveFrom: period.from, leaveTo: period.to };
   },
+  // CI3 Reset clears every filter, the default dates included.
+  resetFilters: () => ({ ...NO_FILTERS }),
   columns: [
     { key: 'empNo', label: 'Emp No', render: (row) => display(row.empNo) },
     { key: 'departmentName', label: 'Department', render: (row) => display(row.departmentName) },

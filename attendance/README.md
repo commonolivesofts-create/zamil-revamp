@@ -10,8 +10,8 @@ as a TypeScript monorepo:
 It follows the architecture of [`../traininghub/`](../traininghub/) and [`../expensehub/`](../expensehub/),
 and **looks exactly like the main Zamil Digitalization client** ([`../client/`](../client/)).
 
-> **Status:** Phases 0–5 done: platform; Employee Details, Absence, Function & Feature; Shifts, Sub
-> Shifts, Timetable, Occasions; Attendance Card with file upload; attendance processing (Generate Attendance). Other menu items show a "planned" notice. See [Phases](#phases) and [`docs/parity/`](docs/parity/).
+> **Status:** Phases 0–6 done: platform; Employee Details, Absence, Function & Feature; Shifts, Sub
+> Shifts, Timetable, Occasions; Attendance Card with file upload; attendance processing (Generate Attendance); Timesheet, Payroll File, Alerts & Exceptions, Dashboard. Other menu items show a "planned" notice. See [Phases](#phases) and [`docs/parity/`](docs/parity/).
 
 ## Hard rules
 
@@ -223,7 +223,7 @@ A phase starts only when it is requested.
 | 3   | Setup data        | Shifts → Sub Shifts → Timetable → Occasions                                                                                                                                               | 1                   | **Done**                                                 |
 | 4   | Raw punches       | Attendance Card list, file upload preview + import (CSV/XLSX, batched MERGE), Interface page                                                                                              | 3                   | **Done**                                                 |
 | 5   | Processing engine | Port `ProcessAttendanceModel` as pure functions; golden tests against CI3 output on the same data; batched reads (same run and summary as CI3)                                            | 3, 4                | **Done**: [parity](docs/parity/attendance-processing.md) |
-| 6   | Processed outputs | Timesheet, Payroll File + adjustment, Alerts & Exceptions, Dashboard                                                                                                                      | 5                   | Not started                                              |
+| 6   | Processed outputs | Timesheet, Payroll File + adjustment, Alerts & Exceptions, Dashboard                                                                                                                      | 5                   | **Done**: [parity](docs/parity/)                         |
 | 7   | EBS live + people | Daily Attendance, Leave Requests, Manager View + approvals                                                                                                                                | 1 + EBS test access | Not started                                              |
 | 8   | Contractors       | Contractors, Contractor Employees, Contractor Summary                                                                                                                                     | 1 + EBS test access | Not started                                              |
 | 9   | Cutover           | Point the Zamil sidebar `attendance-system` link at `http://localhost:7388/`, update onboarding, freeze the CI3 app                                                                       | 2–8                 | Not started                                              |
@@ -252,20 +252,22 @@ One Zamil login serves both apps. Each difference is recorded as **Same**, **Des
 
 ### Known CI3 issues (do not port blindly)
 
-| Issue                                                                                                 | CI3 location                                                                 | Plan                                              |
-| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------- |
-| Payroll period defined four different ways                                                            | Dashboard, Manager, Leave, Timesheet/Payroll JS                              | One shared `payrollPeriod()` (21st to 20th)       |
-| No roles or permissions; CSRF off                                                                     | whole app                                                                    | Same access as CI3 (no roles); CSRF header        |
-| Manager Approve/Deny buttons never rendered                                                           | `views/pages/manager/index.php`, `mgrDecideAbsence()`                        | Wire it, with permission checks                   |
-| High-overtime alert compares hours with a 120-minute threshold                                        | `Alerts_exceptions_model::build_query`                                       | Compare in consistent units                       |
-| Daily Attendance `status` filter ignored; summary loads every row                                     | `Daily_attendance_model`                                                     | Implement the filter; aggregate in SQL            |
-| Timetable "Overtime allowed" / "Exclude timesheet" never saved                                        | `Timetable_model::insert_timetable`                                          | Fixed in phase 3: both flags saved                |
-| `TRIM(x) <> ''` never true in Oracle (empty department lists)                                         | `ProcessAttendanceModel:28`, `Manager_model:61`, `Attendance_card_model:274` | Use `IS NOT NULL`                                 |
-| Payroll overtime netted against lateness twice; NULL late zeroes OT                                   | `Payroll_file_model::get_payroll_file_list`                                  | Needs business sign-off before porting            |
-| Processing makes about 7 queries per employee-day, synchronously                                      | `ProcessAttendanceModel::process_attendance_range`                           | Phase 5: reads batched per employee, same results |
-| One impossible leave date (e.g. `31-02-2024`) fails processing for that employee                      | `ProcessAttendanceModel::build_leave_date_expression`                        | Fixed in phase 5: read as no date                 |
-| Shift delete leaves timetables pointing at it                                                         | `Shift_model`                                                                | Fixed in phase 3: refused while in use            |
-| Dead code: legacy month processor, `contractor/form`, `occasion/view`, `Shifts::create`, duplicate JS | various                                                                      | Not ported                                        |
+| Issue                                                                                                 | CI3 location                                                                 | Plan                                                 |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Payroll period defined four different ways                                                            | Dashboard, Manager, Leave, Timesheet/Payroll JS                              | One shared `payrollPeriod()` (21st to 20th)          |
+| No roles or permissions; CSRF off                                                                     | whole app                                                                    | Same access as CI3 (no roles); CSRF header           |
+| Manager Approve/Deny buttons never rendered                                                           | `views/pages/manager/index.php`, `mgrDecideAbsence()`                        | Wire it, with permission checks                      |
+| High-overtime alert compares hours with a 120-minute threshold                                        | `Alerts_exceptions_model::build_query`                                       | Fixed in phase 6: compared in minutes                |
+| Daily Attendance `status` filter ignored; summary loads every row                                     | `Daily_attendance_model`                                                     | Implement the filter; aggregate in SQL               |
+| Timetable "Overtime allowed" / "Exclude timesheet" never saved                                        | `Timetable_model::insert_timetable`                                          | Fixed in phase 3: both flags saved                   |
+| `TRIM(x) <> ''` never true in Oracle (empty department lists)                                         | `ProcessAttendanceModel:28`, `Manager_model:61`, `Attendance_card_model:274` | Use `IS NOT NULL`                                    |
+| Payroll overtime netted against lateness twice; NULL late zeroes OT                                   | `Payroll_file_model::get_payroll_file_list`                                  | Ported as CI3 (phase 6); **needs business sign-off** |
+| Dashboard "Blank Punch Employees" counts distinct supervisors                                         | `Dashboard_model::get_exception_summary`                                     | Ported as CI3 (phase 6); confirm intent              |
+| Payroll edit form pre-filled with values its own rules reject                                         | `assets/js/pages/payroll_file/list.js`                                       | Fixed in phase 6: rounded to 2 decimals              |
+| Processing makes about 7 queries per employee-day, synchronously                                      | `ProcessAttendanceModel::process_attendance_range`                           | Phase 5: reads batched per employee, same results    |
+| One impossible leave date (e.g. `31-02-2024`) fails processing for that employee                      | `ProcessAttendanceModel::build_leave_date_expression`                        | Fixed in phase 5: read as no date                    |
+| Shift delete leaves timetables pointing at it                                                         | `Shift_model`                                                                | Fixed in phase 3: refused while in use               |
+| Dead code: legacy month processor, `contractor/form`, `occasion/view`, `Shifts::create`, duplicate JS | various                                                                      | Not ported                                           |
 
 ## Definition of done (per phase)
 

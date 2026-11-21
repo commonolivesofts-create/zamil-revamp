@@ -5,6 +5,7 @@ import { DEFAULT_PAGE_SIZE } from '@attendance/shared';
 import { api, apiDownload, errorMessage } from '../../lib/api';
 import { saveBlob } from '../../lib/download';
 import { useToast } from '../toastContext';
+import type { Paged } from '@attendance/shared';
 import type { FilterValues, ReportConfig } from './types';
 
 /** Only filters with a value are sent. */
@@ -12,7 +13,9 @@ export function compactFilters<F extends FilterValues>(filters: F): Partial<F> {
   return Object.fromEntries(Object.entries(filters).filter(([, value]) => value)) as Partial<F>;
 }
 
-export function useReport<F extends FilterValues, T>(config: ReportConfig<F, T>) {
+export function useReport<F extends FilterValues, T, P extends Paged<T>>(
+  config: ReportConfig<F, T, P>,
+) {
   const toast = useToast();
   const [page, setPage] = useState(1);
   const limit = config.pageSize ?? DEFAULT_PAGE_SIZE;

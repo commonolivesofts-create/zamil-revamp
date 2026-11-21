@@ -14,20 +14,31 @@ import type {
   ShiftRow,
   TimetableFilters,
   TimetableRow,
+  TimesheetFilters,
+  TimesheetRow,
 } from '@attendance/shared';
 import type { Db } from './db/oracle';
 import { absenceRepository } from './modules/absences/repository';
+import { oracleAlertsRepository, type AlertsRepository } from './modules/alerts/repository';
 import {
   attendanceCardListRepository,
   oracleAttendanceImporter,
   type AttendanceImporter,
 } from './modules/attendanceCard/repository';
+import {
+  oracleDashboardRepository,
+  type DashboardRepository,
+} from './modules/dashboard/repository';
 import { employeeRepository } from './modules/employees/repository';
 import {
   occasionListRepository,
   oracleOccasionRepository,
   type OccasionRepository,
 } from './modules/occasions/repository';
+import {
+  oraclePayrollFileRepository,
+  type PayrollFileRepository,
+} from './modules/payrollFile/repository';
 import {
   oracleProcessingRepository,
   type ProcessingRepository,
@@ -44,6 +55,7 @@ import {
   timetableListRepository,
   type TimetableRepository,
 } from './modules/timetables/repository';
+import { timesheetRepository } from './modules/timesheet/routes';
 
 export interface Repositories {
   employees: ReportRepository<EmployeeFilters, EmployeeRow>;
@@ -58,6 +70,10 @@ export interface Repositories {
   attendanceCardList: ReportRepository<AttendanceCardFilters, AttendanceCardRow>;
   attendanceImporter: AttendanceImporter;
   processing: ProcessingRepository;
+  timesheet: ReportRepository<TimesheetFilters, TimesheetRow>;
+  payroll: PayrollFileRepository;
+  alerts: AlertsRepository;
+  dashboard: DashboardRepository;
 }
 
 export function buildRepositories(db: Db, overrides: Partial<Repositories> = {}): Repositories {
@@ -74,5 +90,9 @@ export function buildRepositories(db: Db, overrides: Partial<Repositories> = {})
     attendanceCardList: overrides.attendanceCardList ?? attendanceCardListRepository(db),
     attendanceImporter: overrides.attendanceImporter ?? oracleAttendanceImporter(db),
     processing: overrides.processing ?? oracleProcessingRepository(db),
+    timesheet: overrides.timesheet ?? timesheetRepository(db),
+    payroll: overrides.payroll ?? oraclePayrollFileRepository(db),
+    alerts: overrides.alerts ?? oracleAlertsRepository(db),
+    dashboard: overrides.dashboard ?? oracleDashboardRepository(db),
   };
 }

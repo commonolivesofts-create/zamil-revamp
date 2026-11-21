@@ -9,6 +9,7 @@ export function DataTable<T>({
   rowKey,
   firstRowNumber,
   busy,
+  rowClassName,
 }: {
   caption: string;
   columns: readonly Column<T>[];
@@ -16,6 +17,7 @@ export function DataTable<T>({
   rowKey: (row: T, index: number) => string;
   firstRowNumber: number;
   busy: boolean;
+  rowClassName?: (row: T) => string | undefined;
 }) {
   return (
     <div
@@ -45,7 +47,11 @@ export function DataTable<T>({
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={rowKey(row, index)} style={{ '--i': index } as CSSProperties}>
+            <tr
+              key={rowKey(row, index)}
+              className={rowClassName?.(row)}
+              style={{ '--i': index } as CSSProperties}
+            >
               <td className="zat-col-num" data-label="#">
                 {firstRowNumber + index}
               </td>

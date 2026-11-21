@@ -57,7 +57,7 @@ describe('ReportPage (Employee Details)', () => {
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('/api/v1/employees/list');
     expect((init as RequestInit).headers).toMatchObject({ 'X-Requested-With': 'Attendance' });
-    expect(bodies()[0]).toEqual({ page: 1, limit: 10, search: '', filters: {} });
+    expect(bodies()[0]).toEqual({ page: 1, limit: 30, search: '', filters: {} });
     expect(screen.getByText('Page 1 of 2 · 12 total')).toBeInTheDocument();
     const table = screen.getByRole('table');
     expect(
@@ -81,7 +81,7 @@ describe('ReportPage (Employee Details)', () => {
     expect(await screen.findByText('No employees match the selected filters.')).toBeInTheDocument();
     expect(bodies()[1]).toEqual({
       page: 1,
-      limit: 10,
+      limit: 30,
       search: '',
       filters: { department: 'Finance' },
     });
@@ -124,10 +124,25 @@ describe('ReportPage (Absence)', () => {
     await waitFor(() =>
       expect(bodies()[0]).toEqual({
         page: 1,
-        limit: 10,
+        limit: 30,
         search: '',
         filters: { leaveFrom: period.from, leaveTo: period.to },
       }),
+    );
+  });
+
+  it('Reset clears every filter, the default dates too (CI3)', async () => {
+    const user = userEvent.setup();
+    respond(page([]));
+    respond(page([]));
+    render(wrap(<AbsencePage />));
+    await screen.findByRole('status');
+
+    await user.click(screen.getByRole('button', { name: /Filter/ }));
+    await user.click(screen.getByRole('button', { name: 'Reset' }));
+
+    await waitFor(() =>
+      expect(bodies()[1]).toEqual({ page: 1, limit: 30, search: '', filters: {} }),
     );
   });
 });
