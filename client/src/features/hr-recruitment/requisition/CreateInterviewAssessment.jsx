@@ -3,7 +3,7 @@ import usePermissions from '@/features/access/usePermissions.js'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 
-export function CreateInterviewAssessment({ row, compact = false }) {
+export function CreateInterviewAssessment({ row, compact = false, spotlight = false }) {
   const permissions = usePermissions()
   if (
     row.status !== 'Approved' ||
@@ -14,7 +14,7 @@ export function CreateInterviewAssessment({ row, compact = false }) {
 
   return (
     <Link
-      className={`zrv-ir-btn${compact ? ' zrv-ir-btn--assessment-compact' : ''}`}
+      className={`zrv-ir-btn${compact ? ' zrv-ir-btn--assessment-compact' : ''}${spotlight ? ' zrv-ir-btn--spotlight' : ''}`}
       to={`/hr/recruitment/interview?requisitionNumber=${encodeURIComponent(row.requisitionNumber)}`}
       onClick={(event) => event.stopPropagation()}
       aria-label={`Create interview assessment for ${row.requisitionNumber}`}

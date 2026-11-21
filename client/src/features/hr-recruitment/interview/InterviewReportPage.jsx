@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { COMMON_TEXT, INSIGHT_TEXT, INTERVIEW_TEXT as T } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
@@ -7,7 +6,9 @@ import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { enDate } from '../shared/hrFormat.js'
 import { Pill } from '../shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '../shared/components/InsightReport.jsx'
+import { useReportBulkDelete } from '../shared/useReportBulkDelete.jsx'
 import { CreateEmploymentOffer } from './CreateEmploymentOffer.jsx'
+import { InterviewDetails } from './InterviewDetails.jsx'
 import {
   Card,
   Foot,
@@ -17,7 +18,6 @@ import {
   Hint,
   Splits,
 } from '../shared/components/InsightCards.jsx'
-import { MAX_COMPARE, requisitionOf } from './interviewComparisonModel.js'
 import '@/styles/hr-interview-responsive.css'
 
 const BASE = '/hr/recruitment/interview'
@@ -104,12 +104,6 @@ const COLUMNS = [
     key: 'status',
     label: R.columns.status,
     render: (row) => <Pill tone={STATUS_TONE[row.status]}>{T.status[row.status]}</Pill>,
-  },
-  {
-    key: 'offer',
-    label: 'Actions',
-    export: false,
-    render: (row) => <CreateEmploymentOffer row={row} compact />,
   },
 ]
 
@@ -246,107 +240,61 @@ const GROUPS = [
   },
 ]
 
-// Candidates can only be compared for one position, so a ticked selection is
-// bound to the requisition of its first row and checkboxes for other
-// requisitions are disabled (rather than silently ignored).
-const samePosition = (row, scope) => requisitionOf(row).toLowerCase() === scope.toLowerCase()
-
 // Interview assessment report: HR sees every assessment, others their own;
-// filtered, sorted and paged by the server. Rows can also be ticked and
-// compared side by side; the comparison page loads the chosen assessments
-// itself, so it works across filters and pages of the same requisition.
-// Hiring suggestions is its own page, opened from the header.
+// filtered, sorted and paged by the server. Rows can be ticked to delete
+// several assessments at once. Hiring suggestions is its own page, opened
+// from the header.
 export default function InterviewReportPage() {
-  const navigate = useNavigate()
-  const [pick, setPick] = useState({ ids: [], scope: '' })
-  const togglePick = (row) =>
-    setPick((current) => {
-      const id = row.assessmentId
-      if (current.ids.includes(id)) {
-        const ids = current.ids.filter((value) => value !== id)
-        return { ids, scope: ids.length ? current.scope : '' }
-      }
-      if (current.ids.length >= MAX_COMPARE) return current
-      if (current.ids.length && !samePosition(row, current.scope)) return current
-      return { ids: [...current.ids, id], scope: current.scope || requisitionOf(row) }
-    })
-  const blockedReason = (row) => {
-    if (!pick.ids.length || samePosition(row, pick.scope)) return undefined
-    return pick.scope
-      ? `One position at a time — this comparison is for ${pick.scope}.`
-      : 'The selected assessments have no requisition recorded, so another position cannot be added.'
-  }
-  const openComparison = () => {
-    if (pick.ids.length < 2) return
-    const requisition = pick.scope ? `&requisition=${encodeURIComponent(pick.scope)}` : ''
-    navigate(`/hr/recruitment/interview/compare?ids=${pick.ids.join(',')}${requisition}`)
-  }
+  const service = hrRecruitmentServices.interviews
+  const { confirmation, ...bulk } = useReportBulkDelete({
+    remove: (row) => service.remove(row.assessmentId),
+    permission: ACTIONS.INTERVIEW_DELETE,
+    idOf: (row) => row.assessmentId,
+    labelOf: (row) => row.candidateName || row.assessmentNumber,
+    singular: 'assessment',
+    plural: 'assessments',
+    // The backend also refuses approved+passed rows; block every approved one
+    // in the UI so the tick can never offer a deletion that will be rejected.
+    canDelete: (row) =>
+      row.status === 'APPROVED' ? 'Approved assessments cannot be deleted.' : undefined,
+  })
+
   return (
-    <InsightReport
-      variant="interview-report"
-      title={R.title}
-      subtitle={R.subtitle}
-      heading={R.heading}
-      resourceKey="hr-interview-report"
-      rowSelection={{
-        selectedKeys: pick.ids,
-        onToggle: togglePick,
-        max: MAX_COMPARE,
-        label: (row) => row.candidateName || row.assessmentNumber,
-        disabled: blockedReason,
-      }}
-      tableTools={
-        <>
-          <span className="zrv-ir-tabletools__count">
-            {pick.ids.length
-              ? `${pick.ids.length} of ${MAX_COMPARE} selected${pick.scope ? ` · ${pick.scope}` : ''}`
-              : 'Tick assessments to compare — one position at a time'}
-          </span>
-          <button
-            type="button"
-            className="zrv-ir-btn"
-            onClick={openComparison}
-            disabled={pick.ids.length < 2}
-          >
-            <OrvexaIcon name="columns-2" size={13} />
-            Compare{pick.ids.length ? ` ${pick.ids.length}` : ''}
-          </button>
-          {pick.ids.length > 0 && (
-            <button
-              type="button"
-              className="zrv-ir-btn"
-              onClick={() => setPick({ ids: [], scope: '' })}
-            >
-              Clear
-            </button>
-          )}
-        </>
-      }
-      list={hrRecruitmentServices.interviews.list}
-      create={{ permission: ACTIONS.INTERVIEW_CREATE, path: BASE, label: R.newAssessment }}
-      openLabel={R.detail.open}
-      empty={R.empty}
-      initial={INITIAL}
-      fields={FIELDS}
-      columns={COLUMNS}
-      cards={CARDS}
-      groups={GROUPS}
-      headerLink={{ to: `${BASE}/suggestions`, label: 'Hiring suggestions', icon: 'badge-check' }}
-      defaultSort={{ key: 'HEADER_ID', order: 'desc' }}
-      numberOf={(row) => row.assessmentNumber || row.assessmentId}
-      rowKey={(row) => row.assessmentId}
-      pathOf={(row) => `${BASE}/${row.assessmentId}`}
-      renderDetail={(row) => <CreateEmploymentOffer row={row} />}
-      summary={(row) => ({
-        heading: row.candidateName,
-        pill: <Pill tone={STATUS_TONE[row.status]}>{T.status[row.status]}</Pill>,
-        facts: [
-          [R.columns.position, row.positionTitle],
-          [R.columns.requisition, row.requisitionNo],
-          [R.columns.date, date(row.interviewDate)],
-          [R.columns.outcome, T.outcomes[row.outcome]],
-        ],
-      })}
-    />
+    <>
+      <InsightReport
+        variant="interview-report"
+        title={R.title}
+        subtitle={R.subtitle}
+        heading={R.heading}
+        resourceKey="hr-interview-report"
+        // A shorter table still becomes labelled cards on laptop widths.
+        denseTable
+        {...bulk}
+        list={service.list}
+        create={{ permission: ACTIONS.INTERVIEW_CREATE, path: BASE, label: R.newAssessment }}
+        openLabel={R.detail.open}
+        empty={R.empty}
+        initial={INITIAL}
+        fields={FIELDS}
+        columns={COLUMNS}
+        cards={CARDS}
+        groups={GROUPS}
+        headerLink={{ to: `${BASE}/suggestions`, label: 'Hiring suggestions', icon: 'badge-check' }}
+        defaultSort={{ key: 'HEADER_ID', order: 'desc' }}
+        numberOf={(row) => row.assessmentNumber || row.assessmentId}
+        rowKey={(row) => row.assessmentId}
+        pathOf={(row) => `${BASE}/${row.assessmentId}`}
+        resizableDrawer
+        drawerActions={(row) => <CreateEmploymentOffer row={row} spotlight />}
+        drawerActionsAfter={() => (
+          <Link className="zrv-ir-btn" to={`${BASE}/suggestions`}>
+            <OrvexaIcon name="badge-check" size={16} />
+            Hiring suggestions
+          </Link>
+        )}
+        renderDetail={(row) => <InterviewDetails row={row} />}
+      />
+      {confirmation}
+    </>
   )
 }

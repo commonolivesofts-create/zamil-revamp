@@ -1,9 +1,11 @@
 import { COMMON_TEXT, INSIGHT_TEXT } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
+import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { enDate } from '../shared/hrFormat.js'
 import { monthRanges } from '../shared/insightDates.js'
 import { Pill } from '../shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '../shared/components/InsightReport.jsx'
+import { useReportBulkDelete } from '../shared/useReportBulkDelete.jsx'
 import { Card, Donut, Foot, Hint, Rank, Ticks } from '../shared/components/InsightCards.jsx'
 import { FORM_TYPE_LABELS, RESULT_TEXT, RESULT_TONE } from './probationRules.js'
 
@@ -207,27 +209,44 @@ const COLUMNS = [
 
 // Probation evaluation report: filtered, sorted and paged by the server.
 export default function ProbationReportPage() {
+  const service = hrRecruitmentServices.probations
+  const { confirmation, ...bulk } = useReportBulkDelete({
+    remove: (row) => service.remove(row.evaluationId),
+    permission: ACTIONS.PROBATION_DELETE,
+    idOf: (row) => row.evaluationId,
+    labelOf: (row) => row.evaluationNumber,
+    singular: 'evaluation',
+    plural: 'evaluations',
+    // The backend only deletes Draft evaluations.
+    canDelete: (row) =>
+      row.status === 'DRAFT' ? undefined : 'Only draft evaluations can be deleted.',
+  })
+
   return (
-    <InsightReport
-      variant="probation-report"
-      title="Probation Report"
-      subtitle="Probation evaluations, their rating and where they are in approval."
-      heading="Evaluations"
-      resourceKey="hr-probation-report"
-      list={hrRecruitmentServices.probations.list}
-      create={CREATE}
-      openLabel="Open evaluation"
-      empty="No evaluations match these filters."
-      initial={INITIAL}
-      fields={FILTERS}
-      columns={COLUMNS}
-      cards={CARDS}
-      groups={dateGroups}
-      summary={summary}
-      defaultSort={{ key: 'HEADER_ID', order: 'desc' }}
-      numberOf={(row) => row.evaluationNumber}
-      rowKey={(row) => row.evaluationId}
-      pathOf={(row) => `${BASE}/${row.evaluationId}`}
-    />
+    <>
+      <InsightReport
+        variant="probation-report"
+        title="Probation Report"
+        subtitle="Probation evaluations, their rating and where they are in approval."
+        heading="Evaluations"
+        resourceKey="hr-probation-report"
+        {...bulk}
+        list={service.list}
+        create={CREATE}
+        openLabel="Open evaluation"
+        empty="No evaluations match these filters."
+        initial={INITIAL}
+        fields={FILTERS}
+        columns={COLUMNS}
+        cards={CARDS}
+        groups={dateGroups}
+        summary={summary}
+        defaultSort={{ key: 'HEADER_ID', order: 'desc' }}
+        numberOf={(row) => row.evaluationNumber}
+        rowKey={(row) => row.evaluationId}
+        pathOf={(row) => `${BASE}/${row.evaluationId}`}
+      />
+      {confirmation}
+    </>
   )
 }

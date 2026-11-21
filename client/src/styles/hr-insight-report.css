@@ -478,13 +478,16 @@
   align-items: center;
   gap: 8px;
 }
-/* Row-selection tools beside the report table heading: the count reads as its
-   own quiet pill, so it never touches the Compare button. */
+/* Row-selection tools beside the report table heading. One shared rule keeps
+   every report's tools (selection count, Delete, Clear…) at the right corner
+   of the heading row, even when the row wraps on a small screen. */
 .zrv-ir-tabletools {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  margin-left: auto;
 }
 .zrv-ir-tabletools__count {
   display: inline-flex;
@@ -2126,6 +2129,14 @@
   padding: 5px 7px;
   font-size: 11.5px;
 }
+.zrv-ir-table .zrv-ir-col-pick {
+  text-align: center;
+}
+.zrv-ir-col-pick input {
+  accent-color: var(--primary);
+  cursor: pointer;
+  vertical-align: middle;
+}
 .zrv-ir-table .zrv-ir-ticket::before {
   flex-shrink: 0;
 }
@@ -2469,6 +2480,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* The body scrolls vertically; never let the sticky action bar or its pulse
+     create a horizontal scrollbar. */
+  overflow-x: hidden;
 }
 .zrv-ir-drawer__body > * {
   animation: zrv-ir-rise 0.55s var(--ir-ease) both;
@@ -2601,11 +2615,76 @@
   color: var(--ir-tone-text);
   font-size: 13.5px;
 }
+/* The drawer's bottom bar stays in reach while its body scrolls. */
 .zrv-ir-drawer__actions {
+  position: sticky;
+  z-index: 5;
+  bottom: -3px;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  margin-top: 4px;
+  margin: 6px 0 0;
+  padding: 10px 2px 2px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(
+    to top,
+    var(--surface-solid) 62%,
+    color-mix(in srgb, var(--surface-solid) 70%, transparent)
+  );
+  backdrop-filter: blur(6px);
+}
+
+/* Continuous attention pulse on the primary shortcut in the drawer bar. */
+.zrv-ir-btn--spotlight {
+  position: relative;
+  flex: 1 1 auto;
+  justify-content: center;
+  border-color: color-mix(in srgb, var(--zrv-hr-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--zrv-hr-accent) 12%, var(--surface-solid));
+  color: var(--zrv-hr-accent-text);
+  font-weight: 750;
+  animation: zrv-ir-spotlight 2.4s ease-in-out infinite;
+}
+.zrv-ir-btn--spotlight::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--zrv-hr-accent) 60%, transparent);
+  border-radius: inherit;
+  opacity: 0;
+  animation: zrv-ir-spotlight-ring 2.4s ease-out infinite;
+  pointer-events: none;
+}
+.zrv-ir-btn--spotlight:hover,
+.zrv-ir-btn--spotlight:focus-visible {
+  animation-play-state: paused;
+}
+@keyframes zrv-ir-spotlight {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--zrv-hr-accent) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 4px 16px -2px color-mix(in srgb, var(--zrv-hr-accent) 42%, transparent);
+  }
+}
+@keyframes zrv-ir-spotlight-ring {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.97);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-ir-btn--spotlight,
+  .zrv-ir-btn--spotlight::after {
+    animation: none;
+  }
 }
 
 /* Orientation drawer: employee identity stays concise at the top while the
