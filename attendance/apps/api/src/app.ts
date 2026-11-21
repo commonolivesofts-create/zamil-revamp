@@ -19,6 +19,7 @@ import { employeeRoutes } from './modules/employees/routes';
 import { healthRoutes } from './modules/health/routes';
 import { attendanceCardRoutes } from './modules/attendanceCard/routes';
 import { occasionRoutes } from './modules/occasions/routes';
+import { processingRoutes } from './modules/processing/routes';
 import { shiftRoutes } from './modules/shifts/routes';
 import { timetableRoutes } from './modules/timetables/routes';
 import { buildRepositories, type Repositories } from './services';
@@ -80,6 +81,7 @@ export function createApp(deps: AppDeps): Express {
   api.use(absenceRoutes(r.absences));
   api.use(shiftRoutes({ shifts: r.shifts, list: r.shiftList, weekList: r.shiftWeekList }));
   api.use(timetableRoutes({ timetables: r.timetables, list: r.timetableList }));
+  api.use(processingRoutes({ processing: r.processing }));
   api.use(occasionRoutes({ occasions: r.occasions, list: r.occasionList }));
   api.use(attendanceCardRoutes({ list: r.attendanceCardList, importer: r.attendanceImporter }));
   app.use(API_BASE, api);

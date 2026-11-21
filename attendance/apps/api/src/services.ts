@@ -28,6 +28,10 @@ import {
   oracleOccasionRepository,
   type OccasionRepository,
 } from './modules/occasions/repository';
+import {
+  oracleProcessingRepository,
+  type ProcessingRepository,
+} from './modules/processing/repository';
 import type { ReportRepository } from './modules/report';
 import {
   oracleShiftRepository,
@@ -53,6 +57,7 @@ export interface Repositories {
   occasionList: ReportRepository<OccasionFilters, OccasionRow>;
   attendanceCardList: ReportRepository<AttendanceCardFilters, AttendanceCardRow>;
   attendanceImporter: AttendanceImporter;
+  processing: ProcessingRepository;
 }
 
 export function buildRepositories(db: Db, overrides: Partial<Repositories> = {}): Repositories {
@@ -68,5 +73,6 @@ export function buildRepositories(db: Db, overrides: Partial<Repositories> = {})
     occasionList: overrides.occasionList ?? occasionListRepository(db),
     attendanceCardList: overrides.attendanceCardList ?? attendanceCardListRepository(db),
     attendanceImporter: overrides.attendanceImporter ?? oracleAttendanceImporter(db),
+    processing: overrides.processing ?? oracleProcessingRepository(db),
   };
 }

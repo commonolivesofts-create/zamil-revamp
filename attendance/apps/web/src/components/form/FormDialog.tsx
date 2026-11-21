@@ -14,6 +14,7 @@ export function FormDialog<V extends FormValues>({
   initial,
   schema,
   submitLabel,
+  pendingLabel = 'Saving…',
   onSubmit,
   onClose,
   onFieldChange,
@@ -25,6 +26,8 @@ export function FormDialog<V extends FormValues>({
   initial: V;
   schema: z.ZodType;
   submitLabel: string;
+  /** Submit button text while the request runs. */
+  pendingLabel?: string;
   /** Persists the values; throw ApiError to show server errors. */
   onSubmit: (values: V) => Promise<void>;
   onClose: () => void;
@@ -95,7 +98,7 @@ export function FormDialog<V extends FormValues>({
             Cancel
           </button>
           <button type="submit" className="btn-primary" disabled={pending}>
-            {pending ? 'Saving…' : submitLabel}
+            {pending ? pendingLabel : submitLabel}
           </button>
         </div>
       </form>

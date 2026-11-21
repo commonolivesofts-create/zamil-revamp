@@ -1,11 +1,12 @@
 // Attendance Interface (CI3 /interface): the two data-loading jobs.
-// Upload works now; Generate (attendance processing) arrives in phase 5.
 import { useState } from 'react';
 import { OrvexaIcon } from '../../components/OrvexaIcon';
+import { ProcessDialog } from './ProcessDialog';
 import { UploadDialog } from './UploadDialog';
 
 export default function InterfacePage() {
   const [uploading, setUploading] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   return (
     <div className="zrv-hr zrv-hr--interface zrv-hr--compact zrv-ir zrv-ir--fitted zrv-ir--responsive zat-report">
@@ -50,17 +51,17 @@ export default function InterfacePage() {
             <h2 id="job-generate">Generate Attendance</h2>
             <p className="zat-muted">
               Calculates late, early, overtime and absence for a department, employee and date
-              range. Arrives with the processing engine in phase 5; until then use the current
-              attendance system.
+              range, and saves the timesheet.
             </p>
           </div>
-          <button type="button" className="btn-secondary" disabled>
-            Planned · phase 5
+          <button type="button" className="btn-primary" onClick={() => setProcessing(true)}>
+            Generate Attendance
           </button>
         </section>
       </div>
 
       {uploading && <UploadDialog onClose={() => setUploading(false)} />}
+      {processing && <ProcessDialog onClose={() => setProcessing(false)} />}
     </div>
   );
 }

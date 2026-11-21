@@ -1,4 +1,6 @@
 // Attendance Card (CI3 /report/attendance-card): the raw daily punches per employee.
+// The header button opens Process Attendance, as in CI3.
+import { useState } from 'react';
 import {
   attendanceCardPageSchema,
   type AttendanceCardFilters,
@@ -8,10 +10,12 @@ import { OrvexaIcon } from '../../components/OrvexaIcon';
 import { ReportPage } from '../../components/report/ReportPage';
 import type { ReportConfig } from '../../components/report/types';
 import { display, formatIsoDate } from '../../lib/format';
+import { ProcessDialog } from './ProcessDialog';
 
 type Filters = Required<{ [K in keyof AttendanceCardFilters]: string | undefined }>;
 
 export default function AttendanceCardPage() {
+  const [processing, setProcessing] = useState(false);
   const config: ReportConfig<Filters, AttendanceCardRow> = {
     id: 'attendance-card',
     endpoint: '/attendance-card',
@@ -40,8 +44,7 @@ export default function AttendanceCardPage() {
       <button
         type="button"
         className="zrv-ir-btn zrv-ir-btn--primary"
-        disabled
-        title="Attendance processing arrives in phase 5"
+        onClick={() => setProcessing(true)}
       >
         <OrvexaIcon name="plus" size={16} />
         Generate Attendance
@@ -49,5 +52,10 @@ export default function AttendanceCardPage() {
     ),
   };
 
-  return <ReportPage config={config} />;
+  return (
+    <>
+      <ReportPage config={config} />
+      {processing && <ProcessDialog onClose={() => setProcessing(false)} />}
+    </>
+  );
 }

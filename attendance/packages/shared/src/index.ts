@@ -10,3 +10,4 @@ export * from './modules/occasions';
 export * from './modules/attendanceCard';
 export * from './modules/shifts';
 export * from './modules/timetables';
+export * from './modules/processing';
