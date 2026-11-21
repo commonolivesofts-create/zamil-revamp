@@ -9,6 +9,10 @@
 .zrv-ir-detail + .zrv-ir-detail {
   margin-top: 6px;
 }
+.zrv-ir-detail--bare {
+  border-top: 0;
+  padding-top: 0;
+}
 
 .zrv-ir-detail-heading {
   display: flex;
@@ -74,14 +78,36 @@
   line-height: 1.3;
 }
 
-.zrv-ir-detail-skeleton {
+.zrv-ir-detail-loading {
+  display: grid;
+  gap: 0;
+}
+.zrv-ir-detail-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--detail-fact-columns, 2), minmax(0, 1fr));
+  gap: 5px;
+}
+.zrv-ir-detail-skeleton-grid i {
+  display: block;
+  /* Match a real fact card so the skeleton swaps to the record without a jump. */
+  height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.zrv-ir-detail-skeleton-bars {
   display: grid;
   gap: 9px;
-}
-.zrv-ir-detail-skeleton i {
-  display: block;
-  height: 64px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--zrv-hr-accent) 24%, var(--line));
   border-radius: 12px;
+}
+.zrv-ir-detail-skeleton-bars i {
+  display: block;
+  height: 34px;
+  border-radius: 8px;
+}
+.zrv-ir-detail-skeleton-grid i,
+.zrv-ir-detail-skeleton-bars i {
   background: linear-gradient(
     100deg,
     var(--surface-2) 25%,

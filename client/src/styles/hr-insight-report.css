@@ -520,6 +520,47 @@
   background: var(--mint);
   animation: zrv-ir-pulse 2.4s ease-in-out infinite;
 }
+/* The refresh timestamp is page metadata, not an action: keep it under the
+   title so it never sits between the action buttons. */
+.zrv-ir-head__title .zrv-ir-stamp {
+  margin: 3px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+.zrv-ir-head__title .zrv-ir-stamp i {
+  width: 6px;
+  height: 6px;
+}
+
+/* Keep the whole action row on one line at laptop widths. Secondary utility
+   actions collapse to icon-only buttons; their labels stay in aria-label/title. */
+@media (min-width: 901px) {
+  .zrv-ir-head__actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .zrv-ir--fitted .zrv-ir-head__actions .zrv-ir-btn--utility {
+    min-height: 36px;
+    padding-inline: 10px;
+  }
+}
+@media (min-width: 901px) and (max-width: 1600px) {
+  .zrv-ir--fitted .zrv-ir-head__actions .zrv-ir-btn--utility {
+    width: 38px;
+    padding-inline: 0;
+  }
+  .zrv-ir--fitted .zrv-ir-head__actions .zrv-ir-btn--utility .zrv-ir-btn__label {
+    display: none;
+  }
+  .zrv-ir--fitted .zrv-ir-head__actions .zrv-ir-btn--utility .zrv-ir-btn__badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 10px;
+  }
+}
 @keyframes zrv-ir-pulse {
   0%,
   100% {
@@ -2354,17 +2395,18 @@
   background: currentColor;
 }
 
-/* Summary drawer: backdrop fades, panel glides in, content follows; the
-   closing class plays the reverse before the drawer unmounts. */
+/* Summary drawer: a short, soft glide in from the right edge with a fade — the
+   panel clearly enters from the right without a full-width chase. Everything is
+   laid out first, so nothing shifts when the skeleton becomes the record. */
 .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog-backdrop {
-  animation: zrv-ir-fade 0.4s ease both;
+  animation: zrv-ir-backdrop-in 0.5s ease both;
 }
 .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog {
   gap: 14px;
   padding: 24px;
   box-shadow: -36px 0 70px -40px rgb(0 0 0 / 0.45);
-  animation: zrv-ir-drawer-in 0.6s var(--ir-ease) both;
-  will-change: transform;
+  animation: zrv-ir-drawer-in 0.56s cubic-bezier(0.22, 1, 0.36, 1) both;
+  backface-visibility: hidden;
 }
 .zrv-ir-drawer.zrv-hr-rp-drawer:has(.zrv-ir-offer-preview) .zrv-dialog {
   box-shadow: none;
@@ -2373,10 +2415,23 @@
   box-shadow: none;
 }
 .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog-backdrop {
-  animation: zrv-ir-fade-out 0.32s ease 0.02s both;
+  animation: zrv-ir-fade-out 0.4s ease both;
 }
 .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog {
-  animation: zrv-ir-drawer-out 0.32s cubic-bezier(0.5, 0, 0.75, 0) both;
+  animation: zrv-ir-drawer-out 0.4s cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog-backdrop,
+  .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog,
+  .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog-backdrop,
+  .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog {
+    animation: none;
+  }
+}
+@keyframes zrv-ir-backdrop-in {
+  from {
+    opacity: 0;
+  }
 }
 @keyframes zrv-ir-fade-out {
   to {
@@ -2385,12 +2440,22 @@
 }
 @keyframes zrv-ir-drawer-in {
   from {
-    transform: translateX(100%);
+    opacity: 0;
+    transform: translate3d(32px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 @keyframes zrv-ir-drawer-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
   to {
-    transform: translateX(100%);
+    opacity: 0;
+    transform: translate3d(24px, 0, 0);
   }
 }
 .zrv-ir-drawer .zrv-dialog > h2 {
@@ -2399,7 +2464,6 @@
     Menlo,
     monospace;
   letter-spacing: 0.01em;
-  animation: zrv-ir-rise 0.5s var(--ir-ease) 0.15s both;
 }
 /* A drawer that shows only the record's preview keeps the record number as
    its dialog label for screen readers but hides the heading. */
@@ -2420,9 +2484,7 @@
   overflow: hidden;
 }
 .zrv-ir-drawer--plain .zrv-ir-drawer__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  padding-right: 3px;
 }
 .zrv-ir-drawer--resizable .zrv-dialog {
   gap: 9px;
@@ -2443,11 +2505,7 @@
   border-radius: 10px;
 }
 .zrv-ir-drawer--resizable .zrv-ir-drawer__body {
-  flex: 1 1 auto;
-  min-height: 0;
   gap: 8px;
-  overflow-y: auto;
-  padding-right: 3px;
 }
 .zrv-ir-drawer__grip {
   position: absolute;
@@ -2476,34 +2534,17 @@
   background: color-mix(in srgb, var(--zrv-hr-accent) 70%, transparent);
   outline: 0;
 }
+/* One scroll contract for every drawer: the body fills the panel and scrolls on
+   its own, so the action bar can be pinned to the bottom in all drawers — even
+   while a detail is still loading and its content is short. */
 .zrv-ir-drawer__body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 12px;
-  /* The body scrolls vertically; never let the sticky action bar or its pulse
-     create a horizontal scrollbar. */
+  min-height: 0;
   overflow-x: hidden;
-}
-.zrv-ir-drawer__body > * {
-  animation: zrv-ir-rise 0.55s var(--ir-ease) both;
-}
-.zrv-ir-drawer__body > :nth-child(1) {
-  animation-delay: 0.2s;
-}
-.zrv-ir-drawer__body > :nth-child(2) {
-  animation-delay: 0.27s;
-}
-.zrv-ir-drawer__body > :nth-child(3) {
-  animation-delay: 0.34s;
-}
-.zrv-ir-drawer__body > :nth-child(4) {
-  animation-delay: 0.41s;
-}
-@keyframes zrv-ir-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
+  overflow-y: auto;
 }
 .zrv-ir-drawer__hero {
   display: flex;
@@ -2624,7 +2665,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin: 6px 0 0;
+  /* auto margin keeps the bar at the bottom when the body is not overflowing;
+     sticky keeps it there once the body scrolls. */
+  margin: auto 0 0;
   padding: 10px 2px 2px;
   border-top: 1px solid var(--line);
   background: linear-gradient(

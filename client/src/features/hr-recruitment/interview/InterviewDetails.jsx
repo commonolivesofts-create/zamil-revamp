@@ -3,7 +3,7 @@ import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT, INTERVIEW_TEXT as T } from '../hrRecruitmentText.js'
 import { enDate, formatAmount } from '../shared/hrFormat.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
-import { DetailFacts, DetailSkeleton, SectionHeading } from '../shared/components/ReportDrawer.jsx'
+import { DetailFacts, DetailSection, DetailSkeleton } from '../shared/components/ReportDrawer.jsx'
 import { BandBar } from '../shared/components/InsightCards.jsx'
 import {
   BANDS,
@@ -19,6 +19,46 @@ import {
 
 const service = hrRecruitmentServices.interviews
 const BAND_TONE = Object.freeze({ POOR: 'bad', GOOD: 'mint', OUTSTANDING: 'primary' })
+// Mirrors the sections rendered below so the loading state settles into the
+// same layout instead of jumping from a generic block of bars.
+const LOADING_SECTIONS = Object.freeze([
+  {
+    title: 'Score summary',
+    icon: 'chart-no-axes-combined',
+    description: 'Rating groups, bands and the interviewer’s notes',
+    type: 'scores',
+  },
+  {
+    title: 'Assessment details',
+    icon: 'clipboard-check',
+    description: 'Complete saved record and interview details',
+    columns: 3,
+    rows: 4,
+  },
+  {
+    title: 'Candidate profile',
+    icon: 'user-round',
+    tone: 'mint',
+    description: 'Personal and professional details',
+    columns: 3,
+    rows: 4,
+  },
+  {
+    title: 'Compensation',
+    icon: 'wallet',
+    tone: 'amber',
+    description: 'Expected against current package',
+    columns: 4,
+    rows: 2,
+  },
+  {
+    title: 'Panel & evaluation',
+    icon: 'users',
+    description: 'Interviewers and the recorded decision',
+    columns: 2,
+    rows: 4,
+  },
+])
 const date = (value) => (value ? enDate(value) : COMMON_TEXT.dash)
 const text = (value) => value || COMMON_TEXT.dash
 const amount = (value) => (value == null || value === '' ? COMMON_TEXT.dash : formatAmount(value))
@@ -31,12 +71,7 @@ export function InterviewDetails({ row }) {
   const record = useResource(`hr-interview-report-detail:${row.assessmentId}`, (signal) =>
     service.getById(row.assessmentId, { signal }),
   )
-  const loading = (
-    <DetailSkeleton
-      title="Assessment details"
-      description={`Loading saved assessment ${row.assessmentNumber || row.assessmentId}…`}
-    />
-  )
+  const loading = <DetailSkeleton sections={LOADING_SECTIONS} />
   if (record.status === 'loading') return loading
   return (
     <ResourceState
@@ -53,12 +88,13 @@ export function InterviewDetails({ row }) {
         const delta = salaryDelta(detail.expectedTotal, detail.currentTotal)
         return (
           <>
-            <section className="zrv-ir-detail" aria-label="Score summary">
-              <SectionHeading
-                icon="chart-no-axes-combined"
-                title="Score summary"
-                description="Rating groups, bands and the interviewer's notes"
-              />
+            <DetailSection
+              label="Score summary"
+              icon="chart-no-axes-combined"
+              title="Score summary"
+              description="Rating groups, bands and the interviewer's notes"
+              bare
+            >
               <div className="zrv-ir-detail-scores">
                 <BandBar
                   value={specTotal}
@@ -86,14 +122,14 @@ export function InterviewDetails({ row }) {
                   ]}
                 />
               )}
-            </section>
+            </DetailSection>
 
-            <section className="zrv-ir-detail" aria-label="Assessment details">
-              <SectionHeading
-                icon="clipboard-check"
-                title="Assessment details"
-                description={`Complete saved record for ${detail.assessmentNumber || detail.assessmentId}`}
-              />
+            <DetailSection
+              label="Assessment details"
+              icon="clipboard-check"
+              title="Assessment details"
+              description={`Complete saved record for ${detail.assessmentNumber || detail.assessmentId}`}
+            >
               <DetailFacts
                 columns={3}
                 facts={[
@@ -112,15 +148,15 @@ export function InterviewDetails({ row }) {
                   [T.labels.expectedJoiningDate, date(detail.expectedJoiningDate)],
                 ]}
               />
-            </section>
+            </DetailSection>
 
-            <section className="zrv-ir-detail" aria-label="Candidate profile">
-              <SectionHeading
-                icon="user-round"
-                title="Candidate profile"
-                description={text(detail.candidateName)}
-                tone="mint"
-              />
+            <DetailSection
+              label="Candidate profile"
+              icon="user-round"
+              title="Candidate profile"
+              description={text(detail.candidateName)}
+              tone="mint"
+            >
               <DetailFacts
                 columns={3}
                 facts={[
@@ -140,15 +176,15 @@ export function InterviewDetails({ row }) {
                   ],
                 ]}
               />
-            </section>
+            </DetailSection>
 
-            <section className="zrv-ir-detail" aria-label="Compensation">
-              <SectionHeading
-                icon="wallet"
-                title="Compensation"
-                description="Expected against current package"
-                tone="amber"
-              />
+            <DetailSection
+              label="Compensation"
+              icon="wallet"
+              title="Compensation"
+              description="Expected against current package"
+              tone="amber"
+            >
               <DetailFacts
                 columns={4}
                 facts={[
@@ -161,14 +197,14 @@ export function InterviewDetails({ row }) {
                     : []),
                 ]}
               />
-            </section>
+            </DetailSection>
 
-            <section className="zrv-ir-detail" aria-label="Interview panel and evaluation">
-              <SectionHeading
-                icon="users"
-                title="Panel & evaluation"
-                description="Interviewers and the recorded decision"
-              />
+            <DetailSection
+              label="Interview panel and evaluation"
+              icon="users"
+              title="Panel & evaluation"
+              description="Interviewers and the recorded decision"
+            >
               <DetailFacts
                 columns={2}
                 facts={[
@@ -183,7 +219,7 @@ export function InterviewDetails({ row }) {
                   ['Appraised by MD', yesNo(detail.managingDirector)],
                 ]}
               />
-            </section>
+            </DetailSection>
           </>
         )
       }}
