@@ -27,7 +27,6 @@ const O = R.overview
 const MONTHS = 6
 const GRADES = Object.freeze(['A', 'B', 'C', 'D', 'E'])
 const STATUSES = Object.freeze([
-  ['DRAFT', 'draft'],
   ['INPROCESS', 'progress'],
   ['APPROVED', 'ok'],
   ['REJECTED', 'bad'],

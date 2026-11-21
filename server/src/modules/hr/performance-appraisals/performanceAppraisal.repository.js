@@ -73,13 +73,24 @@ const FILTERS = Object.freeze({
   grade: 'HR.ATTRIBUTE10 = :grade',
   department: 'HR.DEPARTMENT_NAME = :department',
 });
+// Older rows can have TOTAL_RATINGS empty even though the legacy final score
+// or all twenty rating lines were saved. Use the stored score first, then
+// recover it from the criteria so historic records remain reportable.
+const RATING_SQL = `COALESCE(
+  HR.TOTAL_RATINGS,
+  HR.FINAL_RATING_TOTAL,
+  (SELECT ROUND(AVG(R.RATINGS), 2)
+     FROM XXZP.XXZPI_HR_PA_RATING_TAB R
+    WHERE R.HEADER_ID = HR.HEADER_ID)
+)`;
 const SORT = Object.freeze({
   headerId: 'HR.HEADER_ID',
   empName: 'HR.EMPLOYEE_NAME',
   empNumber: 'HR.EMPLOYEE_NUMBER',
   jobTitle: 'HR.JOB_TITLE',
   grade: 'HR.ATTRIBUTE10',
-  rating: 'HR.TOTAL_RATINGS',
+  // The list query aliases the legacy-compatible fallback to this column name.
+  rating: 'TOTAL_RATINGS',
   year: 'HR.YEAR',
   creationDate: 'HR.CREATION_DATE',
 });
@@ -147,7 +158,7 @@ export async function listAppraisals(
   const items = await rows(
     connection,
     `SELECT HR.HEADER_ID, HR.EMPLOYEE_NAME, HR.EMPLOYEE_NUMBER, HR.JOB_TITLE, HR.DEPARTMENT_NAME,
-            HR.TOTAL_RATINGS, HR.ATTRIBUTE9 AS DESCRIPTION_TEXT, HR.ATTRIBUTE10 AS GRADE,
+            ${RATING_SQL} AS TOTAL_RATINGS, HR.ATTRIBUTE9 AS DESCRIPTION_TEXT, HR.ATTRIBUTE10 AS GRADE,
             HR.STATUS, HR.YEAR, TO_CHAR(HR.CREATION_DATE, 'YYYY-MM-DD') AS CREATION_DATE
        FROM XXZP.XXZPI_HR_PA_HEADER_TAB HR ${where}
       ORDER BY ${SORT[sort]} ${order.toUpperCase()}, HR.HEADER_ID DESC
@@ -165,7 +176,7 @@ export async function findHeader(connection, headerId) {
             TO_CHAR(HIRE_DATE, 'YYYY-MM-DD') AS HIRE_DATE, JOB_ID, JOB_TITLE,
             TO_CHAR(APPRAISAL_PERIOD_FROM, 'YYYY-MM-DD') AS PERIOD_FROM,
             TO_CHAR(APPRAISAL_PERIOD_TO, 'YYYY-MM-DD') AS PERIOD_TO,
-            DEPARTMENT_ID, DEPARTMENT_NAME, EVALUATED_BY, TOTAL_RATINGS,
+            DEPARTMENT_ID, DEPARTMENT_NAME, EVALUATED_BY, ${RATING_SQL} AS TOTAL_RATINGS,
             ATTRIBUTE10 AS GRADE, ATTRIBUTE9 AS DESCRIPTION_TEXT, ATTRIBUTE11 AS YEARS_IN_COMPANY,
             ATTRIBUTE12 AS YEARS_IN_POSITION, YEAR, EMP_REMARKS, APP_REMARKS, STATUS,
             ATTRIBUTE1 AS FORM_LANGUAGE, CREATED_BY,
