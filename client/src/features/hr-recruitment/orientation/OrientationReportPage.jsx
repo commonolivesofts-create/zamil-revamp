@@ -116,6 +116,7 @@ const CARDS = [
         icon="workflow"
         label={O.workflow}
         theme="mint"
+        className="zrv-ir-ov--steps-featured"
         aside={<Hint>{data && O.schedules(data.all)}</Hint>}
       >
         <Steps

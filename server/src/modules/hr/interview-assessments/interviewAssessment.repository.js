@@ -363,12 +363,12 @@ function filterConditions(filters, binds) {
  * The list total of each filter set (as `listAssessments` would report it, distinct headers)
  * in one statement, for the recruitment dashboard. `createdBy` as in `listAssessments`.
  */
-export async function countAssessments(connection, { queries, createdBy }) {
+export async function countAssessments(connection, { queries, createdBy, legacyCreatedBy }) {
   const scoped = createdBy !== undefined && createdBy !== null;
   return countSets((sql, binds) => rows(connection, sql, binds), {
     from: FROM_JOIN,
-    where: scoped ? ['INV.CREATED_BY = :createdBy'] : [],
-    binds: scoped ? { createdBy } : {},
+    where: scoped ? ['(INV.CREATED_BY = :createdBy OR INV.CREATED_BY = :legacyCreatedBy)'] : [],
+    binds: scoped ? { createdBy, legacyCreatedBy: legacyCreatedBy ?? createdBy } : {},
     distinct: 'INV.HEADER_ID',
     sets: queries.map((filters) => {
       const binds = {};
@@ -379,13 +379,14 @@ export async function countAssessments(connection, { queries, createdBy }) {
 
 export async function listAssessments(
   connection,
-  { limit, offset, filters = {}, createdBy, sortBy, sortDir },
+  { limit, offset, filters = {}, createdBy, legacyCreatedBy, sortBy, sortDir },
 ) {
   const binds = {};
   const conditions = ['1 = 1', ...filterConditions(filters, binds)];
   if (createdBy !== undefined && createdBy !== null) {
-    conditions.push('INV.CREATED_BY = :createdBy');
+    conditions.push('(INV.CREATED_BY = :createdBy OR INV.CREATED_BY = :legacyCreatedBy)');
     binds.createdBy = createdBy;
+    binds.legacyCreatedBy = legacyCreatedBy ?? createdBy;
   }
   const where = `WHERE ${conditions.join(' AND ')}`;
   const column = SORT_COLUMNS[sortBy];

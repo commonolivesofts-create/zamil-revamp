@@ -69,7 +69,11 @@ export function createOrientationTrainingService({
     const table = await selectedTable(connection, headerId, flag);
     const header = await repository.findHeader(connection, table, headerId);
     if (!header) throw notFound();
-    if (String(header.createdBy) === String(actor.userId)) return { table, header };
+    if (
+      String(header.createdBy) === String(actor.employeeNumber) ||
+      String(header.createdBy) === String(actor.userId)
+    )
+      return { table, header };
     if (await repository.isHrUser(connection, actor.userId)) return { table, header };
     if (
       header.empNo &&
@@ -161,7 +165,7 @@ export function createOrientationTrainingService({
           fromOrient: body.fromOrient,
           toOrient: body.fromOrient,
           orientationBy: actorName,
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
         });
         if (!headerId) throw insertionFailed();
         const reference = await repository.setReference(
@@ -172,7 +176,11 @@ export function createOrientationTrainingService({
         );
         await repository.registerFlag(connection, headerId, table.tableName);
         for (const item of body.lines) {
-          await repository.insertLine(connection, table, lineBinds(headerId, actor.userId, item));
+          await repository.insertLine(
+            connection,
+            table,
+            lineBinds(headerId, actor.employeeNumber ?? actor.userId, item),
+          );
         }
         return { headerId, flag, reference };
       });
@@ -202,6 +210,7 @@ export function createOrientationTrainingService({
                   ),
                 ),
                 createdBy: isHr ? null : actor.userId,
+                createdByEmployeeNumber: isHr ? null : actor.employeeNumber,
               });
               positions.forEach((index, position) => {
                 counts[index] = values[position];
@@ -233,6 +242,7 @@ export function createOrientationTrainingService({
         repository.listTrainings(connection, table, {
           filters,
           createdBy: isHr ? null : actor.userId,
+          createdByEmployeeNumber: isHr ? null : actor.employeeNumber,
           limit: pageSize,
           offset: (page - 1) * pageSize,
           sortBy,
@@ -262,10 +272,16 @@ export function createOrientationTrainingService({
           toOrient: body.fromOrient,
           // Scheduled By keeps its saved value.
           orientationBy: header.orientationBy || 'IT',
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!changed) throw notFound();
-        await replaceLines(connection, table, headerId, actor.userId, body.lines);
+        await replaceLines(
+          connection,
+          table,
+          headerId,
+          actor.employeeNumber ?? actor.userId,
+          body.lines,
+        );
         return { headerId, flag: table === repository.TABLES.Y ? 'Y' : 'N' };
       });
     },

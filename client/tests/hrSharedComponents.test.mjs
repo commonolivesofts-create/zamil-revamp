@@ -88,7 +88,7 @@ test('RecruitmentShell options: flow, compact and banner default to the earlier 
   )
   assert.match(
     shell,
-    /breadcrumb = COMMON_TEXT\.breadcrumb, demo = false,?\s*\}/,
+    /breadcrumb = COMMON_TEXT\.breadcrumb, demo = false, rightContent = null,?\s*\}/,
     'an undefined breadcrumb keeps the recruitment one',
   )
   const css = await read(CSS)
@@ -172,6 +172,20 @@ test('EmployeePicker options: tight variant and a separate cache-key prefix', as
   assert.match(picker, /role="listbox"/)
   const css = await read(CSS)
   assert.match(css, /\.zrv-hr-combo--tight \.zrv-hr-combo__list\s*\{\s*left:\s*0;\s*\}/)
+})
+
+test('EmployeePicker cancels a delayed blur when the field is reopened', async () => {
+  const picker = (await read(`${SHARED}EmployeePicker.jsx`)).replace(/\s+/g, ' ')
+  assert.match(picker, /const blurTimer = useRef\(null\)/)
+  assert.match(picker, /useEffect\(\(\) => \(\) => clearTimeout\(blurTimer\.current\), \[\]\)/)
+  assert.match(
+    picker,
+    /const openPicker = \(\) => \{ clearBlurTimer\(\) if \(disabled \|\| open\) return setOpen\(true\)/,
+  )
+  assert.match(picker, /onFocus=\{openPicker\}/)
+  assert.match(picker, /onClick=\{openPicker\}/)
+  assert.match(picker, /onBlur=\{\(\) => \{ clearBlurTimer\(\) blurTimer\.current = setTimeout/)
+  assert.match(picker, /const pick = \(employee\) => \{ clearBlurTimer\(\) onPick\(employee\)/)
 })
 
 test('onboarding forms keep the full recruitment frame and navigation', async () => {

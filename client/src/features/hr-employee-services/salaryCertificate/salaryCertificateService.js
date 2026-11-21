@@ -198,7 +198,7 @@ export function createSalaryCertificateService({ client }) {
           load: ({ signal } = {}) =>
             client
               .get(`${language(lang).base}/lookups/employee-numbers`, {
-                params: params({ pageSize: 100 }),
+                params: params({ page: 1, pageSize: 100 }),
                 signal,
               })
               .then(({ data }) => data),
@@ -225,7 +225,7 @@ export function createSalaryCertificateService({ client }) {
       // Opening the field lists the numbers loaded with the form.
       if (!q) return employeePage(await numbersFor(lang).list({ signal }))
       const { data } = await client.get(`${language(lang).base}/lookups/employee-numbers`, {
-        params: params({ q, pageSize: 20 }),
+        params: params({ q, page: 1, pageSize: 20 }),
         signal,
       })
       if (!Array.isArray(data)) throw invalidResponse('employee list')

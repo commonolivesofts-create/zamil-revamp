@@ -107,6 +107,7 @@ export function createPerformanceAppraisalService({
             return repository.countAppraisals(c, {
               queries: missing.map((query) => ({ ...query, year: query.year ?? currentYear() })),
               userId: actor.userId,
+              employeeNumber: actor.employeeNumber,
               isHr,
               noEmployee: !isHr && !hasEmployee,
             });
@@ -128,6 +129,7 @@ export function createPerformanceAppraisalService({
             department: query.department ?? null,
           },
           userId: actor.userId,
+          employeeNumber: actor.employeeNumber,
           isHr,
           noEmployee: !isHr && !hasEmployee,
         }),
@@ -173,7 +175,7 @@ export function createPerformanceAppraisalService({
           evaluatedBy: employee.evaluatedBy,
           ...result,
           year: body.year,
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
           yearsInCompany: employee.yearsInCompany,
           yearsInPosition: employee.yearsInPosition,
           employeeRemarks,

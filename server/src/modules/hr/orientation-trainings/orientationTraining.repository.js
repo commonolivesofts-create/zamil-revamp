@@ -335,12 +335,18 @@ function filterConditions(filters, binds) {
  * The list total of each filter set of one variant table (as `listTrainings` would report it)
  * in one statement, for the recruitment dashboard. `createdBy` as in `listTrainings`.
  */
-export async function countTrainings(connection, table, { queries, createdBy }) {
+export async function countTrainings(
+  connection,
+  table,
+  { queries, createdBy, createdByEmployeeNumber },
+) {
   const scoped = createdBy !== null;
   return countSets((sql, binds) => rows(connection, sql, binds), {
     from: `FROM ${table.header} H`,
-    where: scoped ? ['H.CREATED_BY = :createdBy'] : [],
-    binds: scoped ? { createdBy } : {},
+    where: scoped ? ['(H.CREATED_BY = :createdBy OR H.CREATED_BY = :createdByEmployeeNumber)'] : [],
+    binds: scoped
+      ? { createdBy, createdByEmployeeNumber: createdByEmployeeNumber ?? createdBy }
+      : {},
     sets: queries.map((filters) => {
       const binds = {};
       return { conditions: filterConditions(filters, binds), binds };
@@ -351,13 +357,14 @@ export async function countTrainings(connection, table, { queries, createdBy }) 
 export async function listTrainings(
   connection,
   table,
-  { filters, createdBy, limit, offset, sortBy, sortDir },
+  { filters, createdBy, createdByEmployeeNumber, limit, offset, sortBy, sortDir },
 ) {
   const binds = {};
   const conditions = ['1 = 1', ...filterConditions(filters, binds)];
   if (createdBy !== null) {
-    conditions.push('H.CREATED_BY = :createdBy');
+    conditions.push('(H.CREATED_BY = :createdBy OR H.CREATED_BY = :createdByEmployeeNumber)');
     binds.createdBy = createdBy;
+    binds.createdByEmployeeNumber = createdByEmployeeNumber;
   }
   const where = `WHERE ${conditions.join(' AND ')}`;
   const column = sortColumns[sortBy];

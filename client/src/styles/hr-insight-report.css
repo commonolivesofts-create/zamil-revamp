@@ -813,6 +813,7 @@
   grid-column: span 3;
   align-self: center;
 }
+
 .zrv-ir-ov {
   position: relative;
   display: flex;
@@ -972,6 +973,78 @@
   font-size: 11.5px;
   line-height: 1.35;
   text-align: center;
+}
+.zrv-ir-ov--appraisal-average .zrv-ir-ov__gauge {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+.zrv-ir-ov--appraisal-average .zrv-ir-half {
+  margin: 0 auto;
+}
+.zrv-ir-ov--appraisal-average .zrv-ir-ov__foot {
+  margin-top: auto;
+}
+.zrv-ir-ov--appraisal-status .zrv-ir-donut {
+  margin-block: auto;
+}
+.zrv-ir-ov--personal-status .zrv-ir-donut {
+  margin-block: auto;
+}
+.zrv-ir-ov--personal-status .zrv-ir-donut__legend {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.zrv-ir-ov--personal-status .zrv-ir-donut__item {
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 4px;
+  padding: 3px 4px;
+  font-size: 10.5px;
+}
+.zrv-ir-ov--personal-status .zrv-ir-donut__item span {
+  overflow: visible;
+  overflow-wrap: normal;
+  text-overflow: clip;
+  white-space: normal;
+}
+.zrv-ir-ov--appraisal-status .zrv-ir-donut__legend {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.zrv-ir-ov--appraisal-status .zrv-ir-donut__item {
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 4px;
+  padding: 3px 4px;
+  font-size: 10.5px;
+}
+.zrv-ir-ov--appraisal-status .zrv-ir-donut__item span {
+  overflow: visible;
+  overflow-wrap: normal;
+  text-overflow: clip;
+  white-space: normal;
+}
+.zrv-ir-ov--reward-status .zrv-ir-donut {
+  margin-block: auto;
+}
+.zrv-ir-ov--reward-status .zrv-ir-donut__legend {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.zrv-ir-ov--reward-status .zrv-ir-donut__item {
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 4px;
+  padding: 3px 4px;
+  font-size: 11px;
+}
+.zrv-ir-ov--reward-status .zrv-ir-donut__item span {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.2;
 }
 .zrv-ir-skel {
   display: inline-block;
@@ -1851,6 +1924,22 @@
   flex: none;
   width: 96px;
 }
+.zrv-ir-donut__chart--unit-below svg {
+  display: block;
+}
+.zrv-ir-donut__chart--unit-below .zrv-ir-donut__n {
+  inset: 0 0 auto;
+  height: 96px;
+}
+.zrv-ir-donut__unit {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.1;
+  text-align: center;
+}
 .zrv-ir-donut__chart svg {
   width: 100%;
   transform: rotate(-90deg);
@@ -1908,6 +1997,23 @@
   border-radius: 9px;
   background: transparent;
   font-size: 12px;
+}
+.zrv-ir-donut__all {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-align: left;
+}
+.zrv-ir-donut__all b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 .zrv-ir-donut__item i {
   width: 8px;
@@ -2335,6 +2441,57 @@
     padding: 5px 10px;
     font-size: 12px;
   }
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-steps {
+  margin-top: auto;
+  gap: 16px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-steps__main {
+  align-items: stretch;
+  gap: 8px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-steps__main::before {
+  top: 24px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step__node {
+  width: 40px;
+  height: 40px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step:not(.zrv-ir-step--branch) {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 4px;
+  text-align: center;
+}
+.zrv-ir--fitted
+  .zrv-ir-ov--steps-featured
+  .zrv-ir-step:not(.zrv-ir-step--branch)
+  .zrv-ir-step__node {
+  grid-row: auto;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step:not(.zrv-ir-step--branch) b {
+  font-size: 22px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step:not(.zrv-ir-step--branch) small {
+  font-size: 13px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step--branch {
+  width: 100%;
+  min-height: 34px;
+  padding: 4px 10px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step--branch .zrv-ir-step__node {
+  width: 28px;
+  height: 28px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step--branch small {
+  font-size: 13px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step--branch b {
+  font-size: 18px;
 }
 .zrv-ir-num {
   padding: 0;

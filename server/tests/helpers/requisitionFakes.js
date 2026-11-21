@@ -68,7 +68,7 @@ export function installRequisitions(
     }
     const ids = employees
       .filter((employee) => names.has(employee.fullName))
-      .map((e) => String(e.userId));
+      .flatMap((e) => [String(e.userId), String(e.employeeNumber)]);
     if (self) return ids;
     return [...ids, String(scopeUserId)]; // no employee-master row: only their own CREATED_BY
   };

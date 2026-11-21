@@ -1582,6 +1582,7 @@
     padding: 16px;
   }
 }
+
 /* Batch C: password fields and live policy checklist. */
 .zrv-auth-page .zrv-password-input {
   position: relative;
@@ -2169,40 +2170,15 @@
 
 /* Compact password form using the HR requisition card and control language. */
 .zrv-hr--password-page {
-  width: 100%;
-  max-width: none;
-  gap: 7px;
-}
-.zrv-hr--password-page > .zrv-hr-head {
-  min-height: 0;
-  padding: 0 2px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  width: min(100%, 1440px);
+  max-width: 1440px;
+  gap: 12px;
 }
 .zrv-password-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   gap: 9px;
-}
-.zrv-password-page-intro {
-  align-self: flex-start;
-  margin: 0 2px 1px;
-  text-align: left;
-}
-.zrv-password-page-intro h2 {
-  margin: 0;
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 750;
-  line-height: 1.3;
-}
-.zrv-password-page-intro p {
-  margin: 1px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.4;
 }
 .zrv-hr--password-page .zrv-password-form-card {
   min-width: 0;
@@ -2695,5 +2671,105 @@
     grid-column: 1 / -1;
     justify-self: stretch;
     width: 100%;
+  }
+}
+/* Use the full workspace width and let the security guidance stack below the
+   form when a narrow viewport or application sidebar reduces available space. */
+#main-content > .zrv-auth-page.zrv-account-panel--authenticator,
+.zrv-auth-page.zrv-account-panel--authenticator {
+  display: flex;
+  box-sizing: border-box;
+  flex: 0 1 1440px;
+  flex-direction: column;
+  align-self: center;
+  align-items: stretch;
+  width: min(100%, 1440px);
+  min-width: 0;
+  max-width: 1440px;
+  margin: 0 auto;
+  gap: 14px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+.zrv-account-panel--authenticator > .zrv-hr-form-header {
+  width: 100%;
+  min-width: 0;
+}
+.zrv-account-panel--authenticator .zrv-hr-head__row {
+  width: 100%;
+  align-items: center;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-header-status {
+  position: static;
+  flex: none;
+  margin-left: auto;
+  padding: 6px 9px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-layout {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+  gap: 18px;
+  grid-template-rows: auto;
+  grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.8fr);
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-main,
+.zrv-account-panel--authenticator .zrv-authenticator-aside {
+  min-width: 0;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-main {
+  display: contents;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-main > .ux-panel-body {
+  display: contents;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-main .zrv-account-layout__main {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: stretch;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-main .zrv-account-layout__main {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-solid);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 5%, transparent);
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-layout > .zrv-authenticator-aside {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: stretch;
+  margin-top: 0;
+}
+@media (max-width: 900px) {
+  .zrv-account-panel--authenticator .zrv-authenticator-page-layout {
+    grid-template-rows: auto auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zrv-account-panel--authenticator .zrv-authenticator-page-layout > .zrv-authenticator-aside {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    margin-top: 0;
+  }
+}
+@media (max-width: 560px) {
+  .zrv-auth-page.zrv-account-panel--authenticator {
+    width: 100%;
+    padding: 0;
+  }
+  .zrv-account-panel--authenticator .zrv-authenticator-page-main {
+    gap: 8px;
+    padding: 0;
+  }
+  .zrv-account-panel--authenticator .zrv-authenticator-page-main .zrv-account-layout__main {
+    padding: 12px;
   }
 }
