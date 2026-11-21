@@ -414,6 +414,15 @@ describe('probation parity: SQL', () => {
     assert.match(list.sql, /TO_CHAR\(H\.CREATED_AT, 'YYYY-MM-DD'\) AS CREATED_AT/);
   });
 
+  it('falls back to the standard PAF criteria when no saved evaluation has them', async () => {
+    const connection = fakeConnection(() => []);
+    const criteria = await probationRepository.findCriteria(connection, 'Trainee');
+    assert.equal(criteria.length, 20);
+    assert.equal(criteria[0].param, 'Quality / Accuracy of Work');
+    assert.equal(criteria.at(-1).param, 'Health, Safety & Environment (HSE)');
+    assert.ok(criteria.every((item) => item.paramAr));
+  });
+
   it('reads the criteria of a form type from its latest complete evaluation', async () => {
     const connection = fakeConnection(() => [
       { PARAM_NAME: 'Criterion 1', PARAMA_NAME_AR: 'معيار 1' },
@@ -537,19 +546,18 @@ describe('probation parity: total, result and list', () => {
 });
 
 describe('probation parity: employee select and autofill', () => {
-  it('excludes employees with a non-rejected annual appraisal this year in XXZPI_HR_PA_HEADER_TAB (pending HR confirmation)', async () => {
+  it('uses the legacy employee dropdown query (PAF duplicate-year guard) so the picker is not emptied', async () => {
     const connection = fakeConnection(() => []);
     await probationRepository.listEmployees(connection, { employeeNumber: 'E-0100' });
     const [{ sql, binds }] = connection.statements;
     assert.match(sql, /CONNECT BY NOCYCLE PRIOR OT\.FULL_NAME = OT\.SUPERVISOR_NAME/);
-    assert.match(sql, /NOT EXISTS \(\s*SELECT 1 FROM XXZP\.XXZPI_HR_PA_HEADER_TAB HD/);
-    assert.doesNotMatch(
-      sql,
-      /XXZPI_HR_PAF_HEADER_TAB/,
-      'not the legacy PAF table (no longer written)',
-    );
+    // The legacy getEmp() employee select reads the PAF table. Reading the PA
+    // table hid everyone already appraised this year, so the picker showed no
+    // names and "No match".
+    assert.match(sql, /NOT EXISTS \(\s*SELECT 1 FROM XXZP\.XXZPI_HR_PAF_HEADER_TAB HD/);
+    assert.doesNotMatch(sql, /XXZPI_HR_PA_HEADER_TAB/);
     assert.match(sql, /HD\.YEAR = TO_CHAR\(SYSDATE, 'YYYY'\)/);
-    assert.match(sql, /NVL\(UPPER\(HD\.STATUS\), '-'\) <> 'REJECTED'/);
+    assert.match(sql, /HD\.STATUS <> 'Rejected'/);
     assert.deepEqual(binds, { employeeNumber: 'E-0100', search: null });
   });
 
