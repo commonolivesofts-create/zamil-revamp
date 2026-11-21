@@ -5,6 +5,7 @@ import { ApiError, apiClient } from '../../services/api/apiClient.js'
 import { createListReadLimit } from '../../services/api/listReadLimit.js'
 import { hrRecruitmentConfig } from './hrRecruitmentConfig.js'
 import { createDemoClient } from './demo/demoClient.js'
+import { postCounts } from '../../services/api/listCounts.js'
 import {
   ID_PATTERN,
   readInterview,
@@ -708,6 +709,8 @@ function createBackendRequisitionService({ client }) {
       const savedId = id ? String(response.data.requisitionId) : String(response.data.requisitionId)
       return getById(savedId)
     },
+    // The list totals of many filter sets (dashboard), one request.
+    counts: (queries, options) => postCounts(client, REQUISITIONS_BASE, queries, options),
     async list({ page = 1, limit = REPORT_PAGE_SIZE, ...filters } = {}, { signal } = {}) {
       const result = await client.get(REQUISITIONS_BASE, {
         params: { ...listParams(filters), page, pageSize: limit },
@@ -830,6 +833,8 @@ export function createInterviewService({ client }) {
         lookupErrors,
       })
     },
+    // The list totals of many filter sets (dashboard), one request.
+    counts: (queries, options) => postCounts(client, INTERVIEWS_BASE, queries, options),
     async list({ page = 1, limit = REPORT_PAGE_SIZE, ...filters } = {}, { signal } = {}) {
       const result = await client.get(INTERVIEWS_BASE, {
         params: { ...listParams(filters), page, pageSize: limit },
@@ -985,6 +990,8 @@ export function createOfferService({ client }) {
       })
       return offerText(data?.hijri)
     },
+    // The list totals of many filter sets (dashboard), one request.
+    counts: (queries, options) => postCounts(client, OFFERS_BASE, queries, options),
     async list({ page = 1, limit = REPORT_PAGE_SIZE, ...filters } = {}, { signal } = {}) {
       const result = await client.get(OFFERS_BASE, {
         params: { ...listParams(filters), page, pageSize: limit },
@@ -1201,6 +1208,8 @@ export function createOrientationService({ client }) {
         departments: Object.freeze(skillResult.skills.map(String)),
       })
     },
+    // The list totals of many filter sets (dashboard); each set names its table with `flag`.
+    counts: (queries, options) => postCounts(client, ORIENTATION_BASE, queries, options),
     async list(
       { page = 1, limit = REPORT_PAGE_SIZE, flag = 'Y', ...filters } = {},
       { signal } = {},
@@ -1562,6 +1571,8 @@ export function createProbationService({ client }) {
         }),
       })
     },
+    // The list totals of many filter sets (dashboard), one request.
+    counts: (queries, options) => postCounts(client, PROBATION_BASE, queries, options),
     async list({ page = 1, limit = REPORT_PAGE_SIZE, ...filters } = {}, { signal } = {}) {
       const result = await client.get(PROBATION_BASE, {
         params: { ...listParams(filters), page, pageSize: limit },

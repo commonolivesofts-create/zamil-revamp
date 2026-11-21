@@ -1,14 +1,10 @@
-
 import { useState } from 'react'
 import { Link } from 'react-router'
 import '@/styles/security-roles.css'
 
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import HorizontalTableScroll from '@/components/ui/HorizontalTableScroll.jsx'
-import {
-  canAccessRoute,
-  findAppRoute,
-} from '@/config/appNavigation.js'
+import { canAccessRoute, findAppRoute } from '@/config/appNavigation.js'
 import usePermissions from '@/features/access/usePermissions.js'
 
 import { formatInstant } from '../adminFeedback.js'
@@ -62,17 +58,13 @@ function groupPermissions(grants) {
 
   return [...modules.entries()]
     .map(([code, resources]) => {
-      const rows = [...resources.entries()].map(
-        ([resourceCode, actions]) => ({
-          code: resourceCode,
-          label: humanize(resourceCode),
-          actions,
-        }),
-      )
+      const rows = [...resources.entries()].map(([resourceCode, actions]) => ({
+        code: resourceCode,
+        label: humanize(resourceCode),
+        actions,
+      }))
 
-      const actionCodes = [
-        ...new Set(rows.flatMap((row) => [...row.actions])),
-      ]
+      const actionCodes = [...new Set(rows.flatMap((row) => [...row.actions]))]
 
       const priority = ['VIEW', 'CREATE', 'UPDATE', 'DELETE']
 
@@ -81,10 +73,7 @@ function groupPermissions(grants) {
         const bi = priority.indexOf(b)
 
         if (ai !== -1 || bi !== -1) {
-          return (
-            (ai === -1 ? 100 : ai) -
-            (bi === -1 ? 100 : bi)
-          )
+          return (ai === -1 ? 100 : ai) - (bi === -1 ? 100 : bi)
         }
 
         return a.localeCompare(b)
@@ -95,10 +84,7 @@ function groupPermissions(grants) {
         label: humanize(code),
         rows,
         actionCodes,
-        count: rows.reduce(
-          (sum, row) => sum + row.actions.size,
-          0,
-        ),
+        count: rows.reduce((sum, row) => sum + row.actions.size, 0),
       }
     })
     .sort((a, b) => a.label.localeCompare(b.label))
@@ -117,13 +103,8 @@ export default function RolesPage() {
   const [permissionSearch, setPermissionSearch] = useState('')
   const [expandedModules, setExpandedModules] = useState({})
 
-  const roles = useResource(
-    `roles:${page}`,
-    (signal) =>
-      securityAdminService.listRoles(
-        { page, limit: PAGE_SIZE },
-        { signal },
-      ),
+  const roles = useResource(`roles:${page}`, (signal) =>
+    securityAdminService.listRoles({ page, limit: PAGE_SIZE }, { signal }),
   )
 
   const action = useAdminAction()
@@ -132,13 +113,9 @@ export default function RolesPage() {
 
   // Automatically select the first role when the
   // user has not selected a specific role.
-  const effectiveSelectedId =
-    selectedId ?? items[0]?.roleId
+  const effectiveSelectedId = selectedId ?? items[0]?.roleId
 
-  const selected =
-    items.find(
-      (role) => role.roleId === effectiveSelectedId,
-    ) ?? null
+  const selected = items.find((role) => role.roleId === effectiveSelectedId) ?? null
 
   // Search and status filter for the loaded page.
   const visibleRoles = items.filter((role) => {
@@ -147,37 +124,25 @@ export default function RolesPage() {
     const matchesText =
       !term ||
       [role.roleName, role.roleCode].some((value) =>
-        String(value ?? '').toLowerCase().includes(term),
+        String(value ?? '')
+          .toLowerCase()
+          .includes(term),
       )
 
     const matchesStatus =
-      statusFilter === 'all' ||
-      (statusFilter === 'active'
-        ? role.isActive
-        : !role.isActive)
+      statusFilter === 'all' || (statusFilter === 'active' ? role.isActive : !role.isActive)
 
     return matchesText && matchesStatus
   })
 
-  const showGrants = can(
-    SECURITY_ACTIONS.ROLE_PERMISSIONS_VIEW,
-  )
+  const showGrants = can(SECURITY_ACTIONS.ROLE_PERMISSIONS_VIEW)
 
   const grants = useResource(
-    selected && showGrants
-      ? `role-grants:${selected.roleId}`
-      : null,
-    (signal) =>
-      securityAdminService.listRolePermissions(
-        selected.roleId,
-        { signal },
-      ),
+    selected && showGrants ? `role-grants:${selected.roleId}` : null,
+    (signal) => securityAdminService.listRolePermissions(selected.roleId, { signal }),
   )
 
-  const manageGrants = canAccessRoute(
-    findAppRoute('/security/role-permissions'),
-    access,
-  )
+  const manageGrants = canAccessRoute(findAppRoute('/security/role-permissions'), access)
 
   const open = (next) => {
     action.setFeedback(null)
@@ -220,49 +185,35 @@ export default function RolesPage() {
         }
       >
         {!dialog && (
-          <Feedback
-            feedback={action.feedback}
-            onDismiss={() => action.setFeedback(null)}
-          />
+          <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
         )}
 
         <div className="zrv-admin-split zrv-roles-layout">
           {/* LEFT PANEL - ALL ROLES */}
 
-          <Panel
-            title="All Roles"
-            className="zrv-roles-list-panel"
-          >
+          <Panel title="All Roles" className="zrv-roles-list-panel">
             <div className="zrv-roles-filters">
               <label className="zrv-roles-search">
                 <OrvexaIcon name="search" />
 
-                <span className="sr-only">
-                  Search roles on this page
-                </span>
+                <span className="sr-only">Search roles on this page</span>
 
                 <input
                   type="search"
                   placeholder="Search roles..."
                   value={roleSearch}
-                  onChange={(event) =>
-                    setRoleSearch(event.target.value)
-                  }
+                  onChange={(event) => setRoleSearch(event.target.value)}
                 />
               </label>
 
               <label className="zrv-roles-status-filter">
                 <OrvexaIcon name="filter" />
 
-                <span className="sr-only">
-                  Filter role status
-                </span>
+                <span className="sr-only">Filter role status</span>
 
                 <select
                   value={statusFilter}
-                  onChange={(event) =>
-                    setStatusFilter(event.target.value)
-                  }
+                  onChange={(event) => setStatusFilter(event.target.value)}
                 >
                   <option value="all">All Status</option>
                   <option value="active">Active</option>
@@ -271,63 +222,43 @@ export default function RolesPage() {
               </label>
             </div>
 
-            <ResourceState
-              resource={roles}
-              label="roles"
-              empty="No roles are defined."
-            >
+            <ResourceState resource={roles} label="roles" empty="No roles are defined.">
               {({ pagination }) => (
                 <>
                   <div
                     className="zrv-roles-list"
                     role="list"
-                    aria-busy={
-                      roles.refreshing || undefined
-                    }
+                    aria-busy={roles.refreshing || undefined}
                   >
                     {visibleRoles.length === 0 && (
                       <p className="zrv-admin-state">
-                        No roles match the current filters on
-                        this page.
+                        No roles match the current filters on this page.
                       </p>
                     )}
 
                     {visibleRoles.map((role) => (
-                      <div
-                        className="zrv-roles-list-item"
-                        role="listitem"
-                        key={role.roleId}
-                      >
+                      <div className="zrv-roles-list-item" role="listitem" key={role.roleId}>
                         <button
                           type="button"
                           className={`zrv-roles-item-button${
-                            role.roleId === effectiveSelectedId
-                              ? ' is-selected'
-                              : ''
+                            role.roleId === effectiveSelectedId ? ' is-selected' : ''
                           }`}
                           onClick={() => {
                             setSelectedId(role.roleId)
                             setPermissionSearch('')
                             setExpandedModules({})
                           }}
-                          aria-pressed={
-                            role.roleId === effectiveSelectedId
-                          }
+                          aria-pressed={role.roleId === effectiveSelectedId}
                         >
                           <span className="zrv-roles-item-copy">
-                            <strong>
-                              {role.roleName || role.roleCode}
-                            </strong>
+                            <strong>{role.roleName || role.roleCode}</strong>
 
                             <small>{role.roleCode}</small>
                           </span>
 
                           <ActiveBadge active={role.isActive} />
 
-                          <OrvexaIcon
-                            name="chevron-right"
-                            className="zrv-roles-item-chevron"
-                          />
+                          <OrvexaIcon name="chevron-right" className="zrv-roles-item-chevron" />
                         </button>
                       </div>
                     ))}
@@ -335,8 +266,7 @@ export default function RolesPage() {
 
                   <div className="zrv-roles-list-footer">
                     <span>
-                      Showing {visibleRoles.length} of{' '}
-                      {items.length} roles on this page
+                      Showing {visibleRoles.length} of {items.length} roles on this page
                     </span>
 
                     <Pagination
@@ -375,40 +305,32 @@ export default function RolesPage() {
                     </button>
                   )}
 
-                  {can(SECURITY_ACTIONS.ROLES_UPDATE) &&
-                    !selected.isActive && (
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() =>
-                          open({ type: 'activate' })
-                        }
-                      >
-                        Activate
-                      </button>
-                    )}
+                  {can(SECURITY_ACTIONS.ROLES_UPDATE) && !selected.isActive && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => open({ type: 'activate' })}
+                    >
+                      Activate
+                    </button>
+                  )}
 
-                  {can(SECURITY_ACTIONS.ROLES_DEACTIVATE) &&
-                    selected.isActive && (
-                      <button
-                        type="button"
-                        className="btn-secondary zrv-admin-danger-outline"
-                        onClick={() =>
-                          open({ type: 'deactivate' })
-                        }
-                      >
-                        <OrvexaIcon name="pause-circle" />
-                        Deactivate
-                      </button>
-                    )}
+                  {can(SECURITY_ACTIONS.ROLES_DEACTIVATE) && selected.isActive && (
+                    <button
+                      type="button"
+                      className="btn-secondary zrv-admin-danger-outline"
+                      onClick={() => open({ type: 'deactivate' })}
+                    >
+                      <OrvexaIcon name="pause-circle" />
+                      Deactivate
+                    </button>
+                  )}
                 </>
               )
             }
           >
             {!selected ? (
-              <p className="zrv-admin-state">
-                Select a role to see its details.
-              </p>
+              <p className="zrv-admin-state">Select a role to see its details.</p>
             ) : (
               <>
                 {/* ROLE INFORMATION */}
@@ -417,10 +339,7 @@ export default function RolesPage() {
                   <div className="zrv-roles-info-column">
                     <div className="zrv-roles-info-field">
                       <span>Role Name</span>
-                      <strong>
-                        {selected.roleName ||
-                          selected.roleCode}
-                      </strong>
+                      <strong>{selected.roleName || selected.roleCode}</strong>
                     </div>
 
                     <div className="zrv-roles-info-field">
@@ -430,33 +349,25 @@ export default function RolesPage() {
 
                     <div className="zrv-roles-info-field">
                       <span>Status</span>
-                      <ActiveBadge
-                        active={selected.isActive}
-                      />
+                      <ActiveBadge active={selected.isActive} />
                     </div>
                   </div>
 
                   <div className="zrv-roles-info-column">
                     <div className="zrv-roles-info-field">
                       <span>Description</span>
-                      <strong>
-                        {selected.description || '—'}
-                      </strong>
+                      <strong>{selected.description || '—'}</strong>
                     </div>
 
                     <div className="zrv-roles-info-field">
                       <span>Created Date</span>
-                      <strong>
-                        {formatInstant(selected.createdAt)}
-                      </strong>
+                      <strong>{formatInstant(selected.createdAt)}</strong>
                     </div>
 
                     <div className="zrv-roles-info-field">
                       <span>Updated Date</span>
                       <strong>
-                        {selected.updatedAt
-                          ? formatInstant(selected.updatedAt)
-                          : '—'}
+                        {selected.updatedAt ? formatInstant(selected.updatedAt) : '—'}
                       </strong>
                     </div>
                   </div>
@@ -465,10 +376,7 @@ export default function RolesPage() {
                 {/* GRANTED PERMISSIONS */}
 
                 {showGrants && (
-                  <section
-                    className="zrv-roles-permissions"
-                    aria-label="Granted permissions"
-                  >
+                  <section className="zrv-roles-permissions" aria-label="Granted permissions">
                     <div className="zrv-roles-permissions-header">
                       <h3>
                         <OrvexaIcon name="wrench" />
@@ -479,19 +387,13 @@ export default function RolesPage() {
                         <label className="zrv-roles-search">
                           <OrvexaIcon name="search" />
 
-                          <span className="sr-only">
-                            Search granted permissions
-                          </span>
+                          <span className="sr-only">Search granted permissions</span>
 
                           <input
                             type="search"
                             placeholder="Search permissions..."
                             value={permissionSearch}
-                            onChange={(event) =>
-                              setPermissionSearch(
-                                event.target.value,
-                              )
-                            }
+                            onChange={(event) => setPermissionSearch(event.target.value)}
                           />
                         </label>
 
@@ -511,14 +413,10 @@ export default function RolesPage() {
                       resource={grants}
                       label="role permissions"
                       empty="This role holds no permissions."
-                      isEmpty={(data) =>
-                        !data.some((grant) => grant.isActive)
-                      }
+                      isEmpty={(data) => !data.some((grant) => grant.isActive)}
                     >
                       {(data) => {
-                        const term = permissionSearch
-                          .trim()
-                          .toLowerCase()
+                        const term = permissionSearch.trim().toLowerCase()
 
                         const groups = groupPermissions(data)
                           .map((module) => ({
@@ -532,11 +430,7 @@ export default function RolesPage() {
                                   row.label,
                                   row.code,
                                   ...row.actions,
-                                ].some((part) =>
-                                  String(part)
-                                    .toLowerCase()
-                                    .includes(term),
-                                ),
+                                ].some((part) => String(part).toLowerCase().includes(term)),
                             ),
                           }))
                           .filter((module) => module.rows.length)
@@ -544,40 +438,27 @@ export default function RolesPage() {
                         return groups.length ? (
                           <div className="zrv-roles-permission-groups">
                             {groups.map((module, index) => {
-                              const expanded =
-                                expandedModules[module.code] ??
-                                index === 0
+                              const expanded = expandedModules[module.code] ?? index === 0
 
                               return (
-                                <section
-                                  className="zrv-roles-permission-group"
-                                  key={module.code}
-                                >
+                                <section className="zrv-roles-permission-group" key={module.code}>
                                   <button
                                     type="button"
                                     className="zrv-roles-permission-toggle"
                                     aria-expanded={expanded}
                                     onClick={() =>
-                                      setExpandedModules(
-                                        (previous) => ({
-                                          ...previous,
-                                          [module.code]: !expanded,
-                                        }),
-                                      )
+                                      setExpandedModules((previous) => ({
+                                        ...previous,
+                                        [module.code]: !expanded,
+                                      }))
                                     }
                                   >
                                     <OrvexaIcon
                                       name="chevron-down"
-                                      className={
-                                        expanded
-                                          ? 'is-expanded'
-                                          : ''
-                                      }
+                                      className={expanded ? 'is-expanded' : ''}
                                     />
 
-                                    <strong>
-                                      {module.label}
-                                    </strong>
+                                    <strong>{module.label}</strong>
 
                                     <span className="zrv-roles-permission-count">
                                       {module.count} Permissions
@@ -586,9 +467,7 @@ export default function RolesPage() {
                                     <OrvexaIcon
                                       name="chevron-down"
                                       className={`zrv-roles-toggle-end${
-                                        expanded
-                                          ? ' is-expanded'
-                                          : ''
+                                        expanded ? ' is-expanded' : ''
                                       }`}
                                     />
                                   </button>
@@ -598,52 +477,35 @@ export default function RolesPage() {
                                       <table className="zrv-roles-permission-table zrv-security-table">
                                         <thead>
                                           <tr>
-                                            <th scope="col">
-                                              Resource
-                                            </th>
+                                            <th scope="col">Resource</th>
 
-                                            {module.actionCodes.map(
-                                              (code) => (
-                                                <th
-                                                  scope="col"
-                                                  key={code}
-                                                >
-                                                  {humanize(code)}
-                                                </th>
-                                              ),
-                                            )}
+                                            {module.actionCodes.map((code) => (
+                                              <th scope="col" key={code}>
+                                                {humanize(code)}
+                                              </th>
+                                            ))}
                                           </tr>
                                         </thead>
 
                                         <tbody>
-                                          {module.rows.map(
-                                            (row) => (
-                                              <tr key={row.code}>
-                                                <th scope="row">
-                                                  {row.label}
-                                                </th>
+                                          {module.rows.map((row) => (
+                                            <tr key={row.code}>
+                                              <th scope="row">{row.label}</th>
 
-                                                {module.actionCodes.map(
-                                                  (code) => (
-                                                    <td key={code}>
-                                                      {row.actions.has(
-                                                        code,
-                                                      ) ? (
-                                                        <OrvexaIcon
-                                                          name="check-square"
-                                                          className="zrv-roles-granted"
-                                                        />
-                                                      ) : (
-                                                        <span aria-label="Not granted">
-                                                          —
-                                                        </span>
-                                                      )}
-                                                    </td>
-                                                  ),
-                                                )}
-                                              </tr>
-                                            ),
-                                          )}
+                                              {module.actionCodes.map((code) => (
+                                                <td key={code}>
+                                                  {row.actions.has(code) ? (
+                                                    <OrvexaIcon
+                                                      name="check-square"
+                                                      className="zrv-roles-granted"
+                                                    />
+                                                  ) : (
+                                                    <span aria-label="Not granted">—</span>
+                                                  )}
+                                                </td>
+                                              ))}
+                                            </tr>
+                                          ))}
                                         </tbody>
                                       </table>
                                     </HorizontalTableScroll>
@@ -653,9 +515,7 @@ export default function RolesPage() {
                             })}
                           </div>
                         ) : (
-                          <p className="zrv-admin-state">
-                            No permissions match your search.
-                          </p>
+                          <p className="zrv-admin-state">No permissions match your search.</p>
                         )
                       }}
                     </ResourceState>
@@ -683,12 +543,7 @@ export default function RolesPage() {
         {/* EXISTING EDIT ROLE DIALOG */}
 
         {dialog?.type === 'edit' && selected && (
-          <RoleFormDialog
-            role={selected}
-            action={action}
-            onClose={close}
-            onSaved={finish}
-          />
+          <RoleFormDialog role={selected} action={action} onClose={close} onSaved={finish} />
         )}
 
         {/* EXISTING ACTIVATE CONFIRMATION */}
@@ -703,16 +558,10 @@ export default function RolesPage() {
             description="Accounts assigned to this role regain its permissions immediately."
             onConfirm={async () =>
               finish(
-                await action.run(
-                  () =>
-                    securityAdminService.activateRole(
-                      selected.roleId,
-                    ),
-                  {
-                    success: `Role ${selected.roleCode} activated.`,
-                    refreshAccess: true,
-                  },
-                ),
+                await action.run(() => securityAdminService.activateRole(selected.roleId), {
+                  success: `Role ${selected.roleCode} activated.`,
+                  refreshAccess: true,
+                }),
               )
             }
           />
@@ -731,16 +580,10 @@ export default function RolesPage() {
             description="Accounts assigned to this role lose its permissions immediately. Assignments and grants are kept and apply again if the role is reactivated."
             onConfirm={async () =>
               finish(
-                await action.run(
-                  () =>
-                    securityAdminService.deactivateRole(
-                      selected.roleId,
-                    ),
-                  {
-                    success: `Role ${selected.roleCode} deactivated.`,
-                    refreshAccess: true,
-                  },
-                ),
+                await action.run(() => securityAdminService.deactivateRole(selected.roleId), {
+                  success: `Role ${selected.roleCode} deactivated.`,
+                  refreshAccess: true,
+                }),
               )
             }
           />

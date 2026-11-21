@@ -30,6 +30,8 @@ import {
   totalsOf,
 } from '../src/features/hr-recruitment/interview/interviewComparisonModel.js'
 import {
+  arabicPeriod,
+  autoArabic,
   blankOffer,
   completeOfferTranslations,
   offerCandidateFields,
@@ -37,6 +39,7 @@ import {
   offerStepErrors,
   validateOffer,
 } from '../src/features/hr-recruitment/offer/offerModel.js'
+import { arDate, arabicDigits } from '../src/features/hr-recruitment/shared/hrFormat.js'
 import {
   recruitmentStepProgress,
   reviewCompletion,
@@ -399,7 +402,7 @@ test('candidate comparison shows each group and criterion without combining or r
   )
 })
 
-test('offer save waits for missing automatic translations and preserves manual Arabic values', async () => {
+test('offer translations convert locally and preserve manual Arabic values', async () => {
   const form = blankOffer(TODAY)
   form.benefits.basic.en = '4,500'
   form.benefits.start.en = TODAY
@@ -415,9 +418,10 @@ test('offer save waits for missing automatic translations and preserves manual A
     },
   }
   const prepared = await completeOfferTranslations(form, converters)
-  assert.deepEqual(calls, [4500, TODAY])
+  // Only the optional salary-words helper is called; dates never use Hijri.
+  assert.deepEqual(calls, [4500])
   assert.equal(prepared.benefits.basic.ar, 'Translated salary')
-  assert.equal(prepared.benefits.start.ar, 'Translated date')
+  assert.equal(prepared.benefits.start.ar, arDate(TODAY))
   assert.equal(form.benefits.basic.ar, '', 'the edited form snapshot is not mutated')
   form.benefits.basic = { en: '4500', ar: 'Manual salary', linked: false }
   form.benefits.start.ar = 'Existing date'
@@ -425,16 +429,30 @@ test('offer save waits for missing automatic translations and preserves manual A
   const manual = await completeOfferTranslations(form, converters)
   assert.equal(manual.benefits.basic.ar, 'Manual salary')
   assert.deepEqual(calls, [])
+  form.benefits.basic = { en: '4500', ar: '', linked: true }
   form.benefits.start.ar = ''
   const unavailable = await completeOfferTranslations(form, {
     ...converters,
-    async hijriDate() {
+    async numberToArabic() {
       throw new Error('unavailable')
     },
   })
   assert.equal(
-    unavailable.benefits.start.ar,
-    '',
-    'optional Arabic can still be entered manually if a helper is unavailable',
+    unavailable.benefits.basic.ar,
+    autoArabic('basic', '4500'),
+    'a failed helper still leaves an Arabic amount on the field',
   )
+  assert.equal(unavailable.benefits.start.ar, arDate(TODAY))
+})
+
+test('Arabic dates use the Gregorian calendar with Arabic numerals', () => {
+  assert.equal(arDate('2026-11-20'), '٢٠/١١/٢٠٢٦')
+  assert.equal(arDate('2026-01-05'), '٠٥/٠١/٢٠٢٦')
+  assert.equal(arDate('not-a-date'), '')
+  assert.equal(arabicDigits('SAR 4,500.00'), 'SAR ٤,٥٠٠.٠٠')
+  assert.equal(autoArabic('start', '2026-11-20'), '٢٠/١١/٢٠٢٦')
+  assert.equal(autoArabic('basic', '4500'), '٤٬٥٠٠')
+  assert.equal(arabicPeriod('6 months'), '٦ شهر')
+  assert.equal(autoArabic('probation', '3 months'), '٣ أشهر')
+  assert.equal(autoArabic('probation', '6 months'), '٦ أشهر')
 })

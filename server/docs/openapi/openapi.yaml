@@ -2621,6 +2621,62 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/orientation-trainings/counts:
+    post:
+      operationId: countOrientationTrainings
+      tags: [HR Orientation Trainings]
+      summary: Count records for many filter sets (dashboard)
+      description: >-
+        Read-only. Returns the list total of each filter set, in the order sent, from ONE
+        statement of conditional counts over the scoped rows, in the list scope (HR: every request of the variant; others: their own); each filter set names its variant table with `flag` (Y shared services, N plant). Each filter set
+        accepts the same filters, with the same validation, as the list query (no pagination,
+        sort, search or createdBy). At most 60 sets per request. Results are cached per user
+        and module for a short time (DASHBOARD_COUNTS_CACHE_TTL_MS); `fresh: true` reads
+        Oracle again. POST only because the filter sets travel in the body. Requires
+        `HR.ORIENTATION_TRAININGS:VIEW` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DashboardCountsRequest'
+                - type: object
+                  properties:
+                    queries:
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required: [flag]
+                        properties:
+                          flag:
+                            type: string
+                            enum: ['Y', 'N']
+                          status:
+                            type: string
+                          empNo:
+                            type: string
+                          empType:
+                            type: string
+                          dateFrom:
+                            type: string
+                            format: date
+                          dateTo:
+                            type: string
+                            format: date
+      responses:
+        '200':
+          $ref: '#/components/responses/DashboardCountsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
   /api/v1/hr/orientation-trainings:
     get:
       operationId: listOrientationTrainings
@@ -2925,6 +2981,60 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/probation-evaluations/counts:
+    post:
+      operationId: countProbationEvaluations
+      tags: [HR Probation Evaluations]
+      summary: Count records for many filter sets (dashboard)
+      description: >-
+        Read-only. Returns the list total of each filter set, in the order sent, from ONE
+        statement of conditional counts over the scoped rows, in the list scope (HR: every evaluation; others: their own). Each filter set
+        accepts the same filters, with the same validation, as the list query (no pagination,
+        sort, search or createdBy). At most 60 sets per request. Results are cached per user
+        and module for a short time (DASHBOARD_COUNTS_CACHE_TTL_MS); `fresh: true` reads
+        Oracle again. POST only because the filter sets travel in the body. Requires
+        `HR.PROBATION_EVALUATIONS:VIEW` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DashboardCountsRequest'
+                - type: object
+                  properties:
+                    queries:
+                      items:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          requestStatus:
+                            type: string
+                          formType:
+                            type: string
+                          empNumber:
+                            type: string
+                          department:
+                            type: string
+                          dateFrom:
+                            type: string
+                            format: date
+                          dateTo:
+                            type: string
+                            format: date
+      responses:
+        '200':
+          $ref: '#/components/responses/DashboardCountsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
   /api/v1/hr/probation-evaluations:
     get:
       operationId: listProbationEvaluations
@@ -3339,6 +3449,64 @@ paths:
         '409': { $ref: '#/components/responses/ProbationEvaluationDeleteConflict' }
         '500': { $ref: '#/components/responses/InternalError' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/v1/hr/interview-assessments/counts:
+    post:
+      operationId: countInterviewAssessments
+      tags: [HR Interview Assessments]
+      summary: Count records for many filter sets (dashboard)
+      description: >-
+        Read-only. Returns the list total of each filter set, in the order sent, from ONE
+        statement of conditional counts over the scoped rows, in the list scope (HR: every assessment; others: their own), counting distinct headers. Each filter set
+        accepts the same filters, with the same validation, as the list query (no pagination,
+        sort, search or createdBy). At most 60 sets per request. Results are cached per user
+        and module for a short time (DASHBOARD_COUNTS_CACHE_TTL_MS); `fresh: true` reads
+        Oracle again. POST only because the filter sets travel in the body. Requires
+        `HR.INTERVIEW_ASSESSMENTS:VIEW` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DashboardCountsRequest'
+                - type: object
+                  properties:
+                    queries:
+                      items:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          status:
+                            type: string
+                          evaluationStatus:
+                            type: string
+                          requisitionNo:
+                            type: string
+                          positionName:
+                            type: string
+                          division:
+                            type: string
+                          interviewType:
+                            type: string
+                          dateFrom:
+                            type: string
+                            format: date
+                          dateTo:
+                            type: string
+                            format: date
+      responses:
+        '200':
+          $ref: '#/components/responses/DashboardCountsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
   /api/v1/hr/interview-assessments:
     get:
       operationId: listInterviewAssessments
@@ -3803,6 +3971,60 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/employment-offers/counts:
+    post:
+      operationId: countEmploymentOffers
+      tags: [Employment Offers]
+      summary: Count records for many filter sets (dashboard)
+      description: >-
+        Read-only. Returns the list total of each filter set, in the order sent, from ONE
+        statement of conditional counts over the scoped rows, in the list scope (HR: every offer; others: their own). Each filter set
+        accepts the same filters, with the same validation, as the list query (no pagination,
+        sort, search or createdBy). At most 60 sets per request. Results are cached per user
+        and module for a short time (DASHBOARD_COUNTS_CACHE_TTL_MS); `fresh: true` reads
+        Oracle again. POST only because the filter sets travel in the body. Requires
+        `HR.EMPLOYMENT_OFFERS:VIEW` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DashboardCountsRequest'
+                - type: object
+                  properties:
+                    queries:
+                      items:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          intNo:
+                            type: string
+                          requisitionNo:
+                            type: string
+                          division:
+                            type: string
+                          status:
+                            type: string
+                          dateFrom:
+                            type: string
+                            format: date
+                          dateTo:
+                            type: string
+                            format: date
+      responses:
+        '200':
+          $ref: '#/components/responses/DashboardCountsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
   /api/v1/hr/employment-offers:
     get:
       operationId: listEmploymentOffers
@@ -4426,6 +4648,66 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/counts:
+    post:
+      operationId: countRequisitions
+      tags: [HR Requisitions]
+      summary: Count records for many filter sets (dashboard)
+      description: >-
+        Read-only. Returns the list total of each filter set, in the order sent, from ONE
+        statement of conditional counts over the scoped rows, in the list scope (HR: every record; others: their own and recursively supervised employees' rows). Each filter set
+        accepts the same filters, with the same validation, as the list query (no pagination,
+        sort, search or createdBy). At most 60 sets per request. Results are cached per user
+        and module for a short time (DASHBOARD_COUNTS_CACHE_TTL_MS); `fresh: true` reads
+        Oracle again. POST only because the filter sets travel in the body. Requires
+        `HR.REQUISITIONS:VIEW` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DashboardCountsRequest'
+                - type: object
+                  properties:
+                    queries:
+                      items:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          requisitionStatus:
+                            type: string
+                          ticketStatus:
+                            type: string
+                          requisitionId:
+                            type: string
+                          requesterName:
+                            type: string
+                          jobName:
+                            type: string
+                          deptName:
+                            type: string
+                          reasonOfReq:
+                            type: string
+                          dateFrom:
+                            type: string
+                            format: date
+                          dateTo:
+                            type: string
+                            format: date
+      responses:
+        '200':
+          $ref: '#/components/responses/DashboardCountsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
   /api/v1/hr/requisitions:
     get:
       operationId: listRequisitions
@@ -6277,6 +6559,58 @@ paths:
                   meta: { $ref: '#/components/schemas/ResponseMeta' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /api/v1/hr/employee-of-the-month/counts:
+    post:
+      operationId: countEmployeeOfTheMonth
+      tags: [HR Employee of the Month]
+      summary: Count records for many filter sets (dashboard)
+      description: >-
+        Read-only. Returns the list total of each filter set, in the order sent, from ONE
+        statement of conditional counts over the scoped rows, in the list scope (every nomination). Each filter set
+        accepts the same filters, with the same validation, as the list query (no pagination,
+        sort, search or createdBy). At most 60 sets per request. Results are cached per user
+        and module for a short time (DASHBOARD_COUNTS_CACHE_TTL_MS); `fresh: true` reads
+        Oracle again. POST only because the filter sets travel in the body. Requires
+        `HR.EMPLOYEE_OF_THE_MONTH:VIEW` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DashboardCountsRequest'
+                - type: object
+                  properties:
+                    queries:
+                      items:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          status:
+                            type: string
+                          department:
+                            type: string
+                          employeeNumber:
+                            type: string
+                          date_from:
+                            type: string
+                            format: date
+                          date_to:
+                            type: string
+                            format: date
+      responses:
+        '200':
+          $ref: '#/components/responses/DashboardCountsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
   /api/v1/hr/employee-of-the-month:
     get:
       operationId: listEmployeeOfTheMonthNominations
@@ -6845,6 +7179,54 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
 
+  /api/v1/hr/performance-appraisals/counts:
+    post:
+      operationId: countPerformanceAppraisals
+      tags: [HR Performance Appraisals]
+      summary: Count records for many filter sets (dashboard)
+      description: >-
+        Read-only. Returns the list total of each filter set, in the order sent, from ONE
+        statement of conditional counts over the scoped rows, in the list scope (HR: every appraisal; others: their own; zero without an employee record); `year` defaults to the current year. Each filter set
+        accepts the same filters, with the same validation, as the list query (no pagination,
+        sort, search or createdBy). At most 60 sets per request. Results are cached per user
+        and module for a short time (DASHBOARD_COUNTS_CACHE_TTL_MS); `fresh: true` reads
+        Oracle again. POST only because the filter sets travel in the body. Requires
+        `HR.PERFORMANCE_APPRAISALS:VIEW` and the `X-CSRF-Token` header.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DashboardCountsRequest'
+                - type: object
+                  properties:
+                    queries:
+                      items:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          year:
+                            type: integer
+                          status:
+                            type: string
+                          grade:
+                            type: string
+                          department:
+                            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/DashboardCountsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
   /api/v1/hr/performance-appraisals:
     get:
       operationId: listPerformanceAppraisals
@@ -13840,6 +14222,22 @@ components:
       properties:
         requisitionNumber: { type: string }
         jobName: { type: string }
+    DashboardCountsRequest:
+      type: object
+      required: [queries]
+      additionalProperties: false
+      properties:
+        queries:
+          type: array
+          minItems: 1
+          maxItems: 60
+          description: Filter sets, each with the list's filters for this module.
+          items:
+            type: object
+        fresh:
+          type: boolean
+          default: false
+          description: Skip the short server-side counts cache (the dashboard's Refresh).
     SuccessResponse:
       type: object
       required: [success, data, meta]
@@ -17816,6 +18214,27 @@ components:
             id: { $ref: '#/components/schemas/WarningLetterId' }
         meta: { $ref: '#/components/schemas/ResponseMeta' }
   responses:
+    DashboardCountsResult:
+      description: The list total of each filter set, in the order sent.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessResponse'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    required: [counts]
+                    properties:
+                      counts:
+                        type: array
+                        items:
+                          type: integer
+                          minimum: 0
     WorkflowFormResult:
       description: The registered form as stored.
       headers:

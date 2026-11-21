@@ -381,7 +381,7 @@ test('service: API paths, scoped lookups, list filters, and confirmed mutation r
   await assert.rejects(service.getById('../1'), { code: 'INVALID_ID' })
 })
 
-test('sidebar: the form appears in Talent Management only with its switch on AND the backend VIEW permission', () => {
+test('sidebar: the form appears in Employee Services only with its switch on AND the backend VIEW permission', () => {
   const entries = (env) => resolveNavigationEntries(registry.entries, env)
   const items = (env, keys) =>
     authorizedNavigation(ready(keys), entries(env))
@@ -403,7 +403,7 @@ test('sidebar: the form appears in Talent Management only with its switch on AND
     'unset is on in development builds',
   )
   const route = entries(on).find((item) => item.id === 'hr-clearance')
-  assert.equal(route.subgroup, 'hr-talent-management')
+  assert.equal(route.subgroup, 'hr-employee-services')
   assert.ok(
     NAVIGATION_GROUPS.find((group) => group.id === route.section).subgroups.some(
       (group) => group.id === route.subgroup,

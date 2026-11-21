@@ -153,7 +153,7 @@ export function installInterviewAssessments(
       return evalOf(headerId)?.evalStatus ?? null;
     },
 
-    async listAssessments(_c, { limit, offset, filters = {}, createdBy, sortBy, sortDir }) {
+    async listAssessments(_c, { limit, offset, filters = {}, createdBy, legacyCreatedBy, sortBy, sortDir }) {
       const key = {
         HEADER_ID: (h) => Number(h.headerId),
         INTERVIEW_DATE: (h) => legacyToTime(h.interviewDate),
@@ -201,7 +201,12 @@ export function installInterviewAssessments(
           if (f.dateFrom && legacyToTime(h.interviewDate) < isoToTime(f.dateFrom)) return false;
           if (f.dateTo && legacyToTime(h.interviewDate) >= isoToTime(f.dateTo) + 86_400_000)
             return false;
-          if (createdBy !== null && createdBy !== undefined && h.createdBy !== createdBy)
+          if (
+            createdBy !== null &&
+            createdBy !== undefined &&
+            h.createdBy !== createdBy &&
+            h.createdBy !== legacyCreatedBy
+          )
             return false;
           return true;
         })

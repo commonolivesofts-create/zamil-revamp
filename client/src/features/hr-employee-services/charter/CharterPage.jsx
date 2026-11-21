@@ -18,7 +18,7 @@ import {
   StepHead,
   Tilt,
 } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
-import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { CHARTER_PATHS } from '../employeeServicesPaths.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import { INCOMPLETE_STEP, lockedStepsOf, problemsInStep } from '../shared/stepGating.js'
@@ -48,7 +48,7 @@ export default function CharterPage() {
       current="charter"
       flow={false}
       identify={NO_IDENTIFY}
-      breadcrumb={C.breadcrumb}
+      breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
       title={TITLE}
       param="charterId"
       load={charterService.getById}
@@ -265,7 +265,7 @@ function CharterEditor({ lookups, initial }) {
         current="charter"
         flow={false}
         compact
-        breadcrumb={C.breadcrumb}
+        breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
         title={TITLE}
         tools={tools}
         primary={{ label: SAVE, icon: 'save', onClick: save }}

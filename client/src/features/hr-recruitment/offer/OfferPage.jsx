@@ -19,6 +19,7 @@ import {
   OFFER_VALIDATION_FIELDS,
   PACKAGE_KEYS,
   TERMS_KEYS,
+  autoArabic,
   benefitType,
   blankOffer,
   completeOfferTranslations,
@@ -139,7 +140,8 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
   const doneSteps = navigation.doneSteps
   const errors = { ...navigation.errors, ...editor.fieldErrors }
   const allErrors = { ...Object.assign({}, ...stepErrors), ...editor.fieldErrors }
-  const conversionTimers = useRef({})
+  // Guards the optional backend salary-words lookup; local conversion is
+  // synchronous, so the Arabic field is never left waiting for the network.
   const conversionRevision = useRef(0)
   const printRequested = searchParams.get('print') === '1'
   useEffect(() => {
@@ -189,50 +191,52 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
     }))
   }
   const convertArabic = (key, value) => {
-    clearTimeout(conversionTimers.current[key])
     if (!value) return
-    const revision = conversionRevision.current
-    conversionTimers.current[key] = setTimeout(async () => {
-      try {
-        const arabic =
-          key === 'basic'
-            ? await service.numberToArabic(Number(String(value).replaceAll(',', '')))
-            : await service.hijriDate(value)
-        if (revision !== conversionRevision.current) return
+    // One shared conversion for every linked row: Gregorian date with Arabic
+    // numerals (never Hijri) and Arabic-Indic digits for the salary amount.
+    const arabic = autoArabic(key, value, { currency })
+    setRow(key, { ar: arabic })
+    if (key !== 'basic') return
+    // Arabic words from the backend are an enhancement; a missing or slow
+    // helper must not undo the conversion we just showed.
+    const revision = ++conversionRevision.current
+    service
+      .numberToArabic(Number(String(value).replaceAll(',', '')))
+      .then((words) => {
+        if (!words || revision !== conversionRevision.current) return
         patch((current) =>
           current.benefits[key]?.linked && current.benefits[key]?.en === value
-            ? { benefits: { ...current.benefits, [key]: { ...current.benefits[key], ar: arabic } } }
+            ? { benefits: { ...current.benefits, [key]: { ...current.benefits[key], ar: words } } }
             : {},
         )
-      } catch {
-        // The Arabic value remains editable if the conversion endpoint is unavailable.
-      }
-    }, 250)
+      })
+      .catch(() => {
+        // Keep the local Arabic amount if the backend helper is unavailable.
+      })
   }
-  useEffect(
-    () => () => {
-      conversionRevision.current += 1
-      Object.values(conversionTimers.current).forEach(clearTimeout)
-    },
-    [],
-  )
+  const allowanceType = {
+    housing: 'housing',
+    transport: 'transport',
+    vacation: 'vacation',
+    ticket: 'ticket',
+    medical: 'medical',
+    contract: 'contract',
+  }
   const changeBenefitEnglish = (key, value) => {
     const linked = form.benefits[key].linked
     setRow(key, linked ? { en: value, ar: '' } : { en: value })
-    if (linked && ['basic', 'start'].includes(key)) convertArabic(key, value)
-    if (linked && !['basic', 'start'].includes(key)) {
-      const type = {
-        housing: 'housing',
-        transport: 'transport',
-        vacation: 'vacation',
-        ticket: 'ticket',
-        medical: 'medical',
-        contract: 'contract',
-      }[key]
-      const option = lookups.allowances[type]?.find((item) => item.meaning === value)
-      if (option) setRow(key, { ar: option.description })
-      else setRow(key, { linked: false })
+    if (!linked) return
+    if (['basic', 'start'].includes(key)) {
+      convertArabic(key, value)
+      return
     }
+    if (key === 'probation') {
+      setRow(key, { ar: autoArabic('probation', value) })
+      return
+    }
+    const option = lookups.allowances[allowanceType[key]]?.find((item) => item.meaning === value)
+    if (option) setRow(key, { ar: option.description })
+    else setRow(key, { linked: false })
   }
   const chooseCandidate = (candidate) => {
     patch({
@@ -270,16 +274,10 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
     if (key === 'basic' || key === 'start') {
       setRow(key, { linked: true })
       convertArabic(key, row.en)
+    } else if (key === 'probation') {
+      setRow(key, { linked: true, ar: autoArabic('probation', row.en) })
     } else {
-      const type = {
-        housing: 'housing',
-        transport: 'transport',
-        vacation: 'vacation',
-        ticket: 'ticket',
-        medical: 'medical',
-        contract: 'contract',
-      }[key]
-      const option = lookups.allowances[type]?.find((item) => item.meaning === row.en)
+      const option = lookups.allowances[allowanceType[key]]?.find((item) => item.meaning === row.en)
       if (option) setRow(key, { linked: true, ar: option.description })
       else setRow(key, { linked: false })
     }
@@ -287,7 +285,6 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
 
   const saveRecord = async ({ saved }) => {
     conversionRevision.current += 1
-    Object.values(conversionTimers.current).forEach(clearTimeout)
     const prepared = await completeOfferTranslations(form, service)
     const result = await service.save(editor.recordId, offerPayload(prepared))
     saved(result)

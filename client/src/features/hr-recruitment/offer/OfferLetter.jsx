@@ -73,54 +73,54 @@ export function OfferLetter({ form, language = 'bi', focusRow, printSource = fal
         {T.letterAr.offer} ({placeholder(form.position)}) {T.letterAr.terms}
       </p>
       <div className="zrv-offer-letter__table-wrap">
-      <table className="zrv-offer-letter__table">
-        <colgroup>
-          <col className="zrv-offer-letter__number" data-l="en" />
-          <col className="zrv-offer-letter__description" data-l="en" />
-          <col className="zrv-offer-letter__benefit" data-l="en" />
-          <col className="zrv-offer-letter__benefit-ar" data-l="ar" />
-          <col className="zrv-offer-letter__description-ar" data-l="ar" />
-          <col className="zrv-offer-letter__number-ar" data-l="ar" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th scope="col" data-l="en">
-              Sr.
-            </th>
-            <th scope="col" data-l="en">
-              Description
-            </th>
-            <th scope="col" data-l="en">
-              Benefits
-            </th>
-            <th scope="col" data-l="ar" dir="rtl" lang="ar">
-              المزايـــــا
-            </th>
-            <th scope="col" data-l="ar" dir="rtl" lang="ar">
-              الوصف
-            </th>
-            <th scope="col" data-l="ar" lang="ar">
-              م
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {BENEFIT_KEYS.map((key, index) => (
-            <tr key={key} className={focusRow === key ? 'zrv-hr-is-hl' : undefined}>
-              <td data-l="en">{index + 1}.</td>
-              <td data-l="en">{T.benefits[key].en}</td>
-              <td data-l="en">{placeholder(benefitValue(key, form.benefits[key].en))}</td>
-              <td data-l="ar" dir="rtl" lang="ar">
-                {placeholder(form.benefits[key].ar)}
-              </td>
-              <td data-l="ar" dir="rtl" lang="ar">
-                {T.benefits[key].ar}
-              </td>
-              <td data-l="ar">{index + 1}</td>
+        <table className="zrv-offer-letter__table">
+          <colgroup>
+            <col className="zrv-offer-letter__number" data-l="en" />
+            <col className="zrv-offer-letter__description" data-l="en" />
+            <col className="zrv-offer-letter__benefit" data-l="en" />
+            <col className="zrv-offer-letter__benefit-ar" data-l="ar" />
+            <col className="zrv-offer-letter__description-ar" data-l="ar" />
+            <col className="zrv-offer-letter__number-ar" data-l="ar" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col" data-l="en">
+                Sr.
+              </th>
+              <th scope="col" data-l="en">
+                Description
+              </th>
+              <th scope="col" data-l="en">
+                Benefits
+              </th>
+              <th scope="col" data-l="ar" dir="rtl" lang="ar">
+                المزايـــــا
+              </th>
+              <th scope="col" data-l="ar" dir="rtl" lang="ar">
+                الوصف
+              </th>
+              <th scope="col" data-l="ar" lang="ar">
+                م
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {BENEFIT_KEYS.map((key, index) => (
+              <tr key={key} className={focusRow === key ? 'zrv-hr-is-hl' : undefined}>
+                <td data-l="en">{index + 1}.</td>
+                <td data-l="en">{T.benefits[key].en}</td>
+                <td data-l="en">{placeholder(benefitValue(key, form.benefits[key].en))}</td>
+                <td data-l="ar" dir="rtl" lang="ar">
+                  {placeholder(form.benefits[key].ar)}
+                </td>
+                <td data-l="ar" dir="rtl" lang="ar">
+                  {T.benefits[key].ar}
+                </td>
+                <td data-l="ar">{index + 1}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       <div className="zrv-offer-letter__acceptance">
         <p data-l="en">

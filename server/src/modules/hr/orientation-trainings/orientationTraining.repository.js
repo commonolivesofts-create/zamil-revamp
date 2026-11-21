@@ -1,4 +1,5 @@
 import oracledb from 'oracledb';
+import { countSets } from '../../../database/conditionalCounts.js';
 import { divisionName, fromStoredDate, statusLabel } from './orientationTraining.rules.js';
 
 const ID = { type: oracledb.STRING };
@@ -296,13 +297,9 @@ const searchSql = `(UPPER(H.EMPLOYEE_NAME) LIKE :search ESCAPE '\\'
   OR UPPER(H.ATTRIBUTE5) LIKE :search ESCAPE '\\'
   OR UPPER(H.EMP_POSITION) LIKE :search ESCAPE '\\')`;
 
-export async function listTrainings(
-  connection,
-  table,
-  { filters, createdBy, limit, offset, sortBy, sortDir },
-) {
-  const binds = {};
-  const conditions = ['1 = 1'];
+// The list's filter predicates (and their binds), shared by the list and the counts.
+function filterConditions(filters, binds) {
+  const conditions = [];
   if (filters.search) {
     conditions.push(searchSql);
     binds.search = filters.search;
@@ -331,9 +328,37 @@ export async function listTrainings(
     conditions.push("H.ORIENTATION_DURATION_FROM < TO_DATE(:dateTo, 'YYYY-MM-DD') + 1");
     binds.dateTo = filters.dateTo;
   }
+  return conditions;
+}
+
+/**
+ * The list total of each filter set of one variant table (as `listTrainings` would report it)
+ * in one statement, for the recruitment dashboard. `createdBy` as in `listTrainings`.
+ */
+export async function countTrainings(connection, table, { queries, createdBy, createdByEmployeeNumber }) {
+  const scoped = createdBy !== null;
+  return countSets((sql, binds) => rows(connection, sql, binds), {
+    from: `FROM ${table.header} H`,
+    where: scoped ? ['(H.CREATED_BY = :createdBy OR H.CREATED_BY = :createdByEmployeeNumber)'] : [],
+    binds: scoped ? { createdBy, createdByEmployeeNumber: createdByEmployeeNumber ?? createdBy } : {},
+    sets: queries.map((filters) => {
+      const binds = {};
+      return { conditions: filterConditions(filters, binds), binds };
+    }),
+  });
+}
+
+export async function listTrainings(
+  connection,
+  table,
+  { filters, createdBy, createdByEmployeeNumber, limit, offset, sortBy, sortDir },
+) {
+  const binds = {};
+  const conditions = ['1 = 1', ...filterConditions(filters, binds)];
   if (createdBy !== null) {
-    conditions.push('H.CREATED_BY = :createdBy');
+    conditions.push('(H.CREATED_BY = :createdBy OR H.CREATED_BY = :createdByEmployeeNumber)');
     binds.createdBy = createdBy;
+    binds.createdByEmployeeNumber = createdByEmployeeNumber;
   }
   const where = `WHERE ${conditions.join(' AND ')}`;
   const column = sortColumns[sortBy];

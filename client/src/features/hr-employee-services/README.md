@@ -1,8 +1,15 @@
 # HR employee services: Personnel Record Change (1110), Transfer Request (ZPI.TCN.FM.01), Performance Appraisal
 
 These screens are under **Human resources** and are not part of the recruitment flow (no step bar).
-Personal Status Change appears in the **Employee Services** submodule; Transfer Request and
-Performance Appraisal remain in **Talent Management**. Each connects to its existing backend API.
+Personal Status Change and Transfer Request appear in the **Employee Services** submodule;
+Performance Appraisal remains in **Talent Management**. Each connects to its existing backend API.
+Transfer, Clearance and Project Charter moved to Employee Services but keep their
+`/hr/talent-management/...` routes so existing links, workflow URLs and bookmarks still work.
+
+**Talent Management** lists Performance Appraisal, Reward Nomination and three TrainingHub pages:
+Job Skill Matrix (`/jsm`), Training Catalog (`/catalog`) and Team Skills (`/team`). These are
+external entries (`href: { env: 'VITE_EXTERNAL_TRAINING_HUB', path }` in `common.module.js`) that
+open TrainingHub in a new tab with the shared sign-in; TrainingHub authorizes each page.
 
 | Screen                              | Route                                 | Record route                                     | List view                                                        |
 | ----------------------------------- | ------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------- |
@@ -210,7 +217,7 @@ in the handoff). Sending a record for approval is not available: no backend has 
 ## Employee Clearance (1063)
 
 The legacy "Emp Clearance" form (`views/ZPIL/empclearance.php` create, `views/update/empClearance.php`
-edit) under **Human resources → Talent Management**, on its existing backend
+edit) under **Human resources → Employee Services**, on its existing backend
 `/api/v1/hr/employee-clearance`. Handoff: `docs/handoffs/FEATURE-EMPLOYEE-CLEARANCE.md`; legacy
 comparison: `docs/testing/employee-clearance-legacy-comparison.md`.
 
@@ -229,6 +236,7 @@ signature open only after the first save; drafts and rejected requests stay edit
 ## Project Charter (ZPI.IMS.FM.13) and Survey reports
 
 Handoff: `docs/handoffs/FEATURE-PROJECT-CHARTER-SURVEY-REPORT.md`. Both use their existing backends; no demo adapter.
+Project Charter is listed under **Human resources → Employee Services**.
 
 | Screen                     | Route                                                            | Permission                                             | Switch                            |
 | -------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------ | --------------------------------- |

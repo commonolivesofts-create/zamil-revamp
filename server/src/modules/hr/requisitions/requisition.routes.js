@@ -7,6 +7,7 @@ import { createRequisitionController } from './requisition.controller.js';
 import {
   attachmentParams,
   budgetQuerySchema,
+  countsBody,
   createBodySchema,
   emptyBodySchema,
   emptyQuerySchema,
@@ -79,6 +80,13 @@ export function createRequisitionRouter({
   });
 
   router.get('/', ...read('VIEW', { query: listQuerySchema }), controller.list);
+  // Read-only: the list totals of many filter sets (dashboard). POST for the body, so CSRF too.
+  router.post(
+    '/counts',
+    ...guard('VIEW'),
+    validate({ query: emptyQuerySchema, body: countsBody }),
+    controller.counts,
+  );
   router.get('/lookups/job-titles', ...read('VIEW'), controller.jobTitles);
   router.get('/lookups/requestor', ...read('VIEW'), controller.requestor);
   router.get('/lookups/capabilities', ...read('VIEW'), controller.capabilities);

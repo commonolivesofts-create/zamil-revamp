@@ -57,10 +57,22 @@ function Pick({ item, className = '', children }) {
   )
 }
 
-export function Card({ index = 0, icon, label, aside, theme = 'mint', wide = false, children }) {
+export function Card({
+  index = 0,
+  icon,
+  label,
+  aside,
+  theme = 'mint',
+  wide = false,
+  className = '',
+  children,
+}) {
+  const classes = ['zrv-ir-ov', `zrv-ir-ov--${theme}`]
+  if (wide) classes.push('zrv-ir-ov--wide')
+  if (className) classes.push(className)
   return (
     <article
-      className={`zrv-ir-ov zrv-ir-ov--${theme}${wide ? ' zrv-ir-ov--wide' : ''}`}
+      className={classes.join(' ')}
       style={{ '--i': index }}
     >
       <div className="zrv-ir-ov__top">
@@ -529,7 +541,7 @@ export function Lanes({ items, slots }) {
 }
 
 // Multi-part donut with the total inside and a legend of toggles.
-export function Donut({ items, total, unit }) {
+export function Donut({ items, total, unit, all, unitBelow = false }) {
   const sum = items.reduce((value, item) => value + (item.count ?? 0), 0)
   const circumference = 2 * Math.PI * 38
   const arcs = items.reduce((list, item) => {
@@ -542,7 +554,7 @@ export function Donut({ items, total, unit }) {
   const anyActive = items.some((item) => item.active)
   return (
     <div className="zrv-ir-donut">
-      <div className="zrv-ir-donut__chart">
+      <div className={`zrv-ir-donut__chart${unitBelow ? ' zrv-ir-donut__chart--unit-below' : ''}`}>
         <svg viewBox="0 0 100 100" aria-hidden="true">
           <circle cx="50" cy="50" r="38" className="zrv-ir-donut__track" />
           {arcs.map((arc, index) => (
@@ -560,10 +572,22 @@ export function Donut({ items, total, unit }) {
         </svg>
         <div className="zrv-ir-donut__n">
           <b>{total === undefined ? <Skeleton /> : <CountUp value={total} />}</b>
-          <small>{unit}</small>
+          {!unitBelow && unit && <small>{unit}</small>}
         </div>
+        {unitBelow && unit && <small className="zrv-ir-donut__unit">{unit}</small>}
       </div>
       <div className="zrv-ir-donut__legend" role="group">
+        {all && (
+          <button
+            type="button"
+            className="zrv-ir-donut__all"
+            aria-pressed={!anyActive}
+            onClick={all}
+          >
+            <span>{T.all}</span>
+            <b>{num(total)}</b>
+          </button>
+        )}
         {items.map((item) => (
           <Pick key={item.key} item={item} className={`zrv-ir-donut__item${tone(item.tone)}`}>
             <i aria-hidden="true" />

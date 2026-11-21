@@ -225,7 +225,7 @@ export function installEmploymentOffers(
       return before - t.headers.length;
     },
 
-    async listOffers(_c, { limit, offset, filters = {}, createdBy, sortBy, sortDir }) {
+    async listOffers(_c, { limit, offset, filters = {}, createdBy, legacyCreatedBy, sortBy, sortDir }) {
       const key = {
         HEADER_ID: (h) => Number(h.headerId),
         OFFER_DATE: (h) => legacyToTime(h.offerDate),
@@ -266,7 +266,12 @@ export function installEmploymentOffers(
           if (f.dateFrom && legacyToTime(h.offerDate) < isoToTime(f.dateFrom)) return false;
           if (f.dateTo && legacyToTime(h.offerDate) >= isoToTime(f.dateTo) + 86_400_000)
             return false;
-          if (createdBy !== null && createdBy !== undefined && h.createdBy !== createdBy)
+          if (
+            createdBy !== null &&
+            createdBy !== undefined &&
+            h.createdBy !== createdBy &&
+            h.createdBy !== legacyCreatedBy
+          )
             return false;
           return true;
         })

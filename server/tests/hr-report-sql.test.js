@@ -149,12 +149,63 @@ describe('Salary certificate repository SQL', () => {
       const c = recordingConnection([{ TOTAL: 0 }]);
       await repo.list(c, { page: 1, pageSize: 5, q: 'a', from: '2026-01-01', to: '2026-12-31' });
       await repo.picker(c, { q: '1', page: 1, pageSize: 5 });
+      await repo.picker(c, { q: 'Omar' });
       assertExactBinds(c.statements);
       // The picker searches by name too and returns it for the dropdown.
       const picker = c.statements.find(({ sql }) => sql.includes('ORDER BY EMPLOYEE_NUMBER'));
       assert.match(picker.sql, /FULL_NAME/);
       assert.match(picker.sql, /UPPER\(FULL_NAME\) LIKE/);
+      const defaultPicker = c.statements.filter(({ sql }) =>
+        sql.includes('ORDER BY EMPLOYEE_NUMBER'),
+      )[1];
+      assert.equal(defaultPicker.binds.q, 'Omar');
+      assert.equal(defaultPicker.binds.offset, 0);
+      assert.equal(defaultPicker.binds.pageSize, 100);
     }
+  });
+
+  it('Arabic create binds Arabic field values and the required employee-name column', async () => {
+    const { repository: arabic } =
+      await import('../src/modules/hr/salary-certificates-ar/salary-certificate.repository.js');
+    const statements = [];
+    const c = {
+      execute: async (sql, binds = {}) => {
+        statements.push({ sql, binds });
+        return { outBinds: { outId: [42] } };
+      },
+    };
+    const data = {
+      employeeNo: '1001',
+      employeeName: 'عبدالله علي',
+      nationality: 'سعودي',
+      nationalIdentifier: '',
+      jobTitle: 'مهندس',
+      joiningDate: '2020-01-05',
+      certDate: '2026-11-21',
+      basicSalary: 5000,
+      housingAllowance: 500,
+      transportAllowance: 200,
+      commAllowance: 0,
+      carAllowance: 0,
+      totalSalary: 5700,
+      allowanceFlag: 'Yes',
+      approvalName: 'محمد المدير',
+      approvalPosition: 'مدير الموارد البشرية',
+      division: 'IPP',
+      toEmpName: 'إلى بنك الرياض',
+      empNameList: 'عبدالله علي',
+    };
+
+    assert.equal(await arabic.create(c, data, '2001', 'uuid'), 42);
+    const insert = statements[0];
+    assert.match(insert.sql, /EMP_NAME_LIST/);
+    assert.equal(insert.binds.employeeName, data.employeeName);
+    assert.equal(insert.binds.nationality, data.nationality);
+    assert.equal(insert.binds.jobTitle, data.jobTitle);
+    assert.equal(insert.binds.approvalName, data.approvalName);
+    assert.equal(insert.binds.toEmpName, data.toEmpName);
+    assert.equal(insert.binds.empNameList, data.empNameList);
+    assertExactBinds([insert]);
   });
 });
 

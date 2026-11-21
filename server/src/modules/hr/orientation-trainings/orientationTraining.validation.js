@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { countsBodySchema } from '../../../shared/validation/countsBody.js';
 import { dbText } from '../formText.validation.js';
 import { STATUS_LABELS } from './orientationTraining.rules.js';
 
@@ -91,6 +92,16 @@ export const listQuerySchema = Joi.object({
     .default('HEADER_ID'),
   sortDir: Joi.string().valid('asc', 'desc').default('desc'),
 });
+
+// The dashboard's counts: the list's filters, each filter set naming its variant table (flag).
+export const countsBody = countsBodySchema(listQuerySchema, [
+  'flag',
+  'status',
+  'empNo',
+  'empType',
+  'dateFrom',
+  'dateTo',
+]);
 
 /** Variant of a record (legacy form/{id}/{Y|N}); header IDs of the two tables can overlap. */
 export const recordQuerySchema = Joi.object({ flag: Joi.string().valid('Y', 'N') });

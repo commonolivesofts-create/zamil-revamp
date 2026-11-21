@@ -295,7 +295,10 @@ export const createPersonalStatusService = ({
    * employee's department who holds HR.PERSONNEL_RECORD_CHANGES:VIEW. Other records are 403.
    */
   const authorizeRecord = async (connection, actor, facts) => {
-    if (String(facts.CREATED_BY) === actor.userId) return;
+    if (
+      String(facts.CREATED_BY) === actor.userId ||
+      String(facts.CREATED_BY) === String(actor.employeeNumber)
+    ) return;
     if (await repository.isHrUser(connection, actor.userId)) return;
 
     if (
@@ -343,7 +346,7 @@ export const createPersonalStatusService = ({
         const headerId = await repository.insert(
           connection,
           { ...values, formDate, arbDate: hijriDate(formDate) },
-          actor.userId,
+          actor.employeeNumber ?? actor.userId,
         );
 
         if (!headerId) {
@@ -398,7 +401,7 @@ export const createPersonalStatusService = ({
           values.oldMaritalStatus = facts.OLD_MARITAL_STATUS ?? null;
         }
 
-        const result = await repository.update(connection, headerId, values, actor.userId, {
+        const result = await repository.update(connection, headerId, values, actor.employeeNumber ?? actor.userId, {
           snapshot: employeeChanged,
         });
 

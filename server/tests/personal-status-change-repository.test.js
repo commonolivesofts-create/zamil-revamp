@@ -189,7 +189,7 @@ describe('personal status change repository', () => {
     assert.match(page.sql, /FROM XXPHP_WORKFLOW W[\s\S]*W\.MSG_TYPE = 'RCF'[\s\S]*PENDING_AT/);
     assert.match(page.sql, /W\.USER_KEY = TO_CHAR\(R\.HEADER_ID\)/);
     for (const call of [count, page]) {
-      assert.match(call.sql, /R\.CREATED_BY = :scopeUserId OR EXISTS/);
+      assert.match(call.sql, /R\.CREATED_BY = :scopeUserId OR TO_CHAR\(R\.CREATED_BY\) = :scopeEmployeeNumber/);
       assert.equal(call.binds.scopeUserId, '7');
       assert.equal(call.binds.scopeEmployeeNumber, '12003');
     }

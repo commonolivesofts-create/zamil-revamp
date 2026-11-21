@@ -257,7 +257,7 @@ describe('interview assessment API', () => {
       assert.equal(stored.personalSpecResult, 'Personal remarks');
       assert.equal(stored.jobCompetencyResult, 'Competency remarks');
       // createdBy is a bind on insert but not part of the detail projection (README §4.1).
-      assert.equal(f.store.state.interviewAssessments.headers.at(-1).createdBy, f.hrUser.userId);
+      assert.equal(f.store.state.interviewAssessments.headers.at(-1).createdBy, f.hrUser.employeeNumber);
       assert.equal(stored.interviewedBy, 'Khalid Mansour'); // mirrored from evaluation
       assert.equal(stored.interviewedBy3, '-'); // empty text stores '-'
 

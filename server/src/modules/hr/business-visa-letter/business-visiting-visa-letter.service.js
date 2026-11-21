@@ -18,7 +18,7 @@ const conflict = () => new AppError(409, 'CONFLICT', 'Reference number already e
 const clean = (value) => (typeof value === 'string' ? value.trim() || null : value);
 
 const actor = (auth) => {
-  const id = auth?.userId ?? auth?.user?.id ?? auth?.id;
+  const id = auth?.employeeNumber ?? auth?.user?.employeeNumber ?? auth?.userId ?? auth?.user?.id ?? auth?.id;
 
   if (id === null || id === undefined) {
     throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');

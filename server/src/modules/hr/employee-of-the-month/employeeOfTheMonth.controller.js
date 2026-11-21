@@ -3,6 +3,10 @@ import { sendPaginated, sendSuccess } from '../../../shared/responses/apiRespons
 export function createEmployeeOfTheMonthController({ service }) {
   return {
     // Standard paginated envelope (docs/02 §5.2): `pagination` plus meta.requestId.
+    async counts(req, res) {
+      sendSuccess(res, { counts: await service.counts(req.auth, req.body) });
+    },
+
     async list(req, res) {
       const { items, total } = await service.list(req.auth, req.query);
 
