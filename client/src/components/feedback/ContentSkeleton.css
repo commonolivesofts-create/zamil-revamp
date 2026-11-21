@@ -99,24 +99,180 @@
 .zrv-content-skeleton__summary > :last-child {
   width: 65%;
 }
-.zrv-content-skeleton__filters {
+/* Report page chrome: breadcrumb, title, actions and KPI cards. The real page
+   renders these above the table, so the skeleton reserves the same space. */
+.zrv-content-skeleton__page-head {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.zrv-content-skeleton__crumb {
+  display: block;
+  width: 150px;
+  max-width: 45%;
+  height: 9px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--muted) 15%, var(--surface-2));
+}
+.zrv-content-skeleton__title {
+  width: 30%;
+  min-width: 130px;
+  height: 22px;
+}
+.zrv-content-skeleton__subtitle {
+  width: 46%;
+  min-width: 180px;
+  height: 12px;
+}
+.zrv-content-skeleton__page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.zrv-content-skeleton__action {
+  width: 96px;
+  max-width: 30%;
+  height: 34px;
+  border-radius: 10px;
+}
+.zrv-content-skeleton__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.zrv-content-skeleton__stat {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-solid);
+}
+.zrv-content-skeleton__stat-label {
+  width: 62%;
+  height: 10px;
+}
+.zrv-content-skeleton__stat-value {
+  width: 44%;
+  height: 22px;
+}
+.zrv-content-skeleton__stat-sub {
+  width: 76%;
+  height: 9px;
+}
+
+/* Report table loading state mirrors the real zrv-report-table: a card with a
+   heading/tool row, a sticky-looking header, tinted data rows and a pager. */
+/* The heading is the card's own header, with the same breathing room as the
+   real report card (zrv-ir-card__head) instead of sitting flush on the table. */
+.zrv-content-skeleton__report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-solid);
+}
+.zrv-content-skeleton__report-head .zrv-content-skeleton__heading {
+  width: 28%;
+  height: 17px;
+}
+.zrv-content-skeleton__head-tools {
+  width: 190px;
+  max-width: 45%;
+  height: 30px;
+  border-radius: 9px;
+}
+.zrv-content-skeleton__table-panel {
+  overflow: hidden;
+  padding: 0;
+}
+.zrv-content-skeleton__table-head,
+.zrv-content-skeleton__row {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 6), minmax(0, 1fr));
+  align-items: center;
+  gap: 12px;
+  /* Real table cells have padding; the skeleton must not glue bars to the card. */
+  padding: 12px 16px;
+}
+.zrv-content-skeleton__table-head {
+  min-height: 46px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--surface-solid));
+}
+.zrv-content-skeleton__th {
+  display: block;
+  width: 82%;
+  height: 10px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--muted) 17%, var(--surface-2));
+}
+.zrv-content-skeleton__th:first-child {
+  width: 62%;
 }
 .zrv-content-skeleton__table {
   display: grid;
-  gap: 0;
 }
 .zrv-content-skeleton__row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  padding-block: 16px;
+  --skeleton-row: var(--mint);
+  min-height: 48px;
   border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--skeleton-row) 7%, transparent);
+}
+.zrv-content-skeleton__row--tone1 {
+  --skeleton-row: var(--amber);
+}
+.zrv-content-skeleton__row--tone2 {
+  --skeleton-row: var(--primary);
 }
 .zrv-content-skeleton__row:last-child {
   border-bottom: 0;
+}
+.zrv-content-skeleton__td {
+  /* Even, text-like lines instead of uneven shards; the row tint already
+     provides the visual rhythm of the real table. */
+  width: var(--td-width, 92%);
+  height: 12px;
+  border-radius: 6px;
+}
+.zrv-content-skeleton__td--first {
+  width: 86%;
+}
+.zrv-content-skeleton__td--w1 {
+  --td-width: 88%;
+}
+.zrv-content-skeleton__td--w2 {
+  --td-width: 96%;
+}
+.zrv-content-skeleton__td--w3 {
+  --td-width: 90%;
+}
+.zrv-content-skeleton__td--w4 {
+  --td-width: 84%;
+}
+.zrv-content-skeleton__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+.zrv-content-skeleton__pager span:first-child {
+  width: 120px;
+  max-width: 40%;
+  height: 10px;
+}
+.zrv-content-skeleton__pager span:last-child {
+  width: 104px;
+  max-width: 32%;
+  height: 24px;
+  border-radius: 8px;
 }
 .zrv-content-skeleton--inline .zrv-content-skeleton__visual {
   display: flex;
@@ -143,9 +299,35 @@
   .zrv-content-skeleton__summary {
     display: none;
   }
+  .zrv-content-skeleton__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Reports become labelled record cards on small screens; the skeleton does
+     the same so the swap doesn't reflow the page. */
+  .zrv-content-skeleton__table-head {
+    display: none;
+  }
+  .zrv-content-skeleton__row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    margin: 8px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .zrv-content-skeleton__td {
+    width: 100%;
+  }
+  .zrv-content-skeleton__td--first {
+    grid-column: 1 / -1;
+    box-shadow: none;
+  }
 }
 
 @media (max-width: 520px) {
+  .zrv-content-skeleton__stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .zrv-content-skeleton__panel {
     padding: 16px;
   }

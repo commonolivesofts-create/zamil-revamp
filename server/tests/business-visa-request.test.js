@@ -175,7 +175,7 @@ describe('Business visa request service', () => {
     const { service, calls } = fakes();
     assert.deepEqual(await service.create(actor, BODY), { id: '7' });
     assert.equal(calls[0][1].requestedBy, 'Requester');
-    assert.equal(calls[0][1].createdBy, 11);
+    assert.equal(calls[0][1].createdBy, '100');
   });
 
   it('maps a row to the API shape with the division name', async () => {
@@ -195,8 +195,9 @@ describe('Business visa request service', () => {
       await assert.rejects(() => service.removeDocument('7', '4'), { statusCode: 409 });
       assert.deepEqual(storage.saved, []);
     }
-    const { service } = fakes({ status: 'REJECTED' });
+    const { service, calls } = fakes({ status: 'REJECTED' });
     assert.deepEqual(await service.update(actor, '7', BODY), { id: '7' });
+    assert.equal(calls.find(([name]) => name === 'updateHeader')[2].updatedBy, '100');
   });
 
   it('documents: legacy types only, safe names, default name, file removed with its row', async () => {

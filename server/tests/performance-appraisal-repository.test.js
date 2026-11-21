@@ -55,7 +55,13 @@ describe('performance appraisal Oracle repository', () => {
       userId: '44',
       isHr: false,
     });
-    assert.deepEqual(conn.calls[0].binds, { year: 2026, search: '%A%', grade: 'B', userId: '44' });
+    assert.deepEqual(conn.calls[0].binds, {
+      year: 2026,
+      search: '%A%',
+      grade: 'B',
+      employeeNumber: null,
+      userId: '44',
+    });
     assert.match(conn.calls[1].sql, /ORDER BY TOTAL_RATINGS DESC/);
     assert.match(conn.calls[1].sql, /HR\.FINAL_RATING_TOTAL/);
     assert.match(conn.calls[1].sql, /AVG\(R\.RATINGS\)/);

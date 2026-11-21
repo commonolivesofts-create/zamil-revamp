@@ -106,10 +106,23 @@ export function ResourceState({
   empty,
   notFound,
   isEmpty = defaultIsEmpty,
+  loadingVariant = 'content',
+  skeletonColumns,
+  skeletonRows,
+  skeletonPageChrome = true,
   children,
 }) {
   if (resource.status === 'idle') return null
-  if (resource.status === 'loading') return <ContentSkeleton label={`Loading ${label}`} />
+  if (resource.status === 'loading')
+    return (
+      <ContentSkeleton
+        variant={loadingVariant}
+        label={`Loading ${label}`}
+        columns={skeletonColumns}
+        rows={skeletonRows}
+        pageChrome={skeletonPageChrome}
+      />
+    )
   // A record that does not exist is not retried.
   if (resource.status === 'error' && resource.error?.status === 404) {
     return (

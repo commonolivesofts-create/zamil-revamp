@@ -228,7 +228,7 @@ describe('probation parity: create (Probation_Model::add_form_data)', () => {
     );
     assert.deepEqual(
       [header.userName, header.userMail, header.createdBy],
-      ['Sample Preparer', 'preparer@example.invalid', '100'],
+      ['Sample Preparer', 'preparer@example.invalid', 'E-0100'],
     );
   });
 
@@ -302,7 +302,7 @@ describe('probation parity: edit form (prf_uplines.php)', () => {
         totalRating: 9,
         comment: 'Prepared comment',
         comments: 'Suggestion',
-        updatedBy: '100',
+        updatedBy: 'E-0100',
       },
     ]);
     assert.deepEqual(writes.lineUpdates, [

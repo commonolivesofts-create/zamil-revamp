@@ -29,6 +29,7 @@ export function EmployeePicker({
   const listId = useId()
   const statusId = useId()
   const controlRef = useRef(null)
+  const blurTimer = useRef(null)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
@@ -56,6 +57,15 @@ export function EmployeePicker({
       : failedToLoad
         ? `Couldn’t load ${fieldLabel} options.`
         : ''
+
+  const clearBlurTimer = () => {
+    if (blurTimer.current !== null) {
+      clearTimeout(blurTimer.current)
+      blurTimer.current = null
+    }
+  }
+
+  useEffect(() => () => clearTimeout(blurTimer.current), [])
 
   useEffect(() => {
     if (!open) return undefined
@@ -96,9 +106,17 @@ export function EmployeePicker({
         : PICKER_TEXT.results(matches.length)
 
   const pick = (employee) => {
+    clearBlurTimer()
     onPick(employee)
     setQuery('')
     setOpen(false)
+  }
+  const openPicker = () => {
+    clearBlurTimer()
+    if (disabled || open) return
+    setOpen(true)
+    setQuery('')
+    setActive(0)
   }
   const onKeyDown = (event) => {
     if (event.key === 'ArrowDown') {
@@ -156,21 +174,20 @@ export function EmployeePicker({
             .filter(Boolean)
             .join(' ')}
           value={open ? query : (value?.name ?? query)}
-          onFocus={() => {
-            if (!disabled) {
-              setOpen(true)
-              setQuery('')
-              setActive(0)
-            }
-          }}
+          onFocus={openPicker}
+          // Picking an option keeps focus on the input. A later click therefore
+          // may not fire focus, so reopen the list explicitly on click as well.
+          onClick={openPicker}
           // A typed search that was not picked is not a selection: clear it (legacy
           // rejected an employee number that did not match the list).
-          onBlur={() =>
-            setTimeout(() => {
+          onBlur={() => {
+            clearBlurTimer()
+            blurTimer.current = setTimeout(() => {
               setOpen(false)
               setQuery('')
+              blurTimer.current = null
             }, 120)
-          }
+          }}
           onChange={(event) => {
             setQuery(event.target.value)
             setOpen(true)

@@ -133,7 +133,7 @@ export function createTransferRequestService({
       hrDate: dateOrNull(body.itHr?.hrDate),
       itDate: dateOrNull(body.itHr?.itDate),
       adminDate: dateOrNull(body.itHr?.adminDate),
-      createdBy: actor.userId,
+      createdBy: actor.employeeNumber ?? actor.userId,
     };
   }
 
@@ -163,6 +163,7 @@ export function createTransferRequestService({
           sort,
           order,
           userId: actor.userId,
+          employeeNumber: actor.employeeNumber,
           isHr,
         }),
       );

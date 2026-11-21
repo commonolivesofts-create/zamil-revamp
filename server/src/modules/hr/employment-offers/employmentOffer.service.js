@@ -107,7 +107,7 @@ export function createEmploymentOfferService({
         await repository.insertHeader(c, {
           ...headerBinds(body),
           uuid,
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
         });
         const headerId = await repository.findHeaderIdByUuid(c, uuid);
         if (!headerId) {
@@ -116,7 +116,7 @@ export function createEmploymentOfferService({
         await repository.insertLine(c, {
           ...lineBinds(body.line),
           headerId,
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
         });
         return { headerId, uuid };
       });
@@ -132,7 +132,8 @@ export function createEmploymentOfferService({
             const isHr = await repository.isHrUser(c, actor.userId);
             return repository.countOffers(c, {
               queries: missing,
-              createdBy: isHr ? null : actor.userId,
+              createdBy: isHr ? null : (actor.employeeNumber ?? actor.userId),
+              legacyCreatedBy: isHr ? null : actor.userId,
             });
           }),
       );
@@ -142,13 +143,14 @@ export function createEmploymentOfferService({
       const isHr = await read((c) => repository.isHrUser(c, actor.userId));
       // §7.4: HR users see everything (and may filter by createdBy); non-HR users only their own
       // rows — the scope wins over whatever the caller passed.
-      const scope = isHr ? (createdBy ?? null) : actor.userId;
+      const scope = isHr ? (createdBy ?? null) : (actor.employeeNumber ?? actor.userId);
       return read((c) =>
         repository.listOffers(c, {
           limit: pageSize,
           offset: (page - 1) * pageSize,
           filters: { search: searchPattern(search), ...rest },
           createdBy: scope,
+          legacyCreatedBy: isHr ? null : actor.userId,
           sortBy,
           sortDir,
         }),
@@ -246,7 +248,10 @@ export function createEmploymentOfferService({
             'Reopen this requisition before recording offer acceptance',
           );
         }
-        await repository.recordAcceptance(c, { ...result, updatedBy: actor.userId });
+        await repository.recordAcceptance(c, {
+          ...result,
+          updatedBy: actor.employeeNumber ?? actor.userId,
+        });
         await recordRecruitmentChange(auditService, c, {
           actor,
           requisitionId: requisition.REQUISITION_ID,
@@ -271,15 +276,15 @@ export function createEmploymentOfferService({
         const changed = await repository.updateHeader(c, {
           ...headerBinds(body),
           headerId,
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!changed) throw notFound();
         // MERGE (README §5.2): creates the line when the header was saved without one.
         await repository.mergeLine(c, {
           ...lineBinds(body.line),
           headerId,
-          createdBy: actor.userId,
-          updatedBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         return { headerId };
       });

@@ -146,7 +146,12 @@ export function installOrientationTrainings(
     async listTrainings(_connection, table, query) {
       const variant = table.tableName === 'SHARED' ? 'Y' : 'N';
       const matches = state().headers[variant].filter((header) => {
-        if (query.createdBy !== null && header.createdBy !== query.createdBy) return false;
+        if (
+          query.createdBy !== null &&
+          header.createdBy !== query.createdBy &&
+          header.createdBy !== query.createdByEmployeeNumber
+        )
+          return false;
         if (
           query.filters.status &&
           statusLabel(header.status) !== statusLabel(query.filters.status)

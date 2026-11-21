@@ -116,6 +116,7 @@ const CARDS = [
         icon="workflow"
         label={O.workflow}
         theme="mint"
+        className="zrv-ir-ov--steps-featured"
         aside={<Hint>{data && O.schedules(data.all)}</Hint>}
       >
         <Steps
@@ -199,16 +200,13 @@ function OrientationTrainingDetails({ row }) {
   )
   if (training.status === 'loading') {
     return (
-      <section
-        className="zrv-ir-orientation-detail"
-        aria-busy="true"
-        aria-label="Loading training details"
-      >
-        <DetailSkeleton
-          title="Training details"
-          description="Loading the saved orientation schedule…"
-        />
-      </section>
+      <DetailSkeleton
+        sections={[
+          { title: 'Training details', icon: 'calendar-clock', columns: 4, rows: 1 },
+          { title: 'Training sessions', icon: 'calendar-days', columns: 2, rows: 2 },
+          { title: 'Workflow details', icon: 'workflow', tone: 'amber', columns: 3, rows: 2 },
+        ]}
+      />
     )
   }
   return (

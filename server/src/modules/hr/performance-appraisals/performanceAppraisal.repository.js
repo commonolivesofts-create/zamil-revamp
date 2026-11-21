@@ -125,12 +125,15 @@ function filterConditions(year, filters, binds) {
  * The list total of each `{ year, ...filters }` set (as `listAppraisals` would report it) in
  * one statement, for the Talent Management dashboard. Scope arguments as in `listAppraisals`.
  */
-export async function countAppraisals(connection, { queries, userId, isHr, noEmployee }) {
+export async function countAppraisals(
+  connection,
+  { queries, userId, employeeNumber, isHr, noEmployee },
+) {
   if (noEmployee) return queries.map(() => 0);
   return countSets((sql, binds) => rows(connection, sql, binds), {
     from: 'FROM XXZP.XXZPI_HR_PA_HEADER_TAB HR',
-    where: isHr ? [] : ['HR.CREATED_BY = :userId'],
-    binds: isHr ? {} : { userId },
+    where: isHr ? [] : ['(HR.CREATED_BY = :employeeNumber OR HR.CREATED_BY = :userId)'],
+    binds: isHr ? {} : { employeeNumber: employeeNumber ?? null, userId },
     sets: queries.map(({ year, ...filters }) => {
       const binds = {};
       return { conditions: filterConditions(year, filters, binds), binds };
@@ -140,13 +143,14 @@ export async function countAppraisals(connection, { queries, userId, isHr, noEmp
 
 export async function listAppraisals(
   connection,
-  { year, filters, page, pageSize, sort, order, userId, isHr, noEmployee },
+  { year, filters, page, pageSize, sort, order, userId, employeeNumber, isHr, noEmployee },
 ) {
   if (noEmployee) return { total: 0, items: [] };
   const binds = {};
   const clauses = filterConditions(year, filters, binds);
   if (!isHr) {
-    clauses.push('HR.CREATED_BY = :userId');
+    clauses.push('(HR.CREATED_BY = :employeeNumber OR HR.CREATED_BY = :userId)');
+    binds.employeeNumber = employeeNumber ?? null;
     binds.userId = userId;
   }
   const where = `WHERE ${clauses.join(' AND ')}`;

@@ -327,12 +327,12 @@ const FILTERS = Object.freeze({
 // The explicit column alias list is mandatory for a recursive (self-referencing) subquery in
 // Oracle: without it the database rejects the statement with ORA-32039.
 const SCOPE_CTE = `
-WITH emp (FULL_NAME, USER_ID, SUPERVISOR_NAME) AS (
-  SELECT FULL_NAME, USER_ID, SUPERVISOR_NAME
+WITH emp (FULL_NAME, USER_ID, SUPERVISOR_NAME, EMPLOYEE_NUMBER) AS (
+  SELECT FULL_NAME, USER_ID, SUPERVISOR_NAME, EMPLOYEE_NUMBER
     FROM XX_DIGI_EMP_MASTER
    WHERE USER_ID = :scopeUserId
   UNION ALL
-  SELECT e.FULL_NAME, e.USER_ID, e.SUPERVISOR_NAME
+  SELECT e.FULL_NAME, e.USER_ID, e.SUPERVISOR_NAME, e.EMPLOYEE_NUMBER
     FROM XX_DIGI_EMP_MASTER e
     JOIN emp p ON e.SUPERVISOR_NAME = p.FULL_NAME
 )`;
@@ -386,7 +386,10 @@ const scopeOf = (scopeUserId) =>
   scopeUserId !== undefined && scopeUserId !== null
     ? {
         prefix: SCOPE_CTE,
-        conditions: ['CREATED_BY IN (SELECT USER_ID FROM emp)'],
+        conditions: [
+          `(CREATED_BY IN (SELECT USER_ID FROM emp)
+          OR TO_CHAR(CREATED_BY) IN (SELECT EMPLOYEE_NUMBER FROM emp))`,
+        ],
         binds: { scopeUserId },
       }
     : { prefix: '', conditions: [], binds: {} };
@@ -480,7 +483,8 @@ export async function createdByInScope(connection, { scopeUserId, createdBy }) {
   const [row] = await rows(
     connection,
     `${SCOPE_CTE}
-     SELECT COUNT(*) AS CNT FROM emp WHERE USER_ID = :createdBy`,
+     SELECT COUNT(*) AS CNT FROM emp
+      WHERE USER_ID = :createdBy OR EMPLOYEE_NUMBER = TO_CHAR(:createdBy)`,
     { scopeUserId, createdBy },
   );
   return Number(row.CNT) > 0;
@@ -582,7 +586,10 @@ export async function findBudget(connection, fullName) {
 /** Distinct filter-dropdown values (§8.6), bounded and §7.4-scoped like the listing. */
 export async function listFilterOptions(connection, { scopeUserId }) {
   const prefix = scopeUserId ? SCOPE_CTE : '';
-  const scoped = scopeUserId ? ' AND CREATED_BY IN (SELECT USER_ID FROM emp)' : '';
+  const scoped = scopeUserId
+    ? ` AND (CREATED_BY IN (SELECT USER_ID FROM emp)
+        OR TO_CHAR(CREATED_BY) IN (SELECT EMPLOYEE_NUMBER FROM emp))`
+    : '';
   const binds = scopeUserId ? { scopeUserId } : {};
   const distinct = async (expression) => {
     const result = await rows(

@@ -84,7 +84,7 @@ export function createContractorEmployeeService({
         ...employeeBinds(body, contractor, job, boss, {
           empId,
           employeeNumber,
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
         }),
       });
       return { emp_id: String(empId) };
@@ -143,7 +143,10 @@ export function createContractorEmployeeService({
         if (!(await repository.findEmployee(connection, empId))) throw notFound();
         const { contractor, job, boss } = await resolveReferences(connection, body);
         const changed = await repository.updateEmployee(connection, {
-          ...employeeBinds(body, contractor, job, boss, { empId, updatedBy: actor.userId }),
+          ...employeeBinds(body, contractor, job, boss, {
+            empId,
+            updatedBy: actor.employeeNumber ?? actor.userId,
+          }),
         });
         if (!changed) throw notFound();
         return { emp_id: String(empId) };

@@ -393,12 +393,12 @@ function filterConditions(filters, binds) {
  * The list total of each filter set (as `listOffers` would report it) in one statement, for the
  * recruitment dashboard. `createdBy` as in `listOffers`.
  */
-export async function countOffers(connection, { queries, createdBy }) {
+export async function countOffers(connection, { queries, createdBy, legacyCreatedBy }) {
   const scoped = createdBy !== undefined && createdBy !== null;
   return countSets((sql, binds) => rows(connection, sql, binds), {
     from: 'FROM XXZP.XXZP_EMPLOYMENT_OFFER_HEADER_T H',
-    where: scoped ? ['H.CREATED_BY = :createdBy'] : [],
-    binds: scoped ? { createdBy } : {},
+    where: scoped ? ['(H.CREATED_BY = :createdBy OR H.CREATED_BY = :legacyCreatedBy)'] : [],
+    binds: scoped ? { createdBy, legacyCreatedBy: legacyCreatedBy ?? createdBy } : {},
     sets: queries.map((filters) => {
       const binds = {};
       return { conditions: filterConditions(filters, binds), binds };
@@ -408,13 +408,14 @@ export async function countOffers(connection, { queries, createdBy }) {
 
 export async function listOffers(
   connection,
-  { limit, offset, filters = {}, createdBy, sortBy, sortDir },
+  { limit, offset, filters = {}, createdBy, legacyCreatedBy, sortBy, sortDir },
 ) {
   const binds = {};
   const conditions = ['1 = 1', ...filterConditions(filters, binds)];
   if (createdBy !== undefined && createdBy !== null) {
-    conditions.push('H.CREATED_BY = :createdBy');
+    conditions.push('(H.CREATED_BY = :createdBy OR H.CREATED_BY = :legacyCreatedBy)');
     binds.createdBy = createdBy;
+    binds.legacyCreatedBy = legacyCreatedBy ?? createdBy;
   }
   const where = `WHERE ${conditions.join(' AND ')}`;
   const column = SORT_COLUMNS[sortBy];

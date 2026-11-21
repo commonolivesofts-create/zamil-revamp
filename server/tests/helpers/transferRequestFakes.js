@@ -54,7 +54,9 @@ export function installTransferRequests(store, { hrUserIds = [] } = {}) {
       return headerId;
     },
     async listRequests(_c, input) {
-      let result = state().filter((r) => input.isHr || r.createdBy === input.userId);
+      let result = state().filter(
+        (r) => input.isHr || r.createdBy === input.userId || r.createdBy === input.employeeNumber,
+      );
       const f = input.filters;
       if (f.search) {
         const needle = f.search.toLowerCase();

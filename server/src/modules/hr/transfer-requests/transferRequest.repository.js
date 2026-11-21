@@ -196,9 +196,10 @@ const SORT = Object.freeze({
   status: 'TSF.STATUS',
   mgrDate: 'TSF.MGR_DATE',
 });
-function listWhere(filters, userId, isHr) {
+function listWhere(filters, userId, employeeNumber, isHr) {
   const binds = {
     userId,
+    employeeNumber,
     isHr: isHr ? 1 : 0,
     search: filters.search ? `%${filters.search.replace(/[\\%_]/g, (x) => `\\${x}`)}%` : null,
     status: filters.status ?? null,
@@ -216,11 +217,14 @@ function listWhere(filters, userId, isHr) {
     AND (TSF.C_DEPT=:currentDept OR :currentDept IS NULL) AND (TSF.T_JOB_TITLE=:jobTitle OR :jobTitle IS NULL)
     AND (TSF.MGR_DATE >= TO_DATE(:dateFrom,'YYYY-MM-DD') OR :dateFrom IS NULL)
     AND (TSF.MGR_DATE < TO_DATE(:dateTo,'YYYY-MM-DD') + 1 OR :dateTo IS NULL)
-    AND (:isHr=1 OR TSF.CREATED_BY=:userId)`;
+    AND (:isHr=1 OR TSF.CREATED_BY=:employeeNumber OR TSF.CREATED_BY=:userId)`;
   return { where, binds };
 }
-export async function listRequests(c, { filters, userId, isHr, page, pageSize, sort, order }) {
-  const { where, binds } = listWhere(filters, userId, isHr);
+export async function listRequests(
+  c,
+  { filters, userId, employeeNumber, isHr, page, pageSize, sort, order },
+) {
+  const { where, binds } = listWhere(filters, userId, employeeNumber, isHr);
   const [{ TOTAL }] = await rows(
     c,
     `SELECT COUNT(*) AS TOTAL FROM XXZP.XXZP_TRANSFER_REQUEST TSF ${where}`,

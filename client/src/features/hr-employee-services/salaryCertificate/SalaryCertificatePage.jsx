@@ -98,6 +98,7 @@ function CertificateEditor({ initial }) {
   const { form, patch, step, setStep, record } = editor
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
+  const [employeeLoading, setEmployeeLoading] = useState(false)
   const employeeRequest = useRef(0)
   // The employee numbers load with the form (and when the language changes), so opening the
   // field lists them without a request.
@@ -133,12 +134,14 @@ function CertificateEditor({ initial }) {
       return
     }
     employeeRequest.current += 1
+    setEmployeeLoading(false)
     patch({ language: code, employee: null, approvalName: '' })
     clear('language', 'employee', 'approvalName')
   }
   const selectEmployee = async (item) => {
     const request = ++employeeRequest.current
     clear('employee')
+    setEmployeeLoading(true)
     try {
       const details = await service.employee(form.language, item.employeeNumber)
       if (request === employeeRequest.current) patch({ employee: details })
@@ -158,6 +161,8 @@ function CertificateEditor({ initial }) {
                   : 'The employee details could not be loaded. Try again.'
       patch({ employee: null })
       setErrors((current) => ({ ...current, employee: message }))
+    } finally {
+      if (request === employeeRequest.current) setEmployeeLoading(false)
     }
   }
 
@@ -327,6 +332,8 @@ function CertificateEditor({ initial }) {
               }
               onPick={selectEmployee}
               error={errors.employee}
+              loading={employeeLoading}
+              loadingLabel="Loading employee details…"
               cacheKey={`hr-salary-cert-employees:${form.language}`}
               placeholder="Type an employee number or name…"
               disabled={locked}
