@@ -1024,6 +1024,76 @@ describe('workflow manager M2-A source mapping API', () => {
       assert.equal(res.body.error.code, 'SOURCE_VERSION_DEPENDENCY_UNVERIFIED');
       assert.equal(stored().length, 1);
     });
+
+    it('refuses a DRAFT referenced anywhere in a zrv.wf.form/2 relationship graph', async () => {
+      const { version: v } = await create();
+      const id = v.sourceVersionId;
+      const forms = () => f.wm.tables().formVersions;
+      const graph = (sources) =>
+        JSON.stringify({
+          schema: 'zrv.wf.form/2',
+          root: { alias: 'REQ', sourceVersionId: '777', keyCandidate: 'PK' },
+          sources,
+          relationships: [],
+        });
+
+      // A nested lookup (for example the item of each line) two relationships from the root.
+      forms().push({
+        formVersionId: '811',
+        formId: '1',
+        headerSourceVersionId: '777',
+        configJson: graph([
+          { alias: 'LINES', sourceVersionId: '778' },
+          { alias: 'ITEM', sourceVersionId: id },
+        ]),
+      });
+      let res = await send('delete', version(id), { rowVersion: 1 });
+      assert.equal(res.status, 409);
+      assert.equal(res.body.error.code, 'SOURCE_VERSION_REFERENCED');
+
+      // As the v2 root it is held by the header foreign key column.
+      forms().length = 0;
+      forms().push({
+        formVersionId: '812',
+        formId: '1',
+        headerSourceVersionId: id,
+        configJson: graph([]),
+      });
+      res = await send('delete', version(id), { rowVersion: 1 });
+      assert.equal(res.body.error.code, 'SOURCE_VERSION_REFERENCED');
+
+      // A v1 path inside a v2 document is not a v2 reference, but nothing is guessed either: the
+      // only v2 reference path is $.sources[*], so an unrelated graph does not block the delete.
+      forms().length = 0;
+      forms().push({
+        formVersionId: '813',
+        formId: '1',
+        headerSourceVersionId: '777',
+        configJson: graph([{ alias: 'LINES', sourceVersionId: '778' }]),
+      });
+      res = await send('delete', version(id), { rowVersion: 1 });
+      assert.equal(res.status, 200);
+      assert.equal(stored().length, 0);
+    });
+
+    it('fails closed when a reference count is unknown', async () => {
+      const { version: v } = await create();
+      const repository = f.store.sourceMappingRepository;
+      const original = repository.findVersionReferences;
+      repository.findVersionReferences = async (...args) => {
+        const refs = await original(...args);
+        delete refs.graphRefs;
+        return refs;
+      };
+      try {
+        const res = await send('delete', version(v.sourceVersionId), { rowVersion: 1 });
+        assert.equal(res.status, 409);
+        assert.equal(res.body.error.code, 'SOURCE_VERSION_DEPENDENCY_UNVERIFIED');
+        assert.equal(stored().length, 1);
+      } finally {
+        repository.findVersionReferences = original;
+      }
+    });
   });
 });
 

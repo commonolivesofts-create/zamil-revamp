@@ -393,7 +393,16 @@ describe('workflow manager M1 API', () => {
       assert.equal(res.body.data[0].headerSource.sourceCode, 'SICK_LEAVE_HEADER');
       assert.ok(!('configJson' in res.body.data[0]));
       assert.equal((await get('/forms/999/versions')).status, 404);
-      assert.equal((await get(`/forms/${form.formId}`)).body.data.versionCount, 1);
+      const detail = (await get(`/forms/${form.formId}`)).body.data;
+      assert.equal(detail.versionCount, 1);
+      assert.equal(detail.defaultVersionNo, null, 'a draft mapping is not ready');
+      f.wm.addFormVersion(form.formId, sv.sourceVersionId, {
+        versionNo: 3,
+        lifecycleState: 'PUBLISHED',
+        isDefault: true,
+      });
+      const listed = (await get('/forms')).body.data.find((item) => item.formId === form.formId);
+      assert.equal(listed.defaultVersionNo, 3);
     });
 
     it('returns 500 without internal details and rolls back on an Oracle failure', async () => {
@@ -577,6 +586,10 @@ describe('workflow manager M1 API', () => {
       });
       const versions = await get(`/data-sources/${table.sourceId}/versions`);
       assert.equal(versions.body.data[0].lifecycleState, 'PUBLISHED');
+      // Readiness: the published default version is reported; drafts do not count.
+      assert.equal((await get(`/data-sources/${table.sourceId}`)).body.data.defaultVersionNo, 3);
+      f.wm.addSourceVersion(table.sourceId, { versionNo: 4 });
+      assert.equal((await get(`/data-sources/${table.sourceId}`)).body.data.defaultVersionNo, 3);
       assert.ok(!('configJson' in versions.body.data[0]));
       const off = await send('post', `/data-sources/${table.sourceId}/deactivate`, {
         rowVersion: 1,

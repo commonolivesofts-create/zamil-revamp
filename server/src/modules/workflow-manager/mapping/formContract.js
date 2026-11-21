@@ -1,18 +1,27 @@
 import Joi from 'joi';
-import { fingerprint } from './canonicalJson.js';
-import { createFindings, freezeBlockers } from './findings.js';
-import { ALIAS, CODE, ORACLE_IDENTIFIER } from './identifiers.js';
-import { ENFORCEMENT } from './keyAssurance.js';
-import { DATA_CLASSES } from './sourceContract.js';
+import { createFindings } from './findings.js';
 import {
-  canonicalInteger,
+  alias,
+  code,
+  column,
+  EVIDENCE_KINDS,
+  FIELD_USAGES,
+  formVersionResult,
+  id,
+  KEYLESS_LINE_USAGES,
+  PERSON_ROLES,
+  semanticsSchema,
+  SENSITIVITIES,
+  STATUS_CATEGORIES,
+  validateFormSemantics,
+  VERIFICATION,
+} from './formSemantics.js';
+import { ENFORCEMENT } from './keyAssurance.js';
+import {
   canonicalKeyValue,
-  FIELD_TYPES,
-  fieldTypeIncompatibility,
   joinable,
   keyIneligibility,
   MappingValueError,
-  REFERENCE_TYPES,
 } from './typeCompatibility.js';
 
 /*
@@ -39,47 +48,16 @@ export const FORM_SCHEMA = 'zrv.wf.form/1';
 export const FORM_SCHEMA_VERSION = 1;
 export const MAX_CONFIG_BYTES = 256 * 1024;
 
-export const SENSITIVITIES = DATA_CLASSES;
-export const FIELD_USAGES = Object.freeze(['DISPLAY', 'CONDITION', 'TEMPLATE']);
-export const KEYLESS_LINE_USAGES = Object.freeze(['DISPLAY', 'TEMPLATE']);
-export const PERSON_ROLES = Object.freeze([
-  'REQUESTER',
-  'SUBJECT_EMPLOYEE',
-  'OWNER',
-  'CREATED_BY',
-  'UPDATED_BY',
-]);
-export const STATUS_CATEGORIES = Object.freeze([
-  'INITIAL',
-  'IN_PROGRESS',
-  'APPROVED',
-  'REJECTED',
-  'RETURNED',
-  'CANCELLED',
-  'LEGACY_TERMINAL',
-]);
-export const VERIFICATION = Object.freeze(['VERIFIED', 'PROVISIONAL']);
-export const EVIDENCE_KINDS = Object.freeze(['OBSERVED_DATA', 'CODE_REFERENCE', 'OWNER_DECLARED']);
-
-const PERSON_REF_TYPES = Object.freeze(['EMPLOYEE_NUMBER_REF', 'USER_ID_REF', 'PERSON_ID_REF']);
-const PERMISSION_KEY = /^[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*:[A-Z][A-Z0-9_]*$/;
-const ROUTE_PARAM = /:([A-Za-z][A-Za-z0-9]*)/g;
-const SENSITIVITY_RANK = Object.freeze({ PUBLIC: 0, INTERNAL: 1, PERSONAL: 2, SENSITIVE: 3 });
-
-const id = Joi.string().pattern(/^[1-9][0-9]{0,18}$/);
-const code = Joi.string().pattern(CODE);
-const alias = Joi.string().pattern(ALIAS);
-const column = Joi.string().pattern(ORACLE_IDENTIFIER);
-const text = (max) =>
-  Joi.string()
-    .trim()
-    .min(1)
-    .max(max)
-    .pattern(/^[^\p{Cc}]+$/u);
-const label = Joi.object({ en: text(200).required(), ar: text(200) });
-const verification = Joi.string()
-  .valid(...VERIFICATION)
-  .required();
+// Shared vocabularies (formSemantics.js), re-exported for existing importers.
+export {
+  EVIDENCE_KINDS,
+  FIELD_USAGES,
+  KEYLESS_LINE_USAGES,
+  PERSON_ROLES,
+  SENSITIVITIES,
+  STATUS_CATEGORIES,
+  VERIFICATION,
+};
 
 export const formConfigSchema = Joi.object({
   header: Joi.object({
@@ -130,136 +108,7 @@ export const formConfigSchema = Joi.object({
     )
     .max(10)
     .default([]),
-  fields: Joi.array()
-    .items(
-      Joi.object({
-        code: code.required(),
-        label: label.required(),
-        type: Joi.string()
-          .valid(...FIELD_TYPES)
-          .required(),
-        refType: Joi.when('type', {
-          is: 'REFERENCE',
-          then: Joi.string()
-            .valid(...REFERENCE_TYPES)
-            .required(),
-          otherwise: Joi.forbidden(),
-        }),
-        booleanMapping: Joi.when('type', {
-          is: 'BOOLEAN',
-          then: Joi.object({ true: text(100).required(), false: text(100).required() }).required(),
-          otherwise: Joi.forbidden(),
-        }),
-        ref: Joi.object({ alias: alias.required(), column: column.required() }).required(),
-        group: text(100),
-        sensitivity: Joi.string()
-          .valid(...SENSITIVITIES)
-          .required(),
-        usage: Joi.array()
-          .items(Joi.string().valid(...FIELD_USAGES))
-          .min(1)
-          .unique()
-          .required(),
-      }),
-    )
-    .max(500)
-    .default([]),
-  attributes: Joi.array()
-    .items(
-      Joi.object({
-        role: Joi.string()
-          .valid(...PERSON_ROLES)
-          .required(),
-        field: code.required(),
-      }),
-    )
-    .max(10)
-    .unique('role')
-    .default([]),
-  orgScope: Joi.alternatives()
-    .try(
-      Joi.object({ kind: Joi.string().valid('FIELD').required(), field: code.required() }),
-      Joi.object({
-        kind: Joi.string().valid('CONSTANT').required(),
-        value: Joi.string()
-          .pattern(/^[A-Za-z0-9_.:-]{1,100}$/)
-          .required(),
-      }),
-      Joi.object({
-        kind: Joi.string().valid('RESOLVER_REQUIRED').required(),
-        input: code.required(),
-        output: Joi.string().valid('ORGANIZATION_REF').required(),
-        resolverCode: code.allow(null).required(),
-      }),
-    )
-    .allow(null)
-    .default(null),
-  status: Joi.object({
-    field: code.required(),
-    match: Joi.string().valid('EXACT').required(),
-    values: Joi.array()
-      .items(
-        Joi.object({
-          code: code.required(),
-          stored: Joi.string().min(1).max(4000).required(),
-          category: Joi.string()
-            .valid(...STATUS_CATEGORIES)
-            .required(),
-          verification,
-          evidence: Joi.object({
-            kind: Joi.string()
-              .valid(...EVIDENCE_KINDS)
-              .required(),
-            reference: text(500).required(),
-          }).required(),
-        }),
-      )
-      .min(1)
-      .max(100)
-      .unique('code')
-      .required(),
-    transitions: Joi.array()
-      .items(
-        Joi.object({
-          event: code.required(),
-          from: Joi.array().items(code).min(1).unique().required(),
-          to: code.required(),
-          verification,
-        }),
-      )
-      .max(200)
-      .default([]),
-    writer: Joi.object({ mode: Joi.string().valid('NONE').required() }).required(),
-  })
-    .allow(null)
-    .default(null),
-  events: Joi.array()
-    .items(
-      Joi.object({
-        code: code.required(),
-        label: label.required(),
-        resubmitFrom: Joi.array().items(code).unique().default([]),
-        verification,
-      }),
-    )
-    .max(20)
-    .unique('code')
-    .default([]),
-  deepLink: Joi.object({
-    params: Joi.object()
-      .pattern(/^[A-Za-z][A-Za-z0-9]*$/, Joi.object({ keyColumn: column.required() }))
-      .min(1)
-      .required(),
-  })
-    .allow(null)
-    .default(null),
-  recordAccess: Joi.object({
-    additionalPermissions: Joi.array()
-      .items(Joi.string().pattern(PERMISSION_KEY))
-      .max(10)
-      .unique()
-      .default([]),
-  }).default({ additionalPermissions: [] }),
+  ...semanticsSchema,
 });
 
 /**
@@ -486,254 +335,33 @@ export function prepareFormVersion({
     }
   });
 
-  // --- Fields ----------------------------------------------------------------------------------
-  const fields = new Map();
-  value.fields.forEach((field, index) => {
-    const at = `fields[${index}]`;
-    if (fields.has(field.code)) {
-      findings.error('FIELD_CODE_DUPLICATE', `${at}.code`, `Field ${field.code} is declared twice`);
-      return;
-    }
-    const source = sources.get(field.ref.alias);
-    const sourceColumn = source?.columns.get(field.ref.column);
-    fields.set(field.code, {
-      ...field,
-      header: field.ref.alias === value.header.alias,
-      sourceColumn,
-    });
-    if (!source) {
-      findings.error('ALIAS_UNKNOWN', `${at}.ref.alias`, `Unknown source alias ${field.ref.alias}`);
-      return;
-    }
-    if (!sourceColumn) {
-      findings.error(
-        'COLUMN_NOT_EXPOSED',
-        `${at}.ref.column`,
-        `${field.ref.column} is not an exposed column`,
-      );
-      return;
-    }
-    const reason = fieldTypeIncompatibility(field.type, sourceColumn);
-    if (reason)
-      findings.error(reason, `${at}.type`, `${field.type} cannot read ${sourceColumn.oracleType}`);
-    if (SENSITIVITY_RANK[field.sensitivity] < SENSITIVITY_RANK[sourceColumn.dataClass]) {
-      findings.error(
-        'SENSITIVITY_DOWNGRADE',
-        `${at}.sensitivity`,
-        `The source column is classified ${sourceColumn.dataClass}; the field cannot be less sensitive`,
-      );
-    }
-    if (source.keyless && field.usage.some((usage) => !KEYLESS_LINE_USAGES.includes(usage))) {
-      findings.error(
-        'KEYLESS_FIELD_USAGE_NOT_ALLOWED',
-        `${at}.usage`,
-        'Fields of a line without a key allow DISPLAY and TEMPLATE only',
-      );
-    }
+  // --- Fields, attributes, organization scope, status, events, deep link, record access ---------
+  validateFormSemantics({
+    value,
+    registeredForm,
+    sources,
+    rootKeyColumns: headerKey ? headerKey.columns : null,
+    // v1: record-level semantics come from the header source only.
+    placement: (field) =>
+      field.ref.alias === value.header.alias
+        ? null
+        : { code: 'FIELD_NOT_HEADER', message: `${field.code} must be a header field` },
+    findings,
+    blockers,
+    recordAccessRegistry,
+    permissionExists,
   });
-
-  const headerField = (fieldCode, path, { types = null, refTypes = null } = {}) => {
-    const field = fields.get(fieldCode);
-    if (!field) {
-      findings.error('FIELD_UNKNOWN', path, `Unknown field ${fieldCode}`);
-      return null;
-    }
-    if (!field.header)
-      findings.error('FIELD_NOT_HEADER', path, `${fieldCode} must be a header field`);
-    if (types && !types.includes(field.type)) {
-      findings.error(
-        'FIELD_TYPE_NOT_ALLOWED',
-        path,
-        `${fieldCode} must be of type ${types.join(' or ')}`,
-      );
-    }
-    if (refTypes && !refTypes.includes(field.refType)) {
-      findings.error(
-        'REFERENCE_TYPE_NOT_ALLOWED',
-        path,
-        `${fieldCode} must reference ${refTypes.join(' or ')}`,
-      );
-    }
-    return field;
-  };
-
-  // --- Person attributes and organization scope (recorded; resolution is M4) -----------------
-  value.attributes.forEach((attribute, index) =>
-    headerField(attribute.field, `attributes[${index}].field`, {
-      types: ['REFERENCE'],
-      refTypes: PERSON_REF_TYPES,
-    }),
-  );
-  if (!value.orgScope) {
-    findings.error(
-      'ORG_SCOPE_REQUIRED',
-      'orgScope',
-      'Declare how the organization scope is determined',
-    );
-  } else if (value.orgScope.kind === 'FIELD') {
-    headerField(value.orgScope.field, 'orgScope.field', {
-      types: ['REFERENCE'],
-      refTypes: ['ORGANIZATION_REF'],
-    });
-  } else if (value.orgScope.kind === 'RESOLVER_REQUIRED') {
-    headerField(value.orgScope.input, 'orgScope.input', { types: ['REFERENCE'] });
-    blockers.push({ code: 'PROVISIONAL_ORG_SCOPE', path: 'orgScope' });
-    blockers.push({ code: 'RESOLVER_UNBOUND', path: 'orgScope' });
-  }
-
-  // --- Status and events -----------------------------------------------------------------------
-  const events = new Set(value.events.map((event) => event.code));
-  if (!value.events.length)
-    findings.error('EVENT_REQUIRED', 'events', 'Declare at least one trigger event');
-  const statusCodes = new Set();
-  if (!value.status) {
-    findings.error('STATUS_REQUIRED', 'status', 'Map the business status of the form');
-  } else {
-    const statusField = headerField(value.status.field, 'status.field', {
-      types: ['TEXT', 'INTEGER'],
-    });
-    const stored = new Set();
-    value.status.values.forEach((status, index) => {
-      const at = `status.values[${index}]`;
-      statusCodes.add(status.code);
-      let storedValue = status.stored;
-      if (statusField?.type === 'INTEGER') {
-        try {
-          storedValue = canonicalInteger(status.stored);
-          status.stored = storedValue;
-        } catch {
-          findings.error('STATUS_VALUE_INVALID', `${at}.stored`, 'Not an integer status value');
-        }
-      }
-      if (stored.has(storedValue)) {
-        findings.error(
-          'STATUS_STORED_DUPLICATE',
-          `${at}.stored`,
-          'Two statuses share a stored value',
-        );
-      }
-      stored.add(storedValue);
-      if (status.verification === 'PROVISIONAL')
-        blockers.push({ code: 'PROVISIONAL_STATUS', path: at });
-    });
-    if (!value.status.values.some((status) => status.category === 'INITIAL')) {
-      findings.error(
-        'STATUS_INITIAL_REQUIRED',
-        'status.values',
-        'One status must be in category INITIAL',
-      );
-    }
-    const seen = new Set();
-    value.status.transitions.forEach((transition, index) => {
-      const at = `status.transitions[${index}]`;
-      if (!events.has(transition.event))
-        findings.error('EVENT_UNKNOWN', `${at}.event`, `Unknown event ${transition.event}`);
-      for (const statusCode of [...transition.from, transition.to]) {
-        if (!statusCodes.has(statusCode))
-          findings.error('STATUS_UNKNOWN', at, `Unknown status ${statusCode}`);
-      }
-      for (const from of transition.from) {
-        const pair = `${transition.event}\u0000${from}`;
-        if (seen.has(pair))
-          findings.error(
-            'TRANSITION_AMBIGUOUS',
-            at,
-            `${transition.event} from ${from} is declared twice`,
-          );
-        seen.add(pair);
-      }
-      if (transition.verification === 'PROVISIONAL')
-        blockers.push({ code: 'PROVISIONAL_TRANSITION', path: at });
-    });
-  }
-  value.events.forEach((event, index) => {
-    const at = `events[${index}]`;
-    for (const statusCode of event.resubmitFrom) {
-      if (!statusCodes.has(statusCode))
-        findings.error('STATUS_UNKNOWN', `${at}.resubmitFrom`, `Unknown status ${statusCode}`);
-    }
-    if (event.verification === 'PROVISIONAL')
-      blockers.push({ code: 'PROVISIONAL_EVENT', path: at });
-  });
-
-  // --- Deep link and record access -------------------------------------------------------------
-  const routeParams = registeredForm.detailRoute
-    ? [...registeredForm.detailRoute.matchAll(ROUTE_PARAM)].map((match) => match[1]).sort()
-    : [];
-  if (value.deepLink) {
-    if (!registeredForm.detailRoute) {
-      findings.error(
-        'DEEP_LINK_ROUTE_MISSING',
-        'deepLink',
-        'The registered form has no detail route',
-      );
-    } else {
-      const mapped = Object.keys(value.deepLink.params).sort();
-      if (JSON.stringify(mapped) !== JSON.stringify(routeParams)) {
-        findings.error(
-          'DEEP_LINK_PARAMS_MISMATCH',
-          'deepLink.params',
-          `The route needs ${routeParams.join(', ') || 'no'} parameters`,
-        );
-      }
-      for (const [param, binding] of Object.entries(value.deepLink.params)) {
-        if (headerKey && !headerKey.columns.includes(binding.keyColumn)) {
-          findings.error(
-            'DEEP_LINK_NOT_KEY',
-            `deepLink.params.${param}`,
-            'Route parameters must come from the record key',
-          );
-        }
-      }
-    }
-  } else if (routeParams.length) {
-    findings.warning(
-      'DEEP_LINK_NOT_MAPPED',
-      'deepLink',
-      'The detail route parameters are not mapped',
-    );
-  }
-
-  value.recordAccess.additionalPermissions.forEach((key, index) => {
-    const at = `recordAccess.additionalPermissions[${index}]`;
-    if (typeof permissionExists !== 'function') {
-      findings.warning(
-        'PERMISSION_NOT_VERIFIED',
-        at,
-        'The permission was not checked against the catalogue',
-      );
-    } else if (!permissionExists(key)) {
-      findings.error('PERMISSION_UNKNOWN', at, `${key} is not an active permission`);
-    }
-  });
-  if (!recordAccessRegistry?.has(registeredForm.formCode)) {
-    blockers.push({ code: 'NO_RECORD_ACCESS_PROVIDER', path: 'recordAccess' });
-  }
 
   const config = { schema: FORM_SCHEMA, formCode: registeredForm.formCode, ...value };
   return result(findings, blockers, config, value.header.sourceVersionId);
 }
 
-function result(findings, blockers, config, headerSourceVersionId) {
-  let payload = null;
-  if (config) {
-    payload = fingerprint(config);
-    if (payload.bytes > MAX_CONFIG_BYTES) {
-      findings.error(
-        'CONFIG_TOO_LARGE',
-        '$',
-        `The configuration exceeds ${MAX_CONFIG_BYTES} bytes`,
-      );
-    }
-  }
-  return Object.freeze({
-    valid: !findings.hasErrors(),
-    findings: findings.list(),
-    publicationBlockers: freezeBlockers(blockers),
-    schemaVersion: FORM_SCHEMA_VERSION,
+const result = (findings, blockers, config, headerSourceVersionId) =>
+  formVersionResult({
+    findings,
+    blockers,
+    config,
     headerSourceVersionId,
-    config: config ? JSON.parse(payload.json) : null,
-    configJson: payload?.json ?? null,
-    configSha256: payload?.sha256 ?? null,
+    schemaVersion: FORM_SCHEMA_VERSION,
+    maxBytes: MAX_CONFIG_BYTES,
   });
-}

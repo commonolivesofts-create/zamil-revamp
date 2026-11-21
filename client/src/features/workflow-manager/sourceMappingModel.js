@@ -55,7 +55,9 @@ export function emptyKey() {
 /**
  * Editor state: one row per live column (plus stored columns the source no longer has, flagged
  * `missing`) and the key candidates. `included` puts the column into the mapping's allowlist;
- * `exposed` makes it available to forms; `dataClass` is required for every included column.
+ * `exposed` makes it available to forms; `dataClass` is required for every included column. A
+ * column that was never classified starts unclassified (''), so the author must choose its privacy
+ * explicitly — nothing is silently given a lower sensitivity.
  */
 export function editorState({ liveColumns = [], config = null }) {
   const stored = new Map((config?.columns ?? []).map((column) => [column.name, column]))
@@ -66,7 +68,7 @@ export function editorState({ liveColumns = [], config = null }) {
       missing: false,
       included: Boolean(saved),
       exposed: saved ? saved.exposed : false,
-      dataClass: saved ? saved.dataClass : 'INTERNAL',
+      dataClass: saved ? saved.dataClass : '',
     }
   })
   const live = new Set(liveColumns.map((column) => column.name))
@@ -128,7 +130,7 @@ const textError = (value, max, label) => {
  * evidenceRef, rationale } } }, payload }. The payload holds only author choices.
  */
 export function validateEditor(state, snapshot) {
-  const errors = { columns: null, keys: {} }
+  const errors = { columns: null, keys: {}, unclassified: [] }
   const included = state.columns.filter((column) => column.included)
   if (!included.length) errors.columns = 'Include at least one column in the mapping.'
   else if (included.some((column) => column.missing)) {
@@ -136,7 +138,12 @@ export function validateEditor(state, snapshot) {
       'Some saved columns no longer exist in the source. Remove them from the mapping.'
   } else if (included.some((column) => column.exposed && !column.supported)) {
     errors.columns = 'A column of an unsupported type (for example BLOB) cannot be exposed.'
+  } else if (included.some((column) => !DATA_CLASSES.includes(column.dataClass))) {
+    errors.columns = 'Choose who may see each selected piece of information (privacy).'
   }
+  errors.unclassified = included
+    .filter((column) => !DATA_CLASSES.includes(column.dataClass))
+    .map((column) => column.name)
   const exposed = new Set(included.filter((column) => column.exposed).map((column) => column.name))
   if (state.keys.length > MAX_KEYS)
     errors.columns = errors.columns || `At most ${MAX_KEYS} key candidates are allowed.`
@@ -223,8 +230,9 @@ export function groupFindings(findings = []) {
 }
 
 const BLOCKER_TEXT = Object.freeze({
-  PROVISIONAL_KEY: 'A declared (provisional) key needs explicit approval before publication.',
-  SOURCE_INACTIVE: 'The data source is inactive.',
+  PROVISIONAL_KEY:
+    'The record identifier is not guaranteed unique by the database (provisional); it needs explicit approval.',
+  SOURCE_INACTIVE: 'The data source is deactivated; it must be active before approval.',
 })
 
 export const describeBlocker = (blocker) => BLOCKER_TEXT[blocker.code] ?? blocker.code

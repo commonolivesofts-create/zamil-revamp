@@ -13,7 +13,8 @@ import {
   ResourceState,
 } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
-import { ActivationDialog, ActiveBadge } from '../components/WorkflowUi.jsx'
+import { ActivationDialog, ActiveBadge, ReadinessBadge } from '../components/WorkflowUi.jsx'
+import { formReadiness } from '../smartMappingModel.js'
 import useWorkflowAction from '../useWorkflowAction.js'
 import {
   FORM_FILTER_DEFAULTS,
@@ -79,7 +80,7 @@ export default function FormRegistryPage() {
     <AdminPage
       eyebrow="Workflow Manager"
       title="Form registry"
-      description="Business forms registered for workflow configuration. Registration records the form's identity and owning module; field and status mapping is configured separately."
+      description="Forms that can receive approval workflows, and how ready each one is. A form is ready once its business data has been prepared and approved."
       actions={
         can(WORKFLOW_ACTIONS.FORMS_CREATE) && (
           <Link className="btn-primary" to={PATHS.newForm}>
@@ -102,7 +103,7 @@ export default function FormRegistryPage() {
           <Field
             id="wf-forms-search"
             label="Search"
-            hint="Form code, name or module code"
+            hint="Form name, code or module"
             error={searchError}
           >
             <input
@@ -200,8 +201,7 @@ export default function FormRegistryPage() {
                     <tr>
                       <th scope="col">Form</th>
                       <th scope="col">Module</th>
-                      <th scope="col">Detail route</th>
-                      <th scope="col">Versions</th>
+                      <th scope="col">Workflow readiness</th>
                       <th scope="col">Status</th>
                       <th scope="col">Last updated</th>
                       <th scope="col">
@@ -212,7 +212,7 @@ export default function FormRegistryPage() {
                   <tbody>
                     {!items.length && (
                       <tr>
-                        <td colSpan={7} className="zrv-admin-state">
+                        <td colSpan={6} className="zrv-admin-state">
                           No forms on this page. Use Previous to go back.
                         </td>
                       </tr>
@@ -223,18 +223,11 @@ export default function FormRegistryPage() {
                           <b>{form.formName}</b>
                           <small className="zrv-admin-sub zwf-code">{form.formCode}</small>
                         </td>
+                        <td>{form.moduleName || form.moduleCode}</td>
                         <td>
-                          {form.moduleName || form.moduleCode}
-                          <small className="zrv-admin-sub zwf-code">{form.moduleCode}</small>
+                          <ReadinessBadge readiness={formReadiness(form)} />
+                          <small className="zrv-admin-sub">{formReadiness(form).detail}</small>
                         </td>
-                        <td>
-                          {form.detailRoute ? (
-                            <span className="zwf-code">{form.detailRoute}</span>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td>{form.versionCount}</td>
                         <td>
                           <ActiveBadge active={form.isActive} />
                         </td>

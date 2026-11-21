@@ -7,7 +7,9 @@ import { PATHS, validateForm } from '../workflowManagerModel.js'
 // The registration / edit fields of XX_ZRV_WF_FORMS. `initial` is the draft
 // to start from; `create` adds the (then immutable) form code. `onSubmit`
 // receives the validated payload and returns the action outcome. Server field
-// errors (`action.fieldErrors`) are shown next to their fields.
+// errors (`action.fieldErrors`) are shown next to their fields. Business fields
+// come first; the technical identity (form code, detail route) is grouped
+// separately and shown only to form administrators (`technical`).
 export default function FormEditor({
   initial,
   create,
@@ -16,6 +18,7 @@ export default function FormEditor({
   onSubmit,
   onReload,
   readOnly = false,
+  technical = true,
 }) {
   const [draft, setDraft] = useState(initial)
   const [errors, setErrors] = useState({})
@@ -51,34 +54,15 @@ export default function FormEditor({
     >
       <div className="zrv-admin-grid">
         <Field
-          id="wf-form-code"
-          label="Form code"
-          hint={
-            create
-              ? 'Upper-case letters, digits and underscores. Cannot be changed after registration.'
-              : 'Permanent identity of the form.'
-          }
-          error={shown.formCode}
+          id="wf-form-name"
+          label="Form name"
+          hint="The name business users know the form by, e.g. Sick leave request."
+          error={shown.formName}
         >
           <input
-            {...fieldProps('wf-form-code', { hint: true, error: shown.formCode })}
-            className="ux-input zwf-code"
-            data-autofocus={create || undefined}
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={80}
-            value={draft.formCode}
-            onChange={set('formCode')}
-            readOnly={!create}
-            disabled={create && disabled}
-            required
-          />
-        </Field>
-        <Field id="wf-form-name" label="Form name" error={shown.formName}>
-          <input
-            {...fieldProps('wf-form-name', { error: shown.formName })}
+            {...fieldProps('wf-form-name', { hint: true, error: shown.formName })}
             className="ux-input"
-            data-autofocus={!create || undefined}
+            data-autofocus
             maxLength={200}
             value={draft.formName}
             onChange={set('formName')}
@@ -115,23 +99,6 @@ export default function FormEditor({
             )}
           </select>
         </Field>
-        <Field
-          id="wf-form-route"
-          label="Detail route (optional)"
-          hint="Application page of one record, e.g. /hr/employee-services/sick-leave/:leaveId"
-          error={shown.detailRoute}
-        >
-          <input
-            {...fieldProps('wf-form-route', { hint: true, error: shown.detailRoute })}
-            className="ux-input zwf-code"
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={500}
-            value={draft.detailRoute}
-            onChange={set('detailRoute')}
-            disabled={disabled}
-          />
-        </Field>
         <div className="zrv-admin-grid__wide">
           <Field id="wf-form-description" label="Description (optional)" error={shown.description}>
             <textarea
@@ -146,6 +113,56 @@ export default function FormEditor({
           </Field>
         </div>
       </div>
+      {technical && (
+        <fieldset className="zwf-fieldset">
+          <legend>Technical identity</legend>
+          <p className="zrv-admin-hint">
+            Set once by the form administrator. Business users never need these values.
+          </p>
+          <div className="zrv-admin-grid">
+            <Field
+              id="wf-form-code"
+              label="Form code"
+              hint={
+                create
+                  ? 'Upper-case letters, digits and underscores. Cannot be changed after registration.'
+                  : 'Permanent identity of the form.'
+              }
+              error={shown.formCode}
+            >
+              <input
+                {...fieldProps('wf-form-code', { hint: true, error: shown.formCode })}
+                className="ux-input zwf-code"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={80}
+                value={draft.formCode}
+                onChange={set('formCode')}
+                readOnly={!create}
+                disabled={create && disabled}
+                required
+              />
+            </Field>
+            <Field
+              id="wf-form-route"
+              label="Detail page address (optional)"
+              hint="Application page of one record, e.g. /hr/employee-services/sick-leave/:leaveId"
+              error={shown.detailRoute}
+            >
+              <input
+                {...fieldProps('wf-form-route', { hint: true, error: shown.detailRoute })}
+                className="ux-input zwf-code"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={500}
+                value={draft.detailRoute}
+                onChange={set('detailRoute')}
+                disabled={disabled}
+              />
+            </Field>
+          </div>
+        </fieldset>
+      )}
       {modules.status === 'error' && (
         <p className="zrv-admin-hint" role="alert">
           The module list could not be loaded.{' '}

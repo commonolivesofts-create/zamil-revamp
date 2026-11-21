@@ -12287,6 +12287,11 @@ components:
               type: boolean
             versionCount:
               type: integer
+            defaultVersionNo:
+              type: [integer, 'null']
+              description: >-
+                Number of the PUBLISHED default form mapping version (readiness of the form's
+                business data), or null while no mapping version is published. Drafts never count.
     WorkflowFormCreate:
       type: object
       additionalProperties: false
@@ -12394,6 +12399,11 @@ components:
               type: boolean
             versionCount:
               type: integer
+            defaultVersionNo:
+              type: [integer, 'null']
+              description: >-
+                Number of the PUBLISHED default source version (the approved field list forms may
+                use), or null while none is published. Drafts never count.
     WorkflowDataSourceIdentity:
       type: object
       required: [sourceName, sourceKind]
