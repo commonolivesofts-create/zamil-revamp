@@ -38,6 +38,12 @@ export function installWorkflowManager(store, { dictionary = [] } = {}) {
     )?.fullName ?? null;
   const modules = () => store.state.rbac?.modules ?? [];
 
+  // Published default version (mirrors the repository subquery).
+  const defaultNo = (versions) =>
+    versions
+      .filter((v) => v.lifecycleState === 'PUBLISHED' && v.isDefault)
+      .reduce((max, v) => (max === null || v.versionNo > max ? v.versionNo : max), null);
+
   const formView = (f) => ({
     formId: f.formId,
     formCode: f.formCode,
@@ -48,6 +54,7 @@ export function installWorkflowManager(store, { dictionary = [] } = {}) {
     description: f.description,
     isActive: f.isActive,
     versionCount: t().formVersions.filter((v) => v.formId === f.formId).length,
+    defaultVersionNo: defaultNo(t().formVersions.filter((v) => v.formId === f.formId)),
     rowVersion: f.rowVersion,
     createdAt: f.createdAt.toISOString(),
     createdBy: f.createdBy,
@@ -67,6 +74,7 @@ export function installWorkflowManager(store, { dictionary = [] } = {}) {
     handlerCode: s.handlerCode,
     isActive: s.isActive,
     versionCount: t().sourceVersions.filter((v) => v.sourceId === s.sourceId).length,
+    defaultVersionNo: defaultNo(t().sourceVersions.filter((v) => v.sourceId === s.sourceId)),
     rowVersion: s.rowVersion,
     createdAt: s.createdAt.toISOString(),
     createdBy: s.createdBy,

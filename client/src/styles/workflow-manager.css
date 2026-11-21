@@ -426,8 +426,8 @@ a.zwf-stat:focus-visible {
 }
 .zwf-findings li {
   display: grid;
-  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) auto;
-  gap: 4px 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
   align-items: baseline;
   padding: 8px 12px;
   border: 1px solid var(--line);
@@ -444,15 +444,16 @@ a.zwf-stat:focus-visible {
 .zwf-findings--blocker li {
   border-left-color: var(--primary);
 }
+.zwf-findings__what {
+  font-weight: 700;
+}
+.zwf-findings__fix {
+  color: var(--text, inherit);
+}
 .zwf-findings__where {
   color: var(--muted);
-  font-weight: 700;
+  font-size: 12px;
   overflow-wrap: anywhere;
-}
-@media (max-width: 640px) {
-  .zwf-findings li {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 .zwf-actionbar {
@@ -486,4 +487,316 @@ a.zwf-stat:focus-visible {
   .zwf-actionbar__status {
     flex-basis: 100%;
   }
+}
+
+/* --- Business-first Workflow Manager (Smart Mapping UX) ------------------------------------- */
+
+/* Technical facts shown on request. */
+.zwf-technical {
+  margin-top: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+.zwf-technical > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.zwf-technical > summary::-webkit-details-marker {
+  display: none;
+}
+.zwf-technical > summary::after {
+  content: '▸';
+  margin-left: auto;
+  transition: transform 0.15s ease;
+}
+.zwf-technical[open] > summary::after {
+  transform: rotate(90deg);
+}
+.zwf-technical > summary:focus-visible {
+  outline: 2px solid var(--primary-text);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+.zwf-technical__body {
+  padding: 4px 12px 12px;
+}
+
+/* Form readiness cards (Overview). */
+.zwf-form-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.zwf-form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 14px;
+  background: var(--surface-solid);
+}
+.zwf-form-card.is-ready {
+  border-left-color: var(--success, var(--primary));
+}
+.zwf-form-card.is-in_setup {
+  border-left-color: var(--amber);
+}
+.zwf-form-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+.zwf-form-card__name {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.zwf-form-card__name:hover {
+  text-decoration: underline;
+}
+.zwf-form-card__name:focus-visible {
+  outline: 2px solid var(--primary-text);
+  outline-offset: 2px;
+}
+.zwf-form-card p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.zwf-form-card__module,
+.zwf-form-card__next {
+  color: var(--muted);
+}
+
+/* Readiness journey of one form. */
+.zwf-journey {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.zwf-journey__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.zwf-journey__step b {
+  display: block;
+  font-size: 13px;
+}
+.zwf-journey__step small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.zwf-journey__mark svg {
+  width: 20px;
+  height: 20px;
+}
+.zwf-journey__step.is-done .zwf-journey__mark {
+  color: var(--success, var(--primary-text));
+}
+.zwf-journey__step.is-current .zwf-journey__mark {
+  color: var(--amber);
+}
+.zwf-journey__step.is-todo .zwf-journey__mark,
+.zwf-journey__step.is-later .zwf-journey__mark {
+  color: var(--muted);
+}
+.zwf-journey__step.is-later {
+  border-style: dashed;
+}
+
+/* Guided setup steps. */
+.zwf-steps ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.zwf-steps__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-solid);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.zwf-steps__item:hover {
+  background: var(--surface-2);
+}
+.zwf-steps__item:focus-visible {
+  outline: 2px solid var(--primary-text);
+  outline-offset: 2px;
+}
+.zwf-steps__item.is-current {
+  border-color: color-mix(in srgb, var(--primary) 60%, var(--line));
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-solid));
+}
+.zwf-steps__item.has-problem {
+  border-color: var(--danger);
+}
+.zwf-steps__item b {
+  display: block;
+  font-size: 13px;
+}
+.zwf-steps__item small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.zwf-steps__number {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 800;
+}
+.zwf-steps__item.is-current .zwf-steps__number {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+}
+.zwf-steps__item.has-problem .zwf-steps__number {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Recommendation / status callouts. */
+.zwf-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 14px;
+}
+.zwf-callout.is-good {
+  border-left-color: var(--success, var(--primary));
+}
+.zwf-callout.is-warn {
+  border-left-color: var(--amber);
+}
+.zwf-callout > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--primary-text);
+}
+.zwf-callout b {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.zwf-callout p {
+  margin: 4px 0 10px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.zwf-callout .btn-primary {
+  width: auto;
+}
+.zwf-identify {
+  display: grid;
+  gap: 10px;
+}
+
+/* Field picker helpers. */
+.zwf-info-name {
+  display: block;
+  font-weight: 700;
+}
+.zwf-search {
+  min-width: min(100%, 200px);
+}
+.zwf-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.zwf-toggle input {
+  accent-color: var(--primary);
+}
+.zwf-inline-field {
+  display: inline-flex;
+}
+.zwf-class-select[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+/* Business-first editors and maintenance actions. */
+.zwf-fieldset {
+  min-width: 0;
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+}
+.zwf-fieldset legend {
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 750;
+}
+.zwf-readiness-text {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.zwf-more-actions {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.zwf-more-actions li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.zwf-more-actions .btn-secondary {
+  width: auto;
+}
+.zwf-more-actions small {
+  color: var(--muted);
+  font-size: 12px;
 }

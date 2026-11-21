@@ -6,7 +6,6 @@ import { checkSearch, fieldProps } from '@/features/security-administration/admi
 import { formatInstant } from '@/features/security-administration/adminFeedback.js'
 import {
   AdminPage,
-  Badge,
   Dialog,
   Feedback,
   Field,
@@ -16,7 +15,13 @@ import {
 } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import SourceFormDialog from '../components/SourceFormDialog.jsx'
-import { ActivationDialog, ActiveBadge, VersionTable } from '../components/WorkflowUi.jsx'
+import {
+  ActivationDialog,
+  ActiveBadge,
+  ReadinessBadge,
+  VersionTable,
+} from '../components/WorkflowUi.jsx'
+import { SOURCE_KIND_LABELS, sourceReadiness } from '../smartMappingModel.js'
 import useWorkflowAction from '../useWorkflowAction.js'
 import {
   PAGE_SIZE,
@@ -30,16 +35,14 @@ import {
 } from '../workflowManagerModel.js'
 import { workflowManagerService } from '../workflowManagerService.js'
 
-const KIND_TONES = Object.freeze({ TABLE: 'neutral', VIEW: 'neutral', HANDLER: 'warn' })
-
 function VersionsDialog({ source, onClose }) {
   const versions = useResource(`wf-source-versions:${source.sourceId}`, (signal) =>
     workflowManagerService.listSourceVersions(source.sourceId, { signal }),
   )
   return (
     <Dialog
-      title={`Versions of ${source.sourceCode}`}
-      description="Read only. Source versions record the validated allowlist of this source."
+      title={`Field versions of ${source.sourceName}`}
+      description="Read only. Each version records which fields of this data source were approved for workflows."
       onClose={onClose}
       wide
     >
@@ -108,7 +111,7 @@ export default function DataSourceRegistryPage() {
     <AdminPage
       eyebrow="Workflow Manager"
       title="Data source registry"
-      description="Approved tables, views and server handlers that registered forms may read from. Each entry is verified against the database dictionary and the source allowlist."
+      description="One-time onboarding for data administrators: the approved places business forms read their information from, and which fields of each are approved for workflows. Business users never need to work here."
       actions={
         can(WORKFLOW_ACTIONS.SOURCES_CREATE) && (
           <button
@@ -230,10 +233,8 @@ export default function DataSourceRegistryPage() {
                   <caption className="sr-only">Registered data sources</caption>
                   <thead>
                     <tr>
-                      <th scope="col">Source</th>
-                      <th scope="col">Kind</th>
-                      <th scope="col">Object or handler</th>
-                      <th scope="col">Versions</th>
+                      <th scope="col">Data source</th>
+                      <th scope="col">Approved fields</th>
                       <th scope="col">Status</th>
                       <th scope="col">Last updated</th>
                       <th scope="col">
@@ -244,7 +245,7 @@ export default function DataSourceRegistryPage() {
                   <tbody>
                     {!items.length && (
                       <tr>
-                        <td colSpan={7} className="zrv-admin-state">
+                        <td colSpan={5} className="zrv-admin-state">
                           No data sources on this page. Use Previous to go back.
                         </td>
                       </tr>
@@ -256,15 +257,14 @@ export default function DataSourceRegistryPage() {
                       >
                         <td>
                           <b>{source.sourceName}</b>
-                          <small className="zrv-admin-sub zwf-code">{source.sourceCode}</small>
+                          <small className="zrv-admin-sub">
+                            {SOURCE_KIND_LABELS[source.sourceKind]} ·{' '}
+                            <span className="zwf-code">{sourceObjectLabel(source)}</span>
+                          </small>
                         </td>
                         <td>
-                          <Badge tone={KIND_TONES[source.sourceKind]}>{source.sourceKind}</Badge>
+                          <ReadinessBadge readiness={sourceReadiness(source)} />
                         </td>
-                        <td>
-                          <span className="zwf-code">{sourceObjectLabel(source)}</span>
-                        </td>
-                        <td>{source.versionCount}</td>
                         <td>
                           <ActiveBadge active={source.isActive} />
                         </td>
@@ -276,8 +276,8 @@ export default function DataSourceRegistryPage() {
                                 className="zrv-admin-link"
                                 to={PATHS.sourceVersions(source.sourceId)}
                               >
-                                Manage mapping
-                                <span className="sr-only"> of {source.sourceCode}</span>
+                                Manage fields
+                                <span className="sr-only"> of {source.sourceName}</span>
                               </Link>
                             ) : (
                               <button
@@ -285,7 +285,7 @@ export default function DataSourceRegistryPage() {
                                 className="zrv-admin-link"
                                 onClick={() => setDialog({ type: 'versions', source })}
                               >
-                                Versions<span className="sr-only"> of {source.sourceCode}</span>
+                                Versions<span className="sr-only"> of {source.sourceName}</span>
                               </button>
                             )}
                             {can(WORKFLOW_ACTIONS.SOURCES_UPDATE) && policyReady && (

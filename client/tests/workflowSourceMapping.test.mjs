@@ -539,8 +539,19 @@ test('client checks mirror the author schema and build an exact payload', () => 
     evidenceRef: 'x',
     rationale: 'y',
   }
+  // Nothing is pre-classified: every selected column needs an explicit privacy choice.
   check = validateEditor(
     { columns: include(['REQUEST_ID', 'ORG_ID']), keys: [enforced, assured] },
+    s,
+  )
+  assert.equal(check.valid, false)
+  assert.match(check.errors.columns, /privacy/)
+  assert.deepEqual(check.errors.unclassified, ['REQUEST_ID', 'ORG_ID'])
+  check = validateEditor(
+    {
+      columns: include(['REQUEST_ID', 'ORG_ID'], { dataClass: 'INTERNAL' }),
+      keys: [enforced, assured],
+    },
     s,
   )
   assert.equal(check.valid, true, JSON.stringify(check.errors))
@@ -742,19 +753,49 @@ test('mapping pages use the shared service, real API data and accessible control
   assert.match(files.editor, /MAPPING_UPDATE/)
   assert.match(files.editor, /MAPPING_DELETE\) && version\.editable/)
   assert.match(files.list, /canDelete && version\.editable/)
-  assert.match(files.registry, /can\(WORKFLOW_ACTIONS\.MAPPING_VIEW\)[\s\S]*Manage mapping/)
+  assert.match(files.registry, /can\(WORKFLOW_ACTIONS\.MAPPING_VIEW\)[\s\S]*Manage fields/)
   // Double submits, uncertain outcomes and conflicts.
   assert.match(files.editor, /useWorkflowAction\(\)/)
   assert.match(files.editor, /outcome\.status === 'unknown'/)
   assert.match(files.editor, /Reload latest \(discards your changes\)/)
   assert.doesNotMatch(files.editor, /publish/i, 'no publication control in M2-A')
   // Accessibility: every per-row control has a name; groups have legends; results are announced.
-  assert.match(files.columns, /aria-label=\{`Include \$\{column\.name\}/)
-  assert.match(files.columns, /aria-label=\{`Expose \$\{column\.name\}/)
-  assert.match(files.columns, /aria-label=\{`Data class of \$\{column\.name\}/)
+  assert.match(files.columns, /aria-label=\{`Use \$\{label\} \(\$\{column\.name\}\)`\}/)
+  assert.match(files.columns, /aria-label=\{`Show \$\{column\.name\} to forms`\}/)
+  assert.match(files.columns, /aria-label=\{`Privacy of \$\{label\} \(\$\{column\.name\}\)`\}/)
   assert.match(files.keys, /<fieldset[\s\S]*<legend/)
   assert.match(files.validation, /aria-live="polite"/)
   assert.match(files.columns, /<th scope="row">/)
+})
+
+test('the guided setup is business-first and never selects or classifies information for the user', async () => {
+  const editor = (
+    await read('../src/features/workflow-manager/pages/SourceVersionEditorPage.jsx')
+  ).replace(/\s+/g, ' ')
+  const columns = await read('../src/features/workflow-manager/components/SourceColumnTable.jsx')
+  const identify = await read(
+    '../src/features/workflow-manager/components/SourceIdentifierStep.jsx',
+  )
+  const validation = await read(
+    '../src/features/workflow-manager/components/SourceValidationPanel.jsx',
+  )
+  // Three named steps with one primary action at a time; technical facts on request only.
+  for (const title of ['Choose information', 'Verify record identification', 'Review & save'])
+    assert.ok(editor.includes(title), title)
+  assert.match(editor, /<SetupSteps /)
+  assert.match(editor, /<TechnicalDetails>[\s\S]*Fingerprint/)
+  // No bulk selection, and a newly selected column starts unclassified.
+  assert.doesNotMatch(columns, /Include all/)
+  assert.match(columns, /\{ included: true, exposed: usable \}/)
+  assert.doesNotMatch(columns, /dataClass: 'INTERNAL'/)
+  // The identifier recommendation uses enforcement only; declared keys stay in technical onboarding.
+  assert.match(identify, /recommendIdentifier\(snapshot, columns\)/)
+  assert.match(identify, /Technical onboarding/)
+  assert.match(identify, /<SourceKeyCandidateEditor/)
+  // Results say what failed, how to fix it and whether anything was saved.
+  assert.match(validation, /explainFinding\(finding\)/)
+  assert.match(validation, /How to fix:/)
+  assert.match(validation, /Nothing was changed/)
 })
 
 test('findings are labelled in the order of the draft they came from', async () => {
