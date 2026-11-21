@@ -226,7 +226,7 @@ A phase starts only when it is requested.
 | 6   | Processed outputs | Timesheet, Payroll File + adjustment, Alerts & Exceptions, Dashboard                                                                                                                      | 5               | **Done**: [parity](docs/parity/)                                                 |
 | 7   | EBS live + people | Daily Attendance, Leave Requests, Manager View + approvals                                                                                                                                | 1 + VPN for EBS | **Done**: [parity](docs/parity/ebs-people.md) (live EBS comparison pending VPN)  |
 | 8   | Contractors       | Contractors, Contractor Employees, Contractor Summary                                                                                                                                     | 1 + VPN for EBS | **Done**: [parity](docs/parity/contractors.md) (live EBS comparison pending VPN) |
-| 9   | Cutover           | Point the Zamil sidebar `attendance-system` link at `http://localhost:7388/`, update onboarding, freeze the CI3 app                                                                       | 2–8             | Not started                                                                      |
+| 9   | Cutover           | Point the Zamil sidebar `attendance-system` link at `http://localhost:7388/`, update onboarding, freeze the CI3 app                                                                       | 2–8             | **Done** (local link switched; CI3 frozen as fallback)                           |
 
 ## Parity method
 
@@ -297,9 +297,11 @@ npm run dev         # API http://127.0.0.1:7387, web http://localhost:7388
   session you are sent to the Zamil login.
 - **One command for everything:** once `attendance/` is installed, `client` `npm run dev` also starts
   this app, alongside TrainingHub and ExpenseHub.
-- **The Zamil sidebar link:** **Human resources → Attendance System** still points at the CI3 app until
-  cutover (Phase 9). To try the new app from it now, set
-  `VITE_EXTERNAL_ATTENDANCE_SYSTEM=http://localhost:7388/` in `client/.env`.
+- **The Zamil sidebar link:** **Human resources → Attendance System** opens this app (Phase 9 cutover)
+  when `client/.env` sets `VITE_EXTERNAL_ATTENDANCE_SYSTEM=http://localhost:7388/`. To fall back to the
+  CI3 app, set it to `http://localhost/zamil-attendance/`.
+- **CI3 is frozen:** `zamil-attendance/` gets no new changes. It stays as the parity reference and the
+  fallback until the open items below are signed off.
 
 **Checks:** `npm run lint` · `npm run typecheck` · `npm test` · `npm run build`
 

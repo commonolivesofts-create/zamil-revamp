@@ -74,9 +74,9 @@ export default defineModule({
       subgroup: 'hr-talent-management',
       order: 320,
     },
-    // Attendance System: the zamil-attendance CI3 app (served by Apache/XAMPP).
-    // Same sign-in: it validates the Zamil session cookie server-side via
-    // GET /api/v1/auth/me and decides who may use each page.
+    // Attendance System: the React + Node app in attendance/ (http://localhost:7388/
+    // in development). Same sign-in as the hubs: it validates the Zamil session
+    // server-side. The frozen CI3 app (zamil-attendance/) remains a fallback URL.
     {
       id: 'attendance-system',
       type: 'external',
