@@ -16,3 +16,7 @@ export * from './modules/timesheet';
 export * from './modules/payrollFile';
 export * from './modules/alerts';
 export * from './modules/dashboard';
+export * from './modules/dailyAttendance';
+export * from './modules/leaveRequests';
+export * from './modules/manager';
+export * from './modules/contractors';

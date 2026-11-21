@@ -1,6 +1,6 @@
 // State and data for a ReportPage: paging, search (debounced), applied filters, CSV export.
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DEFAULT_PAGE_SIZE } from '@attendance/shared';
 import { api, apiDownload, errorMessage } from '../../lib/api';
 import { saveBlob } from '../../lib/download';
@@ -22,8 +22,17 @@ export function useReport<F extends FilterValues, T, P extends Paged<T>>(
   const [filters, setFilters] = useState<F>(config.initialFilters);
   const [exporting, setExporting] = useState(false);
 
-  // CI3 pages had no free-text search box; the API keeps the parameter for parity.
-  const body = { page, limit, search: '', filters: compactFilters(filters) };
+  // Search box only where CI3 had one (config.searchPlaceholder); typed text is applied after 350 ms.
+  const [searchText, setSearchText] = useState('');
+  const [search, setSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchText.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+  const body = { page, limit, search, filters: compactFilters(filters) };
   const query = useQuery({
     queryKey: [config.id, body],
     queryFn: ({ signal }) =>
@@ -40,7 +49,7 @@ export function useReport<F extends FilterValues, T, P extends Paged<T>>(
     setExporting(true);
     try {
       const { blob, fileName } = await apiDownload(`${config.endpoint}/export`, {
-        search: '',
+        search,
         filters: compactFilters(filters),
       });
       saveBlob(blob, fileName);
@@ -61,5 +70,7 @@ export function useReport<F extends FilterValues, T, P extends Paged<T>>(
     applyFilters,
     exporting,
     exportCsv,
+    searchText,
+    setSearchText,
   };
 }

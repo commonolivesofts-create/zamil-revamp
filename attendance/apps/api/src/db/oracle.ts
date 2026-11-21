@@ -38,6 +38,8 @@ export interface Db {
 
 export class OracleDb implements Db {
   private readonly pools = new Map<PoolName, Promise<oracledb.Pool>>();
+  /** When a pool last proved unreachable (VPN off): fail fast for a while instead of queueing. */
+  private readonly downSince = new Map<PoolName, number>();
 
   constructor(private readonly configs: Record<PoolName, OraclePoolConfig | null>) {}
 
@@ -58,6 +60,10 @@ export class OracleDb implements Db {
         poolMax: config.poolMax,
         poolIncrement: 1,
         stmtCacheSize: 50,
+        ...(config.connectTimeout && {
+          connectTimeout: config.connectTimeout,
+          queueTimeout: (config.connectTimeout + 10) * 1000,
+        }),
       });
       // A failed pool creation must not be cached; the next request retries.
       pool.catch(() => this.pools.delete(name));
@@ -67,7 +73,22 @@ export class OracleDb implements Db {
   }
 
   private async withConnection<T>(pool: PoolName, use: (c: oracledb.Connection) => Promise<T>) {
-    const connection = await (await this.pool(pool)).getConnection();
+    const message = this.configs[pool]?.unreachableMessage;
+    const since = this.downSince.get(pool);
+    if (message && since !== undefined && Date.now() - since < RETRY_AFTER_MS) {
+      throw new AppError('UNAVAILABLE', message);
+    }
+    let connection: oracledb.Connection;
+    try {
+      connection = await (await this.pool(pool)).getConnection();
+      this.downSince.delete(pool);
+    } catch (error) {
+      if (message && isUnreachable(error)) {
+        this.downSince.set(pool, Date.now());
+        throw new AppError('UNAVAILABLE', message);
+      }
+      throw error;
+    }
     try {
       return await use(connection);
     } finally {
@@ -114,6 +135,17 @@ export class OracleDb implements Db {
     this.pools.clear();
     await Promise.allSettled(pools.map(async (pool) => (await pool).close(5)));
   }
+}
+
+/** Network-level failures (host down, VPN off, timeout), as opposed to SQL errors. */
+/** How long an unreachable database is reported as down before the next real attempt. */
+const RETRY_AFTER_MS = 30_000;
+
+export function isUnreachable(error: unknown): boolean {
+  const text = `${(error as { code?: string })?.code ?? ''} ${(error as Error)?.message ?? ''}`;
+  return /NJS-040|NJS-50[0-9]|NJS-51[0-9]|ORA-121[0-9]{2}|ORA-125[0-9]{2}|ECONNREFUSED|ETIMEDOUT|EHOSTUNREACH|ENOTFOUND|ENETUNREACH/.test(
+    text,
+  );
 }
 
 function toOracleBinds(binds: Binds): oracledb.BindParameters {

@@ -20,7 +20,10 @@ export function createQueryClient(): QueryClient {
       queries: {
         staleTime: 30_000,
         refetchOnWindowFocus: false,
-        retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 2,
+        // No retry for client errors or an unreachable database (EBS without the VPN).
+        retry: (count, error) =>
+          !(error instanceof ApiError && (error.status < 500 || error.code === 'UNAVAILABLE')) &&
+          count < 2,
       },
     },
   });

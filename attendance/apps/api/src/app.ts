@@ -16,7 +16,11 @@ import type { Db } from './db/oracle';
 import { errorHandler, notFound, requireAppHeader } from './middleware/http';
 import { absenceRoutes } from './modules/absences/routes';
 import { alertRoutes } from './modules/alerts/routes';
+import { contractorRoutes } from './modules/contractors/routes';
+import { dailyAttendanceRoutes } from './modules/dailyAttendance/routes';
 import { dashboardRoutes } from './modules/dashboard/routes';
+import { leaveRequestRoutes } from './modules/leaveRequests/routes';
+import { managerRoutes } from './modules/manager/routes';
 import { employeeRoutes } from './modules/employees/routes';
 import { healthRoutes } from './modules/health/routes';
 import { attendanceCardRoutes } from './modules/attendanceCard/routes';
@@ -42,7 +46,7 @@ export interface AppDeps {
 
 export function createApp(deps: AppDeps): Express {
   const { config, logger, db, sessions } = deps;
-  const r = buildRepositories(db, deps.repositories);
+  const r = buildRepositories(db, deps.repositories, config.ebsSource);
 
   const app = express();
   app.disable('x-powered-by');
@@ -90,6 +94,16 @@ export function createApp(deps: AppDeps): Express {
   api.use(payrollFileRoutes({ payroll: r.payroll }));
   api.use(alertRoutes({ alerts: r.alerts }));
   api.use(dashboardRoutes({ dashboard: r.dashboard }));
+  api.use(dailyAttendanceRoutes({ daily: r.daily }));
+  api.use(leaveRequestRoutes({ leave: r.leave }));
+  api.use(managerRoutes({ manager: r.manager }));
+  api.use(
+    contractorRoutes({
+      contractors: r.contractors,
+      employees: r.conEmployees,
+      summary: r.contractorSummary,
+    }),
+  );
   api.use(occasionRoutes({ occasions: r.occasions, list: r.occasionList }));
   api.use(attendanceCardRoutes({ list: r.attendanceCardList, importer: r.attendanceImporter }));
   app.use(API_BASE, api);

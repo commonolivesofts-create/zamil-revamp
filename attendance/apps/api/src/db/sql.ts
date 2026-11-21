@@ -15,7 +15,7 @@ export class Binder {
 }
 
 /** Escapes LIKE wildcards so user input matches literally (CI3 let % and _ act as wildcards). */
-const escapeLike = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
+export const escapeLike = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 /** Case-insensitive "contains": UPPER(expr) LIKE %VALUE%. */
 export const containsCi =
@@ -124,3 +124,22 @@ export const toDay =
   (column: string) =>
   (isoDay: string, b: Binder): string =>
     `${column} < TO_DATE(${b.add(isoDay)}, 'YYYY-MM-DD') + 1`;
+
+/**
+ * One page of `sql` with ROWNUM, the paging CI3 used on EBS (works on every Oracle version).
+ * Adds :rnTo / :rnFrom binds; the ROWNUM column is named RN_.
+ */
+export function rownumPage(sql: string, page: number, limit: number) {
+  return {
+    sql: `SELECT * FROM (SELECT q.*, ROWNUM RN_ FROM (${sql}) q WHERE ROWNUM <= :rnTo) WHERE RN_ > :rnFrom`,
+    binds: { rnTo: page * limit, rnFrom: (page - 1) * limit },
+  };
+}
+
+/** :p0, :p1, ... placeholders and binds for an IN list (CI3 pasted the values into the SQL). */
+export function inBinds(prefix: string, values: readonly (string | number)[]) {
+  return {
+    sql: values.map((_, i) => `:${prefix}${i}`).join(', '),
+    binds: Object.fromEntries(values.map((value, i) => [`${prefix}${i}`, value])),
+  };
+}

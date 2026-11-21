@@ -22,10 +22,18 @@ const envSchema = z
     ADW_POOL_MIN: z.coerce.number().int().min(0).default(0),
     ADW_POOL_MAX: z.coerce.number().int().min(1).default(8),
 
-    EBS_ENABLED: flag.default(false),
-    EBS_USER: z.string().optional(),
-    EBS_PASSWORD: z.string().optional(),
+    // Oracle E-Business Suite, the same keys as zamil-attendance/.env (reachable on the Zamil LAN/VPN).
+    EBS_ENABLED: flag.default(true),
+    EBS_DB_HOST: z.string().optional(),
+    EBS_DB_PORT: z.coerce.number().int().min(1).max(65535).default(1521),
+    EBS_DB_SID: z.string().optional(),
+    EBS_DB_USERNAME: z.string().optional(),
+    EBS_DB_PASSWORD: z.string().optional(),
+    EBS_DB_CONNECT_TIMEOUT: z.coerce.number().int().min(1).max(120).default(10),
+    /** Optional full descriptor or alias instead of host/port/SID. */
     EBS_CONNECT_STRING: z.string().optional(),
+    /** ebs = the EBS database (VPN), adw = ADW copies of the EBS tables (EBS-CONNECTIVITY.md, Option B). */
+    EBS_SOURCE: z.enum(['ebs', 'adw']).default('ebs'),
 
     ZAMIL_AUTH_API_BASE_URL: z.url().default('http://127.0.0.1:7381/api/v1'),
     ZAMIL_AUTH_SESSION_COOKIE_NAME: z
@@ -36,10 +44,13 @@ const envSchema = z
     ZAMIL_AUTH_COOKIE_SAMESITE: z.enum(['lax', 'strict']).default('lax'),
   })
   .superRefine((env, ctx) => {
-    if (env.EBS_ENABLED) {
-      for (const key of ['EBS_USER', 'EBS_PASSWORD', 'EBS_CONNECT_STRING'] as const) {
+    if (env.EBS_ENABLED && (env.EBS_DB_HOST || env.EBS_CONNECT_STRING)) {
+      const required = env.EBS_CONNECT_STRING
+        ? (['EBS_DB_USERNAME', 'EBS_DB_PASSWORD'] as const)
+        : (['EBS_DB_USERNAME', 'EBS_DB_PASSWORD', 'EBS_DB_SID'] as const);
+      for (const key of required) {
         if (!env[key])
-          ctx.addIssue({ code: 'custom', path: [key], message: 'required when EBS_ENABLED=true' });
+          ctx.addIssue({ code: 'custom', path: [key], message: 'required for the EBS connection' });
       }
     }
     const apiPath = new URL(env.ZAMIL_AUTH_API_BASE_URL).pathname.replace(/\/+$/, '');
@@ -81,6 +92,10 @@ export interface OraclePoolConfig {
   walletPassword?: string;
   poolMin: number;
   poolMax: number;
+  /** Seconds to wait for the network connection (EBS behind the VPN). */
+  connectTimeout?: number;
+  /** Message shown when the database cannot be reached. */
+  unreachableMessage?: string;
 }
 
 export interface AppConfig {
@@ -90,10 +105,22 @@ export interface AppConfig {
   session: { secret: string; secure: boolean };
   adw: OraclePoolConfig;
   ebs: OraclePoolConfig | null;
+  /** Where EBS data is read from (see db/ebsSource.ts). */
+  ebsSource: 'ebs' | 'adw';
   auth: { zamil: ZamilAuthConfig };
 }
 
 export class ConfigError extends Error {}
+
+/** The same descriptor zamil-attendance builds (application/config/database.php, $db['ebs']). */
+export function ebsDescriptor(
+  host: string,
+  port: number,
+  sid: string,
+  connectTimeout: number,
+): string {
+  return `(DESCRIPTION=(CONNECT_TIMEOUT=${connectTimeout})(ADDRESS=(PROTOCOL=TCP)(HOST=${host})(PORT=${port}))(CONNECT_DATA=(SID=${sid})))`;
+}
 
 /** `KEY=` in .env means "not set", so defaults apply. */
 function dropEmpty(source: NodeJS.ProcessEnv): Record<string, string> {
@@ -123,15 +150,22 @@ export function loadConfig(source: NodeJS.ProcessEnv, root: string): AppConfig {
       poolMin: e.ADW_POOL_MIN,
       poolMax: e.ADW_POOL_MAX,
     },
-    ebs: e.EBS_ENABLED
-      ? {
-          user: e.EBS_USER!,
-          password: e.EBS_PASSWORD!,
-          connectString: e.EBS_CONNECT_STRING!,
-          poolMin: 0,
-          poolMax: 4,
-        }
-      : null,
+    ebs:
+      e.EBS_ENABLED && (e.EBS_DB_HOST || e.EBS_CONNECT_STRING)
+        ? {
+            user: e.EBS_DB_USERNAME!,
+            password: e.EBS_DB_PASSWORD!,
+            connectString:
+              e.EBS_CONNECT_STRING ??
+              ebsDescriptor(e.EBS_DB_HOST!, e.EBS_DB_PORT, e.EBS_DB_SID!, e.EBS_DB_CONNECT_TIMEOUT),
+            poolMin: 0,
+            poolMax: 4,
+            connectTimeout: e.EBS_DB_CONNECT_TIMEOUT,
+            unreachableMessage:
+              'The E-Business Suite database cannot be reached. Connect to the Zamil VPN (or office network) and try again.',
+          }
+        : null,
+    ebsSource: e.EBS_SOURCE,
     auth: {
       zamil: {
         apiBaseUrl: e.ZAMIL_AUTH_API_BASE_URL.replace(/\/+$/, ''),

@@ -1,5 +1,6 @@
 // First-run helper (runs before `npm run dev`): creates .env from .env.example with a random
-// SESSION_SECRET and, when ../server/.env exists, the test-ADW credentials Zamil already uses.
+// SESSION_SECRET, the test-ADW credentials from ../server/.env and the EBS connection from
+// ../zamil-attendance/.env (when those files exist).
 // Never overwrites an existing .env and never prints secret values.
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -10,6 +11,7 @@ import { parseEnv } from 'node:util';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const envPath = path.join(root, '.env');
 const serverEnvPath = path.join(root, '..', 'server', '.env');
+const ci3EnvPath = path.join(root, '..', 'zamil-attendance', '.env');
 
 if (!existsSync(envPath)) {
   let content = readFileSync(path.join(root, '.env.example'), 'utf8');
@@ -33,6 +35,23 @@ if (!existsSync(envPath)) {
       if (server[from]) {
         set(to, server[from]);
         copied.push(to);
+      }
+    }
+  }
+  // EBS: the same connection as the CI3 app (zamil-attendance/.env).
+  if (existsSync(ci3EnvPath)) {
+    const ci3 = parseEnv(readFileSync(ci3EnvPath, 'utf8'));
+    for (const key of [
+      'EBS_DB_HOST',
+      'EBS_DB_PORT',
+      'EBS_DB_SID',
+      'EBS_DB_USERNAME',
+      'EBS_DB_PASSWORD',
+      'EBS_DB_CONNECT_TIMEOUT',
+    ]) {
+      if (ci3[key]) {
+        set(key, ci3[key]);
+        copied.push(key);
       }
     }
   }

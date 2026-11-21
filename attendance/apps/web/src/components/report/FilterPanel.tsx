@@ -11,6 +11,7 @@ export function FilterPanel<F extends FilterValues>({
   applied,
   initial,
   onApply,
+  validate,
 }: {
   id: string;
   open: boolean;
@@ -18,17 +19,24 @@ export function FilterPanel<F extends FilterValues>({
   applied: F;
   initial: () => F;
   onApply: (filters: F) => void;
+  validate?: (filters: F) => string | null;
 }) {
   const [draft, setDraft] = useState<F>(applied);
+  const [error, setError] = useState<string | null>(null);
+  const apply = (next: F) => {
+    const message = validate?.(next) ?? null;
+    setError(message);
+    if (!message) onApply(next);
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    onApply(draft);
+    apply(draft);
   };
   const reset = () => {
     const next = initial();
     setDraft(next);
-    onApply(next);
+    apply(next);
   };
   const set = (key: keyof F & string, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -89,6 +97,11 @@ export function FilterPanel<F extends FilterValues>({
             </button>
           </div>
         </form>
+        {error && (
+          <p className="zrv-admin-feedback zrv-admin-feedback--error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </div>
   );

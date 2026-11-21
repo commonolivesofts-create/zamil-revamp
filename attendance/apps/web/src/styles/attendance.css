@@ -460,3 +460,136 @@
 .zat-person small {
   color: var(--muted);
 }
+
+/* Phase 7-8: more KPI tile counts, Manager View, Contractor Summary */
+.zat-report .zat-kpis-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.zat-report .zat-kpis-6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1100px) {
+  .zat-report .zat-kpis-4,
+  .zat-report .zat-kpis-6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .zat-report .zat-kpis-4,
+  .zat-report .zat-kpis-6 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.zat-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .zat-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zat-card-note {
+  margin: 0 16px 8px;
+}
+
+.zat-person--row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zat-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--surface);
+  background: var(--text);
+}
+
+.zat-approvals {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.zat-approval {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.zat-approval div {
+  display: grid;
+  gap: 2px;
+}
+
+.zat-approval small {
+  color: var(--muted);
+}
+
+.zat-approval__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.zat-summary-filters {
+  margin-bottom: 12px;
+}
+
+.zat-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.zat-tab {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.zat-tab.is-active {
+  color: var(--text);
+  border-color: var(--line);
+  background: var(--surface-2);
+}
+
+.zat-tabs__actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.zat-report .zrv-ir-table tr.zat-subtotal > * {
+  font-weight: 700;
+  background: var(--surface-2);
+}

@@ -31,8 +31,8 @@ export function ReportPage<F extends FilterValues, T, P extends Paged<T> = Paged
         <div className="zrv-ir-head__title">
           <nav aria-label="Breadcrumb">
             <ol className="zrv-ir-crumb">
-              {config.breadcrumb.map((item) => (
-                <li key={item}>{item}</li>
+              {config.breadcrumb.map((item, index) => (
+                <li key={`${index}-${item}`}>{item}</li>
               ))}
             </ol>
           </nav>
@@ -43,6 +43,19 @@ export function ReportPage<F extends FilterValues, T, P extends Paged<T> = Paged
           )}
         </div>
         <div className="zrv-ir-head__actions">
+          {config.searchPlaceholder && (
+            <span className="zrv-ir-search">
+              <OrvexaIcon name="search" size={16} />
+              <input
+                type="search"
+                maxLength={100}
+                aria-label="Search"
+                placeholder={config.searchPlaceholder}
+                value={report.searchText}
+                onChange={(event) => report.setSearchText(event.target.value)}
+              />
+            </span>
+          )}
           {config.headerActions}
           <button
             type="button"
@@ -86,6 +99,7 @@ export function ReportPage<F extends FilterValues, T, P extends Paged<T> = Paged
         fields={config.filters}
         applied={report.filters}
         initial={config.resetFilters ?? config.initialFilters}
+        validate={config.validateFilters}
         onApply={report.applyFilters}
       />
 

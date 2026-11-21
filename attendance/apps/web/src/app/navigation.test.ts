@@ -19,8 +19,8 @@ describe('navigation', () => {
     expect(new Set(ALL_NAV_ITEMS.map((i) => i.path)).size).toBe(19);
   });
 
-  it('marks exactly the pages of phases 2-6 as built', () => {
-    const built = ALL_NAV_ITEMS.filter((i) => i.phase >= 2 && i.phase <= 6).map((i) => i.id);
+  it('marks exactly the pages of phases 2-8 as built', () => {
+    const built = ALL_NAV_ITEMS.filter((i) => i.phase >= 2 && i.phase <= 8).map((i) => i.id);
     expect([...BUILT_PAGES].sort()).toEqual(built.sort());
     expect(findNavItem('/report/absence')?.label).toBe('Absence');
   });

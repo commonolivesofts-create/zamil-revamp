@@ -160,6 +160,12 @@ export const BUILT_PAGES = new Set([
   'timesheet',
   'payroll-file',
   'alerts-exceptions',
+  'daily-attendance',
+  'leave-requests',
+  'manager',
+  'contractor',
+  'contractor-employees',
+  'contractor-summary',
 ]);
 
 export const ALL_NAV_ITEMS: readonly NavItem[] = NAVIGATION.flatMap((section) => section.items);

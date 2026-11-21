@@ -17,8 +17,26 @@ import type {
   TimesheetFilters,
   TimesheetRow,
 } from '@attendance/shared';
+import { ebsSource } from './db/ebsSource';
 import type { Db } from './db/oracle';
 import { absenceRepository } from './modules/absences/repository';
+import {
+  dailyAttendanceRepository,
+  type DailyAttendanceRepository,
+} from './modules/dailyAttendance/repository';
+import {
+  oracleLeaveRequestRepository,
+  type LeaveRequestRepository,
+} from './modules/leaveRequests/routes';
+import { oracleManagerRepository, type ManagerRepository } from './modules/manager/repository';
+import {
+  oracleConEmployeeRepository,
+  oracleContractorRepository,
+  oracleContractorSummaryRepository,
+  type ConEmployeeRepository,
+  type ContractorRepository,
+  type ContractorSummaryRepository,
+} from './modules/contractors/repository';
 import { oracleAlertsRepository, type AlertsRepository } from './modules/alerts/repository';
 import {
   attendanceCardListRepository,
@@ -74,9 +92,21 @@ export interface Repositories {
   payroll: PayrollFileRepository;
   alerts: AlertsRepository;
   dashboard: DashboardRepository;
+  daily: DailyAttendanceRepository;
+  leave: LeaveRequestRepository;
+  manager: ManagerRepository;
+  contractors: ContractorRepository;
+  conEmployees: ConEmployeeRepository;
+  contractorSummary: ContractorSummaryRepository;
 }
 
-export function buildRepositories(db: Db, overrides: Partial<Repositories> = {}): Repositories {
+export function buildRepositories(
+  db: Db,
+  overrides: Partial<Repositories> = {},
+  /** Where EBS data is read from (EBS_SOURCE). */
+  ebsMode: 'ebs' | 'adw' = 'ebs',
+): Repositories {
+  const ebs = ebsSource(ebsMode);
   return {
     employees: overrides.employees ?? employeeRepository(db),
     absences: overrides.absences ?? absenceRepository(db),
@@ -94,5 +124,11 @@ export function buildRepositories(db: Db, overrides: Partial<Repositories> = {})
     payroll: overrides.payroll ?? oraclePayrollFileRepository(db),
     alerts: overrides.alerts ?? oracleAlertsRepository(db),
     dashboard: overrides.dashboard ?? oracleDashboardRepository(db),
+    daily: overrides.daily ?? dailyAttendanceRepository(db, ebs),
+    leave: overrides.leave ?? oracleLeaveRequestRepository(db),
+    manager: overrides.manager ?? oracleManagerRepository(db, ebs),
+    contractors: overrides.contractors ?? oracleContractorRepository(db, ebs),
+    conEmployees: overrides.conEmployees ?? oracleConEmployeeRepository(db, ebs),
+    contractorSummary: overrides.contractorSummary ?? oracleContractorSummaryRepository(db, ebs),
   };
 }

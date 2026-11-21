@@ -41,12 +41,18 @@ export interface CsvExport<T> {
   bom?: boolean;
 }
 
-export function sendCsv<T>(res: Response, spec: CsvExport<T>, rows: readonly T[]): void {
+export function sendCsv<T>(
+  res: Response,
+  spec: CsvExport<T>,
+  rows: readonly T[],
+  /** CI3 file name when it was not prefix_YYYYMMDD_HHMMSS.csv. */
+  fileName?: string,
+): void {
   if (rows.length === 0 && !spec.allowEmpty) throw new AppError('NOT_FOUND', spec.emptyMessage);
   res
     .status(200)
     .type(spec.bom ? 'text/csv; charset=UTF-8' : 'text/csv')
-    .attachment(csvFileName(spec.filePrefix))
+    .attachment(fileName ?? csvFileName(spec.filePrefix))
     .send(`${spec.bom ? '﻿' : ''}${toCsv(spec.columns, rows)}`);
 }
 

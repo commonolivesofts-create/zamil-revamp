@@ -4,7 +4,7 @@ import { Badge } from './Badge';
 export function StatusBadge({ status }: { status: string | null }) {
   const value = (status ?? '').trim().toUpperCase();
   if (!value) return <>—</>;
-  return <Badge tone={value === 'ACTIVE' ? 'good' : 'neutral'}>{value}</Badge>;
+  return <Badge tone={value === 'ACTIVE' ? 'good' : 'neutral'}>{(status ?? '').trim()}</Badge>;
 }
 
 export function YesNoBadge({ value }: { value: string | null }) {

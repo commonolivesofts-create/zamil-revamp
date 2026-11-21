@@ -50,6 +50,10 @@ export interface ReportConfig<F extends FilterValues, T, P extends Paged<T> = Pa
   summary?: (data: P) => ReactNode;
   /** A line under the subtitle, from the list response (e.g. "Generated …"). */
   headerNote?: (data: P) => ReactNode;
+  /** Shows CI3's free-text search box (only on pages that had one), with this placeholder. */
+  searchPlaceholder?: string;
+  /** Checked before filters are applied; a message blocks Apply (CI3 client-side checks). */
+  validateFilters?: (filters: F) => string | null;
   /** Allow exporting an empty list (CI3 Alerts wrote a header-only file). */
   exportWhenEmpty?: boolean;
   /** Extra buttons in the page header (e.g. "Add shift"), shown before Filter. */
