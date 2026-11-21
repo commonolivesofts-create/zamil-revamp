@@ -56,16 +56,12 @@ export const shiftRowSchema = z.object({
 export type ShiftRow = z.infer<typeof shiftRowSchema>;
 export const shiftPageSchema = pagedSchema(shiftRowSchema);
 
-/** Overtime cap: hours as a number ('2', '1.5') or 'H:MM' ('2:30'); empty = no cap. */
-export const OVERTIME_CAP = /^(?:\d{1,3}(?:\.\d{1,2})?|\d{1,3}:[0-5]\d)$/;
+/** Overtime cap: free text up to 20 characters, as in CI3 (processing reads hours or H:MM). */
 const overtimeCap = (label: string) =>
   z
     .string()
     .trim()
     .max(20, `The ${label} field cannot exceed 20 characters in length.`)
-    .refine((value) => value === '' || OVERTIME_CAP.test(value), {
-      message: `The ${label} field must be hours (e.g. 2 or 1.5) or H:MM (e.g. 2:30).`,
-    })
     .transform((value) => (value === '' ? null : value))
     .nullable()
     .optional()
@@ -86,19 +82,6 @@ export const shiftInputSchema = z
     endNotBeforeStart('startDate', 'endDate', 'End Date must be on or after Start Date.'),
   );
 export type ShiftInput = z.infer<typeof shiftInputSchema>;
-
-export const SHIFT_EXPORT_COLUMNS = [
-  { key: 'shiftName', label: 'Shift Name' },
-  { key: 'startDate', label: 'Start Date' },
-  { key: 'endDate', label: 'End Date' },
-  { key: 'status', label: 'Status' },
-  { key: 'checkIn', label: 'Check In' },
-  { key: 'checkOut', label: 'Check Out' },
-  { key: 'weekdayOvertimeCap', label: 'Weekday Overtime Cap' },
-  { key: 'weekendOvertimeCap', label: 'Weekend Overtime Cap' },
-  { key: 'createdAt', label: 'Created At' },
-  { key: 'updatedAt', label: 'Updated At' },
-] as const satisfies readonly { key: keyof ShiftRow; label: string }[];
 
 /* ---- Sub Shifts (weekly detail) ---- */
 

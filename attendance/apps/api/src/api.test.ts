@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { MAX_EXPORT_ROWS, type AbsenceRow, type EmployeeRow } from '@attendance/shared';
-import { BOM, toCsv } from './lib/csv';
+import type { AbsenceRow, EmployeeRow } from '@attendance/shared';
+import { dMY, dMYTime, oracleDate, toCsv } from './lib/csv';
 import { fakeDb, fakeIdentities, fakeReport, H, identity, signIn, testApp } from './test-utils';
 
 const employee = (n: number): EmployeeRow => ({
@@ -52,7 +52,15 @@ describe('single sign-on', () => {
       .set(H)
       .set('Cookie', 'zr_session=1001')
       .expect(200);
-    expect(res.body).toMatchObject({ userId: 501, employeeNumber: '1001', roles: ['VIEWER'] });
+    expect(res.body).toEqual({
+      userId: 501,
+      userName: 'test.user',
+      employeeNumber: '1001',
+      fullName: 'Test Employee',
+      email: 'test@example.com',
+      jobTitle: 'Analyst',
+      department: 'IT',
+    });
     const cookie = (res.headers['set-cookie'] as unknown as string[]).join(';');
     expect(cookie).toMatch(/at_session=.+HttpOnly/i);
     expect(cookie).toMatch(/SameSite=Strict/i);
@@ -62,18 +70,6 @@ describe('single sign-on', () => {
       .set('Cookie', await signIn(app))
       .expect(200);
     expect(me.body.fullName).toBe('Test Employee');
-  });
-
-  it('derives HR admin and manager roles', async () => {
-    const app = testApp({
-      identities: fakeIdentities(identity({ employeeNumber: '9001', hasDirectReports: true })),
-    });
-    const res = await request(app)
-      .post('/api/v1/auth/sso')
-      .set(H)
-      .set('Cookie', 'zr_session=9001')
-      .expect(200);
-    expect(res.body.roles).toEqual(['HR_ADMIN', 'MANAGER', 'VIEWER']);
   });
 
   it('refuses Zamil users without an attendance employee record', async () => {
@@ -156,7 +152,7 @@ describe('employee details report', () => {
     ]);
   });
 
-  it('exports the displayed columns as UTF-8 CSV', async () => {
+  it('exports like CI3: raw column names, Oracle date format, no BOM, CI3 file name', async () => {
     const report = fakeReport([employee(1)]);
     const app = testApp({ repositories: { employees: report.repository } });
     const res = await request(app)
@@ -165,28 +161,28 @@ describe('employee details report', () => {
       .set('Cookie', await signIn(app))
       .send({ search: 'emp' })
       .expect(200);
-    expect(res.headers['content-type']).toBe('text/csv; charset=utf-8');
+    expect(res.headers['content-type']).toMatch(/^text\/csv/);
     expect(res.headers['content-disposition']).toMatch(
-      /attachment; filename="?employee_details_\d{8}_\d{6}\.csv"?/,
+      /attachment; filename="?employee_data_\d{8}_\d{6}\.csv"?/,
     );
     expect(res.text).toBe(
-      BOM +
-        'Emp No,Employee Name,Email,Job Title,Department,Joining Date\r\n' +
-        '1001,Employee 1,e1@example.com,Operator,Production,2020-01-15\r\n',
+      'USER_ID,EMPLOYEE_NUMBER,FULL_NAME,EMAIL_ADDRESS,JOB_TITLE,DEPARTMENT,JOINING_DATE\n' +
+        '1,1001,"Employee 1",e1@example.com,Operator,Production,15-JAN-20\n',
     );
     expect(report.calls.export[0]).toEqual({ search: 'emp', filters: {} });
   });
 
-  it('refuses exports larger than the cap', async () => {
-    const big = fakeReport(Array.from({ length: MAX_EXPORT_ROWS + 1 }, (_, i) => employee(i)));
-    const app = testApp({ repositories: { employees: big.repository } });
+  it('answers an empty export with the CI3 message', async () => {
+    const app = testApp({
+      repositories: { employees: fakeReport<never, EmployeeRow>([]).repository },
+    });
     const res = await request(app)
       .post('/api/v1/employees/export')
       .set(H)
       .set('Cookie', await signIn(app))
       .send({})
-      .expect(400);
-    expect(res.body.error.message).toMatch(/Narrow the filters/);
+      .expect(404);
+    expect(res.body.error.message).toBe('No employee data found to export.');
   });
 });
 
@@ -221,8 +217,18 @@ describe('absence report', () => {
 });
 
 describe('csv', () => {
-  it('quotes separators and neutralises formulas', () => {
-    const csv = toCsv([{ key: 'a', label: 'A' }], [{ a: 'x,"y"' }, { a: '=SUM(A1)' }, { a: null }]);
-    expect(csv).toBe(BOM + 'A\r\n"x,""y"""\r\n\'=SUM(A1)\r\n\r\n');
+  it('quotes like PHP fputcsv (comma, quote, whitespace) with \\n line endings', () => {
+    const csv = toCsv(
+      [{ label: 'A', value: (r: { a: string | null }) => r.a }],
+      [{ a: 'x,"y"' }, { a: 'two words' }, { a: 'plain' }, { a: null }],
+    );
+    expect(csv).toBe('A\n"x,""y"""\n"two words"\nplain\n\n');
+  });
+
+  it('formats values the CI3 way', () => {
+    expect(dMY('2026-01-05')).toBe('05 Jan 2026');
+    expect(dMYTime('2026-01-05 14:30:00')).toBe('05 Jan 2026, 02:30 PM');
+    expect(dMYTime('2026-01-05 00:05:00')).toBe('05 Jan 2026, 12:05 AM');
+    expect(oracleDate('2020-01-15')).toBe('15-JAN-20');
   });
 });

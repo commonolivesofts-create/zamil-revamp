@@ -22,6 +22,11 @@ describe('normalizeDate', () => {
     ['15 Jan 2024', '2024-01-15'],
     ['15-Jan-2024', '2024-01-15'],
     ['20240115', '2024-01-15'], // CI3 treated this as an Excel serial
+    ['2024/01/15', '2024-01-15'], // formats CI3 accepted through strtotime()
+    ['15.01.2024', '2024-01-15'],
+    ['15 January 2024', '2024-01-15'],
+    ['January 15, 2024', '2024-01-15'],
+    ['Jan 15 2024', '2024-01-15'],
     [45306, '2024-01-15'], // Excel serial
     ['31/02/2024', null],
     ['tomorrow', null],

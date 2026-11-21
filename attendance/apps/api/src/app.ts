@@ -72,7 +72,6 @@ export function createApp(deps: AppDeps): Express {
       sessions,
       identities: deps.identities,
       zamil: config.auth.zamil,
-      hrAdmins: config.auth.hrAdmins,
       resolveZamil: deps.resolveZamil,
       revokeZamil: deps.revokeZamil,
     }),

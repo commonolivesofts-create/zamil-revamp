@@ -3,7 +3,7 @@
 import {
   absencePageSchema,
   APPROVAL_STATUSES,
-  payrollPeriodContaining,
+  payrollPeriodEndingThisMonth,
   type AbsenceFilters,
   type AbsenceRow,
 } from '@attendance/shared';
@@ -21,7 +21,7 @@ const config: ReportConfig<Filters, AbsenceRow> = {
   pageSchema: absencePageSchema,
   breadcrumb: ['Attendance', 'Reports', 'Absence'],
   title: 'Absence Details',
-  subtitle: 'Leave and absence records. Opens on the current payroll period (21st to 20th).',
+  subtitle: 'Leave and absence records, from the 21st of last month to the 20th of this month.',
   heading: 'All absence records',
   filters: [
     { key: 'empName', label: 'Employee', type: 'text', placeholder: 'Employee name' },
@@ -39,7 +39,7 @@ const config: ReportConfig<Filters, AbsenceRow> = {
     { key: 'leaveTo', label: 'Leave to', type: 'date' },
   ],
   initialFilters: () => {
-    const period = payrollPeriodContaining(new Date());
+    const period = payrollPeriodEndingThisMonth(new Date());
     return {
       empNo: '',
       empName: '',
@@ -75,7 +75,6 @@ const config: ReportConfig<Filters, AbsenceRow> = {
   ],
   rowKey: (row, index) =>
     `${row.empNo ?? ''}-${row.leaveStartDate ?? ''}-${row.leaveEndDate ?? ''}-${index}`,
-  searchPlaceholder: 'Search employee, department, position, type or status',
   emptyMessage: 'No absence records match the selected filters.',
 };
 

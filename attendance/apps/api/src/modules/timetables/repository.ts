@@ -1,6 +1,7 @@
 // Employee shift assignments, XX_DIGI_TIMETABLE_PR (CI3: Timetable_model).
 // Saving is versioned (CI3 saveTimetableVersion): in one transaction the edited row and any other
-// ACTIVE row for the same employee and shift are set INACTIVE, then a new row is inserted.
+// ACTIVE row for the same employee and shift are set INACTIVE, then a new ACTIVE row is inserted.
+// As in CI3 the new row is always ACTIVE, whatever status the form sent.
 import { randomUUID } from 'node:crypto';
 import type {
   EmployeeLookup,
@@ -16,7 +17,8 @@ import { oracleReportRepository } from '../report';
 const COLUMNS = `t.ID, t.UUID, TO_CHAR(t.EMP_NO) AS EMP_NO, t.EMP_NAME, t.SHIFT_ID, s.SHIFT_NAME,
   TO_CHAR(t.START_DATE, 'YYYY-MM-DD') AS START_DATE, TO_CHAR(t.END_DATE, 'YYYY-MM-DD') AS END_DATE,
   t.OVERTIME_ALLOWED, t.EXCLUDE_TIMESHEET, t.STATUS,
-  TO_CHAR(t.CREATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS CREATED_AT`;
+  TO_CHAR(t.CREATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS CREATED_AT,
+  TO_CHAR(t.UPDATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS UPDATED_AT`;
 const FROM = 'XX_DIGI_TIMETABLE_PR t LEFT JOIN XX_DIGI_SHIFT_PR s ON s.ID = t.SHIFT_ID';
 
 export const timetableListSpec: ListSpec<TimetableFilters> = {
@@ -47,6 +49,7 @@ export const mapTimetableRow = (row: Row): TimetableRow => ({
   excludeTimesheet: str(row.EXCLUDE_TIMESHEET),
   status: str(row.STATUS),
   createdAt: str(row.CREATED_AT),
+  updatedAt: str(row.UPDATED_AT),
 });
 
 export interface TimetableRepository {
@@ -87,18 +90,16 @@ export function oracleTimetableRepository(db: Db): TimetableRepository {
       await db.transaction('adw', async (tx) => {
         if (sourceUuid) {
           const result = await tx.execute(
-            `UPDATE XX_DIGI_TIMETABLE_PR SET STATUS = 'INACTIVE', UPDATED_AT = SYSTIMESTAMP WHERE UUID = :uuid`,
+            `UPDATE XX_DIGI_TIMETABLE_PR SET STATUS = 'INACTIVE' WHERE UUID = :uuid`,
             { uuid: sourceUuid },
           );
           if (result.rowsAffected === 0) throw notFound();
         }
-        if (input.status === 'ACTIVE') {
-          await tx.execute(
-            `UPDATE XX_DIGI_TIMETABLE_PR SET STATUS = 'INACTIVE', UPDATED_AT = SYSTIMESTAMP
-              WHERE EMP_NO = :empNo AND SHIFT_ID = :shiftId AND UPPER(NVL(STATUS, '')) = 'ACTIVE'`,
-            { empNo: Number(input.empNo), shiftId: Number(input.shiftId) },
-          );
-        }
+        await tx.execute(
+          `UPDATE XX_DIGI_TIMETABLE_PR SET STATUS = 'INACTIVE'
+            WHERE EMP_NO = :empNo AND SHIFT_ID = :shiftId AND UPPER(NVL(STATUS, '')) = 'ACTIVE'`,
+          { empNo: Number(input.empNo), shiftId: Number(input.shiftId) },
+        );
         await tx.execute(
           `INSERT INTO XX_DIGI_TIMETABLE_PR (UUID, EMP_NO, EMP_NAME, SHIFT_ID, START_DATE, END_DATE, STATUS,
              OVERTIME_ALLOWED, EXCLUDE_TIMESHEET, CREATED_AT, UPDATED_AT)
@@ -112,7 +113,7 @@ export function oracleTimetableRepository(db: Db): TimetableRepository {
             shiftId: Number(input.shiftId),
             startDate: input.startDate,
             endDate: input.endDate,
-            status: input.status,
+            status: 'ACTIVE',
             overtimeAllowed: input.overtimeAllowed,
             excludeTimesheet: input.excludeTimesheet,
           },

@@ -14,7 +14,10 @@
 - API: `apps/api/src/modules/attendanceCard/` (`fileParser.ts`, `repository.ts`, `routes.ts`)
 - Web: `apps/web/src/features/attendanceCard/`
 
-Legend: **Same** · **Fixed** · **Changed** (needs approval) · **Open**
+Legend: **Same** = as CI3 · **Fixed** = real CI3 bug corrected · **Design** = visual only · **Open**
+
+> **Rule (2026-11-21):** only the design differs from CI3. Behaviour, access (no roles), defaults and
+> exports match CI3; the only exceptions are fixes for real CI3 bugs (marked **Fixed**).
 
 ## List (`/report/attendance-card`)
 
@@ -26,8 +29,8 @@ Legend: **Same** · **Fixed** · **Changed** (needs approval) · **Open**
 - **Punch display:** stored values are normalised to `HH:MM`, as CI3 did.
   - **Fixed:** `8:05` is now zero-padded.
   - **Fixed:** words that `strtotime` happened to accept, such as "noon", no longer show as times.
-- **Export:** same five columns. **Changed:** ISO dates (CI3 used `d M Y`), UTF-8 BOM, file `attendance_card_data_*.csv`.
-- **Header button:** the CI3 page had "Generate Attendance", which is phase 5. Here HR admins get "Upload File" instead. **Changed.**
+- **Export:** same five columns, headers, `d M Y` dates and `-` for missing values, no BOM, file `attendance_card_data_*.csv`. **Same.**
+- **Header button:** "Generate Attendance", as in CI3; it opens the processing engine in phase 5 (shown disabled until then). Upload stays on the Interface page. **Same.**
 
 ## Upload (preview, then import)
 
@@ -56,10 +59,7 @@ Legend: **Same** · **Fixed** · **Changed** (needs approval) · **Open**
 | Header error named First Name as required                                                                 | "First Name is optional" in the message                                      |
 | Import button stayed disabled after a failure                                                             | the user can retry                                                           |
 
-**Changed:**
-
-- Importing requires HR admin.
-- The result table also lists skipped rows.
+**Access:** any signed-in user can upload and import, as in CI3. **Same.**
 
 ## Interface page (`/interface`)
 
@@ -80,4 +80,3 @@ Legend: **Same** · **Fixed** · **Changed** (needs approval) · **Open**
 ## Sign-off
 
 - [x] Gates pass; the file parser has 32 unit tests (dates, times, header detection, CSV/XLSX)
-- [ ] Changed items approved

@@ -52,14 +52,6 @@ export function formatPunch(value: string | null | undefined): string | null {
   return validTime(hours, minutes);
 }
 
-export const ATTENDANCE_CARD_EXPORT_COLUMNS = [
-  { key: 'empNo', label: 'Employee Number' },
-  { key: 'empName', label: 'Employee Name' },
-  { key: 'attDate', label: 'Attendance Date' },
-  { key: 'punchIn', label: 'Punch In' },
-  { key: 'punchOut', label: 'Punch Out' },
-] as const satisfies readonly { key: keyof AttendanceCardRow; label: string }[];
-
 /* ---- File upload (preview / import) ---- */
 
 export const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;

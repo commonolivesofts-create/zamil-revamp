@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   absenceListQuerySchema,
-  can,
   employeeListQuerySchema,
   pageMeta,
   payrollPeriodContaining,
+  payrollPeriodEndingThisMonth,
 } from './index';
 
 describe('payrollPeriodContaining', () => {
@@ -38,6 +38,19 @@ describe('payrollPeriodContaining', () => {
   });
 });
 
+describe('payrollPeriodEndingThisMonth', () => {
+  it('always runs from the previous 21st to the 20th of this month (CI3 pre-filled dates)', () => {
+    expect(payrollPeriodEndingThisMonth(new Date(2026, 10, 25))).toEqual({
+      from: '2026-10-21',
+      to: '2026-11-20',
+    });
+    expect(payrollPeriodEndingThisMonth(new Date(2026, 0, 3))).toEqual({
+      from: '2025-12-21',
+      to: '2026-01-20',
+    });
+  });
+});
+
 describe('list query schemas', () => {
   it('applies defaults and drops empty filters', () => {
     const q = employeeListQuerySchema.parse({ filters: { fullName: '  ', department: ' IT ' } });
@@ -58,13 +71,5 @@ describe('list query schemas', () => {
   it('computes page metadata', () => {
     expect(pageMeta(2, 10, 21)).toEqual({ page: 2, limit: 10, total: 21, totalPages: 3 });
     expect(pageMeta(1, 10, 0).totalPages).toBe(1);
-  });
-});
-
-describe('permissions', () => {
-  it('keeps reports visible to every role, as in CI3', () => {
-    expect(can(['VIEWER'], 'employees:view')).toBe(true);
-    expect(can(['VIEWER'], 'absences:view')).toBe(true);
-    expect(can([], 'employees:view')).toBe(false);
   });
 });

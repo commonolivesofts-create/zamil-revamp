@@ -35,7 +35,6 @@ export interface ReportConfig<F extends FilterValues, T> {
   initialFilters: () => F;
   columns: readonly Column<T>[];
   rowKey: (row: T, index: number) => string;
-  searchPlaceholder: string;
   emptyMessage: string;
   /** Show the CSV export button (default true; needs a POST {endpoint}/export route). */
   exportable?: boolean;

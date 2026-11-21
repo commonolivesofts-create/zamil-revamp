@@ -44,15 +44,3 @@ export const absenceRowSchema = z.object({
 export type AbsenceRow = z.infer<typeof absenceRowSchema>;
 
 export const absencePageSchema = pagedSchema(absenceRowSchema);
-
-export const ABSENCE_COLUMNS = [
-  { key: 'empNo', label: 'Emp No' },
-  { key: 'departmentName', label: 'Department' },
-  { key: 'empName', label: 'Employee Name' },
-  { key: 'position', label: 'Position' },
-  { key: 'leaveStartDate', label: 'Leave Start Date' },
-  { key: 'leaveEndDate', label: 'Leave End Date' },
-  { key: 'totalDays', label: 'Total Days' },
-  { key: 'leaveType', label: 'Leave Type' },
-  { key: 'approvalStatus', label: 'Approval Status' },
-] as const satisfies readonly { key: keyof AbsenceRow; label: string }[];

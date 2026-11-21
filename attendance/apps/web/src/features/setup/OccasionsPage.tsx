@@ -18,7 +18,6 @@ import { YesNoBadge } from '../../components/StatusBadges';
 import { api } from '../../lib/api';
 import { display, formatDateTime, formatIsoDate } from '../../lib/format';
 import { useSave } from '../../lib/useSave';
-import { useCanManage } from './useCanManage';
 import { useShiftChoices } from './useShiftChoices';
 
 type Filters = Required<{ [K in keyof OccasionFilters]: string | undefined }>;
@@ -63,7 +62,6 @@ const toValues = (row: OccasionRow): Values => ({
 });
 
 export default function OccasionsPage() {
-  const canManage = useCanManage();
   const shifts = useShiftChoices();
   const save = useSave(['occasions']);
   const [editing, setEditing] = useState<OccasionRow | 'new' | null>(null);
@@ -164,26 +162,21 @@ export default function OccasionsPage() {
       },
       { key: 'isActive', label: 'Is Active', render: (row) => <YesNoBadge value={row.isActive} /> },
       { key: 'createdAt', label: 'Created At', render: (row) => formatDateTime(row.createdAt) },
-      ...(canManage
-        ? [
-            {
-              key: 'actions',
-              label: 'Action',
-              render: (row: OccasionRow) => (
-                <RowActions
-                  label={`occasion ${row.occasionName ?? ''}`}
-                  onEdit={() => setEditing(row)}
-                  onDelete={() => setDeleting(row)}
-                />
-              ),
-            },
-          ]
-        : []),
+      {
+        key: 'actions',
+        label: 'Action',
+        render: (row: OccasionRow) => (
+          <RowActions
+            label={`occasion ${row.occasionName ?? ''}`}
+            onEdit={() => setEditing(row)}
+            onDelete={() => setDeleting(row)}
+          />
+        ),
+      },
     ],
     rowKey: (row) => String(row.occasionId),
-    searchPlaceholder: 'Search occasion name',
     emptyMessage: 'No occasion data available.',
-    headerActions: canManage && (
+    headerActions: (
       <button
         type="button"
         className="zrv-ir-btn zrv-ir-btn--primary"

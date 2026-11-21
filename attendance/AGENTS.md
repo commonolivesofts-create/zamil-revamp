@@ -3,6 +3,8 @@
 Read [README.md](README.md) first: architecture, phases, parity method, known CI3 issues.
 
 - **Never modify `../zamil-attendance/`.** It is the reference implementation.
+- **Only the design changes.** Keep CI3 behaviour, access (no roles), defaults and exports exactly;
+  only fix real CI3 bugs, and list every fix in the parity report.
 - **Same Oracle tables** as CI3, on the **test ADW** (`zpadwtest_tp`). Never production. Any DDL or
   test-data load in the shared XXZP schema needs the user's explicit approval.
 - **Bind variables only.** Lists use `ListSpec` + `oracleReportRepository` + `reportRoutes`

@@ -3,7 +3,6 @@ export * from './http';
 export * from './list';
 export * from './fields';
 export * from './payrollPeriod';
-export * from './roles';
 export * from './auth';
 export * from './modules/employees';
 export * from './modules/absences';

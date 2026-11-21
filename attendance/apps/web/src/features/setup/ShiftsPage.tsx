@@ -20,7 +20,6 @@ import { StatusBadge } from '../../components/StatusBadges';
 import { api } from '../../lib/api';
 import { display, formatDateTime, formatIsoDate } from '../../lib/format';
 import { useSave } from '../../lib/useSave';
-import { useCanManage } from './useCanManage';
 import { SHIFT_CHOICES_KEY } from './useShiftChoices';
 
 type Filters = Required<{ [K in keyof ShiftFilters]: string | undefined }>;
@@ -63,16 +62,14 @@ const FIELDS: readonly FormField<Values>[] = [
     label: 'Weekday Overtime Cap',
     type: 'text',
     maxLength: 20,
-    placeholder: 'e.g. 2 or 1:30',
-    hint: 'Hours (2, 1.5) or H:MM. Empty = no cap.',
+    placeholder: 'Enter weekday overtime cap',
   },
   {
     name: 'weekendOvertimeCap',
     label: 'Weekend Overtime Cap',
     type: 'text',
     maxLength: 20,
-    placeholder: 'e.g. 8 or 8:00',
-    hint: 'Hours (8, 7.5) or H:MM. Empty = no cap.',
+    placeholder: 'Enter weekend overtime cap',
   },
 ];
 
@@ -99,7 +96,6 @@ const toValues = (row: ShiftRow): Values => ({
 });
 
 export default function ShiftsPage() {
-  const canManage = useCanManage();
   const save = useSave(['shifts', 'shift-weeks', SHIFT_CHOICES_KEY]);
   const [editing, setEditing] = useState<ShiftRow | 'new' | null>(null);
   const [deleting, setDeleting] = useState<ShiftRow | null>(null);
@@ -155,26 +151,21 @@ export default function ShiftsPage() {
         render: (row) => display(row.weekendOvertimeCap),
       },
       { key: 'createdAt', label: 'Created At', render: (row) => formatDateTime(row.createdAt) },
-      ...(canManage
-        ? [
-            {
-              key: 'actions',
-              label: 'Action',
-              render: (row: ShiftRow) => (
-                <RowActions
-                  label={`shift ${row.shiftName ?? ''}`}
-                  onEdit={() => setEditing(row)}
-                  onDelete={() => setDeleting(row)}
-                />
-              ),
-            },
-          ]
-        : []),
+      {
+        key: 'actions',
+        label: 'Action',
+        render: (row: ShiftRow) => (
+          <RowActions
+            label={`shift ${row.shiftName ?? ''}`}
+            onEdit={() => setEditing(row)}
+            onDelete={() => setDeleting(row)}
+          />
+        ),
+      },
     ],
     rowKey: (row) => row.uuid,
-    searchPlaceholder: 'Search name, status, dates or times',
     emptyMessage: 'No shift data available.',
-    headerActions: canManage && (
+    headerActions: (
       <button
         type="button"
         className="zrv-ir-btn zrv-ir-btn--primary"

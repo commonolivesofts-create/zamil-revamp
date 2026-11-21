@@ -1,24 +1,17 @@
 // Attendance Card (CI3 /report/attendance-card): the raw daily punches per employee.
-import { useState } from 'react';
 import {
-  can,
   attendanceCardPageSchema,
   type AttendanceCardFilters,
   type AttendanceCardRow,
 } from '@attendance/shared';
-import { useMe } from '../../app/session';
 import { OrvexaIcon } from '../../components/OrvexaIcon';
 import { ReportPage } from '../../components/report/ReportPage';
 import type { ReportConfig } from '../../components/report/types';
 import { display, formatIsoDate } from '../../lib/format';
-import { UploadDialog } from './UploadDialog';
 
 type Filters = Required<{ [K in keyof AttendanceCardFilters]: string | undefined }>;
 
 export default function AttendanceCardPage() {
-  const canImport = can(useMe().roles, 'attendance:import');
-  const [uploading, setUploading] = useState(false);
-
   const config: ReportConfig<Filters, AttendanceCardRow> = {
     id: 'attendance-card',
     endpoint: '/attendance-card',
@@ -42,24 +35,19 @@ export default function AttendanceCardPage() {
       { key: 'punchOut', label: 'Punch Out', render: (row) => display(row.punchOut) },
     ],
     rowKey: (row, index) => `${row.empNo ?? ''}-${row.attDate ?? index}`,
-    searchPlaceholder: 'Search employee number, name or date',
     emptyMessage: 'No attendance card data available.',
-    headerActions: canImport && (
+    headerActions: (
       <button
         type="button"
         className="zrv-ir-btn zrv-ir-btn--primary"
-        onClick={() => setUploading(true)}
+        disabled
+        title="Attendance processing arrives in phase 5"
       >
-        <OrvexaIcon name="upload" size={16} />
-        Upload File
+        <OrvexaIcon name="plus" size={16} />
+        Generate Attendance
       </button>
     ),
   };
 
-  return (
-    <>
-      <ReportPage config={config} />
-      {uploading && <UploadDialog onClose={() => setUploading(false)} />}
-    </>
-  );
+  return <ReportPage config={config} />;
 }

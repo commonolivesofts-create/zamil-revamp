@@ -2,7 +2,7 @@
 // session's expiry), 30 min idle with sliding refresh. Same model as TrainingHub/ExpenseHub.
 import type { Response } from 'express';
 import { SignJWT, jwtVerify } from 'jose';
-import { ROLES, SESSION_COOKIE, type Role } from '@attendance/shared';
+import { SESSION_COOKIE } from '@attendance/shared';
 
 export const SESSION_ABSOLUTE_SECONDS = 8 * 60 * 60;
 export const SESSION_IDLE_SECONDS = 30 * 60;
@@ -13,7 +13,8 @@ export type Clock = () => Date;
 export interface SessionClaims {
   userId: number;
   employeeNumber: string;
-  roles: Role[];
+  /** XX_DIGI_EMP_MASTER.USER_NAME (recorded as author, as CI3 intended). */
+  userName: string | null;
   /** Absolute expiry (seconds since epoch). */
   abs: number;
   iat: number;
@@ -23,7 +24,7 @@ export interface SessionClaims {
 export interface SessionInput {
   userId: number;
   employeeNumber: string;
-  roles: Role[];
+  userName: string | null;
   abs?: number;
 }
 
@@ -46,7 +47,7 @@ export class SessionService {
     const now = this.now();
     const abs = Math.min(input.abs ?? Number.POSITIVE_INFINITY, now + SESSION_ABSOLUTE_SECONDS);
     const exp = Math.min(now + SESSION_IDLE_SECONDS, abs);
-    const token = await new SignJWT({ emp: input.employeeNumber, roles: input.roles, abs })
+    const token = await new SignJWT({ emp: input.employeeNumber, un: input.userName, abs })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(String(input.userId))
       .setIssuedAt(now)
@@ -68,12 +69,11 @@ export class SessionService {
         currentDate: this.clock(),
       });
       const userId = Number(payload.sub);
-      const { emp, roles, abs, iat, exp } = payload as Record<string, unknown>;
+      const { emp, un, abs, iat, exp } = payload as Record<string, unknown>;
       if (
         !Number.isSafeInteger(userId) ||
         typeof emp !== 'string' ||
-        !Array.isArray(roles) ||
-        !roles.every((role) => (ROLES as readonly unknown[]).includes(role)) ||
+        (un !== null && typeof un !== 'string') ||
         typeof abs !== 'number' ||
         typeof iat !== 'number' ||
         typeof exp !== 'number' ||
@@ -81,7 +81,14 @@ export class SessionService {
       ) {
         return null;
       }
-      return { userId, employeeNumber: emp, roles: roles as Role[], abs, iat, exp };
+      return {
+        userId,
+        employeeNumber: emp,
+        userName: (un as string | null) ?? null,
+        abs,
+        iat,
+        exp,
+      };
     } catch {
       return null;
     }

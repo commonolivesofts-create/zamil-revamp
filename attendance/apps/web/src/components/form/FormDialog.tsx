@@ -16,7 +16,7 @@ export function FormDialog<V extends FormValues>({
   submitLabel,
   onSubmit,
   onClose,
-  onFieldBlur,
+  onFieldChange,
   children,
 }: {
   title: string;
@@ -28,8 +28,8 @@ export function FormDialog<V extends FormValues>({
   /** Persists the values; throw ApiError to show server errors. */
   onSubmit: (values: V) => Promise<void>;
   onClose: () => void;
-  /** e.g. look up an employee name when the number field loses focus. */
-  onFieldBlur?: (name: keyof V & string, values: V, set: (patch: Partial<V>) => void) => void;
+  /** Called after a field changes, e.g. to look up an employee name while the number is typed. */
+  onFieldChange?: (name: keyof V & string, values: V, set: (patch: Partial<V>) => void) => void;
   children?: ReactNode;
 }) {
   const id = useId().replace(/:/g, '');
@@ -76,8 +76,11 @@ export function FormDialog<V extends FormValues>({
               value={values[field.name]}
               error={errors[field.name]}
               disabled={pending}
-              onChange={(value) => set({ [field.name]: value } as Partial<V>)}
-              onBlur={() => onFieldBlur?.(field.name, values, set)}
+              onChange={(value) => {
+                const patch = { [field.name]: value } as Partial<V>;
+                set(patch);
+                onFieldChange?.(field.name, { ...values, ...patch }, set);
+              }}
             />
           ))}
         </div>
@@ -107,7 +110,6 @@ function FieldInput<V extends FormValues>({
   error,
   disabled,
   onChange,
-  onBlur,
 }: {
   id: string;
   field: FormField<V>;
@@ -115,7 +117,6 @@ function FieldInput<V extends FormValues>({
   error?: string;
   disabled: boolean;
   onChange: (value: string | string[]) => void;
-  onBlur: () => void;
 }) {
   const label = field.required ? `${field.label} *` : field.label;
   const describedBy = error ? `${id}-error` : field.hint ? `${id}-hint` : undefined;
@@ -125,7 +126,6 @@ function FieldInput<V extends FormValues>({
     readOnly: field.readOnly,
     'aria-invalid': error ? true : undefined,
     'aria-describedby': describedBy,
-    onBlur,
   };
   const text = typeof value === 'string' ? value : '';
 

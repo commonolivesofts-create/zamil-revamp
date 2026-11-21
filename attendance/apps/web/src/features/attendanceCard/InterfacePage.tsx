@@ -1,13 +1,10 @@
 // Attendance Interface (CI3 /interface): the two data-loading jobs.
 // Upload works now; Generate (attendance processing) arrives in phase 5.
 import { useState } from 'react';
-import { can } from '@attendance/shared';
-import { useMe } from '../../app/session';
 import { OrvexaIcon } from '../../components/OrvexaIcon';
 import { UploadDialog } from './UploadDialog';
 
 export default function InterfacePage() {
-  const canImport = can(useMe().roles, 'attendance:import');
   const [uploading, setUploading] = useState(false);
 
   return (
@@ -40,13 +37,9 @@ export default function InterfacePage() {
               the attendance card. Preview first; only valid rows of active employees are imported.
             </p>
           </div>
-          {canImport ? (
-            <button type="button" className="btn-primary" onClick={() => setUploading(true)}>
-              Upload file
-            </button>
-          ) : (
-            <p className="zat-muted">Only HR admins can import attendance.</p>
-          )}
+          <button type="button" className="btn-primary" onClick={() => setUploading(true)}>
+            Upload file
+          </button>
         </section>
 
         <section className="zrv-ir-card zat-job" aria-labelledby="job-generate">

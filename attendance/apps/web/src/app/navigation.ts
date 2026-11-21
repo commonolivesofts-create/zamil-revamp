@@ -1,15 +1,12 @@
 // The attendance menu, kept in the CI3 groups (views/includes/__sidebar.php) and paths so users
 // find everything where they expect it. `phase` is the README phase that rebuilds the page;
 // pages not rebuilt yet open a "planned" notice instead of fake data.
-import type { Permission } from '@attendance/shared';
-
 export interface NavItem {
   id: string;
   label: string;
   path: string;
   icon: string;
   phase: number;
-  permission?: Permission;
 }
 
 export interface NavSection {
@@ -71,7 +68,6 @@ export const NAVIGATION: readonly NavSection[] = [
         path: '/report/employee-details',
         icon: 'id-card',
         phase: 2,
-        permission: 'employees:view',
       },
       {
         id: 'absence',
@@ -79,7 +75,6 @@ export const NAVIGATION: readonly NavSection[] = [
         path: '/report/absence',
         icon: 'calendar-x',
         phase: 2,
-        permission: 'absences:view',
       },
       {
         id: 'attendance-card',
@@ -145,7 +140,6 @@ export const NAVIGATION: readonly NavSection[] = [
         path: '/function-feature',
         icon: 'list-checks',
         phase: 2,
-        permission: 'planning:view',
       },
     ],
   },

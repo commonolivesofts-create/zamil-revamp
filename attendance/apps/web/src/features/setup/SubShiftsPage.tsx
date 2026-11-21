@@ -14,7 +14,6 @@ import { ReportPage } from '../../components/report/ReportPage';
 import type { ReportConfig } from '../../components/report/types';
 import { StatusBadge } from '../../components/StatusBadges';
 import { display } from '../../lib/format';
-import { useCanManage } from './useCanManage';
 
 type Filters = Required<{ [K in keyof ShiftDetailFilters]: string | undefined }>;
 
@@ -31,12 +30,11 @@ function DayCell({ day }: { day: DayTimes }) {
 }
 
 export default function SubShiftsPage() {
-  const canManage = useCanManage();
   const config: ReportConfig<Filters, ShiftDetailRow> = {
     id: 'shift-weeks',
     endpoint: '/shift-details',
     pageSchema: shiftDetailPageSchema,
-    pageSize: 25,
+    pageSize: 20,
     exportable: false,
     breadcrumb: ['Attendance', 'Setup', 'Sub Shifts'],
     title: 'Sub Shifts',
@@ -66,14 +64,13 @@ export default function SubShiftsPage() {
         label: 'Action',
         render: (row) => (
           <Link className="zrv-ir-btn" to={`/shift-details/${row.uuid}`}>
-            <OrvexaIcon name={canManage ? 'pencil' : 'eye'} size={15} />
-            {canManage ? 'Manage' : 'View'}
+            <OrvexaIcon name="pencil" size={15} />
+            Manage
           </Link>
         ),
       },
     ],
     rowKey: (row) => row.uuid,
-    searchPlaceholder: 'Search shift name or status',
     emptyMessage: 'No shift detail data available.',
   };
   return <ReportPage config={config} />;

@@ -1,13 +1,11 @@
 // State and data for a ReportPage: paging, search (debounced), applied filters, CSV export.
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { DEFAULT_PAGE_SIZE } from '@attendance/shared';
 import { api, apiDownload, errorMessage } from '../../lib/api';
 import { saveBlob } from '../../lib/download';
 import { useToast } from '../toastContext';
 import type { FilterValues, ReportConfig } from './types';
-
-const SEARCH_DELAY_MS = 350;
 
 /** Only filters with a value are sent. */
 export function compactFilters<F extends FilterValues>(filters: F): Partial<F> {
@@ -17,21 +15,12 @@ export function compactFilters<F extends FilterValues>(filters: F): Partial<F> {
 export function useReport<F extends FilterValues, T>(config: ReportConfig<F, T>) {
   const toast = useToast();
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(config.pageSize ?? DEFAULT_PAGE_SIZE);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  const limit = config.pageSize ?? DEFAULT_PAGE_SIZE;
   const [filters, setFilters] = useState<F>(config.initialFilters);
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, SEARCH_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [searchInput]);
-
-  const body = { page, limit, search, filters: compactFilters(filters) };
+  // CI3 pages had no free-text search box; the API keeps the parameter for parity.
+  const body = { page, limit, search: '', filters: compactFilters(filters) };
   const query = useQuery({
     queryKey: [config.id, body],
     queryFn: ({ signal }) =>
@@ -44,16 +33,11 @@ export function useReport<F extends FilterValues, T>(config: ReportConfig<F, T>)
     setPage(1);
   };
 
-  const changeLimit = (next: number) => {
-    setLimit(next);
-    setPage(1);
-  };
-
   const exportCsv = async () => {
     setExporting(true);
     try {
       const { blob, fileName } = await apiDownload(`${config.endpoint}/export`, {
-        search,
+        search: '',
         filters: compactFilters(filters),
       });
       saveBlob(blob, fileName);
@@ -70,9 +54,6 @@ export function useReport<F extends FilterValues, T>(config: ReportConfig<F, T>)
     page,
     setPage,
     limit,
-    changeLimit,
-    searchInput,
-    setSearchInput,
     filters,
     applyFilters,
     exporting,

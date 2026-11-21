@@ -73,19 +73,3 @@ export function normalizeShiftIds(ids: readonly string[]): string | null {
   const clean = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
   return clean.length ? clean.join(',') : null;
 }
-
-export const OCCASION_EXPORT_COLUMNS = [
-  { key: 'occasionName', label: 'Occasion Name' },
-  { key: 'fromDate', label: 'From Date' },
-  { key: 'toDate', label: 'To Date' },
-  { key: 'shiftNames', label: 'Shifts' },
-  { key: 'occasionType', label: 'Occasion Type' },
-  { key: 'countAsPresent', label: 'Count As Present' },
-  { key: 'paidHoliday', label: 'Paid Holiday' },
-  { key: 'isActive', label: 'Is Active' },
-  { key: 'remarks', label: 'Remarks' },
-  { key: 'createdBy', label: 'Created By' },
-  { key: 'createdAt', label: 'Created At' },
-  { key: 'updatedBy', label: 'Updated By' },
-  { key: 'updatedAt', label: 'Updated At' },
-] as const satisfies readonly { key: keyof OccasionRow; label: string }[];

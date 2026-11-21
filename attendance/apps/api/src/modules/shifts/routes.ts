@@ -2,7 +2,6 @@
 // POST /shifts. Sub Shifts: POST /shift-details/list, GET/PUT /shift-details/:uuid.
 import { Router } from 'express';
 import {
-  SHIFT_EXPORT_COLUMNS,
   shiftDetailListQuerySchema,
   shiftExportQuerySchema,
   shiftInputSchema,
@@ -13,13 +12,41 @@ import {
   type ShiftFilters,
   type ShiftRow,
 } from '@attendance/shared';
-import { requirePermission } from '../../auth/middleware';
+import { requireAuth } from '../../auth/middleware';
+import { dash, dMY, dMYTime, type CsvExport } from '../../lib/csv';
 import { AppError } from '../../lib/errors';
 import { body, uuidParam } from '../http';
 import { reportRoutes, type ReportRepository } from '../report';
 import type { ShiftRepository } from './repository';
 
 const NOT_FOUND = 'Shift not found.';
+
+/** CI3 export: the 19 keys of Shifts::serializeShift, in order, with its formats. */
+export const SHIFT_EXPORT: CsvExport<ShiftRow> = {
+  filePrefix: 'shift_data',
+  emptyMessage: 'No shift data found to export.',
+  columns: [
+    { label: 'id', value: (r) => r.id },
+    { label: 'uuid', value: (r) => r.uuid },
+    { label: 'shift_name', value: (r) => r.shiftName },
+    { label: 'start_date', value: (r) => r.startDate },
+    { label: 'end_date', value: (r) => r.endDate },
+    { label: 'status', value: (r) => r.status },
+    { label: 'check_in', value: (r) => r.checkIn },
+    { label: 'check_out', value: (r) => r.checkOut },
+    { label: 'created_at', value: (r) => dMYTime(r.createdAt) },
+    { label: 'updated_at', value: (r) => dMYTime(r.updatedAt) },
+    { label: 'start_date_display', value: (r) => dash(dMY(r.startDate)) },
+    { label: 'end_date_display', value: (r) => dash(dMY(r.endDate)) },
+    { label: 'status_display', value: (r) => dash(r.status) },
+    { label: 'check_in_display', value: (r) => dash(r.checkIn) },
+    { label: 'check_out_display', value: (r) => dash(r.checkOut) },
+    { label: 'weekday_ovrtm_cap', value: (r) => r.weekdayOvertimeCap },
+    { label: 'weekend_ovrtm_cap', value: (r) => r.weekendOvertimeCap },
+    { label: 'weekday_ovrtm_cap_display', value: (r) => dash(r.weekdayOvertimeCap) },
+    { label: 'weekend_ovrtm_cap_display', value: (r) => dash(r.weekendOvertimeCap) },
+  ],
+};
 const duplicateName = () =>
   new AppError('VALIDATION', 'The Shift Name already exists. Please use a unique value.', {
     issues: [
@@ -33,49 +60,41 @@ export function shiftRoutes(deps: {
   weekList: ReportRepository<ShiftDetailFilters, ShiftDetailRow>;
 }): Router {
   const router = Router();
-  const view = requirePermission('setup:view');
-  const manage = requirePermission('setup:manage');
 
   router.use(
     reportRoutes({
       path: '/shifts',
-      permission: 'setup:view',
       listSchema: shiftListQuerySchema,
       repository: deps.list,
-      csv: {
-        exportSchema: shiftExportQuerySchema,
-        columns: SHIFT_EXPORT_COLUMNS,
-        filePrefix: 'shift_data',
-      },
+      csv: { ...SHIFT_EXPORT, exportSchema: shiftExportQuerySchema },
     }),
   );
   router.use(
     reportRoutes({
       path: '/shift-details',
-      permission: 'setup:view',
       listSchema: shiftDetailListQuerySchema,
       repository: deps.weekList,
     }),
   );
 
-  router.get('/shifts/choices', view, async (_req, res) => {
+  router.get('/shifts/choices', requireAuth, async (_req, res) => {
     res.json(await deps.shifts.choices());
   });
 
-  router.get('/shifts/:uuid', view, async (req, res) => {
+  router.get('/shifts/:uuid', requireAuth, async (req, res) => {
     const shift = await deps.shifts.findByUuid(uuidParam(req, NOT_FOUND));
     if (!shift) throw new AppError('NOT_FOUND', NOT_FOUND);
     res.json(shift);
   });
 
-  router.post('/shifts', manage, async (req, res) => {
+  router.post('/shifts', requireAuth, async (req, res) => {
     const input = body(shiftInputSchema, req);
     if (await deps.shifts.nameExists(input.shiftName)) throw duplicateName();
     const shift = await deps.shifts.insert(input);
     res.status(201).json({ message: 'Shift added successfully.', shift });
   });
 
-  router.put('/shifts/:uuid', manage, async (req, res) => {
+  router.put('/shifts/:uuid', requireAuth, async (req, res) => {
     const uuid = uuidParam(req, NOT_FOUND);
     const input = body(shiftInputSchema, req);
     if (await deps.shifts.nameExists(input.shiftName, uuid)) throw duplicateName();
@@ -87,16 +106,16 @@ export function shiftRoutes(deps: {
     });
   });
 
-  router.delete('/shifts/:uuid', manage, async (req, res) => {
+  router.delete('/shifts/:uuid', requireAuth, async (req, res) => {
     await deps.shifts.remove(uuidParam(req, NOT_FOUND));
     res.json({ message: 'Shift deleted successfully.' });
   });
 
-  router.get('/shift-details/:uuid', view, async (req, res) => {
+  router.get('/shift-details/:uuid', requireAuth, async (req, res) => {
     res.json(await deps.shifts.week(uuidParam(req, 'Selected shift was not found.')));
   });
 
-  router.put('/shift-details/:uuid', manage, async (req, res) => {
+  router.put('/shift-details/:uuid', requireAuth, async (req, res) => {
     const uuid = uuidParam(req, 'Selected shift was not found.');
     const input = body(shiftWeekInputSchema, req);
     const { existed } = await deps.shifts.saveWeek(uuid, input);

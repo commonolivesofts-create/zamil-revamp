@@ -144,6 +144,17 @@ describe('timetable repository', () => {
     expect(outcomes).toEqual(['commit']);
   });
 
+  it('always saves the new version as ACTIVE, whatever status was chosen (CI3)', async () => {
+    const { db, statements } = scriptedDb((s) =>
+      s.sql.startsWith('SELECT') ? [{ ID: 9, UUID: 'new' }] : undefined,
+    );
+    await oracleTimetableRepository(db).saveVersion({ ...input, status: 'INACTIVE' });
+    const writes = statements.filter((s) => s.kind === 'execute');
+    expect(writes.map((s) => s.sql.split(' ')[0])).toEqual(['UPDATE', 'INSERT']);
+    expect(writes[0]!.sql).not.toContain('UPDATED_AT');
+    expect(writes[1]!.binds).toMatchObject({ status: 'ACTIVE' });
+  });
+
   it('rolls back when the edited row does not exist', async () => {
     const { db, outcomes } = scriptedDb((s) =>
       s.kind === 'execute' ? { rowsAffected: 0 } : undefined,
@@ -241,32 +252,44 @@ describe('attendance importer', () => {
 describe('setup routes', () => {
   const admin = identity({ employeeNumber: '9001', userId: 1 });
 
-  it('lets viewers read but not change setup data', async () => {
-    const app = testApp({
-      repositories: {
-        shiftList: {
-          list: async () => ({
-            items: [],
-            pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
-          }),
-          exportRows: async () => [],
-        },
-      },
-    });
-    const cookies = await signIn(app);
-    await request(app)
-      .post('/api/v1/shifts/list')
-      .set(H)
-      .set('Cookie', cookies)
-      .send({})
-      .expect(200);
+  it('lets every signed-in user change setup data, as in CI3 (no roles)', async () => {
+    const { db, statements } = scriptedDb((s) =>
+      s.sql.includes('COUNT(1)')
+        ? [{ TOTAL: 0 }]
+        : s.sql.startsWith('SELECT')
+          ? [shiftRow]
+          : undefined,
+    );
+    const app = testApp({ repositories: { shifts: oracleShiftRepository(db) } });
     const res = await request(app)
       .post('/api/v1/shifts')
       .set(H)
-      .set('Cookie', cookies)
+      .set('Cookie', await signIn(app))
       .send(shiftInput)
-      .expect(403);
-    expect(res.body.error.code).toBe('FORBIDDEN');
+      .expect(201);
+    expect(res.body.message).toBe('Shift added successfully.');
+    expect(statements.some((s) => s.sql.startsWith('INSERT INTO XX_DIGI_SHIFT_PR'))).toBe(true);
+  });
+
+  it('records the user name as occasion author (what CI3 meant; it wrote SYSTEM)', async () => {
+    const { db, statements } = scriptedDb((s) =>
+      s.kind === 'execute' ? { outBinds: { newId: 5 } } : [{ OCCASION_ID: 5 }],
+    );
+    const app = testApp({ repositories: { occasions: oracleOccasionRepository(db) } });
+    await request(app)
+      .post('/api/v1/occasions')
+      .set(H)
+      .set('Cookie', await signIn(app))
+      .send({
+        occasionName: 'Eid',
+        fromDate: '2026-03-20',
+        toDate: '2026-03-22',
+        countAsPresent: 'Y',
+        paidHoliday: 'Y',
+        isActive: 'Y',
+      })
+      .expect(201);
+    expect(statements[0]!.binds).toMatchObject({ userName: 'test.user' });
   });
 
   it('validates with the CI3 messages and reports duplicate shift names on the field', async () => {

@@ -14,23 +14,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.zat-page-size {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.zat-page-size select {
-  min-height: 36px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface-solid);
-  color: var(--text);
-  padding: 0 8px;
-}
-
 .zat-toast-region {
   position: fixed;
   right: 16px;
@@ -164,12 +147,6 @@
   /* Must out-rank `.zrv-ir-table tbody :is(td, tr.zrv-ir-is-on td)` in hr-insight-report.css. */
   .zat-report .zrv-ir-table tbody td.zat-col-num,
   .zat-report .zrv-ir-table thead th.zat-col-num {
-    display: none;
-  }
-}
-
-@media (max-width: 640px) {
-  .zat-page-size span {
     display: none;
   }
 }

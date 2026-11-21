@@ -26,6 +26,9 @@ and **looks exactly like the main Zamil Digitalization client** ([`../client/`](
    tokens, no new UI framework.
 5. **No secrets in git.** All credentials live in `attendance/.env` (git-ignored); `.env.example`
    documents the keys.
+6. **Only the design changes.** Behaviour, access and data stay exactly as in CI3: no roles, no new
+   rules, same defaults, same exports. The only exceptions are fixes for real CI3 bugs that saved wrong
+   data or broke pages; each one is listed in the parity reports.
 
 ## Architecture
 
@@ -38,7 +41,7 @@ attendance/
     src/app.ts             middleware chain, /api/v1 mount, error handler
     src/config.ts          zod-validated env -> typed AppConfig
     src/services.ts        composition root (pools, repositories, services)
-    src/auth/              zamil-sso.ts, session.ts, middleware.ts, roles.ts
+    src/auth/              zamil-sso.ts, session.ts, middleware.ts, identity.ts
     src/db/                oracle.ts (ADW + EBS pools), sql.ts (binds, paging, CSV streaming)
     src/modules/<module>/  routes.ts, service.ts, repository.ts, *.test.ts
     src/domain/            payrollPeriod.ts, processing/ (pure, unit-tested business rules)
@@ -91,18 +94,8 @@ The app has no login page. It reuses the Zamil session, exactly like TrainingHub
 The source to reuse is `traininghub/apps/api/src/auth/{zamil-sso,session}.ts`. Moving it into a package
 shared by all three hubs is a later step that needs architecture approval.
 
-**Roles** (new; the CI3 app has none): **HR admin**, **Manager** (own team) and **Viewer**. They are
-enforced in API middleware (`requirePermission`) and filter the navigation. The permission map is in
-`packages/shared/src/roles.ts`.
-
-Provisional source of roles, chosen in Phase 1 because no role data exists:
-
-- **HR admin:** the employee number is listed in `ATTENDANCE_HR_ADMINS` (`.env`).
-- **Manager:** the employee has direct reports (`SUPERVISOR_ID` in `XX_DIGI_EMP_MASTER`).
-- **Viewer:** everyone else who is signed in.
-
-Viewing stays open to every role, as in CI3. Adding, editing and deleting setup data (shifts, timetables,
-occasions) and importing attendance files require **HR admin**; CI3 let any signed-in user do it.
+**Access** is the same as CI3: every employee signed in through Zamil can open every page and change
+every record. There are no roles.
 
 ## Databases
 
@@ -222,18 +215,18 @@ Attendance** → Timesheet / Payroll File / Alerts / Dashboard.
 Each phase follows the same loop: **build → compare with CI3 → fix → write the parity report → review**.
 A phase starts only when it is requested.
 
-| #   | Phase             | Scope                                                                                                                                                                                            | Depends on          | Status                           |
-| --- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- | -------------------------------- |
-| 0   | Plan              | This README, the parity template                                                                                                                                                                 | —                   | **Done**                         |
-| 1   | Platform          | Workspace scaffold, config/env, ADW + EBS pools, SSO + session, roles, error envelope, logging; web shell with Orvexa sync, the DRY building blocks; entry in `client/scripts/dev-with-hubs.mjs` | 0                   | **Done**                         |
-| 2   | Read-only reports | Employee Details, Absence, Function & Feature (proves the list/filter/export pattern)                                                                                                            | 1                   | **Done**: [parity](docs/parity/) |
-| 3   | Setup data        | Shifts → Sub Shifts → Timetable → Occasions                                                                                                                                                      | 1                   | **Done**                         |
-| 4   | Raw punches       | Attendance Card list, file upload preview + import (CSV/XLSX, batched MERGE), Interface page                                                                                                     | 3                   | **Done**                         |
-| 5   | Processing engine | Port `ProcessAttendanceModel` as pure functions; golden tests against CI3 output on the same data; background job with progress                                                                  | 3, 4                | Not started                      |
-| 6   | Processed outputs | Timesheet, Payroll File + adjustment, Alerts & Exceptions, Dashboard                                                                                                                             | 5                   | Not started                      |
-| 7   | EBS live + people | Daily Attendance, Leave Requests, Manager View + approvals                                                                                                                                       | 1 + EBS test access | Not started                      |
-| 8   | Contractors       | Contractors, Contractor Employees, Contractor Summary                                                                                                                                            | 1 + EBS test access | Not started                      |
-| 9   | Cutover           | Point the Zamil sidebar `attendance-system` link at `http://localhost:7388/`, update onboarding, freeze the CI3 app                                                                              | 2–8                 | Not started                      |
+| #   | Phase             | Scope                                                                                                                                                                                     | Depends on          | Status                           |
+| --- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------- |
+| 0   | Plan              | This README, the parity template                                                                                                                                                          | —                   | **Done**                         |
+| 1   | Platform          | Workspace scaffold, config/env, ADW + EBS pools, SSO + session, error envelope, logging; web shell with Orvexa sync, the DRY building blocks; entry in `client/scripts/dev-with-hubs.mjs` | 0                   | **Done**                         |
+| 2   | Read-only reports | Employee Details, Absence, Function & Feature (proves the list/filter/export pattern)                                                                                                     | 1                   | **Done**: [parity](docs/parity/) |
+| 3   | Setup data        | Shifts → Sub Shifts → Timetable → Occasions                                                                                                                                               | 1                   | **Done**                         |
+| 4   | Raw punches       | Attendance Card list, file upload preview + import (CSV/XLSX, batched MERGE), Interface page                                                                                              | 3                   | **Done**                         |
+| 5   | Processing engine | Port `ProcessAttendanceModel` as pure functions; golden tests against CI3 output on the same data; background job with progress                                                           | 3, 4                | Not started                      |
+| 6   | Processed outputs | Timesheet, Payroll File + adjustment, Alerts & Exceptions, Dashboard                                                                                                                      | 5                   | Not started                      |
+| 7   | EBS live + people | Daily Attendance, Leave Requests, Manager View + approvals                                                                                                                                | 1 + EBS test access | Not started                      |
+| 8   | Contractors       | Contractors, Contractor Employees, Contractor Summary                                                                                                                                     | 1 + EBS test access | Not started                      |
+| 9   | Cutover           | Point the Zamil sidebar `attendance-system` link at `http://localhost:7388/`, update onboarding, freeze the CI3 app                                                                       | 2–8                 | Not started                      |
 
 ## Parity method
 
@@ -254,15 +247,15 @@ Run both apps on the same test-ADW data:
 - CI3: `http://localhost/zamil-attendance/`
 - New: `http://localhost:7388/`
 
-One Zamil login serves both apps. Each difference is recorded as **Same**, **Fixed** (a CI3 bug, with the
-reason), or **Changed** (approved).
+One Zamil login serves both apps. Each difference is recorded as **Same**, **Design** (visual only) or
+**Fixed** (a real CI3 bug, with the reason). Nothing else may differ.
 
 ### Known CI3 issues (do not port blindly)
 
 | Issue                                                                                                 | CI3 location                                                                 | Plan                                        |
 | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------- |
 | Payroll period defined four different ways                                                            | Dashboard, Manager, Leave, Timesheet/Payroll JS                              | One shared `payrollPeriod()` (21st to 20th) |
-| No roles or permissions; CSRF off                                                                     | whole app                                                                    | Roles + CSRF header from Phase 1            |
+| No roles or permissions; CSRF off                                                                     | whole app                                                                    | Same access as CI3 (no roles); CSRF header  |
 | Manager Approve/Deny buttons never rendered                                                           | `views/pages/manager/index.php`, `mgrDecideAbsence()`                        | Wire it, with permission checks             |
 | High-overtime alert compares hours with a 120-minute threshold                                        | `Alerts_exceptions_model::build_query`                                       | Compare in consistent units                 |
 | Daily Attendance `status` filter ignored; summary loads every row                                     | `Daily_attendance_model`                                                     | Implement the filter; aggregate in SQL      |
@@ -278,7 +271,7 @@ reason), or **Changed** (approved).
 - `npm run lint`, `npm run typecheck`, `npm test` and `npm run build` pass in `attendance/`.
 - API tests cover every new endpoint (validation, permissions, happy path); business rules have unit tests.
 - Every screen works in light and dark mode, from 320 to 1920 px, and with the keyboard.
-- The parity report is complete, and every difference is either Same, Fixed or Changed (approved).
+- The parity report is complete, and every difference is Same, Design or Fixed (real bug).
 - No secrets in git. `zamil-attendance/` is unchanged.
 - This README's phase table is updated.
 
@@ -297,8 +290,6 @@ npm run dev         # API http://127.0.0.1:7387, web http://localhost:7388
 - **Sign-in:** start Zamil first (`server`: `npm run dev`; `client`: `npm run dev`). Sign in at
   `http://localhost:7382`, then open `http://localhost:7388` on the same hostname. Without a Zamil
   session you are sent to the Zamil login.
-- **Edit rights:** setup pages and the attendance import are read-only unless your employee number
-  is in `ATTENDANCE_HR_ADMINS` in `attendance/.env` (comma-separated). Restart the API after changing it.
 - **One command for everything:** once `attendance/` is installed, `client` `npm run dev` also starts
   this app, alongside TrainingHub and ExpenseHub.
 - **The Zamil sidebar link:** **Human resources → Attendance System** still points at the CI3 app until

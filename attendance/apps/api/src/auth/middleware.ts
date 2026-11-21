@@ -1,7 +1,7 @@
 // Session middleware: verifies the at_session cookie, re-validates the host Zamil session (cached
 // 30 s in zamil-sso.ts) so signing out of Zamil ends access here too, and slides the idle expiry.
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import { can, SESSION_COOKIE, type Permission } from '@attendance/shared';
+import { SESSION_COOKIE } from '@attendance/shared';
 import type { ZamilAuthConfig } from '../config';
 import { AppError } from '../lib/errors';
 import type { SessionClaims, SessionService } from './session';
@@ -51,7 +51,7 @@ export function sessionMiddleware(deps: {
       await deps.sessions.issue(res, {
         userId: claims.userId,
         employeeNumber: claims.employeeNumber,
-        roles: claims.roles,
+        userName: claims.userName,
         abs: claims.abs,
       });
     }
@@ -62,16 +62,6 @@ export function sessionMiddleware(deps: {
 export const requireAuth: RequestHandler = (req, _res, next) => {
   next(req.auth ? undefined : new AppError('UNAUTHENTICATED', 'Sign in to continue.'));
 };
-
-export function requirePermission(permission: Permission): RequestHandler {
-  return (req, _res, next) => {
-    if (!req.auth) return next(new AppError('UNAUTHENTICATED', 'Sign in to continue.'));
-    if (!can(req.auth.roles, permission)) {
-      return next(new AppError('FORBIDDEN', 'You do not have access to this page.'));
-    }
-    next();
-  };
-}
 
 export function authOf(req: Request): SessionClaims {
   if (!req.auth) throw new AppError('UNAUTHENTICATED', 'Sign in to continue.');

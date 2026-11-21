@@ -108,15 +108,16 @@ export function normalizeDate(cell: Cell): string | null {
     if (serial < 20000 || serial > 99999) return null;
     return new Date(Date.UTC(1899, 11, 30) + serial * 86_400_000).toISOString().slice(0, 10);
   }
-  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(text);
+  // Formats CI3 read directly or through its strtotime() fallback.
+  let m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(text);
   if (m) return validDate(+m[1]!, +m[2]!, +m[3]!);
-  m = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(text);
+  m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(text);
   if (m) return validDate(+m[3]!, +m[2]!, +m[1]!) ?? validDate(+m[3]!, +m[1]!, +m[2]!);
-  m = /^(\d{1,2})[\s-]([A-Za-z]{3})[A-Za-z]*[\s-](\d{4})$/.exec(text);
-  if (m) {
-    const month = MONTHS.indexOf(m[2]!.toLowerCase()) + 1;
-    return month ? validDate(+m[3]!, month, +m[1]!) : null;
-  }
+  const month = (name: string) => MONTHS.indexOf(name.slice(0, 3).toLowerCase()) + 1;
+  m = /^(\d{1,2})[\s-]([A-Za-z]{3,9})[\s-,]+(\d{4})$/.exec(text);
+  if (m && month(m[2]!)) return validDate(+m[3]!, month(m[2]!), +m[1]!);
+  m = /^([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})$/.exec(text);
+  if (m && month(m[1]!)) return validDate(+m[3]!, month(m[1]!), +m[2]!);
   return null;
 }
 

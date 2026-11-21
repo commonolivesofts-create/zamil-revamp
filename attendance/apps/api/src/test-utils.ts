@@ -27,7 +27,6 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
         cookieSecure: false,
         cookieSameSite: 'lax',
       },
-      hrAdmins: new Set(['9001']),
     },
     ...overrides,
   };
@@ -103,7 +102,7 @@ export const identity = (overrides: Partial<Identity> = {}): Identity => ({
   email: 'test@example.com',
   jobTitle: 'Analyst',
   department: 'IT',
-  hasDirectReports: false,
+  userName: 'test.user',
   ...overrides,
 });
 
@@ -125,9 +124,9 @@ export function fakeReport<F, T>(rows: T[]) {
         pagination: pageMeta(query.page, query.limit, rows.length),
       } satisfies Paged<T>;
     },
-    exportRows: async (query, maxRows) => {
+    exportRows: async (query) => {
       calls.export.push(query);
-      return rows.slice(0, maxRows + 1);
+      return rows;
     },
   };
   return { repository, calls };

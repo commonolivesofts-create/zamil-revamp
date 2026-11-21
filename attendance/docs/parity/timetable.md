@@ -14,7 +14,10 @@
 - Web: `apps/web/src/features/setup/TimetablePage.tsx`
 - Shared: `packages/shared/src/modules/timetables.ts`
 
-Legend: **Same** · **Fixed** · **Changed** (needs approval) · **Open**
+Legend: **Same** = as CI3 · **Fixed** = real CI3 bug corrected · **Design** = visual only · **Open**
+
+> **Rule (2026-11-21):** only the design differs from CI3. Behaviour, access (no roles), defaults and
+> exports match CI3; the only exceptions are fixes for real CI3 bugs (marked **Fixed**).
 
 ## Endpoints
 
@@ -41,18 +44,17 @@ Steps, in one transaction:
 
 **Same.** Differences:
 
-| Item                                                     | CI3                                                                                                                                | New                                                                           | Outcome         |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------- |
-| Overtime Allowed / Exclude Timesheet                     | collected, then **never saved** (always `N`); the edit form did not load them                                                      | saved, and loaded on edit                                                     | Fixed           |
-| Status chosen in the form                                | validated, then overwritten with ACTIVE                                                                                            | honoured: saving INACTIVE ends the assignment, and other rows are not touched | Fixed (approve) |
-| Several ACTIVE rows for one employee on different shifts | possible                                                                                                                           | still possible (unchanged); processing uses the latest                        | Same (flagged)  |
-| Validation                                               | Employee Number positive; Name required, max 150; Shift must exist ("Selected shift does not exist."); Start required; End ≥ Start | same messages                                                                 | Same            |
-| Name lookup                                              | on every keystroke, no debounce                                                                                                    | when the number field loses focus                                             | Changed         |
-| UPDATED_AT on deactivated rows                           | not touched                                                                                                                        | set                                                                           | Fixed           |
+| Item                                                     | CI3                                                                                                                                | New                                                    | Outcome        |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------- |
+| Overtime Allowed / Exclude Timesheet                     | collected, then **never saved** (always `N`); the edit form did not load them                                                      | saved, and loaded on edit                              | Fixed          |
+| Status chosen in the form                                | validated, then the new row is always ACTIVE                                                                                       | same                                                   | Same           |
+| Several ACTIVE rows for one employee on different shifts | possible                                                                                                                           | still possible (unchanged); processing uses the latest | Same (flagged) |
+| Validation                                               | Employee Number positive; Name required, max 150; Shift must exist ("Selected shift does not exist."); Start required; End ≥ Start | same messages                                          | Same           |
+| Name lookup                                              | while typing, from 3 digits, newest wins; same messages                                                                            | same                                                   | Same           |
 
-## Permissions
+## Access
 
-Viewing is open to all signed-in users. Add, edit and delete need HR admin. **Changed (approve).**
+Any signed-in user can view, add, edit and delete, as in CI3. **Same.**
 
 ## Round-trip check (test ADW, both apps)
 
@@ -65,4 +67,4 @@ Viewing is open to all signed-in users. Add, edit and delete need HR admin. **Ch
 ## Sign-off
 
 - [x] Gates pass; repository versioning and rollback covered by tests
-- [ ] Changed items approved (honouring Status, HR-admin-only writes)
+- [x] Only design differences and real bug fixes remain

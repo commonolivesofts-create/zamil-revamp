@@ -1,6 +1,6 @@
 // Timetable (CI3 /timetable): employee-to-shift assignments. Editing keeps history: the edited
 // row becomes INACTIVE and a new row is saved.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   employeeLookupSchema,
   mutationResultSchema,
@@ -18,10 +18,9 @@ import { ReportPage } from '../../components/report/ReportPage';
 import type { ReportConfig } from '../../components/report/types';
 import { RowActions } from '../../components/RowActions';
 import { StatusBadge, YesNoBadge } from '../../components/StatusBadges';
-import { api, errorMessage } from '../../lib/api';
+import { api, ApiError } from '../../lib/api';
 import { display, formatDateTime, formatIsoDate } from '../../lib/format';
 import { useSave } from '../../lib/useSave';
-import { useCanManage } from './useCanManage';
 import { useShiftChoices } from './useShiftChoices';
 
 type Filters = Required<{ [K in keyof TimetableFilters]: string | undefined }>;
@@ -41,7 +40,8 @@ const EMPTY: Values = {
   empNo: '',
   empName: '',
   shiftId: '',
-  status: 'ACTIVE',
+  // CI3: no default; the user picks a status (a new version is saved ACTIVE regardless).
+  status: '',
   startDate: '',
   endDate: '',
   overtimeAllowed: 'N',
@@ -60,12 +60,46 @@ const toValues = (row: TimetableRow): Values => ({
 });
 
 export default function TimetablePage() {
-  const canManage = useCanManage();
   const shifts = useShiftChoices();
   const save = useSave(['timetables']);
   const [editing, setEditing] = useState<TimetableRow | 'new' | null>(null);
   const [deleting, setDeleting] = useState<TimetableRow | null>(null);
   const [lookup, setLookup] = useState<string | null>(null);
+  const lookupAbort = useRef<AbortController | null>(null);
+  const autoFilled = useRef(false);
+
+  /** CI3 scheduleEmployeeLookup: runs as the number is typed (3+ digits), newest lookup wins. */
+  const lookupEmployee = (value: string, set: (patch: Partial<Values>) => void) => {
+    lookupAbort.current?.abort();
+    const empNo = value.trim();
+    const clearAutoFilled = () => {
+      if (autoFilled.current) set({ empName: '' });
+      autoFilled.current = false;
+    };
+    if (!/^d{3,}$/.test(empNo)) {
+      clearAutoFilled();
+      setLookup(null);
+      return;
+    }
+    const controller = new AbortController();
+    lookupAbort.current = controller;
+    setLookup('Looking up employee...');
+    api(`/timetables/employee/${empNo}`, employeeLookupSchema, { signal: controller.signal })
+      .then((employee) => {
+        set({ empName: employee.fullName ?? '' });
+        autoFilled.current = true;
+        setLookup('Employee found.');
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        if (error instanceof ApiError && error.status === 404) {
+          clearAutoFilled();
+          setLookup('Employee not found.');
+        } else {
+          setLookup('Unable to verify employee right now.');
+        }
+      });
+  };
 
   const shiftOptions = (shifts.data ?? []).map((s) => ({ value: String(s.id), label: s.name }));
   const fields: readonly FormField<Values>[] = [
@@ -143,26 +177,21 @@ export default function TimetablePage() {
       },
       { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
       { key: 'createdAt', label: 'Created At', render: (row) => formatDateTime(row.createdAt) },
-      ...(canManage
-        ? [
-            {
-              key: 'actions',
-              label: 'Action',
-              render: (row: TimetableRow) => (
-                <RowActions
-                  label={`timetable of ${row.empName ?? row.empNo ?? ''}`}
-                  onEdit={() => setEditing(row)}
-                  onDelete={() => setDeleting(row)}
-                />
-              ),
-            },
-          ]
-        : []),
+      {
+        key: 'actions',
+        label: 'Action',
+        render: (row: TimetableRow) => (
+          <RowActions
+            label={`timetable of ${row.empName ?? row.empNo ?? ''}`}
+            onEdit={() => setEditing(row)}
+            onDelete={() => setDeleting(row)}
+          />
+        ),
+      },
     ],
     rowKey: (row) => row.uuid,
-    searchPlaceholder: 'Search employee, number, shift or status',
     emptyMessage: 'No timetable data available.',
-    headerActions: canManage && (
+    headerActions: (
       <button
         type="button"
         className="zrv-ir-btn zrv-ir-btn--primary"
@@ -193,18 +222,14 @@ export default function TimetablePage() {
           initial={isNew ? EMPTY : toValues(editing)}
           schema={timetableInputSchema}
           submitLabel={isNew ? 'Save Timetable' : 'Update Timetable'}
-          onClose={() => setEditing(null)}
-          onFieldBlur={(name, values, set) => {
-            if (name !== 'empNo') return;
-            const empNo = values.empNo.trim();
-            if (!/^\d{3,}$/.test(empNo)) return;
-            setLookup('Looking up employee...');
-            api(`/timetables/employee/${empNo}`, employeeLookupSchema)
-              .then((employee) => {
-                set({ empName: employee.fullName ?? '' });
-                setLookup('Employee found.');
-              })
-              .catch((error: unknown) => setLookup(errorMessage(error)));
+          onClose={() => {
+            lookupAbort.current?.abort();
+            autoFilled.current = false;
+            setLookup(null);
+            setEditing(null);
+          }}
+          onFieldChange={(name, values, set) => {
+            if (name === 'empNo') lookupEmployee(values.empNo, set);
           }}
           onSubmit={async (values) => {
             await save(() =>

@@ -75,9 +75,9 @@ describe('absence spec', () => {
 });
 
 describe('buildExportSql', () => {
-  it('caps the row count with a bind', () => {
-    const { sql, binds } = buildExportSql(absenceListSpec, { search: '', filters: {} }, 1001);
-    expect(norm(sql)).toMatch(/FETCH FIRST :b0 ROWS ONLY$/);
-    expect(binds).toEqual({ b0: 1001 });
+  it('exports every matching row in list order (no limit, as CI3)', () => {
+    const { sql, binds } = buildExportSql(absenceListSpec, { search: '', filters: {} });
+    expect(norm(sql)).toMatch(/ORDER BY .* a\.EMP_NO$/);
+    expect(binds).toEqual({});
   });
 });

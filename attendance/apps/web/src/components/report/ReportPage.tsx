@@ -83,20 +83,6 @@ export function ReportPage<F extends FilterValues, T>({ config }: { config: Repo
         <section className="zrv-ir-card zrv-ir-stream" aria-labelledby={`${id}-heading`}>
           <header className="zrv-ir-card__head">
             <h2 id={`${id}-heading`}>{config.heading}</h2>
-            <div className="zrv-ir-tabletools">
-              <label className="zrv-ir-search" htmlFor={`${id}-search`}>
-                <OrvexaIcon name="search" size={16} />
-                <span className="sr-only">Search {heading}</span>
-                <input
-                  id={`${id}-search`}
-                  type="search"
-                  maxLength={100}
-                  placeholder={config.searchPlaceholder}
-                  value={report.searchInput}
-                  onChange={(event) => report.setSearchInput(event.target.value)}
-                />
-              </label>
-            </div>
           </header>
 
           {query.isPending ? (
@@ -125,13 +111,10 @@ export function ReportPage<F extends FilterValues, T>({ config }: { config: Repo
                 busy={query.isFetching}
               />
               <ReportPager
-                id={id}
                 page={query.data.pagination.page}
                 pages={query.data.pagination.totalPages}
                 total={query.data.pagination.total}
-                limit={report.limit}
                 onPage={report.setPage}
-                onLimit={report.changeLimit}
                 disabled={query.isFetching}
                 label={`${config.heading} pages`}
               />

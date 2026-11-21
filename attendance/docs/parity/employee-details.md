@@ -18,7 +18,10 @@
 **Test data:** test ADW (`zpadwtest_tp`), 168 current employees. Both apps were queried with the
 same filters by an automated comparison script.
 
-Outcome legend: **Same** · **Fixed** (CI3 bug, with the reason) · **Changed** (intentional, needs approval) · **Open**
+Legend: **Same** = as CI3 · **Fixed** = real CI3 bug corrected · **Design** = visual only · **Open**
+
+> **Rule (2026-11-21):** only the design differs from CI3. Behaviour, access (no roles), defaults and
+> exports match CI3; the only exceptions are fixes for real CI3 bugs (marked **Fixed**).
 
 ## 1. Routes and endpoints
 
@@ -38,8 +41,8 @@ Outcome legend: **Same** · **Fixed** (CI3 bug, with the reason) · **Changed** 
 | Joining date                         | `TO_CHAR(JOINING_DATE,'YYYY-MM-DD') = v`          | `JOINING_DATE` in [day, day+1), same result, index friendly | Same    |
 | Current employees only               | `CURRENT_EMP_FLAG = 'Y'`                          | Same                                                        | Same    |
 | `%` and `_` typed by the user        | acted as SQL wildcards                            | matched literally (`ESCAPE`)                                | Fixed   |
-| Free-text search                     | supported by the API, but the UI always sent `''` | search box above the table (6 columns)                      | Changed |
-| Page size                            | fixed 10                                          | 10 by default; 25 / 50 / 100 selectable                     | Changed |
+| Free-text search                     | supported by the API, but the UI always sent `''` | same: no search box                                         | Same    |
+| Page size                            | fixed 10                                          | fixed 10                                                    | Same    |
 | Order                                | `HEADER_ID DESC`                                  | `HEADER_ID DESC, EMPLOYEE_NUMBER` (stable paging)           | Same    |
 | Invalid input                        | invalid JSON → 400; other values unchecked        | zod validation → 400 with field issues                      | Fixed   |
 
@@ -53,7 +56,7 @@ Outcome legend: **Same** · **Fixed** (CI3 bug, with the reason) · **Changed** 
 | 3   | Email            | EMAIL_ADDRESS                                                               | email                       | `—` when empty                   | Same                  |
 | 4   | Job Title        | JOB_TITLE                                                                   | jobTitle                    |                                  | Same                  |
 | 5   | Department       | DEPARTMENT                                                                  | department                  |                                  | Same                  |
-| 6   | Joining Date     | JOINING_DATE (Oracle NLS string)                                            | joiningDate (YYYY-MM-DD)    | shown as `15 Jan 2020`           | Changed               |
+| 6   | Joining Date     | JOINING_DATE (Oracle NLS string)                                            | joiningDate (YYYY-MM-DD)    | shown as `15 Jan 2020`           | Design                |
 | –   | Response payload | `SELECT d.*`: all 74 columns sent to the browser, salaries and IDs included | only the 7 displayed fields |                                  | Fixed (data exposure) |
 
 ## 4. Validation rules and messages
@@ -69,13 +72,12 @@ Not applicable (read-only report).
 
 ## 6. Export
 
-| Item              | CI3                                                                                  | New                                                               | Outcome                                                             |
-| ----------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Format, encoding  | CSV, no BOM                                                                          | CSV, UTF-8 with BOM (Excel shows Arabic names correctly)          | Fixed                                                               |
-| Columns           | every `XX_DIGI_EMP_MASTER` column (74), salaries and passport/iqama numbers included | the 6 table columns with readable headers                         | Fixed (data exposure). Needs approval if HR relied on the full dump |
-| Rows              | all matching rows                                                                    | all matching rows up to 50,000 (otherwise asks to narrow filters) | Same for current data (168 = 168)                                   |
-| File name         | `employee_data_YYYYMMDD_HHMMSS.csv`                                                  | `employee_details_YYYYMMDD_HHMMSS.csv`                            | Changed                                                             |
-| Formula injection | not handled                                                                          | cells starting with `= + - @` are neutralised                     | Fixed                                                               |
+| Item             | CI3                                                                                   | New                                                                                            | Outcome                        |
+| ---------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------ |
+| Format, encoding | CSV, no BOM                                                                           | CSV, UTF-8 with BOM (Excel shows Arabic names correctly)                                       | Fixed                          |
+| Columns          | every `XX_DIGI_EMP_MASTER` column (74): salaries, passport and iqama numbers included | the same raw headers for the 7 employee fields; salary, document and other HR columns left out | Fixed (data exposure; confirm) |
+| Rows             | all matching rows                                                                     | all matching rows                                                                              | Same                           |
+| File name        | `employee_data_YYYYMMDD_HHMMSS.csv`                                                   | same                                                                                           | Same                           |
 
 ## 7. Business rules
 
@@ -113,5 +115,5 @@ Not applicable (read-only report).
 ## Sign-off
 
 - [x] Lint, typecheck, tests and build pass
-- [ ] Every Changed item approved (date format, search box, page sizes, export columns and file name)
+- [ ] Export columns: confirm leaving out salary and document columns
 - [x] README phase table updated

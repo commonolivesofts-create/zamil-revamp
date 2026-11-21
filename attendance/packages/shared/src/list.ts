@@ -2,10 +2,7 @@
 // pairs). Request: { page, limit, search, filters }. Response: { items, pagination }.
 import { z } from 'zod';
 
-export const PAGE_SIZES = [10, 25, 30, 50, 100] as const;
 export const DEFAULT_PAGE_SIZE = 10;
-/** Upper bound for one CSV export (CI3 exported without any limit). */
-export const MAX_EXPORT_ROWS = 50_000;
 
 /** Optional free-text filter: trimmed, max 100 characters, '' treated as "not set". */
 export const textFilter = z

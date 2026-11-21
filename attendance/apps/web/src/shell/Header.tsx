@@ -1,7 +1,6 @@
 // Top bar. Markup and classes mirror client/src/components/layout/Header.jsx (icon buttons,
 // theme toggle, profile dropdown) so the Orvexa topbar CSS renders it identically.
 import { useEffect, useRef, useState } from 'react';
-import { ROLE_LABELS } from '@attendance/shared';
 import { OrvexaIcon } from '../components/OrvexaIcon';
 import { useMe, useSignOut } from '../app/session';
 import type { SidebarMode, Theme } from '../lib/useLayoutPreferences';
@@ -43,8 +42,7 @@ export function Header({
   const [profileOpen, setProfileOpen] = useState(false);
   const region = useRef<HTMLDivElement>(null);
   const roleLabel =
-    [me.jobTitle, me.department].filter(Boolean).join(' · ') ||
-    me.roles.map((role) => ROLE_LABELS[role]).join(', ');
+    [me.jobTitle, me.department].filter(Boolean).join(' · ') || 'Signed-in employee';
 
   useEffect(() => {
     const outside = (event: PointerEvent) => {
@@ -155,7 +153,7 @@ export function Header({
               <div className="profile-workspace">
                 <span>
                   <b>Employee {me.employeeNumber}</b>
-                  <small>{me.roles.map((role) => ROLE_LABELS[role]).join(', ')}</small>
+                  {me.department && <small>{me.department}</small>}
                 </span>
               </div>
               <div className="profile-panel-footer">

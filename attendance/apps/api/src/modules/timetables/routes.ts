@@ -3,7 +3,6 @@
 // GET /timetables/employee/:empNo (name lookup for the form).
 import { Router } from 'express';
 import {
-  TIMETABLE_EXPORT_COLUMNS,
   timetableExportQuerySchema,
   timetableInputSchema,
   timetableListQuerySchema,
@@ -11,7 +10,8 @@ import {
   type TimetableInput,
   type TimetableRow,
 } from '@attendance/shared';
-import { requirePermission } from '../../auth/middleware';
+import { requireAuth } from '../../auth/middleware';
+import { dash, dMY, dMYTime, type CsvExport } from '../../lib/csv';
 import { AppError } from '../../lib/errors';
 import { body, uuidParam } from '../http';
 import { reportRoutes, type ReportRepository } from '../report';
@@ -19,25 +19,43 @@ import type { TimetableRepository } from './repository';
 
 const NOT_FOUND = 'Timetable not found.';
 
+/** CI3 export: the 17 keys of Timetable::serializeTimetable (including its "overtime_alowed"). */
+export const TIMETABLE_EXPORT: CsvExport<TimetableRow> = {
+  filePrefix: 'timetable_data',
+  emptyMessage: 'No timetable data found to export.',
+  columns: [
+    { label: 'id', value: (r) => r.id },
+    { label: 'uuid', value: (r) => r.uuid },
+    { label: 'emp_no', value: (r) => r.empNo },
+    { label: 'emp_name', value: (r) => r.empName },
+    { label: 'shift_id', value: (r) => r.shiftId },
+    { label: 'shift_name', value: (r) => r.shiftName },
+    { label: 'start_date', value: (r) => r.startDate },
+    { label: 'end_date', value: (r) => r.endDate },
+    { label: 'exclude_timesheet', value: (r) => r.excludeTimesheet },
+    { label: 'overtime_alowed', value: (r) => r.overtimeAllowed },
+    { label: 'status', value: (r) => r.status },
+    { label: 'created_at', value: (r) => dMYTime(r.createdAt) },
+    { label: 'updated_at', value: (r) => dMYTime(r.updatedAt) },
+    { label: 'start_date_display', value: (r) => dash(dMY(r.startDate)) },
+    { label: 'end_date_display', value: (r) => dash(dMY(r.endDate)) },
+    { label: 'status_display', value: (r) => dash(r.status) },
+    { label: 'shift_name_display', value: (r) => dash(r.shiftName) },
+  ],
+};
+
 export function timetableRoutes(deps: {
   timetables: TimetableRepository;
   list: ReportRepository<TimetableFilters, TimetableRow>;
 }): Router {
   const router = Router();
-  const view = requirePermission('setup:view');
-  const manage = requirePermission('setup:manage');
 
   router.use(
     reportRoutes({
       path: '/timetables',
-      permission: 'setup:view',
       listSchema: timetableListQuerySchema,
       repository: deps.list,
-      csv: {
-        exportSchema: timetableExportQuerySchema,
-        columns: TIMETABLE_EXPORT_COLUMNS,
-        filePrefix: 'timetable_data',
-      },
+      csv: { ...TIMETABLE_EXPORT, exportSchema: timetableExportQuerySchema },
     }),
   );
 
@@ -50,7 +68,7 @@ export function timetableRoutes(deps: {
     return input;
   };
 
-  router.get('/timetables/employee/:empNo', view, async (req, res) => {
+  router.get('/timetables/employee/:empNo', requireAuth, async (req, res) => {
     const empNo = String(req.params.empNo ?? '').trim();
     if (!/^\d+$/.test(empNo)) throw new AppError('VALIDATION', 'Employee Number must be numeric.');
     if (empNo.length < 3) {
@@ -62,20 +80,20 @@ export function timetableRoutes(deps: {
     res.json(employee);
   });
 
-  router.post('/timetables', manage, async (req, res) => {
+  router.post('/timetables', requireAuth, async (req, res) => {
     const input = await validInput(body(timetableInputSchema, req));
     const timetable = await deps.timetables.saveVersion(input);
     res.status(201).json({ message: 'Timetable added successfully.', timetable });
   });
 
-  router.put('/timetables/:uuid', manage, async (req, res) => {
+  router.put('/timetables/:uuid', requireAuth, async (req, res) => {
     const uuid = uuidParam(req, NOT_FOUND);
     const input = await validInput(body(timetableInputSchema, req));
     const timetable = await deps.timetables.saveVersion(input, uuid);
     res.json({ message: 'Timetable updated successfully.', timetable });
   });
 
-  router.delete('/timetables/:uuid', manage, async (req, res) => {
+  router.delete('/timetables/:uuid', requireAuth, async (req, res) => {
     await deps.timetables.remove(uuidParam(req, NOT_FOUND));
     res.json({ message: 'Timetable deleted successfully.' });
   });

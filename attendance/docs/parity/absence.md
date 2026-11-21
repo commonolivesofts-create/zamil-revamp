@@ -19,7 +19,10 @@
 The two queries were compared (both return 0 for the same period), and the SQL is covered by unit
 tests. A row-by-row comparison needs test leave data (see Issues).
 
-Outcome legend: **Same** · **Fixed** · **Changed** (needs approval) · **Open**
+Legend: **Same** = as CI3 · **Fixed** = real CI3 bug corrected · **Design** = visual only · **Open**
+
+> **Rule (2026-11-21):** only the design differs from CI3. Behaviour, access (no roles), defaults and
+> exports match CI3; the only exceptions are fixes for real CI3 bugs (marked **Fixed**).
 
 ## 1. Routes and endpoints
 
@@ -31,18 +34,18 @@ Outcome legend: **Same** · **Fixed** · **Changed** (needs approval) · **Open*
 
 ## 2. Filters, search and pagination
 
-| Filter                                     | CI3 behaviour                                                                                   | New behaviour                                                                            | Outcome |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------- |
-| Emp No                                     | `EMP_NO LIKE %v%`                                                                               | Same                                                                                     | Same    |
-| Employee, Department, Position, Leave type | case-insensitive contains                                                                       | Same                                                                                     | Same    |
-| Approval status                            | select APPROVED / AWAITING / DENIED, matched with LIKE                                          | Same                                                                                     | Same    |
-| Total days                                 | contains (API only; no UI field)                                                                | Same                                                                                     | Same    |
-| Leave from / to                            | overlap: end ≥ from, start ≤ to; UI converted the date to `DD-MM-YY`                            | same overlap, ISO dates bound with `TO_DATE(...,'YYYY-MM-DD')`                           | Same    |
-| Stored dates that are not `DD-MM-YY`       | `TO_DATE` raised ORA-01861 and the whole page failed                                            | `DEFAULT NULL ON CONVERSION ERROR`: the row is kept, it just doesn't match a date filter | Fixed   |
-| Default period                             | inputs pre-filled with the 21st of last month to the 20th of this month, every day of the month | the payroll period **containing today** (from the 21st, the new period)                  | Changed |
-| Free-text search                           | API only (UI sent `''`)                                                                         | search box (6 columns)                                                                   | Changed |
-| Page size                                  | 10                                                                                              | 10 by default; 25 / 50 / 100                                                             | Changed |
-| Order                                      | leave start date DESC (unparsable dates broke the query)                                        | leave start date DESC NULLS LAST, then Emp No                                            | Same    |
+| Filter                                     | CI3 behaviour                                                        | New behaviour                                                                            | Outcome |
+| ------------------------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------- |
+| Emp No                                     | `EMP_NO LIKE %v%`                                                    | Same                                                                                     | Same    |
+| Employee, Department, Position, Leave type | case-insensitive contains                                            | Same                                                                                     | Same    |
+| Approval status                            | select APPROVED / AWAITING / DENIED, matched with LIKE               | Same                                                                                     | Same    |
+| Total days                                 | contains (API only; no UI field)                                     | Same                                                                                     | Same    |
+| Leave from / to                            | overlap: end ≥ from, start ≤ to; UI converted the date to `DD-MM-YY` | same overlap, ISO dates bound with `TO_DATE(...,'YYYY-MM-DD')`                           | Same    |
+| Stored dates that are not `DD-MM-YY`       | `TO_DATE` raised ORA-01861 and the whole page failed                 | `DEFAULT NULL ON CONVERSION ERROR`: the row is kept, it just doesn't match a date filter | Fixed   |
+| Default period                             | 21st of last month to the 20th of this month, every day of the month | same                                                                                     | Same    |
+| Free-text search                           | API only (UI sent `''`)                                              | same: no search box                                                                      | Same    |
+| Page size                                  | 10                                                                   | 10                                                                                       | Same    |
+| Order                                      | leave start date DESC (unparsable dates broke the query)             | leave start date DESC NULLS LAST, then Emp No                                            | Same    |
 
 ## 3. Columns (in order)
 
@@ -61,11 +64,11 @@ Not applicable (read-only). Approve/deny lives in Manager View (phase 7).
 
 ## 6. Export
 
-| Item      | CI3                            | New                            | Outcome |
-| --------- | ------------------------------ | ------------------------------ | ------- |
-| Columns   | the 9 fields, raw column names | the 9 fields, readable headers | Changed |
-| Encoding  | CSV, no BOM                    | UTF-8 with BOM, formula-safe   | Fixed   |
-| File name | `absence_data_*.csv`           | `absence_details_*.csv`        | Changed |
+| Item      | CI3                            | New  | Outcome |
+| --------- | ------------------------------ | ---- | ------- |
+| Columns   | the 9 fields, raw column names | same | Same    |
+| Encoding  | CSV, no BOM                    | same | Same    |
+| File name | `absence_data_*.csv`           | same | Same    |
 
 ## 8. UI and UX
 
@@ -80,13 +83,11 @@ Not applicable (read-only). Approve/deny lives in Manager View (phase 7).
 
 ## 10. Issues found
 
-| #   | Description                                                         | Decision                                                                                                  | Status            |
-| --- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------- |
-| 1   | Test ADW has no leave data, so a row-level comparison is impossible | Load sample leave rows in test ADW (needs your approval), or compare later on data from the external feed | Open              |
-| 2   | Default period differs from CI3 after the 20th of the month         | Use the period containing today                                                                           | Changed (approve) |
+| #   | Description                                                         | Decision                                                                                                  | Status |
+| --- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | Test ADW has no leave data, so a row-level comparison is impossible | Load sample leave rows in test ADW (needs your approval), or compare later on data from the external feed | Open   |
 
 ## Sign-off
 
 - [x] Lint, typecheck, tests and build pass
-- [ ] Changed items approved
 - [ ] Row-level comparison done once test data exists

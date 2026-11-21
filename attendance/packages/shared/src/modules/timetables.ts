@@ -35,6 +35,7 @@ export const timetableRowSchema = z.object({
   status: z.string().nullable(),
   /** YYYY-MM-DD HH24:MI:SS */
   createdAt: z.string().nullable(),
+  updatedAt: z.string().nullable(),
 });
 export type TimetableRow = z.infer<typeof timetableRowSchema>;
 export const timetablePageSchema = pagedSchema(timetableRowSchema);
@@ -75,15 +76,3 @@ export const employeeLookupSchema = z.object({
   email: z.string().nullable(),
 });
 export type EmployeeLookup = z.infer<typeof employeeLookupSchema>;
-
-export const TIMETABLE_EXPORT_COLUMNS = [
-  { key: 'empNo', label: 'Emp No' },
-  { key: 'empName', label: 'Emp Name' },
-  { key: 'shiftName', label: 'Shift' },
-  { key: 'startDate', label: 'Start Date' },
-  { key: 'endDate', label: 'End Date' },
-  { key: 'overtimeAllowed', label: 'Overtime Allowed' },
-  { key: 'excludeTimesheet', label: 'Exclude Timesheet' },
-  { key: 'status', label: 'Status' },
-  { key: 'createdAt', label: 'Created At' },
-] as const satisfies readonly { key: keyof TimetableRow; label: string }[];

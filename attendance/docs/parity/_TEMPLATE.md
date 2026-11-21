@@ -16,8 +16,8 @@
 
 **Test data:** test ADW (`zpadwtest_tp`). Both apps were checked on the same data.
 
-Outcome legend: **Same** = identical behaviour · **Fixed** = CI3 bug corrected (give the reason) ·
-**Changed** = an intentional, approved difference · **Open** = not resolved yet.
+Outcome legend: **Same** = as CI3 · **Fixed** = real CI3 bug corrected (give the reason) ·
+**Design** = visual difference only · **Open** = not resolved yet. Only the design may differ from CI3.
 
 ## 1. Routes and endpoints
 
@@ -84,5 +84,5 @@ Outcome legend: **Same** = identical behaviour · **Fixed** = CI3 bug corrected 
 ## Sign-off
 
 - [ ] Lint, typecheck, tests and build pass
-- [ ] Every difference is Same, Fixed or Changed (approved)
+- [ ] Every difference is Same, Design or Fixed (real bug)
 - [ ] README phase table updated

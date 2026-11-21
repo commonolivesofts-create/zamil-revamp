@@ -12,6 +12,9 @@
 
 - `attendance/apps/web/src/features/functionFeature/` (static; no API)
 
+> **Rule (2026-11-21):** only the design differs from CI3. Behaviour, access (no roles), defaults and
+> exports match CI3; the only exceptions are fixes for real CI3 bugs (marked **Fixed**).
+
 ## Content
 
 - The catalogue (`catalogue.ts`) was **generated from the CI3 controller array**, not retyped: 7 groups,

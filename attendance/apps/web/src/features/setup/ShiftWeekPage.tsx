@@ -15,7 +15,6 @@ import { StatusBadge } from '../../components/StatusBadges';
 import { api, ApiError, errorMessage } from '../../lib/api';
 import { display, formatIsoDate } from '../../lib/format';
 import { useSave } from '../../lib/useSave';
-import { useCanManage } from './useCanManage';
 import { useShiftChoices } from './useShiftChoices';
 
 type DayValues = { punchIn: string; punchOut: string; grossTime: string };
@@ -101,7 +100,6 @@ export default function ShiftWeekPage() {
 }
 
 function WeekEditor({ week }: { week: ShiftWeek }) {
-  const canManage = useCanManage();
   const save = useSave(['shift-weeks', 'shift-week']);
   const [days, setDays] = useState<DayValues[]>(() =>
     week.days.map((d) => ({
@@ -238,7 +236,7 @@ function WeekEditor({ week }: { week: ShiftWeek }) {
                           step={60}
                           className="ux-input"
                           value={days[index]![field]}
-                          disabled={!canManage || pending}
+                          disabled={pending}
                           aria-invalid={error ? true : undefined}
                           aria-describedby={error ? `${id}-error` : undefined}
                           onChange={(event) => set(index, field, event.target.value)}
@@ -265,16 +263,14 @@ function WeekEditor({ week }: { week: ShiftWeek }) {
           <Link className="btn-secondary" to="/shift-details">
             Cancel
           </Link>
-          {canManage && (
-            <button type="submit" className="btn-primary" disabled={pending}>
-              <OrvexaIcon name="save" size={16} />
-              {pending
-                ? 'Saving…'
-                : week.hasExistingDetails
-                  ? 'Update Shift Details'
-                  : 'Save Shift Details'}
-            </button>
-          )}
+          <button type="submit" className="btn-primary" disabled={pending}>
+            <OrvexaIcon name="save" size={16} />
+            {pending
+              ? 'Saving…'
+              : week.hasExistingDetails
+                ? 'Update Shift Details'
+                : 'Save Shift Details'}
+          </button>
         </div>
       </form>
     </>

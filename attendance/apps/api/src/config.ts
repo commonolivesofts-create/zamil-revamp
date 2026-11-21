@@ -34,8 +34,6 @@ const envSchema = z
       .default('zr_session'),
     ZAMIL_AUTH_COOKIE_SECURE: flag.default(false),
     ZAMIL_AUTH_COOKIE_SAMESITE: z.enum(['lax', 'strict']).default('lax'),
-
-    ATTENDANCE_HR_ADMINS: z.string().default(''),
   })
   .superRefine((env, ctx) => {
     if (env.EBS_ENABLED) {
@@ -92,7 +90,7 @@ export interface AppConfig {
   session: { secret: string; secure: boolean };
   adw: OraclePoolConfig;
   ebs: OraclePoolConfig | null;
-  auth: { zamil: ZamilAuthConfig; hrAdmins: ReadonlySet<string> };
+  auth: { zamil: ZamilAuthConfig };
 }
 
 export class ConfigError extends Error {}
@@ -141,11 +139,6 @@ export function loadConfig(source: NodeJS.ProcessEnv, root: string): AppConfig {
         cookieSecure: e.ZAMIL_AUTH_COOKIE_SECURE,
         cookieSameSite: e.ZAMIL_AUTH_COOKIE_SAMESITE,
       },
-      hrAdmins: new Set(
-        e.ATTENDANCE_HR_ADMINS.split(',')
-          .map((value) => value.trim())
-          .filter(Boolean),
-      ),
     },
   };
 }

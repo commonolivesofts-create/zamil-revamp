@@ -36,13 +36,3 @@ export const employeeRowSchema = z.object({
 export type EmployeeRow = z.infer<typeof employeeRowSchema>;
 
 export const employeePageSchema = pagedSchema(employeeRowSchema);
-
-/** Columns of the table and the CSV export, in order. */
-export const EMPLOYEE_COLUMNS = [
-  { key: 'employeeNumber', label: 'Emp No' },
-  { key: 'fullName', label: 'Employee Name' },
-  { key: 'email', label: 'Email' },
-  { key: 'jobTitle', label: 'Job Title' },
-  { key: 'department', label: 'Department' },
-  { key: 'joiningDate', label: 'Joining Date' },
-] as const satisfies readonly { key: keyof EmployeeRow; label: string }[];

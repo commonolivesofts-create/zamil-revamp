@@ -37,3 +37,16 @@ export function payrollPeriodContaining(date: Date): Period {
     to: isoDate(year, startMonth + 1, PAYROLL_PERIOD_START_DAY - 1),
   };
 }
+
+/**
+ * The 21st of the previous month to the 20th of this month, whatever the day (CI3 Absence,
+ * Timesheet and Payroll File pages pre-fill their dates this way).
+ */
+export function payrollPeriodEndingThisMonth(date: Date): Period {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  return {
+    from: isoDate(year, month - 1, PAYROLL_PERIOD_START_DAY),
+    to: isoDate(year, month, PAYROLL_PERIOD_START_DAY - 1),
+  };
+}

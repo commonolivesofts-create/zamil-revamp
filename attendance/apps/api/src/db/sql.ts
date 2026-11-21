@@ -103,13 +103,12 @@ export function buildListSql<F>(
   return { countSql, countBinds, listSql, listBinds: b.binds };
 }
 
-/** All matching rows up to `maxRows` (exports). */
-export function buildExportSql<F>(spec: ListSpec<F>, query: ListQuery<F>, maxRows: number) {
+/** All matching rows (exports). */
+export function buildExportSql<F>(spec: ListSpec<F>, query: ListQuery<F>) {
   const b = new Binder();
   const where = buildWhere(spec, query, b);
-  const limit = b.add(maxRows);
   return {
-    sql: `SELECT ${spec.select} FROM ${spec.from}${where}${spec.groupBy ? ` GROUP BY ${spec.groupBy}` : ''} ORDER BY ${spec.orderBy} FETCH FIRST ${limit} ROWS ONLY`,
+    sql: `SELECT ${spec.select} FROM ${spec.from}${where}${spec.groupBy ? ` GROUP BY ${spec.groupBy}` : ''} ORDER BY ${spec.orderBy}`,
     binds: b.binds,
   };
 }

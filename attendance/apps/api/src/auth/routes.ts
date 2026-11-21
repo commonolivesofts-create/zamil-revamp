@@ -3,7 +3,7 @@
 import { Router } from 'express';
 import type { ZamilAuthConfig } from '../config';
 import { AppError } from '../lib/errors';
-import { rolesFor, toMe, type IdentityRepository } from './identity';
+import { toMe, type IdentityRepository } from './identity';
 import { authOf, requireAuth, type ZamilResolver } from './middleware';
 import type { SessionService } from './session';
 import { resolveZamilIdentity, revokeZamilSession } from './zamil-sso';
@@ -12,7 +12,6 @@ export interface AuthRouteDeps {
   sessions: SessionService;
   identities: IdentityRepository;
   zamil: ZamilAuthConfig;
-  hrAdmins: ReadonlySet<string>;
   resolveZamil?: ZamilResolver;
   revokeZamil?: typeof revokeZamilSession;
 }
@@ -26,7 +25,7 @@ export function authRoutes(deps: AuthRouteDeps): Router {
     const auth = authOf(req);
     const identity = await deps.identities.findByEmployeeNumber(auth.employeeNumber);
     if (!identity) throw new AppError('UNAUTHENTICATED', 'Your attendance profile was not found.');
-    res.json(toMe(identity, auth.roles));
+    res.json(toMe(identity));
   });
 
   router.post('/auth/sso', async (req, res) => {
@@ -39,14 +38,13 @@ export function authRoutes(deps: AuthRouteDeps): Router {
         { reason: 'NOT_LINKED' },
       );
     }
-    const roles = rolesFor(identity, deps.hrAdmins);
     await deps.sessions.issue(res, {
       userId: identity.userId,
       employeeNumber: identity.employeeNumber,
-      roles,
+      userName: identity.userName,
       abs: zamil.absoluteExpiresAt,
     });
-    res.json(toMe(identity, roles));
+    res.json(toMe(identity));
   });
 
   router.post('/auth/logout', async (req, res) => {

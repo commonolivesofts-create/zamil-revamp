@@ -40,7 +40,6 @@ const config: ReportConfig<Filters, EmployeeRow> = {
     { key: 'joiningDate', label: 'Joining Date', render: (row) => formatIsoDate(row.joiningDate) },
   ],
   rowKey: (row, index) => `${row.employeeNumber ?? ''}-${row.userId ?? index}`,
-  searchPlaceholder: 'Search name, number, email, job or department',
   emptyMessage: 'No employees match the selected filters.',
 };
 

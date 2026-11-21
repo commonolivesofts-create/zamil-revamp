@@ -3,9 +3,7 @@
 // renders it identically.
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
-import { can } from '@attendance/shared';
 import { OrvexaIcon } from '../components/OrvexaIcon';
-import { useMe } from '../app/session';
 import { BUILT_PAGES, NAVIGATION, sectionOf, type NavSection } from '../app/navigation';
 
 const isMobileViewport = () =>
@@ -75,7 +73,6 @@ export function Sidebar({
   onMobileClose: () => void;
 }) {
   const { pathname } = useLocation();
-  const me = useMe();
   const activeSection = sectionOf(pathname)?.id;
   const [openSection, setOpenSection] = useState<string | undefined>(activeSection ?? 'main');
   const [hoverOpen, setHoverOpen] = useState(false);
@@ -103,10 +100,7 @@ export function Sidebar({
     if (activeSection) setOpenSection(activeSection);
   }, [activeSection]);
 
-  const sections = NAVIGATION.map((section) => ({
-    ...section,
-    items: section.items.filter((item) => !item.permission || can(me.roles, item.permission)),
-  })).filter((section) => section.items.length > 0);
+  const sections = NAVIGATION;
 
   const navigate = () => {
     setHoverOpen(false);

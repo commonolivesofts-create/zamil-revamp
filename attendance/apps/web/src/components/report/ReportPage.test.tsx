@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { payrollPeriodContaining } from '@attendance/shared';
+import { payrollPeriodEndingThisMonth } from '@attendance/shared';
 import AbsencePage from '../../features/absences/AbsencePage';
 import EmployeeDetailsPage from '../../features/employees/EmployeeDetailsPage';
 import { ToastProvider } from '../Toast';
@@ -120,7 +120,7 @@ describe('ReportPage (Absence)', () => {
     render(wrap(<AbsencePage />));
     const table = await screen.findByRole('table');
     expect(within(table).getByText('APPROVED')).toHaveClass('zrv-admin-badge--good');
-    const period = payrollPeriodContaining(new Date());
+    const period = payrollPeriodEndingThisMonth(new Date());
     await waitFor(() =>
       expect(bodies()[0]).toEqual({
         page: 1,
