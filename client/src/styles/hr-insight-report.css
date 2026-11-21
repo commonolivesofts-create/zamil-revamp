@@ -2466,7 +2466,10 @@
   padding: 4px;
   text-align: center;
 }
-.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step:not(.zrv-ir-step--branch) .zrv-ir-step__node {
+.zrv-ir--fitted
+  .zrv-ir-ov--steps-featured
+  .zrv-ir-step:not(.zrv-ir-step--branch)
+  .zrv-ir-step__node {
   grid-row: auto;
 }
 .zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step:not(.zrv-ir-step--branch) b {

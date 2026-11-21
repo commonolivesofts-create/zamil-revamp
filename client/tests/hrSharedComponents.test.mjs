@@ -88,7 +88,7 @@ test('RecruitmentShell options: flow, compact and banner default to the earlier 
   )
   assert.match(
     shell,
-    /breadcrumb = COMMON_TEXT\.breadcrumb, demo = false,?\s*\}/,
+    /breadcrumb = COMMON_TEXT\.breadcrumb, demo = false, rightContent = null,?\s*\}/,
     'an undefined breadcrumb keeps the recruitment one',
   )
   const css = await read(CSS)
@@ -178,7 +178,10 @@ test('EmployeePicker cancels a delayed blur when the field is reopened', async (
   const picker = (await read(`${SHARED}EmployeePicker.jsx`)).replace(/\s+/g, ' ')
   assert.match(picker, /const blurTimer = useRef\(null\)/)
   assert.match(picker, /useEffect\(\(\) => \(\) => clearTimeout\(blurTimer\.current\), \[\]\)/)
-  assert.match(picker, /const openPicker = \(\) => \{ clearBlurTimer\(\) if \(disabled \|\| open\) return setOpen\(true\)/)
+  assert.match(
+    picker,
+    /const openPicker = \(\) => \{ clearBlurTimer\(\) if \(disabled \|\| open\) return setOpen\(true\)/,
+  )
   assert.match(picker, /onFocus=\{openPicker\}/)
   assert.match(picker, /onClick=\{openPicker\}/)
   assert.match(picker, /onBlur=\{\(\) => \{ clearBlurTimer\(\) blurTimer\.current = setTimeout/)

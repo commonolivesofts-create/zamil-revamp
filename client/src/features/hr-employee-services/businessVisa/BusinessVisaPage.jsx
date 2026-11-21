@@ -247,8 +247,7 @@ function VisaEditor({ lookups, initial }) {
   const hasOtherExpense = Boolean(form.travelOther || form.hotelOther)
   const counts = STEP_FIELDS.map((keys) => keys.filter(has).length)
   const visaDone =
-    (form.visaSingle || form.visaMultiple) &&
-    (!hasOtherExpense || has('otherDetails'))
+    (form.visaSingle || form.visaMultiple) && (!hasOtherExpense || has('otherDetails'))
   const fileCount = documents.length + files.length
   const doneSteps = [
     counts[0] === 3,

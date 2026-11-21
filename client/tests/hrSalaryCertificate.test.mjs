@@ -158,8 +158,13 @@ test('Arabic certificate text stays Unicode in the request payload and API respo
     approvalName: 'محمد المدير',
   })
   assert.deepEqual(
-    [record.employee.name, record.employee.nationality, record.employee.jobTitle,
-      record.toEmpName, record.approvalName],
+    [
+      record.employee.name,
+      record.employee.nationality,
+      record.employee.jobTitle,
+      record.toEmpName,
+      record.approvalName,
+    ],
     ['عبدالله علي', 'سعودي', 'مهندس', 'إلى بنك الرياض', 'محمد المدير'],
   )
 })

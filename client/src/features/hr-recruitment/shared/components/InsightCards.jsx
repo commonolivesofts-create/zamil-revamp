@@ -71,10 +71,7 @@ export function Card({
   if (wide) classes.push('zrv-ir-ov--wide')
   if (className) classes.push(className)
   return (
-    <article
-      className={classes.join(' ')}
-      style={{ '--i': index }}
-    >
+    <article className={classes.join(' ')} style={{ '--i': index }}>
       <div className="zrv-ir-ov__top">
         <span className="zrv-ir-ov__label">
           <OrvexaIcon name={icon} size={15} />
