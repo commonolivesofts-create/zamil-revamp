@@ -20,7 +20,9 @@ import '@/styles/report-table.css'
 import '@/styles/hr-recruitment-responsive.css'
 
 const PAGE_SIZE = 15
-const DRAWER_EXIT_MS = 320
+// Slightly longer than the CSS close animation so the panel finishes gliding
+// out before it unmounts; otherwise the exit snaps off mid-flight.
+const DRAWER_EXIT_MS = 420
 const DRAWER_MIN_WIDTH = 420
 const DRAWER_STEP = 24
 // A widened drawer always leaves a sliver of the page in view.
@@ -424,6 +426,12 @@ export function InsightReport({
             )}
           </h1>
           {subtitle && <p className="zrv-hr-sub">{subtitle}</p>}
+          {records.data?.loadedAt && (
+            <span className="zrv-ir-stamp" role="status">
+              <i aria-hidden="true" />
+              {T.updated(clock(records.data.loadedAt))}
+            </span>
+          )}
         </div>
         <div className="zrv-ir-head__actions">
           {headerLink && (
@@ -447,55 +455,67 @@ export function InsightReport({
               </span>
             </button>
           )}
-          {records.data?.loadedAt && (
-            <span className="zrv-ir-stamp" role="status">
-              <i aria-hidden="true" />
-              {T.updated(clock(records.data.loadedAt))}
-            </span>
-          )}
           <button
             type="button"
-            className={`zrv-ir-btn${filtersOpen ? ' zrv-ir-is-on' : ''}`}
+            className={`zrv-ir-btn zrv-ir-btn--utility${filtersOpen ? ' zrv-ir-is-on' : ''}`}
             aria-expanded={filtersOpen}
             aria-controls={`${id}-filters`}
+            aria-label={T.filter}
+            title={T.filter}
             onClick={() => setFiltersOpen((value) => !value)}
           >
             <OrvexaIcon name="sliders-horizontal" size={16} />
-            {T.filter}
+            <span className="zrv-ir-btn__label">{T.filter}</span>
             {activeFilters > 0 && <span className="zrv-ir-btn__badge">{activeFilters}</span>}
           </button>
           <button
             type="button"
-            className="zrv-ir-btn"
+            className="zrv-ir-btn zrv-ir-btn--utility"
+            aria-label={T.refresh}
+            title={T.refresh}
             onClick={refresh}
             disabled={records.refreshing}
           >
             <OrvexaIcon name="refresh-cw" size={16} />
-            {T.refresh}
+            <span className="zrv-ir-btn__label">{T.refresh}</span>
           </button>
-          <button type="button" className="zrv-ir-btn" onClick={() => window.print()}>
+          <button
+            type="button"
+            className="zrv-ir-btn zrv-ir-btn--utility"
+            aria-label={printLabel}
+            title={printLabel}
+            onClick={() => window.print()}
+          >
             <OrvexaIcon name="printer" size={16} />
-            {printLabel}
+            <span className="zrv-ir-btn__label">{printLabel}</span>
           </button>
           {exportable && (
             <>
               <button
                 type="button"
-                className="zrv-ir-btn"
+                className="zrv-ir-btn zrv-ir-btn--utility"
+                aria-label={T.exportCsv}
+                title={T.exportCsv}
                 onClick={() => runExport('csv')}
                 disabled={Boolean(exporting) || !records.data?.pagination?.total}
               >
                 <OrvexaIcon name="download" size={16} />
-                {exporting === 'csv' ? T.exporting : T.exportCsv}
+                <span className="zrv-ir-btn__label">
+                  {exporting === 'csv' ? T.exporting : T.exportCsv}
+                </span>
               </button>
               <button
                 type="button"
-                className="zrv-ir-btn"
+                className="zrv-ir-btn zrv-ir-btn--utility"
+                aria-label={T.exportPdf}
+                title={T.exportPdf}
                 onClick={() => runExport('pdf')}
                 disabled={Boolean(exporting) || !records.data?.pagination?.total}
               >
                 <OrvexaIcon name="file-text" size={16} />
-                {exporting === 'pdf' ? T.exporting : T.exportPdf}
+                <span className="zrv-ir-btn__label">
+                  {exporting === 'pdf' ? T.exporting : T.exportPdf}
+                </span>
               </button>
             </>
           )}
@@ -660,6 +680,12 @@ export function InsightReport({
             label={heading.toLowerCase()}
             empty={empty}
             isEmpty={(data) => !data.items.length}
+            loadingVariant="table"
+            skeletonColumns={columns.length}
+            skeletonRows={8}
+            // The page header and stats are already rendered (with their own
+            // loading states); only the table below them needs a skeleton.
+            skeletonPageChrome={false}
           >
             {(data) => (
               <>

@@ -3,11 +3,38 @@ import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT, REQUISITION_TEXT as T } from '../hrRecruitmentText.js'
 import { enDate } from '../shared/hrFormat.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
-import { DetailFacts, DetailSkeleton, SectionHeading } from '../shared/components/ReportDrawer.jsx'
+import { DetailFacts, DetailSection, DetailSkeleton } from '../shared/components/ReportDrawer.jsx'
 import { RecruitmentActions } from './RecruitmentActions.jsx'
 
 const R = T.report
 const service = hrRecruitmentServices.requisitions
+// Mirrors the sections rendered below so the loading state has the same shape.
+const LOADING_SECTIONS = Object.freeze([
+  {
+    title: 'Requisition details',
+    icon: 'clipboard-list',
+    description: 'Complete saved record and request details',
+    columns: 3,
+    rows: 3,
+  },
+  {
+    title: 'Position & requirements',
+    icon: 'briefcase-business',
+    tone: 'mint',
+    description: 'Role, package and candidate requirements',
+    columns: 2,
+    rows: 4,
+  },
+  {
+    title: 'Recruitment progress',
+    icon: 'workflow',
+    tone: 'amber',
+    description: 'Current ticket status and decision dates',
+    columns: 3,
+    rows: 1,
+  },
+  { title: 'Actions', icon: 'bolt', description: 'Continue this requisition', columns: 1, rows: 1 },
+])
 const date = (value) => (value ? enDate(value) : COMMON_TEXT.dash)
 const yesNo = (value) => (value === true ? 'Yes' : value === false ? 'No' : COMMON_TEXT.dash)
 const text = (value) => value || COMMON_TEXT.dash
@@ -19,12 +46,7 @@ export function RequisitionDetails({ row, onChanged }) {
   const record = useResource(`hr-requisition-report-detail:${row.requisitionId}`, (signal) =>
     service.getById(row.requisitionId, { signal }),
   )
-  const loading = (
-    <DetailSkeleton
-      title="Requisition details"
-      description={`Loading saved requisition ${row.requisitionNumber || row.requisitionId}…`}
-    />
-  )
+  const loading = <DetailSkeleton sections={LOADING_SECTIONS} />
   if (record.status === 'loading') return loading
   return (
     <ResourceState
@@ -42,12 +64,13 @@ export function RequisitionDetails({ row, onChanged }) {
               : COMMON_TEXT.dash
         return (
           <>
-            <section className="zrv-ir-detail" aria-label="Requisition details">
-              <SectionHeading
-                icon="clipboard-list"
-                title="Requisition details"
-                description={`Complete saved record for ${detail.requisitionNumber || detail.requisitionId}`}
-              />
+            <DetailSection
+              label="Requisition details"
+              icon="clipboard-list"
+              title="Requisition details"
+              description={`Complete saved record for ${detail.requisitionNumber || detail.requisitionId}`}
+              bare
+            >
               <DetailFacts
                 columns={3}
                 facts={[
@@ -68,15 +91,15 @@ export function RequisitionDetails({ row, onChanged }) {
                   {detail.remark}
                 </p>
               )}
-            </section>
+            </DetailSection>
 
-            <section className="zrv-ir-detail" aria-label="Position and requirements">
-              <SectionHeading
-                icon="briefcase-business"
-                title="Position & requirements"
-                description={text(detail.jobTitle)}
-                tone="mint"
-              />
+            <DetailSection
+              label="Position and requirements"
+              icon="briefcase-business"
+              title="Position & requirements"
+              description={text(detail.jobTitle)}
+              tone="mint"
+            >
               <DetailFacts
                 columns={2}
                 facts={[
@@ -103,15 +126,15 @@ export function RequisitionDetails({ row, onChanged }) {
                   ['Other requirements', text(detail.otherRequirements)],
                 ]}
               />
-            </section>
+            </DetailSection>
 
             {(detail.replacementFor || detail.additionReason) && (
-              <section className="zrv-ir-detail" aria-label="Request justification">
-                <SectionHeading
-                  icon="info"
-                  title="Request justification"
-                  description="Why this position was requested"
-                />
+              <DetailSection
+                label="Request justification"
+                icon="info"
+                title="Request justification"
+                description="Why this position was requested"
+              >
                 <DetailFacts
                   columns={1}
                   facts={[
@@ -121,16 +144,16 @@ export function RequisitionDetails({ row, onChanged }) {
                       : []),
                   ]}
                 />
-              </section>
+              </DetailSection>
             )}
 
-            <section className="zrv-ir-detail" aria-label="Recruitment progress">
-              <SectionHeading
-                icon="workflow"
-                title="Recruitment progress"
-                description="Current ticket status and decision dates"
-                tone="amber"
-              />
+            <DetailSection
+              label="Recruitment progress"
+              icon="workflow"
+              title="Recruitment progress"
+              description="Current ticket status and decision dates"
+              tone="amber"
+            >
               <DetailFacts
                 columns={3}
                 facts={[
@@ -139,28 +162,28 @@ export function RequisitionDetails({ row, onChanged }) {
                   ['Closed', date(detail.closedDate)],
                 ]}
               />
-            </section>
+            </DetailSection>
 
             {detail.attachments?.length > 0 && (
-              <section className="zrv-ir-detail" aria-label="Attachments">
-                <SectionHeading
-                  icon="paperclip"
-                  title="Attachments"
-                  description={`${detail.attachments.length} file${detail.attachments.length === 1 ? '' : 's'} attached`}
-                />
+              <DetailSection
+                label="Attachments"
+                icon="paperclip"
+                title="Attachments"
+                description={`${detail.attachments.length} file${detail.attachments.length === 1 ? '' : 's'} attached`}
+              >
                 <DetailFacts
                   columns={1}
                   facts={detail.attachments.map((file) => [file.fileName, file.fileName])}
                 />
-              </section>
+              </DetailSection>
             )}
 
-            <section className="zrv-ir-detail" aria-label="Requisition actions">
-              <SectionHeading
-                icon="bolt"
-                title="Actions"
-                description="Continue this requisition from here"
-              />
+            <DetailSection
+              label="Requisition actions"
+              icon="bolt"
+              title="Actions"
+              description="Continue this requisition from here"
+            >
               <div className="zrv-ir-detail-actions">
                 <RecruitmentActions
                   key={detail.requisitionId}
@@ -171,7 +194,7 @@ export function RequisitionDetails({ row, onChanged }) {
                   }}
                 />
               </div>
-            </section>
+            </DetailSection>
           </>
         )
       }}
