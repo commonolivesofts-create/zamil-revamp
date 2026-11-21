@@ -267,9 +267,33 @@ One Zamil login serves both apps. Each difference is recorded as **Same**, **Des
 | Processing makes about 7 queries per employee-day, synchronously                                      | `ProcessAttendanceModel::process_attendance_range`                           | Phase 5: reads batched per employee, same results                 |
 | One impossible leave date (e.g. `31-02-2024`) fails processing for that employee                      | `ProcessAttendanceModel::build_leave_date_expression`                        | Fixed in phase 5: read as no date                                 |
 | Contractor Summary: division filter never matched; department filter raised ORA-00904                 | `Contractor_model::get_summary`, `get_summary_detail`                        | Fixed in phase 8                                                  |
+| Contractor Summary Group Wise failed (ORA-00979) with a contractor or department filter               | `Contractor_model::get_summary_group`                                        | Fixed (final audit)                                               |
 | Contractor employee edit always failed on Division                                                    | `assets/js/pages/con_employee/list.js`                                       | Fixed in phase 8: stored code pre-filled                          |
 | Shift delete leaves timetables pointing at it                                                         | `Shift_model`                                                                | Fixed in phase 3: refused while in use                            |
 | Dead code: legacy month processor, `contractor/form`, `occasion/view`, `Shifts::create`, duplicate JS | various                                                                      | Not ported                                                        |
+
+### Final CI3 audit (2026-11-21)
+
+An independent read of every CI3 controller, view and script against the rebuild confirmed every menu item,
+page, endpoint, export and processing rule. It found these gaps, all now matched to CI3:
+
+| Gap                                                                                    | Now                                                                                                         |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Timetable: employee-name lookup never ran (rebuild bug)                                | looks the employee up from 3 digits and fills the name, as CI3                                              |
+| Contractor Employees: picking a contractor did not fill status and rate                | fills name, status and rate; clearing clears them                                                           |
+| Contractor Employees: Production not disabled for QC / MAINTENANCE / W/H / ADMIN       | disabled and cleared, as CI3 `toggleProdDep`                                                                |
+| Contractor Employees: an extra end-after-start rule                                    | removed (CI3 had none)                                                                                      |
+| Contractor Summary: no totals on Report and Group Wise; renamed headers and Excel file | CI3 totals, headers and `Contractor_Group_Summary` file name                                                |
+| Empty date, time, status or Y/N fields showed a format message                         | "The … field is required." first, as CI3 (required rule before the format rule)                             |
+| Daily Attendance: no empty-date checks                                                 | "Please select From Date." / "Please select To Date." / CI3 range message                                   |
+| Reset kept the search text                                                             | Reset and Clear All empty the search box                                                                    |
+| No active-filter chips                                                                 | chips with remove and Clear All on the 10 pages that had them                                               |
+| Alerts filters not in the address bar                                                  | kept in the URL (`from_date`, `to_date`, `type`, `severity`, `currentPage`); Back works                     |
+| Sub Shifts: no "Manage Shift Details" button                                           | button opens the weekly editor                                                                              |
+| Leave Requests: wording; loaded data with no processed period                          | "…for the selected dates."; with no dates it shows "Please select From Date and To Date." and loads nothing |
+| Absence Total Days shown as a number                                                   | Oracle text, as CI3 (`.5`)                                                                                  |
+| Old CI3 URLs                                                                           | redirected (`/absence`, `/timesheet`, `/processattendance`, …)                                              |
+| Processing saved an employee's range as one unit                                       | a failed batch is retried day by day; only failing days report "Insert failed." / "Update failed."          |
 
 ## Definition of done (per phase)
 

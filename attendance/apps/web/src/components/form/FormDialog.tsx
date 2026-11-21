@@ -78,7 +78,7 @@ export function FormDialog<V extends FormValues>({
               field={field}
               value={values[field.name]}
               error={errors[field.name]}
-              disabled={pending}
+              disabled={pending || Boolean(field.disabledWhen?.(values))}
               onChange={(value) => {
                 const patch = { [field.name]: value } as Partial<V>;
                 set(patch);

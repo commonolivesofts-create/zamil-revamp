@@ -111,6 +111,7 @@ export default function TimesheetPage() {
         : undefined,
     rowKey: (r, index) => `${r.empNo ?? ''}-${r.attDate ?? index}`,
     emptyMessage: 'No timesheet data available.',
+    filterChips: true,
   };
 
   return <ReportPage config={config} />;

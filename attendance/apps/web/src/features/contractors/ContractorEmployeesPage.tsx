@@ -9,6 +9,7 @@ import {
   conEmployeeInputSchema,
   conEmployeeOptionsSchema,
   conEmployeePageSchema,
+  contractorLookupSchema,
   mutationResultSchema,
   type ConEmployeeFilters,
   type ConEmployeeOptions,
@@ -61,6 +62,11 @@ const FLAG_OPTIONS = [
   { value: 'blacklist', label: 'Blacklist' },
 ];
 
+/** CI3 toggleProdDep: these departments have no production department (field disabled and cleared). */
+const PROD_DEP_DISABLED_DEPARTMENTS = ['QC', 'MAINTENANCE', 'W/H', 'ADMIN'];
+const prodDepDisabled = (department: string) =>
+  PROD_DEP_DISABLED_DEPARTMENTS.includes(department.toUpperCase());
+
 const EMPTY: Values = {
   division: 'IBM',
   conNumber: '',
@@ -103,7 +109,8 @@ const toValues = (r: ConEmployeeRow): Values => {
     employeeName: r.employeeName ?? '',
     iqamah: r.iqamah ?? '',
     department: r.department ?? '',
-    prodDep: r.prodDep ?? '',
+    // CI3 fillForm ends with toggleProdDep(), which clears it for these departments.
+    prodDep: prodDepDisabled(r.department ?? '') ? '' : (r.prodDep ?? ''),
     job: r.job ?? '',
     jobTitle: r.jobTitle ?? '',
     directBossId: r.directBossId ?? '',
@@ -180,6 +187,7 @@ function formFields(options: ConEmployeeOptions | undefined): FormField<Values>[
       type: 'select',
       placeholder: 'Select',
       options: options?.productionDepartments ?? [],
+      disabledWhen: (values) => prodDepDisabled(values.department),
     },
     {
       name: 'job',
@@ -210,6 +218,30 @@ function formFields(options: ConEmployeeOptions | undefined): FormField<Values>[
     { name: 'flags', label: 'Flags', type: 'multiselect', options: FLAG_OPTIONS, wide: true },
     { name: 'remark', label: 'Remark', type: 'textarea', wide: true, placeholder: 'Enter remark' },
   ];
+}
+
+/**
+ * CI3 fetchContractorForEmployeeForm: picking a contractor fills its name, status and rate; clearing
+ * the pick clears all three; a failed lookup leaves the fields as they are.
+ */
+async function fillContractor(conNumber: string, set: (patch: Partial<Values>) => void) {
+  if (!conNumber) {
+    set({ conName: '', status: '', rate: '' });
+    return;
+  }
+  try {
+    const { contractor } = await api(
+      `/contractors/lookup?conNumber=${encodeURIComponent(conNumber)}`,
+      contractorLookupSchema,
+    );
+    set({
+      conName: contractor.conName ?? '',
+      status: contractor.status ?? '',
+      rate: contractor.rate ?? '',
+    });
+  } catch {
+    // As CI3: keep the current values.
+  }
 }
 
 export default function ContractorEmployeesPage() {
@@ -291,6 +323,7 @@ export default function ContractorEmployeesPage() {
     ],
     rowKey: (r) => String(r.id),
     emptyMessage: 'No employee data available.',
+    filterChips: true,
     headerActions: (
       <button
         type="button"
@@ -304,7 +337,6 @@ export default function ContractorEmployeesPage() {
   };
 
   const isNew = editing === 'new';
-  const contractors = options.data?.contractors ?? [];
   const jobs = options.data?.jobs ?? [];
   const bosses = options.data?.bosses ?? [];
 
@@ -320,10 +352,8 @@ export default function ContractorEmployeesPage() {
           submitLabel={isNew ? 'Save Employee' : 'Update Employee'}
           onClose={() => setEditing(null)}
           onFieldChange={(name, values, set) => {
-            if (name === 'conNumber')
-              set({
-                conName: contractors.find((c) => c.conNumber === values.conNumber)?.conName ?? '',
-              });
+            if (name === 'conNumber') void fillContractor(values.conNumber, set);
+            if (name === 'department' && prodDepDisabled(values.department)) set({ prodDep: '' });
             if (name === 'job')
               set({ jobTitle: jobs.find((j) => j.value === values.job)?.label ?? '' });
             if (name === 'directBossId')

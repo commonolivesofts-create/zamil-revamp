@@ -92,17 +92,27 @@ async function processEmployee(
   for (const result of results) for (const counter of result.counters) counts[counter]++;
 
   const rows: SheetRow[] = results.map((r) => r.row);
+  const saved = (row: SheetRow) => {
+    if (existing.has(row.ATT_DATE)) counts.updatedRows++;
+    else counts.insertedRows++;
+  };
   try {
+    // Fast path: the employee's whole range in one transaction.
     await repo.saveRows(rows);
-    for (const row of rows) {
-      if (existing.has(row.ATT_DATE)) counts.updatedRows++;
-      else counts.insertedRows++;
-    }
+    rows.forEach(saved);
   } catch {
-    failEveryDay(
-      'Save failed.',
-      rows.map((row) => ({ day: row.ATT_DATE, name: row.EMP_NAME ?? '' })),
-    );
+    // CI3 wrote day by day, so one bad row lost only that day ("Update failed." / "Insert
+    // failed."). Retry the rows one at a time to end in the same state.
+    for (const row of rows) {
+      try {
+        await repo.saveRows([row]);
+        saved(row);
+      } catch {
+        failEveryDay(existing.has(row.ATT_DATE) ? 'Update failed.' : 'Insert failed.', [
+          { day: row.ATT_DATE, name: row.EMP_NAME ?? '' },
+        ]);
+      }
+    }
   }
   return { counts, rowErrors, employeeErrors: [] };
 }

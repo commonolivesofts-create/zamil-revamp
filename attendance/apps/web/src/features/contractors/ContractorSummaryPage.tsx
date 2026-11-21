@@ -89,6 +89,11 @@ function buildTables(data: ContractorSummaryResult): Table[] {
   }
   flush();
 
+  // CI3 renderReportTab / renderGroupwiseTab footer totals.
+  const reportHrs = data.records.reduce((sum, r) => sum + (parseFloat(r.actHrs ?? '') || 0), 0);
+  const groupEmp = data.stats.reduce((sum, r) => sum + (parseInt(r.totalEmp ?? '', 10) || 0), 0);
+  const groupCost = data.stats.reduce((sum, r) => sum + (parseFloat(r.totalCost ?? '') || 0), 0);
+
   return [
     {
       title: 'Summary',
@@ -116,14 +121,14 @@ function buildTables(data: ContractorSummaryResult): Table[] {
       head: [
         '#',
         'Date',
-        'Con No',
-        'Contractor Name',
-        'Dep Id',
-        'Department',
-        'Emp No',
+        'Con #',
+        'Con Name',
+        'Dep ID',
+        'Dept',
+        'Emp #',
         'Emp Name',
-        'In',
-        'Out',
+        'Punch In',
+        'Punch Out',
         'Act Hrs',
       ],
       rows: data.records.map((r, i) => ({
@@ -141,15 +146,17 @@ function buildTables(data: ContractorSummaryResult): Table[] {
           fixed(r.actHrs),
         ],
       })),
-      empty: 'No daily records for the selected filters.',
+      foot: ['', '', '', '', '', '', '', '', '', 'Total', fixed(reportHrs)],
+      empty: 'No punch detail for the selected filters.',
     },
     {
       title: 'Summary Group Wise',
-      file: 'Contractor_Group_Wise',
+      file: 'Contractor_Group_Summary',
       head: ['#', 'Con No', 'Contractor Name', 'Total Employees', 'Total Cost'],
       rows: data.stats.map((r, i) => ({
         cells: [i + 1, r.conNo, r.conName, parseInt(r.totalEmp ?? '', 10) || 0, fixed(r.totalCost)],
       })),
+      foot: ['', '', 'Total', groupEmp, fixed(groupCost)],
       empty: 'No contractor rollup for the selected filters.',
     },
   ];
@@ -404,7 +411,8 @@ export default function ContractorSummaryPage() {
                   ))
                 )}
               </tbody>
-              {table.foot && table.rows.length > 0 && (
+              {/* CI3 keeps the totals row (0.00) when a tab is empty. */}
+              {table.foot && (
                 <tfoot>
                   <tr className="zat-subtotal">
                     {table.foot.map((cell, j) => (

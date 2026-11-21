@@ -65,10 +65,15 @@ const config: ReportConfig<Filters, DailyAttendanceRow, DailyAttendancePage> = {
     },
   ],
   initialFilters: today,
+  // CI3 daily-attendance/list.js checks, in the same order and wording.
   validateFilters: (f) =>
-    f.fromDate && f.toDate && f.fromDate > f.toDate
-      ? 'From date must be less than or equal to To date.'
-      : null,
+    !f.fromDate
+      ? 'Please select From Date.'
+      : !f.toDate
+        ? 'Please select To Date.'
+        : f.fromDate > f.toDate
+          ? 'From Date must be less than or equal to To Date.'
+          : null,
   summary: (data) => <Summary data={data} />,
   exportWhenEmpty: true,
   columns: [

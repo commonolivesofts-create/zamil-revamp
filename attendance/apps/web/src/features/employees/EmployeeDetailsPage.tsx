@@ -42,6 +42,7 @@ const config: ReportConfig<Filters, EmployeeRow> = {
   ],
   rowKey: (row, index) => `${row.employeeNumber ?? ''}-${row.userId ?? index}`,
   emptyMessage: 'No employees match the selected filters.',
+  filterChips: true,
 };
 
 export default function EmployeeDetailsPage() {

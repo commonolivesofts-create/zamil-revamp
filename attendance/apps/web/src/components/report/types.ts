@@ -56,6 +56,14 @@ export interface ReportConfig<F extends FilterValues, T, P extends Paged<T> = Pa
   validateFilters?: (filters: F) => string | null;
   /** Allow exporting an empty list (CI3 Alerts wrote a header-only file). */
   exportWhenEmpty?: boolean;
+  /**
+   * Keeps the applied filters and page in the address bar under these parameter names (CI3 Alerts
+   * used history.pushState), so Back restores a view and a filtered view can be bookmarked.
+   * Not combined with searchPlaceholder.
+   */
+  urlState?: { [K in keyof F & string]: string };
+  /** Shows CI3's active-filter chips (remove one filter, or "Clear All" = Reset). */
+  filterChips?: boolean;
   /** Extra buttons in the page header (e.g. "Add shift"), shown before Filter. */
   headerActions?: ReactNode;
 }

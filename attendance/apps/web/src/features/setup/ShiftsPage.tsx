@@ -165,6 +165,7 @@ export default function ShiftsPage() {
     ],
     rowKey: (row) => row.uuid,
     emptyMessage: 'No shift data available.',
+    filterChips: true,
     headerActions: (
       <button
         type="button"

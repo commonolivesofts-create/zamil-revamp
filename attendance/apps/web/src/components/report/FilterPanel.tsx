@@ -11,6 +11,7 @@ export function FilterPanel<F extends FilterValues>({
   applied,
   initial,
   onApply,
+  onReset,
   validate,
 }: {
   id: string;
@@ -19,6 +20,8 @@ export function FilterPanel<F extends FilterValues>({
   applied: F;
   initial: () => F;
   onApply: (filters: F) => void;
+  /** Called on Reset (CI3 Reset also cleared the search box). */
+  onReset?: () => void;
   validate?: (filters: F) => string | null;
 }) {
   const [draft, setDraft] = useState<F>(applied);
@@ -36,6 +39,7 @@ export function FilterPanel<F extends FilterValues>({
   const reset = () => {
     const next = initial();
     setDraft(next);
+    onReset?.();
     apply(next);
   };
   const set = (key: keyof F & string, value: string) =>

@@ -81,6 +81,7 @@ const config: ReportConfig<Filters, AbsenceRow> = {
   rowKey: (row, index) =>
     `${row.empNo ?? ''}-${row.leaveStartDate ?? ''}-${row.leaveEndDate ?? ''}-${index}`,
   emptyMessage: 'No absence records match the selected filters.',
+  filterChips: true,
 };
 
 export default function AbsencePage() {

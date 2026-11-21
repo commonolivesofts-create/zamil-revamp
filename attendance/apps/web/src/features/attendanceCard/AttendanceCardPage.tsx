@@ -40,6 +40,7 @@ export default function AttendanceCardPage() {
     ],
     rowKey: (row, index) => `${row.empNo ?? ''}-${row.attDate ?? index}`,
     emptyMessage: 'No attendance card data available.',
+    filterChips: true,
     headerActions: (
       <button
         type="button"

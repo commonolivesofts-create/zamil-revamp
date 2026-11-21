@@ -74,7 +74,7 @@ Not applicable (read-only report).
 
 | Item             | CI3                                                                                   | New                                                                                            | Outcome                        |
 | ---------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------ |
-| Format, encoding | CSV, no BOM                                                                           | CSV, UTF-8 with BOM (Excel shows Arabic names correctly)                                       | Fixed                          |
+| Format, encoding | CSV, no BOM                                                                           | CSV, no BOM                                                                                    | Same                           |
 | Columns          | every `XX_DIGI_EMP_MASTER` column (74): salaries, passport and iqama numbers included | the same raw headers for the 7 employee fields; salary, document and other HR columns left out | Fixed (data exposure; confirm) |
 | Rows             | all matching rows                                                                     | all matching rows                                                                              | Same                           |
 | File name        | `employee_data_YYYYMMDD_HHMMSS.csv`                                                   | same                                                                                           | Same                           |

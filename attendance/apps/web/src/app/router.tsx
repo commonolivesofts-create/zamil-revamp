@@ -32,6 +32,28 @@ const PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   'contractor-summary': lazy(() => import('../features/contractors/ContractorSummaryPage')),
 };
 
+/** Old CI3 page URLs (routes.php entries and CodeIgniter auto-routed controllers) → new paths. */
+const CI3_ALIASES: Record<string, string> = {
+  '/dashboard': '/',
+  '/employee_details': '/report/employee-details',
+  '/absence': '/report/absence',
+  '/attendance_card': '/report/attendance-card',
+  '/processattendance': '/report/attendance-card',
+  '/timesheet': '/report/timesheet',
+  '/payroll_file': '/report/payroll-file',
+  '/alerts_exceptions': '/alerts-exceptions',
+  '/daily_attendance': '/daily-attendance',
+  '/leave_request': '/leave-requests',
+  '/shift_details': '/shift-details',
+  '/shift-details/create': '/shift-details/manage',
+  '/shifts/create': '/shifts',
+  '/timetable/create': '/timetable',
+  '/contractor/form': '/contractor',
+  '/contractor/employees/form': '/contractor/employees',
+  '/contractor/summary_index': '/report/contractor-summary',
+  '/function_feature': '/function-feature',
+};
+
 export const router = createBrowserRouter([
   {
     element: (
@@ -46,9 +68,11 @@ export const router = createBrowserRouter([
       }),
       { path: '/shift-details/manage', element: <ShiftWeekPage /> },
       { path: '/shift-details/:uuid', element: <ShiftWeekPage /> },
-      // CI3 aliases, so old bookmarks keep working.
-      { path: '/employee_details', element: <Navigate to="/report/employee-details" replace /> },
-      { path: '/function_feature', element: <Navigate to="/function-feature" replace /> },
+      // CI3 aliases (explicit and auto-routed controller URLs), so old bookmarks keep working.
+      ...Object.entries(CI3_ALIASES).map(([path, to]) => ({
+        path,
+        element: <Navigate to={to} replace />,
+      })),
       { path: '*', element: <NotFound /> },
     ],
   },

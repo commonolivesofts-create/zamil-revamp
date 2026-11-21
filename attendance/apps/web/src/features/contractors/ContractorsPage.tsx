@@ -136,6 +136,7 @@ export default function ContractorsPage() {
     ],
     rowKey: (r) => String(r.id),
     emptyMessage: 'No contractor data available.',
+    filterChips: true,
     headerActions: (
       <button
         type="button"

@@ -93,6 +93,8 @@ const config: ReportConfig<Filters, AlertRow, AlertPage> = {
     },
   ],
   initialFilters: thisMonth,
+  // CI3 kept the filters in the address bar (history.pushState) with these names.
+  urlState: { fromDate: 'from_date', toDate: 'to_date', type: 'type', severity: 'severity' },
   summary: (data) => <Summary data={data} />,
   exportWhenEmpty: true,
   columns: [

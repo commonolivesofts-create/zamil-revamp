@@ -113,30 +113,29 @@ describe('POST /processing/run', () => {
     ]);
   });
 
-  it("a failed save turns that employee's days into row errors; others still save", async () => {
+  it('a failed save loses only the failing day, as CI3 wrote day by day', async () => {
     const { repo, saved } = fakeRepo({
       saveRows: async (rows) => {
-        if (rows[0]?.EMP_NO === '200') throw new Error('ORA-00001');
+        if (rows.some((r) => r.EMP_NO === '200' && r.ATT_DATE === '2001-01-07'))
+          throw new Error('ORA-00001');
         saved.push(rows);
       },
     });
     const res = await run(repo, valid, 200);
-    expect(res.body.summary).toMatchObject({ insertedRows: 1, updatedRows: 1, errorRows: 2 });
+    expect(res.body.summary).toMatchObject({ insertedRows: 2, updatedRows: 1, errorRows: 1 });
     expect(res.body.summary.rowErrors).toEqual([
       {
         employeeNumber: '200',
         employeeName: 'Sara',
         attendanceDate: '2001-01-07',
-        error: 'Save failed.',
-      },
-      {
-        employeeNumber: '200',
-        employeeName: 'Sara',
-        attendanceDate: '2001-01-08',
-        error: 'Save failed.',
+        error: 'Insert failed.',
       },
     ]);
-    expect(saved).toHaveLength(1);
+    // Employee 100 in one batch; employee 200's good day saved on its own.
+    expect(saved.map((rows) => rows.map((r) => `${r.EMP_NO}/${r.ATT_DATE}`))).toEqual([
+      ['100/2001-01-07', '100/2001-01-08'],
+      ['200/2001-01-08'],
+    ]);
   });
 
   it('a failed lookup writes nothing for that employee and reports each day', async () => {

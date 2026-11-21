@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 import { errorMessage } from '../../lib/api';
 import { ContentSkeleton } from '../Feedback';
+import { ActiveFilters } from './ActiveFilters';
 import { OrvexaIcon } from '../OrvexaIcon';
 import { DataTable } from './DataTable';
 import { FilterPanel } from './FilterPanel';
@@ -19,6 +20,9 @@ export function ReportPage<F extends FilterValues, T, P extends Paged<T> = Paged
   const id = useId().replace(/:/g, '');
   const report = useReport(config);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Bumped when a chip changes the applied filters, so the filter form re-reads them.
+  const [panelVersion, setPanelVersion] = useState(0);
+  const resetFilters = config.resetFilters ?? config.initialFilters;
   const { query } = report;
   const activeFilters = Object.keys(compactFilters(report.filters)).length;
   const heading = config.heading.toLowerCase();
@@ -94,14 +98,32 @@ export function ReportPage<F extends FilterValues, T, P extends Paged<T> = Paged
       </header>
 
       <FilterPanel
+        key={`${panelVersion}|${report.urlKey}`}
         id={id}
         open={filtersOpen}
         fields={config.filters}
         applied={report.filters}
-        initial={config.resetFilters ?? config.initialFilters}
+        initial={resetFilters}
         validate={config.validateFilters}
         onApply={report.applyFilters}
+        onReset={report.clearSearch}
       />
+
+      {config.filterChips && (
+        <ActiveFilters
+          fields={config.filters}
+          applied={report.filters}
+          onRemove={(key) => {
+            report.applyFilters({ ...report.filters, [key]: '' });
+            setPanelVersion((v) => v + 1);
+          }}
+          onClearAll={() => {
+            report.clearSearch();
+            report.applyFilters(resetFilters());
+            setPanelVersion((v) => v + 1);
+          }}
+        />
+      )}
 
       {config.summary && query.data && config.summary(query.data)}
 
@@ -111,7 +133,11 @@ export function ReportPage<F extends FilterValues, T, P extends Paged<T> = Paged
             <h2 id={`${id}-heading`}>{config.heading}</h2>
           </header>
 
-          {query.isPending ? (
+          {report.blocked ? (
+            <p className="zrv-admin-state zrv-admin-state--error" role="alert">
+              {report.blocked}
+            </p>
+          ) : query.isPending ? (
             <ContentSkeleton label={`Loading ${heading}`} />
           ) : query.isError ? (
             <div className="zrv-admin-state zrv-admin-state--error" role="alert">

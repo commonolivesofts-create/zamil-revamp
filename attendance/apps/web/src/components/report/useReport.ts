@@ -1,6 +1,7 @@
 // State and data for a ReportPage: paging, search (debounced), applied filters, CSV export.
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { DEFAULT_PAGE_SIZE } from '@attendance/shared';
 import { api, apiDownload, errorMessage } from '../../lib/api';
 import { saveBlob } from '../../lib/download';
@@ -13,13 +14,42 @@ export function compactFilters<F extends FilterValues>(filters: F): Partial<F> {
   return Object.fromEntries(Object.entries(filters).filter(([, value]) => value)) as Partial<F>;
 }
 
+/** Filters from the address bar; a missing parameter keeps the page's initial value. */
+function filtersFromUrl<F extends FilterValues>(
+  params: URLSearchParams,
+  names: { [K in keyof F & string]: string },
+  initial: F,
+): F {
+  const next: FilterValues = { ...initial };
+  for (const [key, name] of Object.entries(names)) {
+    const value = params.get(name);
+    if (value !== null) next[key] = value;
+  }
+  return next as F;
+}
+
 export function useReport<F extends FilterValues, T, P extends Paged<T>>(
   config: ReportConfig<F, T, P>,
 ) {
   const toast = useToast();
-  const [page, setPage] = useState(1);
+  const [localPage, setLocalPage] = useState(1);
   const limit = config.pageSize ?? DEFAULT_PAGE_SIZE;
-  const [filters, setFilters] = useState<F>(config.initialFilters);
+  const [localFilters, setLocalFilters] = useState<F>(config.initialFilters);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlNames = config.urlState;
+  const filters = urlNames
+    ? filtersFromUrl(searchParams, urlNames, config.initialFilters())
+    : localFilters;
+  const page = urlNames ? Math.max(1, Number(searchParams.get('currentPage')) || 1) : localPage;
+  /** Writes filters + page to the address bar as a new history entry (CI3 pushState). */
+  const pushUrl = (next: F, nextPage: number) => {
+    if (!urlNames) return;
+    const params = new URLSearchParams();
+    for (const [key, name] of Object.entries(urlNames)) params.set(name, next[key] ?? '');
+    params.set('currentPage', String(nextPage));
+    setSearchParams(params);
+  };
+  const setPage = (next: number) => (urlNames ? pushUrl(filters, next) : setLocalPage(next));
   const [exporting, setExporting] = useState(false);
 
   // Search box only where CI3 had one (config.searchPlaceholder); typed text is applied after 350 ms.
@@ -28,12 +58,16 @@ export function useReport<F extends FilterValues, T, P extends Paged<T>>(
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchText.trim());
-      setPage(1);
+      setLocalPage(1);
     }, 350);
     return () => clearTimeout(timer);
   }, [searchText]);
   const body = { page, limit, search, filters: compactFilters(filters) };
+  // CI3 ran its client-side checks before every load: an invalid filter set shows the message and
+  // loads nothing (e.g. Leave Requests with no processed data has no default dates).
+  const blocked = config.validateFilters?.(filters) ?? null;
   const query = useQuery({
+    enabled: !blocked,
     queryKey: [config.id, body],
     queryFn: ({ signal }) =>
       api(`${config.endpoint}/list`, config.pageSchema, { method: 'POST', body, signal }),
@@ -41,8 +75,12 @@ export function useReport<F extends FilterValues, T, P extends Paged<T>>(
   });
 
   const applyFilters = (next: F) => {
-    setFilters(next);
-    setPage(1);
+    if (urlNames) {
+      pushUrl(next, 1);
+      return;
+    }
+    setLocalFilters(next);
+    setLocalPage(1);
   };
 
   const exportCsv = async () => {
@@ -61,6 +99,12 @@ export function useReport<F extends FilterValues, T, P extends Paged<T>>(
     }
   };
 
+  /** CI3 Reset / Clear All emptied the search box too. */
+  const clearSearch = () => {
+    setSearchText('');
+    setSearch('');
+  };
+
   return {
     query,
     page,
@@ -72,5 +116,9 @@ export function useReport<F extends FilterValues, T, P extends Paged<T>>(
     exportCsv,
     searchText,
     setSearchText,
+    clearSearch,
+    blocked,
+    /** Changes when the address bar changes the filters (Back / Forward). */
+    urlKey: urlNames ? searchParams.toString() : '',
   };
 }

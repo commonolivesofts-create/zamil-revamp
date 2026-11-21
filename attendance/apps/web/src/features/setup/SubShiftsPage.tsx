@@ -72,6 +72,13 @@ export default function SubShiftsPage() {
     ],
     rowKey: (row) => row.uuid,
     emptyMessage: 'No shift detail data available.',
+    // CI3: "Manage Shift Details" opens the weekly editor for a new pick.
+    headerActions: (
+      <Link className="zrv-ir-btn zrv-ir-btn--primary" to="/shift-details/manage">
+        <OrvexaIcon name="plus" size={16} />
+        Manage Shift Details
+      </Link>
+    ),
   };
   return <ReportPage config={config} />;
 }

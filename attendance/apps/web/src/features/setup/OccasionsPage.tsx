@@ -176,6 +176,7 @@ export default function OccasionsPage() {
     ],
     rowKey: (row) => String(row.occasionId),
     emptyMessage: 'No occasion data available.',
+    filterChips: true,
     headerActions: (
       <button
         type="button"

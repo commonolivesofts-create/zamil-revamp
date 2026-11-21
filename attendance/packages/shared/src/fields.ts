@@ -2,6 +2,15 @@
 // Messages follow the CI3 form_validation wording so users see the same texts.
 import { z } from 'zod';
 
+const isRequired = (label: string) => `The ${label} field is required.`;
+
+/** CI3 'trim|required' first: an empty value gets the required message, not the format one. */
+const filled = (label: string) =>
+  z
+    .string({ error: isRequired(label) })
+    .trim()
+    .min(1, isRequired(label));
+
 /** Required trimmed text with a maximum length. */
 export const requiredText = (label: string, max: number) =>
   z
@@ -23,7 +32,7 @@ export const optionalText = (label: string, max: number) =>
 
 /** YYYY-MM-DD (native date inputs). */
 export const dateField = (label: string) =>
-  z.iso.date({ error: `The ${label} field must be a valid date.` });
+  filled(label).pipe(z.iso.date({ error: `The ${label} field must be a valid date.` }));
 
 export const optionalDateField = (label: string) =>
   z
@@ -34,23 +43,26 @@ export const optionalDateField = (label: string) =>
 
 /** Time of day as 'HH:MM' (24 h), the format stored in every attendance table. */
 export const HHMM = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
-export const hhmm = (label: string) =>
+const hhmmFormat = (label: string) =>
   z.string().trim().regex(HHMM, `The ${label} field must be a valid time (HH:MM).`);
+export const hhmm = (label: string) => filled(label).pipe(hhmmFormat(label));
 export const optionalHhmm = (label: string) =>
   z
-    .union([hhmm(label), z.literal('')])
+    .union([hhmmFormat(label), z.literal('')])
     .nullable()
     .optional()
     .transform((value) => (value ? value : null));
 
 export const STATUSES = ['ACTIVE', 'INACTIVE'] as const;
 export type Status = (typeof STATUSES)[number];
-export const status = z.enum(STATUSES, { error: 'The Status field must be ACTIVE or INACTIVE.' });
+export const status = filled('Status').pipe(
+  z.enum(STATUSES, { error: 'The Status field must be ACTIVE or INACTIVE.' }),
+);
 
 export const YES_NO = ['Y', 'N'] as const;
 export type YesNo = (typeof YES_NO)[number];
 export const yesNo = (label: string) =>
-  z.enum(YES_NO, { error: `The ${label} field must be Y or N.` });
+  filled(label).pipe(z.enum(YES_NO, { error: `The ${label} field must be Y or N.` }));
 
 /** Rejects an end date earlier than the start date (both YYYY-MM-DD, compared as text). */
 export function endNotBeforeStart<T extends Record<string, unknown>>(

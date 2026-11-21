@@ -2,7 +2,7 @@
 // Leave dates are free-text 'DD-MM-YY' strings. CI3 used TO_DATE(...) directly, so one badly
 // formatted row broke the whole report (ORA-01861); here unparsable dates become NULL.
 import type { AbsenceFilters, AbsenceRow } from '@attendance/shared';
-import { num, str, type Db, type Row } from '../../db/oracle';
+import { str, type Db, type Row } from '../../db/oracle';
 import { contains, containsCi, type Binder, type ListSpec } from '../../db/sql';
 import { oracleReportRepository } from '../report';
 
@@ -14,7 +14,7 @@ const END = leaveDate('a.LEAVE_END_DATE');
 export const absenceListSpec: ListSpec<AbsenceFilters> = {
   from: 'XX_DIGI_EMP_ABSENCE_TYPE a',
   select: `a.EMP_NO, a.DEPARTMENT_NAME, a.EMP_NAME, a.POSITION, a.LEAVE_START_DATE,
-    a.LEAVE_END_DATE, a.TOTAL_DAYS, a.LEAVE_TYPE, a.APPROVAL_STATUS`,
+    a.LEAVE_END_DATE, TO_CHAR(a.TOTAL_DAYS) AS TOTAL_DAYS, a.LEAVE_TYPE, a.APPROVAL_STATUS`,
   filters: {
     empNo: contains('a.EMP_NO'),
     empName: containsCi('a.EMP_NAME'),
@@ -45,7 +45,8 @@ export const mapAbsenceRow = (row: Row): AbsenceRow => ({
   position: str(row.POSITION),
   leaveStartDate: str(row.LEAVE_START_DATE),
   leaveEndDate: str(row.LEAVE_END_DATE),
-  totalDays: num(row.TOTAL_DAYS),
+  // Oracle's own text, as CI3 (oci8) showed it: a half day is ".5".
+  totalDays: str(row.TOTAL_DAYS),
   leaveType: str(row.LEAVE_TYPE),
   approvalStatus: str(row.APPROVAL_STATUS),
 });

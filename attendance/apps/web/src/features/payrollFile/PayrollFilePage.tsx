@@ -123,6 +123,7 @@ export default function PayrollFilePage() {
     ],
     rowKey: (r, index) => `${r.empNo ?? ''}-${r.empName ?? ''}-${index}`,
     emptyMessage: 'No payroll file data available.',
+    filterChips: true,
   };
 
   return (

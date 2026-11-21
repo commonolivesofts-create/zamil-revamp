@@ -2,9 +2,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { payrollPeriodEndingThisMonth } from '@attendance/shared';
 import AbsencePage from '../../features/absences/AbsencePage';
+import AlertsPage from '../../features/alerts/AlertsPage';
 import EmployeeDetailsPage from '../../features/employees/EmployeeDetailsPage';
 import { ToastProvider } from '../Toast';
 
@@ -23,12 +25,14 @@ const page = (items: unknown[], total = items.length, pageNo = 1) => ({
   pagination: { page: pageNo, limit: 10, total, totalPages: Math.max(1, Math.ceil(total / 10)) },
 });
 
-function wrap(children: ReactNode) {
+function wrap(children: ReactNode, url = '/') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
-    <QueryClientProvider client={client}>
-      <ToastProvider>{children}</ToastProvider>
-    </QueryClientProvider>
+    <MemoryRouter initialEntries={[url]}>
+      <QueryClientProvider client={client}>
+        <ToastProvider>{children}</ToastProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
 }
 
@@ -87,6 +91,29 @@ describe('ReportPage (Employee Details)', () => {
     });
   });
 
+  it('shows a removable chip per applied filter (CI3 active filter pills)', async () => {
+    const user = userEvent.setup();
+    respond(page([employee(1)]));
+    respond(page([employee(1)]));
+    respond(page([employee(1)]));
+    render(wrap(<EmployeeDetailsPage />));
+    await screen.findByText('Employee 1');
+
+    await user.click(screen.getByRole('button', { name: /Filter/ }));
+    await user.type(screen.getByLabelText('Department'), 'Finance');
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    const chips = await screen.findByRole('group', { name: 'Active filters' });
+    expect(chips).toHaveTextContent('Finance');
+
+    await user.click(within(chips).getByRole('button', { name: 'Remove Department filter' }));
+    await waitFor(() =>
+      expect(bodies()[2]).toEqual({ page: 1, limit: 30, search: '', filters: {} }),
+    );
+    expect(screen.queryByRole('group', { name: 'Active filters' })).not.toBeInTheDocument();
+    // The filter form shows the removal too.
+    expect(screen.getByLabelText('Department')).toHaveValue('');
+  });
+
   it('shows API errors with a retry', async () => {
     respond(
       { error: { code: 'INTERNAL', message: 'Something went wrong. Please try again.' } },
@@ -97,6 +124,44 @@ describe('ReportPage (Employee Details)', () => {
       'The all employee records could not be loaded. Something went wrong. Please try again.',
     );
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+});
+
+describe('ReportPage (Alerts, filters in the address bar as CI3)', () => {
+  it('reads the filters and page from the URL', async () => {
+    respond({
+      fromDate: '2001-01-01',
+      toDate: '2001-01-31',
+      summary: {
+        total: 0,
+        high: 0,
+        medium: 0,
+        low: 0,
+        missingPunch: 0,
+        samePunch: 0,
+        missingShift: 0,
+        missingOccasion: 0,
+        highOvertime: 0,
+        missingTimetable: 0,
+      },
+      items: [],
+      pagination: { page: 2, limit: 15, total: 0, totalPages: 1 },
+      generatedAt: '21 Nov 2026, 02:30 PM',
+    });
+    render(
+      wrap(
+        <AlertsPage />,
+        '/alerts-exceptions?from_date=2001-01-01&to_date=2001-01-31&type=missing_punch&severity=&currentPage=2',
+      ),
+    );
+    await waitFor(() =>
+      expect(bodies()[0]).toEqual({
+        page: 2,
+        limit: 15,
+        search: '',
+        filters: { fromDate: '2001-01-01', toDate: '2001-01-31', type: 'missing_punch' },
+      }),
+    );
   });
 });
 
@@ -111,7 +176,7 @@ describe('ReportPage (Absence)', () => {
           position: 'Analyst',
           leaveStartDate: '21-10-26',
           leaveEndDate: '25-10-26',
-          totalDays: 5,
+          totalDays: '5',
           leaveType: 'Annual Leave',
           approvalStatus: 'APPROVED',
         },
@@ -141,6 +206,18 @@ describe('ReportPage (Absence)', () => {
     await user.click(screen.getByRole('button', { name: /Filter/ }));
     await user.click(screen.getByRole('button', { name: 'Reset' }));
 
+    await waitFor(() =>
+      expect(bodies()[1]).toEqual({ page: 1, limit: 30, search: '', filters: {} }),
+    );
+  });
+
+  it('Clear All resets the filters like Reset (CI3)', async () => {
+    const user = userEvent.setup();
+    respond(page([]));
+    respond(page([]));
+    render(wrap(<AbsencePage />));
+    const chips = await screen.findByRole('group', { name: 'Active filters' });
+    await user.click(within(chips).getByRole('button', { name: 'Clear All' }));
     await waitFor(() =>
       expect(bodies()[1]).toEqual({ page: 1, limit: 30, search: '', filters: {} }),
     );

@@ -88,6 +88,11 @@ export const contractorRowSchema = z.object({
 });
 export type ContractorRow = z.infer<typeof contractorRowSchema>;
 export const contractorPageSchema = pagedSchema(contractorRowSchema);
+/** GET /contractors/lookup */
+export const contractorLookupSchema = z.object({
+  message: z.string(),
+  contractor: contractorRowSchema,
+});
 
 export const contractorInputSchema = z
   .object({
@@ -166,32 +171,31 @@ const flag = z
   .default('')
   .transform((v) => (v === 'on' ? 'on' : ''));
 
-export const conEmployeeInputSchema = z
-  .object({
-    employeeName: required('Employee Name', 200),
-    conNumber: required('Contractor'),
-    division: required('Division'),
-    status: required('Status'),
-    rate: numeric('Rate'),
-    conName: optionalText,
-    employeeNumber: optionalText,
-    iqamah: optionalText,
-    department: optionalText,
-    prodDep: optionalText,
-    directBoss: optionalText,
-    directBossId: optionalText,
-    job: optionalText,
-    jobTitle: optionalText,
-    place: optionalText,
-    replacement: optionalText,
-    startDate: optionalDate('Start Date'),
-    endDate: optionalDate('End Date'),
-    ajeer: flag,
-    sfda: flag,
-    blacklist: flag,
-    remark: optionalText,
-  })
-  .superRefine(endAfterStart);
+// CI3 has no date-order rule for contractor employees (Contractor.php:578-582), so none here.
+export const conEmployeeInputSchema = z.object({
+  employeeName: required('Employee Name', 200),
+  conNumber: required('Contractor'),
+  division: required('Division'),
+  status: required('Status'),
+  rate: numeric('Rate'),
+  conName: optionalText,
+  employeeNumber: optionalText,
+  iqamah: optionalText,
+  department: optionalText,
+  prodDep: optionalText,
+  directBoss: optionalText,
+  directBossId: optionalText,
+  job: optionalText,
+  jobTitle: optionalText,
+  place: optionalText,
+  replacement: optionalText,
+  startDate: optionalDate('Start Date'),
+  endDate: optionalDate('End Date'),
+  ajeer: flag,
+  sfda: flag,
+  blacklist: flag,
+  remark: optionalText,
+});
 export type ConEmployeeInput = z.infer<typeof conEmployeeInputSchema>;
 
 const option = z.object({ value: z.string(), label: z.string() });

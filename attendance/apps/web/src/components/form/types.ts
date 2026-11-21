@@ -21,4 +21,6 @@ export interface FormField<V extends FormValues> {
   /** Spans both form columns. */
   wide?: boolean;
   readOnly?: boolean;
+  /** Disabled (and so not editable) while this returns true, e.g. CI3 toggleProdDep. */
+  disabledWhen?: (values: V) => boolean;
 }

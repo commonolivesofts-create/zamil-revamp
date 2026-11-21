@@ -76,7 +76,7 @@ export default function TimetablePage() {
       if (autoFilled.current) set({ empName: '' });
       autoFilled.current = false;
     };
-    if (!/^d{3,}$/.test(empNo)) {
+    if (!/^\d{3,}$/.test(empNo)) {
       clearAutoFilled();
       setLookup(null);
       return;
@@ -191,6 +191,7 @@ export default function TimetablePage() {
     ],
     rowKey: (row) => row.uuid,
     emptyMessage: 'No timetable data available.',
+    filterChips: true,
     headerActions: (
       <button
         type="button"

@@ -593,3 +593,71 @@
   font-weight: 700;
   background: var(--surface-2);
 }
+
+/* Active filter chips (CI3 renderActiveFilterPills). */
+.zat-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-solid);
+}
+
+.zat-active-filters__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.zat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.zat-chip__label {
+  color: var(--muted);
+}
+
+.zat-chip__value {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.zat-chip__remove {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.zat-chip__remove:hover,
+.zat-chip__remove:focus-visible {
+  background: var(--line);
+  color: var(--text);
+}
+
+.zat-active-filters__clear {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--primary-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}

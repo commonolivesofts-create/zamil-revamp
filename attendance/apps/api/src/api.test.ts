@@ -195,7 +195,7 @@ describe('absence report', () => {
       position: 'Analyst',
       leaveStartDate: '21-10-26',
       leaveEndDate: '25-10-26',
-      totalDays: 5,
+      totalDays: '5',
       leaveType: 'Annual Leave',
       approvalStatus: 'APPROVED',
     };

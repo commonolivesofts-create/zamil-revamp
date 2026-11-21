@@ -98,7 +98,7 @@ export default function LeaveRequestsPage() {
       },
     ],
     rowKey: (r, index) => `${r.empName ?? ''}-${r.leaveStartDate ?? ''}-${index}`,
-    emptyMessage: 'No leave requests found for the selected period.',
+    emptyMessage: 'No leave requests found for the selected dates.',
   };
   return <ReportPage config={config} />;
 }

@@ -36,7 +36,8 @@ export const absenceRowSchema = z.object({
   /** As stored (usually DD-MM-YY). */
   leaveStartDate: z.string().nullable(),
   leaveEndDate: z.string().nullable(),
-  totalDays: z.number().nullable(),
+  /** Oracle text, e.g. "5" or ".5" (as CI3). */
+  totalDays: z.string().nullable(),
   leaveType: z.string().nullable(),
   approvalStatus: z.string().nullable(),
 });
