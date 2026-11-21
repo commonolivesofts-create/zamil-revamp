@@ -867,9 +867,25 @@ function createPerformanceAppraisalService({ client }) {
     })
   const readRecord = (data) => {
     const year = Number(data.period?.year)
+    const ratingLines = Array.isArray(data.criteria) ? data.criteria : []
     const ratings = Object.fromEntries(
-      criteria.map((item) => {
-        const line = data.criteria?.find((entry) => Number(entry.id) === Number(item.code.slice(1)))
+      criteria.map((item, index) => {
+        // The legacy appraisal form (prfedit.php) pairs rating rows with criteria
+        // BY POSITION, not by RATING_ID. Old records keep Oracle-generated ids,
+        // so matching on `id` loses every rating; new records write ids 1..20.
+        // Keep the id match as a fallback for those, then the competency name.
+        const line =
+          ratingLines[index] ??
+          ratingLines.find((entry) => Number(entry.id) === Number(item.code.slice(1))) ??
+          ratingLines.find(
+            (entry) =>
+              String(entry.name ?? '')
+                .trim()
+                .toLowerCase() ===
+              String(item.label ?? '')
+                .trim()
+                .toLowerCase(),
+          )
         return [
           item.code,
           {

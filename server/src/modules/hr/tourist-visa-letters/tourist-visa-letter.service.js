@@ -279,6 +279,13 @@ export function createTouristVisaService({
       }
     }
 
+    if (body.passport_no !== undefined) {
+      result.passport_no = body.passport_no;
+      result.passport_no_ar = digits(body.passport_no);
+      result.manager_passport = body.passport_no;
+      result.manager_passport_ar = digits(body.passport_no);
+    }
+
     if (!result.cur_date) {
       result.cur_date = iso();
     }

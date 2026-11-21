@@ -1,0 +1,134 @@
+/* Shared report-drawer detail blocks. One visual language for every report. */
+.zrv-ir-detail {
+  display: grid;
+  gap: 9px;
+  padding-top: 7px;
+  border-top: 1px solid var(--line);
+}
+
+.zrv-ir-detail + .zrv-ir-detail {
+  margin-top: 6px;
+}
+
+.zrv-ir-detail-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.zrv-ir-detail-heading__icon {
+  display: inline-grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--zrv-hr-accent) 12%, var(--surface-solid));
+  color: var(--zrv-hr-accent-text);
+}
+.zrv-ir-detail-heading--mint .zrv-ir-detail-heading__icon {
+  background: color-mix(in srgb, var(--mint) 18%, var(--surface-solid));
+  color: color-mix(in srgb, var(--mint) 70%, var(--text));
+}
+.zrv-ir-detail-heading--amber .zrv-ir-detail-heading__icon {
+  background: color-mix(in srgb, var(--amber) 18%, var(--surface-solid));
+  color: color-mix(in srgb, var(--amber) 70%, var(--text));
+}
+.zrv-ir-detail-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14.5px;
+  line-height: 1.25;
+}
+.zrv-ir-detail-heading p {
+  margin: 2px 0 0;
+  color: var(--zrv-hr-fine);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.zrv-ir-detail-facts {
+  display: grid;
+  grid-template-columns: repeat(var(--detail-fact-columns, 2), minmax(0, 1fr));
+  gap: 5px;
+  margin: 0;
+}
+.zrv-ir-detail-facts > div {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-solid) 82%, var(--surface-2));
+}
+.zrv-ir-detail-facts dt {
+  color: var(--zrv-hr-fine);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+.zrv-ir-detail-facts dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.3;
+}
+
+.zrv-ir-detail-skeleton {
+  display: grid;
+  gap: 9px;
+}
+.zrv-ir-detail-skeleton i {
+  display: block;
+  height: 64px;
+  border-radius: 12px;
+  background: linear-gradient(
+    100deg,
+    var(--surface-2) 25%,
+    var(--surface-solid) 45%,
+    var(--surface-2) 65%
+  );
+  background-size: 220% 100%;
+  animation: zrv-ir-skeleton 1.2s ease-in-out infinite;
+}
+
+.zrv-ir-detail-actions {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--zrv-hr-accent) 24%, var(--line));
+  border-radius: 13px;
+  background: linear-gradient(
+    130deg,
+    color-mix(in srgb, var(--zrv-hr-accent) 7%, var(--surface-solid)),
+    var(--surface-solid) 70%
+  );
+}
+.zrv-ir-detail-actions__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.zrv-ir-detail-scores {
+  display: grid;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--zrv-hr-accent) 24%, var(--line));
+  border-radius: 12px;
+  background: linear-gradient(
+    130deg,
+    color-mix(in srgb, var(--zrv-hr-accent) 7%, var(--surface-solid)),
+    var(--surface-solid) 70%
+  );
+}
+
+.zrv-ir-detail-note {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--amber) 8%, var(--surface-solid));
+  color: var(--text);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
