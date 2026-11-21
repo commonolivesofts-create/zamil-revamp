@@ -125,7 +125,10 @@ function filterConditions(year, filters, binds) {
  * The list total of each `{ year, ...filters }` set (as `listAppraisals` would report it) in
  * one statement, for the Talent Management dashboard. Scope arguments as in `listAppraisals`.
  */
-export async function countAppraisals(connection, { queries, userId, employeeNumber, isHr, noEmployee }) {
+export async function countAppraisals(
+  connection,
+  { queries, userId, employeeNumber, isHr, noEmployee },
+) {
   if (noEmployee) return queries.map(() => 0);
   return countSets((sql, binds) => rows(connection, sql, binds), {
     from: 'FROM XXZP.XXZPI_HR_PA_HEADER_TAB HR',

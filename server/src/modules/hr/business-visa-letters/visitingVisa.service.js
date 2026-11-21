@@ -24,7 +24,12 @@ const conflict = () => new AppError(409, 'CONFLICT', 'Reference number already e
 const clean = (value) => (typeof value === 'string' ? value.trim() || null : value);
 
 const actor = (auth) => {
-  const id = auth?.employeeNumber ?? auth?.user?.employeeNumber ?? auth?.userId ?? auth?.user?.id ?? auth?.id;
+  const id =
+    auth?.employeeNumber ??
+    auth?.user?.employeeNumber ??
+    auth?.userId ??
+    auth?.user?.id ??
+    auth?.id;
 
   // Fixed: use strict comparison
   if (id === null || id === undefined) {

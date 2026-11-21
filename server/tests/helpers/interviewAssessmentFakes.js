@@ -153,7 +153,10 @@ export function installInterviewAssessments(
       return evalOf(headerId)?.evalStatus ?? null;
     },
 
-    async listAssessments(_c, { limit, offset, filters = {}, createdBy, legacyCreatedBy, sortBy, sortDir }) {
+    async listAssessments(
+      _c,
+      { limit, offset, filters = {}, createdBy, legacyCreatedBy, sortBy, sortDir },
+    ) {
       const key = {
         HEADER_ID: (h) => Number(h.headerId),
         INTERVIEW_DATE: (h) => legacyToTime(h.interviewDate),

@@ -220,7 +220,10 @@ function listWhere(filters, userId, employeeNumber, isHr) {
     AND (:isHr=1 OR TSF.CREATED_BY=:employeeNumber OR TSF.CREATED_BY=:userId)`;
   return { where, binds };
 }
-export async function listRequests(c, { filters, userId, employeeNumber, isHr, page, pageSize, sort, order }) {
+export async function listRequests(
+  c,
+  { filters, userId, employeeNumber, isHr, page, pageSize, sort, order },
+) {
   const { where, binds } = listWhere(filters, userId, employeeNumber, isHr);
   const [{ TOTAL }] = await rows(
     c,

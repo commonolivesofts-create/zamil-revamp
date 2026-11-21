@@ -711,7 +711,10 @@ export async function deleteHeader(connection, headerId) {
  * pendingAt is set to null by the service.
  */
 
-export async function list(connection, { self, userId, employeeNumber, privileged = false, q = {} }) {
+export async function list(
+  connection,
+  { self, userId, employeeNumber, privileged = false, q = {} },
+) {
   const page = Number(q.page ?? 1);
   const pageSize = Number(q.pageSize ?? 25);
 

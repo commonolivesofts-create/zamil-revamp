@@ -72,7 +72,8 @@ export function createOrientationTrainingService({
     if (
       String(header.createdBy) === String(actor.employeeNumber) ||
       String(header.createdBy) === String(actor.userId)
-    ) return { table, header };
+    )
+      return { table, header };
     if (await repository.isHrUser(connection, actor.userId)) return { table, header };
     if (
       header.empNo &&
@@ -175,7 +176,11 @@ export function createOrientationTrainingService({
         );
         await repository.registerFlag(connection, headerId, table.tableName);
         for (const item of body.lines) {
-          await repository.insertLine(connection, table, lineBinds(headerId, actor.employeeNumber ?? actor.userId, item));
+          await repository.insertLine(
+            connection,
+            table,
+            lineBinds(headerId, actor.employeeNumber ?? actor.userId, item),
+          );
         }
         return { headerId, flag, reference };
       });
@@ -270,7 +275,13 @@ export function createOrientationTrainingService({
           updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!changed) throw notFound();
-        await replaceLines(connection, table, headerId, actor.employeeNumber ?? actor.userId, body.lines);
+        await replaceLines(
+          connection,
+          table,
+          headerId,
+          actor.employeeNumber ?? actor.userId,
+          body.lines,
+        );
         return { headerId, flag: table === repository.TABLES.Y ? 'Y' : 'N' };
       });
     },

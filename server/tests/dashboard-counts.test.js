@@ -173,8 +173,9 @@ describe('repository count statements (same predicates and scope as each list)',
     });
     assert.deepEqual(result, [4, 1]);
     const [{ sql, binds }] = scoped.calls;
-    assert.match(sql, /WITH emp \(FULL_NAME, USER_ID, SUPERVISOR_NAME\)/);
-    assert.match(sql, /WHERE CREATED_BY IN \(SELECT USER_ID FROM emp\)/);
+    assert.match(sql, /WITH emp \(FULL_NAME, USER_ID, SUPERVISOR_NAME, EMPLOYEE_NUMBER\)/);
+    assert.match(sql, /CREATED_BY IN \(SELECT USER_ID FROM emp\)/);
+    assert.match(sql, /TO_CHAR\(CREATED_BY\) IN \(SELECT EMPLOYEE_NUMBER FROM emp\)/);
     assert.match(sql, /REQUISITION_STATUS = :q1_requisitionStatus/);
     assert.match(sql, /NVL\(ATTRIBUTE1, 'Open'\) = :q1_ticketStatus/);
     assert.deepEqual(binds, {
@@ -197,17 +198,28 @@ describe('repository count statements (same predicates and scope as each list)',
     await countAssessments(connection, {
       queries: [{ evaluationStatus: 'Passed' }],
       createdBy: 7,
+      legacyCreatedBy: 3,
     });
     assert.match(calls[0].sql, /COUNT\(DISTINCT CASE WHEN .*UPPER\(EVAL\.STATUS\)/s);
     assert.match(calls[0].sql, /THEN INV\.HEADER_ID END/);
-    assert.match(calls[0].sql, /WHERE INV\.CREATED_BY = :createdBy/);
+    assert.match(
+      calls[0].sql,
+      /WHERE \(INV\.CREATED_BY = :createdBy OR INV\.CREATED_BY = :legacyCreatedBy\)/,
+    );
   });
 
   it('offers and probations: own rows for non-HR, everything for HR', async () => {
     const offers = capture({ C0: 1 });
-    await countOffers(offers.connection, { queries: [{ status: 'Complete' }], createdBy: 3 });
+    await countOffers(offers.connection, {
+      queries: [{ status: 'Complete' }],
+      createdBy: 3,
+      legacyCreatedBy: 1,
+    });
     assert.match(offers.calls[0].sql, /FROM XXZP\.XXZP_EMPLOYMENT_OFFER_HEADER_T H/);
-    assert.match(offers.calls[0].sql, /WHERE H\.CREATED_BY = :createdBy/);
+    assert.match(
+      offers.calls[0].sql,
+      /WHERE \(H\.CREATED_BY = :createdBy OR H\.CREATED_BY = :legacyCreatedBy\)/,
+    );
 
     const probations = capture({ C0: 1 });
     await countEvaluations(probations.connection, {
@@ -233,11 +245,16 @@ describe('repository count statements (same predicates and scope as each list)',
     const result = await countAppraisals(connection, {
       queries: [{ year: 2026 }, { year: 2026, grade: 'A' }],
       userId: 11,
+      employeeNumber: 'E-11',
       isHr: false,
     });
     assert.deepEqual(result, [6, 2]);
     assert.match(calls[0].sql, /HR\.YEAR = :q1_year AND HR\.ATTRIBUTE10 = :q1_grade/);
-    assert.match(calls[0].sql, /WHERE HR\.CREATED_BY = :userId/);
+    assert.match(
+      calls[0].sql,
+      /WHERE \(HR\.CREATED_BY = :employeeNumber OR HR\.CREATED_BY = :userId\)/,
+    );
+    assert.equal(calls[0].binds.employeeNumber, 'E-11');
     const none = capture();
     assert.deepEqual(
       await countAppraisals(none.connection, {
@@ -325,7 +342,7 @@ describe('POST /api/v1/hr/employment-offers/counts', () => {
 
     await post(staff, body).expect(200);
     assert.equal(f.calls.length, 2, 'another user is never served from the HR user’s entry');
-    assert.equal(f.calls[1].createdBy, f.staffUser.userId, 'non-HR users count their own');
+    assert.equal(f.calls[1].createdBy, f.staffUser.employeeNumber, 'non-HR users count their own');
 
     await post(hr, { ...body, fresh: true }).expect(200);
     assert.equal(f.calls.length, 3, 'fresh reads Oracle again');

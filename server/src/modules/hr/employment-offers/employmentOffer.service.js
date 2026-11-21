@@ -132,7 +132,7 @@ export function createEmploymentOfferService({
             const isHr = await repository.isHrUser(c, actor.userId);
             return repository.countOffers(c, {
               queries: missing,
-              createdBy: isHr ? null : actor.employeeNumber ?? actor.userId,
+              createdBy: isHr ? null : (actor.employeeNumber ?? actor.userId),
               legacyCreatedBy: isHr ? null : actor.userId,
             });
           }),
@@ -143,7 +143,7 @@ export function createEmploymentOfferService({
       const isHr = await read((c) => repository.isHrUser(c, actor.userId));
       // §7.4: HR users see everything (and may filter by createdBy); non-HR users only their own
       // rows — the scope wins over whatever the caller passed.
-      const scope = isHr ? (createdBy ?? null) : actor.employeeNumber ?? actor.userId;
+      const scope = isHr ? (createdBy ?? null) : (actor.employeeNumber ?? actor.userId);
       return read((c) =>
         repository.listOffers(c, {
           limit: pageSize,
@@ -248,7 +248,10 @@ export function createEmploymentOfferService({
             'Reopen this requisition before recording offer acceptance',
           );
         }
-        await repository.recordAcceptance(c, { ...result, updatedBy: actor.employeeNumber ?? actor.userId });
+        await repository.recordAcceptance(c, {
+          ...result,
+          updatedBy: actor.employeeNumber ?? actor.userId,
+        });
         await recordRecruitmentChange(auditService, c, {
           actor,
           requisitionId: requisition.REQUISITION_ID,

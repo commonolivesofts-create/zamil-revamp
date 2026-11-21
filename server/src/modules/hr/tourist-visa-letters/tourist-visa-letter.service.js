@@ -183,7 +183,15 @@ function mapEmployee(employee) {
 }
 
 const actor = (auth) => {
-  const currentActor = String(auth?.employeeNumber ?? auth?.user?.employeeNumber ?? auth?.userId ?? auth?.id ?? auth?.user?.id ?? auth?.username ?? '');
+  const currentActor = String(
+    auth?.employeeNumber ??
+      auth?.user?.employeeNumber ??
+      auth?.userId ??
+      auth?.id ??
+      auth?.user?.id ??
+      auth?.username ??
+      '',
+  );
 
   if (!currentActor) {
     throw fail(401, 'UNAUTHENTICATED', 'Authentication required');

@@ -75,7 +75,8 @@ export function createProbationEvaluationService({
     if (
       String(facts.createdBy) === String(actor.userId) ||
       String(facts.createdBy) === String(actor.employeeNumber)
-    ) return facts;
+    )
+      return facts;
     if (await repository.isHrUser(connection, actor.employeeNumber)) return facts;
     if (
       facts.employeeNumber &&
@@ -207,7 +208,7 @@ export function createProbationEvaluationService({
             const isHr = await repository.isHrUser(c, actor.employeeNumber);
             return repository.countEvaluations(c, {
               queries: missing,
-              createdBy: isHr ? null : actor.employeeNumber ?? actor.userId,
+              createdBy: isHr ? null : (actor.employeeNumber ?? actor.userId),
               legacyCreatedBy: isHr ? null : actor.userId,
             });
           }),
@@ -218,7 +219,7 @@ export function createProbationEvaluationService({
       const isHr = await read((connection) =>
         repository.isHrUser(connection, actor.employeeNumber),
       );
-      const createdBy = isHr ? null : actor.employeeNumber ?? actor.userId;
+      const createdBy = isHr ? null : (actor.employeeNumber ?? actor.userId);
       const { total, items } = await read((connection) =>
         repository.listEvaluations(connection, {
           limit: pageSize,

@@ -298,7 +298,8 @@ export const createPersonalStatusService = ({
     if (
       String(facts.CREATED_BY) === actor.userId ||
       String(facts.CREATED_BY) === String(actor.employeeNumber)
-    ) return;
+    )
+      return;
     if (await repository.isHrUser(connection, actor.userId)) return;
 
     if (
@@ -401,9 +402,15 @@ export const createPersonalStatusService = ({
           values.oldMaritalStatus = facts.OLD_MARITAL_STATUS ?? null;
         }
 
-        const result = await repository.update(connection, headerId, values, actor.employeeNumber ?? actor.userId, {
-          snapshot: employeeChanged,
-        });
+        const result = await repository.update(
+          connection,
+          headerId,
+          values,
+          actor.employeeNumber ?? actor.userId,
+          {
+            snapshot: employeeChanged,
+          },
+        );
 
         if (!result.rowsAffected) {
           throw notFound();

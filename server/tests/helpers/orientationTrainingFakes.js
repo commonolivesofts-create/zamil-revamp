@@ -150,7 +150,8 @@ export function installOrientationTrainings(
           query.createdBy !== null &&
           header.createdBy !== query.createdBy &&
           header.createdBy !== query.createdByEmployeeNumber
-        ) return false;
+        )
+          return false;
         if (
           query.filters.status &&
           statusLabel(header.status) !== statusLabel(query.filters.status)

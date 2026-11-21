@@ -178,7 +178,10 @@ export function installProbationEvaluations(
     async isHrUser(_connection, employeeNumber) {
       return store.state.probationHrEmployeeNumbers.includes(employeeNumber);
     },
-    async listEvaluations(_connection, { limit, offset, filters, createdBy, legacyCreatedBy, sortBy, sortDir }) {
+    async listEvaluations(
+      _connection,
+      { limit, offset, filters, createdBy, legacyCreatedBy, sortBy, sortDir },
+    ) {
       const rows = table()
         .headers.filter(
           (header) =>

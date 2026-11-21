@@ -146,7 +146,9 @@ export function createBusinessVisaRequestService({
       return write(async (connection) => {
         await editableHeader(connection, id);
         await assertDepartment(connection, body.dept);
-        await repository.updateHeader(connection, id, body, { updatedBy: actor.employeeNumber ?? actor.userId });
+        await repository.updateHeader(connection, id, body, {
+          updatedBy: actor.employeeNumber ?? actor.userId,
+        });
         return { id: String(id) };
       });
     },

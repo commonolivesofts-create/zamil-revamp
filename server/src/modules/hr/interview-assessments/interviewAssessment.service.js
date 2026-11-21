@@ -264,7 +264,7 @@ export function createInterviewAssessmentService({
             const isHr = await repository.isHrUser(c, actor.userId);
             return repository.countAssessments(c, {
               queries: missing,
-              createdBy: isHr ? null : actor.employeeNumber ?? actor.userId,
+              createdBy: isHr ? null : (actor.employeeNumber ?? actor.userId),
               legacyCreatedBy: isHr ? null : actor.userId,
             });
           }),
@@ -276,7 +276,7 @@ export function createInterviewAssessmentService({
         const isHr = await repository.isHrUser(c, actor.userId);
         // §7.4: HR users see everything (and may filter by createdBy); non-HR users only their own
         // rows — the scope wins over whatever the caller passed.
-        const scope = isHr ? (createdBy ?? null) : actor.employeeNumber ?? actor.userId;
+        const scope = isHr ? (createdBy ?? null) : (actor.employeeNumber ?? actor.userId);
         return repository.listAssessments(c, {
           limit: pageSize,
           offset: (page - 1) * pageSize,

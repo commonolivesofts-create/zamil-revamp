@@ -225,7 +225,10 @@ export function installEmploymentOffers(
       return before - t.headers.length;
     },
 
-    async listOffers(_c, { limit, offset, filters = {}, createdBy, legacyCreatedBy, sortBy, sortDir }) {
+    async listOffers(
+      _c,
+      { limit, offset, filters = {}, createdBy, legacyCreatedBy, sortBy, sortDir },
+    ) {
       const key = {
         HEADER_ID: (h) => Number(h.headerId),
         OFFER_DATE: (h) => legacyToTime(h.offerDate),

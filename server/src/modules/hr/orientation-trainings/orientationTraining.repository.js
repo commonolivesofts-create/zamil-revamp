@@ -335,12 +335,18 @@ function filterConditions(filters, binds) {
  * The list total of each filter set of one variant table (as `listTrainings` would report it)
  * in one statement, for the recruitment dashboard. `createdBy` as in `listTrainings`.
  */
-export async function countTrainings(connection, table, { queries, createdBy, createdByEmployeeNumber }) {
+export async function countTrainings(
+  connection,
+  table,
+  { queries, createdBy, createdByEmployeeNumber },
+) {
   const scoped = createdBy !== null;
   return countSets((sql, binds) => rows(connection, sql, binds), {
     from: `FROM ${table.header} H`,
     where: scoped ? ['(H.CREATED_BY = :createdBy OR H.CREATED_BY = :createdByEmployeeNumber)'] : [],
-    binds: scoped ? { createdBy, createdByEmployeeNumber: createdByEmployeeNumber ?? createdBy } : {},
+    binds: scoped
+      ? { createdBy, createdByEmployeeNumber: createdByEmployeeNumber ?? createdBy }
+      : {},
     sets: queries.map((filters) => {
       const binds = {};
       return { conditions: filterConditions(filters, binds), binds };

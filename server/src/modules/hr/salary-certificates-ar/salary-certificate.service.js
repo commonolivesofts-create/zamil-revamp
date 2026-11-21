@@ -124,7 +124,16 @@ const safe = (s) =>
 
 const arabic = (s) => String(s ?? '').replace(/[0-9]/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)]);
 
-const actor = (auth) => String(auth?.employeeNumber ?? auth?.user?.employeeNumber ?? auth?.userId ?? auth?.id ?? auth?.user?.id ?? auth?.username ?? '');
+const actor = (auth) =>
+  String(
+    auth?.employeeNumber ??
+      auth?.user?.employeeNumber ??
+      auth?.userId ??
+      auth?.id ??
+      auth?.user?.id ??
+      auth?.username ??
+      '',
+  );
 
 export function createSalaryCertificateService({
   repository = defaultRepository,

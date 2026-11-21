@@ -386,8 +386,10 @@ const scopeOf = (scopeUserId) =>
   scopeUserId !== undefined && scopeUserId !== null
     ? {
         prefix: SCOPE_CTE,
-        conditions: [`(CREATED_BY IN (SELECT USER_ID FROM emp)
-          OR TO_CHAR(CREATED_BY) IN (SELECT EMPLOYEE_NUMBER FROM emp))`],
+        conditions: [
+          `(CREATED_BY IN (SELECT USER_ID FROM emp)
+          OR TO_CHAR(CREATED_BY) IN (SELECT EMPLOYEE_NUMBER FROM emp))`,
+        ],
         binds: { scopeUserId },
       }
     : { prefix: '', conditions: [], binds: {} };
