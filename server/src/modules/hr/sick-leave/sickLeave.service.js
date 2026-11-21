@@ -176,7 +176,8 @@ export function createSickLeaveService({
     if (
       !hr &&
       String(header.EMP_ID) !== self &&
-      String(header.CREATED_BY) !== String(actor.userId)
+      String(header.CREATED_BY) !== String(actor.userId) &&
+      String(header.CREATED_BY) !== String(actor.employeeNumber)
     ) {
       throw missing();
     }
@@ -201,7 +202,7 @@ export function createSickLeaveService({
       leaveType: SICK_LEAVE_TYPE,
       empName: emp.empName,
       days,
-      createdBy: actor.userId,
+      createdBy: actor.employeeNumber ?? actor.userId,
     };
   }
 
@@ -352,7 +353,11 @@ export function createSickLeaveService({
         const hr = await permitted(connection, actor, header);
 
         // Delete allowed for HR or creator only.
-        if (!hr && String(header.CREATED_BY) !== String(actor.userId)) {
+        if (
+          !hr &&
+          String(header.CREATED_BY) !== String(actor.userId) &&
+          String(header.CREATED_BY) !== String(actor.employeeNumber)
+        ) {
           throw deny();
         }
 
@@ -397,6 +402,7 @@ export function createSickLeaveService({
         const { items, total } = await repository.list(connection, {
           self,
           userId: actor.userId,
+          employeeNumber: actor.employeeNumber,
           privileged,
           q: query,
         });

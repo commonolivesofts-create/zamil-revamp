@@ -3,7 +3,7 @@
 // testable in Node. The backend validates again and assigns the assessment
 // number, status and admin manager.
 import { INTERVIEW_TEXT } from '../hrRecruitmentText.js'
-import { isIsoDate } from '../shared/hrFormat.js'
+import { businessNowTime, isIsoDate } from '../shared/hrFormat.js'
 import { normalizeNotes, normalizeShortText, textLimitError } from '../shared/formValidation.js'
 
 export const INTERVIEW_STATUSES = Object.freeze([
@@ -51,7 +51,6 @@ export const HR_FIELDS = Object.freeze(
   [
     ['requisitionNumber', 'text', { required: true }],
     ['preScreeningDate', 'date', { required: true }],
-    ['interviewTime', 'time', {}],
     ['divisionCode', 'select', { required: true, lookup: 'divisions' }],
     ['expectedJoiningDate', 'date', {}],
     ['interviewTypeCode', 'select', { required: true, lookup: 'interviewTypes' }],
@@ -177,6 +176,8 @@ export function blankInterview(today) {
   return {
     ...form,
     preScreeningDate: today,
+    // Recorded by the system, never entered in the form.
+    interviewTime: businessNowTime(),
     spec: blankRatings(SPEC_KEYS),
     comp: blankRatings(COMP_KEYS),
     specRemarks: '',
@@ -204,6 +205,8 @@ export function interviewFormFromRecord(record) {
     )
   return {
     ...form,
+    // Keep the time already recorded on a saved assessment; it is read-only.
+    interviewTime: textOf(record.interviewTime),
     spec: ratings(record.personalSpecification, SPEC_KEYS),
     comp: ratings(record.competency, COMP_KEYS),
     specRemarks: record.personalSpecificationRemarks,
@@ -238,6 +241,9 @@ export function interviewPayload(form) {
     )
   return {
     ...body,
+    // Auto-generated when a new assessment is opened; existing records keep
+    // the time already stored with them.
+    interviewTime: String(form.interviewTime ?? '').trim() || businessNowTime(),
     personalSpecification: ratings(form.spec, SPEC_KEYS),
     personalSpecificationRemarks: normalizeShortText(form.specRemarks),
     competency: ratings(form.comp, COMP_KEYS),

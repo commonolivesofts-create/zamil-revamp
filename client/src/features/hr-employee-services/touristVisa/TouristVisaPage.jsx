@@ -106,6 +106,12 @@ function LetterEditor({ lookups, initial }) {
   }
   const setDate = (key) => (event) =>
     patch((current) => ({ dates: { ...current.dates, [key]: event.target.value } }))
+  const setPassport = (event) => {
+    const passport_no = event.target.value
+    patch((current) => ({
+      employee: current.employee ? { ...current.employee, passport_no } : null,
+    }))
+  }
   // Legacy employee autofill; the origin defaults to the employee's country.
   const selectEmployee = async (item) => {
     const request = ++employeeRequest.current
@@ -214,8 +220,8 @@ function LetterEditor({ lookups, initial }) {
       />
     </HrField>
   )
-  const readOnly = (id, label, value, { placeholder = C.fillsFromEmployee } = {}) => (
-    <HrField id={id} label={label}>
+  const readOnly = (id, label, value, { placeholder = C.fillsFromEmployee, key } = {}) => (
+    <HrField id={id} label={label} key={key}>
       <input
         id={id}
         className="ux-input zrv-hr-input"
@@ -347,7 +353,21 @@ function LetterEditor({ lookups, initial }) {
           )}
           <div className="zrv-hr-grid zrv-hr-is-4 zrv-hr-mt">
             {EMPLOYEE_FIELDS.map((item) =>
-              readOnly(`tv-${item.key}`, item.en, employee?.[item.key]),
+              item.key === 'passport_no' ? (
+                <HrField key={item.key} id="tv-passport_no" label={item.en}>
+                  <input
+                    id="tv-passport_no"
+                    className="ux-input zrv-hr-input"
+                    value={employee?.passport_no ?? ''}
+                    onChange={setPassport}
+                    disabled={locked || !employee}
+                    maxLength={100}
+                    autoComplete="off"
+                  />
+                </HrField>
+              ) : (
+                readOnly(`tv-${item.key}`, item.en, employee?.[item.key], { key: item.key })
+              ),
             )}
           </div>
           <h3 className="zrv-hr-subh">Dates</h3>

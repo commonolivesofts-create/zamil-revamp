@@ -14,18 +14,21 @@ import {
 } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import SourceColumnTable from '../components/SourceColumnTable.jsx'
-import SourceKeyCandidateEditor from '../components/SourceKeyCandidateEditor.jsx'
+import SourceIdentifierStep from '../components/SourceIdentifierStep.jsx'
 import SourceValidationPanel from '../components/SourceValidationPanel.jsx'
+import { SetupSteps, TechnicalDetails } from '../components/WorkflowUi.jsx'
 import useWorkflowAction from '../useWorkflowAction.js'
 import {
   LIFECYCLE_LABELS,
   draftOrder,
   editorState,
   findingsFromError,
+  previewEnforcement,
   samePayload,
   storedDraft,
   validateEditor,
 } from '../sourceMappingModel.js'
+import { PRIVACY_SHORT, readableName } from '../smartMappingModel.js'
 import {
   LIFECYCLE_TONES,
   PATHS,
@@ -50,9 +53,55 @@ function liveColumnsOf(dictionary, config) {
   }))
 }
 
-// Create (/mapping-versions/new, SOURCE_MAPPING:CREATE) or open one source version
-// (/mapping-versions/:versionId, SOURCE_MAPPING:VIEW). Drafts are edited with optimistic
-// locking (UPDATE), re-validated (UPDATE), cloned (CREATE) and deleted (DELETE); other
+const STEP_ORDER = ['choose', 'identify', 'review']
+
+// Plain summary of the current choices (step 3).
+function ChoiceSummary({ state, snapshot }) {
+  const selected = state.columns.filter((column) => column.included)
+  const forForms = selected.filter((column) => column.exposed)
+  const byPrivacy = Object.entries(PRIVACY_SHORT)
+    .map(([value, label]) => [label, forForms.filter((c) => c.dataClass === value).length])
+    .filter(([, count]) => count > 0)
+    .map(([label, count]) => `${count} ${label.toLowerCase()}`)
+  const identifiers = state.keys.filter((key) => key.columns.length)
+  return (
+    <DetailList
+      items={[
+        [
+          'Information for forms',
+          forForms.length
+            ? `${forForms.length} selected${byPrivacy.length ? ` (${byPrivacy.join(', ')})` : ''}`
+            : 'None selected yet',
+        ],
+        selected.length > forForms.length && [
+          'Kept for checks only',
+          String(selected.length - forForms.length),
+        ],
+        [
+          'Record identifier',
+          identifiers.length
+            ? identifiers
+                .map(
+                  (key) =>
+                    `${key.columns.map(readableName).join(' + ')} (${
+                      previewEnforcement(key.columns, snapshot).enforcement === 'DATABASE_ENFORCED'
+                        ? 'verified'
+                        : 'provisional'
+                    })`,
+                )
+                .join('; ')
+            : 'None — records cannot be identified individually yet',
+        ],
+      ]}
+    />
+  )
+}
+
+// Guided setup of one data source's field list: create (/mapping-versions/new,
+// SOURCE_MAPPING:CREATE) or open one version (/mapping-versions/:versionId, SOURCE_MAPPING:VIEW).
+// Steps: 1 Choose information → 2 Verify record identification → 3 Review & save. Drafts are
+// saved with optimistic locking (UPDATE); "More actions" re-checks (UPDATE), checks for source
+// changes, starts a new draft from this version (CREATE) and deletes a draft (DELETE); other
 // lifecycle states are read-only. All facts come from the live dictionary via the API.
 // Each navigation (new → saved draft, clone → new draft) starts with fresh editor state.
 export default function SourceVersionEditorPage() {
@@ -83,6 +132,7 @@ function SourceVersionEditor() {
   const [seed, setSeed] = useState(0)
   const [editor, setEditor] = useState(null)
   const [showErrors, setShowErrors] = useState(false)
+  const [step, setStep] = useState(isNew ? 'choose' : 'review')
   const [result, setResult] = useState(
     location.state?.validation
       ? { ...location.state.validation, source: 'saved', order: location.state.order ?? null }
@@ -105,7 +155,7 @@ function SourceVersionEditor() {
 
   if (!validIds) {
     return (
-      <AdminPage eyebrow="Workflow Manager · Source mapping" title="Source version">
+      <AdminPage eyebrow="Workflow Manager · Data source fields" title="Field version">
         <Panel>
           <p className="zrv-admin-state" role="status">
             This address is not valid.{' '}
@@ -143,6 +193,36 @@ function SourceVersionEditor() {
       columns: s.columns.map((column) => (column.name === name ? { ...column, ...patch } : column)),
     }))
   const changeKeys = (keys) => setState((s) => ({ ...s, keys }))
+  // Using the recommended identifier selects its columns (their privacy is still chosen in step 1).
+  const useColumns = (names) =>
+    setState((s) => ({
+      ...s,
+      columns: s.columns.map((column) =>
+        names.includes(column.name) ? { ...column, included: true, exposed: true } : column,
+      ),
+    }))
+
+  const stepProblems = {
+    choose: Boolean(showErrors && checked?.errors.columns),
+    identify: Boolean(showErrors && checked && Object.keys(checked.errors.keys).length),
+    review: false,
+  }
+  const steps = [
+    {
+      id: 'choose',
+      title: 'Choose information',
+      hint: 'What forms may use, and how private it is',
+      problem: stepProblems.choose,
+    },
+    {
+      id: 'identify',
+      title: 'Verify record identification',
+      hint: 'How one record is found exactly',
+      problem: stepProblems.identify,
+    },
+    { id: 'review', title: 'Review & save', hint: 'Check and save the draft', problem: false },
+  ]
+  const stepIndex = STEP_ORDER.indexOf(step)
 
   // Discards unsaved input and reloads the stored version and the live dictionary.
   const reloadLatest = () => {
@@ -177,7 +257,14 @@ function SourceVersionEditor() {
   const refused = (error, order) => {
     const findings = findingsFromError(error)
     if (findings.length)
-      setResult({ valid: false, findings, publicationBlockers: [], source: 'refused', order })
+      setResult({
+        valid: false,
+        findings,
+        publicationBlockers: [],
+        source: 'refused',
+        order,
+        requestId: error?.requestId ?? null,
+      })
   }
 
   const submit = async (event) => {
@@ -186,6 +273,7 @@ function SourceVersionEditor() {
     setNotice(null)
     if (!checked.valid) {
       setShowErrors(true)
+      setStep(checked.errors.columns ? 'choose' : 'identify')
       return
     }
     const order = draftOrder(checked.payload)
@@ -241,7 +329,7 @@ function SourceVersionEditor() {
     if (outcome.status === 'success')
       applySaved(
         outcome.value,
-        'The draft is still valid. Its evidence and validation time were refreshed.',
+        'The draft is still valid. Its evidence and check time were refreshed.',
         order,
       )
     else if (outcome.status === 'failed') refused(outcome.error, order)
@@ -272,7 +360,7 @@ function SourceVersionEditor() {
       navigate(PATHS.sourceVersions(sourceId), {
         state: {
           notice:
-            'The server did not confirm the clone. Check the list below before cloning again.',
+            'The server did not confirm the new draft. Check the list below before trying again.',
         },
       })
     } else if (outcome.status === 'failed') {
@@ -309,18 +397,22 @@ function SourceVersionEditor() {
   const fromResult = Boolean(result?.publicationBlockers?.length)
   const blockers = fromResult ? result.publicationBlockers : (version?.publicationBlockers ?? [])
   const title = isNew
-    ? 'New source version'
+    ? 'New field version'
     : version
-      ? `Source version ${version.versionNo}`
-      : 'Source version'
+      ? `Field version ${version.versionNo}`
+      : 'Field version'
+  const canClone = !isNew && version && can(WORKFLOW_ACTIONS.MAPPING_CREATE)
+  const canDeleteDraft =
+    !isNew && version && can(WORKFLOW_ACTIONS.MAPPING_DELETE) && version.editable
+  const canRecheck = !isNew && version?.editable && can(WORKFLOW_ACTIONS.MAPPING_UPDATE)
 
   return (
     <AdminPage
-      eyebrow={`Workflow Manager · Source mapping${source ? ` · ${source.sourceCode}` : ''}`}
+      eyebrow={`Workflow Manager · Data source fields${source ? ` · ${source.sourceName ?? source.sourceCode}` : ''}`}
       title={title}
       description={
         isNew
-          ? 'Choose which columns of the source are part of the mapping, which are exposed to forms, how each is classified, and which columns identify a record. Saving validates against the live database dictionary and stores a draft.'
+          ? 'Choose the information business forms may use from this data source, confirm how one record is identified, then save a draft. Nothing is used by forms until it is approved.'
           : undefined
       }
       actions={
@@ -352,7 +444,7 @@ function SourceVersionEditor() {
 
       <ResourceState
         resource={dictionary}
-        label="source dictionary"
+        label="data source"
         notFound="This data source is not registered."
         empty="This data source is not registered."
       >
@@ -360,7 +452,7 @@ function SourceVersionEditor() {
           isNew ? null : (
             <ResourceState
               resource={detail}
-              label="source version"
+              label="field version"
               notFound="This version does not exist for this data source. It may have been deleted."
               empty="This version does not exist."
             >
@@ -372,197 +464,243 @@ function SourceVersionEditor() {
 
       {ready && state && (
         <form onSubmit={submit} noValidate aria-busy={busy || undefined}>
-          <div className="zwf-editor">
-            <Panel title="Source and version" className="zwf-editor__context">
-              <DetailList
-                items={[
-                  [
-                    'Source',
-                    source ? (
-                      <span key="s">
-                        <b>{source.sourceName ?? source.sourceCode}</b>{' '}
-                        <span className="zwf-code">{sourceObjectLabel(source)}</span>
-                      </span>
-                    ) : null,
-                  ],
-                  [
-                    'Source status',
-                    source
-                      ? source.isActive
-                        ? 'Active'
-                        : 'Inactive — drafts can be saved; publication will be blocked'
-                      : null,
-                  ],
-                  [
-                    'Version',
-                    version ? (
-                      <span key="v">
-                        <b>{version.versionNo}</b>{' '}
-                        <Badge tone={LIFECYCLE_TONES[version.lifecycleState]}>
-                          {LIFECYCLE_LABELS[version.lifecycleState]}
-                        </Badge>
-                      </span>
-                    ) : (
-                      'New draft (number assigned on save)'
-                    ),
-                  ],
-                  version && [
-                    'Validated',
-                    `${formatInstant(version.validatedAt)}${version.validatedByName ? ` by ${version.validatedByName}` : ''}`,
-                  ],
-                  version && [
-                    'Last updated',
-                    `${formatInstant(version.updatedAt)}${version.updatedByName ? ` by ${version.updatedByName}` : ''}`,
-                  ],
-                  version && [
-                    'Fingerprint',
-                    <span key="f" className="zwf-code" title={version.configSha256}>
-                      {version.configSha256.slice(0, 16)}…{' '}
-                      {version.configIntegrity !== 'VERIFIED' && (
-                        <Badge tone="bad">{version.configIntegrity}</Badge>
-                      )}
-                    </span>,
-                  ],
-                  version && ['Record version', String(version.rowVersion)],
-                  [
-                    'Dictionary',
-                    snapshot
-                      ? `${snapshot.objectType} ${snapshot.status}, read ${formatInstant(snapshot.capturedAt)}`
-                      : available
-                        ? 'Handler contract'
-                        : 'Unavailable',
-                  ],
-                ]}
-              />
-              {!available && (
-                <div className="zrv-admin-state zrv-admin-state--error" role="alert">
-                  <p>
-                    The live source cannot be read, so the mapping cannot be validated or changed:{' '}
-                    {dictionary.data.findings.map((f) => f.message).join('; ') || 'unknown reason'}.
-                  </p>
-                  <button type="button" className="btn-secondary" onClick={dictionary.reload}>
-                    Retry
-                  </button>
-                </div>
-              )}
-              {version && !version.editable && (
-                <p className="zwf-readonly-note" role="note">
-                  <OrvexaIcon name="lock" className="size-4" />{' '}
-                  {LIFECYCLE_LABELS[version.lifecycleState]} versions are read-only. Clone this
-                  version to start a new draft.
-                </p>
-              )}
-              {version?.editable && !can(WORKFLOW_ACTIONS.MAPPING_UPDATE) && (
-                <p className="zwf-readonly-note" role="note">
-                  <OrvexaIcon name="eye" className="size-4" /> You can view this draft but not
-                  change it.
-                </p>
-              )}
-            </Panel>
+          {!available && (
+            <div className="zrv-admin-state zrv-admin-state--error" role="alert">
+              <p>
+                The data source cannot be read right now, so these choices cannot be checked or
+                changed:{' '}
+                {dictionary.data.findings.map((f) => f.message).join('; ') || 'unknown reason'}.
+              </p>
+              <button type="button" className="btn-secondary" onClick={dictionary.reload}>
+                Retry
+              </button>
+            </div>
+          )}
+          {version && !version.editable && (
+            <p className="zwf-readonly-note" role="note">
+              <OrvexaIcon name="lock" className="size-4" />{' '}
+              {LIFECYCLE_LABELS[version.lifecycleState]} versions are read-only. Start a new draft
+              from this version to change it.
+            </p>
+          )}
+          {version?.editable && !can(WORKFLOW_ACTIONS.MAPPING_UPDATE) && (
+            <p className="zwf-readonly-note" role="note">
+              <OrvexaIcon name="eye" className="size-4" /> You can view this draft but not change
+              it.
+            </p>
+          )}
 
+          <SetupSteps steps={steps} current={step} onSelect={setStep} />
+
+          {step === 'choose' && (
             <Panel
-              title="Columns"
-              description="Only columns in the mapping can ever be used by forms; only exposed columns are shown. Types and nullability come from the database dictionary."
+              title="1. Choose information"
+              description="Select only what forms need. For each selected piece, choose who may see it — sensitive information is never shown to more people than you decide."
             >
               <SourceColumnTable
                 columns={state.columns}
                 readOnly={readOnly}
                 error={showErrors ? checked.errors.columns : null}
+                unclassified={showErrors ? checked.errors.unclassified : []}
                 onChange={changeColumn}
               />
             </Panel>
+          )}
 
+          {step === 'identify' && (
             <Panel
-              title="Key candidates"
-              description="Columns that identify exactly one record, alone or together (composite)."
+              title="2. Verify record identification"
+              description="Workflows must always find exactly one record. The system recommends only identifiers the database guarantees to be unique."
             >
-              <SourceKeyCandidateEditor
+              <SourceIdentifierStep
                 keys={state.keys}
                 columns={state.columns}
                 snapshot={snapshot}
                 readOnly={readOnly}
                 errors={showErrors ? checked.errors.keys : {}}
                 onChange={changeKeys}
+                onUseColumns={useColumns}
               />
             </Panel>
+          )}
 
-            <Panel
-              title="Validation"
-              description="Errors stop a save. Warnings and publication blockers are recorded with the draft."
-            >
-              <SourceValidationPanel
-                validation={result}
-                blockers={blockers}
-                drift={drift}
-                order={resultOrder}
-                blockerOrder={fromResult ? resultOrder : storedOrder}
-                driftOrder={storedOrder}
-                pending={busy}
-              />
-            </Panel>
-          </div>
+          {step === 'review' && (
+            <>
+              <Panel
+                title="3. Review & save"
+                actions={
+                  version ? (
+                    <Badge tone={LIFECYCLE_TONES[version.lifecycleState]}>
+                      {LIFECYCLE_LABELS[version.lifecycleState]}
+                    </Badge>
+                  ) : (
+                    <Badge tone="neutral">New draft</Badge>
+                  )
+                }
+              >
+                <ChoiceSummary state={state} snapshot={snapshot} />
+                {source && !source.isActive && (
+                  <p className="zrv-admin-hint">
+                    The data source is deactivated: drafts can be saved, but approval will be
+                    blocked until it is active again.
+                  </p>
+                )}
+                <TechnicalDetails>
+                  <DetailList
+                    items={[
+                      [
+                        'Database object',
+                        source ? (
+                          <span key="s" className="zwf-code">
+                            {sourceObjectLabel(source)}
+                          </span>
+                        ) : null,
+                      ],
+                      version && [
+                        'Checked',
+                        `${formatInstant(version.validatedAt)}${version.validatedByName ? ` by ${version.validatedByName}` : ''}`,
+                      ],
+                      version && [
+                        'Last updated',
+                        `${formatInstant(version.updatedAt)}${version.updatedByName ? ` by ${version.updatedByName}` : ''}`,
+                      ],
+                      version && [
+                        'Fingerprint',
+                        <span key="f" className="zwf-code" title={version.configSha256}>
+                          {version.configSha256.slice(0, 16)}…{' '}
+                          {version.configIntegrity !== 'VERIFIED' && (
+                            <Badge tone="bad">{version.configIntegrity}</Badge>
+                          )}
+                        </span>,
+                      ],
+                      version && ['Record version', String(version.rowVersion)],
+                      [
+                        'Dictionary',
+                        snapshot
+                          ? `${snapshot.objectType} ${snapshot.status}, read ${formatInstant(snapshot.capturedAt)}`
+                          : available
+                            ? 'Handler contract'
+                            : 'Unavailable',
+                      ],
+                    ]}
+                  />
+                </TechnicalDetails>
+              </Panel>
 
-          <div className="zwf-actionbar" role="group" aria-label="Version actions">
+              <Panel
+                title="Check result"
+                description="Problems stop a save and nothing changes. Notes and points to approve later are kept with the draft."
+              >
+                <SourceValidationPanel
+                  validation={result}
+                  blockers={blockers}
+                  drift={drift}
+                  order={resultOrder}
+                  blockerOrder={fromResult ? resultOrder : storedOrder}
+                  driftOrder={storedOrder}
+                  pending={busy}
+                />
+              </Panel>
+
+              {!isNew && version && (
+                <Panel
+                  title="More actions"
+                  description="Occasional maintenance. Each action is checked again by the server."
+                >
+                  <ul className="zwf-more-actions">
+                    <li>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={busy || !config}
+                        onClick={checkDrift}
+                      >
+                        {check.pending ? 'Checking…' : 'Check for source changes'}
+                      </button>
+                      <small>Compares this version with the data source as it is now.</small>
+                    </li>
+                    {canRecheck && (
+                      <li>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          disabled={busy || dirty || !available}
+                          title={dirty ? 'Save or discard your changes first' : undefined}
+                          onClick={revalidate}
+                        >
+                          Re-check this draft
+                        </button>
+                        <small>Validates the saved draft again and refreshes its evidence.</small>
+                      </li>
+                    )}
+                    {canClone && (
+                      <li>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          disabled={busy || version.configIntegrity !== 'VERIFIED'}
+                          onClick={() => {
+                            dialogAction.reset()
+                            setConfirm('clone')
+                          }}
+                        >
+                          Start a new draft from this version
+                        </button>
+                        <small>
+                          Copies the saved choices into a new draft; this version stays as it is.
+                        </small>
+                      </li>
+                    )}
+                    {canDeleteDraft && (
+                      <li>
+                        <button
+                          type="button"
+                          className="btn-secondary zrv-admin-danger-outline"
+                          disabled={busy}
+                          onClick={() => {
+                            dialogAction.reset()
+                            setConfirm('delete')
+                          }}
+                        >
+                          Delete draft
+                        </button>
+                        <small>Removes this draft permanently, unless a form uses it.</small>
+                      </li>
+                    )}
+                  </ul>
+                </Panel>
+              )}
+            </>
+          )}
+
+          <div className="zwf-actionbar" role="group" aria-label="Setup navigation">
             <span className="zwf-actionbar__status" role="status">
               {dirty && !readOnly ? <span className="zwf-dirty">Unsaved changes</span> : null}
               {showErrors && checked && !checked.valid ? (
-                <span className="zrv-auth-field-error"> Correct the highlighted fields.</span>
+                <span className="zrv-auth-field-error"> Fix the steps marked with !.</span>
               ) : null}
             </span>
-            {!isNew && version && can(WORKFLOW_ACTIONS.MAPPING_DELETE) && version.editable && (
-              <button
-                type="button"
-                className="btn-secondary zrv-admin-danger-outline"
-                disabled={busy}
-                onClick={() => {
-                  dialogAction.reset()
-                  setConfirm('delete')
-                }}
-              >
-                Delete draft
-              </button>
-            )}
-            {!isNew && version && can(WORKFLOW_ACTIONS.MAPPING_CREATE) && (
+            {stepIndex > 0 && (
               <button
                 type="button"
                 className="btn-secondary"
-                disabled={busy || version.configIntegrity !== 'VERIFIED'}
-                onClick={() => {
-                  dialogAction.reset()
-                  setConfirm('clone')
-                }}
+                onClick={() => setStep(STEP_ORDER[stepIndex - 1])}
               >
-                Clone
+                Back
               </button>
             )}
-            {!isNew && version && (
+            {stepIndex < STEP_ORDER.length - 1 && (
               <button
                 type="button"
-                className="btn-secondary"
-                disabled={busy || !config}
-                onClick={checkDrift}
+                className={readOnly || step !== 'identify' ? 'btn-primary' : 'btn-secondary'}
+                onClick={() => setStep(STEP_ORDER[stepIndex + 1])}
               >
-                {check.pending ? 'Checking…' : 'Check drift'}
+                Next
               </button>
             )}
-            {!isNew && version?.editable && can(WORKFLOW_ACTIONS.MAPPING_UPDATE) && (
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={busy || dirty || !available}
-                title={dirty ? 'Save or discard your changes first' : undefined}
-                onClick={revalidate}
-              >
-                Re-validate
-              </button>
-            )}
-            {!readOnly && (
+            {!readOnly && (stepIndex === STEP_ORDER.length - 1 || step === 'identify') && (
               <button type="submit" className="btn-primary" disabled={busy || (!isNew && !dirty)}>
-                {save.pending
-                  ? 'Validating…'
-                  : isNew
-                    ? 'Validate and save draft'
-                    : 'Validate and save'}
+                {save.pending ? 'Checking…' : 'Save draft'}
               </button>
             )}
           </div>
@@ -571,9 +709,9 @@ function SourceVersionEditor() {
 
       {confirm === 'clone' && (
         <ConfirmDialog
-          title={`Clone version ${version.versionNo}?`}
-          description={`A new draft is created from the saved choices of version ${version.versionNo}${dirty ? ' (your unsaved changes are not included)' : ''}. It is validated again against the live source and declared keys are attested by you. This version does not change.`}
-          confirmLabel="Clone into new draft"
+          title={`Start a new draft from version ${version.versionNo}?`}
+          description={`A new draft is created from the saved choices of version ${version.versionNo}${dirty ? ' (your unsaved changes are not included)' : ''}. It is checked again against the live data source, and declared identifiers are attested by you. This version does not change.`}
+          confirmLabel="Create new draft"
           pending={dialogAction.pending}
           feedback={dialogAction.feedback}
           onClose={() => setConfirm(null)}
@@ -584,7 +722,7 @@ function SourceVersionEditor() {
         <ConfirmDialog
           danger
           title={`Delete draft version ${version.versionNo}?`}
-          description="The draft is removed permanently. This is refused if a form mapping uses it or if it changed since you opened it."
+          description="The draft is removed permanently. This is refused if a form uses it or if it changed since you opened it."
           confirmLabel="Delete draft"
           pending={dialogAction.pending}
           feedback={dialogAction.feedback}

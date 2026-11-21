@@ -242,7 +242,7 @@ export function createInterviewAssessmentService({
       await assertApprovedRequisition(body.requisitionNo);
       return withTransaction(POOLS.LOW, async (c) => {
         const uuid = randomUUID();
-        const sections = prepareSections(body, actor.userId, { uuid });
+        const sections = prepareSections(body, actor.employeeNumber ?? actor.userId, { uuid });
         const headerId = await repository.insertHeader(c, sections.insertHeader);
         // Legacy INT_NO format, `${payroll}-${id padded to 3}`, from the identity ID (same transaction).
         const intNo = `${body.attribute3}-${String(headerId).padStart(3, '0')}`;
@@ -264,7 +264,8 @@ export function createInterviewAssessmentService({
             const isHr = await repository.isHrUser(c, actor.userId);
             return repository.countAssessments(c, {
               queries: missing,
-              createdBy: isHr ? null : actor.userId,
+              createdBy: isHr ? null : (actor.employeeNumber ?? actor.userId),
+              legacyCreatedBy: isHr ? null : actor.userId,
             });
           }),
       );
@@ -275,12 +276,13 @@ export function createInterviewAssessmentService({
         const isHr = await repository.isHrUser(c, actor.userId);
         // §7.4: HR users see everything (and may filter by createdBy); non-HR users only their own
         // rows — the scope wins over whatever the caller passed.
-        const scope = isHr ? (createdBy ?? null) : actor.userId;
+        const scope = isHr ? (createdBy ?? null) : (actor.employeeNumber ?? actor.userId);
         return repository.listAssessments(c, {
           limit: pageSize,
           offset: (page - 1) * pageSize,
           filters: { search: searchPattern(search), ...rest },
           createdBy: scope,
+          legacyCreatedBy: isHr ? null : actor.userId,
           sortBy,
           sortDir,
         });
@@ -306,42 +308,42 @@ export function createInterviewAssessmentService({
       return withTransaction(POOLS.LOW, async (c) => {
         const existing = await repository.findHeaderStatus(c, headerId);
         if (!existing) throw notFound();
-        const sections = prepareSections(body, actor.userId);
+        const sections = prepareSections(body, actor.employeeNumber ?? actor.userId);
         const changed = await repository.updateHeaderSection(c, {
           ...sections.headerSection,
           headerId,
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!changed) throw notFound();
         await repository.mergePersonalSpec(c, {
           ...sections.personalSpec,
           headerId,
-          createdBy: actor.userId,
-          updatedBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         await repository.updateHeaderPersonalTotals(c, {
           headerId,
           personalSpecTotal: sections.totals.personalSpecTotal,
           personalSpecResult: sections.totals.personalSpecResult,
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         await repository.mergeJobCompetency(c, {
           ...sections.jobCompetency,
           headerId,
-          createdBy: actor.userId,
-          updatedBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         await repository.updateHeaderCompetencyTotals(c, {
           headerId,
           jobCompetencyTotal: sections.totals.jobCompetencyTotal,
           jobCompetencyResult: sections.totals.jobCompetencyResult,
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         await repository.mergeEvaluation(c, {
           ...sections.evaluation,
           headerId,
-          createdBy: actor.userId,
-          updatedBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         await repository.updateHeaderMirror(c, {
           headerId,
@@ -349,7 +351,7 @@ export function createInterviewAssessmentService({
           interviewedBy2: text(body.interviewedBy2),
           interviewedBy3: text(body.interviewedBy3),
           attribute3: body.attribute3,
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         return { headerId };
       });

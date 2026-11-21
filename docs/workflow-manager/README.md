@@ -5,6 +5,7 @@
 - [Current handoff](CURRENT-HANDOFF.md)
 - [Development roadmap](DEVELOPMENT-ROADMAP.md) — exactly two phases, M1–M7 and E1–E7
 - [Orvexa + ITSAZZ delivery standards](DELIVERY-AND-UX-STANDARD-LOCKED.md)
+- [Smart Form Data & Self-Service UX specification](SMART-FORM-DATA-AND-SELF-SERVICE-UX-SPEC.md) — owner-requested before/after screen behavior, no-PK/FK mapping, multi-source relations, security, package scope and acceptance (design only)
 - [Screen-specific user guide index](USER-GUIDE-INDEX.md) and [37-feature guide matrix](SCREEN-GUIDE-MATRIX.md)
 - [Workflow setup overview](WORKFLOW-SETUP-USER-GUIDE.md) — conceptual guidance, not a substitute for per-screen operating manuals
 - [Verified form-onboarding guides index](forms/README.md) and [form guide template](FORM-ONBOARDING-GUIDE-TEMPLATE.md)

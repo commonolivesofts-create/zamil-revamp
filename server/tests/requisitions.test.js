@@ -252,7 +252,7 @@ describe('requisition API', () => {
       assert.equal(data.requisitionStatus, 'Draft'); // the only status this API writes (§11)
       assert.equal(data.requesterName, 'Sam Staff'); // server-set from the employee master (§3.2)
       assert.equal(data.requestedBy, '2002');
-      assert.equal(data.createdBy, f.staffUser.userId);
+      assert.equal(data.createdBy, f.staffUser.employeeNumber);
       assert.equal(data.requestDate, '25-Oct-26'); // stored legacy form (§3.1)
       assert.equal(data.dateNeeded, '15-Nov-26');
       assert.equal(data.budgeted, 'N');
@@ -497,7 +497,7 @@ describe('requisition API', () => {
       assert.equal(body.data.jobName, 'Forklift Operator');
       assert.equal(body.data.budgeted, 'Y');
       assert.equal(body.data.skills, 'Forklift licence');
-      assert.equal(body.data.updatedBy, f.managerUser.userId);
+      assert.equal(body.data.updatedBy, f.managerUser.employeeNumber);
       // Frozen (README §5.1): never updated.
       assert.equal(body.data.requisitionStatus, 'Draft');
       assert.equal(body.data.requestDate, '19-Oct-26');

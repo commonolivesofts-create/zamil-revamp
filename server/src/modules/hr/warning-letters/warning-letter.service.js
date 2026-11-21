@@ -10,7 +10,16 @@ import { normalizeBody } from './warning-letter.validation.js';
 
 const fail = (status, code, message, details) => new AppError(status, code, message, details);
 
-const actor = (auth) => String(auth?.userId ?? auth?.id ?? auth?.user?.id ?? auth?.username ?? '');
+const actor = (auth) =>
+  String(
+    auth?.employeeNumber ??
+      auth?.user?.employeeNumber ??
+      auth?.userId ??
+      auth?.id ??
+      auth?.user?.id ??
+      auth?.username ??
+      '',
+  );
 
 const check = (auth) => {
   const currentActor = actor(auth);

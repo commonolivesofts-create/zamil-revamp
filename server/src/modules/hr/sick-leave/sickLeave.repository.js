@@ -711,7 +711,10 @@ export async function deleteHeader(connection, headerId) {
  * pendingAt is set to null by the service.
  */
 
-export async function list(connection, { self, userId, privileged = false, q = {} }) {
+export async function list(
+  connection,
+  { self, userId, employeeNumber, privileged = false, q = {} },
+) {
   const page = Number(q.page ?? 1);
   const pageSize = Number(q.pageSize ?? 25);
 
@@ -720,6 +723,7 @@ export async function list(connection, { self, userId, privileged = false, q = {
   const binds = {
     self,
     userId,
+    employeeNumber,
 
     privileged: privileged ? 1 : 0,
     mine: q.mine ? 1 : 0,
@@ -743,13 +747,13 @@ export async function list(connection, { self, userId, privileged = false, q = {
       (
         :privileged = 1
         OR S.EMP_ID = :self
-        OR S.CREATED_BY = :userId
+        OR S.CREATED_BY = :userId OR S.CREATED_BY = :employeeNumber
       )
 
       AND (
         :mine = 0
         OR S.EMP_ID = :self
-        OR S.CREATED_BY = :userId
+        OR S.CREATED_BY = :userId OR S.CREATED_BY = :employeeNumber
       )
 
       AND (
@@ -852,13 +856,13 @@ export async function list(connection, { self, userId, privileged = false, q = {
             AND (
               :privileged = 1
               OR X.EMP_ID = :self
-              OR X.CREATED_BY = :userId
+              OR X.CREATED_BY = :userId OR X.CREATED_BY = :employeeNumber
             )
 
             AND (
               :mine = 0
               OR X.EMP_ID = :self
-              OR X.CREATED_BY = :userId
+              OR X.CREATED_BY = :userId OR X.CREATED_BY = :employeeNumber
             )
         ) AS TOTAL_LEAVE_DAYS
 

@@ -303,9 +303,10 @@ export const RELOAD_CONFLICTS = Object.freeze([
   'SOURCE_VERSION_IMMUTABLE',
 ])
 
-// describeFailure() plus the Workflow Manager reason and conflict codes.
+// describeFailure() plus the Workflow Manager reason and conflict codes. Server errors and
+// unanswered requests carry the request ID so support can find the exact request.
 export function describeWorkflowFailure(error) {
-  const failure = describeFailure(error)
+  const failure = withReference(describeFailure(error), error)
   if (CONFLICTS[error?.code])
     return {
       ...failure,
@@ -317,7 +318,18 @@ export function describeWorkflowFailure(error) {
   const details = (error?.details || []).map(
     (item) => REASONS[item.message] || describeReason(item.message) || item.message,
   )
-  return { ...failure, details }
+  return { ...failure, details: [...details, ...(failure.details ?? []).filter(isReference)] }
+}
+
+const REFERENCE_PREFIX = 'Reference for support: '
+const isReference = (detail) => typeof detail === 'string' && detail.startsWith(REFERENCE_PREFIX)
+const SAFE_REFERENCE = /^[A-Za-z0-9._:-]{1,100}$/
+
+function withReference(failure, error) {
+  const serverSide = !error?.status || error.status >= 500
+  if (!serverSide || typeof error?.requestId !== 'string' || !SAFE_REFERENCE.test(error.requestId))
+    return failure
+  return { ...failure, details: [...(failure.details ?? []), REFERENCE_PREFIX + error.requestId] }
 }
 
 // Field errors from a 400 response, keyed by field, for inline display.

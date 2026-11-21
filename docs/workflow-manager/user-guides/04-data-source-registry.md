@@ -9,10 +9,13 @@
 | Required permission | `WORKFLOW_MANAGER.DATA_SOURCE_REGISTRY:VIEW` |
 | Further actions | Register: `DATA_SOURCE_REGISTRY:CREATE` · Edit: `UPDATE` · Activate: `ACTIVATE` · Deactivate: `DEACTIVATE` |
 | API | `GET/POST /api/v1/workflow-manager/data-sources`, `GET/PUT …/data-sources/{sourceId}`, `GET …/{sourceId}/versions`, `POST …/{sourceId}/activate`, `…/deactivate`, `GET …/lookups/source-policy`, `GET …/lookups/source-objects` |
-| Oracle | `XX_ZRV_WF_DATA_SOURCES` (read/write), `XX_ZRV_WF_SOURCE_VERSIONS` (read only), `ALL_OBJECTS` dictionary (names only) |
-| Verification status | **Implemented — verified by automated tests only.** Pending G1 catalogue registration; live browser verification and screenshots follow. |
+| Oracle | `XX_ZRV_WF_DATA_SOURCES` (read/write), `XX_ZRV_WF_SOURCE_VERSIONS` (read only: count and published default version number), `ALL_OBJECTS` dictionary (names only) |
+| Verification status | **M1 screen accepted on TEST (7 November 2026). Business-first columns (Smart Mapping UX package) — verified by automated tests; live TEST check pending.** |
 
 ## Purpose
+
+This is **one-time onboarding for data administrators**. Business users who design workflows never
+need this screen: they work with forms whose business data is already prepared.
 
 A **data source** names one approved place a registered form's records live in: an Oracle
 **table**, an Oracle **view**, or a **server handler** (server-side code). The registry stores only
@@ -32,7 +35,8 @@ but cannot be selected. Handlers are introduced with the form mapping package (M
 
 ## How to get there
 
-**Workflow Manager → Data source registry** in the sidebar, or the **Data sources** card on the Overview.
+**Workflow Manager → Data source registry** in the sidebar, or the **Data sources** card /
+**Prepare business data** task on the Overview.
 
 ## Screen elements
 
@@ -50,8 +54,8 @@ but cannot be selected. Handlers are introduced with the form mapping package (M
 | **Kind** | All kinds, Tables, Views or Server handlers. |
 | **Status** | All, Active or Inactive. |
 | **Sort by** | Source code, Source name, Kind or Last updated, ↑ / ↓. |
-| Columns | **Source** (name and code), **Kind**, **Object or handler** (`OWNER.OBJECT` or handler code), **Versions**, **Status**, **Last updated** |
-| **Versions** (row) | Read-only list of the source's versions. Users with `SOURCE_MAPPING:VIEW` see **Manage mapping** instead, which opens the source versions screen ([guide 05](05-data-source-version.md)). |
+| Columns | **Data source** (name, with *Database table* / *Database view* / *Server integration* and `OWNER.OBJECT` or handler code below it), **Approved fields** (*Ready · version N* when an approved field list is in use, *In setup* while only drafts or unapproved versions exist, *Not set up* when none exists, *Inactive*), **Status**, **Last updated** |
+| **Versions** (row) | Read-only list of the source's field versions. Users with `SOURCE_MAPPING:VIEW` see **Manage fields** instead, which opens the guided field setup ([guide 05](05-data-source-version.md)). |
 | **Edit** (row) | Opens the edit dialog. With `UPDATE`. |
 | **Activate** / **Deactivate** (row) | Confirmation dialog. With `ACTIVATE` / `DEACTIVATE`. |
 
@@ -134,6 +138,8 @@ registers it successfully. (All names here are illustrations; register only real
 | Allowlist (owner, protected prefix, existence, type, VALID status), handler refusal, identity shape, duplicate, identity lock, stale edit, filters, versions, dictionary lookup | `server/tests/workflow-manager.test.js` *data source registry* suite passed |
 | Client validation, payload normalization, contract | `client/tests/workflowManager.test.mjs` passed |
 | SQL against Oracle TEST | Dictionary lookups and source SELECTs executed read-only; INSERT/UPDATE compiled only (2026-11-02) |
-| Live browser check and screenshot | **Not yet performed** — requires the G1-approved catalogue registration and a role grant on TEST |
+| Approved-fields column (`defaultVersionNo`) | `server/tests/workflow-manager.test.js` passed; readiness SQL executed read-only on TEST, 2026-11-21 |
+| Live browser check and screenshot | M1 layout accepted by the owner on TEST (7 November 2026). The new columns are **not yet checked live** — owner TEST acceptance pending. |
 
-Verified against branch `feat/workflow-manager-m1-foundation`, 2026-11-02.
+Verified against branch `feat/workflow-manager-m1-foundation`, 2026-11-02; columns updated on
+`feat/workflow-manager-smart-mapping-ux`, 2026-11-21.

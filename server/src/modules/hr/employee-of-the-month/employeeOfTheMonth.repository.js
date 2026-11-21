@@ -417,11 +417,19 @@ export async function list(c, f) {
         'YYYY-MM-DD"T"HH24:MI:SS'
       ) CREATED_AT,
 
-      (
+      COALESCE(
+        (
+        SELECT FULL_NAME
+        FROM XX_DIGI_EMP_MASTER
+        WHERE EMPLOYEE_NUMBER = TO_CHAR(h.CREATED_BY)
+          AND ROWNUM = 1
+        ),
+        (
         SELECT FULL_NAME
         FROM XX_DIGI_EMP_MASTER
         WHERE USER_ID = h.CREATED_BY
           AND ROWNUM = 1
+        )
       ) REQUESTOR,
 
       (

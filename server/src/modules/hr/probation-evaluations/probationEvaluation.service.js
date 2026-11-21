@@ -72,7 +72,11 @@ export function createProbationEvaluationService({
   async function authorizeRecord(connection, actor, headerId) {
     const facts = await repository.findAccessFacts(connection, headerId);
     if (!facts) throw notFound();
-    if (String(facts.createdBy) === String(actor.userId)) return facts;
+    if (
+      String(facts.createdBy) === String(actor.userId) ||
+      String(facts.createdBy) === String(actor.employeeNumber)
+    )
+      return facts;
     if (await repository.isHrUser(connection, actor.employeeNumber)) return facts;
     if (
       facts.employeeNumber &&
@@ -173,7 +177,7 @@ export function createProbationEvaluationService({
           uuid,
           userName: text(requestor?.fullName),
           userMail: text(requestor?.emailAddress),
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
         });
         if (!headerId) {
           throw new AppError(
@@ -204,7 +208,8 @@ export function createProbationEvaluationService({
             const isHr = await repository.isHrUser(c, actor.employeeNumber);
             return repository.countEvaluations(c, {
               queries: missing,
-              createdBy: isHr ? null : actor.userId,
+              createdBy: isHr ? null : (actor.employeeNumber ?? actor.userId),
+              legacyCreatedBy: isHr ? null : actor.userId,
             });
           }),
       );
@@ -214,13 +219,14 @@ export function createProbationEvaluationService({
       const isHr = await read((connection) =>
         repository.isHrUser(connection, actor.employeeNumber),
       );
-      const createdBy = isHr ? null : actor.userId;
+      const createdBy = isHr ? null : (actor.employeeNumber ?? actor.userId);
       const { total, items } = await read((connection) =>
         repository.listEvaluations(connection, {
           limit: pageSize,
           offset: (page - 1) * pageSize,
           filters: { ...filters, search: searchPattern(search) },
           createdBy,
+          legacyCreatedBy: isHr ? null : actor.userId,
           sortBy,
           sortDir,
         }),
@@ -267,7 +273,7 @@ export function createProbationEvaluationService({
           totalRating: ratingTotal(lines),
           comment: body.comment,
           comments: body.comments,
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!changed) throw notFound();
         for (const line of lines) {

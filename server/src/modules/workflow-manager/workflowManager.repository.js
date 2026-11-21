@@ -50,7 +50,10 @@ const FORM_COLUMNS = `f.form_id, f.form_code, f.form_name, f.module_code, f.deta
        (SELECT m.module_name FROM xx_zrv_app_modules m WHERE m.module_code = f.module_code)
          AS module_name,
        (SELECT COUNT(*) FROM xx_zrv_wf_form_versions v WHERE v.form_id = f.form_id)
-         AS version_count`;
+         AS version_count,
+       (SELECT MAX(v.version_no) FROM xx_zrv_wf_form_versions v
+         WHERE v.form_id = f.form_id AND v.lifecycle_state = 'PUBLISHED' AND v.is_default = 'Y')
+         AS default_version_no`;
 
 const FORM_FETCH = { FORM_ID: ID, CREATED_BY: ID, UPDATED_BY: ID };
 
@@ -64,6 +67,8 @@ const mapForm = (row) => ({
   description: row.DESCRIPTION ?? null,
   isActive: flag(row.IS_ACTIVE),
   versionCount: row.VERSION_COUNT,
+  // Published default mapping version (readiness); null while none is published.
+  defaultVersionNo: row.DEFAULT_VERSION_NO ?? null,
   rowVersion: row.ROW_VERSION,
   createdAt: iso(row.CREATED_AT),
   createdBy: row.CREATED_BY,
@@ -224,7 +229,10 @@ const SOURCE_COLUMNS = `s.source_id, s.source_code, s.source_name, s.source_kind
        s.object_name, s.handler_code, s.is_active, s.created_at, s.created_by, s.updated_at,
        s.updated_by, s.row_version,
        (SELECT COUNT(*) FROM xx_zrv_wf_source_versions v WHERE v.source_id = s.source_id)
-         AS version_count`;
+         AS version_count,
+       (SELECT MAX(v.version_no) FROM xx_zrv_wf_source_versions v
+         WHERE v.source_id = s.source_id AND v.lifecycle_state = 'PUBLISHED' AND v.is_default = 'Y')
+         AS default_version_no`;
 
 const SOURCE_FETCH = { SOURCE_ID: ID, CREATED_BY: ID, UPDATED_BY: ID };
 
@@ -238,6 +246,7 @@ const mapSource = (row) => ({
   handlerCode: row.HANDLER_CODE ?? null,
   isActive: flag(row.IS_ACTIVE),
   versionCount: row.VERSION_COUNT,
+  defaultVersionNo: row.DEFAULT_VERSION_NO ?? null,
   rowVersion: row.ROW_VERSION,
   createdAt: iso(row.CREATED_AT),
   createdBy: row.CREATED_BY,

@@ -129,11 +129,11 @@ export default function ChangePasswordPage() {
   return (
     <div className="zrv-hr zrv-hr--compact zrv-hr--password-page">
       <div className="zrv-hr-form-header">
-        <RecruitmentHeader title="Password" breadcrumb={['Account']} />
-      </div>
-      <div className="zrv-password-page-intro">
-        <h2>Update your password</h2>
-        <p>Choose a new password to keep your account secure.</p>
+        <RecruitmentHeader
+          title="Password"
+          subtitle="Update your password to keep your account secure."
+          breadcrumb={['Account']}
+        />
       </div>
       <div className="zrv-password-layout">
         <section className="zrv-password-form-card zrv-hr-stage" aria-label="Change password">

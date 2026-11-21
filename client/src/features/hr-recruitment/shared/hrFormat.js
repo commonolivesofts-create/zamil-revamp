@@ -22,6 +22,19 @@ export function businessToday(now = new Date()) {
   return `${date.year}-${date.month}-${date.day}`
 }
 
+// The current clock time in KSA business time, as HH:mm. Assessments record
+// this automatically; users never type it.
+export function businessNowTime(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: BUSINESS_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now)
+  const time = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+  return `${time.hour}:${time.minute}`
+}
+
 const utc = (iso) => new Date(`${iso}T00:00:00Z`)
 
 export function enDate(iso) {
@@ -34,14 +47,21 @@ export function enDate(iso) {
   }).format(utc(iso))
 }
 
+const ARABIC_DIGITS = Object.freeze(['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'])
+
+// Arabic-Indic digits for the ASCII digits in a value. Everything else
+// (separators, currency, words) is left untouched.
+export function arabicDigits(value) {
+  return String(value ?? '').replace(/\d/g, (digit) => ARABIC_DIGITS[Number(digit)])
+}
+
+// A Gregorian (English calendar) date written with Arabic-Indic digits:
+// 2026-11-20 → ٢٠/١١/٢٠٢٦. The day, month and year never change; only their
+// numerals are localized. This deliberately avoids the Hijri calendar.
 export function arDate(iso) {
   if (!isIsoDate(iso)) return ''
-  return new Intl.DateTimeFormat('ar', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(utc(iso))
+  const [year, month, day] = iso.split('-')
+  return `${arabicDigits(day)}/${arabicDigits(month)}/${arabicDigits(year)}`
 }
 
 // Whole days from `today` to `iso` (negative in the past), or null.

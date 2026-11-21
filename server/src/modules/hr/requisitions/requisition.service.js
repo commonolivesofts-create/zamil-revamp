@@ -196,7 +196,7 @@ export function createRequisitionService({
           requisitionId,
           values: {},
           ticket: { ticketStatus: newValue },
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!updated) throw notFound();
         await recordRecruitmentChange(auditService, connection, {
@@ -249,7 +249,7 @@ export function createRequisitionService({
           remark: emptyToNull(body.remark),
           totalPackage: body.totalPackage ?? null,
           ticketStatus: 'Open',
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
         });
         await repository.setRequisitionNumber(connection, id);
         await appendAttachments(connection, id, uploaded);
@@ -311,7 +311,7 @@ export function createRequisitionService({
           requisitionId,
           values,
           ticket: null,
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!updated) throw notFound();
         await appendAttachments(connection, requisitionId, uploaded);

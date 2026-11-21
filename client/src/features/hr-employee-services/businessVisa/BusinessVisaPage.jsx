@@ -152,7 +152,15 @@ function VisaEditor({ lookups, initial }) {
     clear(key)
   }
   const toggle = (key, group) => (event) => {
-    patch({ [key]: event.target.checked })
+    const checked = event.target.checked
+    const changes = { [key]: checked }
+    if (
+      (key === 'travelOther' && !checked && !form.hotelOther) ||
+      (key === 'hotelOther' && !checked && !form.travelOther)
+    ) {
+      changes.otherDetails = ''
+    }
+    patch(changes)
     clear(group ?? key, 'otherDetails')
   }
 
@@ -236,10 +244,10 @@ function VisaEditor({ lookups, initial }) {
   ]
 
   const has = (key) => Boolean(String(form[key] ?? '').trim())
+  const hasOtherExpense = Boolean(form.travelOther || form.hotelOther)
   const counts = STEP_FIELDS.map((keys) => keys.filter(has).length)
   const visaDone =
-    (form.visaSingle || form.visaMultiple) &&
-    (!(form.travelOther || form.hotelOther) || has('otherDetails'))
+    (form.visaSingle || form.visaMultiple) && (!hasOtherExpense || has('otherDetails'))
   const fileCount = documents.length + files.length
   const doneSteps = [
     counts[0] === 3,
@@ -504,11 +512,11 @@ function VisaEditor({ lookups, initial }) {
               </div>
             ))}
           </div>
-          {(form.travelOther || form.hotelOther || has('otherDetails')) && (
+          {hasOtherExpense && (
             <div className="zrv-hr-grid zrv-hr-mt">
-              {field('otherDetails', 'If other, please specify', {
+              {field('otherDetails', 'If Other, Please Specify', {
                 type: 'textarea',
-                required: form.travelOther || form.hotelOther,
+                required: hasOtherExpense,
                 wide: true,
               })}
             </div>

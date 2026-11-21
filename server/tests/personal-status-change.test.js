@@ -391,7 +391,7 @@ describe('personal status change API', () => {
     assert.equal(data.old.total, 7100, 'OLD_TOTAL = master TOTAL_SALARY');
     assert.equal(data.old.maritalStatus, 'M', 'current family status defaults to the master');
     assert.equal(data.new.total, 7500, 'NEW_TOTAL is the sum, the client total is ignored');
-    assert.equal(rows()[0].CREATED_BY, String(f.hrUser.userId));
+    assert.equal(rows()[0].CREATED_BY, String(f.hrUser.employeeNumber));
     assert.equal(rows()[0].USER_ID, null);
 
     const forged = await send('post', '', session, {
@@ -483,7 +483,7 @@ describe('personal status change API', () => {
     assert.equal(saved.EMP_NAME, 'Employee Example');
     assert.equal(saved.OLD_TOTAL, 7100);
     assert.equal(saved.OLD_MARITAL_STATUS, 'M', 'kept when the body leaves it out');
-    assert.equal(saved.UPDATED_BY, String(f.hrUser.userId));
+    assert.equal(saved.UPDATED_BY, String(f.hrUser.employeeNumber));
     assert.equal(result.body.data.new.total, 8000);
     assert.equal(f.personalStatusRepository.state.calls.at(-1).snapshot, false);
 
@@ -571,14 +571,13 @@ describe('personal status change API', () => {
     }
     assert.equal(row.pendingAt, 'Approver Name');
     assert.equal((await get('?created_by=me')).status, 400, 'there is no created_by filter');
-    const userId = String(f.hrUser.userId);
     const today = businessToday();
     for (const filter of [
       'status=DRAFT',
       'section=Production',
       'department=Injection',
       'position=Supervisor',
-      `requestor=${userId}`,
+      `requestor=${f.hrUser.employeeNumber}`,
       'date_from=2026-10-30&date_to=2026-10-30',
       `date_from=${today}`,
       'status=APPROVED&section=Sales&department=Sales&position=Operator&requestor=2002',

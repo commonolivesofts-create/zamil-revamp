@@ -20,7 +20,9 @@ import '@/styles/report-table.css'
 import '@/styles/hr-recruitment-responsive.css'
 
 const PAGE_SIZE = 15
-const DRAWER_EXIT_MS = 320
+// Slightly longer than the CSS close animation so the panel finishes gliding
+// out before it unmounts; otherwise the exit snaps off mid-flight.
+const DRAWER_EXIT_MS = 420
 const DRAWER_MIN_WIDTH = 420
 const DRAWER_STEP = 24
 // A widened drawer always leaves a sliver of the page in view.
@@ -164,12 +166,24 @@ export function InsightReport({
   // Hiring suggestions page) instead of expanding a panel inside the report.
   // headerLink: { to, label, icon?, title? }
   headerLink = null,
-  // Optional row selection for reports whose rows can be compared: a leading
-  // checkbox column and the page's own tools beside the table heading.
-  // rowSelection: { selectedKeys, onToggle(row), max?, label?(row),
-  //   disabled?(row) → reason }
+  // Optional row selection for reports with a bulk row action (for example
+  // deleting several records at once): a leading checkbox column, a select-all
+  // box in the header, and the page's own tools beside the table heading.
+  // rowSelection: { selectedKeys, onToggle(row), onToggleAll?(rows, checked),
+  //   label?(row), disabled?(row) → reason }
   rowSelection = null,
   tableTools = null,
+  // Extra action(s) rendered in the drawer's sticky bottom bar, e.g. a primary
+  // "Create interview assessment" shortcut. Receives the selected row.
+  drawerActions = null,
+  // Secondary action(s) rendered after the Open/Copy buttons, e.g. "Hiring
+  // suggestions", so the primary action always leads the bar.
+  drawerActionsAfter = null,
+  // Marks a shorter table for the same labelled record-card layout on laptop
+  // widths that wide tables already use, so it cannot overflow a small screen.
+  denseTable = false,
+  // Bump to reload the report after a bulk action performed by the page.
+  reloadToken = 0,
   closeInDetail = false,
   resizableDrawer = false,
   breadcrumb = COMMON_TEXT.breadcrumb,
@@ -207,7 +221,7 @@ export function InsightReport({
   ).length
 
   const records = useResource(
-    `${resourceKey}:${JSON.stringify({ query, sort, page })}`,
+    `${resourceKey}:${reloadToken}:${JSON.stringify({ query, sort, page })}`,
     async (signal) => ({
       ...(await list(
         {
@@ -223,7 +237,7 @@ export function InsightReport({
     }),
   )
   const overview = useResource(
-    `${resourceKey}:overview:${JSON.stringify(query)}:${today}`,
+    `${resourceKey}:overview:${reloadToken}:${JSON.stringify(query)}:${today}`,
     (signal) => {
       const { count, countIn } = counter(list, signal, countRequestGate.current)
       return Promise.all(
@@ -240,7 +254,7 @@ export function InsightReport({
     },
   )
   const breakdown = useResource(
-    groups.length ? `${resourceKey}:breakdown:${JSON.stringify(query)}` : null,
+    groups.length ? `${resourceKey}:breakdown:${reloadToken}:${JSON.stringify(query)}` : null,
     async (signal) => {
       const { count } = counter(list, signal, countRequestGate.current)
       return Promise.all(
@@ -412,6 +426,12 @@ export function InsightReport({
             )}
           </h1>
           {subtitle && <p className="zrv-hr-sub">{subtitle}</p>}
+          {records.data?.loadedAt && (
+            <span className="zrv-ir-stamp" role="status">
+              <i aria-hidden="true" />
+              {T.updated(clock(records.data.loadedAt))}
+            </span>
+          )}
         </div>
         <div className="zrv-ir-head__actions">
           {headerLink && (
@@ -435,55 +455,67 @@ export function InsightReport({
               </span>
             </button>
           )}
-          {records.data?.loadedAt && (
-            <span className="zrv-ir-stamp" role="status">
-              <i aria-hidden="true" />
-              {T.updated(clock(records.data.loadedAt))}
-            </span>
-          )}
           <button
             type="button"
-            className={`zrv-ir-btn${filtersOpen ? ' zrv-ir-is-on' : ''}`}
+            className={`zrv-ir-btn zrv-ir-btn--utility${filtersOpen ? ' zrv-ir-is-on' : ''}`}
             aria-expanded={filtersOpen}
             aria-controls={`${id}-filters`}
+            aria-label={T.filter}
+            title={T.filter}
             onClick={() => setFiltersOpen((value) => !value)}
           >
             <OrvexaIcon name="sliders-horizontal" size={16} />
-            {T.filter}
+            <span className="zrv-ir-btn__label">{T.filter}</span>
             {activeFilters > 0 && <span className="zrv-ir-btn__badge">{activeFilters}</span>}
           </button>
           <button
             type="button"
-            className="zrv-ir-btn"
+            className="zrv-ir-btn zrv-ir-btn--utility"
+            aria-label={T.refresh}
+            title={T.refresh}
             onClick={refresh}
             disabled={records.refreshing}
           >
             <OrvexaIcon name="refresh-cw" size={16} />
-            {T.refresh}
+            <span className="zrv-ir-btn__label">{T.refresh}</span>
           </button>
-          <button type="button" className="zrv-ir-btn" onClick={() => window.print()}>
+          <button
+            type="button"
+            className="zrv-ir-btn zrv-ir-btn--utility"
+            aria-label={printLabel}
+            title={printLabel}
+            onClick={() => window.print()}
+          >
             <OrvexaIcon name="printer" size={16} />
-            {printLabel}
+            <span className="zrv-ir-btn__label">{printLabel}</span>
           </button>
           {exportable && (
             <>
               <button
                 type="button"
-                className="zrv-ir-btn"
+                className="zrv-ir-btn zrv-ir-btn--utility"
+                aria-label={T.exportCsv}
+                title={T.exportCsv}
                 onClick={() => runExport('csv')}
                 disabled={Boolean(exporting) || !records.data?.pagination?.total}
               >
                 <OrvexaIcon name="download" size={16} />
-                {exporting === 'csv' ? T.exporting : T.exportCsv}
+                <span className="zrv-ir-btn__label">
+                  {exporting === 'csv' ? T.exporting : T.exportCsv}
+                </span>
               </button>
               <button
                 type="button"
-                className="zrv-ir-btn"
+                className="zrv-ir-btn zrv-ir-btn--utility"
+                aria-label={T.exportPdf}
+                title={T.exportPdf}
                 onClick={() => runExport('pdf')}
                 disabled={Boolean(exporting) || !records.data?.pagination?.total}
               >
                 <OrvexaIcon name="file-text" size={16} />
-                {exporting === 'pdf' ? T.exporting : T.exportPdf}
+                <span className="zrv-ir-btn__label">
+                  {exporting === 'pdf' ? T.exporting : T.exportPdf}
+                </span>
               </button>
             </>
           )}
@@ -648,6 +680,12 @@ export function InsightReport({
             label={heading.toLowerCase()}
             empty={empty}
             isEmpty={(data) => !data.items.length}
+            loadingVariant="table"
+            skeletonColumns={columns.length}
+            skeletonRows={8}
+            // The page header and stats are already rendered (with their own
+            // loading states); only the table below them needs a skeleton.
+            skeletonPageChrome={false}
           >
             {(data) => (
               <>
@@ -687,7 +725,7 @@ export function InsightReport({
                   aria-busy={records.refreshing || undefined}
                 >
                   <table
-                    className={`zrv-ir-table zrv-report-table${columns.length > 10 ? ' zrv-ir-table--wide' : ''}${rowSelection ? ' zrv-ir-table--picks' : ''}`}
+                    className={`zrv-ir-table zrv-report-table${columns.length > 10 || denseTable ? ' zrv-ir-table--wide' : ''}${rowSelection ? ' zrv-ir-table--picks' : ''}`}
                   >
                     <caption className="zrv-hr-sr">{heading}</caption>
                     <colgroup>
@@ -707,7 +745,13 @@ export function InsightReport({
                       <tr>
                         {rowSelection && (
                           <th scope="col" className="zrv-ir-col-pick">
-                            <span className="zrv-hr-sr">Select for comparison</span>
+                            <SelectAll
+                              rows={data.items}
+                              selectedKeys={rowSelection.selectedKeys}
+                              rowKey={rowKey}
+                              blocked={rowSelection.disabled}
+                              onToggleAll={rowSelection.onToggleAll}
+                            />
                           </th>
                         )}
                         {columns.map((column) => (
@@ -753,9 +797,6 @@ export function InsightReport({
                             (() => {
                               const key = rowKey(row)
                               const picked = rowSelection.selectedKeys.includes(key)
-                              const atLimit =
-                                !picked &&
-                                rowSelection.selectedKeys.length >= (rowSelection.max ?? Infinity)
                               const blocked = picked ? null : rowSelection.disabled?.(row)
                               return (
                                 <td
@@ -765,15 +806,10 @@ export function InsightReport({
                                   <input
                                     type="checkbox"
                                     checked={picked}
-                                    disabled={atLimit || Boolean(blocked)}
+                                    disabled={Boolean(blocked)}
                                     onChange={() => rowSelection.onToggle(row)}
-                                    title={
-                                      blocked ||
-                                      (atLimit
-                                        ? `Compare up to ${rowSelection.max} assessments at a time`
-                                        : undefined)
-                                    }
-                                    aria-label={`Select ${rowSelection.label?.(row) ?? key} for comparison`}
+                                    title={blocked || undefined}
+                                    aria-label={`Select ${rowSelection.label?.(row) ?? key}`}
                                   />
                                 </td>
                               )
@@ -842,12 +878,37 @@ export function InsightReport({
           }
           openLabel={openLabel}
           closeInDetail={closeInDetail}
+          drawerActions={drawerActions ? drawerActions(selected) : null}
+          drawerActionsAfter={drawerActionsAfter ? drawerActionsAfter(selected) : null}
           resizable={resizableDrawer}
           closing={closing}
           onClose={close}
         />
       )}
     </div>
+  )
+}
+
+// Selects (or clears) every row on the current page. A partial selection is
+// shown as indeterminate so the box never claims more than it has selected.
+function SelectAll({ rows, selectedKeys, rowKey, blocked, onToggleAll }) {
+  const ref = useRef(null)
+  const selected = rows.filter((row) => selectedKeys.includes(rowKey(row))).length
+  const all = rows.length > 0 && selected === rows.length
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = selected > 0 && !all
+  }, [selected, all])
+  const noneAllowed = rows.length === 0 || rows.every((row) => blocked?.(row))
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={all}
+      disabled={noneAllowed || !onToggleAll}
+      onChange={(event) => onToggleAll?.(rows, event.target.checked)}
+      aria-label="Select all rows on this page"
+      title="Select all rows on this page"
+    />
   )
 }
 
@@ -892,6 +953,8 @@ function Summary({
   path,
   openLabel,
   closeInDetail,
+  drawerActions,
+  drawerActionsAfter,
   resizable,
   closing,
   onClose,
@@ -1004,8 +1067,9 @@ function Summary({
             </>
           )}
           {extra}
-          {detail && (
+          {(detail || drawerActions || drawerActionsAfter) && (
             <div className="zrv-ir-drawer__actions">
+              {drawerActions}
               {path && (
                 <Link className="zrv-ir-btn zrv-ir-btn--primary" to={path}>
                   <OrvexaIcon name="external-link" size={16} />
@@ -1018,6 +1082,7 @@ function Summary({
                   {copied ? T.copied : T.copy}
                 </button>
               )}
+              {drawerActionsAfter}
               <span className="zrv-hr-sr" role="status">
                 {copied ? T.copied : ''}
               </span>

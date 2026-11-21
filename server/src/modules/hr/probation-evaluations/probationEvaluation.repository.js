@@ -1,6 +1,6 @@
 import oracledb from 'oracledb';
 import { countSets } from '../../../database/conditionalCounts.js';
-import { CRITERIA_COUNT } from './probationEvaluation.rules.js';
+import { CRITERIA_COUNT, FALLBACK_CRITERIA } from './probationEvaluation.rules.js';
 
 const ID = { type: oracledb.STRING };
 const rows = async (connection, sql, binds, fetchInfo) =>
@@ -244,12 +244,12 @@ function filterConditions(filters, binds) {
  * The list total of each filter set (as `listEvaluations` would report it) in one statement, for the
  * recruitment dashboard. `createdBy` as in `listEvaluations`.
  */
-export async function countEvaluations(connection, { queries, createdBy }) {
+export async function countEvaluations(connection, { queries, createdBy, legacyCreatedBy }) {
   const scoped = createdBy !== undefined && createdBy !== null;
   return countSets((sql, binds) => rows(connection, sql, binds), {
     from: 'FROM XXZP.XXZP_PAF_PROBATION_HEADER H',
-    where: scoped ? ['H.CREATED_BY = :createdBy'] : [],
-    binds: scoped ? { createdBy } : {},
+    where: scoped ? ['(H.CREATED_BY = :createdBy OR H.CREATED_BY = :legacyCreatedBy)'] : [],
+    binds: scoped ? { createdBy, legacyCreatedBy: legacyCreatedBy ?? createdBy } : {},
     sets: queries.map((filters) => {
       const binds = {};
       return { conditions: filterConditions(filters, binds), binds };
@@ -259,13 +259,14 @@ export async function countEvaluations(connection, { queries, createdBy }) {
 
 export async function listEvaluations(
   connection,
-  { limit, offset, filters = {}, createdBy, sortBy, sortDir },
+  { limit, offset, filters = {}, createdBy, legacyCreatedBy, sortBy, sortDir },
 ) {
   const binds = {};
   const conditions = ['1 = 1', ...filterConditions(filters, binds)];
   if (createdBy !== undefined && createdBy !== null) {
-    conditions.push('H.CREATED_BY = :createdBy');
+    conditions.push('(H.CREATED_BY = :createdBy OR H.CREATED_BY = :legacyCreatedBy)');
     binds.createdBy = createdBy;
+    binds.legacyCreatedBy = legacyCreatedBy ?? createdBy;
   }
   const where = `WHERE ${conditions.join(' AND ')}`;
   const column = SORT_COLUMNS[sortBy];
@@ -303,10 +304,12 @@ export async function isHrUser(connection, employeeNumber) {
 }
 
 /**
- * The actor's reporting hierarchy, as the legacy form: without employees who already have a
- * non-rejected annual appraisal this year (pending HR confirmation). Legacy reads
- * XXZPI_HR_PAF_HEADER_TAB, which nothing writes any more (TEST holds years 2017–2022 only); the
- * annual appraisal form, legacy and new, writes XXZPI_HR_PA_HEADER_TAB, so the rule reads that.
+ * The actor's reporting hierarchy, exactly as the legacy probation form's getEmp(): the same
+ * employee eligibility flags, the same START WITH / CONNECT BY, and the same duplicate-year
+ * guard against XXZP.XXZPI_HR_PAF_HEADER_TAB (the PAF table the legacy employee dropdown reads).
+ * Reading the PA table here instead hid every employee who already has this year's annual
+ * appraisal, leaving the picker empty ("No match") even though the legacy form offered them.
+ * The PAF table still exists (TEST holds 2017–2022) so this keeps the legacy result set.
  *
  * The actor is found by EMPLOYEE_NUMBER: XX_DIGI_EMP_MASTER.USER_ID holds the legacy EBS user ID,
  * not this application's user ID. `search` (optional) matches the name or employee number.
@@ -321,10 +324,10 @@ const HIERARCHY = `
             AND OT.CURRENT_EMP_FLAG = 'Y'
             AND LEVEL != 1
             AND NOT EXISTS (
-              SELECT 1 FROM XXZP.XXZPI_HR_PA_HEADER_TAB HD
+              SELECT 1 FROM XXZP.XXZPI_HR_PAF_HEADER_TAB HD
                WHERE HD.EMPLOYEE_NUMBER = OT.EMPLOYEE_NUMBER
                  AND HD.YEAR = TO_CHAR(SYSDATE, 'YYYY')
-                 AND NVL(UPPER(HD.STATUS), '-') <> 'REJECTED'
+                 AND HD.STATUS <> 'Rejected'
             )
           START WITH OT.FULL_NAME = (
             SELECT MAX(FULL_NAME) FROM XX_DIGI_EMP_MASTER
@@ -406,10 +409,14 @@ export async function findCriteria(connection, formType) {
       ORDER BY L.LINE_ID`,
     { formType, count: CRITERIA_COUNT },
   );
-  return result.map((row) => ({
-    param: row.PARAM_NAME,
-    paramAr: row.PARAMA_NAME_AR === '-' ? null : row.PARAMA_NAME_AR,
-  }));
+  // No saved evaluation holds the full named set yet (the legacy JS list is missing):
+  // use the standard PAF criteria so the Evaluation step still shows its 20 rows.
+  return result.length > 0
+    ? result.map((row) => ({
+        param: row.PARAM_NAME,
+        paramAr: row.PARAMA_NAME_AR === '-' ? null : row.PARAMA_NAME_AR,
+      }))
+    : FALLBACK_CRITERIA.map((criterion) => ({ ...criterion }));
 }
 
 /** The signed-in user's own record ("Prepared by"), by their employee number. */

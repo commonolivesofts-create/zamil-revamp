@@ -157,9 +157,9 @@ export function createEmployeeOfTheMonthService({
       overallRating: b.overallRating,
       remark: b.remark,
       deptType: d === 'production' ? 'Production' : 'Shared-services',
-      createdBy: actor.userId,
+      createdBy: actor.employeeNumber ?? actor.userId,
       createdByEmpNum: requester.EMPLOYEE_NUMBER,
-      updatedBy: actor.userId,
+      updatedBy: actor.employeeNumber ?? actor.userId,
     };
   }
 

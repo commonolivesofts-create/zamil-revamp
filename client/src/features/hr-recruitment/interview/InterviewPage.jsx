@@ -410,11 +410,11 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
         ...hrReview([
           'requisitionNumber',
           'preScreeningDate',
-          'interviewTime',
           'divisionCode',
           'expectedJoiningDate',
           'interviewTypeCode',
         ]),
+        reviewField(T.labels.interviewTime, form.interviewTime),
         reviewField(T.labels.position, position),
       ],
     },
@@ -693,13 +693,17 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
                   value={T.status[status]}
                 />
               </HrField>
-              {[
-                'preScreeningDate',
-                'interviewTime',
-                'divisionCode',
-                'expectedJoiningDate',
-                'interviewTypeCode',
-              ].map(input)}
+              <HrField id="ia-time" label={T.labels.interviewTime} hint={T.autoTimeHint}>
+                <input
+                  id="ia-time"
+                  className="ux-input zrv-hr-input"
+                  readOnly
+                  value={form.interviewTime || ''}
+                />
+              </HrField>
+              {['preScreeningDate', 'divisionCode', 'expectedJoiningDate', 'interviewTypeCode'].map(
+                input,
+              )}
             </div>
             <h3 className="zrv-hr-subh">{T.subheads.candidate}</h3>
             <div className="zrv-hr-grid zrv-hr-is-4">
