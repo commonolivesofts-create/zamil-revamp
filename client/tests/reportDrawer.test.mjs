@@ -45,15 +45,20 @@ test('reports keep their actions only in the drawer, not in a table column', asy
   }
 })
 
-test('the interview drawer has a Hiring suggestions button and the highlighted offer action', async () => {
+test('the interview drawer has no summary hero, band scores and trailing Hiring suggestions', async () => {
   const report = await read('interview/InterviewReportPage.jsx')
-  assert.match(report, /drawerActions=\{\(row\) => \(/)
+  assert.match(
+    report,
+    /drawerActions=\{\(row\) => <CreateEmploymentOffer row=\{row\} spotlight \/>\}/,
+  )
+  assert.match(report, /drawerActionsAfter/)
   assert.match(report, /Hiring suggestions/)
-  assert.match(report, /<CreateEmploymentOffer row=\{row\} spotlight \/>/)
+  assert.doesNotMatch(report, /\n\s*summary=\{\(row\)/, 'no summary hero in the drawer')
   assert.match(report, /resizableDrawer/)
   const details = await read('interview/InterviewDetails.jsx')
   assert.match(details, /shared\/components\/ReportDrawer\.jsx/)
-  assert.match(details, /Score summary/)
+  assert.match(details, /<BandBar/)
+  assert.match(details, /zrv-ir-detail-scores/)
 })
 
 test('all report drawers use the shared detail toolkit', async () => {

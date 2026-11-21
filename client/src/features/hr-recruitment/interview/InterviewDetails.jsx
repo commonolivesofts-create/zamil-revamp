@@ -4,18 +4,21 @@ import { COMMON_TEXT, INTERVIEW_TEXT as T } from '../hrRecruitmentText.js'
 import { enDate, formatAmount } from '../shared/hrFormat.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { DetailFacts, DetailSkeleton, SectionHeading } from '../shared/components/ReportDrawer.jsx'
+import { BandBar } from '../shared/components/InsightCards.jsx'
 import {
   BANDS,
   COMP_KEYS,
   SCORE_MAX,
   SPEC_KEYS,
   bandLabel,
+  bandOf,
   ratedCount,
   salaryDelta,
   sumRatings,
 } from './interviewModel.js'
 
 const service = hrRecruitmentServices.interviews
+const BAND_TONE = Object.freeze({ POOR: 'bad', GOOD: 'mint', OUTSTANDING: 'primary' })
 const date = (value) => (value ? enDate(value) : COMMON_TEXT.dash)
 const text = (value) => value || COMMON_TEXT.dash
 const amount = (value) => (value == null || value === '' ? COMMON_TEXT.dash : formatAmount(value))
@@ -45,9 +48,46 @@ export function InterviewDetails({ row }) {
       {(detail) => {
         const specTotal = sumRatings(detail.personalSpecification ?? {})
         const compTotal = sumRatings(detail.competency ?? {})
+        const specRated = ratedCount(detail.personalSpecification ?? {}, SPEC_KEYS) > 0
+        const compRated = ratedCount(detail.competency ?? {}, COMP_KEYS) > 0
         const delta = salaryDelta(detail.expectedTotal, detail.currentTotal)
         return (
           <>
+            <section className="zrv-ir-detail" aria-label="Score summary">
+              <SectionHeading
+                icon="chart-no-axes-combined"
+                title="Score summary"
+                description="Rating groups, bands and the interviewer's notes"
+              />
+              <div className="zrv-ir-detail-scores">
+                <BandBar
+                  value={specTotal}
+                  max={SCORE_MAX.spec}
+                  bands={BANDS.spec}
+                  tone={BAND_TONE[bandOf(specTotal, BANDS.spec, specRated)[1]]}
+                  name="Specification"
+                  label={bandLabel(specTotal, BANDS.spec, specRated)}
+                />
+                <BandBar
+                  value={compTotal}
+                  max={SCORE_MAX.comp}
+                  bands={BANDS.comp}
+                  tone={BAND_TONE[bandOf(compTotal, BANDS.comp, compRated)[1]]}
+                  name="Competency"
+                  label={bandLabel(compTotal, BANDS.comp, compRated)}
+                />
+              </div>
+              {(detail.strengths || detail.weakness) && (
+                <DetailFacts
+                  columns={2}
+                  facts={[
+                    [T.labels.strengths, detail.strengths],
+                    [T.labels.weakness, detail.weakness],
+                  ]}
+                />
+              )}
+            </section>
+
             <section className="zrv-ir-detail" aria-label="Assessment details">
               <SectionHeading
                 icon="clipboard-check"
@@ -119,39 +159,6 @@ export function InterviewDetails({ row }) {
                   ...(delta !== null
                     ? [['Expected vs current', `${delta > 0 ? '+' : ''}${delta}%`]]
                     : []),
-                ]}
-              />
-            </section>
-
-            <section className="zrv-ir-detail" aria-label="Score summary">
-              <SectionHeading
-                icon="chart-no-axes-combined"
-                title="Score summary"
-                description="Rating groups and the result band"
-              />
-              <DetailFacts
-                columns={2}
-                facts={[
-                  ['Personal specification', `${specTotal}/${SCORE_MAX.spec}`],
-                  [
-                    'Personal spec. band',
-                    bandLabel(
-                      specTotal,
-                      BANDS.spec,
-                      ratedCount(detail.personalSpecification ?? {}, SPEC_KEYS) > 0,
-                    ),
-                  ],
-                  ['Competency', `${compTotal}/${SCORE_MAX.comp}`],
-                  [
-                    'Competency band',
-                    bandLabel(
-                      compTotal,
-                      BANDS.comp,
-                      ratedCount(detail.competency ?? {}, COMP_KEYS) > 0,
-                    ),
-                  ],
-                  [T.labels.strengths, detail.strengths],
-                  [T.labels.weakness, detail.weakness],
                 ]}
               />
             </section>
