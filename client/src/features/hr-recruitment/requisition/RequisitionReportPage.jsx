@@ -2,10 +2,11 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { COMMON_TEXT, INSIGHT_TEXT, REQUISITION_TEXT as T } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
-import { businessToday, enDate } from '../shared/hrFormat.js'
+import { businessToday, enDate, initials } from '../shared/hrFormat.js'
 import { monthRanges } from '../shared/insightDates.js'
 import { Pill } from '../shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '../shared/components/InsightReport.jsx'
+import { useReportBulkDelete } from '../shared/useReportBulkDelete.jsx'
 import {
   Card,
   Columns,
@@ -17,8 +18,8 @@ import {
   Ring,
 } from '../shared/components/InsightCards.jsx'
 import { dueSignal } from '../shared/insightFormat.js'
-import { RecruitmentActions } from './RecruitmentActions.jsx'
 import { CreateInterviewAssessment } from './CreateInterviewAssessment.jsx'
+import { RequisitionDetails } from './RequisitionDetails.jsx'
 
 const BASE = '/hr/recruitment/requisition'
 const R = T.report
@@ -134,12 +135,6 @@ const COLUMNS = [
     render: (row) => (
       <Pill tone={STATUS_TONE[row.status] ?? 'warn'}>{statusLabel(row.status)}</Pill>
     ),
-  },
-  {
-    key: 'assessment',
-    label: 'Actions',
-    export: false,
-    render: (row) => <CreateInterviewAssessment row={row} compact />,
   },
 ]
 // Overview: where requisitions are in approval, how many decided ones were
@@ -258,49 +253,70 @@ function Needed({ row }) {
 // Requisition report: the requisitions the user may see (HR every one, others
 // their own and their team's), filtered, sorted and paged by the server.
 export default function RequisitionReportPage() {
+  const service = hrRecruitmentServices.requisitions
+  const { confirmation, ...bulk } = useReportBulkDelete({
+    remove: (row) => service.deleteDraft(row.requisitionId),
+    permission: ACTIONS.REQUISITION_DELETE,
+    idOf: (row) => row.requisitionId,
+    labelOf: (row) => row.requisitionNumber || row.requisitionId,
+    singular: 'requisition',
+    plural: 'requisitions',
+    // The backend only deletes Draft requisitions not referenced by an interview.
+    canDelete: (row) =>
+      row.status !== 'Draft'
+        ? 'Only draft requisitions can be deleted.'
+        : row.ticketStatus && row.ticketStatus !== 'Open'
+          ? 'This requisition is already in progress.'
+          : undefined,
+  })
+
   return (
-    <InsightReport
-      variant="requisition-report"
-      title={R.title}
-      subtitle={R.subtitle}
-      heading={R.heading}
-      resourceKey="hr-requisition-report"
-      list={hrRecruitmentServices.requisitions.list}
-      create={{ permission: ACTIONS.REQUISITION_CREATE, path: BASE, label: R.newRequisition }}
-      openLabel={R.detail.open}
-      empty={R.empty}
-      initial={INITIAL}
-      fields={FIELDS}
-      columns={COLUMNS}
-      cards={CARDS}
-      groups={GROUPS}
-      defaultSort={{ key: 'requisitionId', order: 'desc' }}
-      numberOf={(row) => row.requisitionNumber || row.requisitionId}
-      rowKey={(row) => row.requisitionId}
-      pathOf={(row) => `${BASE}/${row.requisitionId}`}
-      renderDetail={(row, { onChanged }) => (
-        <>
-          <CreateInterviewAssessment row={row} />
-          <RecruitmentActions
-            key={row.requisitionId}
-            requisitionId={row.requisitionId}
-            onChanged={onChanged}
-          />
-        </>
-      )}
-      summary={(row, today) => ({
-        heading: row.jobTitle,
-        pill: <Pill tone={STATUS_TONE[row.status] ?? 'warn'}>{statusLabel(row.status)}</Pill>,
-        facts: [
-          [R.detail.requester, row.requesterName],
-          [R.detail.department, row.departmentName],
-          [R.detail.requestDate, date(row.requestDate)],
-          [R.detail.neededDate, date(row.neededDate)],
-          [R.detail.reason, R.reasons[row.reason] ?? row.reason],
-          [R.detail.ticket, R.ticketStatus[row.ticketStatus] ?? row.ticketStatus],
-        ],
-        timing: dueOf(row, today),
-      })}
-    />
+    <>
+      <InsightReport
+        variant="requisition-report"
+        title={R.title}
+        subtitle={R.subtitle}
+        heading={R.heading}
+        resourceKey="hr-requisition-report"
+        {...bulk}
+        list={service.list}
+        create={{ permission: ACTIONS.REQUISITION_CREATE, path: BASE, label: R.newRequisition }}
+        openLabel={R.detail.open}
+        empty={R.empty}
+        initial={INITIAL}
+        fields={FIELDS}
+        columns={COLUMNS}
+        cards={CARDS}
+        groups={GROUPS}
+        defaultSort={{ key: 'requisitionId', order: 'desc' }}
+        numberOf={(row) => row.requisitionNumber || row.requisitionId}
+        rowKey={(row) => row.requisitionId}
+        pathOf={(row) => `${BASE}/${row.requisitionId}`}
+        resizableDrawer
+        drawerActions={(row) => <CreateInterviewAssessment row={row} spotlight />}
+        renderDetail={(row, { onChanged }) => (
+          <RequisitionDetails row={row} onChanged={onChanged} />
+        )}
+        summary={(row, today) => ({
+          heading: row.jobTitle,
+          eyebrow: 'Requisition',
+          avatar: initials(row.jobTitle || row.requesterName),
+          meta: row.requisitionNumber
+            ? `${row.requisitionNumber}${row.departmentName ? ` · ${row.departmentName}` : ''}`
+            : null,
+          pill: <Pill tone={STATUS_TONE[row.status] ?? 'warn'}>{statusLabel(row.status)}</Pill>,
+          facts: [
+            [R.detail.requester, row.requesterName],
+            [R.detail.department, row.departmentName],
+            [R.detail.requestDate, date(row.requestDate)],
+            [R.detail.neededDate, date(row.neededDate)],
+            [R.detail.reason, R.reasons[row.reason] ?? row.reason],
+            [R.detail.ticket, R.ticketStatus[row.ticketStatus] ?? row.ticketStatus],
+          ],
+          timing: dueOf(row, today),
+        })}
+      />
+      {confirmation}
+    </>
   )
 }

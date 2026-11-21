@@ -2,7 +2,7 @@
 // auto-fill from English, the monthly package and the request body. Pure
 // functions, testable in Node. The backend assigns the offer number and status.
 import { OFFER_TEXT } from '../hrRecruitmentText.js'
-import { arDate, enDate, isIsoDate, toAmount } from '../shared/hrFormat.js'
+import { arabicDigits, arDate, enDate, isIsoDate, toAmount } from '../shared/hrFormat.js'
 import { normalizeNotes, normalizeShortText, textLimitError } from '../shared/formValidation.js'
 
 export const OFFER_STATUSES = Object.freeze(['INCOMPLETE', 'COMPLETE', 'ACCEPTED'])
@@ -86,20 +86,42 @@ export function benefitPicks(key, { probation } = {}) {
   return key === 'probation' && probation ? [[probation.en, probation.ar], ...picks] : picks
 }
 
-// The Arabic value for an English value: amounts become "<n> ريال سعودي شهرياً",
-// dates the Arabic calendar date, text a matching quick pick (else empty).
-export function autoArabic(key, en, { currency = 'SAR', probation } = {}) {
+// A free-text period ("3 months") becomes Arabic-Indic digits with the unit
+// translated, so a changed probation period is reflected immediately.
+const PERIOD_WORDS = Object.freeze([
+  [/\bmonths?\b/gi, 'شهر'],
+  [/\byears?\b/gi, 'سنة'],
+  [/\bweeks?\b/gi, 'أسبوع'],
+  [/\bdays?\b/gi, 'يوم'],
+])
+export function arabicPeriod(value) {
+  const text = String(value ?? '').trim()
+  if (!text) return ''
+  return PERIOD_WORDS.reduce(
+    (result, [pattern, arabic]) => result.replace(pattern, arabic),
+    arabicDigits(text),
+  )
+}
+
+// The Arabic value for an English value: amounts are just the number in
+// Arabic-Indic digits (the letter's Arabic column already labels the row),
+// dates the same Gregorian date in Arabic-Indic digits, text a matching quick
+// pick (or, for a period, a digit/unit translation). Never empty while the
+// English value is present, so the form's auto-Arabic cannot silently stay blank.
+export function autoArabic(key, en, { probation } = {}) {
   if (!en) return ''
   const type = benefitType(key)
   if (type === 'money') {
     const amount = toAmount(en)
-    return amount === null
-      ? ''
-      : `${amount.toLocaleString('ar-EG')} ${OFFER_TEXT.currencyAr[currency] ?? currency} ${OFFER_TEXT.monthlyAr}`
+    return amount === null ? '' : arabicDigits(amount.toLocaleString('en-US').replaceAll(',', '٬'))
   }
   if (type === 'date') return arDate(en)
-  const pair = benefitPicks(key, { probation }).find(([english]) => english === en)
-  return pair ? pair[1] : ''
+  const text = String(en).trim()
+  const pair = benefitPicks(key, { probation }).find(
+    ([english]) => english.toLowerCase() === text.toLowerCase(),
+  )
+  if (pair) return pair[1]
+  return key === 'probation' ? arabicPeriod(text) : ''
 }
 
 // How an English value appears on the letter.
@@ -168,21 +190,25 @@ export function offerCandidateFields(candidate) {
 }
 
 // Finish pending automatic translations before sending a snapshot to the API.
+// The local conversion is deterministic (Gregorian date, Arabic-Indic digits);
+// the backend helper can only enrich a salary with Arabic words, never leave
+// the field empty or turn a date into a Hijri one.
 export async function completeOfferTranslations(form, converters) {
   const benefits = { ...form.benefits }
   await Promise.all(
     ['basic', 'start'].map(async (key) => {
       const row = form.benefits[key]
       if (!row.linked || !row.en || row.ar) return
-      try {
-        const ar =
-          key === 'basic'
-            ? await converters.numberToArabic(Number(row.en.replaceAll(',', '')))
-            : await converters.hijriDate(row.en)
-        benefits[key] = { ...row, ar }
-      } catch {
-        // Arabic is optional and remains available for manual entry.
+      let ar = autoArabic(key, row.en)
+      if (key === 'basic' && converters?.numberToArabic) {
+        try {
+          const words = await converters.numberToArabic(Number(row.en.replaceAll(',', '')))
+          if (words) ar = words
+        } catch {
+          // Keep the local Arabic amount; the API helper is optional.
+        }
       }
+      benefits[key] = { ...row, ar }
     }),
   )
   return { ...form, benefits }

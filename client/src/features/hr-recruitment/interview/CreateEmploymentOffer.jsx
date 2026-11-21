@@ -4,7 +4,7 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { canCreateEmploymentOffer } from './interviewModel.js'
 
-export function CreateEmploymentOffer({ row, compact = false }) {
+export function CreateEmploymentOffer({ row, compact = false, spotlight = false }) {
   const permissions = usePermissions()
   if (
     !canCreateEmploymentOffer(row) ||
@@ -14,7 +14,7 @@ export function CreateEmploymentOffer({ row, compact = false }) {
     return null
   return (
     <Link
-      className={`zrv-ir-btn${compact ? ' zrv-ir-btn--assessment-compact' : ''}`}
+      className={`zrv-ir-btn${compact ? ' zrv-ir-btn--assessment-compact' : ''}${spotlight ? ' zrv-ir-btn--spotlight' : ''}`}
       to={`/hr/recruitment/offer?assessmentNumber=${encodeURIComponent(row.assessmentNumber)}`}
       onClick={(event) => event.stopPropagation()}
       aria-label={`Create employment offer for ${row.candidateName}, assessment ${row.assessmentNumber}`}

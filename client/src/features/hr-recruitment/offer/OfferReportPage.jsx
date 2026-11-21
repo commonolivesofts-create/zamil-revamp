@@ -5,6 +5,7 @@ import { enDate } from '../shared/hrFormat.js'
 import { addDays, dayWindows, monthRanges } from '../shared/insightDates.js'
 import { Pill } from '../shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '../shared/components/InsightReport.jsx'
+import { useReportBulkDelete } from '../shared/useReportBulkDelete.jsx'
 import {
   Card,
   Compare,
@@ -15,7 +16,6 @@ import {
   Hint,
   Sparkline,
 } from '../shared/components/InsightCards.jsx'
-import { OfferReportActions } from './OfferReportActions.jsx'
 import { OfferPreview } from './OfferPreview.jsx'
 import '@/styles/hr-offer-report.css'
 
@@ -60,12 +60,6 @@ const COLUMNS = [
         {T.status[row.status] || row.status}
       </Pill>
     ),
-  },
-  {
-    key: 'actions',
-    label: 'Actions',
-    export: false,
-    render: (row) => <OfferReportActions row={row} />,
   },
 ]
 
@@ -184,29 +178,46 @@ function dateGroups(today) {
 // Employment offer report: HR sees every offer, others their own; filtered,
 // sorted and paged by the server.
 export default function OfferReportPage() {
+  const service = hrRecruitmentServices.offers
+  const { confirmation, ...bulk } = useReportBulkDelete({
+    remove: (row) => service.remove(row.offerId),
+    permission: ACTIONS.OFFER_DELETE,
+    idOf: (row) => row.offerId,
+    labelOf: (row) => row.offerNumber || row.offerId,
+    singular: 'offer',
+    plural: 'offers',
+    // Accepted offers cannot be deleted (the backend refuses them too).
+    canDelete: (row) =>
+      row.status === 'ACCEPTED' ? 'Accepted offers cannot be deleted.' : undefined,
+  })
+
   return (
-    <InsightReport
-      variant="offer-report"
-      title={R.title}
-      subtitle={R.subtitle}
-      heading={R.heading}
-      resourceKey="hr-offer-report"
-      printLabel="Print report"
-      list={hrRecruitmentServices.offers.list}
-      create={{ permission: ACTIONS.OFFER_CREATE, path: BASE, label: R.newOffer }}
-      openLabel={R.detail.open}
-      empty={R.empty}
-      initial={INITIAL}
-      fields={FIELDS}
-      columns={COLUMNS}
-      cards={CARDS}
-      groups={dateGroups}
-      defaultSort={{ key: 'HEADER_ID', order: 'desc' }}
-      numberOf={(row) => row.offerNumber || row.offerId}
-      rowKey={(row) => row.offerId}
-      pathOf={(row) => `${BASE}/${row.offerId}`}
-      closeInDetail
-      renderDetail={(row, { onClose }) => <OfferPreview row={row} onClose={onClose} />}
-    />
+    <>
+      <InsightReport
+        variant="offer-report"
+        title={R.title}
+        subtitle={R.subtitle}
+        heading={R.heading}
+        resourceKey="hr-offer-report"
+        printLabel="Print report"
+        {...bulk}
+        list={service.list}
+        create={{ permission: ACTIONS.OFFER_CREATE, path: BASE, label: R.newOffer }}
+        openLabel={R.detail.open}
+        empty={R.empty}
+        initial={INITIAL}
+        fields={FIELDS}
+        columns={COLUMNS}
+        cards={CARDS}
+        groups={dateGroups}
+        defaultSort={{ key: 'HEADER_ID', order: 'desc' }}
+        numberOf={(row) => row.offerNumber || row.offerId}
+        rowKey={(row) => row.offerId}
+        pathOf={(row) => `${BASE}/${row.offerId}`}
+        closeInDetail
+        renderDetail={(row, { onClose }) => <OfferPreview row={row} onClose={onClose} />}
+      />
+      {confirmation}
+    </>
   )
 }

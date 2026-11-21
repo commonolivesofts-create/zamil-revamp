@@ -466,11 +466,18 @@ function ProbationEditor({ lookups, record: savedRecord }) {
           <>
             <StepHead
               title="Evaluation criteria"
-              desc={`Each criterion is allocated ${ALLOCATED_POINTS} points; ${saved ? 'every criterion needs points from 1 to 5.' : 'points are optional until the first save.'}`}
+              desc={
+                locked
+                  ? `Saved scores for each of the ${ALLOCATED_POINTS}-point criteria.`
+                  : `Each criterion is allocated ${ALLOCATED_POINTS} points; ${saved ? 'every criterion needs points from 1 to 5.' : 'points are optional until the first save.'}`
+              }
             />
             {form.lines.length === 0 ? (
               <p className={errors.lines ? 'zrv-auth-field-error' : undefined}>
-                {errors.lines || (saved ? 'This evaluation has no criteria.' : criteriaHint)}
+                {errors.lines ||
+                  (saved
+                    ? 'This evaluation has no saved criteria. Save the form type and criteria again to populate it.'
+                    : criteriaHint)}
               </p>
             ) : (
               <div

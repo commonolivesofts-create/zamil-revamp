@@ -959,6 +959,8 @@ export const INTERVIEW_TEXT = Object.freeze({
     position: 'From requisition',
     adminManager: 'Filled by workflow',
   }),
+  // The interview time is stamped by the system, not typed by the user.
+  autoTimeHint: 'Recorded automatically',
   subheads: Object.freeze({
     interview: 'Interview',
     candidate: 'Candidate',
@@ -1327,7 +1329,10 @@ export const OFFER_TEXT = Object.freeze({
     probation: Object.freeze({
       en: 'Probationary Period',
       ar: 'فترة التجربة',
-      picks: Object.freeze([]),
+      picks: Object.freeze([
+        Object.freeze(['3 months', '٣ أشهر']),
+        Object.freeze(['6 months', '٦ أشهر']),
+      ]),
     }),
   }),
   // Arabic amount wording: "<amount> <currency> شهرياً".
@@ -1371,6 +1376,17 @@ export const INSIGHT_TEXT = Object.freeze({
   resizeDrawer: 'Resize drawer',
   copy: 'Copy number',
   copied: 'Copied',
+  // Shared wording for the bulk-delete tools of every report listing.
+  bulk: Object.freeze({
+    hint: (noun) => `Tick ${noun} to delete`,
+    selected: (count) => `${count} selected`,
+    action: (count) => `Delete ${count}`,
+    clear: 'Clear selection',
+    title: (noun) => `Delete selected ${noun}?`,
+    body: (count, noun) => `${count} ${noun} will be permanently deleted. This cannot be undone.`,
+    deleted: (count, noun) => `${count} ${noun} deleted.`,
+    noPermission: 'You do not have permission to delete records.',
+  }),
   timing: 'Timing',
   percentOf: (value) => `${value}%`,
   versus: (delta, label) => `${delta > 0 ? '+' : ''}${delta} vs ${label}`,
