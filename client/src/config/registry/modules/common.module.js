@@ -74,6 +74,18 @@ export default defineModule({
       subgroup: 'hr-talent-management',
       order: 320,
     },
+    // Attendance System: the React + Node app in attendance/ (http://localhost:7388/
+    // in development). Same sign-in as the hubs: it validates the Zamil session
+    // server-side. The frozen CI3 app (zamil-attendance/) remains a fallback URL.
+    {
+      id: 'attendance-system',
+      type: 'external',
+      href: { env: 'VITE_EXTERNAL_ATTENDANCE_SYSTEM' },
+      title: 'Attendance System',
+      icon: 'calendar-clock',
+      group: 'human-resources',
+      order: 998,
+    },
     {
       id: 'training-hub',
       type: 'external',

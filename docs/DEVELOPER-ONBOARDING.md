@@ -131,13 +131,30 @@ Start the backend first, then the client. The client command also starts Trainin
 
 ```powershell
 cd server; npm run dev        # http://127.0.0.1:7381 (watch mode)
-cd client; npm run dev        # Zamil :7382, TrainingHub :7384, ExpenseHub :7386
+cd client; npm run dev        # Zamil :7382, TrainingHub :7384, ExpenseHub :7386, Attendance :7388
 ```
 
 Open **http://localhost:7382**. The hub APIs run on :7383 and :7385 and are accessed through their
 web proxies. Install dependencies once in `traininghub/` and `expensehub/`; Ctrl+C in the client
 terminal stops all three frontends and both hub APIs. Use `npm run dev:web` in `client/` if you only
 need the Zamil frontend.
+
+**Attendance System** (Human resources → Attendance System) is the React + Node app in
+[`attendance/`](../attendance/README.md) (new machine: [setup guide](../attendance/SETUP.md)): web **http://localhost:7388**, API :7387. Once you have run
+`npm install` in `attendance/`, the client's `npm run dev` starts it too. It signs users in with the
+Zamil session, like the hubs. Its sidebar link appears when `client/.env` sets
+`VITE_EXTERNAL_ATTENDANCE_SYSTEM=http://localhost:7388/`.
+
+- **Settings:** `attendance/.env` is created on first run. It takes the ADW wallet and the EBS keys from
+  `zamil-attendance/.env`.
+- **EBS pages need the VPN:** Daily Attendance, Manager View and the Contractor pages read the
+  office-hosted EBS database, so they work only on the Zamil VPN or the office network. Without it,
+  they show a "connect to the VPN" message. See [`EBS-CONNECTIVITY.md`](../EBS-CONNECTIVITY.md) for
+  the plan after go-live.
+
+The legacy CodeIgniter 3 app (`zamil-attendance/`) is **frozen**: no new changes. It is kept as the
+reference for parity checks and as a fallback at `http://localhost/zamil-attendance/` (XAMPP; setup
+in [`zamil-attendance/README_LOCAL_SETUP.md`](../zamil-attendance/README_LOCAL_SETUP.md)).
 
 ### The same-origin `/api` proxy
 

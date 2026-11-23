@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+apps/web/public
+package-lock.json
+# Golden fixtures generated from CI3; keep byte-for-byte
+**/golden/*.json
