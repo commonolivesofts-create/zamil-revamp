@@ -45,9 +45,10 @@ export function Hero({ data, ready }: { data: Dashboard; ready: boolean }) {
           <span className={`zat-pulse-dot ${ready ? 'is-ready' : ''}`} aria-hidden="true" />
           {p.statusText}
         </p>
-        <h2>
-          {data.period.fromLabel} <span aria-hidden="true">→</span>
-          <span className="sr-only"> to </span> {data.period.toLabel}
+        <h2 aria-label={`${data.period.fromLabel} to ${data.period.toLabel}`}>
+          {data.period.fromLabel}
+          <span aria-hidden="true">→</span>
+          {data.period.toLabel}
         </h2>
         <p className="zat-pulse-hero__sub">Payroll period · updated {data.period.generatedAt}</p>
       </div>
