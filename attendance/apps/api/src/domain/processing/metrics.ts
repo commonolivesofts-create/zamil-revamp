@@ -1,6 +1,7 @@
 // Late / early / overtime / worked minutes for one employee-day.
 // A line-by-line port of CI3 ProcessAttendanceModel::calculate_attendance_metrics and its helpers;
-// keep it identical (golden-tested against CI3), only the language differs.
+// keep it identical (golden-tested against CI3), only the language differs. One deliberate
+// difference: OVERTIME_CAP_GRACE_MINUTES (production payroll rule, see below).
 
 /** Values exactly as CI3 stores them in XX_DIGI_ATT_ATT_SHEET ('' means NULL). */
 export interface Metrics {
@@ -84,10 +85,25 @@ const round2 = (value: number): number => {
   return (sign * Math.round(Number(`${Math.abs(value)}e2`))) / 100;
 };
 
-/** CI3 $formatHours: minutes as hours with up to 2 decimals, capped, trailing zeros removed. */
+/**
+ * Production payroll pays the full overtime cap when the employee leaves within this many
+ * minutes of it (e.g. Morning 6D, cap ends 18:30: a punch-out at 18:26-18:29 earns 3.5 hours).
+ * CI3 counted the exact minutes (3.43-3.48), which made employee 1148 come out at 135.86 hours
+ * for 2026-10-21..2026-11-20 instead of production's 137.00.
+ */
+export const OVERTIME_CAP_GRACE_MINUTES = 5;
+
+/**
+ * CI3 $formatHours: minutes as hours with up to 2 decimals, capped, trailing zeros removed.
+ * Within OVERTIME_CAP_GRACE_MINUTES of the cap counts as the cap.
+ */
 export function formatHours(minutes: number, maxHours: number | null = null): string {
-  let hours = round2(Math.max(0, Math.trunc(minutes)) / 60);
+  const worked = Math.max(0, Math.trunc(minutes));
+  let hours = round2(worked / 60);
   if (maxHours !== null && hours > maxHours) hours = maxHours;
+  if (maxHours !== null && maxHours > 0 && worked >= maxHours * 60 - OVERTIME_CAP_GRACE_MINUTES) {
+    hours = maxHours;
+  }
   const text = round2(hours).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   return text === '' ? '0' : text;
 }
