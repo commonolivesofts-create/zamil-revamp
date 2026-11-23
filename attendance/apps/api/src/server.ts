@@ -1,4 +1,5 @@
 // Bootstrap: load .env, validate config, open pools lazily, listen, shut down gracefully.
+import './threads';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,7 +27,7 @@ try {
 }
 
 const logger = createLogger(config.logLevel, config.env === 'development');
-const db = new OracleDb({ adw: config.adw, ebs: config.ebs });
+const db = new OracleDb({ adw: config.adw, ebs: config.ebs }, config.oracleClientLibDir);
 const sessions = new SessionService(config.session.secret, config.session.secure, () => new Date());
 const app = createApp({ config, logger, db, sessions, identities: oracleIdentityRepository(db) });
 

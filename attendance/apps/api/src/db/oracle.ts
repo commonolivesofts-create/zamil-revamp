@@ -41,7 +41,19 @@ export class OracleDb implements Db {
   /** When a pool last proved unreachable (VPN off): fail fast for a while instead of queueing. */
   private readonly downSince = new Map<PoolName, number>();
 
-  constructor(private readonly configs: Record<PoolName, OraclePoolConfig | null>) {}
+  private readonly thick: boolean;
+
+  /**
+   * `clientLibDir` switches node-oracledb to thick mode (the installed Oracle Instant Client),
+   * which EBS needs; see ORACLE_CLIENT_LIB_DIR in config.ts. The mode is per process, so ADW then
+   * also goes through the client, reading its wallet folder (tnsnames.ora, sqlnet.ora, cwallet.sso).
+   */
+  constructor(
+    private readonly configs: Record<PoolName, OraclePoolConfig | null>,
+    clientLibDir: string | null = null,
+  ) {
+    this.thick = clientLibDir !== null && initThickMode(clientLibDir, configs.adw?.walletDir);
+  }
 
   private pool(name: PoolName): Promise<oracledb.Pool> {
     const config = this.configs[name];
@@ -54,14 +66,17 @@ export class OracleDb implements Db {
         user: config.user,
         password: config.password,
         connectString: config.connectString,
-        ...(config.walletDir && { configDir: config.walletDir, walletLocation: config.walletDir }),
-        ...(config.walletPassword && { walletPassword: config.walletPassword }),
+        // Thin mode only; in thick mode the client reads the wallet folder given at start-up.
+        ...(!this.thick &&
+          config.walletDir && { configDir: config.walletDir, walletLocation: config.walletDir }),
+        ...(!this.thick && config.walletPassword && { walletPassword: config.walletPassword }),
         poolMin: config.poolMin,
         poolMax: config.poolMax,
         poolIncrement: 1,
         stmtCacheSize: 50,
+        // connectTimeout is thin only; the EBS descriptor carries CONNECT_TIMEOUT for thick mode.
         ...(config.connectTimeout && {
-          connectTimeout: config.connectTimeout,
+          ...(!this.thick && { connectTimeout: config.connectTimeout }),
           queueTimeout: (config.connectTimeout + 10) * 1000,
         }),
       });
@@ -86,6 +101,12 @@ export class OracleDb implements Db {
       if (message && isUnreachable(error)) {
         this.downSince.set(pool, Date.now());
         throw new AppError('UNAVAILABLE', message);
+      }
+      if (isThinUnsupported(error)) {
+        throw new AppError(
+          'UNAVAILABLE',
+          `The ${pool.toUpperCase()} database needs the Oracle Instant Client. Set ORACLE_CLIENT_LIB_DIR in attendance/.env and restart.`,
+        );
       }
       throw error;
     }
@@ -135,6 +156,26 @@ export class OracleDb implements Db {
     this.pools.clear();
     await Promise.allSettled(pools.map(async (pool) => (await pool).close(5)));
   }
+}
+
+/** Thick mode can be turned on once per process; later OracleDb instances reuse it. */
+let thickReady = false;
+function initThickMode(libDir: string, configDir: string | undefined): boolean {
+  if (!thickReady) {
+    oracledb.initOracleClient({ libDir, ...(configDir && { configDir }) });
+    thickReady = true;
+  }
+  return true;
+}
+
+/**
+ * The server or account is too old for the thin driver: NJS-116 (old password verifier, as the
+ * EBS accounts use) or NJS-138 (database version). Fixed by thick mode.
+ */
+export function isThinUnsupported(error: unknown): boolean {
+  return /NJS-116|NJS-138/.test(
+    `${(error as { code?: string })?.code ?? ''} ${(error as Error)?.message ?? ''}`,
+  );
 }
 
 /** Network-level failures (host down, VPN off, timeout), as opposed to SQL errors. */
