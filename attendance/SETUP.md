@@ -51,6 +51,11 @@ Daily Attendance, Manager View and the three Contractor pages read Oracle EBS. I
 "connect to the VPN", you need both of these:
 
 - **Be on the Zamil VPN or in the office.**
+- **Have the Oracle Instant Client installed.** EBS only accepts an older password type that the
+  app's built-in Oracle driver cannot use. Install the Instant Client (Basic Light) in
+  `C:oracleinstantclient_23_0` (the same one CI3 uses) and the app finds it on its own. If you
+  put it somewhere else, set `ORACLE_CLIENT_LIB_DIR` in `attendance/.env`. You can download it from
+  oracle.com (Instant Client for Windows x64).
 - **Have the EBS connection values in `attendance/.env`:** `EBS_DB_HOST`, `EBS_DB_PORT`,
   `EBS_DB_SID`, `EBS_DB_USERNAME` and `EBS_DB_PASSWORD`. Ask the team lead for them. Never commit
   them. Restart `npm run dev` after editing the file.
@@ -65,6 +70,7 @@ All other pages work without EBS.
 | No "Attendance System" menu entry                        | Do step 2 and restart `npm run dev`.                                                                                     |
 | The page is blank or keeps sending you to the login page | Open Zamil and the attendance app on `localhost`, and make sure Zamil is signed in.                                      |
 | ADW errors at start-up                                   | Check `server/.env` and the wallet folder, then delete `attendance/.env` and run `npm run dev` again so it is recreated. |
+| EBS pages say "needs the Oracle Instant Client"          | Install it as described under EBS pages, then restart.                                                                   |
 | Port 7387 or 7388 is busy                                | Stop the old `npm run dev` window.                                                                                       |
 
 ## Run it on its own, or run the checks

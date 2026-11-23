@@ -1,4 +1,5 @@
 // Environment -> typed AppConfig. Validated once at startup; tests build their own config.
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 
@@ -34,6 +35,13 @@ const envSchema = z
     EBS_CONNECT_STRING: z.string().optional(),
     /** ebs = the EBS database (VPN), adw = ADW copies of the EBS tables (EBS-CONNECTIVITY.md, Option B). */
     EBS_SOURCE: z.enum(['ebs', 'adw']).default('ebs'),
+
+    /**
+     * Oracle Instant Client folder. EBS accepts only older password types, which node-oracledb's
+     * built-in (thin) driver cannot use (NJS-116), so EBS needs the installed client (thick mode),
+     * as CI3's oci8 does. Unset: `C:/oracle/instantclient_23_0` when it exists, else thin mode.
+     */
+    ORACLE_CLIENT_LIB_DIR: z.string().optional(),
 
     ZAMIL_AUTH_API_BASE_URL: z.url().default('http://127.0.0.1:7381/api/v1'),
     ZAMIL_AUTH_SESSION_COOKIE_NAME: z
@@ -105,10 +113,15 @@ export interface AppConfig {
   session: { secret: string; secure: boolean };
   adw: OraclePoolConfig;
   ebs: OraclePoolConfig | null;
+  /** Oracle Instant Client folder for thick mode; null = thin mode. */
+  oracleClientLibDir: string | null;
   /** Where EBS data is read from (see db/ebsSource.ts). */
   ebsSource: 'ebs' | 'adw';
   auth: { zamil: ZamilAuthConfig };
 }
+
+/** The Instant Client folder the CI3 setup uses (zamil-attendance/README_LOCAL_SETUP.md). */
+export const DEFAULT_ORACLE_CLIENT_DIR = 'C:/oracle/instantclient_23_0';
 
 export class ConfigError extends Error {}
 
@@ -165,6 +178,11 @@ export function loadConfig(source: NodeJS.ProcessEnv, root: string): AppConfig {
               'The E-Business Suite database cannot be reached. Connect to the Zamil VPN (or office network) and try again.',
           }
         : null,
+    oracleClientLibDir:
+      e.ORACLE_CLIENT_LIB_DIR ??
+      (process.platform === 'win32' && existsSync(DEFAULT_ORACLE_CLIENT_DIR)
+        ? DEFAULT_ORACLE_CLIENT_DIR
+        : null),
     ebsSource: e.EBS_SOURCE,
     auth: {
       zamil: {
