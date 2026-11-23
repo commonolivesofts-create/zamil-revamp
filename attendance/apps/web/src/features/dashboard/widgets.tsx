@@ -9,7 +9,7 @@ import { phpNumberFormat, type Dashboard } from '@attendance/shared';
 import { OrvexaIcon } from '../../components/OrvexaIcon';
 import { dayRate, useCountUp } from './pulse';
 
-export type Tone = 'teal' | 'indigo' | 'amber' | 'rose' | 'violet' | 'sky';
+export type Tone = 'teal' | 'indigo' | 'amber' | 'rose' | 'violet' | 'sky' | 'g3' | 'g4' | 'muted';
 
 const n = (value: number, decimals = 0) => phpNumberFormat(value, decimals);
 
@@ -348,7 +348,9 @@ export function Checklist({ items }: { items: CheckItem[] }) {
 
 /* ------------------------------------------------------------------ leave mix */
 
-const MIX_TONES: Tone[] = ['sky', 'rose', 'amber', 'violet', 'teal'];
+/** Calm graded greens for leave types; unauthorised absence keeps the soft alert colour. */
+const MIX_TONES: Tone[] = ['teal', 'violet', 'g3', 'g4', 'muted'];
+const AWOP = 'Absence without permission';
 
 /** Leave and absence days by type as one 100% stacked bar plus a ranked legend. */
 export function LeaveMix({ rows }: { rows: Dashboard['absenceTypes'] }) {
@@ -357,7 +359,11 @@ export function LeaveMix({ rows }: { rows: Dashboard['absenceTypes'] }) {
   const top = rows.slice(0, 4);
   const other = rows.slice(4).reduce((s, r) => s + r.days, 0);
   const parts = other > 0 ? [...top, { type: 'Other', days: other }] : top;
-  const tone = (i: number) => MIX_TONES[i % MIX_TONES.length]!;
+  const greens = parts.filter((p) => p.type !== AWOP);
+  const toneOf = (type: string): Tone =>
+    type === AWOP
+      ? 'rose'
+      : MIX_TONES[greens.findIndex((p) => p.type === type) % MIX_TONES.length]!;
   return (
     <div className="zat-pulse-mix">
       <p className="zat-pulse-mix__total">
@@ -374,15 +380,15 @@ export function LeaveMix({ rows }: { rows: Dashboard['absenceTypes'] }) {
         {parts.map((p, i) => (
           <i
             key={p.type}
-            className={`zat-t-${tone(i)}`}
+            className={`zat-t-${toneOf(p.type)}`}
             style={{ '--w': `${(p.days / total) * 100}%`, '--i': i } as CSSProperties}
             title={`${p.type}: ${p.days} days`}
           />
         ))}
       </div>
       <ul className="zat-pulse-mix__list">
-        {parts.map((p, i) => (
-          <li key={p.type} className={`zat-t-${tone(i)}`}>
+        {parts.map((p) => (
+          <li key={p.type} className={`zat-t-${toneOf(p.type)}`}>
             <span className="zat-pulse-mix__swatch" aria-hidden="true" />
             <span className="zat-pulse-mix__name">{p.type}</span>
             <b>{n(p.days)}</b>
