@@ -3,9 +3,18 @@ import {
   withConnection as defaultWithConnection,
   withTransaction as defaultWithTransaction,
 } from '../../../database/oracle.js';
+import { cachedCounts } from '../../../shared/cache/cachedCounts.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as defaultRepository from './requisition.repository.js';
 import { recordRecruitmentChange } from './recruitmentAudit.js';
+
+// Joi's isoDate normalises date-only values to full ISO instants; the repository binds the
+// date-only form (Oracle TO_DATE(..., 'YYYY-MM-DD')), as `list` does.
+const dateOnly = (filters) => ({
+  ...filters,
+  ...(filters.dateFrom && { dateFrom: filters.dateFrom.slice(0, 10) }),
+  ...(filters.dateTo && { dateTo: filters.dateTo.slice(0, 10) }),
+});
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -31,6 +40,7 @@ export function createRequisitionService({
   storage,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
+  countsCache,
 }) {
   const read = (fn) => withConnection(POOLS.LOW, fn);
 
@@ -115,6 +125,25 @@ export function createRequisitionService({
       return { total, items };
     },
 
+    /**
+     * The list total of each filter set for the recruitment dashboard, in the list's scope
+     * (HR: every record; others: their own and their supervised employees'), one statement.
+     */
+    async counts(actor, { queries, fresh }) {
+      return cachedCounts(
+        countsCache,
+        { module: 'requisitions', userId: actor.userId, queries, fresh },
+        (missing) =>
+          read(async (connection) => {
+            const isHr = await repository.isHrUser(connection, actor.userId);
+            return repository.countRequisitions(connection, {
+              queries: missing.map(dateOnly),
+              scopeUserId: isHr ? null : actor.userId,
+            });
+          }),
+      );
+    },
+
     async get(actor, requisitionId) {
       const { header, isHr } = await loadForActor(actor, requisitionId);
       const attachments = await read((connection) =>
@@ -167,7 +196,7 @@ export function createRequisitionService({
           requisitionId,
           values: {},
           ticket: { ticketStatus: newValue },
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!updated) throw notFound();
         await recordRecruitmentChange(auditService, connection, {
@@ -220,7 +249,7 @@ export function createRequisitionService({
           remark: emptyToNull(body.remark),
           totalPackage: body.totalPackage ?? null,
           ticketStatus: 'Open',
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
         });
         await repository.setRequisitionNumber(connection, id);
         await appendAttachments(connection, id, uploaded);
@@ -282,7 +311,7 @@ export function createRequisitionService({
           requisitionId,
           values,
           ticket: null,
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!updated) throw notFound();
         await appendAttachments(connection, requisitionId, uploaded);

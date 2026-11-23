@@ -1,35 +1,61 @@
+import { useState } from 'react'
 import { Badge } from '@/features/security-administration/components/AdminUi.jsx'
-import {
-  DATA_CLASSES,
-  DATA_CLASS_HINTS,
-  DATA_CLASS_LABELS,
-  typeLabel,
-} from '../sourceMappingModel.js'
+import { DATA_CLASSES, DATA_CLASS_HINTS, typeLabel } from '../sourceMappingModel.js'
+import { PRIVACY_LABELS, kindOf, readableName } from '../smartMappingModel.js'
 
-// The column allowlist: one row per column of the live source (dictionary facts are read
-// only), with "include in mapping", "expose to forms" and the data class the author chooses.
-// Columns of unsupported types (for example BLOB) can be included and classified, never
-// exposed. Saved columns that no longer exist in the source are flagged.
-export default function SourceColumnTable({ columns, readOnly, error, onChange }) {
+// Step 1 of the guided setup — "Choose information": one row per piece of information of the
+// live source (dictionary facts are read only). Selecting a row makes it available to forms;
+// every selected row needs an explicit privacy choice (nothing is pre-classified, nothing is
+// selected in bulk). Technical options reveal Oracle types, nullability and "keep for checks
+// only" (in the mapping, hidden from forms) — the only way to keep an unsupported column.
+// Saved columns that no longer exist in the source are flagged.
+export default function SourceColumnTable({
+  columns,
+  readOnly,
+  error,
+  unclassified = [],
+  onChange,
+}) {
+  const [filter, setFilter] = useState('')
+  const [technical, setTechnical] = useState(false)
   const includedCount = columns.filter((column) => column.included).length
-  const exposedCount = columns.filter((column) => column.included && column.exposed).length
-  const bulk = (patch) =>
-    columns.forEach((column) => !column.missing && column.supported && onChange(column.name, patch))
+  const term = filter.trim().toLowerCase()
+  const shown = term
+    ? columns.filter(
+        (column) =>
+          column.name.toLowerCase().includes(term) ||
+          readableName(column.name).toLowerCase().includes(term),
+      )
+    : columns
+  const missingClass = new Set(unclassified)
+
   return (
     <>
       <div className="zwf-table-head">
         <p className="zwf-table-head__count" role="status">
-          {includedCount} of {columns.length} columns in the mapping · {exposedCount} exposed
+          {includedCount} of {columns.length} selected
         </p>
-        {!readOnly && (
-          <span className="zwf-row-actions">
-            <button
-              type="button"
-              className="zrv-admin-link"
-              onClick={() => bulk({ included: true })}
-            >
-              Include all supported
-            </button>
+        <span className="zwf-row-actions">
+          <label className="zwf-inline-field">
+            <span className="sr-only">Find information</span>
+            <input
+              type="search"
+              className="ux-input zwf-search"
+              placeholder="Find information"
+              value={filter}
+              maxLength={100}
+              onChange={(event) => setFilter(event.target.value)}
+            />
+          </label>
+          <label className="zwf-toggle">
+            <input
+              type="checkbox"
+              checked={technical}
+              onChange={(event) => setTechnical(event.target.checked)}
+            />
+            Technical options
+          </label>
+          {!readOnly && includedCount > 0 && (
             <button
               type="button"
               className="zrv-admin-link"
@@ -39,10 +65,10 @@ export default function SourceColumnTable({ columns, readOnly, error, onChange }
                 )
               }
             >
-              Clear
+              Clear selection
             </button>
-          </span>
-        )}
+          )}
+        </span>
       </div>
       {error && (
         <p className="zrv-auth-field-error" role="alert" id="zwf-columns-error">
@@ -54,20 +80,32 @@ export default function SourceColumnTable({ columns, readOnly, error, onChange }
           className="ux-table zrv-admin-table zrv-admin-table--compact zwf-table zwf-columns"
           aria-describedby={error ? 'zwf-columns-error' : undefined}
         >
-          <caption className="sr-only">Columns of the source and their mapping</caption>
+          <caption className="sr-only">Information of the data source and your selection</caption>
           <thead>
             <tr>
-              <th scope="col">In mapping</th>
-              <th scope="col">Column</th>
-              <th scope="col">Oracle type</th>
-              <th scope="col">Nulls</th>
-              <th scope="col">Exposed</th>
-              <th scope="col">Data class</th>
+              <th scope="col">Use</th>
+              <th scope="col">Information</th>
+              <th scope="col">Kind</th>
+              <th scope="col">Privacy</th>
+              {technical && <th scope="col">Visible to forms</th>}
+              {technical && <th scope="col">Oracle type</th>}
+              {technical && <th scope="col">Empty values</th>}
             </tr>
           </thead>
           <tbody>
-            {columns.map((column) => {
-              const disabled = readOnly || column.missing
+            {!shown.length && (
+              <tr>
+                <td colSpan={technical ? 7 : 4} className="zrv-admin-state">
+                  Nothing matches “{filter}”.
+                </td>
+              </tr>
+            )}
+            {shown.map((column) => {
+              const label = readableName(column.name)
+              const usable = column.supported && !column.missing
+              const selectDisabled =
+                readOnly || (!column.included && (column.missing || (!usable && !technical)))
+              const invalid = column.included && missingClass.has(column.name)
               return (
                 <tr key={column.name} className={column.included ? 'is-selected' : 'is-inactive'}>
                   <td>
@@ -75,56 +113,69 @@ export default function SourceColumnTable({ columns, readOnly, error, onChange }
                       type="checkbox"
                       className="zwf-check"
                       checked={column.included}
-                      disabled={readOnly || (column.missing && !column.included)}
-                      aria-label={`Include ${column.name} in the mapping`}
+                      disabled={selectDisabled}
+                      aria-label={`Use ${label} (${column.name})`}
                       onChange={(event) =>
                         onChange(
                           column.name,
                           event.target.checked
-                            ? { included: true }
+                            ? { included: true, exposed: usable }
                             : { included: false, exposed: false },
                         )
                       }
                     />
                   </td>
                   <th scope="row">
-                    <span className="zwf-code">{column.name}</span>
-                    {column.identity && <Badge tone="neutral">IDENTITY {column.identity}</Badge>}
-                    {column.missing && <Badge tone="bad">NOT IN SOURCE</Badge>}
+                    <span className="zwf-info-name">{label}</span>
+                    <small className="zrv-admin-sub zwf-code">{column.name}</small>
+                    {column.missing && <Badge tone="bad">No longer in the source</Badge>}
                     {!column.missing && !column.supported && (
-                      <Badge tone="warn">CANNOT BE EXPOSED</Badge>
+                      <Badge tone="warn">Cannot be shown to forms</Badge>
+                    )}
+                    {column.included && !column.exposed && usable && (
+                      <Badge tone="neutral">Checks only</Badge>
                     )}
                   </th>
-                  <td>
-                    <span className="zwf-code">{typeLabel(column)}</span>
-                  </td>
-                  <td>{column.nullable ? 'Allowed' : 'Not null'}</td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      className="zwf-check"
-                      checked={column.included && column.exposed}
-                      disabled={disabled || !column.included || !column.supported}
-                      aria-label={`Expose ${column.name} to forms`}
-                      onChange={(event) => onChange(column.name, { exposed: event.target.checked })}
-                    />
-                  </td>
+                  <td>{kindOf(column)}</td>
                   <td>
                     <select
                       className="ux-select zwf-class-select"
                       value={column.dataClass}
-                      disabled={disabled || !column.included}
-                      aria-label={`Data class of ${column.name}`}
+                      disabled={readOnly || column.missing || !column.included}
+                      aria-label={`Privacy of ${label} (${column.name})`}
+                      aria-invalid={invalid || undefined}
                       title={DATA_CLASS_HINTS[column.dataClass]}
                       onChange={(event) => onChange(column.name, { dataClass: event.target.value })}
                     >
+                      <option value="">{column.included ? 'Choose…' : '—'}</option>
                       {DATA_CLASSES.map((value) => (
                         <option key={value} value={value}>
-                          {DATA_CLASS_LABELS[value]}
+                          {PRIVACY_LABELS[value]}
                         </option>
                       ))}
                     </select>
                   </td>
+                  {technical && (
+                    <td>
+                      <input
+                        type="checkbox"
+                        className="zwf-check"
+                        checked={column.included && column.exposed}
+                        disabled={readOnly || column.missing || !column.included || !usable}
+                        aria-label={`Show ${column.name} to forms`}
+                        onChange={(event) =>
+                          onChange(column.name, { exposed: event.target.checked })
+                        }
+                      />
+                    </td>
+                  )}
+                  {technical && (
+                    <td>
+                      <span className="zwf-code">{typeLabel(column)}</span>
+                      {column.identity && <Badge tone="neutral">IDENTITY {column.identity}</Badge>}
+                    </td>
+                  )}
+                  {technical && <td>{column.nullable ? 'Allowed' : 'Never empty'}</td>}
                 </tr>
               )
             })}
@@ -134,7 +185,7 @@ export default function SourceColumnTable({ columns, readOnly, error, onChange }
       <dl className="zwf-legend">
         {DATA_CLASSES.map((value) => (
           <div key={value}>
-            <dt>{DATA_CLASS_LABELS[value]}</dt>
+            <dt>{PRIVACY_LABELS[value]}</dt>
             <dd>{DATA_CLASS_HINTS[value]}</dd>
           </div>
         ))}

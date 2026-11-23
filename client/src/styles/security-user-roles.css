@@ -1,4 +1,3 @@
-
 /* =====================================================
    ZAMIL DIGITALIZATION
    SECURITY ADMINISTRATION — USER ROLES
@@ -113,8 +112,7 @@
 
 /* LOCKED ACCOUNT ICON */
 
-.zrv-user-role-stat--amber
-.zrv-user-role-stat__icon {
+.zrv-user-role-stat--amber .zrv-user-role-stat__icon {
   color: var(--ur-amber);
   background: var(--ur-amber-soft);
 }
@@ -176,8 +174,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.zrv-user-role-stat--amber
-.zrv-user-role-stat__percentage {
+.zrv-user-role-stat--amber .zrv-user-role-stat__percentage {
   background: #fff0d3;
   color: #ad7300;
 }
@@ -199,8 +196,7 @@
   color: #d9f2e4;
 }
 
-.zrv-user-role-stat--amber
-.zrv-user-role-stat__art {
+.zrv-user-role-stat--amber .zrv-user-role-stat__art {
   color: #fff0d4;
 }
 
@@ -300,20 +296,17 @@
 
 /* DARK THEME */
 
-[data-theme="dark"] .zrv-user-role-stat {
+[data-theme='dark'] .zrv-user-role-stat {
   background: var(--surface-solid);
   border-color: var(--line);
 }
 
-[data-theme="dark"]
-.zrv-user-role-stat__label,
-[data-theme="dark"]
-.zrv-user-role-stat__number {
+[data-theme='dark'] .zrv-user-role-stat__label,
+[data-theme='dark'] .zrv-user-role-stat__number {
   color: var(--text);
 }
 
-[data-theme="dark"]
-.zrv-user-role-stat__art {
+[data-theme='dark'] .zrv-user-role-stat__art {
   opacity: 0.14;
 }
 /* User Roles - Search button text color */
@@ -344,8 +337,7 @@
 
 /* Smooth panel borders and rounded corners */
 
-.zrv-user-roles-page
-.zrv-user-roles-directory .zrv-admin-panel {
+.zrv-user-roles-page .zrv-user-roles-directory .zrv-admin-panel {
   width: 100%;
   max-width: none;
 
@@ -363,8 +355,7 @@
 
 /* Preserve horizontal scrolling on smaller screens */
 
-.zrv-user-roles-page
-.zrv-user-roles-directory .ux-table-wrap {
+.zrv-user-roles-page .zrv-user-roles-directory .ux-table-wrap {
   width: 100%;
   max-width: 100%;
 
@@ -379,8 +370,7 @@
 
 /* Table layout */
 
-.zrv-user-roles-page
-.zrv-user-roles-directory .zrv-admin-table {
+.zrv-user-roles-page .zrv-user-roles-directory .zrv-admin-table {
   width: 100%;
   min-width: 1000px;
 
@@ -426,8 +416,7 @@
 
 /* Header design */
 
-.zrv-user-roles-page
-.zrv-admin-table thead th {
+.zrv-user-roles-page .zrv-admin-table thead th {
   height: 43px;
 
   padding: 11px 12px;
@@ -451,20 +440,17 @@
 
 /* Round top table corners */
 
-.zrv-user-roles-page
-.zrv-admin-table thead th:first-child {
+.zrv-user-roles-page .zrv-admin-table thead th:first-child {
   border-top-left-radius: 11px;
 }
 
-.zrv-user-roles-page
-.zrv-admin-table thead th:last-child {
+.zrv-user-roles-page .zrv-admin-table thead th:last-child {
   border-top-right-radius: 11px;
 }
 
 /* Table row structure */
 
-.zrv-user-roles-page
-.zrv-admin-table tbody tr {
+.zrv-user-roles-page .zrv-admin-table tbody tr {
   height: 64px;
 
   background: #edf7f1;
@@ -474,41 +460,35 @@
 
 /* Alternating light cream rows */
 
-.zrv-user-roles-page
-.zrv-admin-table tbody tr:nth-child(even) {
+.zrv-user-roles-page .zrv-admin-table tbody tr:nth-child(even) {
   background: #fbf7ec;
 }
 
 /* Light green alternate rows */
 
-.zrv-user-roles-page
-.zrv-admin-table tbody tr:nth-child(4n + 3) {
+.zrv-user-roles-page .zrv-admin-table tbody tr:nth-child(4n + 3) {
   background: #e8f4ee;
 }
 
 /* Reference-style left color indicator */
 
-.zrv-user-roles-page
-.zrv-admin-table tbody tr td:first-child {
+.zrv-user-roles-page .zrv-admin-table tbody tr td:first-child {
   border-left: 3px solid #9acfb3;
 }
 
-.zrv-user-roles-page
-.zrv-admin-table tbody tr:nth-child(even) td:first-child {
+.zrv-user-roles-page .zrv-admin-table tbody tr:nth-child(even) td:first-child {
   border-left-color: #e9c678;
 }
 
 /* Hover state */
 
-.zrv-user-roles-page
-.zrv-admin-table tbody tr:hover {
+.zrv-user-roles-page .zrv-admin-table tbody tr:hover {
   background: #ddf0e4;
 }
 
 /* Table cells */
 
-.zrv-user-roles-page
-.zrv-admin-table tbody td {
+.zrv-user-roles-page .zrv-admin-table tbody td {
   height: 64px;
 
   padding: 10px 12px;
@@ -529,8 +509,7 @@
 
 /* Employee names */
 
-.zrv-user-roles-page
-.zrv-admin-table tbody td:first-child b {
+.zrv-user-roles-page .zrv-admin-table tbody td:first-child b {
   display: block;
 
   font-size: 11.5px;
@@ -543,8 +522,7 @@
 
 /* Secondary information */
 
-.zrv-user-roles-page
-.zrv-admin-table .zrv-admin-sub {
+.zrv-user-roles-page .zrv-admin-table .zrv-admin-sub {
   display: block;
 
   margin-top: 3px;
@@ -558,18 +536,15 @@
 
 /* Status column alignment */
 
-.zrv-user-roles-page
-.zrv-admin-table th:nth-child(4),
-.zrv-user-roles-page
-.zrv-admin-table td:nth-child(4) {
+.zrv-user-roles-page .zrv-admin-table th:nth-child(4),
+.zrv-user-roles-page .zrv-admin-table td:nth-child(4) {
   text-align: left;
   vertical-align: middle;
 }
 
 /* Status badges */
 
-.zrv-user-roles-page
-.zrv-admin-table td:nth-child(4) .zrv-admin-badge {
+.zrv-user-roles-page .zrv-admin-table td:nth-child(4) .zrv-admin-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -589,8 +564,7 @@
 
 /* Manage roles action */
 
-.zrv-user-roles-page
-.zrv-admin-table .zrv-admin-link {
+.zrv-user-roles-page .zrv-admin-table .zrv-admin-link {
   color: #087343;
 
   font-size: 11px;
@@ -600,35 +574,30 @@
   white-space: nowrap;
 }
 
-.zrv-user-roles-page
-.zrv-admin-table .zrv-admin-link:hover {
+.zrv-user-roles-page .zrv-admin-table .zrv-admin-link:hover {
   color: #065c37;
   text-decoration: underline;
 }
 
 /* Remove last-row border */
 
-.zrv-user-roles-page
-.zrv-admin-table tbody tr:last-child td {
+.zrv-user-roles-page .zrv-admin-table tbody tr:last-child td {
   border-bottom: 0;
 }
 
 /* Smooth bottom corners */
 
-.zrv-user-roles-page
-.zrv-admin-table tbody tr:last-child td:first-child {
+.zrv-user-roles-page .zrv-admin-table tbody tr:last-child td:first-child {
   border-bottom-left-radius: 11px;
 }
 
-.zrv-user-roles-page
-.zrv-admin-table tbody tr:last-child td:last-child {
+.zrv-user-roles-page .zrv-admin-table tbody tr:last-child td:last-child {
   border-bottom-right-radius: 11px;
 }
 
 /* Pagination spacing */
 
-.zrv-user-roles-page
-.zrv-user-roles-directory .zrv-admin-pagination {
+.zrv-user-roles-page .zrv-user-roles-directory .zrv-admin-pagination {
   margin-top: 14px;
 
   padding: 9px 3px 2px;
@@ -648,8 +617,7 @@
 
 /* Search button white text */
 
-.zrv-user-roles-page
-.zrv-admin-toolbar__submit .btn-primary {
+.zrv-user-roles-page .zrv-admin-toolbar__submit .btn-primary {
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
 }
@@ -657,8 +625,7 @@
 /* Tablet and smaller screens */
 
 @media (max-width: 1100px) {
-  .zrv-user-roles-page
-  .zrv-admin-table {
+  .zrv-user-roles-page .zrv-admin-table {
     min-width: 1000px;
   }
 }
@@ -666,8 +633,7 @@
 /* Mobile */
 
 @media (max-width: 650px) {
-  .zrv-user-roles-page
-  .zrv-user-roles-directory .zrv-admin-panel {
+  .zrv-user-roles-page .zrv-user-roles-directory .zrv-admin-panel {
     padding: 11px;
     border-radius: 14px;
   }
@@ -677,54 +643,36 @@
     margin-inline: -11px;
   }
 
-  .zrv-user-roles-page
-  .zrv-user-roles-directory .ux-table-wrap {
+  .zrv-user-roles-page .zrv-user-roles-directory .ux-table-wrap {
     border-radius: 10px;
   }
 
-  .zrv-user-roles-page
-  .zrv-admin-table tbody td {
+  .zrv-user-roles-page .zrv-admin-table tbody td {
     padding: 9px 10px;
   }
 }
 
 /* Dark theme */
 
-[data-theme="dark"]
-.zrv-user-roles-page
-.zrv-admin-table thead th {
+[data-theme='dark'] .zrv-user-roles-page .zrv-admin-table thead th {
   background: var(--surface-2);
   color: var(--text);
 }
 
-[data-theme="dark"]
-.zrv-user-roles-page
-.zrv-admin-table tbody tr {
+[data-theme='dark'] .zrv-user-roles-page .zrv-admin-table tbody tr {
   background: var(--surface-solid);
 }
 
-[data-theme="dark"]
-.zrv-user-roles-page
-.zrv-admin-table tbody tr:nth-child(even) {
+[data-theme='dark'] .zrv-user-roles-page .zrv-admin-table tbody tr:nth-child(even) {
   background: var(--surface-2);
 }
 
-[data-theme="dark"]
-.zrv-user-roles-page
-.zrv-admin-table tbody tr:hover {
-  background: color-mix(
-    in srgb,
-    var(--primary) 15%,
-    var(--surface-solid)
-  );
+[data-theme='dark'] .zrv-user-roles-page .zrv-admin-table tbody tr:hover {
+  background: color-mix(in srgb, var(--primary) 15%, var(--surface-solid));
 }
 
-[data-theme="dark"]
-.zrv-user-roles-page
-.zrv-admin-table tbody td,
-[data-theme="dark"]
-.zrv-user-roles-page
-.zrv-admin-table tbody td:first-child b {
+[data-theme='dark'] .zrv-user-roles-page .zrv-admin-table tbody td,
+[data-theme='dark'] .zrv-user-roles-page .zrv-admin-table tbody td:first-child b {
   color: var(--text);
 }
 
@@ -748,83 +696,63 @@
 
 /* Six repeating row colors */
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 1) {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 1) {
   background-color: #eaf6ef;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 2) {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 2) {
   background-color: #fff0f3;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 3) {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 3) {
   background-color: #eaf4ff;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 4) {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 4) {
   background-color: #fff9e8;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 5) {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 5) {
   background-color: #f3efff;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 6) {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 6) {
   background-color: #eaf8f5;
 }
 
 /* Matching colored left borders */
 
-.zrv-accounts-page
-.zrv-admin-table tbody td:first-child {
+.zrv-accounts-page .zrv-admin-table tbody td:first-child {
   border-left: 3px solid transparent;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 1)
-td:first-child {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 1) td:first-child {
   border-left-color: #8bc9a6;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 2)
-td:first-child {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 2) td:first-child {
   border-left-color: #e9a4b3;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 3)
-td:first-child {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 3) td:first-child {
   border-left-color: #99bfeb;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 4)
-td:first-child {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 4) td:first-child {
   border-left-color: #eacb7a;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 5)
-td:first-child {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 5) td:first-child {
   border-left-color: #b9a8eb;
 }
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:nth-child(6n + 6)
-td:first-child {
+.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(6n + 6) td:first-child {
   border-left-color: #8acfc0;
 }
 
 /* Ensure cells display their row background */
 
-.zrv-accounts-page
-.zrv-admin-table tbody td {
+.zrv-accounts-page .zrv-admin-table tbody td {
   background: transparent;
   border-bottom: 1px solid #dbe6df;
   vertical-align: middle;
@@ -832,26 +760,22 @@ td:first-child {
 
 /* Hover effect */
 
-.zrv-accounts-page
-.zrv-admin-table tbody tr:hover {
+.zrv-accounts-page .zrv-admin-table tbody tr:hover {
   background-color: #d9eee2;
 }
 
 /* Preserve active/status badges */
 
-.zrv-accounts-page
-.zrv-admin-table tbody .zrv-admin-badge {
+.zrv-accounts-page .zrv-admin-table tbody .zrv-admin-badge {
   border-radius: 999px;
 }
 
 /* Dark mode */
 
-[data-theme="dark"]
-.zrv-accounts-page .zrv-admin-table tbody tr {
+[data-theme='dark'] .zrv-accounts-page .zrv-admin-table tbody tr {
   background-color: var(--surface-solid);
 }
 
-[data-theme="dark"]
-.zrv-accounts-page .zrv-admin-table tbody tr:nth-child(even) {
+[data-theme='dark'] .zrv-accounts-page .zrv-admin-table tbody tr:nth-child(even) {
   background-color: var(--surface-2);
 }

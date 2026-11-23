@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { countsBodySchema } from '../../../shared/validation/countsBody.js';
 import { dbText } from '../formText.validation.js';
 
 const id = Joi.string().pattern(/^[1-9][0-9]{0,18}$/);
@@ -64,6 +65,16 @@ export const listQuerySchema = Joi.object({
   // The authoritative PAF spec and existing HR modules call this sortDir.
   sortDir: Joi.string().valid('asc', 'desc').default('desc'),
 });
+
+// The dashboard's counts: the list's filters, many filter sets per request.
+export const countsBody = countsBodySchema(listQuerySchema, [
+  'requestStatus',
+  'formType',
+  'empNumber',
+  'department',
+  'dateFrom',
+  'dateTo',
+]);
 
 // Every probation text column is VARCHAR2(500) (TEST dictionary).
 const COLUMN = 500;

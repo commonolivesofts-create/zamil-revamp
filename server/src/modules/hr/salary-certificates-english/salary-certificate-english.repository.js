@@ -124,7 +124,7 @@ export const repository = {
     return result.rows;
   },
 
-  picker: async (c, { q = '', page, pageSize }) => {
+  picker: async (c, { q = '', page = 1, pageSize = 100 } = {}) => {
     const result = await c.execute(
       `
       SELECT EMPLOYEE_NUMBER, FULL_NAME

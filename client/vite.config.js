@@ -21,6 +21,27 @@ export const apiProxy = Object.freeze({
   },
 })
 
+// TrainingHub's API for the Talent Management dashboard, on this origin so the
+// browser sends the Zamil session TrainingHub signs in from (POST /auth/sso).
+// Read-only: only GET and that sign-in reach TrainingHub; anything else is a
+// 404 here. A deployed gateway must forward /training-hub-api/* to
+// TrainingHub's /api/v1/* the same way (see hr-talent-management/README.md).
+export const TRAINING_HUB_PROXY_PATH = '/training-hub-api'
+export function trainingHubProxy(target = 'http://127.0.0.1:7383') {
+  return {
+    [TRAINING_HUB_PROXY_PATH]: {
+      target,
+      changeOrigin: false,
+      rewrite: (path) => path.replace(/^\/training-hub-api/, '/api/v1'),
+      bypass: (req) =>
+        req.method === 'GET' ||
+        (req.method === 'POST' && req.url?.split('?')[0] === `${TRAINING_HUB_PROXY_PATH}/auth/sso`)
+          ? undefined
+          : false,
+    },
+  }
+}
+
 // The development origin is http://localhost:7382 (the backend's
 // AUTH_FRONTEND_BASE_URL e-mail links point here). strictPort fails instead of
 // silently moving to another port, which would break those links.
@@ -44,20 +65,41 @@ function configureEnvironment(config, { mode }) {
   const env = loadEnv(mode, process.cwd(), '')
   const serverEnv = loadEnv(mode, fileURLToPath(new URL('../server', import.meta.url)), '')
   const appEnv = resolveAppEnv({ processEnv: process.env, clientEnv: env, serverEnv })
+  // TRAINING_HUB_API_ORIGIN (client/.env, not exposed to the browser) overrides
+  // where TrainingHub's API listens; it defaults to its local port 7383.
+  const hubProxy = trainingHubProxy(
+    process.env.TRAINING_HUB_API_ORIGIN?.trim() ||
+      env.TRAINING_HUB_API_ORIGIN?.trim() ||
+      'http://127.0.0.1:7383',
+  )
+  config.server.proxy = { ...config.server.proxy, ...hubProxy }
+  config.preview.proxy = { ...config.preview.proxy, ...hubProxy }
   if (appEnv === 'test') {
     config.server.host = '0.0.0.0'
     config.server.port = 7382
-    config.server.proxy = { '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false } }
+    config.server.proxy = {
+      '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false },
+      ...hubProxy,
+    }
     config.preview.host = '0.0.0.0'
     config.preview.port = 7382
-    config.preview.proxy = { '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false } }
+    config.preview.proxy = {
+      '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false },
+      ...hubProxy,
+    }
   } else if (appEnv === 'development') {
     config.server.host = '127.0.0.1'
     config.server.port = 7382
-    config.server.proxy = { '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false } }
+    config.server.proxy = {
+      '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false },
+      ...hubProxy,
+    }
     config.preview.host = '127.0.0.1'
     config.preview.port = 7382
-    config.preview.proxy = { '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false } }
+    config.preview.proxy = {
+      '/api': { target: 'http://127.0.0.1:7381', changeOrigin: false },
+      ...hubProxy,
+    }
   } else if (appEnv === '') {
     config.server.host = '127.0.0.1'
     config.server.port = 5199

@@ -4,6 +4,7 @@ import {
   withConnection as defaultWithConnection,
   withTransaction as defaultWithTransaction,
 } from '../../../database/oracle.js';
+import { cachedCounts } from '../../../shared/cache/cachedCounts.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as defaultRepository from './performanceAppraisal.repository.js';
 
@@ -29,6 +30,7 @@ export function createPerformanceAppraisalService({
   repository = defaultRepository,
   withConnection = defaultWithConnection,
   withTransaction = defaultWithTransaction,
+  countsCache,
 }) {
   const read = (fn) => withConnection(POOLS.LOW, fn);
   const currentYear = () => new Date().getFullYear();
@@ -90,6 +92,28 @@ export function createPerformanceAppraisalService({
         await repository.insertTraining(connection, { id: index + 1, objective, headerId });
   }
   return {
+    /**
+     * The list total of each `{ year, ...filters }` set for the dashboard, in the list's scope
+     * (HR: every appraisal; others: their own; none without an employee record), one statement.
+     */
+    async counts(actor, { queries, fresh }) {
+      return cachedCounts(
+        countsCache,
+        { module: 'appraisals', userId: actor.userId, queries, fresh },
+        (missing) =>
+          read(async (c) => {
+            const isHr = await repository.isHrUser(c, actor.userId);
+            const hasEmployee = actor.employeeNumber !== undefined && actor.employeeNumber !== null;
+            return repository.countAppraisals(c, {
+              queries: missing.map((query) => ({ ...query, year: query.year ?? currentYear() })),
+              userId: actor.userId,
+              employeeNumber: actor.employeeNumber,
+              isHr,
+              noEmployee: !isHr && !hasEmployee,
+            });
+          }),
+      );
+    },
     async list(actor, query) {
       const year = query.year ?? currentYear();
       const isHr = await read((c) => repository.isHrUser(c, actor.userId));
@@ -105,6 +129,7 @@ export function createPerformanceAppraisalService({
             department: query.department ?? null,
           },
           userId: actor.userId,
+          employeeNumber: actor.employeeNumber,
           isHr,
           noEmployee: !isHr && !hasEmployee,
         }),
@@ -150,7 +175,7 @@ export function createPerformanceAppraisalService({
           evaluatedBy: employee.evaluatedBy,
           ...result,
           year: body.year,
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
           yearsInCompany: employee.yearsInCompany,
           yearsInPosition: employee.yearsInPosition,
           employeeRemarks,

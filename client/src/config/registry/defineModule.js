@@ -28,6 +28,8 @@ const ROUTE_PATH = new RegExp(`^/(?:${SEGMENT}(?:/${SEGMENT})*)?$`)
 // Only these public build-time variables can supply an external URL, so an
 // entry can never read another configuration value.
 const EXTERNAL_ENV_NAME = /^VITE_EXTERNAL_[A-Z0-9_]+$/
+// Optional page inside that destination, such as /jsm (no query or fragment).
+const EXTERNAL_PATH = /^(?:\/[a-z0-9][a-z0-9-]*)+$/
 // Only these public build-time variables can switch an entry on or off.
 const FEATURE_ENV_NAME = /^VITE_FEATURE_[A-Z0-9_]+$/
 const PERMISSION_REF = /^(?:([A-Z][A-Z0-9_]*)\.)?([A-Z][A-Z0-9_]*):([A-Z][A-Z0-9_]*)$/
@@ -128,11 +130,15 @@ function normalizeHref(where, href) {
       )
     return href
   }
-  assertObject(where, href, ['env'])
+  assertObject(where, href, ['env', 'path'])
   if (typeof href.env !== 'string' || !EXTERNAL_ENV_NAME.test(href.env)) {
     fail(where, 'href.env must name a VITE_EXTERNAL_* variable')
   }
-  return { env: href.env }
+  if (href.path === undefined) return { env: href.env }
+  if (typeof href.path !== 'string' || !EXTERNAL_PATH.test(href.path)) {
+    fail(where, 'href.path must be a lower-case page path such as /area/page')
+  }
+  return { env: href.env, path: href.path }
 }
 
 const ENTRY_KEYS = [

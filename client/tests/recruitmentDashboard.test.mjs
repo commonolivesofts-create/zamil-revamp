@@ -121,9 +121,19 @@ test('dashboard page: registered, route-gated panels, counts from the list APIs 
     'requisition rejection',
   )
   assert.doesNotMatch(page, /recent/i, 'no recent-records panel')
-  for (const service of ['requisitions', 'interviews', 'offers', 'orientations', 'probations']) {
-    assert.match(page, new RegExp(`services\\.${service}\\.list`), service)
+  // Every figure comes from the module's own API: its counts endpoint, with a
+  // one-row page of its list as the fallback.
+  assert.ok(
+    page.includes(
+      'const source = (service) => ({ total: totalOf(service.list), counts: (queries, options) => service.counts(queries, options), })',
+    ),
+    'a source is the list and the counts of one service',
+  )
+  for (const service of ['requisitions', 'interviews', 'offers', 'probations']) {
+    assert.ok(page.includes(`${service}: source(services.${service})`), service)
   }
+  assert.match(page, /services\.orientations\.list/, 'orientations (list)')
+  assert.match(page, /services\.orientations\.counts\(chunk, options\)/, 'orientations (counts)')
   assert.doesNotMatch(page, /demoData|Math\.random/, 'no invented figures')
   // KPI definitions: open positions, technical hires and the rates.
   assert.ok(

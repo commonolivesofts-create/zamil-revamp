@@ -9,7 +9,7 @@
 | Required permissions | Register: `WORKFLOW_MANAGER.FORM_REGISTRY:CREATE` · View a form: `FORM_REGISTRY:VIEW` · Edit: `FORM_REGISTRY:UPDATE` · Activate/Deactivate: `FORM_REGISTRY:ACTIVATE` / `DEACTIVATE` |
 | API | `POST /api/v1/workflow-manager/forms`, `GET/PUT …/forms/{formId}`, `GET …/forms/{formId}/versions`, `POST …/forms/{formId}/activate`, `…/deactivate`, `GET …/lookups/modules` |
 | Oracle | `XX_ZRV_WF_FORMS` (read/write), `XX_ZRV_WF_FORM_VERSIONS` + `XX_ZRV_WF_SOURCE_VERSIONS` + `XX_ZRV_WF_DATA_SOURCES` (read only, version list), `XX_ZRV_APP_MODULES` (read only) |
-| Verification status | **Implemented — verified by automated tests only.** Pending G1 catalogue registration; live browser verification and screenshots follow. |
+| Verification status | **M1 screens accepted on TEST (7 November 2026). Business-first layout and readiness panel (Smart Mapping UX package) — verified by automated tests; live TEST check pending.** |
 
 ## Purpose
 
@@ -32,40 +32,49 @@ organization, and the mapping versions panel on the form page shows the versions
 
 ## Fields
 
+Business fields come first. The **Technical identity** group (form code and detail page address)
+is set once by the form administrator; it is shown when registering, and on the form page only to
+users who may edit or register forms.
+
 | Field | Required | Rules | Notes |
 |---|---|---|---|
-| **Form code** | Yes | Upper-case letters, digits and underscores, starting with a letter; at most 80 characters; unique. | Typed letters are converted to upper case. **Cannot be changed after registration** — it is the form's permanent identity. |
-| **Form name** | Yes | 1–200 characters, no control characters. | Shown in lists and later in workflow screens. |
+| **Form name** | Yes | 1–200 characters, no control characters. | The name business users know the form by; shown in lists and later in workflow screens. |
 | **Owning module** | Yes | Must be an **active** module of the permission catalog. Security administration and Workflow Manager cannot own forms. | The list shows *Module name (CODE)*. |
-| **Detail route** (optional) | No | An application route: starts with `/`, lower-case segments with digits and hyphens, and `:parameters`, e.g. `/hr/employee-services/sick-leave/:leaveId`. No web address, query string or `..`. At most 500 characters. | Used later to link a workflow task to the form record. |
 | **Description** (optional) | No | At most 1000 characters. | Free text for administrators. |
+| **Form code** (*Technical identity*) | Yes | Upper-case letters, digits and underscores, starting with a letter; at most 80 characters; unique. | Typed letters are converted to upper case. **Cannot be changed after registration** — it is the form's permanent identity. |
+| **Detail page address** (optional, *Technical identity*) | No | An application route: starts with `/`, lower-case segments with digits and hyphens, and `:parameters`, e.g. `/hr/employee-services/sick-leave/:leaveId`. No web address, query string or `..`. At most 500 characters. | Used later to link a workflow task to the form record. Stored as the detail route. |
 
 ## Step by step — register a form
 
 1. Open **Workflow Manager → Form registry** and select **Register form**.
-2. Enter the **Form code**, e.g. `TRAVEL_REQUEST`.
-3. Enter the **Form name**, e.g. `Travel Request`.
-4. Choose the **Owning module**.
-5. Optionally enter the **Detail route** and **Description**.
-6. Select **Register form**. The button shows *Registering…* and further clicks are ignored.
-7. On success the form's own page opens with *Form `TRAVEL_REQUEST` registered.*
+2. Enter the **Form name**, e.g. `Travel Request`, and choose the **Owning module**.
+3. Optionally enter a **Description**.
+4. Under **Technical identity**, enter the **Form code**, e.g. `TRAVEL_REQUEST`, and optionally the
+   **Detail page address**.
+5. Select **Register form**. The button shows *Registering…* and further clicks are ignored.
+6. On success the form's own page opens with *Form `TRAVEL_REQUEST` registered.*
 
 **Cancel** returns to the Form registry without saving. *Unsaved changes* appears beside the
 buttons once you have typed something.
 
 ## The registered form page
 
+The page title is the form name; the module is shown below it.
+
 | Panel | Content and controls |
 |---|---|
-| **Registration** | Status, form code, module, number of mapping versions, *Registered* (date and the registering user's name), *Last updated*, *Record version*. **Activate** / **Deactivate** (with permission) opens a confirmation. |
-| **Edit details** (with `UPDATE`) or **Details** (view only) | The fields above. The form code is read only. **Save changes** is enabled only when something changed; **Discard changes** restores the loaded values. Without `UPDATE` all fields are read only and no buttons are shown. |
-| **Mapping versions** | Read only: version, state (*DRAFT, REVIEW, APPROVED, PUBLISHED, RETIRED*), *DEFAULT* marker, header source code and version, published and updated time, and the configuration fingerprint (first 12 characters of its SHA-256). *No versions yet…* until package M2 creates them. |
+| **Readiness for workflows** | Three stages with only provable states: **Registered** (done), **Business data prepared** (done when an approved business data version is in use; *in progress* while versions exist but none is approved; *not started* otherwise) and **Workflow configured** (*not available yet* — the workflow designer, package M3, is not released; there is no button for it). The badge repeats the readiness (*Data ready*, *Data in setup*, *Not onboarded*, *Inactive*). |
+| **Registration** | Status, module, number of business data versions, *Registered* (date and the registering user's name), *Last updated*. **Activate** / **Deactivate** (with permission) opens a confirmation. **Technical details** (users with `UPDATE` or `CREATE` only; select to expand): form code, module code, detail route, record version. |
+| **Edit details** (with `UPDATE`) or **Details** (view only) | The fields above; the technical identity group appears only for form administrators, and the form code is read only. **Save changes** is enabled only when something changed; **Discard changes** restores the loaded values. Without `UPDATE` all fields are read only and no buttons are shown. |
+| **Business data versions** | Read only: version (*In use* marker for the approved default), status (*Draft, In review, Approved, Published, Retired*), approval and update time. Form administrators also see the main data source and the configuration fingerprint (first 12 characters of its SHA-256). *No versions yet…* until a data administrator prepares the form's business data (package M2-B). |
 
 ### Step by step — edit a form
 
 1. Open the form from the Form registry.
-2. Change **Form name**, **Owning module**, **Detail route** or **Description**.
-3. Select **Save changes**. On success *Changes saved.* appears and *Record version* increases by 1.
+2. Change **Form name**, **Owning module**, **Description** or, under **Technical identity**, the
+   **Detail page address**.
+3. Select **Save changes**. On success *Changes saved.* appears and *Record version* (technical
+   details) increases by 1.
 
 Changing the module checks it again; keeping an unchanged module is always accepted, even if the
 module was deactivated in the catalog later.
@@ -84,8 +93,9 @@ is recorded in the application log with your user ID.
 ## Worked example (fictional data)
 
 *Test Admin* registers code `TRAVEL_REQUEST`, name *Travel Request*, module *HR*, detail route
-`/hr/travel-requests/:requestId`. The page opens showing *Active*, *Mapping versions 0*,
-*Record version 1*. Later, *Test Admin* corrects the name to *Business Travel Request* and saves:
+`/hr/travel-requests/:requestId`. The page opens showing *Not onboarded* with **Registered** done,
+**Business data prepared** not started and **Workflow configured** not available yet, *Active*,
+*Business data versions 0* and, under technical details, *Record version 1*. Later, *Test Admin* corrects the name to *Business Travel Request* and saves:
 *Record version 2*. These names and the route are illustrations only; use the real, verified form
 code and route when registering an actual form.
 
@@ -114,6 +124,8 @@ code and route when registering an actual form.
 | Registration, duplicate (incl. concurrent ORA-00001), module rules, route/length validation, update with optimistic locking, immutable code, activation, versions, Oracle-failure rollback | `server/tests/workflow-manager.test.js` passed |
 | Client validation mirrors backend rules; payloads and CSRF | `client/tests/workflowManager.test.mjs` passed |
 | SQL against Oracle TEST | SELECTs executed read-only; INSERT/UPDATE compiled only with `DBMS_SQL.PARSE`, never executed (2026-11-02) |
-| Live browser check and screenshot | **Not yet performed** — requires the G1-approved catalogue registration and a role grant on TEST |
+| Readiness panel, technical details only for form administrators | `client/tests/workflowSmartMapping.test.mjs` passed (2026-11-21) |
+| Live browser check and screenshot | M1 screens accepted by the owner on TEST (7 November 2026). The redesigned layout is **not yet checked live** — owner TEST acceptance pending. |
 
-Verified against branch `feat/workflow-manager-m1-foundation`, 2026-11-02.
+Verified against branch `feat/workflow-manager-m1-foundation`, 2026-11-02; layout updated on
+`feat/workflow-manager-smart-mapping-ux`, 2026-11-21.

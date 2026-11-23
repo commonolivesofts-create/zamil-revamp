@@ -7,8 +7,8 @@
 | URL | `/workflow-manager` |
 | Audience | Users given Workflow Manager access |
 | Required permission | `WORKFLOW_MANAGER.OVERVIEW:VIEW` |
-| API | `GET /api/v1/workflow-manager/overview` |
-| Verification status | **Implemented — verified by automated tests only.** Pending owner G1 registration of the `WORKFLOW_MANAGER` permission catalogue on TEST; live browser verification and screenshots follow that registration. See [Verification](#verification). |
+| API | `GET /api/v1/workflow-manager/overview`; with `FORM_REGISTRY:VIEW` also `GET /api/v1/workflow-manager/forms?status=ACTIVE` (readiness) |
+| Verification status | **M1 screen accepted on TEST (7 November 2026). Redesigned business-first layout (Smart Mapping UX package) — verified by automated tests; live TEST check and screenshots pending.** See [Verification](#verification). |
 
 ## Who can access it
 
@@ -43,36 +43,45 @@ The **Register form** page (`/workflow-manager/forms/new`) and a form's own page
 
 ## What the Overview shows
 
+The Overview answers one business question first: **which forms are ready for workflows, and
+what does each still need?** Only states the system can prove are shown.
+
 | Element | Meaning | Shown when |
 |---|---|---|
-| **Registered forms** card | Total registered forms, and how many are active and inactive. Selecting it opens the Form registry. | You also hold `FORM_REGISTRY:VIEW` |
-| **Data sources** card | Total registered data sources, active and inactive. Selecting it opens the Data source registry. | You also hold `DATA_SOURCE_REGISTRY:VIEW` |
-| **Tables and views** card | Number of TABLE and VIEW data sources. | You also hold `DATA_SOURCE_REGISTRY:VIEW` |
-| **Available to you** | Links to Form registry, Register a form and Data source registry — only those your permissions allow. | At least one applies |
-| Note *Workflow execution is not active* | Registering forms and sources never submits requests, creates approval tasks or sends e-mails. | Always |
+| **Business forms** | One card per **active** form (up to 20, ready forms first): its name, owning module, a readiness badge and the next step. **All forms** opens the Form registry; *Showing 20 of N active forms* links to the rest. | You also hold `FORM_REGISTRY:VIEW` |
+| Readiness badge | *Data ready* — an approved (published, default) business data version exists. *Data in setup* — versions exist but none is approved yet. *Not onboarded* — no business data has been prepared yet. | On each card |
+| Next step | *Ready:* configuring its workflow arrives with the workflow designer in a later release. *Otherwise:* a data administrator prepares its business data once (onboarding). There is **no** *Configure workflow* button yet — the designer (package M3) is not released. | On each card |
+| **Registered forms** card | Total registered forms, active and inactive. Opens the Form registry. | `FORM_REGISTRY:VIEW` |
+| **Data sources** card | Total registered data sources, active and inactive. Opens the Data source registry. | `DATA_SOURCE_REGISTRY:VIEW` |
+| **What you can do** | *Register a business form* (`FORM_REGISTRY:CREATE`), *All registered forms* (`FORM_REGISTRY:VIEW`), *Prepare business data* (`DATA_SOURCE_REGISTRY:VIEW`, for data administrators) — only those your permissions allow. | At least one applies |
+| Note *Workflow execution is not active yet* | Preparing forms and data never submits requests, creates approval tasks or sends e-mails. | Always |
 
-The counts come from the live database each time the page opens. If you can open the Overview but
-can view neither registry, the page says so instead of showing cards.
+Readiness and counts come from the live database each time the page opens. If you can open the
+Overview but can view neither registry, the page says so instead of showing cards.
 
-## Step by step — check the registry status
+## Step by step — see which forms are ready
 
 1. Open **Workflow Manager → Overview**.
-2. Read the **Registered forms** card, for example *3 · 2 active · 1 inactive*.
-3. Select the card (or **Form registry** under *Available to you*) to see the forms themselves.
+2. Under **Business forms**, read each card's badge, for example *Not onboarded* for a form whose
+   business data has not been prepared.
+3. Select the form name to open its page and its **Readiness for workflows** ([guide 03](03-form-registration.md)).
 
 ### Worked example (fictional data)
 
 An administrator, *Test Admin*, has the Overview, Form registry (VIEW, CREATE) and Data source
-registry (VIEW) permissions. The Overview shows *Registered forms 1 · 1 active · 0 inactive*,
-*Data sources 0* and the links **Form registry**, **Register a form** and **Data source registry**.
-A colleague with only Overview and Form registry VIEW sees the forms card and the
-**Form registry** link — no data-source card and no **Register a form** link.
+registry (VIEW) permissions. The Overview lists one card, *Travel Request · HR · Not onboarded —
+Next: a data administrator prepares its business data once (onboarding)*, then *Registered forms
+1 · 1 active · 0 inactive*, *Data sources 0* and the tasks **Register a business form**, **All
+registered forms** and **Prepare business data**. A colleague with only Overview and Form
+registry VIEW sees the form cards and **All registered forms** — no data-source card and no
+registration or data tasks.
 
 ## States and troubleshooting
 
 | What you see | Why | What to do |
 |---|---|---|
-| *Loading Workflow Manager overview…* | The counts are being read. | Wait. |
+| *Loading Workflow Manager overview…* / *Loading business forms…* | The counts or forms are being read. | Wait. |
+| *No active forms yet. Register a business form to begin.* | No active form is registered. | Register one ([guide 03](03-form-registration.md)) if permitted. |
 | *The Workflow Manager overview could not be loaded* with **Retry** | Network or server error. | Select **Retry**. If it persists, report the time to support. |
 | Access denied page | You lack `WORKFLOW_MANAGER.OVERVIEW:VIEW`, or it is not yet in the permission catalogue. | Ask your security administrator. |
 | No **Workflow Manager** section in the sidebar | You hold none of the Workflow Manager page permissions. | Ask your security administrator. |
@@ -93,6 +102,9 @@ Nothing on this page changes data.
 | Backend route, permission and counts | `server/tests/workflow-manager.test.js` — *overview* and *authorization* suites passed |
 | Navigation listing and route guard by permission | `client/tests/workflowManager.test.mjs` — *pages are listed and opened only with their backend permission* passed |
 | SQL against Oracle TEST | Overview count queries executed read-only on TEST, 2026-11-02 (feature handoff §10) |
-| Live browser check and screenshot | **Not yet performed** — requires the G1-approved catalogue registration and a role grant on TEST |
+| Readiness states and no faux workflow action | `client/tests/workflowSmartMapping.test.mjs` passed (Smart Mapping UX, 2026-11-21) |
+| Readiness SQL (`defaultVersionNo`) against Oracle TEST | Executed read-only on TEST, 2026-11-21 (Smart Mapping UX handoff §7) |
+| Live browser check and screenshot | M1 layout accepted by the owner on TEST (7 November 2026). The redesigned layout is **not yet checked live** — owner TEST acceptance pending. |
 
-Verified against branch `feat/workflow-manager-m1-foundation`, 2026-11-02.
+Verified against branch `feat/workflow-manager-m1-foundation`, 2026-11-02; layout updated on
+`feat/workflow-manager-smart-mapping-ux`, 2026-11-21.

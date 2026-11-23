@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { safeReturnTo } from '@/config/authRouting.js'
@@ -15,6 +15,8 @@ const PASSWORD_MAX = 256
 
 const notices = {
   session_expired: 'Your session has ended. Please sign in again.',
+  service_recovering:
+    'The server had a temporary error. Checking the connection again automatically.',
   mfa_expired: 'The verification window has expired. Please sign in again.',
   mfa_invalid: 'Your sign-in has expired or is no longer valid. Please sign in again.',
   mfa_replaced:
@@ -27,6 +29,8 @@ const notices = {
 
 export default function LoginPage() {
   const { signIn, notice, status, retrySession } = useAuth()
+  const previousStatus = useRef(status)
+  const previousNotice = useRef(notice)
   const navigate = useNavigate()
   const location = useLocation()
   const usernameRef = useRef(null)
@@ -38,6 +42,19 @@ export default function LoginPage() {
   const [errorCode, setErrorCode] = useState('')
   const [errorReference, setErrorReference] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
+
+  useEffect(() => {
+    if (
+      (previousStatus.current === 'error' && status !== 'error') ||
+      (previousNotice.current === 'service_recovering' && notice !== 'service_recovering')
+    ) {
+      setError('')
+      setErrorCode('')
+      setErrorReference('')
+    }
+    previousStatus.current = status
+    previousNotice.current = notice
+  }, [notice, status])
 
   const submit = async (event) => {
     event.preventDefault()

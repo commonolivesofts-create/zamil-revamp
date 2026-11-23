@@ -11,6 +11,7 @@ import {
   headerIdParams,
   hijriDateQuerySchema,
   listQuerySchema,
+  countsBody,
   numberToArabicQuerySchema,
   writeBodySchema,
 } from './employmentOffer.validation.js';
@@ -53,6 +54,8 @@ export function createEmploymentOfferRouter({
   });
 
   router.get('/', ...read('VIEW', { query: listQuerySchema }), controller.list);
+  // Read-only: the list totals of many filter sets (dashboard). POST for the body, so CSRF too.
+  router.post('/counts', ...write('VIEW', { body: countsBody }), controller.counts);
   router.get(
     '/lookups/candidates',
     ...read('VIEW', { query: candidatesQuerySchema }),

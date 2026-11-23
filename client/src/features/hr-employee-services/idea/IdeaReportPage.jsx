@@ -101,6 +101,7 @@ function insight(options) {
           icon="lightbulb"
           label="Evaluation"
           theme="mint"
+          className="zrv-ir-ov--steps-featured"
           aside={<Hint>{data && `${data.all} ideas`}</Hint>}
         >
           <Steps

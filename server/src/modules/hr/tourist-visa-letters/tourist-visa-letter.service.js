@@ -183,7 +183,15 @@ function mapEmployee(employee) {
 }
 
 const actor = (auth) => {
-  const currentActor = String(auth?.userId ?? auth?.id ?? auth?.user?.id ?? auth?.username ?? '');
+  const currentActor = String(
+    auth?.employeeNumber ??
+      auth?.user?.employeeNumber ??
+      auth?.userId ??
+      auth?.id ??
+      auth?.user?.id ??
+      auth?.username ??
+      '',
+  );
 
   if (!currentActor) {
     throw fail(401, 'UNAUTHENTICATED', 'Authentication required');
@@ -277,6 +285,13 @@ export function createTouristVisaService({
       ]) {
         result[key] = existing[key];
       }
+    }
+
+    if (body.passport_no !== undefined) {
+      result.passport_no = body.passport_no;
+      result.passport_no_ar = digits(body.passport_no);
+      result.manager_passport = body.passport_no;
+      result.manager_passport_ar = digits(body.passport_no);
     }
 
     if (!result.cur_date) {

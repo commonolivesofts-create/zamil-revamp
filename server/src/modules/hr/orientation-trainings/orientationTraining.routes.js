@@ -12,6 +12,7 @@ import {
   headerIdParams,
   lineIdParams,
   listQuerySchema,
+  countsBody,
   recordQuerySchema,
   skillsQuerySchema,
   updateBodySchema,
@@ -46,6 +47,8 @@ export function createOrientationTrainingRouter({
   });
 
   router.get('/', ...read({ query: listQuerySchema }), controller.list);
+  // Read-only: the list totals of many filter sets (dashboard). POST for the body, so CSRF too.
+  router.post('/counts', ...write('VIEW', { body: countsBody }), controller.counts);
   router.get('/lookups/flag', ...read({ query: flagQuerySchema }), controller.flag);
   router.get('/lookups/employees', ...read({ query: employeesQuerySchema }), controller.employees);
   router.get('/lookups/managers', ...read(), controller.managers);

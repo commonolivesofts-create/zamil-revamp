@@ -48,10 +48,13 @@ export function createSourceMappingFakeRepository(
     updatedBy: v.updatedBy ?? null,
     rowVersion: v.rowVersion ?? 1,
   });
-  const lineRefs = (fv, id) => {
+  // Mirrors the repository SQL: each JSON path is read only for its own contract version.
+  const refsAt = (fv, id, schema, path) => {
     try {
       const config = JSON.parse(fv.configJson ?? 'null');
-      return (config?.lines ?? []).some((line) => line.sourceVersionId === id);
+      return (
+        config?.schema === schema && (config?.[path] ?? []).some((s) => s.sourceVersionId === id)
+      );
     } catch {
       return false;
     }
@@ -159,8 +162,13 @@ export function createSourceMappingFakeRepository(
       const forms = tablesOf(c).formVersions;
       return {
         headerRefs: forms.filter((fv) => fv.headerSourceVersionId === sourceVersionId).length,
-        lineRefs: forms.filter((fv) => lineRefs(fv, sourceVersionId)).length,
-        unverifiable: forms.filter((fv) => schemaOf(fv) !== 'zrv.wf.form/1').length,
+        lineRefs: forms.filter((fv) => refsAt(fv, sourceVersionId, 'zrv.wf.form/1', 'lines'))
+          .length,
+        graphRefs: forms.filter((fv) => refsAt(fv, sourceVersionId, 'zrv.wf.form/2', 'sources'))
+          .length,
+        unverifiable: forms.filter(
+          (fv) => !['zrv.wf.form/1', 'zrv.wf.form/2'].includes(schemaOf(fv)),
+        ).length,
         foreignKeys: clone(
           foreignKeys?.() ?? [
             {

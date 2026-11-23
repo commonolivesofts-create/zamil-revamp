@@ -1,0 +1,101 @@
+.pagination-button-group {
+  display: flex;
+  align-items: center;
+}
+
+.pagination-button-group .btn {
+  width: 25px !important;
+  height: 25px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid #77777730 !important;
+  border-bottom: 1px solid #77777730 !important;
+  border-radius: 0px !important;
+  padding: 10px !important;
+  text-align: center;
+}
+
+.pagination-button-group .btn i {
+  padding: 0px !important;
+  color: #bfc5c1 !important;
+  font-size: 12px !important;
+}
+
+.paginate-border-left {
+  border-left: 1px solid #77777730 !important;
+}
+
+.paginate-border-right {
+  border-right: 1px solid #77777730 !important;
+}
+
+.pagination-button-group .input-field,
+.input-field:focus {
+  width: 40px;
+  height: 25px;
+  border: 1px solid #77777730 !important;
+  text-align: center;
+  box-shadow: none !important;
+  outline: none !important;
+  font-weight: 500;
+  color: #8b8989;
+}
+
+.saas-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 10px;
+}
+
+/* Skeleton Loaders  */
+
+.skeleton-box {
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  display: inline-block;
+  animation: skeleton-loading 1.2s infinite linear;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-color: #e0e0e0;
+  }
+
+  50% {
+    background-color: #f0f0f0;
+  }
+
+  100% {
+    background-color: #e0e0e0;
+  }
+}
+
+ /* .sidebar .nav.flex-column {
+  height: calc(100vh - 60px);
+  overflow-y: scroll;
+  overflow-x: hidden;
+  padding-bottom: 24px;
+} */
+
+/* .sidebar .nav.flex-column::-webkit-scrollbar {
+  width: 6px;
+  display: block;
+}
+.sidebar .nav.flex-column::-webkit-scrollbar-track {
+  background: #f1f5f2;
+}
+.sidebar .nav.flex-column::-webkit-scrollbar-thumb {
+  background: #b5cebb;
+  border-radius: 3px;
+}
+.sidebar .nav.flex-column::-webkit-scrollbar-thumb:hover {
+  background: #16833f;
+}
+
+.sidebar .nav.flex-column {
+  scrollbar-width: auto;
+  scrollbar-color: #b5cebb #f1f5f2;
+}  */

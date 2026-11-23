@@ -30,8 +30,9 @@ import {
 } from './RecruitmentPanels.jsx'
 import {
   DEFAULT_PERIOD,
+  MAX_BATCH,
   PERIODS,
-  createCounter,
+  dashboardCounter,
   periodRange,
   previousRange,
   totalOf,
@@ -44,11 +45,34 @@ import '@/styles/hr-recruitment-dashboard.css'
 
 const REQUISITION_FORM = '/hr/recruitment/requisition'
 const orientationTotal = totalOf(services.orientations.list)
+// Each module's figures in one counts request per render (`counts`); `total` is the
+// one-row-page fallback the counter uses for a source without counts.
+const source = (service) => ({
+  total: totalOf(service.list),
+  counts: (queries, options) => service.counts(queries, options),
+})
+// Shared (Y) and Plant (N) are separate tables; without a flag both are counted:
+// such a set is asked for each table and the two counts are added.
+async function orientationCounts(queries, options) {
+  const expanded = queries.flatMap((query) =>
+    query.flag ? [query] : ORIENTATION_FLAGS.map((flag) => ({ ...query, flag })),
+  )
+  const chunks = []
+  for (let start = 0; start < expanded.length; start += MAX_BATCH)
+    chunks.push(expanded.slice(start, start + MAX_BATCH))
+  const values = (
+    await Promise.all(chunks.map((chunk) => services.orientations.counts(chunk, options)))
+  ).flat()
+  let position = 0
+  const next = () => values[position++]
+  return queries.map((query) =>
+    query.flag ? next() : ORIENTATION_FLAGS.reduce((sum) => sum + next(), 0),
+  )
+}
 const SOURCES = Object.freeze({
-  requisitions: { total: totalOf(services.requisitions.list) },
-  interviews: { total: totalOf(services.interviews.list) },
-  offers: { total: totalOf(services.offers.list) },
-  // Shared (Y) and Plant (N) are separate tables; without a flag both are counted.
+  requisitions: source(services.requisitions),
+  interviews: source(services.interviews),
+  offers: source(services.offers),
   orientations: {
     total: async (query) =>
       query.flag
@@ -56,8 +80,9 @@ const SOURCES = Object.freeze({
         : (
             await Promise.all(ORIENTATION_FLAGS.map((flag) => orientationTotal({ ...query, flag })))
           ).reduce((sum, value) => sum + value, 0),
+    counts: orientationCounts,
   },
-  probations: { total: totalOf(services.probations.list) },
+  probations: source(services.probations),
 })
 
 // The modules in hiring order (their colour: --rd-<key>) and their reports.
@@ -113,12 +138,12 @@ export default function RecruitmentDashboardPage() {
   const permissions = usePermissions()
   const [params, setParams] = useSearchParams()
   const period = PERIODS.includes(params.get('period')) ? params.get('period') : DEFAULT_PERIOD
-  // One counter per refresh, so Refresh asks the server again.
-  const [refreshed, setRefreshed] = useState(() => ({
-    round: 0,
-    at: new Date(),
-    count: createCounter(SOURCES),
-  }))
+  // The figures of a visit in the last minute are reused (dashboardCounter); Refresh starts a
+  // fresh counter, so it asks the server again past its counts cache.
+  const [refreshed, setRefreshed] = useState(() => {
+    const { at, count } = dashboardCounter('recruitment', SOURCES)
+    return { round: 0, at: new Date(at), count }
+  })
   const [chosenChart, setChart] = useState(null)
   const [table, setTable] = useState(false)
   const { count } = refreshed
@@ -261,13 +286,13 @@ export default function RecruitmentDashboardPage() {
   )
   // Pace tiles use requisitions, interviews and offers. Other module histories
   // are fetched only when their chart is selected, avoiding unused monthly
-  // counts on every dashboard visit.
+  // counts on every dashboard visit. The history is asked with the other figures
+  // (same render), so it travels in the same counts request per module.
   const trendModules = allowed.filter(
     (module) =>
       ['requisitions', 'interviews', 'offers'].includes(module.key) || module.key === chart,
   )
-  const metricsReady = metricResources.every((resource) => resource.status !== 'loading')
-  const trend = useResource(key(`trend:${chart}`, allowed.length > 0 && metricsReady, false), () =>
+  const trend = useResource(key(`trend:${chart}`, allowed.length > 0, false), () =>
     counts(
       trendModules.map((module) => module.key),
       (source) => Promise.all(months.map((month) => count(source, within({}, month)))),
@@ -277,11 +302,10 @@ export default function RecruitmentDashboardPage() {
     (resource) => resource.status === 'loading',
   )
   const refresh = () =>
-    setRefreshed((current) => ({
-      round: current.round + 1,
-      at: new Date(),
-      count: createCounter(SOURCES),
-    }))
+    setRefreshed((current) => {
+      const { at, count } = dashboardCounter('recruitment', SOURCES, { fresh: true })
+      return { round: current.round + 1, at: new Date(at), count }
+    })
   const choosePeriod = (value) =>
     setParams(
       (current) => {

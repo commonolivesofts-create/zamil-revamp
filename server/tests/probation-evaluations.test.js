@@ -395,7 +395,7 @@ describe('probation evaluation record access, status guard and audit', () => {
     const id = f.store.seedProbationEvaluation({}, [{}]);
     const response = await call('put', `/${id}`, hr, update);
     assert.equal(response.status, 200, JSON.stringify(response.body));
-    assert.equal(header().updatedBy, f.hrUser.userId);
+    assert.equal(header().updatedBy, f.hrUser.employeeNumber);
     assert.equal(header().updatedAt, 'SYSDATE');
   });
 });

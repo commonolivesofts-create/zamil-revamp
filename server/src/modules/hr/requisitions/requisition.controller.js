@@ -12,6 +12,9 @@ export function createRequisitionController({ requisitionService }) {
       });
       sendPaginated(res, items, { page, limit: pageSize, total });
     },
+    async counts(req, res) {
+      sendSuccess(res, { counts: await requisitionService.counts(req.auth, req.body) });
+    },
     async get(req, res) {
       sendSuccess(res, await requisitionService.get(req.auth, req.params.requisitionId));
     },

@@ -2,6 +2,7 @@
 // its real backend routes; transfer and appraisal use the shared API client or
 // the in-memory demo adapter selected by VITE_HR_EMPLOYEE_SERVICES_DEMO.
 import { ApiError, apiClient, isOutcomeUnknown } from '../../services/api/apiClient.js'
+import { postCounts } from '../../services/api/listCounts.js'
 import { createEmployeeServicesDemoClient } from './demo/employeeServicesDemoClient.js'
 import { hrEmployeeServicesConfig } from './hrEmployeeServicesConfig.js'
 import {
@@ -866,9 +867,25 @@ function createPerformanceAppraisalService({ client }) {
     })
   const readRecord = (data) => {
     const year = Number(data.period?.year)
+    const ratingLines = Array.isArray(data.criteria) ? data.criteria : []
     const ratings = Object.fromEntries(
-      criteria.map((item) => {
-        const line = data.criteria?.find((entry) => Number(entry.id) === Number(item.code.slice(1)))
+      criteria.map((item, index) => {
+        // The legacy appraisal form (prfedit.php) pairs rating rows with criteria
+        // BY POSITION, not by RATING_ID. Old records keep Oracle-generated ids,
+        // so matching on `id` loses every rating; new records write ids 1..20.
+        // Keep the id match as a fallback for those, then the competency name.
+        const line =
+          ratingLines[index] ??
+          ratingLines.find((entry) => Number(entry.id) === Number(item.code.slice(1))) ??
+          ratingLines.find(
+            (entry) =>
+              String(entry.name ?? '')
+                .trim()
+                .toLowerCase() ===
+              String(item.label ?? '')
+                .trim()
+                .toLowerCase(),
+          )
         return [
           item.code,
           {
@@ -1089,6 +1106,42 @@ function createPerformanceAppraisalService({ client }) {
       return Object.freeze({
         items: Object.freeze(items),
         pagination: Object.freeze(pagination ?? emptyPage(items.length)),
+      })
+    },
+    // The list totals of many { year, status, grade } sets in one request (the dashboard).
+    counts: (queries, options) => postCounts(client, PERFORMANCE_APPRAISALS_BASE, queries, options),
+    // The number of appraisals matching a year, status and grade (one-row page; the dashboard).
+    async total({ year, status, grade } = {}, { signal } = {}) {
+      const { pagination } = await client.get(PERFORMANCE_APPRAISALS_BASE, {
+        params: { year, status, grade, page: 1, pageSize: 1 },
+        signal,
+      })
+      if (!Number.isInteger(pagination?.total) || pagination.total < 0)
+        throw new ApiError('The server returned an unexpected appraisal count.', {
+          code: 'INVALID_RESPONSE',
+        })
+      return pagination.total
+    },
+    // The signed-in appraiser's team this year and the grades given against the quota.
+    async teamStats({ signal } = {}) {
+      const { data } = await client.get(`${PERFORMANCE_APPRAISALS_BASE}/lookups/grade-stats`, {
+        signal,
+      })
+      if (
+        !Number.isInteger(data?.totalEmployees) ||
+        ['A', 'B', 'C', 'D', 'E'].some(
+          (grade) =>
+            !Number.isFinite(data.quota?.target?.[grade]) ||
+            !Number.isFinite(data.quota?.allocated?.[grade]),
+        )
+      )
+        throw new ApiError('The server returned unexpected appraisal grade statistics.', {
+          code: 'INVALID_RESPONSE',
+        })
+      return Object.freeze({
+        totalEmployees: data.totalEmployees,
+        target: Object.freeze({ ...data.quota.target }),
+        allocated: Object.freeze({ ...data.quota.allocated }),
       })
     },
     async getById(id, { signal } = {}) {

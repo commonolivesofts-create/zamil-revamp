@@ -16,7 +16,7 @@ import {
   StepHead,
   Tilt,
 } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
-import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
+import { EMPLOYEE_SERVICES_BREADCRUMB, ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { CLEARANCE_PATHS } from '../employeeServicesPaths.js'
 import { STATUS_TEXT, isEditable } from '../shared/formRecords.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
@@ -61,7 +61,7 @@ export default function ClearancePage() {
       current="clearance"
       flow={false}
       identify={NO_IDENTIFY}
-      breadcrumb={C.breadcrumb}
+      breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
       title={TITLE}
       param="clearanceId"
       load={clearanceService.getById}
@@ -419,7 +419,7 @@ function ClearanceEditor({ lookups, initial }) {
         current="clearance"
         flow={false}
         compact
-        breadcrumb={C.breadcrumb}
+        breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
         title={TITLE}
         tools={tools}
         primary={{

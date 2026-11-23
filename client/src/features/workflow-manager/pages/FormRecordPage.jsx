@@ -11,16 +11,25 @@ import {
 } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import FormEditor from '../components/FormEditor.jsx'
-import { ActivationDialog, ActiveBadge, VersionTable } from '../components/WorkflowUi.jsx'
+import {
+  ActivationDialog,
+  ActiveBadge,
+  FormJourney,
+  ReadinessBadge,
+  TechnicalDetails,
+  VersionTable,
+} from '../components/WorkflowUi.jsx'
+import { formReadiness } from '../smartMappingModel.js'
 import useWorkflowAction from '../useWorkflowAction.js'
 import { PATHS, WORKFLOW_ACTIONS, formDraft } from '../workflowManagerModel.js'
 import { workflowManagerService } from '../workflowManagerService.js'
 
 const ID = /^[1-9][0-9]{0,18}$/
 
-// One registered form (GET /workflow-manager/forms/:formId, FORM_REGISTRY:VIEW):
-// its identity and audit details, editing (UPDATE) with optimistic locking,
-// activation (ACTIVATE / DEACTIVATE) and its read-only mapping versions.
+// One registered form (GET /workflow-manager/forms/:formId, FORM_REGISTRY:VIEW): how ready it is
+// for workflows, its business details, editing (UPDATE) with optimistic locking, activation
+// (ACTIVATE / DEACTIVATE) and its read-only business data versions. Technical identity (form code,
+// detail route, record version, fingerprints) is shown to form administrators only.
 export default function FormRecordPage() {
   const { formId } = useParams()
   const location = useLocation()
@@ -33,6 +42,7 @@ export default function FormRecordPage() {
     workflowManagerService.listFormVersions(formId, { signal }),
   )
   const canEdit = can(WORKFLOW_ACTIONS.FORMS_UPDATE)
+  const technical = canEdit || can(WORKFLOW_ACTIONS.FORMS_CREATE)
   // Module names for the select; the lookup needs only FORM_REGISTRY:VIEW.
   const modules = useResource(validId ? 'wf-modules' : null, (signal) =>
     workflowManagerService.listModules({ signal }),
@@ -69,7 +79,7 @@ export default function FormRecordPage() {
     <AdminPage
       eyebrow="Workflow Manager · Form registry"
       title={form.data ? form.data.formName : 'Registered form'}
-      description={form.data ? `Form code ${form.data.formCode}` : undefined}
+      description={form.data ? form.data.moduleName || form.data.moduleCode : undefined}
       actions={
         <Link className="btn-secondary" to={PATHS.forms}>
           Back to registry
@@ -102,86 +112,110 @@ export default function FormRecordPage() {
             record.isActive ? WORKFLOW_ACTIONS.FORMS_DEACTIVATE : WORKFLOW_ACTIONS.FORMS_ACTIVATE,
           )
           return (
-            <div className="zrv-admin-split">
+            <>
               <Panel
-                title="Registration"
-                actions={
-                  canToggle && (
-                    <button
-                      type="button"
-                      className={
-                        record.isActive ? 'btn-secondary zrv-admin-danger-outline' : 'btn-secondary'
-                      }
-                      onClick={() => {
-                        toggleAction.reset()
-                        setToggling(true)
-                      }}
-                    >
-                      {record.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                  )
-                }
+                title="Readiness for workflows"
+                description="What this form still needs before approval workflows can be designed for it."
+                actions={<ReadinessBadge readiness={formReadiness(record)} />}
               >
-                <DetailList
-                  items={[
-                    ['Status', <ActiveBadge key="status" active={record.isActive} />],
-                    ['Form code', <code key="code">{record.formCode}</code>],
-                    [
-                      'Module',
-                      record.moduleName
-                        ? `${record.moduleName} (${record.moduleCode})`
-                        : record.moduleCode,
-                    ],
-                    ['Mapping versions', String(record.versionCount)],
-                    [
-                      'Registered',
-                      `${formatInstant(record.createdAt)}${record.createdByName ? ` by ${record.createdByName}` : ''}`,
-                    ],
-                    [
-                      'Last updated',
-                      `${formatInstant(record.updatedAt)}${record.updatedByName ? ` by ${record.updatedByName}` : ''}`,
-                    ],
-                    ['Record version', String(record.rowVersion)],
-                  ]}
-                />
+                <FormJourney form={record} />
               </Panel>
-              <Panel
-                title={canEdit ? 'Edit details' : 'Details'}
-                description={
-                  canEdit
-                    ? 'Changes are saved only if nobody else changed the form since you opened it.'
-                    : 'You can view this form but not change it.'
-                }
-              >
-                <FormEditor
-                  key={`${record.formId}:${record.rowVersion}:${editorKey}`}
-                  initial={formDraft(record)}
-                  create={false}
-                  readOnly={!canEdit}
-                  modules={modules}
-                  action={action}
-                  onReload={reload}
-                  onSubmit={async (payload) => {
-                    const outcome = await action.run(
-                      () =>
-                        workflowManagerService.updateForm(record.formId, {
-                          ...payload,
-                          rowVersion: record.rowVersion,
-                        }),
-                      { success: 'Changes saved.' },
+              <div className="zrv-admin-split">
+                <Panel
+                  title="Registration"
+                  actions={
+                    canToggle && (
+                      <button
+                        type="button"
+                        className={
+                          record.isActive
+                            ? 'btn-secondary zrv-admin-danger-outline'
+                            : 'btn-secondary'
+                        }
+                        onClick={() => {
+                          toggleAction.reset()
+                          setToggling(true)
+                        }}
+                      >
+                        {record.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
                     )
-                    if (outcome.status === 'success' || outcome.status === 'unknown') {
-                      setNotice(null)
-                      form.reload()
-                    }
-                  }}
-                />
-              </Panel>
+                  }
+                >
+                  <DetailList
+                    items={[
+                      ['Status', <ActiveBadge key="status" active={record.isActive} />],
+                      ['Module', record.moduleName || record.moduleCode],
+                      ['Business data versions', String(record.versionCount)],
+                      [
+                        'Registered',
+                        `${formatInstant(record.createdAt)}${record.createdByName ? ` by ${record.createdByName}` : ''}`,
+                      ],
+                      [
+                        'Last updated',
+                        `${formatInstant(record.updatedAt)}${record.updatedByName ? ` by ${record.updatedByName}` : ''}`,
+                      ],
+                    ]}
+                  />
+                  {technical && (
+                    <TechnicalDetails>
+                      <DetailList
+                        items={[
+                          ['Form code', <code key="code">{record.formCode}</code>],
+                          ['Module code', <code key="module">{record.moduleCode}</code>],
+                          [
+                            'Detail route',
+                            record.detailRoute ? (
+                              <code key="route">{record.detailRoute}</code>
+                            ) : (
+                              'Not set'
+                            ),
+                          ],
+                          ['Record version', String(record.rowVersion)],
+                        ]}
+                      />
+                    </TechnicalDetails>
+                  )}
+                </Panel>
+                <Panel
+                  title={canEdit ? 'Edit details' : 'Details'}
+                  description={
+                    canEdit
+                      ? 'Changes are saved only if nobody else changed the form since you opened it.'
+                      : 'You can view this form but not change it.'
+                  }
+                >
+                  <FormEditor
+                    key={`${record.formId}:${record.rowVersion}:${editorKey}`}
+                    initial={formDraft(record)}
+                    create={false}
+                    readOnly={!canEdit}
+                    technical={technical}
+                    modules={modules}
+                    action={action}
+                    onReload={reload}
+                    onSubmit={async (payload) => {
+                      const outcome = await action.run(
+                        () =>
+                          workflowManagerService.updateForm(record.formId, {
+                            ...payload,
+                            rowVersion: record.rowVersion,
+                          }),
+                        { success: 'Changes saved.' },
+                      )
+                      if (outcome.status === 'success' || outcome.status === 'unknown') {
+                        setNotice(null)
+                        form.reload()
+                      }
+                    }}
+                  />
+                </Panel>
+              </div>
               {toggling && (
                 <ActivationDialog
                   item={record}
                   entity="form"
-                  label={record.formCode}
+                  label={record.formName}
                   pending={toggleAction.pending}
                   feedback={toggleAction.feedback}
                   onClose={() => setToggling(false)}
@@ -195,7 +229,7 @@ export default function FormRecordPage() {
                         ),
                       {
                         success: (saved) =>
-                          `${saved.formCode} ${saved.isActive ? 'activated' : 'deactivated'}.`,
+                          `${saved.formName} ${saved.isActive ? 'activated' : 'deactivated'}.`,
                       },
                     )
                     if (outcome.status === 'ignored') return
@@ -204,19 +238,24 @@ export default function FormRecordPage() {
                   }}
                 />
               )}
-            </div>
+            </>
           )
         }}
       </ResourceState>
 
       {form.status === 'ready' && (
         <Panel
-          title="Mapping versions"
-          description="Read only. Each version pins the verified header source, keys, statuses and organization scope of this form."
+          title="Business data versions"
+          description="Read only. Each version records which business information of this form workflows may use. Versions are prepared by data administrators and approved before use."
         >
-          <ResourceState resource={versions} label="mapping versions" isEmpty={() => false}>
+          <ResourceState resource={versions} label="business data versions" isEmpty={() => false}>
             {(items) => (
-              <VersionTable versions={items} caption="Mapping versions of this form" sourceColumn />
+              <VersionTable
+                versions={items}
+                caption="Business data versions of this form"
+                sourceColumn
+                technical={technical}
+              />
             )}
           </ResourceState>
         </Panel>

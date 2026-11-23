@@ -1,4 +1,3 @@
-
 import '@/styles/security-permission-overrides.css'
 
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
@@ -44,16 +43,10 @@ function readCount(result) {
   const raw = result?.pagination?.total
 
   const value =
-    typeof raw === 'number'
-      ? raw
-      : typeof raw === 'string' && raw.trim() !== ''
-        ? Number(raw)
-        : NaN
+    typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN
 
   if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error(
-      'Account API did not return a valid total count.'
-    )
+    throw new Error('Account API did not return a valid total count.')
   }
 
   return value
@@ -65,37 +58,33 @@ async function loadAccountStatistics(signal) {
     limit: 1,
   }
 
-  const [total, active, enrolled, locked] =
-    await Promise.all([
-      securityAdminService.listUsers(
-        base,
-        { signal }
-      ),
+  const [total, active, enrolled, locked] = await Promise.all([
+    securityAdminService.listUsers(base, { signal }),
 
-      securityAdminService.listUsers(
-        {
-          ...base,
-          status: 'ACTIVE',
-        },
-        { signal }
-      ),
+    securityAdminService.listUsers(
+      {
+        ...base,
+        status: 'ACTIVE',
+      },
+      { signal },
+    ),
 
-      securityAdminService.listUsers(
-        {
-          ...base,
-          mfaEnrolled: 'true',
-        },
-        { signal }
-      ),
+    securityAdminService.listUsers(
+      {
+        ...base,
+        mfaEnrolled: 'true',
+      },
+      { signal },
+    ),
 
-      securityAdminService.listUsers(
-        {
-          ...base,
-          locked: 'true',
-        },
-        { signal }
-      ),
-    ])
+    securityAdminService.listUsers(
+      {
+        ...base,
+        locked: 'true',
+      },
+      { signal },
+    ),
+  ])
 
   return {
     total: readCount(total),
@@ -113,39 +102,22 @@ function percentage(value, total) {
   return `${((value / total) * 100).toFixed(1)}%`
 }
 
-function SummaryCard({
-  title,
-  icon,
-  value,
-  percentageValue,
-  color,
-}) {
+function SummaryCard({ title, icon, value, percentageValue, color }) {
   return (
-    <article
-      className={`zrv-po-stat zrv-po-stat--${color}`}
-    >
+    <article className={`zrv-po-stat zrv-po-stat--${color}`}>
       <div className="zrv-po-stat__content">
-        <span
-          className="zrv-po-stat__icon"
-          aria-hidden="true"
-        >
+        <span className="zrv-po-stat__icon" aria-hidden="true">
           <OrvexaIcon name={icon} />
         </span>
 
         <div className="zrv-po-stat__details">
-          <h2 className="zrv-po-stat__title">
-            {title}
-          </h2>
+          <h2 className="zrv-po-stat__title">{title}</h2>
 
           <div className="zrv-po-stat__values">
-            <strong className="zrv-po-stat__number">
-              {value}
-            </strong>
+            <strong className="zrv-po-stat__number">{value}</strong>
 
             {percentageValue !== null && (
-              <span className="zrv-po-stat__percentage">
-                {percentageValue}
-              </span>
+              <span className="zrv-po-stat__percentage">{percentageValue}</span>
             )}
           </div>
         </div>
@@ -168,15 +140,9 @@ function SummaryCard({
 }
 
 export default function PermissionOverridesPage() {
-  const statistics = useResource(
-    'permission-overrides:account-statistics',
-    loadAccountStatistics
-  )
+  const statistics = useResource('permission-overrides:account-statistics', loadAccountStatistics)
 
-  const data =
-    statistics.status === 'ready'
-      ? statistics.data
-      : null
+  const data = statistics.status === 'ready' ? statistics.data : null
 
   const values = {
     total: data?.total ?? null,
@@ -194,23 +160,15 @@ export default function PermissionOverridesPage() {
       >
         {/* FOUR ACCOUNT SUMMARY CARDS */}
 
-        <section
-          className="zrv-po-summary"
-          aria-label="Account statistics"
-        >
+        <section className="zrv-po-summary" aria-label="Account statistics">
           <div className="zrv-po-summary__grid">
             {SUMMARY_CARDS.map((card) => {
               const value = values[card.id]
 
               const percentageValue =
-                card.id === 'total' ||
-                value === null ||
-                values.total === null
+                card.id === 'total' || value === null || values.total === null
                   ? null
-                  : percentage(
-                      value,
-                      values.total
-                    )
+                  : percentage(value, values.total)
 
               return (
                 <SummaryCard
@@ -218,11 +176,7 @@ export default function PermissionOverridesPage() {
                   title={card.title}
                   icon={card.icon}
                   color={card.color}
-                  value={
-                    value === null
-                      ? '—'
-                      : value.toLocaleString()
-                  }
+                  value={value === null ? '—' : value.toLocaleString()}
                   percentageValue={percentageValue}
                 />
               )
@@ -230,19 +184,10 @@ export default function PermissionOverridesPage() {
           </div>
 
           {statistics.status === 'error' && (
-            <div
-              className="zrv-po-summary__error"
-              role="alert"
-            >
-              <span>
-                Account statistics could not be loaded.
-              </span>
+            <div className="zrv-po-summary__error" role="alert">
+              <span>Account statistics could not be loaded.</span>
 
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={statistics.reload}
-              >
+              <button type="button" className="btn-secondary" onClick={statistics.reload}>
                 Retry
               </button>
             </div>
@@ -251,14 +196,9 @@ export default function PermissionOverridesPage() {
 
         {/* EXISTING USER DIRECTORY */}
 
-        <section
-          className="zrv-po-directory"
-          aria-label="Manage account permission overrides"
-        >
+        <section className="zrv-po-directory" aria-label="Manage account permission overrides">
           <UserDirectory
-            rowLink={(user) =>
-              `/security/permission-overrides/${user.userId}`
-            }
+            rowLink={(user) => `/security/permission-overrides/${user.userId}`}
             rowAction="Manage overrides"
             compactReportTable
             searchPlaceholder="Search by Employee Number, Username, or Name..."

@@ -144,10 +144,19 @@ const CARDS = [
       return { all, parts }
     },
     render: (data, { pick }) => (
-      <Card index={1} icon="chart-pie" label="Approval status" theme="primary">
+      <Card
+        index={1}
+        icon="list-checks"
+        label="Status"
+        theme="primary"
+        className="zrv-ir-ov--reward-status"
+        aside={<Hint>{data && `${data.all} nominations`}</Hint>}
+      >
         <Donut
           total={data?.all}
+          all={pick({ status: '' }).onPick}
           unit="nominations"
+          unitBelow
           items={RECORD_STATUSES.map((status, index) => ({
             key: status,
             label: STATUS_TEXT[status],

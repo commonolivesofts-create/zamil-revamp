@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import '@/styles/security-user-accounts.css'
 import { useNavigate } from 'react-router'
@@ -33,10 +32,7 @@ export default function UserAccountsPage() {
   return (
     <div className="zrv-admin zrv-ua-page">
       {!provisioning && (
-        <Feedback
-          feedback={action.feedback}
-          onDismiss={() => action.setFeedback(null)}
-        />
+        <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
       )}
 
       <UserDirectory

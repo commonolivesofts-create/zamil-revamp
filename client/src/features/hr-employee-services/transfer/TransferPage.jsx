@@ -27,7 +27,11 @@ import {
   SearchableLookup,
 } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
-import { ES_COMMON_TEXT as C, TRANSFER_TEXT as T } from '../hrEmployeeServicesText.js'
+import {
+  EMPLOYEE_SERVICES_BREADCRUMB,
+  ES_COMMON_TEXT as C,
+  TRANSFER_TEXT as T,
+} from '../hrEmployeeServicesText.js'
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { NO_IDENTIFY, useEmployeeServicesUser } from '../shared/useEmployeeServicesUser.js'
@@ -62,7 +66,7 @@ export default function TransferPage() {
       current="transfer"
       flow={false}
       identify={NO_IDENTIFY}
-      breadcrumb={C.breadcrumb}
+      breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
       title={T.title}
       param="transferId"
       load={service.getById}
@@ -393,7 +397,7 @@ function TransferEditor({ lookups, record, user }) {
         current="transfer"
         flow={false}
         compact
-        breadcrumb={C.breadcrumb}
+        breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
         title={T.title}
         tools={tools}
         primary={{ label: T.saveDraft, icon: 'save', onClick: requestSubmit }}

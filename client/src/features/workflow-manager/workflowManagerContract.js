@@ -84,6 +84,7 @@ export function readForm(item) {
     description: text(item.description),
     isActive: bool(item.isActive),
     versionCount: count(item.versionCount),
+    defaultVersionNo: optionalCount(item.defaultVersionNo),
     ...audit(item),
   })
 }
@@ -100,6 +101,7 @@ export function readSource(item) {
     handlerCode: text(item.handlerCode),
     isActive: bool(item.isActive),
     versionCount: count(item.versionCount),
+    defaultVersionNo: optionalCount(item.defaultVersionNo),
     ...audit(item),
   })
 }

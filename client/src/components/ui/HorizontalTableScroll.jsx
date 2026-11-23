@@ -1,11 +1,7 @@
-
 import { useEffect, useRef, useState } from 'react'
 import './HorizontalTableScroll.css'
 
-export default function HorizontalTableScroll({
-  children,
-  className = '',
-}) {
+export default function HorizontalTableScroll({ children, className = '' }) {
   const scrollRef = useRef(null)
 
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -44,17 +40,9 @@ export default function HorizontalTableScroll({
       // Preserve browser zoom and modified wheel actions.
       if (event.ctrlKey || event.metaKey) return
 
-      const delta =
-        Math.abs(event.deltaX) > Math.abs(event.deltaY)
-          ? event.deltaX
-          : event.deltaY
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
 
-      const factor =
-        event.deltaMode === 1
-          ? 16
-          : event.deltaMode === 2
-            ? el.clientWidth
-            : 1
+      const factor = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? el.clientWidth : 1
 
       const movement = delta * factor
 
@@ -109,29 +97,29 @@ export default function HorizontalTableScroll({
       </div>
 
       <div className="zrv-horizontal-table__controls">
-          <button
-            type="button"
-            className="zrv-horizontal-table__arrow"
-            aria-label="Scroll table left"
-            disabled={!canScrollLeft}
-            onClick={() => scrollTable(-1)}
-          >
+        <button
+          type="button"
+          className="zrv-horizontal-table__arrow"
+          aria-label="Scroll table left"
+          disabled={!canScrollLeft}
+          onClick={() => scrollTable(-1)}
+        >
           ‹
-          </button>
+        </button>
 
-          <div className="zrv-horizontal-table__hint">
-            <span>Scroll horizontally</span>
-          </div>
+        <div className="zrv-horizontal-table__hint">
+          <span>Scroll horizontally</span>
+        </div>
 
-          <button
-            type="button"
-            className="zrv-horizontal-table__arrow"
-            aria-label="Scroll table right"
-            disabled={!canScrollRight}
-            onClick={() => scrollTable(1)}
-          >
+        <button
+          type="button"
+          className="zrv-horizontal-table__arrow"
+          aria-label="Scroll table right"
+          disabled={!canScrollRight}
+          onClick={() => scrollTable(1)}
+        >
           ›
-          </button>
+        </button>
       </div>
     </div>
   )

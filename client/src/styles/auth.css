@@ -104,8 +104,16 @@
   padding: clamp(20px, 3vw, 34px) clamp(20px, 3vw, 36px);
   border-bottom: 1px solid color-mix(in srgb, var(--mint-text) 14%, var(--line));
   background:
-    radial-gradient(ellipse at 92% 0%, color-mix(in srgb, var(--mint) 17%, transparent), transparent 43%),
-    linear-gradient(115deg, color-mix(in srgb, var(--mint) 9%, var(--surface-solid)), var(--surface-solid) 62%);
+    radial-gradient(
+      ellipse at 92% 0%,
+      color-mix(in srgb, var(--mint) 17%, transparent),
+      transparent 43%
+    ),
+    linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--mint) 9%, var(--surface-solid)),
+      var(--surface-solid) 62%
+    );
 }
 .zrv-account-heading {
   display: flex;
@@ -121,9 +129,15 @@
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--mint) 36%, transparent);
   border-radius: 17px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--mint) 28%, white), color-mix(in srgb, var(--mint) 12%, var(--surface-solid)));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--mint) 28%, white),
+    color-mix(in srgb, var(--mint) 12%, var(--surface-solid))
+  );
   color: var(--mint-text);
-  box-shadow: 0 9px 22px color-mix(in srgb, var(--mint-text) 12%, transparent), inset 0 1px 0 rgb(255 255 255 / 70%);
+  box-shadow:
+    0 9px 22px color-mix(in srgb, var(--mint-text) 12%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 70%);
 }
 .zrv-account-heading__eyebrow,
 .zrv-account-aside__eyebrow {
@@ -170,7 +184,11 @@
 #main-content > .zrv-auth-page.zrv-account-panel .ux-panel-body {
   min-width: 0;
   padding: clamp(18px, 2.4vw, 30px);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--mint) 3%, var(--surface-solid)), var(--surface-solid) 64%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--mint) 3%, var(--surface-solid)),
+    var(--surface-solid) 64%
+  );
 }
 .zrv-account-layout {
   display: grid;
@@ -211,7 +229,9 @@
   height: 250px;
   border: 1px solid rgb(174 246 207 / 12%);
   border-radius: 50%;
-  box-shadow: 0 0 0 24px rgb(174 246 207 / 3%), 0 0 0 50px rgb(174 246 207 / 2%);
+  box-shadow:
+    0 0 0 24px rgb(174 246 207 / 3%),
+    0 0 0 50px rgb(174 246 207 / 2%);
   content: '';
 }
 .zrv-account-aside__art {
@@ -249,7 +269,9 @@
   border-radius: 23px;
   background: linear-gradient(145deg, #89e4b3, #39a979 76%);
   color: #0d4a34;
-  box-shadow: 0 12px 34px rgb(0 0 0 / 23%), inset 0 1px 0 rgb(255 255 255 / 65%);
+  box-shadow:
+    0 12px 34px rgb(0 0 0 / 23%),
+    inset 0 1px 0 rgb(255 255 255 / 65%);
   transform: rotate(-7deg);
 }
 .zrv-account-aside__spark {
@@ -301,7 +323,10 @@
   background: rgb(255 255 255 / 8%);
   color: #fff;
   text-decoration: none;
-  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
 }
 .zrv-account-aside__link:hover {
   border-color: rgb(222 255 237 / 48%);
@@ -340,13 +365,19 @@
 .zrv-account-layout--authenticator .zrv-account-aside {
   background:
     radial-gradient(ellipse at 84% 4%, rgb(69 196 137 / 18%), transparent 41%),
-    linear-gradient(145deg, color-mix(in srgb, var(--mint) 9%, var(--surface-solid)), var(--surface-solid));
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--mint) 9%, var(--surface-solid)),
+      var(--surface-solid)
+    );
   color: var(--text);
   box-shadow: none;
 }
 .zrv-account-layout--authenticator .zrv-account-aside::after {
   border-color: color-mix(in srgb, var(--mint) 14%, transparent);
-  box-shadow: 0 0 0 24px color-mix(in srgb, var(--mint) 3%, transparent), 0 0 0 50px color-mix(in srgb, var(--mint) 2%, transparent);
+  box-shadow:
+    0 0 0 24px color-mix(in srgb, var(--mint) 3%, transparent),
+    0 0 0 50px color-mix(in srgb, var(--mint) 2%, transparent);
 }
 .zrv-account-layout--authenticator .zrv-account-aside__eyebrow {
   color: var(--mint-text);
@@ -480,8 +511,16 @@
   border: 1px solid color-mix(in srgb, var(--mint) 24%, var(--line));
   border-radius: var(--ui-panel-radius, 18px);
   background:
-    radial-gradient(ellipse at 88% 18%, color-mix(in srgb, var(--mint) 28%, transparent), transparent 42%),
-    linear-gradient(112deg, color-mix(in srgb, var(--mint) 18%, var(--surface-solid)), var(--surface-solid) 72%);
+    radial-gradient(
+      ellipse at 88% 18%,
+      color-mix(in srgb, var(--mint) 28%, transparent),
+      transparent 42%
+    ),
+    linear-gradient(
+      112deg,
+      color-mix(in srgb, var(--mint) 18%, var(--surface-solid)),
+      var(--surface-solid) 72%
+    );
   isolation: isolate;
 }
 #main-content > .zrv-auth-page.zrv-account-panel--password .ux-panel-head::after {
@@ -493,7 +532,11 @@
   height: 190px;
   border: 1px solid color-mix(in srgb, var(--mint) 19%, transparent);
   border-radius: 48% 0 0 48%;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--mint) 10%, transparent), transparent 76%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--mint) 10%, transparent),
+    transparent 76%
+  );
   content: '';
   transform: rotate(-12deg);
   pointer-events: none;
@@ -566,7 +609,11 @@
   border-color: color-mix(in srgb, var(--mint) 26%, var(--line));
   border-left: 3px solid var(--mint-text);
   border-radius: 12px;
-  background: linear-gradient(100deg, color-mix(in srgb, var(--mint) 15%, var(--surface-solid)), color-mix(in srgb, var(--mint) 6%, var(--surface-solid)));
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--mint) 15%, var(--surface-solid)),
+    color-mix(in srgb, var(--mint) 6%, var(--surface-solid))
+  );
 }
 .zrv-password-expiry p {
   font-size: 12px;
@@ -628,7 +675,11 @@
   padding: 12px 0 12px 16px;
   border-left-color: color-mix(in srgb, var(--mint) 45%, var(--line));
   border-radius: 0 12px 12px 0;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--mint) 8%, transparent), transparent 90%);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--mint) 8%, transparent),
+    transparent 90%
+  );
 }
 .zrv-password-requirements h2 {
   font-size: 14px;
@@ -705,7 +756,7 @@
   color: #c8f2d8;
   font-size: 9px;
   font-weight: 750;
-  letter-spacing: .1em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 .zrv-password-requirements__header h2 {
@@ -724,7 +775,11 @@
 }
 .zrv-password-requirements__body {
   padding: 14px 16px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--mint) 8%, var(--surface-solid)), color-mix(in srgb, var(--mint) 3%, var(--surface-solid)) 70%);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--mint) 8%, var(--surface-solid)),
+    color-mix(in srgb, var(--mint) 3%, var(--surface-solid)) 70%
+  );
 }
 .zrv-password-score {
   margin-bottom: 7px;
@@ -734,7 +789,10 @@
   color: var(--mint-text);
   font-size: 22px;
 }
-.zrv-password-score span { color: var(--muted); font-size: 12px; }
+.zrv-password-score span {
+  color: var(--muted);
+  font-size: 12px;
+}
 .zrv-password-requirements__body > .zrv-password-progress__track {
   height: 9px;
   margin: 0 0 12px;
@@ -756,10 +814,18 @@
   color: var(--text);
   font-size: 13px;
 }
-.zrv-password-progress { margin-top: 10px; }
-.zrv-password-progress--weak .zrv-password-progress__label > span { color: var(--danger-text); }
-.zrv-password-progress--medium .zrv-password-progress__label > span { color: var(--amber-text); }
-.zrv-password-progress--strong .zrv-password-progress__label > span { color: var(--mint-text); }
+.zrv-password-progress {
+  margin-top: 10px;
+}
+.zrv-password-progress--weak .zrv-password-progress__label > span {
+  color: var(--danger-text);
+}
+.zrv-password-progress--medium .zrv-password-progress__label > span {
+  color: var(--amber-text);
+}
+.zrv-password-progress--strong .zrv-password-progress__label > span {
+  color: var(--mint-text);
+}
 .zrv-account-panel--password .zrv-password-session-strip {
   margin-top: 14px;
   border-radius: 14px;
@@ -814,7 +880,8 @@
   width: 270px;
   height: 230px;
   border-color: color-mix(in srgb, var(--mint) 15%, transparent);
-  box-shadow: 0 0 0 20px color-mix(in srgb, var(--mint) 4%, transparent),
+  box-shadow:
+    0 0 0 20px color-mix(in srgb, var(--mint) 4%, transparent),
     0 0 0 42px color-mix(in srgb, var(--mint) 3%, transparent);
 }
 .zrv-password-security__art {
@@ -987,7 +1054,11 @@
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--mint) 24%, var(--line));
   border-radius: 20px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--mint) 5%, var(--surface-solid)), var(--surface-solid));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--mint) 5%, var(--surface-solid)),
+    var(--surface-solid)
+  );
   box-shadow: 0 12px 32px color-mix(in srgb, var(--mint-text) 7%, transparent);
 }
 .zrv-authenticator-page-main > .ux-panel-head {
@@ -1002,13 +1073,21 @@
   padding: 16px 18px;
   border: 1px solid color-mix(in srgb, var(--mint) 27%, var(--line));
   border-radius: 15px;
-  background: linear-gradient(112deg, color-mix(in srgb, var(--mint) 17%, var(--surface-solid)), var(--surface-solid) 82%);
+  background: linear-gradient(
+    112deg,
+    color-mix(in srgb, var(--mint) 17%, var(--surface-solid)),
+    var(--surface-solid) 82%
+  );
   color: var(--text);
   isolation: isolate;
   box-shadow: none;
 }
 #main-content .zrv-account-panel--authenticator .zrv-authenticator-page-main > .ux-panel-head {
-  background: linear-gradient(112deg, color-mix(in srgb, var(--mint) 17%, var(--surface-solid)), var(--surface-solid) 82%);
+  background: linear-gradient(
+    112deg,
+    color-mix(in srgb, var(--mint) 17%, var(--surface-solid)),
+    var(--surface-solid) 82%
+  );
   color: var(--text);
 }
 .zrv-authenticator-page-main > .ux-panel-head::before,
@@ -1025,7 +1104,9 @@
   right: -92px;
   width: 320px;
   height: 250px;
-  box-shadow: 0 0 0 26px color-mix(in srgb, var(--mint) 4%, transparent), 0 0 0 58px color-mix(in srgb, var(--mint) 3%, transparent);
+  box-shadow:
+    0 0 0 26px color-mix(in srgb, var(--mint) 4%, transparent),
+    0 0 0 58px color-mix(in srgb, var(--mint) 3%, transparent);
   transform: rotate(-24deg);
 }
 .zrv-authenticator-page-main > .ux-panel-head::after {
@@ -1033,7 +1114,11 @@
   bottom: -130px;
   width: 310px;
   height: 190px;
-  background: linear-gradient(145deg, transparent, color-mix(in srgb, var(--mint) 12%, transparent));
+  background: linear-gradient(
+    145deg,
+    transparent,
+    color-mix(in srgb, var(--mint) 12%, transparent)
+  );
   transform: rotate(-18deg);
 }
 .zrv-account-panel--authenticator .zrv-account-heading {
@@ -1157,7 +1242,11 @@
   padding: 12px 15px;
   border: 1px solid color-mix(in srgb, var(--amber) 50%, var(--line));
   border-radius: 14px;
-  background: linear-gradient(110deg, color-mix(in srgb, var(--amber) 15%, var(--surface-solid)), color-mix(in srgb, var(--amber) 5%, var(--surface-solid)));
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--amber) 15%, var(--surface-solid)),
+    color-mix(in srgb, var(--amber) 5%, var(--surface-solid))
+  );
   color: var(--text);
 }
 .zrv-authenticator-warning__icon {
@@ -1188,8 +1277,16 @@
   border-color: color-mix(in srgb, var(--mint) 24%, var(--line));
   border-radius: 20px;
   background:
-    radial-gradient(ellipse at 90% 2%, color-mix(in srgb, var(--mint) 22%, transparent), transparent 36%),
-    linear-gradient(145deg, color-mix(in srgb, var(--mint) 8%, var(--surface-solid)), var(--surface-solid) 68%);
+    radial-gradient(
+      ellipse at 90% 2%,
+      color-mix(in srgb, var(--mint) 22%, transparent),
+      transparent 36%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--mint) 8%, var(--surface-solid)),
+      var(--surface-solid) 68%
+    );
   box-shadow: 0 16px 38px color-mix(in srgb, var(--mint-text) 10%, transparent);
 }
 .zrv-account-panel--authenticator .zrv-account-aside__art {
@@ -1201,7 +1298,11 @@
   height: 82px;
   border: 1px solid color-mix(in srgb, var(--mint) 42%, var(--line));
   border-radius: 26px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--mint) 64%, white), color-mix(in srgb, var(--mint) 30%, var(--surface-solid)));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--mint) 64%, white),
+    color-mix(in srgb, var(--mint) 30%, var(--surface-solid))
+  );
   color: var(--mint-text);
   box-shadow: 0 14px 30px color-mix(in srgb, var(--mint-text) 16%, transparent);
   transform: rotate(-6deg);
@@ -1302,8 +1403,16 @@
   border: 1px solid color-mix(in srgb, var(--mint) 28%, var(--line));
   border-radius: 17px;
   background:
-    radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--mint) 16%, transparent), transparent 43%),
-    linear-gradient(120deg, color-mix(in srgb, var(--mint) 8%, var(--surface-solid)), var(--surface-solid));
+    radial-gradient(
+      ellipse at 100% 0%,
+      color-mix(in srgb, var(--mint) 16%, transparent),
+      transparent 43%
+    ),
+    linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--mint) 8%, var(--surface-solid)),
+      var(--surface-solid)
+    );
   box-shadow: 0 12px 30px color-mix(in srgb, var(--mint-text) 8%, transparent);
 }
 .zrv-authenticator-replace-card__icon,
@@ -1473,6 +1582,7 @@
     padding: 16px;
   }
 }
+
 /* Batch C: password fields and live policy checklist. */
 .zrv-auth-page .zrv-password-input {
   position: relative;
@@ -2060,40 +2170,15 @@
 
 /* Compact password form using the HR requisition card and control language. */
 .zrv-hr--password-page {
-  width: 100%;
-  max-width: none;
-  gap: 7px;
-}
-.zrv-hr--password-page > .zrv-hr-head {
-  min-height: 0;
-  padding: 0 2px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  width: min(100%, 1440px);
+  max-width: 1440px;
+  gap: 12px;
 }
 .zrv-password-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   gap: 9px;
-}
-.zrv-password-page-intro {
-  align-self: flex-start;
-  margin: 0 2px 1px;
-  text-align: left;
-}
-.zrv-password-page-intro h2 {
-  margin: 0;
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 750;
-  line-height: 1.3;
-}
-.zrv-password-page-intro p {
-  margin: 1px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.4;
 }
 .zrv-hr--password-page .zrv-password-form-card {
   min-width: 0;
@@ -2223,7 +2308,10 @@
   color: #075d3b !important;
   cursor: not-allowed;
 }
-.zrv-hr--password-page .zrv-password-form__actions .btn-primary:disabled .zrv-password-submit-label {
+.zrv-hr--password-page
+  .zrv-password-form__actions
+  .btn-primary:disabled
+  .zrv-password-submit-label {
   color: #075d3b !important;
   -webkit-text-fill-color: #075d3b !important;
 }
@@ -2470,15 +2558,20 @@
   border-radius: var(--ui-inner-radius, 12px);
   box-shadow: none;
 }
-.zrv-authenticator-replace-card:not(.zrv-authenticator-replace-card--setup) .zrv-authenticator-replace-card__icon {
+.zrv-authenticator-replace-card:not(.zrv-authenticator-replace-card--setup)
+  .zrv-authenticator-replace-card__icon {
   width: 42px;
   height: 42px;
   border-radius: 11px;
 }
-.zrv-authenticator-replace-card:not(.zrv-authenticator-replace-card--setup) .zrv-authenticator-replace-card__copy h2 {
+.zrv-authenticator-replace-card:not(.zrv-authenticator-replace-card--setup)
+  .zrv-authenticator-replace-card__copy
+  h2 {
   font-size: 14px;
 }
-.zrv-authenticator-replace-card:not(.zrv-authenticator-replace-card--setup) .zrv-authenticator-replace-card__copy p {
+.zrv-authenticator-replace-card:not(.zrv-authenticator-replace-card--setup)
+  .zrv-authenticator-replace-card__copy
+  p {
   margin-top: 3px;
   font-size: 10px;
   line-height: 1.4;
@@ -2569,7 +2662,8 @@
   .zrv-authenticator-replace-card:not(.zrv-authenticator-replace-card--setup) {
     grid-template-columns: 38px minmax(0, 1fr);
   }
-  .zrv-authenticator-replace-card:not(.zrv-authenticator-replace-card--setup) .zrv-authenticator-replace-card__icon {
+  .zrv-authenticator-replace-card:not(.zrv-authenticator-replace-card--setup)
+    .zrv-authenticator-replace-card__icon {
     width: 36px;
     height: 36px;
   }
@@ -2577,5 +2671,105 @@
     grid-column: 1 / -1;
     justify-self: stretch;
     width: 100%;
+  }
+}
+/* Use the full workspace width and let the security guidance stack below the
+   form when a narrow viewport or application sidebar reduces available space. */
+#main-content > .zrv-auth-page.zrv-account-panel--authenticator,
+.zrv-auth-page.zrv-account-panel--authenticator {
+  display: flex;
+  box-sizing: border-box;
+  flex: 0 1 1440px;
+  flex-direction: column;
+  align-self: center;
+  align-items: stretch;
+  width: min(100%, 1440px);
+  min-width: 0;
+  max-width: 1440px;
+  margin: 0 auto;
+  gap: 14px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+.zrv-account-panel--authenticator > .zrv-hr-form-header {
+  width: 100%;
+  min-width: 0;
+}
+.zrv-account-panel--authenticator .zrv-hr-head__row {
+  width: 100%;
+  align-items: center;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-header-status {
+  position: static;
+  flex: none;
+  margin-left: auto;
+  padding: 6px 9px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-layout {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+  gap: 18px;
+  grid-template-rows: auto;
+  grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.8fr);
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-main,
+.zrv-account-panel--authenticator .zrv-authenticator-aside {
+  min-width: 0;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-main {
+  display: contents;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-main > .ux-panel-body {
+  display: contents;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-main .zrv-account-layout__main {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: stretch;
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-main .zrv-account-layout__main {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-solid);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 5%, transparent);
+}
+.zrv-account-panel--authenticator .zrv-authenticator-page-layout > .zrv-authenticator-aside {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: stretch;
+  margin-top: 0;
+}
+@media (max-width: 900px) {
+  .zrv-account-panel--authenticator .zrv-authenticator-page-layout {
+    grid-template-rows: auto auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zrv-account-panel--authenticator .zrv-authenticator-page-layout > .zrv-authenticator-aside {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    margin-top: 0;
+  }
+}
+@media (max-width: 560px) {
+  .zrv-auth-page.zrv-account-panel--authenticator {
+    width: 100%;
+    padding: 0;
+  }
+  .zrv-account-panel--authenticator .zrv-authenticator-page-main {
+    gap: 8px;
+    padding: 0;
+  }
+  .zrv-account-panel--authenticator .zrv-authenticator-page-main .zrv-account-layout__main {
+    padding: 12px;
   }
 }

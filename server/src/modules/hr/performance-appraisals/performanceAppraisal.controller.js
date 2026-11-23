@@ -2,6 +2,9 @@ import { sendPaginated, sendSuccess } from '../../../shared/responses/apiRespons
 
 export function createPerformanceAppraisalController({ performanceAppraisalService }) {
   return {
+    async counts(req, res) {
+      sendSuccess(res, { counts: await performanceAppraisalService.counts(req.auth, req.body) });
+    },
     async list(req, res) {
       const { total, items } = await performanceAppraisalService.list(req.auth, req.query);
       sendPaginated(res, items, { page: req.query.page, limit: req.query.pageSize, total });

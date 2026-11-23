@@ -88,12 +88,24 @@ if (!existsSync(viteCli)) {
   process.exit(1)
 }
 
-console.log(`[dev] Starting Zamil Digitalization, TrainingHub and ExpenseHub (APP_ENV=${appEnv}).`)
-console.log('[dev] Zamil :7382 · TrainingHub :7384 · ExpenseHub :7386 · Ctrl+C stops all three.')
+// The Attendance rebuild starts only once installed, so a fresh checkout still runs the rest.
+const attendanceRoot = path.join(repoRoot, 'attendance')
+const withAttendance = existsSync(path.join(attendanceRoot, 'node_modules'))
+
+console.log(
+  `[dev] Starting Zamil Digitalization, TrainingHub, ExpenseHub${withAttendance ? ' and Attendance' : ''} (APP_ENV=${appEnv}).`,
+)
+console.log(
+  `[dev] Zamil :7382 · TrainingHub :7384 · ExpenseHub :7386${withAttendance ? ' · Attendance :7388' : ''} · Ctrl+C stops all.`,
+)
+if (!withAttendance) {
+  console.log('[dev] Attendance is not installed; run npm install in attendance/ to start it too.')
+}
 
 start('Zamil web', process.execPath, [viteCli], clientRoot)
 start('TrainingHub', npm, ['run', 'dev'], path.join(repoRoot, 'traininghub'))
 start('ExpenseHub', npm, ['run', 'dev'], path.join(repoRoot, 'expensehub'))
+if (withAttendance) start('Attendance', npm, ['run', 'dev'], attendanceRoot)
 
 process.on('SIGINT', () => stopAll(0))
 process.on('SIGTERM', () => stopAll(0))
