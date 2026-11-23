@@ -140,7 +140,7 @@ terminal stops all three frontends and both hub APIs. Use `npm run dev:web` in `
 need the Zamil frontend.
 
 **Attendance System** (Human resources → Attendance System) is the React + Node app in
-[`attendance/`](../attendance/README.md): web **http://localhost:7388**, API :7387. Once you have run
+[`attendance/`](../attendance/README.md) (new machine: [setup guide](../attendance/SETUP.md)): web **http://localhost:7388**, API :7387. Once you have run
 `npm install` in `attendance/`, the client's `npm run dev` starts it too. It signs users in with the
 Zamil session, like the hubs. Its sidebar link appears when `client/.env` sets
 `VITE_EXTERNAL_ATTENDANCE_SYSTEM=http://localhost:7388/`.
