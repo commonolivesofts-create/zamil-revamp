@@ -1,34 +1,63 @@
 /* Attendance dashboard — "attendance pulse" (zat-pulse-*).
-   Colours come only from the Orvexa template tokens (theme-green.css and the purchased CSS):
-   --primary / --primary-2 / --gc-mint / --glow for the brand greens, --amber(-text) for
-   "needs attention", --danger(-text) for problems, --surface-2/3 for neutral tracks,
-   --gc-glass and --gc-shadow-soft for glass and depth. Light and dark follow the template. */
+   Base colours come from the Orvexa template tokens (--primary greens, --surface-*, --text,
+   --muted, --gc-glass, --gc-shadow-soft). Accents are the same five hues the Talent
+   Management dashboard uses (green, sky, violet, amber, rose), with its dark-mode values,
+   so the HR dashboards read as one family. */
 
 .zat-report {
   --zp-1: var(--primary);
   --zp-2: var(--primary-2);
   --zp-3: var(--gc-mint, color-mix(in srgb, var(--primary) 60%, var(--surface-solid)));
   --zp-4: color-mix(in srgb, var(--primary) 30%, var(--surface-solid));
-  --zp-watch: var(--amber);
-  --zp-watch-text: var(--amber-text, var(--amber));
-  --zp-alert: var(--danger);
-  --zp-alert-text: var(--danger-text, var(--danger));
+  --zp-green: #0f9f75;
+  --zp-sky: #0284c7;
+  --zp-violet: #7c3aed;
+  --zp-amber: #c98a12;
+  --zp-rose: #e11d48;
+  --zp-watch: var(--zp-amber);
+  --zp-watch-text: var(--amber-text, var(--zp-amber));
+  --zp-alert: var(--zp-rose);
+  --zp-alert-text: var(--danger-text, var(--zp-rose));
   --zp-tint: var(--glow, color-mix(in srgb, var(--primary) 10%, transparent));
   --zp-card: var(--surface-solid);
   --zp-glass: var(--gc-glass, var(--surface-solid));
   --zp-shadow: var(--gc-shadow-soft, 0 6px 20px -14px rgb(0 0 0 / 25%));
 }
 
+html.dark .zat-report {
+  --zp-green: #2dd4a0;
+  --zp-sky: #38bdf8;
+  --zp-violet: #a78bfa;
+  --zp-amber: #f4c95d;
+  --zp-rose: #fb7185;
+  --zp-watch-text: var(--zp-amber);
+  --zp-alert-text: var(--zp-rose);
+}
+
 /* Tones used by components (--c main, --c2 lighter companion). */
-.zat-t-teal,
-.zat-t-indigo,
-.zat-t-sky {
-  --c: var(--zp-1);
+.zat-t-teal {
+  --c: var(--zp-green);
+  --c2: color-mix(in srgb, var(--zp-green) 55%, var(--zp-sky));
+}
+.zat-t-indigo {
+  --c: var(--primary);
   --c2: var(--zp-3);
 }
+.zat-t-sky {
+  --c: var(--zp-sky);
+  --c2: color-mix(in srgb, var(--zp-sky) 55%, var(--zp-green));
+}
 .zat-t-violet {
-  --c: var(--zp-2);
-  --c2: var(--zp-4);
+  --c: var(--zp-violet);
+  --c2: color-mix(in srgb, var(--zp-violet) 60%, var(--zp-sky));
+}
+.zat-t-amber {
+  --c: var(--zp-amber);
+  --c2: color-mix(in srgb, var(--zp-amber) 60%, var(--zp-rose));
+}
+.zat-t-rose {
+  --c: var(--zp-rose);
+  --c2: color-mix(in srgb, var(--zp-rose) 60%, var(--zp-violet));
 }
 .zat-t-g3 {
   --c: var(--zp-3);
@@ -41,14 +70,6 @@
 .zat-t-muted {
   --c: color-mix(in srgb, var(--muted) 45%, var(--surface-solid));
   --c2: var(--c);
-}
-.zat-t-amber {
-  --c: var(--zp-watch);
-  --c2: color-mix(in srgb, var(--zp-watch) 55%, var(--surface-solid));
-}
-.zat-t-rose {
-  --c: var(--zp-alert);
-  --c2: color-mix(in srgb, var(--zp-alert) 55%, var(--surface-solid));
 }
 
 .zat-pulse .sr-only {
@@ -262,7 +283,9 @@
   padding: 16px 16px 44px;
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: var(--zp-card);
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--c) 9%, transparent), transparent 58%),
+    var(--zp-card);
   box-shadow: var(--zp-shadow);
   overflow: hidden;
   animation: zp-rise 0.45s ease both;
@@ -270,6 +293,14 @@
   transition:
     transform 0.2s ease,
     border-color 0.2s ease;
+}
+
+.zat-pulse-kpi::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--c), var(--c2));
 }
 
 .zat-pulse-kpi:hover {
@@ -296,8 +327,9 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  color: var(--c);
-  background: color-mix(in srgb, var(--c) 12%, transparent);
+  color: #fff;
+  background: linear-gradient(135deg, var(--c), var(--c2));
+  box-shadow: 0 6px 14px -8px var(--c);
 }
 
 .zat-pulse-kpi__value {
@@ -323,7 +355,7 @@
   width: 100%;
   height: 34px;
   color: var(--c);
-  opacity: 0.7;
+  opacity: 0.9;
 }
 
 .zat-pulse-spark__line {
@@ -373,8 +405,8 @@
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 11%, transparent);
+  color: var(--c, var(--primary));
+  background: color-mix(in srgb, var(--c, var(--primary)) 14%, transparent);
 }
 
 .zat-pulse-panel h3 {
@@ -417,11 +449,11 @@
 }
 
 .zat-pulse-stop-a {
-  stop-color: var(--zp-1);
+  stop-color: var(--zp-green);
 }
 
 .zat-pulse-stop-b {
-  stop-color: var(--zp-2);
+  stop-color: var(--zp-sky);
 }
 
 .zat-pulse-axis line {

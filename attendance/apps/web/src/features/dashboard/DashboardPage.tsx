@@ -29,14 +29,14 @@ function kpis(d: Dashboard): Kpi[] {
       value: d.totalEmployees,
       note: `Current employees in ${d.departments.length} departments`,
       icon: 'users',
-      tone: 'indigo',
+      tone: 'teal',
     },
     {
       label: 'Present per Day',
       value: avgPresent,
       note: 'Average employees with a punch',
       icon: 'user-check',
-      tone: 'teal',
+      tone: 'sky',
       spark: d.trend.map((r) => r.present),
     },
     {
@@ -83,6 +83,7 @@ function Overview({ data }: { data: Dashboard }) {
         <Panel
           id="dash-rate"
           icon="activity"
+          tone="teal"
           title="Attendance Rate"
           note="Share of scheduled employees present on each processed day."
         >
@@ -91,6 +92,7 @@ function Overview({ data }: { data: Dashboard }) {
         <Panel
           id="dash-checklist"
           icon="list-checks"
+          tone="amber"
           title="Payroll Checklist"
           note="Resolve open steps before releasing the payroll file."
         >
@@ -141,6 +143,7 @@ function Overview({ data }: { data: Dashboard }) {
         <Panel
           id="dash-leave"
           icon="calendar-x"
+          tone="sky"
           title="Leave & Absence Mix"
           note="Days by type, weekends excluded."
         >
@@ -149,6 +152,7 @@ function Overview({ data }: { data: Dashboard }) {
         <Panel
           id="dash-overtime"
           icon="trending-up"
+          tone="violet"
           title="Overtime Leaders"
           note="Hours this period."
         >
@@ -162,6 +166,7 @@ function Overview({ data }: { data: Dashboard }) {
         <Panel
           id="dash-late"
           icon="clock-alert"
+          tone="rose"
           title="Lateness Watchlist"
           note="Late minutes this period."
         >
@@ -178,6 +183,7 @@ function Overview({ data }: { data: Dashboard }) {
       <Panel
         id="dash-departments"
         icon="building-2"
+        tone="teal"
         title="Department Headcount"
         note="Current employees by department, largest first."
       >

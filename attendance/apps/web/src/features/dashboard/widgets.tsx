@@ -178,6 +178,7 @@ export function Panel({
   title,
   note,
   icon,
+  tone,
   className = '',
   children,
 }: {
@@ -185,11 +186,15 @@ export function Panel({
   title: string;
   note?: string;
   icon: string;
+  tone?: Tone;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <section className={`zat-pulse-panel ${className}`} aria-labelledby={id}>
+    <section
+      className={`zat-pulse-panel ${tone ? `zat-t-${tone}` : ''} ${className}`}
+      aria-labelledby={id}
+    >
       <header className="zat-pulse-panel__head">
         <span className="zat-pulse-panel__icon" aria-hidden="true">
           <OrvexaIcon name={icon} size={16} />
@@ -348,8 +353,8 @@ export function Checklist({ items }: { items: CheckItem[] }) {
 
 /* ------------------------------------------------------------------ leave mix */
 
-/** Calm graded greens for leave types; unauthorised absence keeps the soft alert colour. */
-const MIX_TONES: Tone[] = ['teal', 'violet', 'g3', 'g4', 'muted'];
+/** One accent per leave type; unauthorised absence is always rose. */
+const MIX_TONES: Tone[] = ['sky', 'violet', 'teal', 'amber', 'muted'];
 const AWOP = 'Absence without permission';
 
 /** Leave and absence days by type as one 100% stacked bar plus a ranked legend. */
