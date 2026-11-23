@@ -1,24 +1,22 @@
 /* Attendance dashboard — "attendance pulse" (zat-pulse-*).
-   Calm palette derived from the Zamil theme: shades of --primary (green) for everything
-   neutral or good, one muted ochre for "watch", the theme's --danger (softened) for problems.
-   Only theme tokens change between light and dark; motion respects reduced-motion. */
+   Colours come only from the Orvexa template tokens (theme-green.css and the purchased CSS):
+   --primary / --primary-2 / --gc-mint / --glow for the brand greens, --amber(-text) for
+   "needs attention", --danger(-text) for problems, --surface-2/3 for neutral tracks,
+   --gc-glass and --gc-shadow-soft for glass and depth. Light and dark follow the template. */
 
 .zat-report {
   --zp-1: var(--primary);
   --zp-2: var(--primary-2);
-  --zp-3: color-mix(in srgb, var(--primary) 55%, var(--surface-solid));
+  --zp-3: var(--gc-mint, color-mix(in srgb, var(--primary) 60%, var(--surface-solid)));
   --zp-4: color-mix(in srgb, var(--primary) 30%, var(--surface-solid));
-  --zp-watch: #b98b3e;
-  --zp-alert: color-mix(in srgb, var(--danger) 85%, var(--text));
-  --zp-tint: color-mix(in srgb, var(--primary) 8%, var(--surface-solid));
-  --zp-card: var(--surface-solid);
-  --zp-shadow: 0 1px 2px rgb(20 40 30 / 4%), 0 6px 20px -14px rgb(20 40 30 / 22%);
-}
-
-html.dark .zat-report {
-  --zp-watch: #d7b36f;
+  --zp-watch: var(--amber);
+  --zp-watch-text: var(--amber-text, var(--amber));
   --zp-alert: var(--danger);
-  --zp-shadow: 0 1px 2px rgb(0 0 0 / 25%), 0 8px 24px -16px rgb(0 0 0 / 55%);
+  --zp-alert-text: var(--danger-text, var(--danger));
+  --zp-tint: var(--glow, color-mix(in srgb, var(--primary) 10%, transparent));
+  --zp-card: var(--surface-solid);
+  --zp-glass: var(--gc-glass, var(--surface-solid));
+  --zp-shadow: var(--gc-shadow-soft, 0 6px 20px -14px rgb(0 0 0 / 25%));
 }
 
 /* Tones used by components (--c main, --c2 lighter companion). */
@@ -78,12 +76,12 @@ html.dark .zat-report {
   border-radius: 20px;
   color: var(--text);
   background:
-    radial-gradient(
-      70% 120% at 100% 0%,
-      color-mix(in srgb, var(--primary) 12%, transparent),
-      transparent 60%
-    ),
-    linear-gradient(135deg, var(--zp-tint) 0%, var(--surface-solid) 70%);
+    radial-gradient(70% 120% at 100% 0%, var(--zp-tint), transparent 60%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--primary) 6%, var(--surface-solid)) 0%,
+      var(--surface-solid) 70%
+    );
   box-shadow: var(--zp-shadow);
   overflow: hidden;
   isolation: isolate;
@@ -169,7 +167,7 @@ html.dark .zat-report {
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--surface-solid) 80%, transparent);
+  background: var(--zp-glass);
 }
 
 .zat-pulse-hero__stats dt {
@@ -237,10 +235,10 @@ html.dark .zat-report {
   background: color-mix(in srgb, var(--zp-watch) 50%, var(--surface-solid));
 }
 .zat-pulse-heat__cell.is-l3 {
-  background: var(--zp-4);
+  background: color-mix(in srgb, var(--primary) 38%, var(--surface-solid));
 }
 .zat-pulse-heat__cell.is-l4 {
-  background: var(--zp-3);
+  background: color-mix(in srgb, var(--primary) 65%, var(--surface-solid));
 }
 
 .zat-pulse-heat__cell:hover {
@@ -543,7 +541,7 @@ html.dark .zat-report {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  color: #fff;
+  color: var(--surface-solid);
   z-index: 1;
 }
 
@@ -553,7 +551,7 @@ html.dark .zat-report {
 }
 
 .is-open .zat-pulse-steps__mark {
-  color: var(--zp-watch);
+  color: var(--zp-watch-text);
   background: color-mix(in srgb, var(--zp-watch) 16%, transparent);
 }
 
@@ -590,7 +588,7 @@ html.dark .zat-report {
 }
 
 .is-open .zat-pulse-steps strong {
-  color: var(--zp-watch);
+  color: var(--zp-watch-text);
 }
 
 /* ============ Leave mix ============ */
