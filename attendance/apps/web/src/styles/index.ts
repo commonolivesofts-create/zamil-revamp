@@ -13,3 +13,4 @@ import '@zamil/styles/report-table.css';
 import '@zamil/styles/hr-report-pager.css';
 import '@zamil/styles/hr-recruitment-responsive.css';
 import './attendance.css';
+import './dashboard.css';
