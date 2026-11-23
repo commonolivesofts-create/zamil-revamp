@@ -235,10 +235,17 @@ const LIST_COLUMNS = `
   R.REMARKS,
   R.STATUS,
   TO_CHAR(R.CREATED_BY) CREATED_BY,
-  (
-    SELECT MAX(M.FULL_NAME)
-    FROM XX_DIGI_EMP_MASTER M
-    WHERE M.USER_ID = R.CREATED_BY
+  COALESCE(
+    (
+      SELECT MAX(M.FULL_NAME)
+      FROM XX_DIGI_EMP_MASTER M
+      WHERE M.EMPLOYEE_NUMBER = TO_CHAR(R.CREATED_BY)
+    ),
+    (
+      SELECT MAX(M.FULL_NAME)
+      FROM XX_DIGI_EMP_MASTER M
+      WHERE M.USER_ID = R.CREATED_BY
+    )
   ) REQUESTOR,
   (
     SELECT MAX(W.TO_USER)
@@ -301,7 +308,8 @@ const buildFilters = (filters) => {
   // department (every caller of the list holds VIEW). An unknown employee number matches none.
   if (filters.scope) {
     conditions.push(
-      `(R.CREATED_BY = :scopeUserId OR ${sameDepartmentSql('scopeEmployeeNumber', 'R.EMP_NO')})`,
+      `((R.CREATED_BY = :scopeUserId OR TO_CHAR(R.CREATED_BY) = :scopeEmployeeNumber)
+        OR ${sameDepartmentSql('scopeEmployeeNumber', 'R.EMP_NO')})`,
     );
     binds.scopeUserId = filters.scope.userId;
     binds.scopeEmployeeNumber = filters.scope.employeeNumber ?? null;

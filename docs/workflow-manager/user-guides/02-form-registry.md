@@ -9,20 +9,20 @@
 | Required permission | `WORKFLOW_MANAGER.FORM_REGISTRY:VIEW` |
 | Further actions | Register: `FORM_REGISTRY:CREATE` · Activate: `FORM_REGISTRY:ACTIVATE` · Deactivate: `FORM_REGISTRY:DEACTIVATE` |
 | API | `GET /api/v1/workflow-manager/forms`, `GET …/lookups/modules`, `POST …/forms/{formId}/activate`, `POST …/forms/{formId}/deactivate` |
-| Oracle | `XX_ZRV_WF_FORMS` (read/write), `XX_ZRV_WF_FORM_VERSIONS` (count only), `XX_ZRV_APP_MODULES` (read only) |
-| Verification status | **Implemented — verified by automated tests only.** Pending G1 catalogue registration; live browser verification and screenshots follow. |
+| Oracle | `XX_ZRV_WF_FORMS` (read/write), `XX_ZRV_WF_FORM_VERSIONS` (count and published default version number only), `XX_ZRV_APP_MODULES` (read only) |
+| Verification status | **M1 screen accepted on TEST (7 November 2026). Business-first columns (Smart Mapping UX package) — verified by automated tests; live TEST check pending.** |
 
 ## Purpose
 
 The Form registry lists the existing business forms that have been **registered** so that their
-approval workflows can be configured later. Registering records only the form's identity —
-code, name, owning module, optional detail route and description. It does not change the form
-itself, its data, or how it is approved today.
+approval workflows can be configured, and shows **how ready each one is**. Registering records only
+the form's identity — name, owning module, description and (for administrators) its technical
+code and detail page. It does not change the form itself, its data, or how it is approved today.
 
 ## How to get there
 
-**Workflow Manager → Form registry** in the sidebar, or the **Registered forms** card / **Form
-registry** link on the Overview.
+**Workflow Manager → Form registry** in the sidebar, or **All forms** / the **Registered forms**
+card / **All registered forms** on the Overview.
 
 ## Screen elements
 
@@ -36,7 +36,7 @@ registry** link on the Overview.
 
 | Field | Meaning | Validation |
 |---|---|---|
-| **Search** | Contains-match on form code, form name or module code, not case-sensitive. Applied when you select **Search** or press Enter. | Empty, or 2–100 characters |
+| **Search** (*Form name, code or module*) | Contains-match on form code, form name or module code, not case-sensitive. Applied when you select **Search** or press Enter. | Empty, or 2–100 characters |
 | **Module** | Only forms owned by this module. The list shows the active modules of the permission catalog. | Applies immediately |
 | **Status** | *All statuses*, *Active* or *Inactive*. | Applies immediately |
 | **Sort by** | Form code, Form name, Module or Last updated, ascending (↑) or descending (↓). | Applies immediately |
@@ -49,9 +49,8 @@ previous filtered list and the address can be shared with a colleague who has th
 | Column | Content |
 |---|---|
 | **Form** | Form name, with the form code below it. |
-| **Module** | Module name and code. |
-| **Detail route** | The application page of one record of this form, if recorded; `—` otherwise. |
-| **Versions** | Number of mapping versions (created by the mapping package, M2; `0` until then). |
+| **Module** | Module name. |
+| **Workflow readiness** | *Data ready* (an approved business data version is in use), *Data in setup* (versions exist, none approved yet), *Not onboarded* (no business data prepared yet) or *Inactive*, with a one-line explanation. The detail route moved to the form page (technical details, administrators only). |
 | **Status** | *Active* or *Inactive*. Inactive rows are shown in muted text. |
 | **Last updated** | Local date and time of the last change. |
 | **Open** | Opens the form's page ([guide 03](03-form-registration.md)). |
@@ -114,6 +113,8 @@ the list reloads, now showing the form as *Inactive*. Nothing was changed twice.
 | List, search, filters, sort, pagination, activation, stale edit, 403/404/500 | `server/tests/workflow-manager.test.js` *form registry* suite passed |
 | Client contract, service paths, CSRF, URL filters | `client/tests/workflowManager.test.mjs` passed |
 | SQL against Oracle TEST | List/count/activation statements validated on TEST 2026-11-02 (SELECT executed read-only; UPDATE compiled only, never executed) |
-| Live browser check and screenshot | **Not yet performed** — requires the G1-approved catalogue registration and a role grant on TEST |
+| Readiness column (`defaultVersionNo`) | `server/tests/workflow-manager.test.js` and `client/tests/workflowSmartMapping.test.mjs` passed; readiness SQL executed read-only on TEST, 2026-11-21 |
+| Live browser check and screenshot | M1 layout accepted by the owner on TEST (7 November 2026). The readiness column is **not yet checked live** — owner TEST acceptance pending. |
 
-Verified against branch `feat/workflow-manager-m1-foundation`, 2026-11-02.
+Verified against branch `feat/workflow-manager-m1-foundation`, 2026-11-02; columns updated on
+`feat/workflow-manager-smart-mapping-ux`, 2026-11-21.

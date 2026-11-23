@@ -4488,12 +4488,6 @@
   border-radius: 0;
   border-width: 0 0 0 1px;
   overflow-y: auto;
-  animation: zrv-hr-slide 0.45s var(--zrv-hr-ease);
-}
-@keyframes zrv-hr-slide {
-  from {
-    transform: translateX(100%);
-  }
 }
 .zrv-hr-rp-drawer .zrv-dialog > h2 {
   margin: 0;

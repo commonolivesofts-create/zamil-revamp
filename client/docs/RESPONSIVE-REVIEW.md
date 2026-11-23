@@ -20,15 +20,15 @@ permissions and print layouts. No dependencies were changed.
 
 ## Verification
 
-| Check | Result |
-| --- | --- |
-| Client complete test suite | 537 passed, 3 existing TODOs, no failures |
-| Client recruitment/shared-component/survey tests after changes | 24 passed |
-| Client ESLint, production build and static release verification | Passed |
-| TrainingHub web type check and production build | Passed |
-| ExpenseHub changed-component ESLint, web type check, production build and production-bundle guard | Passed |
-| ExpenseHub source backup | Completed using its existing backup script |
-| Whitespace validation | `git diff --check` passed |
+| Check                                                                                             | Result                                     |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Client complete test suite                                                                        | 537 passed, 3 existing TODOs, no failures  |
+| Client recruitment/shared-component/survey tests after changes                                    | 24 passed                                  |
+| Client ESLint, production build and static release verification                                   | Passed                                     |
+| TrainingHub web type check and production build                                                   | Passed                                     |
+| ExpenseHub changed-component ESLint, web type check, production build and production-bundle guard | Passed                                     |
+| ExpenseHub source backup                                                                          | Completed using its existing backup script |
+| Whitespace validation                                                                             | `git diff --check` passed                  |
 
 Browser checks used Edge through the already installed Playwright dependency.
 A temporary production build enabled every client feature: 57 non-parameterized

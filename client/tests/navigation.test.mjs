@@ -160,6 +160,7 @@ test('only pages backed by a working backend contract are implemented; no placeh
       'hr-transfer',
       'hr-transfer-report',
       'hr-transfer-record',
+      'hr-talent-dashboard',
       'hr-appraisal',
       'hr-appraisal-report',
       'hr-appraisal-record',

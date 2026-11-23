@@ -23,6 +23,49 @@ export const fromStoredDate = (value) => (!value || value === LEGACY_BLANK_DATE 
 export const CRITERIA_COUNT = 20;
 
 /**
+ * The legacy criteria were rendered by assets/prf-new.js, which is not in the legacy repository.
+ * When no saved evaluation of a form type holds the full named set, fall back to the standard PAF
+ * criteria (shared with the annual appraisal form) so a new evaluation still lists its criteria
+ * instead of showing an empty Evaluation step.
+ */
+export const FALLBACK_CRITERIA = Object.freeze(
+  [
+    ['Quality / Accuracy of Work', 'جودة / دقة العمل'],
+    ['Quantity of Work', 'كمية العمل'],
+    ['Dependability', 'الإعتمادية'],
+    ['Attendance / Punctuality', 'الحضور / الالتزام بالمواعيد'],
+    [
+      'Professional Communication Skills with co-workers/Supervisors',
+      'مهارات الاتصال المهني مع زملاء العمل / المشرفين',
+    ],
+    ['Customer-focused Communication Skills', 'مهارات الاتصال التي تركز على العملاء'],
+    [
+      'Ability to work as a member of a team; teamwork',
+      'القدرة على العمل كعضو في الفريق. العمل بروح الفريق الواحد',
+    ],
+    ['Demonstrates Positive Attitude', 'يوضح الموقف الإيجابي'],
+    ['Ability to work independently', 'القدرة على العمل بشكل مستقل'],
+    ['Open to feedback', 'يتقبل الملاحظات'],
+    ['Willingness to take on additional responsibilities', 'الإستعداد لتحمل مسؤوليات إضافية'],
+    ['Complies with company policies and procedures', 'يتوافق مع سياسات وإجراءات الشركة'],
+    ['Exhibits effective problem solving skills', 'يظهر مهارات فعالة في حل المشاكل'],
+    [
+      'Eagerness to learn new-job related skills',
+      'الرغبة في تعلم المهارات المتعلقة بالوظيفة الجديدة',
+    ],
+    ['Ask questions and seek guidance as needed', 'طرح الأسئلة وطلب التوجيه حسب الحاجة'],
+    [
+      'Makes progress towards professional development goals',
+      'يحرز التقدم نحو أهداف التطوير المهني',
+    ],
+    ['Demonstrates Zamil Group Core Values', 'يظهر اهتمامه بالقيم الأساسية لمجموعة الزامل'],
+    ['Initiative', 'مبادرة'],
+    ['Developing Others', 'تطوير الآخرين'],
+    ['Health, Safety & Environment (HSE)', 'بيئة صحية آمنة'],
+  ].map(([param, paramAr]) => Object.freeze({ param, paramAr })),
+);
+
+/**
  * Statuses the legacy form lets the preparer change. Its workflow cannot be re-initialised while
  * INPROCESS or APPROVED (ProbationFlow::submit), so those records are read only here; a REJECTED
  * request is corrected and submitted again. The status itself is not changed by a save.

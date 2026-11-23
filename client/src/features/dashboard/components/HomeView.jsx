@@ -299,7 +299,7 @@ export default function HomeView({ profile, pages = [], onNavigate, onOpenPage }
     (page) => page.sectionLabel === 'Human resources' || page.section === 'human-resources',
   )
   const openHrPage = (page) => {
-    if (!page?.id || !page.path) return
+    if (!page?.id || !(page.path || page.href)) return
     const next = { ...hrUsage, [page.id]: (hrUsage[page.id] || 0) + 1 }
     setHrUsage(next)
     window.localStorage.setItem(HR_USAGE_KEY, JSON.stringify(next))

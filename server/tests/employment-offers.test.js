@@ -324,7 +324,7 @@ describe('employment offer API', () => {
       assert.equal(stored.reqNo, 0); // legacy insert default
       const raw = f.store.state.employmentOffers.headers.at(-1);
       assert.equal(raw.offerDate, '25-Oct-2026'); // ISO -> legacy DD-Mon-YYYY storage
-      assert.equal(raw.createdBy, f.hrUser.userId); // from the session, never the body
+      assert.equal(raw.createdBy, f.hrUser.employeeNumber); // from the session, never the body
 
       const line = await repo.findLine({}, '1');
       assert.equal(line.basicSalary, 8500);
@@ -337,7 +337,7 @@ describe('employment offer API', () => {
       const rawLine = f.store.state.employmentOffers.lines.at(-1);
       assert.equal(rawLine.approxStartingDate, '01-Nov-2026'); // stored legacy form
       assert.equal(rawLine.attribute2, 'ثمانية آلاف وخمسمائة'); // legacy duplicate, insert-only
-      assert.equal(rawLine.createdBy, f.hrUser.userId);
+      assert.equal(rawLine.createdBy, f.hrUser.employeeNumber);
     });
 
     it('strips salary commas server-side', async () => {
@@ -489,7 +489,7 @@ describe('employment offer API', () => {
       assert.equal(stored.reqNo, '2048');
       assert.equal(stored.status, 'Complete');
       assert.equal(stored.createdBy, f.hrUser.userId); // audit columns immutable
-      assert.equal(stored.updatedBy, f.hrUser.userId);
+      assert.equal(stored.updatedBy, f.hrUser.employeeNumber);
       assert.ok(stored.updatedAt);
 
       const rawLine = f.store.state.employmentOffers.lines.find((l) => l.headerId === '900');

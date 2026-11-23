@@ -501,9 +501,20 @@ function OrientationEditor({ lookups, record: savedRecord }) {
           <>
             <StepHead
               {...T.heads[1]}
-              desc="Department head, dates, times and remarks are optional. Complete the details available now."
+              desc={
+                locked
+                  ? 'Saved department sessions for this schedule.'
+                  : 'Department head, dates, times and remarks are optional. Complete the details available now.'
+              }
             />
             {!employee && <p className="zrv-hr-note">{T.pickFirst}</p>}
+            {lines.length === 0 && employee && (
+              <p className="zrv-hr-note">
+                {locked
+                  ? 'No department sessions were saved for this schedule.'
+                  : setupError || 'Select an employee to build the department training plan.'}
+              </p>
+            )}
             {lines.length > 0 && (
               <div className="zrv-hr-training-plan">
                 <div className="zrv-hr-training-plan__summary">

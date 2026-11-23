@@ -11,7 +11,11 @@ import {
   Rank,
   Ring,
 } from '@/features/hr-recruitment/shared/components/InsightCards.jsx'
-import { ES_COMMON_TEXT as C, TRANSFER_TEXT as T } from '../hrEmployeeServicesText.js'
+import {
+  EMPLOYEE_SERVICES_BREADCRUMB,
+  ES_COMMON_TEXT as C,
+  TRANSFER_TEXT as T,
+} from '../hrEmployeeServicesText.js'
 import { hrEmployeeServices } from '../hrEmployeeServicesService.js'
 import { ES_PATHS } from '../employeeServicesPaths.js'
 import { inRange, localList } from '../shared/localList.js'
@@ -233,7 +237,7 @@ export default function TransferReportPage() {
       variant="transfer-report"
       title={R.title}
       heading={R.heading}
-      breadcrumb={C.breadcrumb}
+      breadcrumb={EMPLOYEE_SERVICES_BREADCRUMB}
       resourceKey="hr-transfer-report"
       list={transfers.list}
       onRefresh={transfers.reset}

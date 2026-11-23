@@ -6,6 +6,7 @@ import {
   withTransaction as defaultTx,
 } from '../../../database/oracle.js';
 
+import { cachedCounts } from '../../../shared/cache/cachedCounts.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 
 import * as defaultRepo from './employeeOfTheMonth.repository.js';
@@ -73,6 +74,7 @@ export function createEmployeeOfTheMonthService({
   repository = defaultRepo,
   withConnection = defaultRead,
   withTransaction = defaultTx,
+  countsCache,
 } = {}) {
   const read = (fn) => withConnection(POOLS.LOW, fn);
   const tx = (fn) => withTransaction(POOLS.LOW, fn);
@@ -155,9 +157,9 @@ export function createEmployeeOfTheMonthService({
       overallRating: b.overallRating,
       remark: b.remark,
       deptType: d === 'production' ? 'Production' : 'Shared-services',
-      createdBy: actor.userId,
+      createdBy: actor.employeeNumber ?? actor.userId,
       createdByEmpNum: requester.EMPLOYEE_NUMBER,
-      updatedBy: actor.userId,
+      updatedBy: actor.employeeNumber ?? actor.userId,
     };
   }
 
@@ -271,6 +273,15 @@ export function createEmployeeOfTheMonthService({
           headerId: Number(id),
         };
       });
+    },
+
+    /** The list total of each filter set for the dashboard (the list's scope), one statement. */
+    async counts(actor, { queries, fresh }) {
+      return cachedCounts(
+        countsCache,
+        { module: 'rewards', userId: actor.userId, queries, fresh },
+        (missing) => read((c) => repository.count(c, missing)),
+      );
     },
 
     async list(actor, q) {

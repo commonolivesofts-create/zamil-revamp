@@ -134,6 +134,41 @@ test('body and validation follow the backend write schema', () => {
   )
 })
 
+test('Arabic certificate text stays Unicode in the request payload and API response', () => {
+  const arabic = {
+    employee: { ...EMPLOYEE, name: 'عبدالله علي', nationality: 'سعودي', jobTitle: 'مهندس' },
+    certDate: '2026-11-21',
+    toEmpName: 'إلى بنك الرياض',
+    approvalName: 'محمد المدير',
+  }
+  assert.deepEqual(certificateBody(arabic), {
+    employeeNo: '1001',
+    certDate: '2026-11-21',
+    toEmpName: 'إلى بنك الرياض',
+    approvalName: 'محمد المدير',
+    allowanceFlag: 'Yes',
+    joiningDate: '2020-01-05',
+  })
+  const record = readCertificate('ar', {
+    ...RECORD,
+    employeeName: 'عبدالله علي',
+    nationality: 'سعودي',
+    jobTitle: 'مهندس',
+    toEmpName: 'إلى بنك الرياض',
+    approvalName: 'محمد المدير',
+  })
+  assert.deepEqual(
+    [
+      record.employee.name,
+      record.employee.nationality,
+      record.employee.jobTitle,
+      record.toEmpName,
+      record.approvalName,
+    ],
+    ['عبدالله علي', 'سعودي', 'مهندس', 'إلى بنك الرياض', 'محمد المدير'],
+  )
+})
+
 test('service: each language uses its own API; create returns the stored record', async () => {
   const calls = []
   const call =
@@ -160,7 +195,7 @@ test('service: each language uses its own API; create returns the stored record'
   await service.preloadEmployees({ lang: 'ar' })
   assert.deepEqual(
     [calls.at(-1).path, calls.at(-1).params],
-    ['/salary-certificates-ar/lookups/employee-numbers', { pageSize: 100 }],
+    ['/salary-certificates-ar/lookups/employee-numbers', { page: 1, pageSize: 100 }],
   )
   assert.equal((await service.searchEmployees('ar', '')).items[0].employeeNumber, '1001')
   assert.equal(
@@ -176,9 +211,26 @@ test('service: each language uses its own API; create returns the stored record'
   const found = await service.searchEmployees('ar', ' 10 ')
   assert.deepEqual(
     [calls.at(-1).path, calls.at(-1).params],
-    ['/salary-certificates-ar/lookups/employee-numbers', { q: '10', pageSize: 20 }],
+    ['/salary-certificates-ar/lookups/employee-numbers', { q: '10', page: 1, pageSize: 20 }],
   )
   assert.equal(found.items[0].employeeNumber, '1001')
+  await service.preloadEmployees({ lang: 'en' })
+  assert.deepEqual(
+    [calls.at(-1).path, calls.at(-1).params],
+    ['/salary-certificates/lookups/employee-numbers', { page: 1, pageSize: 100 }],
+  )
+  const englishFound = await service.searchEmployees('en', 'Omar')
+  assert.deepEqual(
+    [calls.at(-1).path, calls.at(-1).params],
+    ['/salary-certificates/lookups/employee-numbers', { q: 'Omar', page: 1, pageSize: 20 }],
+  )
+  assert.equal(englishFound.items[0].name, 'Omar Ali')
+  const arabicNameFound = await service.searchEmployees('ar', 'Omar Ali')
+  assert.deepEqual(
+    [calls.at(-1).path, calls.at(-1).params],
+    ['/salary-certificates-ar/lookups/employee-numbers', { q: 'Omar Ali', page: 1, pageSize: 20 }],
+  )
+  assert.equal(arabicNameFound.items[0].employeeNumber, '1001')
   const page = await service.list('en', { page: 1, pageSize: 20, q: '' })
   assert.equal(calls.at(-1).path, '/salary-certificates')
   assert.equal(page.items[0].certificateId, 'en-12')

@@ -1,4 +1,5 @@
 import oracledb from 'oracledb';
+import { countSets } from '../../../database/conditionalCounts.js';
 
 /*
  * Employment Offer Form SQL (README_employment_offer_form.md §3–§8). Values are always bound;
@@ -376,21 +377,45 @@ const mapListItem = (row) => ({
  * scope resolved by the service (HR: optional filter; non-HR: always the actor's own userId).
  * The HEADER_ID tie-breaker keeps OFFSET/FETCH pages stable (docs/02 §7).
  */
-export async function listOffers(
-  connection,
-  { limit, offset, filters = {}, createdBy, sortBy, sortDir },
-) {
-  const binds = {};
-  const conditions = ['1 = 1'];
+// The list's filter predicates (and their binds), shared by the list and the counts.
+function filterConditions(filters, binds) {
+  const conditions = [];
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null || value === '') continue;
     if (!FILTERS[key]) throw new Error(`Unsupported filter ${key}`);
     conditions.push(FILTERS[key](value));
     binds[key] = value;
   }
+  return conditions;
+}
+
+/**
+ * The list total of each filter set (as `listOffers` would report it) in one statement, for the
+ * recruitment dashboard. `createdBy` as in `listOffers`.
+ */
+export async function countOffers(connection, { queries, createdBy, legacyCreatedBy }) {
+  const scoped = createdBy !== undefined && createdBy !== null;
+  return countSets((sql, binds) => rows(connection, sql, binds), {
+    from: 'FROM XXZP.XXZP_EMPLOYMENT_OFFER_HEADER_T H',
+    where: scoped ? ['(H.CREATED_BY = :createdBy OR H.CREATED_BY = :legacyCreatedBy)'] : [],
+    binds: scoped ? { createdBy, legacyCreatedBy: legacyCreatedBy ?? createdBy } : {},
+    sets: queries.map((filters) => {
+      const binds = {};
+      return { conditions: filterConditions(filters, binds), binds };
+    }),
+  });
+}
+
+export async function listOffers(
+  connection,
+  { limit, offset, filters = {}, createdBy, legacyCreatedBy, sortBy, sortDir },
+) {
+  const binds = {};
+  const conditions = ['1 = 1', ...filterConditions(filters, binds)];
   if (createdBy !== undefined && createdBy !== null) {
-    conditions.push('H.CREATED_BY = :createdBy');
+    conditions.push('(H.CREATED_BY = :createdBy OR H.CREATED_BY = :legacyCreatedBy)');
     binds.createdBy = createdBy;
+    binds.legacyCreatedBy = legacyCreatedBy ?? createdBy;
   }
   const where = `WHERE ${conditions.join(' AND ')}`;
   const column = SORT_COLUMNS[sortBy];

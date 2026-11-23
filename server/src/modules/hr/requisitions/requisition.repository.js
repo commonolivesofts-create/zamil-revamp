@@ -1,4 +1,5 @@
 import oracledb from 'oracledb';
+import { countSets } from '../../../database/conditionalCounts.js';
 
 /*
  * Personal Requisition Form SQL (README_personal_requisition_form.md §3–§8). Values are always
@@ -326,12 +327,12 @@ const FILTERS = Object.freeze({
 // The explicit column alias list is mandatory for a recursive (self-referencing) subquery in
 // Oracle: without it the database rejects the statement with ORA-32039.
 const SCOPE_CTE = `
-WITH emp (FULL_NAME, USER_ID, SUPERVISOR_NAME) AS (
-  SELECT FULL_NAME, USER_ID, SUPERVISOR_NAME
+WITH emp (FULL_NAME, USER_ID, SUPERVISOR_NAME, EMPLOYEE_NUMBER) AS (
+  SELECT FULL_NAME, USER_ID, SUPERVISOR_NAME, EMPLOYEE_NUMBER
     FROM XX_DIGI_EMP_MASTER
    WHERE USER_ID = :scopeUserId
   UNION ALL
-  SELECT e.FULL_NAME, e.USER_ID, e.SUPERVISOR_NAME
+  SELECT e.FULL_NAME, e.USER_ID, e.SUPERVISOR_NAME, e.EMPLOYEE_NUMBER
     FROM XX_DIGI_EMP_MASTER e
     JOIN emp p ON e.SUPERVISOR_NAME = p.FULL_NAME
 )`;
@@ -380,6 +381,37 @@ const buildWhere = (filters, binds) => {
   return conditions;
 };
 
+// §7.4 scope of a non-HR actor (null for HR: no predicate), shared by the list and the counts.
+const scopeOf = (scopeUserId) =>
+  scopeUserId !== undefined && scopeUserId !== null
+    ? {
+        prefix: SCOPE_CTE,
+        conditions: [
+          `(CREATED_BY IN (SELECT USER_ID FROM emp)
+          OR TO_CHAR(CREATED_BY) IN (SELECT EMPLOYEE_NUMBER FROM emp))`,
+        ],
+        binds: { scopeUserId },
+      }
+    : { prefix: '', conditions: [], binds: {} };
+
+/**
+ * The list total of each filter set (as `listRequisitions` would report it) in one statement,
+ * for the recruitment dashboard. `scopeUserId` as in `listRequisitions`.
+ */
+export async function countRequisitions(connection, { queries, scopeUserId }) {
+  const scope = scopeOf(scopeUserId);
+  return countSets((sql, binds) => rows(connection, sql, binds), {
+    with: scope.prefix,
+    from: 'FROM XXZPI_PER_REQUISITIONS_ALL',
+    where: scope.conditions,
+    binds: scope.binds,
+    sets: queries.map((filters) => {
+      const binds = {};
+      return { conditions: buildWhere(filters, binds).slice(1), binds };
+    }),
+  });
+}
+
 /**
  * Paginated, filtered listing (README §7.2). `search` is an upper-case LIKE pattern already
  * escaped by the caller; `sortBy` must be a key of SORT_COLUMNS. `scopeUserId` is the non-HR
@@ -396,11 +428,10 @@ export async function listRequisitions(
     conditions.push('CREATED_BY = :createdBy');
     binds.createdBy = createdBy;
   }
-  if (scopeUserId !== undefined && scopeUserId !== null) {
-    conditions.push('CREATED_BY IN (SELECT USER_ID FROM emp)');
-    binds.scopeUserId = scopeUserId;
-  }
-  const prefix = binds.scopeUserId ? SCOPE_CTE : '';
+  const scope = scopeOf(scopeUserId);
+  conditions.push(...scope.conditions);
+  Object.assign(binds, scope.binds);
+  const prefix = scope.prefix;
   const where = `WHERE ${conditions.join(' AND ')}`;
   const column = SORT_COLUMNS[sortBy];
   if (!column) throw new Error(`Unsupported sort ${sortBy}`);
@@ -452,7 +483,8 @@ export async function createdByInScope(connection, { scopeUserId, createdBy }) {
   const [row] = await rows(
     connection,
     `${SCOPE_CTE}
-     SELECT COUNT(*) AS CNT FROM emp WHERE USER_ID = :createdBy`,
+     SELECT COUNT(*) AS CNT FROM emp
+      WHERE USER_ID = :createdBy OR EMPLOYEE_NUMBER = TO_CHAR(:createdBy)`,
     { scopeUserId, createdBy },
   );
   return Number(row.CNT) > 0;
@@ -554,7 +586,10 @@ export async function findBudget(connection, fullName) {
 /** Distinct filter-dropdown values (§8.6), bounded and §7.4-scoped like the listing. */
 export async function listFilterOptions(connection, { scopeUserId }) {
   const prefix = scopeUserId ? SCOPE_CTE : '';
-  const scoped = scopeUserId ? ' AND CREATED_BY IN (SELECT USER_ID FROM emp)' : '';
+  const scoped = scopeUserId
+    ? ` AND (CREATED_BY IN (SELECT USER_ID FROM emp)
+        OR TO_CHAR(CREATED_BY) IN (SELECT EMPLOYEE_NUMBER FROM emp))`
+    : '';
   const binds = scopeUserId ? { scopeUserId } : {};
   const distinct = async (expression) => {
     const result = await rows(

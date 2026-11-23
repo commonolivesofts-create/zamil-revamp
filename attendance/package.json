@@ -1,0 +1,47 @@
+{
+  "name": "attendance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Zamil Attendance System: React + Node.js rebuild of the CI3 attendance app",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "predev": "node scripts/ensure-env.mjs && node scripts/sync-orvexa.mjs",
+    "dev": "concurrently -k -n api,web -c cyan,magenta \"npm run dev -w @attendance/api\" \"npm run dev -w @attendance/web\"",
+    "prebuild": "node scripts/sync-orvexa.mjs",
+    "build": "npm run build -w @attendance/web",
+    "start": "npm run start -w @attendance/api",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:ping": "npm run db:ping -w @attendance/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.2.0",
+    "eslint": "^9.30.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "prettier": "^3.6.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.35.0",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
+}

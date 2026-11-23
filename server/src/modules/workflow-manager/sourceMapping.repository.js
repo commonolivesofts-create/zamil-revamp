@@ -1,5 +1,6 @@
 import oracledb from 'oracledb';
 import { FORM_SCHEMA } from './mapping/formContract.js';
+import { FORM_SCHEMA_V2 } from './mapping/formContractV2.js';
 
 /*
  * Workflow Manager M2-A SQL — source version mapping over XX_ZRV_WF_SOURCE_VERSIONS.
@@ -215,11 +216,15 @@ export async function updateVersionConfig(
 
 /**
  * Structural references to a source version, read inside the deleting transaction:
- *   headerRefs   form versions whose HEADER_SOURCE_VERSION_ID (FK) is the version;
- *   lineRefs     form versions whose CONFIG_JSON names it as a line source, matched by the JSON
- *                path $.lines[*].sourceVersionId with a bound value (zrv.wf.form/1);
- *   unverifiable form versions whose CONFIG_JSON is not zrv.wf.form/1, so their references
- *                cannot be read structurally (the service fails closed);
+ *   headerRefs   form versions whose HEADER_SOURCE_VERSION_ID (FK) is the version (the header of
+ *                zrv.wf.form/1 and the root of zrv.wf.form/2);
+ *   lineRefs     zrv.wf.form/1 form versions whose CONFIG_JSON names it as a line source, matched
+ *                by the JSON path $.lines[*].sourceVersionId with a bound value;
+ *   graphRefs    zrv.wf.form/2 form versions whose CONFIG_JSON names it as any related source of
+ *                the relationship graph, matched by $.sources[*].sourceVersionId — v2 keeps every
+ *                non-root source reference in that one array (formContractV2.js);
+ *   unverifiable form versions whose CONFIG_JSON is neither contract, so their references cannot
+ *                be read structurally (the service fails closed);
  *   foreignKeys  every foreign key of the current schema that references the table, with its
  *                delete rule and status (a cascading or disabled key fails closed, and so does
  *                a dictionary that does not show the documented FORM_VERSIONS header key).
@@ -230,14 +235,21 @@ export async function findVersionReferences(connection, sourceVersionId) {
     `SELECT (SELECT COUNT(*) FROM xx_zrv_wf_form_versions fv
               WHERE fv.header_source_version_id = :sourceVersionId) AS header_refs,
             (SELECT COUNT(*) FROM xx_zrv_wf_form_versions fv
-              WHERE JSON_EXISTS(fv.config_json, '$.lines[*]?(@.sourceVersionId == $sv)'
+              WHERE JSON_VALUE(fv.config_json, '$.schema'
+                               RETURNING VARCHAR2(40) NULL ON ERROR) = :formSchema
+                AND JSON_EXISTS(fv.config_json, '$.lines[*]?(@.sourceVersionId == $sv)'
                                 PASSING :sourceVersionId AS "sv")) AS line_refs,
+            (SELECT COUNT(*) FROM xx_zrv_wf_form_versions fv
+              WHERE JSON_VALUE(fv.config_json, '$.schema'
+                               RETURNING VARCHAR2(40) NULL ON ERROR) = :formSchemaV2
+                AND JSON_EXISTS(fv.config_json, '$.sources[*]?(@.sourceVersionId == $sv)'
+                                PASSING :sourceVersionId AS "sv")) AS graph_refs,
             (SELECT COUNT(*) FROM xx_zrv_wf_form_versions fv
               WHERE NVL(JSON_VALUE(fv.config_json, '$.schema'
                                    RETURNING VARCHAR2(40) NULL ON ERROR), '#')
-                    <> :formSchema) AS unverifiable
+                    NOT IN (:formSchema, :formSchemaV2)) AS unverifiable
        FROM dual`,
-    { sourceVersionId, formSchema: FORM_SCHEMA },
+    { sourceVersionId, formSchema: FORM_SCHEMA, formSchemaV2: FORM_SCHEMA_V2 },
   );
   const keys = await rows(
     connection,
@@ -254,6 +266,7 @@ export async function findVersionReferences(connection, sourceVersionId) {
   return {
     headerRefs: counts.HEADER_REFS,
     lineRefs: counts.LINE_REFS,
+    graphRefs: counts.GRAPH_REFS,
     unverifiable: counts.UNVERIFIABLE,
     foreignKeys: keys.map((row) => ({
       tableName: row.TABLE_NAME,

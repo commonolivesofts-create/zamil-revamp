@@ -10,7 +10,7 @@ import { InsightReport } from '@/features/hr-recruitment/shared/components/Insig
 import {
   Card,
   Columns,
-  Distribution,
+  Donut,
   Foot,
   HalfGauge,
   Hero,
@@ -27,7 +27,6 @@ const O = R.overview
 const MONTHS = 6
 const GRADES = Object.freeze(['A', 'B', 'C', 'D', 'E'])
 const STATUSES = Object.freeze([
-  ['DRAFT', 'draft'],
   ['INPROCESS', 'progress'],
   ['APPROVED', 'ok'],
   ['REJECTED', 'bad'],
@@ -134,8 +133,16 @@ function insight(appraisals) {
         }
       },
       render: (data) => (
-        <Card index={1} icon="gauge" label={O.average} theme="primary">
-          <HalfGauge value={data && Math.round(data.average * 100)} of={data?.rated ? 500 : 0} />
+        <Card
+          index={1}
+          icon="gauge"
+          label={O.average}
+          theme="primary"
+          className="zrv-ir-ov--appraisal-average"
+        >
+          <div className="zrv-ir-ov__gauge">
+            <HalfGauge value={data && Math.round(data.average * 100)} of={data?.rated ? 500 : 0} />
+          </div>
           <Foot>
             {data && (data.rated ? O.averageOf(data.average.toFixed(2), data.rated) : O.unrated)}
           </Foot>
@@ -158,11 +165,14 @@ function insight(appraisals) {
           icon="list-checks"
           label={O.status}
           theme="amber"
+          className="zrv-ir-ov--appraisal-status"
           aside={<Hint>{data && O.appraisals(data.all)}</Hint>}
         >
-          <Distribution
+          <Donut
             total={data?.all}
             all={pick({ status: '' }).onPick}
+            unit={R.noun}
+            unitBelow
             items={STATUSES.map(([status, tone], index) => ({
               key: status,
               label: C.status[status],

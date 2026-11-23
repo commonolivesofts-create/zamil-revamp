@@ -19,10 +19,18 @@ Merged into `main` via [PR #74](https://github.com/commonolivesofts-create/zamil
 
 Owner-approved for code on 9 November 2026. Branch `feat/workflow-manager-m2-a-source-mapping` (from `main` `4bb0588`): nine `SOURCE_MAPPING` endpoints (dictionary, list/detail, create, edit, re-validate, drift, clone, restricted delete) writing **DRAFT** rows of `XX_ZRV_WF_SOURCE_VERSIONS` only, the Source versions / Source version screens reached from **Manage mapping** in the Data source registry, guide 05, OpenAPI and automated tests. Fixes the first-version vs. source-identity race: M1 identity updates and every M2-A write take the same parent `SELECT … FOR UPDATE` lock. Details and evidence: `docs/handoffs/FEATURE-WORKFLOW-MANAGER-M2-A.md`.
 
-**Pending, owner-gated:** G1 registration of `WORKFLOW_MANAGER.SOURCE_MAPPING` and a role grant; until then every M2-A route denies.
+**G1 complete (owner-executed):** `WORKFLOW_MANAGER.SOURCE_MAPPING` is registered on TEST (read-only preview of 21 November 2026: MATCH 52 / MISSING 0 / CONFLICT 0 / UNREGISTERED 0) and VIEW/CREATE/UPDATE/DELETE are granted to `SUPER_ADMINISTRATOR` (read-only check of the same day; no other role holds Workflow Manager grants). Do not re-apply. **Owner-executed TEST acceptance of M2-A is still pending** (no source version exists on TEST yet).
 - The scoped TEST preview of 14 November 2026 was MATCH 47 / MISSING 5 / CONFLICT 0, but only with the follow-up fix that restores the M1 module description. As merged in #83, the registry gives CONFLICT 6 / MISSING 0.
 - The read-only verification of the deployed `XX_ZRV_WF_*` dictionary passed on 14 November 2026 (M2-A handoff §7).
 - Owner-executed TEST acceptance is still pending. Next after M2-A: M2-B (form mapping), M2-C (secure preview, G2), then M6 governance.
+
+## Smart Mapping UX and relationship-graph foundation: IMPLEMENTED (feature PR), not accepted on TEST
+
+Owner-requested 21 November 2026 per `SMART-FORM-DATA-AND-SELF-SERVICE-UX-SPEC.md`. Branch `feat/workflow-manager-smart-mapping-ux`. Details and evidence: `docs/handoffs/FEATURE-WORKFLOW-MANAGER-SMART-MAPPING-UX.md`.
+- **Backend foundation (module-local, no routes):** versioned form contract `zrv.wf.form/2` (single root + bounded acyclic relationship graph: single/optional lookups, collections, nested lookups, composite joins, organization scope, typed filters, deterministic order, row limits) next to the unchanged `zrv.wf.form/1`; version dispatch; the `zrv.wf.businessRecord/1` assembler (structured header + complete lines, explicit null/ambiguity/overflow errors, redaction). Delete-dependency checks now read every `zrv.wf.form/2` source reference and fail closed on unknown versions or counts. No DDL needed (`SCHEMA_VERSION > 0`, verified read-only on TEST).
+- **Readiness:** forms and data sources expose `defaultVersionNo` (published default version, or null).
+- **UX:** screens 01–05 redesigned business-first; no new permissions, routes or navigation entries; guides 01–05 updated.
+- **Not implemented (later packages):** form mapping writes and screens (M2-B), secure preview and related-source access rules (M2-C, G2/G3), workflow designer (M3), templates (M4), execution (E1–E7).
 
 ## M2 — Versioned form and data source mapping (remaining: M2-B, M2-C)
 

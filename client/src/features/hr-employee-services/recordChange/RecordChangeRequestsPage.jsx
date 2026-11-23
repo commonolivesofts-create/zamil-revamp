@@ -7,7 +7,7 @@ import { InsightReport } from '@/features/hr-recruitment/shared/components/Insig
 import {
   Card,
   Compare,
-  Distribution,
+  Donut,
   Hero,
   Hint,
   Rank,
@@ -183,10 +183,13 @@ function insight(requests) {
           icon="list-checks"
           label={O.status}
           theme="primary"
+          className="zrv-ir-ov--personal-status"
           aside={<Hint>{data && O.requests(data.all)}</Hint>}
         >
-          <Distribution
+          <Donut
             total={data?.all}
+            unit="requests"
+            unitBelow
             all={pick({ status: '' }).onPick}
             items={LEGACY_RECORD_CHANGE_STATUSES.map((status, index) => ({
               key: status,

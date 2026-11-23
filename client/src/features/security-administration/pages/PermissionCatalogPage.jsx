@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from 'react'
 import '@/styles/security-permission-catalog.css'
 
@@ -16,10 +15,7 @@ import {
   isCodeOwnedResource,
 } from '../catalogActions.js'
 
-import {
-  SECURITY_ACTIONS,
-  SECURITY_MODULE_CODE,
-} from '../securityActions.js'
+import { SECURITY_ACTIONS, SECURITY_MODULE_CODE } from '../securityActions.js'
 
 import { securityAdminService } from '../securityAdminService.js'
 import { useAdminAction, useResource } from '../useAdminData.js'
@@ -67,28 +63,17 @@ const SUMMARY_CARDS = [
   },
 ]
 
-function CatalogSummaryCard({
-  title,
-  icon,
-  value,
-  color = 'green',
-}) {
+function CatalogSummaryCard({ title, icon, value, color = 'green' }) {
   return (
-    <article
-      className={`zrv-pc-stat zrv-pc-stat--${color}`}
-    >
+    <article className={`zrv-pc-stat zrv-pc-stat--${color}`}>
       <div className="zrv-pc-stat__icon">
         <OrvexaIcon name={icon} />
       </div>
 
       <div className="zrv-pc-stat__body">
-        <span className="zrv-pc-stat__title">
-          {title}
-        </span>
+        <span className="zrv-pc-stat__title">{title}</span>
 
-        <strong className="zrv-pc-stat__number">
-          {value}
-        </strong>
+        <strong className="zrv-pc-stat__number">{value}</strong>
       </div>
 
       <svg
@@ -122,13 +107,10 @@ function getCatalogStatistics(data) {
       count +
       module.resources.reduce(
         (resourceCount, resource) =>
-          resourceCount +
-          resource.permissions.filter(
-            (permission) => permission.isActive
-          ).length,
-        0
+          resourceCount + resource.permissions.filter((permission) => permission.isActive).length,
+        0,
       ),
-    0
+    0,
   )
 
   return {
@@ -142,39 +124,26 @@ function getCatalogStatistics(data) {
 export default function PermissionCatalogPage() {
   const { can } = usePermissions()
 
-  const manage = can(
-    SECURITY_ACTIONS.PERMISSION_CATALOG_MANAGE
-  )
+  const manage = can(SECURITY_ACTIONS.PERMISSION_CATALOG_MANAGE)
 
-  const catalog = useResource(
-    'catalog',
-    (signal) =>
-      securityAdminService.getCatalog({ signal })
-  )
+  const catalog = useResource('catalog', (signal) => securityAdminService.getCatalog({ signal }))
 
   const action = useAdminAction()
 
   // Existing search and inactive filtering.
   const [search, setSearch] = useState('')
-  const [includeInactive, setIncludeInactive] =
-    useState(true)
+  const [includeInactive, setIncludeInactive] = useState(true)
 
   // New presentation-only controls.
-  const [statusFilter, setStatusFilter] =
-    useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
 
-  const [expandedModules, setExpandedModules] =
-    useState({})
+  const [expandedModules, setExpandedModules] = useState({})
 
-  const [expandedResources, setExpandedResources] =
-    useState({})
+  const [expandedResources, setExpandedResources] = useState({})
 
   const [dialog, setDialog] = useState(null)
 
-  const statistics = useMemo(
-    () => getCatalogStatistics(catalog.data),
-    [catalog.data]
-  )
+  const statistics = useMemo(() => getCatalogStatistics(catalog.data), [catalog.data])
 
   const modules = useMemo(() => {
     if (!Array.isArray(catalog.data)) {
@@ -192,19 +161,10 @@ export default function PermissionCatalogPage() {
 
     const desired = statusFilter === 'active'
 
-    return filtered.filter(
-      (module) => module.isActive === desired
-    )
-  }, [
-    catalog.data,
-    search,
-    includeInactive,
-    statusFilter,
-  ])
+    return filtered.filter((module) => module.isActive === desired)
+  }, [catalog.data, search, includeInactive, statusFilter])
 
-  const incomplete = Array.isArray(catalog.data)
-    ? catalogMayBeIncomplete(catalog.data)
-    : false
+  const incomplete = Array.isArray(catalog.data) ? catalogMayBeIncomplete(catalog.data) : false
 
   const open = (next) => {
     action.setFeedback(null)
@@ -227,10 +187,7 @@ export default function PermissionCatalogPage() {
 
   const toggle = (entity, item, moduleCode) => {
     // Preserve backend security protections.
-    if (
-      !manage ||
-      moduleCode === SECURITY_MODULE_CODE
-    ) {
+    if (!manage || moduleCode === SECURITY_MODULE_CODE) {
       return null
     }
 
@@ -238,9 +195,7 @@ export default function PermissionCatalogPage() {
       <button
         type="button"
         className={`zrv-pc-text-action ${
-          item.isActive
-            ? 'zrv-pc-text-action--danger'
-            : 'zrv-pc-text-action--success'
+          item.isActive ? 'zrv-pc-text-action--danger' : 'zrv-pc-text-action--success'
         }`}
         onClick={() =>
           open({
@@ -250,14 +205,9 @@ export default function PermissionCatalogPage() {
           })
         }
       >
-        {item.isActive
-          ? 'Deactivate'
-          : 'Activate'}
+        {item.isActive ? 'Deactivate' : 'Activate'}
 
-        <span className="sr-only">
-          {' '}
-          {item.label}
-        </span>
+        <span className="sr-only"> {item.label}</span>
       </button>
     )
   }
@@ -265,20 +215,14 @@ export default function PermissionCatalogPage() {
   const toggleModuleExpanded = (moduleId) => {
     setExpandedModules((previous) => ({
       ...previous,
-      [moduleId]:
-        previous[moduleId] === undefined
-          ? false
-          : !previous[moduleId],
+      [moduleId]: previous[moduleId] === undefined ? false : !previous[moduleId],
     }))
   }
 
   const toggleResourceExpanded = (resourceId) => {
     setExpandedResources((previous) => ({
       ...previous,
-      [resourceId]:
-        previous[resourceId] === undefined
-          ? false
-          : !previous[resourceId],
+      [resourceId]: previous[resourceId] === undefined ? false : !previous[resourceId],
     }))
   }
 
@@ -307,31 +251,19 @@ export default function PermissionCatalogPage() {
         }
       >
         {!dialog && (
-          <Feedback
-            feedback={action.feedback}
-            onDismiss={() =>
-              action.setFeedback(null)
-            }
-          />
+          <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
         )}
 
         {/* FOUR SUMMARY CARDS */}
 
-        <section
-          className="zrv-pc-summary"
-          aria-label="Permission catalog statistics"
-        >
+        <section className="zrv-pc-summary" aria-label="Permission catalog statistics">
           {SUMMARY_CARDS.map((card) => (
             <CatalogSummaryCard
               key={card.id}
               title={card.title}
               icon={card.icon}
               color={card.color}
-              value={
-                statistics
-                  ? statistics[card.id]
-                  : '—'
-              }
+              value={statistics ? statistics[card.id] : '—'}
             />
           ))}
         </section>
@@ -343,29 +275,18 @@ export default function PermissionCatalogPage() {
             <div className="zrv-pc-panel__heading">
               <OrvexaIcon name="shield-check" />
 
-              <h2>
-                Permission Catalog
-              </h2>
+              <h2>Permission Catalog</h2>
             </div>
 
             <span className="zrv-pc-module-count">
-              {statistics
-                ? `${statistics.modules} Modules`
-                : 'Loading...'}
+              {statistics ? `${statistics.modules} Modules` : 'Loading...'}
             </span>
           </div>
 
           {/* SEARCH AND FILTER TOOLBAR */}
 
-          <div
-            className="zrv-pc-toolbar"
-            role="search"
-            aria-label="Filter the catalog"
-          >
-            <label
-              className="zrv-pc-search"
-              htmlFor="catalog-search"
-            >
+          <div className="zrv-pc-toolbar" role="search" aria-label="Filter the catalog">
+            <label className="zrv-pc-search" htmlFor="catalog-search">
               <OrvexaIcon name="search" />
 
               <input
@@ -377,36 +298,24 @@ export default function PermissionCatalogPage() {
                 value={search}
                 maxLength={100}
                 placeholder="Search module, resource or action..."
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
+                onChange={(event) => setSearch(event.target.value)}
               />
             </label>
 
             <label className="zrv-pc-status-filter">
               <OrvexaIcon name="filter" />
 
-              <span className="sr-only">
-                Module status
-              </span>
+              <span className="sr-only">Module status</span>
 
               <select
                 value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value)
-                }
+                onChange={(event) => setStatusFilter(event.target.value)}
               >
-                <option value="all">
-                  All Module Statuses
-                </option>
+                <option value="all">All Module Statuses</option>
 
-                <option value="active">
-                  Active Modules
-                </option>
+                <option value="active">Active Modules</option>
 
-                <option value="inactive">
-                  Inactive Modules
-                </option>
+                <option value="inactive">Inactive Modules</option>
               </select>
             </label>
 
@@ -414,13 +323,8 @@ export default function PermissionCatalogPage() {
               <input
                 type="checkbox"
                 checked={includeInactive}
-                onChange={(event) =>
-                  setIncludeInactive(
-                    event.target.checked
-                  )
-                }
+                onChange={(event) => setIncludeInactive(event.target.checked)}
               />
-
               Include inactive entries
             </label>
           </div>
@@ -432,34 +336,22 @@ export default function PermissionCatalogPage() {
             label="permission catalog"
             empty="The permission catalog is empty."
           >
-          {() => (
+            {() => (
               <>
                 <div className="zrv-pc-results-info">
                   <span>
-                    {statistics?.permissions ?? 0}{' '}
-                    permissions in{' '}
-                    {statistics?.modules ?? 0} modules
+                    {statistics?.permissions ?? 0} permissions in {statistics?.modules ?? 0} modules
                   </span>
 
-                  {(search ||
-                    statusFilter !== 'all' ||
-                    !includeInactive) && (
-                    <span>
-                      {modules.length} matching modules
-                    </span>
+                  {(search || statusFilter !== 'all' || !includeInactive) && (
+                    <span>{modules.length} matching modules</span>
                   )}
                 </div>
 
                 {incomplete && (
-                  <p
-                    className="zrv-admin-state"
-                    role="alert"
-                  >
-                    The catalogue reached the server's
-                    display limit, so some entries may
-                    not be shown. Adding actions is
-                    unavailable until the complete
-                    catalogue can be loaded.
+                  <p className="zrv-admin-state" role="alert">
+                    The catalogue reached the server's display limit, so some entries may not be
+                    shown. Adding actions is unavailable until the complete catalogue can be loaded.
                   </p>
                 )}
 
@@ -467,27 +359,17 @@ export default function PermissionCatalogPage() {
                   <div className="zrv-pc-empty">
                     <OrvexaIcon name="search-x" />
 
-                    <p>
-                      No catalog entry matches your
-                      search or filters.
-                    </p>
+                    <p>No catalog entry matches your search or filters.</p>
                   </div>
                 )}
 
                 <div className="zrv-pc-modules">
                   {modules.map((module) => {
-                    const moduleLabel =
-                      module.moduleName ||
-                      module.moduleCode
+                    const moduleLabel = module.moduleName || module.moduleCode
 
-                    const isExpanded =
-                      expandedModules[
-                        module.moduleId
-                      ] ?? true
+                    const isExpanded = expandedModules[module.moduleId] ?? true
 
-                    const protectedModule =
-                      module.moduleCode ===
-                      SECURITY_MODULE_CODE
+                    const protectedModule = module.moduleCode === SECURITY_MODULE_CODE
 
                     return (
                       <section
@@ -501,45 +383,26 @@ export default function PermissionCatalogPage() {
                           <button
                             type="button"
                             className="zrv-pc-module__toggle"
-                            aria-expanded={
-                              isExpanded
-                            }
-                            onClick={() =>
-                              toggleModuleExpanded(
-                                module.moduleId
-                              )
-                            }
+                            aria-expanded={isExpanded}
+                            onClick={() => toggleModuleExpanded(module.moduleId)}
                           >
-                            <OrvexaIcon
-                              name={
-                                isExpanded
-                                  ? 'chevron-down'
-                                  : 'chevron-right'
-                              }
-                            />
+                            <OrvexaIcon name={isExpanded ? 'chevron-down' : 'chevron-right'} />
 
                             <span className="zrv-pc-module__icon">
                               <OrvexaIcon name="boxes" />
                             </span>
 
                             <span className="zrv-pc-module__title">
-                              <strong>
-                                {moduleLabel}
-                              </strong>
+                              <strong>{moduleLabel}</strong>
 
-                              <code>
-                                {module.moduleCode}
-                              </code>
+                              <code>{module.moduleCode}</code>
                             </span>
                           </button>
 
-                          <ActiveBadge
-                            active={module.isActive}
-                          />
+                          <ActiveBadge active={module.isActive} />
 
                           <span className="zrv-pc-module__count">
-                            {module.resources.length}{' '}
-                            Resources
+                            {module.resources.length} Resources
                           </span>
 
                           <div className="zrv-pc-actions">
@@ -553,15 +416,12 @@ export default function PermissionCatalogPage() {
                                     kind: 'resource',
                                     parent: {
                                       id: module.moduleId,
-                                      label:
-                                        module.moduleCode,
+                                      label: module.moduleCode,
                                     },
                                   })
                                 }
                               >
-                                <OrvexaIcon
-                                  name="plus"
-                                />
+                                <OrvexaIcon name="plus" />
                                 Add Resource
                               </button>
                             )}
@@ -570,12 +430,10 @@ export default function PermissionCatalogPage() {
                               'module',
                               {
                                 id: module.moduleId,
-                                isActive:
-                                  module.isActive,
-                                label:
-                                  module.moduleCode,
+                                isActive: module.isActive,
+                                label: module.moduleCode,
                               },
-                              module.moduleCode
+                              module.moduleCode,
                             )}
                           </div>
                         </div>
@@ -584,226 +442,150 @@ export default function PermissionCatalogPage() {
 
                         {isExpanded && (
                           <div className="zrv-pc-module__body">
-                            {protectedModule &&
-                              manage && (
+                            {protectedModule && manage && (
                               <p className="zrv-pc-protected">
-                                <OrvexaIcon
-                                  name="shield-alert"
-                                />
-
-                                Security administration
-                                entries are protected and
-                                cannot be activated or
-                                deactivated.
+                                <OrvexaIcon name="shield-alert" />
+                                Security administration entries are protected and cannot be
+                                activated or deactivated.
                               </p>
                             )}
 
                             {!module.resources.length && (
-                              <p className="zrv-pc-empty-resource">
-                                No resources available.
-                              </p>
+                              <p className="zrv-pc-empty-resource">No resources available.</p>
                             )}
 
                             <div className="zrv-pc-resources">
-                              {module.resources.map(
-                                (resource) => {
-                                  const resourceLabel =
-                                    resource.resourceName ||
-                                    resource.resourceCode
+                              {module.resources.map((resource) => {
+                                const resourceLabel = resource.resourceName || resource.resourceCode
 
-                                  const resourceExpanded =
-                                    expandedResources[
-                                      resource.resourceId
-                                    ] ?? true
+                                const resourceExpanded =
+                                  expandedResources[resource.resourceId] ?? true
 
-                                  return (
-                                    <section
-                                      className="zrv-pc-resource"
-                                      key={
-                                        resource.resourceId
-                                      }
-                                    >
-                                      {/* RESOURCE HEADER */}
+                                return (
+                                  <section className="zrv-pc-resource" key={resource.resourceId}>
+                                    {/* RESOURCE HEADER */}
 
-                                      <div className="zrv-pc-resource__head">
-                                        <button
-                                          type="button"
-                                          className="zrv-pc-resource__toggle"
-                                          aria-expanded={
-                                            resourceExpanded
-                                          }
-                                          onClick={() =>
-                                            toggleResourceExpanded(
-                                              resource.resourceId
-                                            )
-                                          }
-                                        >
-                                          <OrvexaIcon
-                                            name={
-                                              resourceExpanded
-                                                ? 'chevron-down'
-                                                : 'chevron-right'
-                                            }
-                                          />
-
-                                          <span>
-                                            <strong>
-                                              {resourceLabel}
-                                            </strong>
-
-                                            <code>
-                                              {resource.resourceCode}
-                                            </code>
-                                          </span>
-                                        </button>
-
-                                        <ActiveBadge
-                                          active={
-                                            resource.isActive
-                                          }
+                                    <div className="zrv-pc-resource__head">
+                                      <button
+                                        type="button"
+                                        className="zrv-pc-resource__toggle"
+                                        aria-expanded={resourceExpanded}
+                                        onClick={() => toggleResourceExpanded(resource.resourceId)}
+                                      >
+                                        <OrvexaIcon
+                                          name={resourceExpanded ? 'chevron-down' : 'chevron-right'}
                                         />
 
-                                        <div className="zrv-pc-actions">
-                                          {manage && (
-                                            <button
-                                              type="button"
-                                              className="zrv-pc-text-action"
-                                              onClick={() =>
-                                                open({
-                                                  type: 'create',
-                                                  kind: 'permission',
-                                                  parent: {
-                                                    id: resource.resourceId,
-                                                    label:
-                                                      `${module.moduleCode}.${resource.resourceCode}`,
-                                                    resourceName:
-                                                      resourceLabel,
-                                                    existing:
-                                                      existingActions(
-                                                        resource
-                                                      ),
-                                                    codeOwned:
-                                                      isCodeOwnedResource(
-                                                        module.moduleCode,
-                                                        resource.resourceCode
-                                                      ),
-                                                    catalogIncomplete:
-                                                      incomplete,
-                                                    exampleDescription:
-                                                      defaultActionDescription(
-                                                        'VIEW',
-                                                        resourceLabel
-                                                      ),
-                                                  },
-                                                })
-                                              }
-                                            >
-                                              <OrvexaIcon
-                                                name="plus"
-                                              />
-                                              Add Actions
-                                            </button>
-                                          )}
+                                        <span>
+                                          <strong>{resourceLabel}</strong>
 
-                                          {toggle(
-                                            'resource',
-                                            {
-                                              id: resource.resourceId,
-                                              isActive:
-                                                resource.isActive,
-                                              label:
-                                                `${module.moduleCode}.${resource.resourceCode}`,
-                                            },
-                                            module.moduleCode
-                                          )}
-                                        </div>
-                                      </div>
+                                          <code>{resource.resourceCode}</code>
+                                        </span>
+                                      </button>
 
-                                      {/* RESOURCE PERMISSIONS */}
+                                      <ActiveBadge active={resource.isActive} />
 
-                                      {resourceExpanded &&
-                                        resource.permissions.length >
-                                          0 && (
-                                          <HorizontalTableScroll className="zrv-security-table-scroll zrv-pc-table-wrap">
-                                            <table className="zrv-pc-table zrv-security-table">
-                                              <thead>
-                                                <tr>
-                                                  <th scope="col">
-                                                    Action
-                                                  </th>
-
-                                                  <th scope="col">
-                                                    Description
-                                                  </th>
-
-                                                  <th scope="col">
-                                                    Status
-                                                  </th>
-
-                                                  <th scope="col">
-                                                    Manage
-                                                  </th>
-                                                </tr>
-                                              </thead>
-
-                                              <tbody>
-                                                {resource.permissions.map(
-                                                  (
-                                                    permission
-                                                  ) => (
-                                                    <tr
-                                                      key={
-                                                        permission.permissionId
-                                                      }
-                                                      className={
-                                                        !permission.isActive
-                                                          ? 'is-inactive'
-                                                          : ''
-                                                      }
-                                                    >
-                                                      <td>
-                                                        <code className="zrv-pc-action-code">
-                                                          {permission.actionCode}
-                                                        </code>
-                                                      </td>
-
-                                                      <td>
-                                                        {permission.description ||
-                                                          '—'}
-                                                      </td>
-
-                                                      <td>
-                                                        <ActiveBadge
-                                                          active={
-                                                            permission.isActive
-                                                          }
-                                                        />
-                                                      </td>
-
-                                                      <td>
-                                                        {toggle(
-                                                          'permission',
-                                                          {
-                                                            id: permission.permissionId,
-                                                            isActive:
-                                                              permission.isActive,
-                                                            label:
-                                                              `${module.moduleCode}.${resource.resourceCode}:${permission.actionCode}`,
-                                                          },
-                                                          module.moduleCode
-                                                        )}
-                                                      </td>
-                                                    </tr>
-                                                  )
-                                                )}
-                                              </tbody>
-                                            </table>
-                                          </HorizontalTableScroll>
+                                      <div className="zrv-pc-actions">
+                                        {manage && (
+                                          <button
+                                            type="button"
+                                            className="zrv-pc-text-action"
+                                            onClick={() =>
+                                              open({
+                                                type: 'create',
+                                                kind: 'permission',
+                                                parent: {
+                                                  id: resource.resourceId,
+                                                  label: `${module.moduleCode}.${resource.resourceCode}`,
+                                                  resourceName: resourceLabel,
+                                                  existing: existingActions(resource),
+                                                  codeOwned: isCodeOwnedResource(
+                                                    module.moduleCode,
+                                                    resource.resourceCode,
+                                                  ),
+                                                  catalogIncomplete: incomplete,
+                                                  exampleDescription: defaultActionDescription(
+                                                    'VIEW',
+                                                    resourceLabel,
+                                                  ),
+                                                },
+                                              })
+                                            }
+                                          >
+                                            <OrvexaIcon name="plus" />
+                                            Add Actions
+                                          </button>
                                         )}
-                                    </section>
-                                  )
-                                }
-                              )}
+
+                                        {toggle(
+                                          'resource',
+                                          {
+                                            id: resource.resourceId,
+                                            isActive: resource.isActive,
+                                            label: `${module.moduleCode}.${resource.resourceCode}`,
+                                          },
+                                          module.moduleCode,
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* RESOURCE PERMISSIONS */}
+
+                                    {resourceExpanded && resource.permissions.length > 0 && (
+                                      <HorizontalTableScroll className="zrv-security-table-scroll zrv-pc-table-wrap">
+                                        <table className="zrv-pc-table zrv-security-table">
+                                          <thead>
+                                            <tr>
+                                              <th scope="col">Action</th>
+
+                                              <th scope="col">Description</th>
+
+                                              <th scope="col">Status</th>
+
+                                              <th scope="col">Manage</th>
+                                            </tr>
+                                          </thead>
+
+                                          <tbody>
+                                            {resource.permissions.map((permission) => (
+                                              <tr
+                                                key={permission.permissionId}
+                                                className={
+                                                  !permission.isActive ? 'is-inactive' : ''
+                                                }
+                                              >
+                                                <td>
+                                                  <code className="zrv-pc-action-code">
+                                                    {permission.actionCode}
+                                                  </code>
+                                                </td>
+
+                                                <td>{permission.description || '—'}</td>
+
+                                                <td>
+                                                  <ActiveBadge active={permission.isActive} />
+                                                </td>
+
+                                                <td>
+                                                  {toggle(
+                                                    'permission',
+                                                    {
+                                                      id: permission.permissionId,
+                                                      isActive: permission.isActive,
+                                                      label: `${module.moduleCode}.${resource.resourceCode}:${permission.actionCode}`,
+                                                    },
+                                                    module.moduleCode,
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </HorizontalTableScroll>
+                                    )}
+                                  </section>
+                                )
+                              })}
                             </div>
                           </div>
                         )}
@@ -834,17 +616,9 @@ export default function PermissionCatalogPage() {
           <ConfirmDialog
             danger={dialog.item.isActive}
             title={`${
-              dialog.item.isActive
-                ? 'Deactivate'
-                : 'Activate'
-            } ${ENTITY_LABELS[dialog.entity]} ${
-              dialog.item.label
-            }?`}
-            confirmLabel={
-              dialog.item.isActive
-                ? 'Deactivate'
-                : 'Activate'
-            }
+              dialog.item.isActive ? 'Deactivate' : 'Activate'
+            } ${ENTITY_LABELS[dialog.entity]} ${dialog.item.label}?`}
+            confirmLabel={dialog.item.isActive ? 'Deactivate' : 'Activate'}
             pending={action.pending}
             feedback={action.feedback}
             onClose={close}
@@ -860,22 +634,16 @@ export default function PermissionCatalogPage() {
                     securityAdminService.setCatalogActive(
                       dialog.entity,
                       dialog.item.id,
-                      !dialog.item.isActive
+                      !dialog.item.isActive,
                     ),
                   {
                     success: (result) =>
                       result.changed
-                        ? `${
-                            dialog.item.label
-                          } ${
-                            result.isActive
-                              ? 'activated'
-                              : 'deactivated'
-                          }.`
+                        ? `${dialog.item.label} ${result.isActive ? 'activated' : 'deactivated'}.`
                         : 'Nothing changed; the entry already had that state.',
                     refreshAccess: true,
-                  }
-                )
+                  },
+                ),
               )
             }
           />

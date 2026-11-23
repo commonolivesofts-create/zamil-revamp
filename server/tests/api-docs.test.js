@@ -131,6 +131,7 @@ describe('API documentation', () => {
     const { paths } = loadOpenApiSpec();
     const base = '/api/v1/hr/interview-assessments';
     const expected = [
+      ['post', '/counts'],
       ['get', ''],
       ['post', ''],
       ['get', '/lookups/payroll-units'],
@@ -163,6 +164,7 @@ describe('API documentation', () => {
     const { paths } = loadOpenApiSpec();
     const base = '/api/v1/hr/probation-evaluations';
     const expected = [
+      ['post', '/counts'],
       ['get', ''],
       ['post', ''],
       ['get', '/lookups/form-types'],
@@ -196,6 +198,7 @@ describe('API documentation', () => {
     const { paths } = loadOpenApiSpec();
     const base = '/api/v1/hr/orientation-trainings';
     const expected = [
+      ['post', '/counts'],
       ['get', ''],
       ['post', ''],
       ['get', '/lookups/flag'],
@@ -259,6 +262,7 @@ describe('API documentation', () => {
     const { paths } = loadOpenApiSpec();
     const base = '/api/v1/hr/employment-offers';
     const expected = [
+      ['post', '/counts'],
       ['get', ''],
       ['post', ''],
       ['get', '/lookups/candidates'],
@@ -292,6 +296,7 @@ describe('API documentation', () => {
     const { paths } = loadOpenApiSpec();
     const base = '/api/v1/hr/requisitions';
     const expected = [
+      ['post', '/counts'],
       ['get', ''],
       ['post', ''],
       ['get', '/lookups/job-titles'],
@@ -362,6 +367,7 @@ describe('API documentation', () => {
     const { paths } = loadOpenApiSpec();
     const base = '/api/v1/hr/performance-appraisals';
     const expected = [
+      ['post', '/counts'],
       ['get', ''],
       ['post', ''],
       ['get', '/lookups/employees'],
@@ -422,6 +428,7 @@ describe('API documentation', () => {
     const { paths } = loadOpenApiSpec();
     const base = '/api/v1/hr/employee-of-the-month';
     const expected = [
+      ['post', '/counts'],
       ['get', '/spotlight'],
       ['get', ''],
       ['post', ''],

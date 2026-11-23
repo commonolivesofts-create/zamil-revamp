@@ -48,15 +48,27 @@ function assertCode(code) {
   }
 }
 
-// Bounded recovery for session restoration (GET only): the initial request plus
-// one retry per delay. Never used for sign-in or any other state-changing request.
+// Session restoration uses bounded quick retries, then slow background recovery
+// while the server is unavailable. Sign-in and other mutations are never replayed.
 export const RESTORE_RETRY_DELAYS_MS = Object.freeze([1000, 2000])
+const RESTORE_RECOVERY_DELAYS_MS = Object.freeze([5000, 10000, 20000, 30000])
 
 // The backend or proxy was not reached or not ready: no response (network),
 // or a gateway/unavailable status. Timeouts are not retried (each already took
 // the full API timeout), nor is any other status.
 export function isTransientRestoreError(error) {
   return error?.code === 'NETWORK_ERROR' || [502, 503, 504].includes(error?.status)
+}
+
+function canRecoverRestore(error) {
+  // 500s and timed-out reads are not immediately replayed, but can be short-lived
+  // database or process recovery failures. Recheck them in the background slowly.
+  return (
+    isTransientRestoreError(error) ||
+    error?.status === 500 ||
+    error?.code === 'TIMEOUT' ||
+    (error?.code === 'INVALID_RESPONSE' && error?.status >= 500)
+  )
 }
 
 // Resolves true after `ms`, or false as soon as `signal` aborts.
@@ -88,8 +100,11 @@ export function createAuthSession({
   // operation. Aborting also handles React Strict Mode effect cleanup.
   let revision = 0
   let active = null
+  let running = false
   let unsubscribeUnauthorized = null
   let challengeTimer = null
+  let restoreRecoveryTimer = null
+  let restoreRecoveryAttempt = 0
   let challengeSequence = 0
   let challengeId = 0 // 0 while no challenge is pending.
   let codeSubmission = false
@@ -98,6 +113,26 @@ export function createAuthSession({
   function clearChallengeTimer() {
     if (challengeTimer !== null) clearTimeout(challengeTimer)
     challengeTimer = null
+  }
+
+  function clearRestoreRecovery() {
+    if (restoreRecoveryTimer !== null) clearTimeout(restoreRecoveryTimer)
+    restoreRecoveryTimer = null
+  }
+
+  function scheduleRestoreRecovery(error) {
+    if (!running || !canRecoverRestore(error) || restoreRecoveryTimer !== null) return
+    const delayMs =
+      RESTORE_RECOVERY_DELAYS_MS[
+        Math.min(restoreRecoveryAttempt, RESTORE_RECOVERY_DELAYS_MS.length - 1)
+      ]
+    restoreRecoveryAttempt += 1
+    restoreRecoveryTimer = setTimeout(() => {
+      restoreRecoveryTimer = null
+      if (snapshot.status === 'error' || snapshot.notice === 'service_recovering') {
+        void restore({ background: true })
+      }
+    }, delayMs)
   }
 
   // Leaving mfa_required always ends the challenge and its expiry timer.
@@ -139,6 +174,7 @@ export function createAuthSession({
   }
 
   function begin() {
+    clearRestoreRecovery()
     const current = invalidate()
     const controller = new AbortController()
     active = controller
@@ -157,11 +193,11 @@ export function createAuthSession({
   // backend restarting or briefly unreachable) is retried after each delay in
   // restoreRetryDelaysMs, one request at a time. A newer operation, an API 401
   // or stop() aborts the controller, which also ends any pending delay.
-  async function restore() {
+  async function restore({ background = false } = {}) {
     if (preview) return
     const { controller, isCurrent } = begin()
     csrfStore.clear()
-    if (snapshot.status !== 'loading') set(authState('loading'))
+    if (!background && snapshot.status !== 'loading') set(authState('loading'))
     try {
       for (let attempt = 0; ; attempt += 1) {
         try {
@@ -176,15 +212,21 @@ export function createAuthSession({
           })
           if (!isCurrent()) return
           csrfStore.setSessionToken(token)
+          restoreRecoveryAttempt = 0
           set(authState('authenticated', current))
           return
         } catch (error) {
           if (!isCurrent()) return
           csrfStore.clear()
           // 401 means no valid session; anything else is an unverified state.
-          if (error?.status === 401) return set(authState('guest'))
+          if (error?.status === 401) {
+            restoreRecoveryAttempt = 0
+            return set(authState('guest'))
+          }
           if (!isTransientRestoreError(error) || attempt >= restoreRetryDelaysMs.length) {
-            return set(authState('error'))
+            set(authState('error'))
+            scheduleRestoreRecovery(error)
+            return
           }
           if (!(await delay(restoreRetryDelaysMs[attempt], controller.signal)) || !isCurrent())
             return
@@ -205,7 +247,9 @@ export function createAuthSession({
     }
     const { controller, isCurrent } = begin()
     csrfStore.clear()
-    if (snapshot.notice || snapshot.status === 'mfa_required') set(authState('guest'))
+    if (snapshot.notice || snapshot.status === 'mfa_required' || snapshot.status === 'error') {
+      set(authState('guest'))
+    }
     try {
       const result = await service.login({ username, password }, { signal: controller.signal })
       if (!isCurrent()) {
@@ -227,7 +271,14 @@ export function createAuthSession({
       beginChallenge(result.mfa, result.challengeCsrfToken)
       return 'mfa_required'
     } catch (error) {
-      if (isCurrent() && snapshot.status !== 'guest') set(authState('guest'))
+      if (isCurrent()) {
+        if (canRecoverRestore(error)) {
+          set(authState('guest', { notice: 'service_recovering' }))
+          scheduleRestoreRecovery(error)
+        } else if (snapshot.status !== 'guest') {
+          set(authState('guest'))
+        }
+      }
       throw error
     } finally {
       finish(controller)
@@ -525,13 +576,16 @@ export function createAuthSession({
   }
 
   function stop() {
+    running = false
     invalidate()
+    clearRestoreRecovery()
     clearChallengeTimer()
     unsubscribeUnauthorized?.()
     unsubscribeUnauthorized = null
   }
 
   function start() {
+    running = true
     unsubscribeUnauthorized ??= subscribeUnauthorized(handleUnauthorized)
     void restore()
     return stop

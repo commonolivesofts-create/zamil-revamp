@@ -4,24 +4,24 @@
 /* Size the workspace from its actual header and banners. Keep these rules in
    app-owned CSS so the purchased template and printed documents stay intact. */
 @media screen {
-  body[data-app-shell="true"] {
+  body[data-app-shell='true'] {
     --app-content-max-width: none;
     --app-page-shell-max-width: none;
   }
 
-  body[data-app-shell="true"] #app-main {
+  body[data-app-shell='true'] #app-main {
     display: flex;
     flex-direction: column;
     min-width: 0;
     min-height: 100dvh;
   }
 
-  body[data-app-shell="true"] #app-main > header,
-  body[data-app-shell="true"] #app-main > [role="status"] {
+  body[data-app-shell='true'] #app-main > header,
+  body[data-app-shell='true'] #app-main > [role='status'] {
     flex-shrink: 0;
   }
 
-  body[data-app-shell="true"] #app-main > #main-content {
+  body[data-app-shell='true'] #app-main > #main-content {
     display: flex;
     flex: 1 0 auto;
     flex-direction: column;
@@ -249,7 +249,7 @@
   background: linear-gradient(140deg, #70deb1, #1c6e4c);
   color: #061510;
   font:
-    800 12px "Inter Display",
+    800 12px 'Inter Display',
     sans-serif;
 }
 .profile-panel-avatar {
@@ -262,7 +262,7 @@
   background: linear-gradient(140deg, #70deb1, #1c6e4c);
   color: #061510;
   font:
-    800 13px "Inter Display",
+    800 13px 'Inter Display',
     sans-serif;
 }
 .zrv-profile-avatar {
@@ -271,7 +271,7 @@
   place-items: center;
   overflow: hidden;
   border-radius: 50%;
-  font-family: "Inter Display", sans-serif;
+  font-family: 'Inter Display', sans-serif;
   font-weight: 800;
   letter-spacing: 0.01em;
 }
@@ -489,19 +489,19 @@
 @media (min-width: 1024px) {
   /* Icon mode stays compact until the pointer enters the sidebar. The sidebar
      overlays the page while expanded, so the content does not jump on hover. */
-  html:not([data-sidebar-mode="full"]) #sidebar {
+  html:not([data-sidebar-mode='full']) #sidebar {
     width: 5rem !important;
     transition: width 220ms ease;
   }
 
-  html:not([data-sidebar-mode="full"])
+  html:not([data-sidebar-mode='full'])
     #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) {
     transition: width 0s;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar:hover,
-  html:not([data-sidebar-mode="full"]) #sidebar:has(:focus-visible),
-  html:not([data-sidebar-mode="full"]) #sidebar.is-hover-open {
+  html:not([data-sidebar-mode='full']) #sidebar:hover,
+  html:not([data-sidebar-mode='full']) #sidebar:has(:focus-visible),
+  html:not([data-sidebar-mode='full']) #sidebar.is-hover-open {
     width: 18rem !important;
   }
 
@@ -541,19 +541,19 @@
     height: 20px;
   }
 
-  html:not([data-sidebar-mode="full"]) #app-main {
+  html:not([data-sidebar-mode='full']) #app-main {
     padding-inline-start: 5rem;
   }
 
-  html[data-sidebar-mode="full"] #sidebar {
+  html[data-sidebar-mode='full'] #sidebar {
     width: 18rem !important;
   }
 
-  html[data-sidebar-mode="full"] #app-main {
+  html[data-sidebar-mode='full'] #app-main {
     padding-inline-start: 18rem;
   }
 
-  html:not([data-sidebar-mode="full"])
+  html:not([data-sidebar-mode='full'])
     #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
     :is(
       .zrv-sidebar-access,
@@ -572,37 +572,49 @@
 
   /* An active section can keep its panel open after route changes. In icon
      mode show its section icon only; reveal child links when the rail opens. */
-  html:not([data-sidebar-mode="full"])
+  html:not([data-sidebar-mode='full'])
     #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
     .sidebar-domain-panel {
     display: none !important;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) #sidebar-brand,
-  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) .sidebar-domain-toggle,
-  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) .sidebar-domain-link,
-  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) .zrv-sidebar-subgroup {
+  html:not([data-sidebar-mode='full'])
+    #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
+    #sidebar-brand,
+  html:not([data-sidebar-mode='full'])
+    #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
+    .sidebar-domain-toggle,
+  html:not([data-sidebar-mode='full'])
+    #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
+    .sidebar-domain-link,
+  html:not([data-sidebar-mode='full'])
+    #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
+    .zrv-sidebar-subgroup {
     justify-content: center;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) .sidebar-domain-toggle {
+  html:not([data-sidebar-mode='full'])
+    #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
+    .sidebar-domain-toggle {
     padding-inline: 0;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) .sidebar-domain-link {
+  html:not([data-sidebar-mode='full'])
+    #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
+    .sidebar-domain-link {
     width: 48px;
     min-height: 48px;
     margin-inline: auto;
     padding-inline: 0;
   }
   /* Keep the icon rail balanced in collapsed mode. */
-  html:not([data-sidebar-mode="full"])
+  html:not([data-sidebar-mode='full'])
     #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
     > .min-h-0.flex-1 {
     padding-inline: 8px !important;
   }
 
-  html:not([data-sidebar-mode="full"])
+  html:not([data-sidebar-mode='full'])
     #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
     .sidebar-domain {
     display: flex;
@@ -610,7 +622,7 @@
     margin-inline: 0 !important;
   }
 
-  html:not([data-sidebar-mode="full"])
+  html:not([data-sidebar-mode='full'])
     #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
     .sidebar-domain-toggle {
     display: flex !important;
@@ -622,7 +634,7 @@
     gap: 0 !important;
   }
 
-  html:not([data-sidebar-mode="full"])
+  html:not([data-sidebar-mode='full'])
     #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
     .sidebar-domain-icon {
     flex: none;
@@ -630,7 +642,7 @@
     height: 44px !important;
   }
 
-  html:not([data-sidebar-mode="full"])
+  html:not([data-sidebar-mode='full'])
     #sidebar:not(:hover):not(:has(:focus-visible)):not(.is-hover-open)
     .zrv-sidebar-subgroup {
     justify-content: center;
@@ -642,58 +654,57 @@
 
   /* Pointer exit dismisses the expanded rail even if keyboard focus remains
      in the sidebar, so it cannot cover the workspace after hover interaction. */
-  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed {
+  html:not([data-sidebar-mode='full']) #sidebar.is-pointer-dismissed {
     width: 5rem !important;
   }
 
-  html:not([data-sidebar-mode="full"])
+  html:not([data-sidebar-mode='full'])
     #sidebar.is-pointer-dismissed:not(:hover):not(:has(:focus-visible)):not(.is-hover-open) {
     transition: width 220ms ease !important;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed :is(
-    .zrv-sidebar-access,
-    .zrv-sidebar-heading,
-    .zrv-sidebar-version,
-    #sidebar-brand-copy,
-    .sidebar-domain-label,
-    .sidebar-domain-link-label,
-    .sidebar-domain-chevron,
-    .zrv-sidebar-subgroup__label,
-    .zrv-sidebar-subgroup__count,
-    .zrv-sidebar-subgroup__arrow
-  ) {
+  html:not([data-sidebar-mode='full'])
+    #sidebar.is-pointer-dismissed
+    :is(
+      .zrv-sidebar-access,
+      .zrv-sidebar-heading,
+      .zrv-sidebar-version,
+      #sidebar-brand-copy,
+      .sidebar-domain-label,
+      .sidebar-domain-link-label,
+      .sidebar-domain-chevron,
+      .zrv-sidebar-subgroup__label,
+      .zrv-sidebar-subgroup__count,
+      .zrv-sidebar-subgroup__arrow
+    ) {
     display: none;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .sidebar-domain-panel {
+  html:not([data-sidebar-mode='full']) #sidebar.is-pointer-dismissed .sidebar-domain-panel {
     display: none !important;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed :is(
-    .sidebar-domain-toggle,
-    .sidebar-domain-link,
-    .zrv-sidebar-subgroup
-  ) {
+  html:not([data-sidebar-mode='full'])
+    #sidebar.is-pointer-dismissed
+    :is(.sidebar-domain-toggle, .sidebar-domain-link, .zrv-sidebar-subgroup) {
     justify-content: center;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed #sidebar-brand {
+  html:not([data-sidebar-mode='full']) #sidebar.is-pointer-dismissed #sidebar-brand {
     justify-content: center;
   }
 
-  html:not([data-sidebar-mode="full"])
-    #sidebar.is-pointer-dismissed > .min-h-0.flex-1 {
+  html:not([data-sidebar-mode='full']) #sidebar.is-pointer-dismissed > .min-h-0.flex-1 {
     padding-inline: 8px !important;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .sidebar-domain {
+  html:not([data-sidebar-mode='full']) #sidebar.is-pointer-dismissed .sidebar-domain {
     display: flex;
     justify-content: center;
     margin-inline: 0 !important;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .sidebar-domain-toggle {
+  html:not([data-sidebar-mode='full']) #sidebar.is-pointer-dismissed .sidebar-domain-toggle {
     width: 48px !important;
     min-height: 48px !important;
     margin-inline: auto;
@@ -701,32 +712,32 @@
     gap: 0 !important;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .sidebar-domain-icon {
+  html:not([data-sidebar-mode='full']) #sidebar.is-pointer-dismissed .sidebar-domain-icon {
     flex: none;
     width: 44px !important;
     height: 44px !important;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .sidebar-domain-link {
+  html:not([data-sidebar-mode='full']) #sidebar.is-pointer-dismissed .sidebar-domain-link {
     width: 48px;
     min-height: 48px;
     margin-inline: auto;
     padding-inline: 0;
   }
 
-  html:not([data-sidebar-mode="full"]) #sidebar.is-pointer-dismissed .zrv-sidebar-subgroup {
+  html:not([data-sidebar-mode='full']) #sidebar.is-pointer-dismissed .zrv-sidebar-subgroup {
     width: 48px;
     min-height: 48px;
     margin-inline: auto;
     padding: 0;
   }
 
-  html[dir="rtl"]:not([data-sidebar-mode="full"]) #app-main {
+  html[dir='rtl']:not([data-sidebar-mode='full']) #app-main {
     padding-inline-start: 0;
     padding-inline-end: 5rem;
   }
 
-  html[dir="rtl"][data-sidebar-mode="full"] #app-main {
+  html[dir='rtl'][data-sidebar-mode='full'] #app-main {
     padding-inline-start: 0;
     padding-inline-end: 18rem;
   }
@@ -823,10 +834,10 @@
 .zrv-sidebar-subgroup.is-open .zrv-sidebar-subgroup__arrow {
   transform: translateX(3px);
 }
-[dir="rtl"] .zrv-sidebar-subgroup__arrow {
+[dir='rtl'] .zrv-sidebar-subgroup__arrow {
   transform: scaleX(-1);
 }
-[dir="rtl"] .zrv-sidebar-subgroup.is-open .zrv-sidebar-subgroup__arrow {
+[dir='rtl'] .zrv-sidebar-subgroup.is-open .zrv-sidebar-subgroup__arrow {
   transform: scaleX(-1) translateX(3px);
 }
 
@@ -849,11 +860,7 @@
   padding: 12px;
   border: 1px solid var(--sb-line);
   border-radius: 18px;
-  background: color-mix(
-    in srgb,
-    var(--sb-surface, var(--surface-solid)) 96%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--sb-surface, var(--surface-solid)) 96%, transparent);
   box-shadow: 0 30px 60px -28px rgba(2, 30, 20, 0.55);
   color: var(--sb-text);
   backdrop-filter: blur(18px);
@@ -865,7 +872,7 @@
     inset-block: 0;
     inset-inline-start: -12px;
     width: 12px;
-    content: "";
+    content: '';
     pointer-events: auto;
   }
 }
@@ -1019,42 +1026,27 @@
 /* Dashboard navigation reveal highlight */
 
 .zrv-sidebar-flyout__link.is-revealed-target {
-  background: color-mix(
-    in srgb,
-    var(--primary) 14%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
 
   color: var(--sb-text);
   font-weight: 760;
 
   box-shadow:
     inset 3px 0 0 var(--primary),
-    inset 0 0 0 1px
-      color-mix(
-        in srgb,
-        var(--primary) 26%,
-        transparent
-      );
+    inset 0 0 0 1px color-mix(in srgb, var(--primary) 26%, transparent);
 }
 
-.zrv-sidebar-flyout__link.is-revealed-target
-.zrv-sidebar-flyout__n {
+.zrv-sidebar-flyout__link.is-revealed-target .zrv-sidebar-flyout__n {
   background: var(--primary);
   color: #fff;
 }
 
-.zrv-sidebar-flyout__link.is-revealed-target
-.zrv-sidebar-flyout__item-icon {
+.zrv-sidebar-flyout__link.is-revealed-target .zrv-sidebar-flyout__item-icon {
   color: var(--primary);
 }
 
 .zrv-sidebar-flyout__link.is-revealed-target:hover {
-  background: color-mix(
-    in srgb,
-    var(--primary) 20%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .zrv-sidebar-flyout__link.is-revealed-target:focus-visible {

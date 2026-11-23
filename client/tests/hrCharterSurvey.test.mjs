@@ -222,7 +222,7 @@ test('survey: charts read as per-group answer rows; "All" is sent for every unse
   )
 })
 
-test('sidebar: charter (Talent Management) and survey report (Reports) need their switch AND VIEW', () => {
+test('sidebar: charter (Employee Services) and survey report (Reports) need their switch AND VIEW', () => {
   const ids = (env, keys) =>
     authorizedNavigation(ready(keys), resolveNavigationEntries(registry.entries, env))
       .flatMap((section) => section.items)
@@ -246,7 +246,7 @@ test('sidebar: charter (Talent Management) and survey report (Reports) need thei
   const entry = (id) => registry.entries.find((item) => item.id === id)
   assert.deepEqual(
     [entry('hr-charter').subgroup, entry('hr-survey-report').subgroup],
-    ['hr-talent-management', 'hr-reports'],
+    ['hr-employee-services', 'hr-reports'],
   )
 })
 

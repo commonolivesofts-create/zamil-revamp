@@ -478,13 +478,16 @@
   align-items: center;
   gap: 8px;
 }
-/* Row-selection tools beside the report table heading: the count reads as its
-   own quiet pill, so it never touches the Compare button. */
+/* Row-selection tools beside the report table heading. One shared rule keeps
+   every report's tools (selection count, Delete, Clear…) at the right corner
+   of the heading row, even when the row wraps on a small screen. */
 .zrv-ir-tabletools {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  margin-left: auto;
 }
 .zrv-ir-tabletools__count {
   display: inline-flex;
@@ -516,6 +519,47 @@
   border-radius: 50%;
   background: var(--mint);
   animation: zrv-ir-pulse 2.4s ease-in-out infinite;
+}
+/* The refresh timestamp is page metadata, not an action: keep it under the
+   title so it never sits between the action buttons. */
+.zrv-ir-head__title .zrv-ir-stamp {
+  margin: 3px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+.zrv-ir-head__title .zrv-ir-stamp i {
+  width: 6px;
+  height: 6px;
+}
+
+/* Keep the whole action row on one line at laptop widths. Secondary utility
+   actions collapse to icon-only buttons; their labels stay in aria-label/title. */
+@media (min-width: 901px) {
+  .zrv-ir-head__actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .zrv-ir--fitted .zrv-ir-head__actions .zrv-ir-btn--utility {
+    min-height: 36px;
+    padding-inline: 10px;
+  }
+}
+@media (min-width: 901px) and (max-width: 1600px) {
+  .zrv-ir--fitted .zrv-ir-head__actions .zrv-ir-btn--utility {
+    width: 38px;
+    padding-inline: 0;
+  }
+  .zrv-ir--fitted .zrv-ir-head__actions .zrv-ir-btn--utility .zrv-ir-btn__label {
+    display: none;
+  }
+  .zrv-ir--fitted .zrv-ir-head__actions .zrv-ir-btn--utility .zrv-ir-btn__badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 10px;
+  }
 }
 @keyframes zrv-ir-pulse {
   0%,
@@ -769,6 +813,7 @@
   grid-column: span 3;
   align-self: center;
 }
+
 .zrv-ir-ov {
   position: relative;
   display: flex;
@@ -928,6 +973,78 @@
   font-size: 11.5px;
   line-height: 1.35;
   text-align: center;
+}
+.zrv-ir-ov--appraisal-average .zrv-ir-ov__gauge {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+.zrv-ir-ov--appraisal-average .zrv-ir-half {
+  margin: 0 auto;
+}
+.zrv-ir-ov--appraisal-average .zrv-ir-ov__foot {
+  margin-top: auto;
+}
+.zrv-ir-ov--appraisal-status .zrv-ir-donut {
+  margin-block: auto;
+}
+.zrv-ir-ov--personal-status .zrv-ir-donut {
+  margin-block: auto;
+}
+.zrv-ir-ov--personal-status .zrv-ir-donut__legend {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.zrv-ir-ov--personal-status .zrv-ir-donut__item {
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 4px;
+  padding: 3px 4px;
+  font-size: 10.5px;
+}
+.zrv-ir-ov--personal-status .zrv-ir-donut__item span {
+  overflow: visible;
+  overflow-wrap: normal;
+  text-overflow: clip;
+  white-space: normal;
+}
+.zrv-ir-ov--appraisal-status .zrv-ir-donut__legend {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.zrv-ir-ov--appraisal-status .zrv-ir-donut__item {
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 4px;
+  padding: 3px 4px;
+  font-size: 10.5px;
+}
+.zrv-ir-ov--appraisal-status .zrv-ir-donut__item span {
+  overflow: visible;
+  overflow-wrap: normal;
+  text-overflow: clip;
+  white-space: normal;
+}
+.zrv-ir-ov--reward-status .zrv-ir-donut {
+  margin-block: auto;
+}
+.zrv-ir-ov--reward-status .zrv-ir-donut__legend {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.zrv-ir-ov--reward-status .zrv-ir-donut__item {
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 4px;
+  padding: 3px 4px;
+  font-size: 11px;
+}
+.zrv-ir-ov--reward-status .zrv-ir-donut__item span {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.2;
 }
 .zrv-ir-skel {
   display: inline-block;
@@ -1807,6 +1924,22 @@
   flex: none;
   width: 96px;
 }
+.zrv-ir-donut__chart--unit-below svg {
+  display: block;
+}
+.zrv-ir-donut__chart--unit-below .zrv-ir-donut__n {
+  inset: 0 0 auto;
+  height: 96px;
+}
+.zrv-ir-donut__unit {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.1;
+  text-align: center;
+}
 .zrv-ir-donut__chart svg {
   width: 100%;
   transform: rotate(-90deg);
@@ -1864,6 +1997,23 @@
   border-radius: 9px;
   background: transparent;
   font-size: 12px;
+}
+.zrv-ir-donut__all {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-align: left;
+}
+.zrv-ir-donut__all b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 .zrv-ir-donut__item i {
   width: 8px;
@@ -2098,16 +2248,45 @@
   text-align: start;
 }
 .zrv-ir-table th button:hover,
-.zrv-ir-table th[aria-sort="ascending"] button,
-.zrv-ir-table th[aria-sort="descending"] button { color: var(--text); }
-.zrv-ir-table svg { flex-shrink: 0; }
-.zrv-ir-table :is(.zrv-ir-chip, .zrv-hr-pill, .zrv-ir-ticket,
-  .zrv-ir-col-status, .zrv-ir-col-outcome, .zrv-ir-col-ticket) {
+.zrv-ir-table th[aria-sort='ascending'] button,
+.zrv-ir-table th[aria-sort='descending'] button {
+  color: var(--text);
+}
+.zrv-ir-table svg {
+  flex-shrink: 0;
+}
+.zrv-ir-table
+  :is(
+    .zrv-ir-chip,
+    .zrv-hr-pill,
+    .zrv-ir-ticket,
+    .zrv-ir-col-status,
+    .zrv-ir-col-outcome,
+    .zrv-ir-col-ticket
+  ) {
   white-space: nowrap;
 }
-.zrv-ir-table .zrv-hr-pill { justify-content: center; text-align: center; }
-.zrv-ir-table .zrv-ir-btn { gap: 5px; min-height: 30px; padding: 5px 7px; font-size: 11.5px; }
-.zrv-ir-table .zrv-ir-ticket::before { flex-shrink: 0; }
+.zrv-ir-table .zrv-hr-pill {
+  justify-content: center;
+  text-align: center;
+}
+.zrv-ir-table .zrv-ir-btn {
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 7px;
+  font-size: 11.5px;
+}
+.zrv-ir-table .zrv-ir-col-pick {
+  text-align: center;
+}
+.zrv-ir-col-pick input {
+  accent-color: var(--primary);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.zrv-ir-table .zrv-ir-ticket::before {
+  flex-shrink: 0;
+}
 .zrv-ir-table tbody tr {
   cursor: pointer;
   animation: zrv-hr-reveal 0.45s var(--zrv-hr-ease) both;
@@ -2263,6 +2442,57 @@
     font-size: 12px;
   }
 }
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-steps {
+  margin-top: auto;
+  gap: 16px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-steps__main {
+  align-items: stretch;
+  gap: 8px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-steps__main::before {
+  top: 24px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step__node {
+  width: 40px;
+  height: 40px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step:not(.zrv-ir-step--branch) {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 4px;
+  text-align: center;
+}
+.zrv-ir--fitted
+  .zrv-ir-ov--steps-featured
+  .zrv-ir-step:not(.zrv-ir-step--branch)
+  .zrv-ir-step__node {
+  grid-row: auto;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step:not(.zrv-ir-step--branch) b {
+  font-size: 22px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step:not(.zrv-ir-step--branch) small {
+  font-size: 13px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step--branch {
+  width: 100%;
+  min-height: 34px;
+  padding: 4px 10px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step--branch .zrv-ir-step__node {
+  width: 28px;
+  height: 28px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step--branch small {
+  font-size: 13px;
+}
+.zrv-ir--fitted .zrv-ir-ov--steps-featured .zrv-ir-step--branch b {
+  font-size: 18px;
+}
 .zrv-ir-num {
   padding: 0;
   border: 0;
@@ -2322,17 +2552,18 @@
   background: currentColor;
 }
 
-/* Summary drawer: backdrop fades, panel glides in, content follows; the
-   closing class plays the reverse before the drawer unmounts. */
+/* Summary drawer: a short, soft glide in from the right edge with a fade — the
+   panel clearly enters from the right without a full-width chase. Everything is
+   laid out first, so nothing shifts when the skeleton becomes the record. */
 .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog-backdrop {
-  animation: zrv-ir-fade 0.4s ease both;
+  animation: zrv-ir-backdrop-in 0.5s ease both;
 }
 .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog {
   gap: 14px;
   padding: 24px;
   box-shadow: -36px 0 70px -40px rgb(0 0 0 / 0.45);
-  animation: zrv-ir-drawer-in 0.6s var(--ir-ease) both;
-  will-change: transform;
+  animation: zrv-ir-drawer-in 0.56s cubic-bezier(0.22, 1, 0.36, 1) both;
+  backface-visibility: hidden;
 }
 .zrv-ir-drawer.zrv-hr-rp-drawer:has(.zrv-ir-offer-preview) .zrv-dialog {
   box-shadow: none;
@@ -2341,10 +2572,23 @@
   box-shadow: none;
 }
 .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog-backdrop {
-  animation: zrv-ir-fade-out 0.32s ease 0.02s both;
+  animation: zrv-ir-fade-out 0.4s ease both;
 }
 .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog {
-  animation: zrv-ir-drawer-out 0.32s cubic-bezier(0.5, 0, 0.75, 0) both;
+  animation: zrv-ir-drawer-out 0.4s cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog-backdrop,
+  .zrv-ir-drawer.zrv-hr-rp-drawer .zrv-dialog,
+  .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog-backdrop,
+  .zrv-ir-drawer.zrv-ir-is-closing .zrv-dialog {
+    animation: none;
+  }
+}
+@keyframes zrv-ir-backdrop-in {
+  from {
+    opacity: 0;
+  }
 }
 @keyframes zrv-ir-fade-out {
   to {
@@ -2353,12 +2597,22 @@
 }
 @keyframes zrv-ir-drawer-in {
   from {
-    transform: translateX(100%);
+    opacity: 0;
+    transform: translate3d(32px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 @keyframes zrv-ir-drawer-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
   to {
-    transform: translateX(100%);
+    opacity: 0;
+    transform: translate3d(24px, 0, 0);
   }
 }
 .zrv-ir-drawer .zrv-dialog > h2 {
@@ -2367,7 +2621,6 @@
     Menlo,
     monospace;
   letter-spacing: 0.01em;
-  animation: zrv-ir-rise 0.5s var(--ir-ease) 0.15s both;
 }
 /* A drawer that shows only the record's preview keeps the record number as
    its dialog label for screen readers but hides the heading. */
@@ -2388,9 +2641,7 @@
   overflow: hidden;
 }
 .zrv-ir-drawer--plain .zrv-ir-drawer__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  padding-right: 3px;
 }
 .zrv-ir-drawer--resizable .zrv-dialog {
   gap: 9px;
@@ -2411,11 +2662,7 @@
   border-radius: 10px;
 }
 .zrv-ir-drawer--resizable .zrv-ir-drawer__body {
-  flex: 1 1 auto;
-  min-height: 0;
   gap: 8px;
-  overflow-y: auto;
-  padding-right: 3px;
 }
 .zrv-ir-drawer__grip {
   position: absolute;
@@ -2444,31 +2691,17 @@
   background: color-mix(in srgb, var(--zrv-hr-accent) 70%, transparent);
   outline: 0;
 }
+/* One scroll contract for every drawer: the body fills the panel and scrolls on
+   its own, so the action bar can be pinned to the bottom in all drawers — even
+   while a detail is still loading and its content is short. */
 .zrv-ir-drawer__body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 12px;
-}
-.zrv-ir-drawer__body > * {
-  animation: zrv-ir-rise 0.55s var(--ir-ease) both;
-}
-.zrv-ir-drawer__body > :nth-child(1) {
-  animation-delay: 0.2s;
-}
-.zrv-ir-drawer__body > :nth-child(2) {
-  animation-delay: 0.27s;
-}
-.zrv-ir-drawer__body > :nth-child(3) {
-  animation-delay: 0.34s;
-}
-.zrv-ir-drawer__body > :nth-child(4) {
-  animation-delay: 0.41s;
-}
-@keyframes zrv-ir-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .zrv-ir-drawer__hero {
   display: flex;
@@ -2580,11 +2813,78 @@
   color: var(--ir-tone-text);
   font-size: 13.5px;
 }
+/* The drawer's bottom bar stays in reach while its body scrolls. */
 .zrv-ir-drawer__actions {
+  position: sticky;
+  z-index: 5;
+  bottom: -3px;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  margin-top: 4px;
+  /* auto margin keeps the bar at the bottom when the body is not overflowing;
+     sticky keeps it there once the body scrolls. */
+  margin: auto 0 0;
+  padding: 10px 2px 2px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(
+    to top,
+    var(--surface-solid) 62%,
+    color-mix(in srgb, var(--surface-solid) 70%, transparent)
+  );
+  backdrop-filter: blur(6px);
+}
+
+/* Continuous attention pulse on the primary shortcut in the drawer bar. */
+.zrv-ir-btn--spotlight {
+  position: relative;
+  flex: 1 1 auto;
+  justify-content: center;
+  border-color: color-mix(in srgb, var(--zrv-hr-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--zrv-hr-accent) 12%, var(--surface-solid));
+  color: var(--zrv-hr-accent-text);
+  font-weight: 750;
+  animation: zrv-ir-spotlight 2.4s ease-in-out infinite;
+}
+.zrv-ir-btn--spotlight::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--zrv-hr-accent) 60%, transparent);
+  border-radius: inherit;
+  opacity: 0;
+  animation: zrv-ir-spotlight-ring 2.4s ease-out infinite;
+  pointer-events: none;
+}
+.zrv-ir-btn--spotlight:hover,
+.zrv-ir-btn--spotlight:focus-visible {
+  animation-play-state: paused;
+}
+@keyframes zrv-ir-spotlight {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--zrv-hr-accent) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 4px 16px -2px color-mix(in srgb, var(--zrv-hr-accent) 42%, transparent);
+  }
+}
+@keyframes zrv-ir-spotlight-ring {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.97);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zrv-ir-btn--spotlight,
+  .zrv-ir-btn--spotlight::after {
+    animation: none;
+  }
 }
 
 /* Orientation drawer: employee identity stays concise at the top while the

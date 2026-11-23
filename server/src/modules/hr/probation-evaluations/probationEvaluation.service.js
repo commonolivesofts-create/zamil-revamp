@@ -4,6 +4,7 @@ import {
   withConnection as defaultWithConnection,
   withTransaction as defaultWithTransaction,
 } from '../../../database/oracle.js';
+import { cachedCounts } from '../../../shared/cache/cachedCounts.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import { parsePermission } from '../../access-control/authorization.service.js';
 import * as defaultRepository from './probationEvaluation.repository.js';
@@ -59,6 +60,7 @@ export function createProbationEvaluationService({
   withTransaction = defaultWithTransaction,
   // `authorizationService.holds`; denies by default so a missing wiring never widens access.
   holds = async () => false,
+  countsCache,
 }) {
   const read = (work) => withConnection(POOLS.LOW, work);
 
@@ -70,7 +72,11 @@ export function createProbationEvaluationService({
   async function authorizeRecord(connection, actor, headerId) {
     const facts = await repository.findAccessFacts(connection, headerId);
     if (!facts) throw notFound();
-    if (String(facts.createdBy) === String(actor.userId)) return facts;
+    if (
+      String(facts.createdBy) === String(actor.userId) ||
+      String(facts.createdBy) === String(actor.employeeNumber)
+    )
+      return facts;
     if (await repository.isHrUser(connection, actor.employeeNumber)) return facts;
     if (
       facts.employeeNumber &&
@@ -171,7 +177,7 @@ export function createProbationEvaluationService({
           uuid,
           userName: text(requestor?.fullName),
           userMail: text(requestor?.emailAddress),
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
         });
         if (!headerId) {
           throw new AppError(
@@ -192,17 +198,35 @@ export function createProbationEvaluationService({
       });
     },
 
+    /** The list total of each filter set for the dashboard, in the list's scope, one statement. */
+    async counts(actor, { queries, fresh }) {
+      return cachedCounts(
+        countsCache,
+        { module: 'probations', userId: actor.userId, queries, fresh },
+        (missing) =>
+          read(async (c) => {
+            const isHr = await repository.isHrUser(c, actor.employeeNumber);
+            return repository.countEvaluations(c, {
+              queries: missing,
+              createdBy: isHr ? null : (actor.employeeNumber ?? actor.userId),
+              legacyCreatedBy: isHr ? null : actor.userId,
+            });
+          }),
+      );
+    },
+
     async list(actor, { page, pageSize, sortBy, sortDir, search, ...filters }) {
       const isHr = await read((connection) =>
         repository.isHrUser(connection, actor.employeeNumber),
       );
-      const createdBy = isHr ? null : actor.userId;
+      const createdBy = isHr ? null : (actor.employeeNumber ?? actor.userId);
       const { total, items } = await read((connection) =>
         repository.listEvaluations(connection, {
           limit: pageSize,
           offset: (page - 1) * pageSize,
           filters: { ...filters, search: searchPattern(search) },
           createdBy,
+          legacyCreatedBy: isHr ? null : actor.userId,
           sortBy,
           sortDir,
         }),
@@ -249,7 +273,7 @@ export function createProbationEvaluationService({
           totalRating: ratingTotal(lines),
           comment: body.comment,
           comments: body.comments,
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!changed) throw notFound();
         for (const line of lines) {

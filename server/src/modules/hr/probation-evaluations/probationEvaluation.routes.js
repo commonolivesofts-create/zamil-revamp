@@ -11,6 +11,7 @@ import {
   employeesQuerySchema,
   headerIdParams,
   listQuerySchema,
+  countsBody,
   updateBodySchema,
 } from './probationEvaluation.validation.js';
 
@@ -43,6 +44,8 @@ export function createProbationEvaluationRouter({
   });
 
   router.get('/', ...read({ query: listQuerySchema }), controller.list);
+  // Read-only: the list totals of many filter sets (dashboard). POST for the body, so CSRF too.
+  router.post('/counts', ...write('VIEW', { body: countsBody }), controller.counts);
   router.get('/lookups/form-types', ...read(), controller.formTypes);
   router.get('/lookups/criteria', ...read({ query: criteriaQuerySchema }), controller.criteria);
   router.get('/lookups/employees', ...read({ query: employeesQuerySchema }), controller.employees);

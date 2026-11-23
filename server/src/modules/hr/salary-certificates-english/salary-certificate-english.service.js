@@ -122,7 +122,16 @@ const safe = (s) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const actor = (auth) => String(auth?.userId ?? auth?.id ?? auth?.user?.id ?? auth?.username ?? '');
+const actor = (auth) =>
+  String(
+    auth?.employeeNumber ??
+      auth?.user?.employeeNumber ??
+      auth?.userId ??
+      auth?.id ??
+      auth?.user?.id ??
+      auth?.username ??
+      '',
+  );
 
 export function createSalaryCertificateEnglishService({
   repository = defaultRepository,

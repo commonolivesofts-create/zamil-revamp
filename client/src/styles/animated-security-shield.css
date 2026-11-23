@@ -7,14 +7,26 @@
   border: 1px solid color-mix(in srgb, var(--mint) 28%, var(--line));
   border-radius: var(--ui-panel-radius, 18px);
   background:
-    radial-gradient(ellipse at 50% 76%, color-mix(in srgb, #52d795 25%, transparent), transparent 37%),
-    radial-gradient(ellipse at 50% 10%, color-mix(in srgb, #ddf5e7 82%, transparent), transparent 76%),
+    radial-gradient(
+      ellipse at 50% 76%,
+      color-mix(in srgb, #52d795 25%, transparent),
+      transparent 37%
+    ),
+    radial-gradient(
+      ellipse at 50% 10%,
+      color-mix(in srgb, #ddf5e7 82%, transparent),
+      transparent 76%
+    ),
     var(--surface-solid);
 }
 .zrv-security-scene__ambient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, color-mix(in srgb, #eaf9f1 60%, transparent), transparent 55%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #eaf9f1 60%, transparent),
+    transparent 55%
+  );
   pointer-events: none;
 }
 .zrv-security-orbits {
@@ -31,7 +43,10 @@
   stroke: color-mix(in srgb, var(--security-strength-color) 72%, white);
   stroke-width: 1;
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--security-strength-color) 55%, transparent));
-  transition: fill 520ms ease, stroke 520ms ease, filter 520ms ease;
+  transition:
+    fill 520ms ease,
+    stroke 520ms ease,
+    filter 520ms ease;
 }
 .zrv-security-orbit ellipse {
   fill: none;
@@ -40,17 +55,29 @@
 .zrv-security-orbit--back {
   opacity: 0.28;
   animation: zrv-security-orbit-spin 16s linear infinite paused;
-  transition: opacity 420ms ease, fill 520ms ease, stroke 520ms ease, filter 520ms ease;
+  transition:
+    opacity 420ms ease,
+    fill 520ms ease,
+    stroke 520ms ease,
+    filter 520ms ease;
 }
 .zrv-security-orbit--front {
   opacity: 0.22;
   animation: zrv-security-orbit-spin-reverse 21s linear infinite paused;
-  transition: opacity 420ms ease, fill 520ms ease, stroke 520ms ease, filter 520ms ease;
+  transition:
+    opacity 420ms ease,
+    fill 520ms ease,
+    stroke 520ms ease,
+    filter 520ms ease;
 }
 .zrv-security-orbit--slow {
   opacity: 0.16;
   animation: zrv-security-orbit-spin 28s linear infinite paused;
-  transition: opacity 420ms ease, fill 520ms ease, stroke 520ms ease, filter 520ms ease;
+  transition:
+    opacity 420ms ease,
+    fill 520ms ease,
+    stroke 520ms ease,
+    filter 520ms ease;
 }
 .zrv-security-scene[data-active-rings='1'] .zrv-security-orbit--back,
 .zrv-security-scene[data-active-rings='2'] .zrv-security-orbit--back,
@@ -74,9 +101,14 @@
   left: 50%;
   width: 88px;
   height: 102px;
-  filter: drop-shadow(0 12px 9px color-mix(in srgb, var(--security-strength-color) 38%, transparent));
-  transform: translateX(-50%) translateY(var(--security-lock-lift, 0px)) scale(var(--security-lock-scale, 0.96));
-  transition: transform 500ms cubic-bezier(0.2, 0.75, 0.25, 1), filter 520ms ease;
+  filter: drop-shadow(
+    0 12px 9px color-mix(in srgb, var(--security-strength-color) 38%, transparent)
+  );
+  transform: translateX(-50%) translateY(var(--security-lock-lift, 0px))
+    scale(var(--security-lock-scale, 0.96));
+  transition:
+    transform 500ms cubic-bezier(0.2, 0.75, 0.25, 1),
+    filter 520ms ease;
   animation: zrv-security-shield-float 5s ease-in-out infinite;
 }
 .zrv-security-shield > svg {
@@ -89,11 +121,19 @@
   fill: color-mix(in srgb, var(--security-strength-color) 72%, #10251a);
   stroke: color-mix(in srgb, var(--security-strength-color) 72%, white);
   stroke-width: 2;
-  transition: fill 520ms ease, stroke 520ms ease;
+  transition:
+    fill 520ms ease,
+    stroke 520ms ease;
 }
-.zrv-security-shield__gradient-start { stop-color: color-mix(in srgb, var(--security-strength-color) 55%, white); }
-.zrv-security-shield__gradient-middle { stop-color: var(--security-strength-color); }
-.zrv-security-shield__gradient-end { stop-color: color-mix(in srgb, var(--security-strength-color) 68%, #10251a); }
+.zrv-security-shield__gradient-start {
+  stop-color: color-mix(in srgb, var(--security-strength-color) 55%, white);
+}
+.zrv-security-shield__gradient-middle {
+  stop-color: var(--security-strength-color);
+}
+.zrv-security-shield__gradient-end {
+  stop-color: color-mix(in srgb, var(--security-strength-color) 68%, #10251a);
+}
 .zrv-security-shield__body {
   stroke: rgb(255 255 255 / 38%);
   stroke-width: 1;
@@ -277,10 +317,25 @@
   box-shadow: 0 0 9px rgb(82 215 149 / 80%);
   animation: zrv-security-particle-drift 5s ease-in-out infinite;
 }
-.zrv-security-particle--one { top: 27%; left: 28%; }
-.zrv-security-particle--two { top: 23%; right: 27%; animation-delay: -1.2s; }
-.zrv-security-particle--three { bottom: 29%; left: 29%; animation-delay: -2.3s; }
-.zrv-security-particle--four { right: 31%; bottom: 24%; animation-delay: -3.1s; }
+.zrv-security-particle--one {
+  top: 27%;
+  left: 28%;
+}
+.zrv-security-particle--two {
+  top: 23%;
+  right: 27%;
+  animation-delay: -1.2s;
+}
+.zrv-security-particle--three {
+  bottom: 29%;
+  left: 29%;
+  animation-delay: -2.3s;
+}
+.zrv-security-particle--four {
+  right: 31%;
+  bottom: 24%;
+  animation-delay: -3.1s;
+}
 .zrv-security-meter {
   position: absolute;
   z-index: 5;
@@ -352,35 +407,65 @@
   line-height: 1.35;
 }
 @keyframes zrv-security-orbit-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes zrv-security-orbit-spin-reverse {
-  to { transform: rotate(-360deg); }
+  to {
+    transform: rotate(-360deg);
+  }
 }
 @keyframes zrv-security-shield-float {
-  50% { translate: 0 -7px; }
+  50% {
+    translate: 0 -7px;
+  }
 }
 @keyframes zrv-security-card-float {
-  50% { translate: 0 -5px; }
+  50% {
+    translate: 0 -5px;
+  }
 }
 @keyframes zrv-security-platform-glow {
-  50% { opacity: 0.72; }
+  50% {
+    opacity: 0.72;
+  }
 }
 @keyframes zrv-security-particle-drift {
-  50% { translate: 0 -7px; opacity: 0.55; }
+  50% {
+    translate: 0 -7px;
+    opacity: 0.55;
+  }
 }
 @keyframes zrv-security-unlock-arrive {
-  0% { opacity: 0; transform: translateX(-50%) scale(0.72); }
-  70% { opacity: 1; transform: translateX(-50%) scale(1.08); }
-  100% { transform: translateX(-50%) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.72);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.08);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
 }
 @keyframes zrv-security-unlock-turn {
-  0% { rotate: 0deg; }
-  55% { rotate: 35deg; }
-  100% { rotate: 0deg; }
+  0% {
+    rotate: 0deg;
+  }
+  55% {
+    rotate: 35deg;
+  }
+  100% {
+    rotate: 0deg;
+  }
 }
 @keyframes zrv-security-success-in {
-  from { opacity: 0; translate: 0 6px; }
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
 }
 @media (max-width: 900px) {
   .zrv-security-scene {
@@ -416,9 +501,13 @@
     font-size: 8px;
   }
   .zrv-security-card--middle-left,
-  .zrv-security-card--middle-right { top: 75px; }
+  .zrv-security-card--middle-right {
+    top: 75px;
+  }
   .zrv-security-card--bottom-left,
-  .zrv-security-card--bottom-right { bottom: 10px; }
+  .zrv-security-card--bottom-right {
+    bottom: 10px;
+  }
   .zrv-security-platform {
     bottom: 6px;
     transform: translateX(-50%) scale(0.68);

@@ -52,6 +52,7 @@ export function RecruitmentHeader({
   subtitle,
   breadcrumb = COMMON_TEXT.breadcrumb,
   demo = false,
+  rightContent = null,
 }) {
   return (
     <header className="zrv-hr-head">
@@ -76,6 +77,7 @@ export function RecruitmentHeader({
             </span>
           ))}
         </h1>
+        {rightContent}
         {demo && (
           <span title={COMMON_TEXT.demoNote}>
             <Badge tone="warn">{COMMON_TEXT.demoBadge}</Badge>

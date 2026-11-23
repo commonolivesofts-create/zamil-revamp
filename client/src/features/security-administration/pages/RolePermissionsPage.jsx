@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
@@ -35,33 +34,19 @@ const readable = (value) =>
     .toLowerCase()
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
 
-function StatCard({
-  title,
-  value,
-  subtitle,
-  icon,
-  amber = false,
-}) {
+function StatCard({ title, value, subtitle, icon, amber = false }) {
   return (
-    <article
-      className={`zrv-rp-stat${amber ? ' is-amber' : ''}`}
-    >
+    <article className={`zrv-rp-stat${amber ? ' is-amber' : ''}`}>
       <div className="zrv-rp-stat__icon">
         <OrvexaIcon name={icon} />
       </div>
 
       <div className="zrv-rp-stat__content">
-        <span className="zrv-rp-stat__title">
-          {title}
-        </span>
+        <span className="zrv-rp-stat__title">{title}</span>
 
-        <strong className="zrv-rp-stat__value">
-          {value}
-        </strong>
+        <strong className="zrv-rp-stat__value">{value}</strong>
 
-        <small className="zrv-rp-stat__subtitle">
-          {subtitle}
-        </small>
+        <small className="zrv-rp-stat__subtitle">{subtitle}</small>
       </div>
 
       <svg
@@ -93,14 +78,11 @@ function groupGrants(data, search, showRevoked) {
 
     const matches =
       !term ||
-      [
-        moduleCode,
-        moduleLabel,
-        grant.resourceCode,
-        grant.actionCode,
-        permissionLabel(grant),
-      ].some((value) =>
-        String(value ?? '').toLowerCase().includes(term)
+      [moduleCode, moduleLabel, grant.resourceCode, grant.actionCode, permissionLabel(grant)].some(
+        (value) =>
+          String(value ?? '')
+            .toLowerCase()
+            .includes(term),
       )
 
     if (!matches) continue
@@ -124,9 +106,7 @@ function groupGrants(data, search, showRevoked) {
         const right = `${b.resourceCode}:${b.actionCode}`
         return left.localeCompare(right)
       }),
-      activeCount: module.grants.filter(
-        (grant) => grant.isActive
-      ).length,
+      activeCount: module.grants.filter((grant) => grant.isActive).length,
     }))
     .sort((a, b) => a.label.localeCompare(b.label))
 }
@@ -148,46 +128,26 @@ export default function RolePermissionsPage() {
   const [permissionSearch, setPermissionSearch] = useState('')
   const [expandedModules, setExpandedModules] = useState({})
 
-  const roles = useResource(
-    `roles:${page}:${ROLE_PAGE_SIZE}`,
-    (signal) =>
-      securityAdminService.listRoles(
-        { page, limit: ROLE_PAGE_SIZE },
-        { signal },
-      ),
+  const roles = useResource(`roles:${page}:${ROLE_PAGE_SIZE}`, (signal) =>
+    securityAdminService.listRoles({ page, limit: ROLE_PAGE_SIZE }, { signal }),
   )
 
-  const grants = useResource(
-    roleId ? `role-grants:${roleId}` : null,
-    (signal) =>
-      securityAdminService.listRolePermissions(
-        roleId,
-        { signal },
-      ),
+  const grants = useResource(roleId ? `role-grants:${roleId}` : null, (signal) =>
+    securityAdminService.listRolePermissions(roleId, { signal }),
   )
 
   const action = useAdminAction()
 
   const roleItems = roles.data?.items ?? []
 
-  const role =
-    roleItems.find(
-      (item) => item.roleId === roleId
-    ) ?? null
+  const role = roleItems.find((item) => item.roleId === roleId) ?? null
 
-  const roleLabel = role
-    ? role.roleCode
-    : roleId
-      ? `role ${roleId}`
-      : ''
+  const roleLabel = role ? role.roleCode : roleId ? `role ${roleId}` : ''
 
   const canGrant =
-    can(SECURITY_ACTIONS.ROLE_PERMISSIONS_GRANT) &&
-    can(SECURITY_ACTIONS.PERMISSION_CATALOG_VIEW)
+    can(SECURITY_ACTIONS.ROLE_PERMISSIONS_GRANT) && can(SECURITY_ACTIONS.PERMISSION_CATALOG_VIEW)
 
-  const canRevoke = can(
-    SECURITY_ACTIONS.ROLE_PERMISSIONS_REVOKE
-  )
+  const canRevoke = can(SECURITY_ACTIONS.ROLE_PERMISSIONS_REVOKE)
 
   const dialog = dialogForRole(dialogState, roleId)
 
@@ -206,39 +166,24 @@ export default function RolePermissionsPage() {
         [item.roleName, item.roleCode].some((value) =>
           String(value ?? '')
             .toLowerCase()
-            .includes(term)
+            .includes(term),
         )
 
       const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active'
-          ? item.isActive
-          : !item.isActive)
+        statusFilter === 'all' || (statusFilter === 'active' ? item.isActive : !item.isActive)
 
       return matchesSearch && matchesStatus
     })
   }, [roleItems, roleSearch, statusFilter])
 
-  const selectedGrants =
-    grants.status === 'ready'
-      ? grants.data
-      : null
+  const selectedGrants = grants.status === 'ready' ? grants.data : null
 
-  const activeGrants = selectedGrants
-    ? selectedGrants.filter((grant) => grant.isActive)
-    : []
+  const activeGrants = selectedGrants ? selectedGrants.filter((grant) => grant.isActive) : []
 
-  const selectedModules = new Set(
-    activeGrants.map((grant) => grant.moduleCode)
-  )
+  const selectedModules = new Set(activeGrants.map((grant) => grant.moduleCode))
 
   const groupedPermissions = useMemo(
-    () =>
-      groupGrants(
-        selectedGrants,
-        permissionSearch,
-        showRevoked,
-      ),
+    () => groupGrants(selectedGrants, permissionSearch, showRevoked),
     [selectedGrants, permissionSearch, showRevoked],
   )
 
@@ -288,26 +233,16 @@ export default function RolePermissionsPage() {
         description="Choose a role to review, grant or revoke its permissions."
       >
         {!dialog && (
-          <Feedback
-            feedback={action.feedback}
-            onDismiss={() => action.setFeedback(null)}
-          />
+          <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
         )}
 
         {/* SUMMARY CARDS */}
 
-        <section
-          className="zrv-rp-stats"
-          aria-label="Role permission overview"
-        >
+        <section className="zrv-rp-stats" aria-label="Role permission overview">
           <StatCard
             title="Total Roles"
             icon="users-round"
-            value={
-              roles.status === 'ready'
-                ? roles.data.pagination.total
-                : '—'
-            }
+            value={roles.status === 'ready' ? roles.data.pagination.total : '—'}
             subtitle="All registered roles"
           />
 
@@ -315,9 +250,7 @@ export default function RolePermissionsPage() {
             title="Active Roles"
             icon="circle-check"
             value={
-              roles.status === 'ready'
-                ? roleItems.filter((item) => item.isActive).length
-                : '—'
+              roles.status === 'ready' ? roleItems.filter((item) => item.isActive).length : '—'
             }
             subtitle="On the current page"
           />
@@ -332,9 +265,7 @@ export default function RolePermissionsPage() {
           <StatCard
             title="Permission Modules"
             icon="layout-grid"
-            value={
-              selectedGrants ? selectedModules.size : '—'
-            }
+            value={selectedGrants ? selectedModules.size : '—'}
             subtitle="For selected role"
           />
         </section>
@@ -344,40 +275,29 @@ export default function RolePermissionsPage() {
         <div className="zrv-admin-split zrv-rp-layout">
           {/* LEFT PANEL */}
 
-          <Panel
-            title="All Roles"
-            className="zrv-rp-roles-panel"
-          >
+          <Panel title="All Roles" className="zrv-rp-roles-panel">
             <div className="zrv-rp-filters">
               <label className="zrv-rp-search">
                 <OrvexaIcon name="search" />
 
-                <span className="sr-only">
-                  Search roles
-                </span>
+                <span className="sr-only">Search roles</span>
 
                 <input
                   type="search"
                   placeholder="Search roles..."
                   value={roleSearch}
-                  onChange={(event) =>
-                    setRoleSearch(event.target.value)
-                  }
+                  onChange={(event) => setRoleSearch(event.target.value)}
                 />
               </label>
 
               <label className="zrv-rp-filter">
                 <OrvexaIcon name="filter" />
 
-                <span className="sr-only">
-                  Filter roles by status
-                </span>
+                <span className="sr-only">Filter roles by status</span>
 
                 <select
                   value={statusFilter}
-                  onChange={(event) =>
-                    setStatusFilter(event.target.value)
-                  }
+                  onChange={(event) => setStatusFilter(event.target.value)}
                 >
                   <option value="all">All Status</option>
                   <option value="active">Active</option>
@@ -386,36 +306,24 @@ export default function RolePermissionsPage() {
               </label>
             </div>
 
-            <ResourceState
-              resource={roles}
-              label="roles"
-              empty="No roles are defined."
-            >
+            <ResourceState resource={roles} label="roles" empty="No roles are defined.">
               {({ pagination }) => (
                 <>
                   <div className="zrv-rp-role-list">
                     {visibleRoles.length === 0 && (
-                      <p className="zrv-admin-state">
-                        No roles match your search on this page.
-                      </p>
+                      <p className="zrv-admin-state">No roles match your search on this page.</p>
                     )}
 
                     {visibleRoles.map((item) => (
                       <button
                         type="button"
                         key={item.roleId}
-                        className={`zrv-rp-role${
-                          item.roleId === roleId
-                            ? ' is-selected'
-                            : ''
-                        }`}
+                        className={`zrv-rp-role${item.roleId === roleId ? ' is-selected' : ''}`}
                         aria-pressed={item.roleId === roleId}
                         onClick={() => select(item.roleId)}
                       >
                         <span className="zrv-rp-role__copy">
-                          <strong>
-                            {item.roleName || item.roleCode}
-                          </strong>
+                          <strong>{item.roleName || item.roleCode}</strong>
 
                           <small>{item.roleCode}</small>
                         </span>
@@ -428,9 +336,7 @@ export default function RolePermissionsPage() {
                   </div>
 
                   <div className="zrv-rp-role-footer">
-                    <span>
-                      {visibleRoles.length} shown on this page
-                    </span>
+                    <span>{visibleRoles.length} shown on this page</span>
 
                     <Pagination
                       pagination={pagination}
@@ -450,7 +356,8 @@ export default function RolePermissionsPage() {
             title="Permissions"
             className="zrv-rp-permissions-panel"
             actions={
-              roleId && canGrant && (
+              roleId &&
+              canGrant && (
                 <button
                   type="button"
                   className="btn-primary zrv-rp-grant"
@@ -472,10 +379,7 @@ export default function RolePermissionsPage() {
 
                 <h3>Select a role</h3>
 
-                <p>
-                  Select a role from the left panel to review
-                  and manage its permissions.
-                </p>
+                <p>Select a role from the left panel to review and manage its permissions.</p>
               </div>
             ) : (
               <>
@@ -483,29 +387,19 @@ export default function RolePermissionsPage() {
 
                 <div className="zrv-rp-selected">
                   <div>
-                    <span className="zrv-rp-selected__label">
-                      Selected Role
-                    </span>
+                    <span className="zrv-rp-selected__label">Selected Role</span>
 
-                    <h3>
-                      {role?.roleName || roleLabel}
-                    </h3>
+                    <h3>{role?.roleName || roleLabel}</h3>
 
                     <small>{roleLabel}</small>
                   </div>
 
-                  {role && (
-                    <ActiveBadge active={role.isActive} />
-                  )}
+                  {role && <ActiveBadge active={role.isActive} />}
                 </div>
 
                 {role && !role.isActive && (
-                  <p
-                    className="zrv-admin-note"
-                    role="note"
-                  >
-                    This role is inactive: its permissions do
-                    not apply, and no permission can be
+                  <p className="zrv-admin-note" role="note">
+                    This role is inactive: its permissions do not apply, and no permission can be
                     granted to it.
                   </p>
                 )}
@@ -516,17 +410,13 @@ export default function RolePermissionsPage() {
                   <label className="zrv-rp-search">
                     <OrvexaIcon name="search" />
 
-                    <span className="sr-only">
-                      Search permissions
-                    </span>
+                    <span className="sr-only">Search permissions</span>
 
                     <input
                       type="search"
                       value={permissionSearch}
                       placeholder="Search permissions..."
-                      onChange={(event) =>
-                        setPermissionSearch(event.target.value)
-                      }
+                      onChange={(event) => setPermissionSearch(event.target.value)}
                     />
                   </label>
 
@@ -534,11 +424,8 @@ export default function RolePermissionsPage() {
                     <input
                       type="checkbox"
                       checked={showRevoked}
-                      onChange={(event) =>
-                        setShowRevoked(event.target.checked)
-                      }
+                      onChange={(event) => setShowRevoked(event.target.checked)}
                     />
-
                     Show revoked grants
                   </label>
                 </div>
@@ -549,175 +436,121 @@ export default function RolePermissionsPage() {
                   resource={grants}
                   label="role permissions"
                   empty={
-                    showRevoked
-                      ? 'This role has no grants.'
-                      : 'This role holds no permissions.'
+                    showRevoked ? 'This role has no grants.' : 'This role holds no permissions.'
                   }
-                  isEmpty={(data) =>
-                    !data.some(
-                      (item) => showRevoked || item.isActive
-                    )
-                  }
+                  isEmpty={(data) => !data.some((item) => showRevoked || item.isActive)}
                 >
                   {() =>
                     groupedPermissions.length ? (
                       <div className="zrv-rp-module-list">
-                        {groupedPermissions.map(
-                          (module, index) => {
-                            const expanded =
-                              expandedModules[module.code] ??
-                              index === 0
+                        {groupedPermissions.map((module, index) => {
+                          const expanded = expandedModules[module.code] ?? index === 0
 
-                            return (
-                              <section
-                                className="zrv-rp-module"
-                                key={module.code}
+                          return (
+                            <section className="zrv-rp-module" key={module.code}>
+                              <button
+                                type="button"
+                                className="zrv-rp-module__header"
+                                aria-expanded={expanded}
+                                onClick={() =>
+                                  setExpandedModules((previous) => ({
+                                    ...previous,
+                                    [module.code]: !expanded,
+                                  }))
+                                }
                               >
-                                <button
-                                  type="button"
-                                  className="zrv-rp-module__header"
-                                  aria-expanded={expanded}
-                                  onClick={() =>
-                                    setExpandedModules(
-                                      (previous) => ({
-                                        ...previous,
-                                        [module.code]: !expanded,
-                                      }),
-                                    )
-                                  }
-                                >
-                                  <OrvexaIcon
-                                    name="layers"
-                                    className="zrv-rp-module__icon"
-                                  />
+                                <OrvexaIcon name="layers" className="zrv-rp-module__icon" />
 
-                                  <strong>
-                                    {module.label}
-                                  </strong>
+                                <strong>{module.label}</strong>
 
-                                  <span className="zrv-rp-module__count">
-                                    {module.activeCount} Granted
-                                  </span>
+                                <span className="zrv-rp-module__count">
+                                  {module.activeCount} Granted
+                                </span>
 
-                                  <OrvexaIcon
-                                    name={
-                                      expanded
-                                        ? 'chevron-up'
-                                        : 'chevron-down'
-                                    }
-                                    className="zrv-rp-module__chevron"
-                                  />
-                                </button>
+                                <OrvexaIcon
+                                  name={expanded ? 'chevron-up' : 'chevron-down'}
+                                  className="zrv-rp-module__chevron"
+                                />
+                              </button>
 
-                                {expanded && (
-                                  <HorizontalTableScroll className="zrv-security-table-scroll zrv-rp-table-wrap">
-                                    <table className="zrv-rp-table zrv-security-table">
-                                      <caption className="sr-only">
-                                        Permissions for {module.label}
-                                      </caption>
+                              {expanded && (
+                                <HorizontalTableScroll className="zrv-security-table-scroll zrv-rp-table-wrap">
+                                  <table className="zrv-rp-table zrv-security-table">
+                                    <caption className="sr-only">
+                                      Permissions for {module.label}
+                                    </caption>
 
-                                      <thead>
-                                        <tr>
-                                          <th scope="col">
-                                            Resource
-                                          </th>
-                                          <th scope="col">
-                                            Action
-                                          </th>
-                                          <th scope="col">
-                                            Status
-                                          </th>
-                                          <th scope="col">
-                                            Updated
-                                          </th>
-                                          <th scope="col">
-                                            <span className="sr-only">
-                                              Manage
+                                    <thead>
+                                      <tr>
+                                        <th scope="col">Resource</th>
+                                        <th scope="col">Action</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Updated</th>
+                                        <th scope="col">
+                                          <span className="sr-only">Manage</span>
+                                        </th>
+                                      </tr>
+                                    </thead>
+
+                                    <tbody>
+                                      {module.grants.map((grant) => (
+                                        <tr key={grant.permissionId}>
+                                          <td>
+                                            <strong>{readable(grant.resourceCode)}</strong>
+
+                                            <small>{grant.resourceCode}</small>
+                                          </td>
+
+                                          <td>
+                                            <span className="zrv-rp-action-label">
+                                              {readable(grant.actionCode)}
                                             </span>
-                                          </th>
-                                        </tr>
-                                      </thead>
+                                          </td>
 
-                                      <tbody>
-                                        {module.grants.map(
-                                          (grant) => (
-                                            <tr
-                                              key={grant.permissionId}
-                                            >
-                                              <td>
-                                                <strong>
-                                                  {readable(
-                                                    grant.resourceCode,
-                                                  )}
-                                                </strong>
+                                          <td>
+                                            <ActiveBadge
+                                              active={grant.isActive}
+                                              activeLabel="Granted"
+                                              inactiveLabel="Revoked"
+                                            />
+                                          </td>
 
-                                                <small>
-                                                  {grant.resourceCode}
-                                                </small>
-                                              </td>
+                                          <td>
+                                            {formatInstant(grant.updatedAt || grant.createdAt)}
+                                          </td>
 
-                                              <td>
-                                                <span className="zrv-rp-action-label">
-                                                  {readable(
-                                                    grant.actionCode,
-                                                  )}
+                                          <td>
+                                            {canRevoke && grant.isActive && (
+                                              <button
+                                                type="button"
+                                                className="zrv-rp-revoke"
+                                                onClick={() =>
+                                                  open({
+                                                    type: 'revoke',
+                                                    grant,
+                                                  })
+                                                }
+                                              >
+                                                Revoke
+                                                <span className="sr-only">
+                                                  {' '}
+                                                  {permissionLabel(grant)}
                                                 </span>
-                                              </td>
-
-                                              <td>
-                                                <ActiveBadge
-                                                  active={grant.isActive}
-                                                  activeLabel="Granted"
-                                                  inactiveLabel="Revoked"
-                                                />
-                                              </td>
-
-                                              <td>
-                                                {formatInstant(
-                                                  grant.updatedAt ||
-                                                    grant.createdAt,
-                                                )}
-                                              </td>
-
-                                              <td>
-                                                {canRevoke &&
-                                                  grant.isActive && (
-                                                    <button
-                                                      type="button"
-                                                      className="zrv-rp-revoke"
-                                                      onClick={() =>
-                                                        open({
-                                                          type: 'revoke',
-                                                          grant,
-                                                        })
-                                                      }
-                                                    >
-                                                      Revoke
-                                                      <span className="sr-only">
-                                                        {' '}
-                                                        {permissionLabel(
-                                                          grant,
-                                                        )}
-                                                      </span>
-                                                    </button>
-                                                  )}
-                                              </td>
-                                            </tr>
-                                          ),
-                                        )}
-                                      </tbody>
-                                    </table>
-                                  </HorizontalTableScroll>
-                                )}
-                              </section>
-                            )
-                          },
-                        )}
+                                              </button>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </HorizontalTableScroll>
+                              )}
+                            </section>
+                          )
+                        })}
                       </div>
                     ) : (
-                      <p className="zrv-admin-state">
-                        No permissions match your search.
-                      </p>
+                      <p className="zrv-admin-state">No permissions match your search.</p>
                     )
                   }
                 </ResourceState>

@@ -778,10 +778,14 @@ export function createSourceMappingService({
         if (locked.lifecycleState !== STATE.DRAFT || locked.isDefault) throw notDraft();
         if (locked.rowVersion !== rowVersion) throw stale();
         const refs = await repository.findVersionReferences(c, sourceVersionId);
-        if (refs.headerRefs > 0 || refs.lineRefs > 0) throw referenced();
-        // Fail closed: the known header FK must be visible (otherwise the dictionary cannot be
-        // trusted to show the others), and no visible FK may cascade or, for a table whose
-        // references are not counted above, be disabled.
+        // v1 header/lines and every source of a v2 relationship graph count as references.
+        if (refs.headerRefs > 0 || refs.lineRefs > 0 || refs.graphRefs > 0) throw referenced();
+        const counted = [refs.headerRefs, refs.lineRefs, refs.graphRefs, refs.unverifiable].every(
+          (count) => Number.isInteger(count) && count >= 0,
+        );
+        // Fail closed: every reference count must be known, the known header FK must be visible
+        // (otherwise the dictionary cannot be trusted to show the others), and no visible FK may
+        // cascade or, for a table whose references are not counted above, be disabled.
         const headerKeyVisible = refs.foreignKeys.some(
           (key) => key.tableName === FORM_VERSIONS_TABLE,
         );
@@ -790,7 +794,9 @@ export function createSourceMappingService({
             key.deleteRule !== 'NO ACTION' ||
             (key.status !== 'ENABLED' && key.tableName !== FORM_VERSIONS_TABLE),
         );
-        if (refs.unverifiable > 0 || unsafeKey || !headerKeyVisible) throw dependencyUnverified();
+        if (!counted || refs.unverifiable > 0 || unsafeKey || !headerKeyVisible) {
+          throw dependencyUnverified();
+        }
         versionNo = locked.versionNo;
         const deleted = await repository.deleteDraftVersion(c, {
           sourceId,

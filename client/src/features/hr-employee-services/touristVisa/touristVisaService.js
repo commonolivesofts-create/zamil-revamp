@@ -1,9 +1,9 @@
 // Tourist Visa Letter (legacy Tourist_visa): /api/v1/hr/tourist-visa-letters,
 // HR.TOURIST_VISA_LETTERS. A bilingual letter to the consul general for an
-// employee's tourist visa. The server copies the employee's name, nationality,
-// passport, national ID, position, contract and salary (English and Arabic)
-// from the master, writes the salary in words and the Hijri date, and checks
-// the countries and the approver. A letter is addressed by its UUID.
+// employee's tourist visa. The server copies employee details from the master
+// while allowing the passport number to be corrected for the letter, writes
+// the salary in words and the Hijri date, and checks the countries and approver.
+// A letter is addressed by its UUID.
 import { apiClient, ApiError } from '../../../services/api/apiClient.js'
 import { createEmployeeList, employeePage } from '../shared/employeeList.js'
 import { invalidResponse, isoDate, params, text } from '../shared/formRecords.js'
@@ -154,8 +154,8 @@ export const letterFormOf = (letter) => ({
   dates: { ...letter.dates },
 })
 
-// Request body. The server re-reads the employee snapshot, so only the
-// requester's answers travel; an Arabic date follows its English date.
+// Request body. The server re-reads the employee snapshot; passport number and
+// the requester's other answers travel with it. An Arabic date follows its English date.
 export function letterBody(form, { approvers, saved }) {
   const approver = approvers.find((item) => item.name === form.approvalName)
   const dates = Object.fromEntries(
@@ -169,6 +169,7 @@ export function letterBody(form, { approvers, saved }) {
     division: form.division,
     country: form.country,
     employee_no: form.employee.employee_no,
+    passport_no: form.employee.passport_no,
     tourism_to: form.tourismTo,
     tourism_from: form.tourismFrom,
     approval_name: form.approvalName,

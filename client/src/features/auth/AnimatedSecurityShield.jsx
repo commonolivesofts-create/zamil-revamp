@@ -7,7 +7,11 @@ const PASSWORD_REQUIREMENTS = [
   { code: 'UPPERCASE', label: 'An uppercase letter', position: 'top-right' },
   { code: 'LOWERCASE', label: 'A lowercase letter', position: 'middle-left' },
   { code: 'DIGIT', label: 'A number', position: 'middle-right' },
-  { code: 'SPECIAL_CHARACTER', label: 'A symbol (not a letter or number)', position: 'bottom-left' },
+  {
+    code: 'SPECIAL_CHARACTER',
+    label: 'A symbol (not a letter or number)',
+    position: 'bottom-left',
+  },
 ]
 
 const strengthColor = (strength, hasInput) => {
@@ -43,7 +47,12 @@ export default function AnimatedSecurityShield({
       aria-hidden={success ? undefined : true}
     >
       <span className="zrv-security-scene__ambient" />
-      <svg className="zrv-security-orbits" viewBox="0 0 400 250" aria-hidden="true" focusable="false">
+      <svg
+        className="zrv-security-orbits"
+        viewBox="0 0 400 250"
+        aria-hidden="true"
+        focusable="false"
+      >
         <g className="zrv-security-orbit zrv-security-orbit--back">
           <ellipse cx="200" cy="125" rx="143" ry="52" />
           <circle cx="61" cy="112" r="3" />
@@ -91,20 +100,23 @@ export default function AnimatedSecurityShield({
         </span>
       </div>
 
-      {!success && PASSWORD_REQUIREMENTS.map(({ code, label, position }, index) => {
-        const met = requirementState.get(code)
-        const state = met === true ? 'met' : met === false ? 'unmet' : 'unknown'
-        return (
-          <div
-            className={`zrv-security-card zrv-security-card--${position} is-${state}`}
-            style={{ '--security-card-delay': `${index * -0.8}s` }}
-            key={code}
-          >
-            <b>{label}</b>
-            <span className="zrv-security-card__state"><i /></span>
-          </div>
-        )
-      })}
+      {!success &&
+        PASSWORD_REQUIREMENTS.map(({ code, label, position }, index) => {
+          const met = requirementState.get(code)
+          const state = met === true ? 'met' : met === false ? 'unmet' : 'unknown'
+          return (
+            <div
+              className={`zrv-security-card zrv-security-card--${position} is-${state}`}
+              style={{ '--security-card-delay': `${index * -0.8}s` }}
+              key={code}
+            >
+              <b>{label}</b>
+              <span className="zrv-security-card__state">
+                <i />
+              </span>
+            </div>
+          )
+        })}
 
       {!success && (
         <div className="zrv-security-meter" aria-hidden="true">

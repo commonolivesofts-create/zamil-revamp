@@ -1,13 +1,15 @@
 import { useSearchParams } from 'react-router'
-import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT, INSIGHT_TEXT, ORIENTATION_TEXT as T } from '../hrRecruitmentText.js'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
+import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { enDate, initials } from '../shared/hrFormat.js'
 import { addDays, dayWindows, monthRanges } from '../shared/insightDates.js'
 import { Pill } from '../shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '../shared/components/InsightReport.jsx'
+import { DetailFacts, DetailSkeleton, SectionHeading } from '../shared/components/ReportDrawer.jsx'
+import { useReportBulkDelete } from '../shared/useReportBulkDelete.jsx'
 import { Card, Hero, Hint, Lanes, Steps, Twin } from '../shared/components/InsightCards.jsx'
 import {
   ORIENTATION_FLAGS,
@@ -114,6 +116,7 @@ const CARDS = [
         icon="workflow"
         label={O.workflow}
         theme="mint"
+        className="zrv-ir-ov--steps-featured"
         aside={<Hint>{data && O.schedules(data.all)}</Hint>}
       >
         <Steps
@@ -182,18 +185,12 @@ function dateGroups(today) {
   ]
 }
 
-function DetailFacts({ facts, columns = 2 }) {
-  return (
-    <dl className="zrv-ir-orientation-facts" style={{ '--orientation-fact-columns': columns }}>
-      {facts.map(([label, entry]) => (
-        <div key={label}>
-          <dt>{label}</dt>
-          <dd>{display(entry)}</dd>
-        </div>
-      ))}
-    </dl>
-  )
-}
+// The fact grid and section headings come from the shared report-drawer toolkit
+// so every report drawer reads as the same UI; the sessions below stay specific
+// to the orientation schedule.
+const drawerFacts = (facts, columns) => (
+  <DetailFacts facts={facts} columns={columns} className="zrv-ir-orientation-facts" />
+)
 
 function OrientationTrainingDetails({ row }) {
   const training = useResource(
@@ -203,26 +200,13 @@ function OrientationTrainingDetails({ row }) {
   )
   if (training.status === 'loading') {
     return (
-      <section
-        className="zrv-ir-orientation-detail"
-        aria-busy="true"
-        aria-label="Loading training details"
-      >
-        <div className="zrv-ir-orientation-heading">
-          <span className="zrv-ir-orientation-heading__icon">
-            <OrvexaIcon name="calendar-clock" size={18} />
-          </span>
-          <div>
-            <h3>Training details</h3>
-            <p>Loading the saved orientation schedule…</p>
-          </div>
-        </div>
-        <div className="zrv-ir-orientation-skeleton" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </div>
-      </section>
+      <DetailSkeleton
+        sections={[
+          { title: 'Training details', icon: 'calendar-clock', columns: 4, rows: 1 },
+          { title: 'Training sessions', icon: 'calendar-days', columns: 2, rows: 2 },
+          { title: 'Workflow details', icon: 'workflow', tone: 'amber', columns: 3, rows: 2 },
+        ]}
+      />
     )
   }
   return (
@@ -233,28 +217,22 @@ function OrientationTrainingDetails({ row }) {
       isEmpty={() => false}
     >
       {(record) => (
-        <section
-          className="zrv-ir-orientation-detail"
-          aria-labelledby={`orientation-training-${row.scheduleId}`}
-        >
-          <div className="zrv-ir-orientation-heading">
-            <span className="zrv-ir-orientation-heading__icon">
-              <OrvexaIcon name="calendar-clock" size={18} />
-            </span>
-            <div>
-              <h3 id={`orientation-training-${row.scheduleId}`}>Training details</h3>
-              <p>Complete saved schedule for reference {record.scheduleNumber}</p>
-            </div>
-          </div>
-          <DetailFacts
-            columns={4}
-            facts={[
+        <section className="zrv-ir-detail" aria-label="Training details">
+          <SectionHeading
+            icon="calendar-clock"
+            title="Training details"
+            description={`Complete saved schedule for reference ${record.scheduleNumber}`}
+            className="zrv-ir-orientation-heading"
+          />
+          {drawerFacts(
+            [
               ['Orientation type', R.flags[row.flag]],
               ['Orientation window', `${date(record.fromDate)} – ${date(record.toDate)}`],
               [T.labels.scheduledBy, record.scheduledByName],
               ['Training sessions', String(record.lines.length)],
-            ]}
-          />
+            ],
+            4,
+          )}
           <div className="zrv-ir-orientation-sessions">
             {record.lines.map((line, index) => (
               <article key={line.lineId} className="zrv-ir-orientation-session">
@@ -267,15 +245,15 @@ function OrientationTrainingDetails({ row }) {
                     </p>
                   </div>
                 </header>
-                <DetailFacts
-                  columns={4}
-                  facts={[
+                {drawerFacts(
+                  [
                     [T.labels.head, line.departmentHead],
                     ['Training time', `${time(line.timeFrom)} – ${time(line.timeTo)}`],
                     [T.labels.days, line.orientationDays],
                     [T.labels.period, line.orientationPeriod],
-                  ]}
-                />
+                  ],
+                  4,
+                )}
                 {line.remarks && (
                   <div className="zrv-ir-orientation-remark">
                     <span>{T.labels.remark}</span>
@@ -290,25 +268,23 @@ function OrientationTrainingDetails({ row }) {
               </p>
             )}
           </div>
-          <div className="zrv-ir-orientation-heading zrv-ir-orientation-heading--workflow">
-            <span className="zrv-ir-orientation-heading__icon">
-              <OrvexaIcon name="workflow" size={18} />
-            </span>
-            <div>
-              <h3>Workflow details</h3>
-              <p>Current approval progress for this schedule</p>
-            </div>
-          </div>
-          <DetailFacts
-            columns={3}
-            facts={[
+          <SectionHeading
+            icon="workflow"
+            title="Workflow details"
+            description="Current approval progress for this schedule"
+            className="zrv-ir-orientation-heading zrv-ir-orientation-heading--workflow"
+            tone="amber"
+          />
+          {drawerFacts(
+            [
               [R.status, statusLabel(row.status)],
               [C.pendingAt, row.pendingAt],
               [C.workflowStart, date(row.workflowStart)],
               [C.workflowEnd, date(row.workflowEnd)],
               [C.lastAction, row.lastAction],
-            ]}
-          />
+            ],
+            3,
+          )}
         </section>
       )}
     </ResourceState>
@@ -321,57 +297,76 @@ function OrientationTrainingDetails({ row }) {
 export default function OrientationReportPage() {
   const [params] = useSearchParams()
   const flag = ORIENTATION_FLAGS.includes(params.get('flag')) ? params.get('flag') : 'N'
+  const service = hrRecruitmentServices.orientations
+  const { confirmation, ...bulk } = useReportBulkDelete({
+    remove: (row) => service.remove(row.scheduleId, { flag: row.flag }),
+    permission: ACTIONS.ORIENTATION_DELETE,
+    idOf: (row) => row.scheduleId,
+    labelOf: (row) => row.scheduleNumber,
+    singular: 'training',
+    plural: 'trainings',
+    // The backend only deletes Draft schedules.
+    canDelete: (row) =>
+      orientationStatus(row.status) === 'Draft'
+        ? undefined
+        : 'Only draft trainings can be deleted.',
+  })
+
   return (
-    <InsightReport
-      key={flag}
-      variant="orientation-report"
-      title={R.title}
-      subtitle={R.subtitle}
-      heading={R.heading}
-      resourceKey="hr-orientation-report"
-      list={hrRecruitmentServices.orientations.list}
-      create={CREATE}
-      openLabel={R.detail.open}
-      empty={R.empty}
-      initial={{ flag, status: '', search: '', dateFrom: '', dateTo: '' }}
-      required={['flag']}
-      fields={FIELDS}
-      columns={COLUMNS}
-      cards={CARDS}
-      groups={dateGroups}
-      defaultSort={{ key: 'HEADER_ID', order: 'desc' }}
-      numberOf={(row) => row.scheduleNumber}
-      rowKey={(row) => row.scheduleId}
-      pathOf={(row) => `${BASE}/${row.scheduleId}?flag=${row.flag}`}
-      resizableDrawer
-      renderDetail={(row) => <OrientationTrainingDetails row={row} />}
-      summary={(row) => {
-        return {
-          heading: row.employeeName,
-          eyebrow: 'Employee details',
-          avatar: initials(row.employeeName),
-          meta: row.employeeNumber ? `Employee ${row.employeeNumber}` : null,
-          pill: <Pill tone={statusTone(row.status)}>{statusLabel(row.status)}</Pill>,
-          employeeFacts: [
-            [C.empNo, row.employeeNumber],
-            [T.labels.position, row.position],
-            [T.labels.type, row.employmentType],
-            [C.division, row.divisionName],
-            [C.section, row.section],
-            [C.startDate, date(row.startDate)],
-          ],
-          facts: [
-            [C.empNo, row.employeeNumber],
-            [R.type, R.flags[row.flag]],
-            [C.division, row.divisionName],
-            [C.section, row.section],
-            [R.detail.period, `${date(row.fromDate)} – ${date(row.toDate)}`],
-            [C.startDate, date(row.startDate)],
-            [C.scheduledBy, row.scheduledBy],
-            [C.pendingAt, row.pendingAt],
-          ],
-        }
-      }}
-    />
+    <>
+      <InsightReport
+        key={flag}
+        variant="orientation-report"
+        title={R.title}
+        subtitle={R.subtitle}
+        heading={R.heading}
+        resourceKey="hr-orientation-report"
+        {...bulk}
+        list={service.list}
+        create={CREATE}
+        openLabel={R.detail.open}
+        empty={R.empty}
+        initial={{ flag, status: '', search: '', dateFrom: '', dateTo: '' }}
+        required={['flag']}
+        fields={FIELDS}
+        columns={COLUMNS}
+        cards={CARDS}
+        groups={dateGroups}
+        defaultSort={{ key: 'HEADER_ID', order: 'desc' }}
+        numberOf={(row) => row.scheduleNumber}
+        rowKey={(row) => row.scheduleId}
+        pathOf={(row) => `${BASE}/${row.scheduleId}?flag=${row.flag}`}
+        resizableDrawer
+        renderDetail={(row) => <OrientationTrainingDetails row={row} />}
+        summary={(row) => {
+          return {
+            heading: row.employeeName,
+            eyebrow: 'Employee details',
+            avatar: initials(row.employeeName),
+            meta: row.employeeNumber ? `Employee ${row.employeeNumber}` : null,
+            pill: <Pill tone={statusTone(row.status)}>{statusLabel(row.status)}</Pill>,
+            employeeFacts: [
+              [C.empNo, row.employeeNumber],
+              [T.labels.position, row.position],
+              [T.labels.type, row.employmentType],
+              [C.division, row.divisionName],
+              [C.section, row.section],
+              [C.startDate, date(row.startDate)],
+            ],
+            facts: [
+              [C.empNo, row.employeeNumber],
+              [R.type, R.flags[row.flag]],
+              [C.division, row.divisionName],
+              [C.section, row.section],
+              [R.detail.period, `${date(row.fromDate)} – ${date(row.toDate)}`],
+              [C.startDate, date(row.startDate)],
+              [C.scheduledBy, row.scheduledBy],
+              [C.pendingAt, row.pendingAt],
+            ],
+          }
+        }}
+      />
+      {confirmation}
+    </>
   )
 }

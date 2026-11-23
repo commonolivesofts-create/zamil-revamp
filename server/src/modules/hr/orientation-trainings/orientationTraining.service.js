@@ -4,6 +4,7 @@ import {
   withConnection as defaultWithConnection,
   withTransaction as defaultWithTransaction,
 } from '../../../database/oracle.js';
+import { cachedCounts } from '../../../shared/cache/cachedCounts.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import { parsePermission } from '../../access-control/authorization.service.js';
 import * as defaultRepository from './orientationTraining.repository.js';
@@ -40,6 +41,7 @@ export function createOrientationTrainingService({
   withTransaction = defaultWithTransaction,
   // `authorizationService.holds`; denies by default so a missing wiring never widens access.
   holds = async () => false,
+  countsCache,
 }) {
   const read = (work) => withConnection(POOLS.LOW, work);
 
@@ -67,7 +69,11 @@ export function createOrientationTrainingService({
     const table = await selectedTable(connection, headerId, flag);
     const header = await repository.findHeader(connection, table, headerId);
     if (!header) throw notFound();
-    if (String(header.createdBy) === String(actor.userId)) return { table, header };
+    if (
+      String(header.createdBy) === String(actor.employeeNumber) ||
+      String(header.createdBy) === String(actor.userId)
+    )
+      return { table, header };
     if (await repository.isHrUser(connection, actor.userId)) return { table, header };
     if (
       header.empNo &&
@@ -159,7 +165,7 @@ export function createOrientationTrainingService({
           fromOrient: body.fromOrient,
           toOrient: body.fromOrient,
           orientationBy: actorName,
-          createdBy: actor.userId,
+          createdBy: actor.employeeNumber ?? actor.userId,
         });
         if (!headerId) throw insertionFailed();
         const reference = await repository.setReference(
@@ -170,10 +176,49 @@ export function createOrientationTrainingService({
         );
         await repository.registerFlag(connection, headerId, table.tableName);
         for (const item of body.lines) {
-          await repository.insertLine(connection, table, lineBinds(headerId, actor.userId, item));
+          await repository.insertLine(
+            connection,
+            table,
+            lineBinds(headerId, actor.employeeNumber ?? actor.userId, item),
+          );
         }
         return { headerId, flag, reference };
       });
+    },
+
+    /**
+     * The list total of each filter set for the dashboard, in the list's scope (HR: every
+     * request of the variant; others: their own); one statement per variant table (flag).
+     */
+    async counts(actor, { queries, fresh }) {
+      return cachedCounts(
+        countsCache,
+        { module: 'orientations', userId: actor.userId, queries, fresh },
+        (missing) =>
+          read(async (connection) => {
+            const isHr = await repository.isHrUser(connection, actor.userId);
+            const counts = new Array(missing.length);
+            for (const flag of Object.keys(repository.TABLES)) {
+              const positions = missing.flatMap((query, index) =>
+                query.flag === flag ? [index] : [],
+              );
+              if (!positions.length) continue;
+              const values = await repository.countTrainings(connection, repository.TABLES[flag], {
+                queries: positions.map((index) =>
+                  Object.fromEntries(
+                    Object.entries(missing[index]).filter(([key]) => key !== 'flag'),
+                  ),
+                ),
+                createdBy: isHr ? null : actor.userId,
+                createdByEmployeeNumber: isHr ? null : actor.employeeNumber,
+              });
+              positions.forEach((index, position) => {
+                counts[index] = values[position];
+              });
+            }
+            return counts;
+          }),
+      );
     },
 
     async list(
@@ -197,6 +242,7 @@ export function createOrientationTrainingService({
         repository.listTrainings(connection, table, {
           filters,
           createdBy: isHr ? null : actor.userId,
+          createdByEmployeeNumber: isHr ? null : actor.employeeNumber,
           limit: pageSize,
           offset: (page - 1) * pageSize,
           sortBy,
@@ -226,10 +272,16 @@ export function createOrientationTrainingService({
           toOrient: body.fromOrient,
           // Scheduled By keeps its saved value.
           orientationBy: header.orientationBy || 'IT',
-          updatedBy: actor.userId,
+          updatedBy: actor.employeeNumber ?? actor.userId,
         });
         if (!changed) throw notFound();
-        await replaceLines(connection, table, headerId, actor.userId, body.lines);
+        await replaceLines(
+          connection,
+          table,
+          headerId,
+          actor.employeeNumber ?? actor.userId,
+          body.lines,
+        );
         return { headerId, flag: table === repository.TABLES.Y ? 'Y' : 'N' };
       });
     },
