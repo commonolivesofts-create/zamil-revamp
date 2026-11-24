@@ -6,6 +6,8 @@ import '@/styles/security-role-permissions.css'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import HorizontalTableScroll from '@/components/ui/HorizontalTableScroll.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
 
 import { formatInstant } from '../adminFeedback.js'
 import { isRecordId, permissionLabel } from '../adminModel.js'
@@ -135,10 +137,21 @@ export default function RolePermissionsPage() {
   const grants = useResource(roleId ? `role-grants:${roleId}` : null, (signal) =>
     securityAdminService.listRolePermissions(roleId, { signal }),
   )
+  const rolesGlobalError =
+    roles.status === 'error' &&
+    (isGlobalDataLoadFailure(roles.error) || roles.error?.code === 'ABORTED')
+  const grantsGlobalError =
+    grants.status === 'error' &&
+    (isGlobalDataLoadFailure(grants.error) || grants.error?.code === 'ABORTED')
+  const pageGlobalError = rolesGlobalError || grantsGlobalError
+  const retryFailedData = () => {
+    if (rolesGlobalError) roles.reload()
+    if (grantsGlobalError) grants.reload()
+  }
 
   const action = useAdminAction()
 
-  const roleItems = roles.data?.items ?? []
+  const roleItems = useMemo(() => roles.data?.items ?? [], [roles.data?.items])
 
   const role = roleItems.find((item) => item.roleId === roleId) ?? null
 
@@ -236,6 +249,14 @@ export default function RolePermissionsPage() {
           <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
         )}
 
+        {pageGlobalError ? (
+          <div className="zrv-rp-error-state">
+            <div className="zrv-global-error-slot zrv-global-error-slot--card">
+              <GlobalErrorScreen inline onRetry={retryFailedData} retryAll={false} />
+            </div>
+          </div>
+        ) : (
+          <>
         {/* SUMMARY CARDS */}
 
         <section className="zrv-rp-stats" aria-label="Role permission overview">
@@ -558,6 +579,8 @@ export default function RolePermissionsPage() {
             )}
           </Panel>
         </div>
+          </>
+        )}
 
         {/* EXISTING GRANT DIALOG */}
 

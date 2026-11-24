@@ -394,6 +394,7 @@ export function buildRegistry(modules, groups) {
       label: entry.title,
       icon: entry.icon,
       section: entry.group,
+      order: entry.order,
       ...(entry.subgroup && { subgroup: entry.subgroup }),
       ...(permission && { permission }),
       ...(alsoRequires.length && { alsoRequires }),

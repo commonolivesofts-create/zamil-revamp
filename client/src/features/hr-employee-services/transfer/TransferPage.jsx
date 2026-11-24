@@ -319,11 +319,11 @@ function TransferEditor({ lookups, record, user }) {
   const leave = (path) => (editor.dirty && !locked ? setDialog({ path }) : navigate(path))
 
   const tools = [
-    { icon: 'file-plus', label: T.tools.newTransfer, onClick: () => leave(BASE) },
-    { icon: 'chart-column', label: T.tools.report, onClick: () => leave(ES_PATHS.transferReport) },
-    { icon: 'save', label: C.save, onClick: save, disabled: locked || editor.pending },
     { icon: 'printer', label: C.print, onClick: () => window.print() },
+    { icon: 'chart-column', label: T.tools.report, onClick: () => leave(ES_PATHS.transferReport) },
+    { icon: 'file-plus', label: T.tools.newTransfer, onClick: () => leave(BASE) },
     { icon: 'house', label: C.home, onClick: () => leave('/dashboard') },
+    { icon: 'save', label: C.save, onClick: save, disabled: locked || editor.pending },
   ]
   const doneSteps = [
     Boolean(employee && moves.length && form.to.sectionCode),

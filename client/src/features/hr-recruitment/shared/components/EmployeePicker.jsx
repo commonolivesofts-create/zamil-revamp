@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useResource } from '@/features/security-administration/useAdminData.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
 import { PICKER_TEXT } from '../../hrRecruitmentText.js'
 import { initials } from '../hrFormat.js'
 import { useSettled } from '../useSettled.js'
@@ -25,6 +26,7 @@ export function EmployeePicker({
   loading = false,
   loadingLabel,
   cacheKey = 'hr-employees',
+  onGlobalError,
 }) {
   const listId = useId()
   const statusId = useId()
@@ -40,6 +42,11 @@ export function EmployeePicker({
   const results = useResource(open ? `${cacheKey}:${search.toLowerCase()}` : null, (signal) =>
     searchService(search, { signal }),
   )
+  useEffect(() => {
+    if (results.status === 'ready') onGlobalError?.(false)
+    else if (results.status === 'error' && isGlobalDataLoadFailure(results.error))
+      onGlobalError?.(true)
+  }, [onGlobalError, results.error, results.status])
   const matches = !loading && !pendingSearch && results.status === 'ready' ? results.data.items : []
   // Keep large employee, department and job-title masters cheap to paint. Users
   // can narrow the list by typing, while keyboard navigation stays within the
@@ -48,7 +55,8 @@ export function EmployeePicker({
   const visibleMatches = matches.slice(0, maxVisibleMatches)
   const hasMoreMatches = matches.length > visibleMatches.length
   const waitingForOptions = loading || (open && (pendingSearch || results.status === 'loading'))
-  const failedToLoad = open && !loading && results.status === 'error'
+  const failedToLoad =
+    open && !loading && results.status === 'error' && !isGlobalDataLoadFailure(results.error)
   const fieldLoadingLabel = loadingLabel ?? `Loading ${fieldLabel} options…`
   const fieldStatus = loading
     ? fieldLoadingLabel

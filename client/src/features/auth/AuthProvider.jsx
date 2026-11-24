@@ -28,6 +28,7 @@ export default function AuthProvider({ children }) {
       retrySession: auth.restore,
       updateProfileImage: auth.updateProfileImage,
       removeProfileImage: auth.removeProfileImage,
+      checkSession: auth.checkSession,
       signIn: auth.signIn,
       signOut: auth.signOut,
       cancelMfa: auth.cancelMfa,

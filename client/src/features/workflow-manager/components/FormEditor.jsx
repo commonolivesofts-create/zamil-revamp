@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { Feedback, Field } from '@/features/security-administration/components/AdminUi.jsx'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import { PATHS, validateForm } from '../workflowManagerModel.js'
 
 // The registration / edit fields of XX_ZRV_WF_FORMS. `initial` is the draft
@@ -44,6 +46,17 @@ export default function FormEditor({
     draft.moduleCode &&
     modules.data &&
     !moduleChoices.some((module) => module.moduleCode === draft.moduleCode)
+  const moduleLoadFailure =
+    modules.status === 'error' &&
+    (isGlobalDataLoadFailure(modules.error) || modules.error?.code === 'ABORTED')
+
+  if (moduleLoadFailure) {
+    return (
+      <div className="zrv-global-error-slot">
+        <GlobalErrorScreen inline onRetry={modules.reload} retryAll={false} />
+      </div>
+    )
+  }
 
   return (
     <form

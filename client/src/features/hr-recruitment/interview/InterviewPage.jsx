@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import ContentSkeleton from '@/components/feedback/ContentSkeleton.jsx'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { COMMON_TEXT, INTERVIEW_TEXT as T } from '../hrRecruitmentText.js'
@@ -64,11 +65,12 @@ export default function InterviewPage() {
       load={service.getById}
       loadLookups={(signal) => service.getLookups({ signal })}
     >
-      {({ lookups, lookupStatus, reloadLookups, record, editorKey }) => (
+      {({ lookups, lookupStatus, lookupGlobalError, reloadLookups, record, editorKey }) => (
         <InterviewEditor
           key={editorKey}
           lookups={lookups}
           lookupStatus={lookupStatus}
+          lookupGlobalError={lookupGlobalError}
           reloadLookups={reloadLookups}
           record={record}
         />
@@ -80,7 +82,7 @@ export default function InterviewPage() {
 const nameOf = (options, code) => options.find((option) => option.code === code)?.name ?? ''
 const HR_REQUIRED = HR_FIELDS.filter(([, , rules]) => rules.required).map(([key]) => key)
 
-function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord }) {
+function InterviewEditor({ lookups, lookupStatus, lookupGlobalError, reloadLookups, record: savedRecord }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const permissions = usePermissions()
@@ -165,6 +167,10 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
   const lookupNotice =
     lookupStatus === 'loading' ? (
       <ContentSkeleton variant="inline" label="Preparing interview options" />
+    ) : lookupGlobalError ? (
+      <div className="zrv-global-error-slot">
+        <GlobalErrorScreen inline onRetry={reloadLookups} retryAll={false} />
+      </div>
     ) : lookupStatus === 'error' || lookups.lookupErrors?.length ? (
       <div className="zrv-admin-state zrv-admin-state--error" role="alert">
         <p>
@@ -526,6 +532,7 @@ function InterviewEditor({ lookups, lookupStatus, reloadLookups, record: savedRe
         }
         onDismissFeedback={editor.dismiss}
         lookupNotice={lookupNotice}
+        lookupBlocking={lookupGlobalError}
         locked={locked}
         pending={editor.pending}
         focusError={editor.focusError}

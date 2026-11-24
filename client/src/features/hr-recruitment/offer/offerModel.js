@@ -160,9 +160,11 @@ export function packageArcs(parts, circumference, gap = 3) {
 }
 
 export function blankOffer(today) {
+  const { en: probationEn, ar: probationAr } = OFFER_TEXT.benefits.probation.default
   const benefits = Object.fromEntries(
     BENEFIT_KEYS.map((key) => [key, { en: '', ar: '', linked: true }]),
   )
+  benefits.probation = { en: probationEn, ar: probationAr, linked: false }
   return {
     position: '',
     offerDate: today,

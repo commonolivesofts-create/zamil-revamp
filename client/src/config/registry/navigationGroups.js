@@ -4,7 +4,8 @@
 // `subgroups`: optional, in display order. An entry with `subgroup` is listed
 // in that sub-group's flyout instead of directly in the section; ids are unique
 // across all groups.
-const subgroup = (id, label, icon, description) => Object.freeze({ id, label, icon, description })
+const subgroup = (id, label, icon, description, order) =>
+  Object.freeze({ id, label, icon, description, order })
 
 export const NAVIGATION_GROUPS = Object.freeze([
   Object.freeze({
@@ -18,21 +19,23 @@ export const NAVIGATION_GROUPS = Object.freeze([
     label: 'Human resources',
     icon: 'users-round',
     subgroups: Object.freeze([
-      subgroup('hr-recruitment', 'Recruitment', 'user-plus', 'From requisition to probation'),
+      subgroup('hr-recruitment', 'Recruitment', 'user-plus', 'From requisition to probation', 100),
       subgroup(
         'hr-talent-management',
         'Talent Management',
         'layers',
         'Performance, recognition and skills',
+        200,
       ),
       subgroup(
         'hr-employee-services',
         'Employee Services',
         'briefcase-business',
         'Personal status, transfers, leave, ideas and clearance',
+        300,
       ),
-      subgroup('hr-letters', 'Letters', 'mail', 'Salary certificates and letters'),
-      subgroup('hr-reports', 'Reports', 'chart-column', 'HR reports'),
+      subgroup('hr-letters', 'Letters', 'mail', 'Salary certificates and letters', 400),
+      subgroup('hr-reports', 'Reports', 'chart-column', 'HR reports', 500),
     ]),
   }),
   Object.freeze({ id: 'finance', label: 'Finance', icon: 'wallet-cards' }),

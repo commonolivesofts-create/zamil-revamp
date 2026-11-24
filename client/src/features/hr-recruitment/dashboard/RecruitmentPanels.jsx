@@ -4,6 +4,9 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { COMMON_TEXT, DASHBOARD_TEXT as T } from '../hrRecruitmentText.js'
 import { CountUp, Skeleton } from '../shared/components/InsightCards.jsx'
 import { change, niceMax, ratio } from './dashboardModel.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
+import { isApiUnavailableOwner } from '@/services/api/apiEvents.js'
 
 // The dashboard widgets. Each module has one colour (--rd-<key> in
 // hr-recruitment-dashboard.css) passed as --c; values may be undefined while
@@ -46,6 +49,10 @@ export function Panel({ title, icon, hint, to, actions, className = '', children
 }
 
 export function Failure({ resource }) {
+  if (isGlobalDataLoadFailure(resource.error))
+    return isApiUnavailableOwner(resource.resourceKey) ? (
+      <GlobalErrorScreen inline onRetry={resource.reload} />
+    ) : null
   return (
     <p className="zrv-rd-error" role="alert">
       {T.unavailable}{' '}

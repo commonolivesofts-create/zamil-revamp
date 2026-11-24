@@ -8,6 +8,7 @@ import { BANDS, SCORE_MAX } from './interviewModel.js'
 import { MAX_COMPARE } from './interviewComparisonModel.js'
 import { groupByRequisition, suggestionsSummary } from './interviewSuggestionsModel.js'
 import { InterviewCandidateComparison } from './InterviewCandidateComparison.jsx'
+import { getApiUnavailableError, subscribeApiRetry } from '@/services/api/apiEvents.js'
 
 const service = hrRecruitmentServices.interviews
 const REPORT_PATH = '/hr/recruitment/interview/report'
@@ -152,6 +153,7 @@ export function InterviewSuggestions() {
   const [selected, setSelected] = useState('')
   const [pick, setPick] = useState({ requisitionNo: '', ids: [] })
   const [version, setVersion] = useState(0)
+  useEffect(() => subscribeApiRetry(() => setVersion((value) => value + 1)), [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -276,7 +278,7 @@ export function InterviewSuggestions() {
       </header>
 
       {state.status === 'loading' && <Loading />}
-      {state.status === 'error' && (
+      {state.status === 'error' && !getApiUnavailableError() && (
         <div className="zrv-ia-suggestions__error" role="alert">
           <span>
             <b>Suggestions are temporarily unavailable</b>

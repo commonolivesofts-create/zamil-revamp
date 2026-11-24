@@ -14,6 +14,8 @@ import {
   ResourceState,
 } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import SourceFormDialog from '../components/SourceFormDialog.jsx'
 import {
   ActivationDialog,
@@ -82,6 +84,18 @@ export default function DataSourceRegistryPage() {
   const policy = useResource(canWrite ? 'wf-source-policy' : null, (signal) =>
     workflowManagerService.getSourcePolicy({ signal }),
   )
+  const sourcesFailed =
+    sources.status === 'error' &&
+    (isGlobalDataLoadFailure(sources.error) || sources.error?.code === 'ABORTED')
+  const policyFailed =
+    canWrite &&
+    policy.status === 'error' &&
+    (isGlobalDataLoadFailure(policy.error) || policy.error?.code === 'ABORTED')
+  const pageDataFailure = sourcesFailed || policyFailed
+  const retryPageData = () => {
+    if (sourcesFailed) sources.reload()
+    if (policyFailed) policy.reload()
+  }
   const action = useWorkflowAction()
   const [dialog, setDialog] = useState(null)
 
@@ -116,7 +130,7 @@ export default function DataSourceRegistryPage() {
         can(WORKFLOW_ACTIONS.SOURCES_CREATE) && (
           <button
             type="button"
-            className="btn-primary"
+            className="btn-primary zwf-register-action"
             disabled={!policyReady}
             onClick={() => open({ type: 'edit', source: null })}
           >
@@ -128,18 +142,24 @@ export default function DataSourceRegistryPage() {
       {!dialog && (
         <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
       )}
-      {canWrite && policy.status === 'error' && (
-        <div className="zrv-admin-state zrv-admin-state--error" role="alert">
-          <p>
-            The source allowlist policy could not be loaded, so registering and editing are
-            unavailable.
-          </p>
-          <button type="button" className="btn-secondary" onClick={policy.reload}>
-            Retry
-          </button>
-        </div>
-      )}
       <Panel>
+        {pageDataFailure ? (
+          <div className="zrv-global-error-slot">
+            <GlobalErrorScreen inline onRetry={retryPageData} retryAll={false} />
+          </div>
+        ) : (
+          <>
+        {canWrite && policy.status === 'error' ? (
+          <div className="zrv-admin-state zrv-admin-state--error" role="alert">
+            <p>
+              The source allowlist policy could not be loaded, so registering and editing are
+              unavailable.
+            </p>
+            <button type="button" className="btn-secondary" onClick={policy.reload}>
+              Retry
+            </button>
+          </div>
+        ) : null}
         <form
           className="zrv-admin-toolbar"
           onSubmit={submitSearch}
@@ -323,6 +343,8 @@ export default function DataSourceRegistryPage() {
             </>
           )}
         </ResourceState>
+          </>
+        )}
       </Panel>
 
       {dialog?.type === 'edit' && policyReady && (

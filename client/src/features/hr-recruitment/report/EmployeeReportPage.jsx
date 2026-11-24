@@ -8,6 +8,7 @@ import { percent } from '../shared/insightFormat.js'
 import { Pill } from '../shared/components/RecruitmentShell.jsx'
 import { InsightReport } from '../shared/components/InsightReport.jsx'
 import { Card, Hero, Hint, Rank, Twin } from '../shared/components/InsightCards.jsx'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
 
 const service = hrRecruitmentServices.employeeReport
 const I = T.insight
@@ -26,6 +27,11 @@ const INITIAL = Object.freeze({
   contractorNumber: '',
   dateFrom: '',
   dateTo: '',
+})
+const EMPTY_LOOKUPS = Object.freeze({
+  divisions: Object.freeze([]),
+  departments: Object.freeze([]),
+  contractors: Object.freeze([]),
 })
 const TOP = 5
 const realOptions = (list) => list.filter((item) => item.value !== 'ALL')
@@ -266,6 +272,39 @@ export default function EmployeeReportPage() {
   const lookups = useResource('hr-contractor-employee-lookups', (signal) =>
     service.getLookups({ signal }),
   )
+  const requiredDataFailure =
+    lookups.status === 'error' &&
+    (lookups.error?.code === 'ABORTED' || isGlobalDataLoadFailure(lookups.error))
+  const report = insight(lookups.data ?? EMPTY_LOOKUPS)
+  const reportPage = (
+    <InsightReport
+      variant="employee-report"
+      title={T.title}
+      heading={I.heading}
+      breadcrumb={T.breadcrumb}
+      resourceKey="hr-contractor-employees"
+      list={list}
+      validate={validate}
+      empty={I.empty}
+      initial={INITIAL}
+      fields={report.fields}
+      columns={COLUMNS}
+      cards={report.cards}
+      groups={startGroups}
+      summary={summary}
+      defaultSort={{ key: 'employee_number', order: 'asc' }}
+      numberOf={(row) => row.employeeNumber || row.name || COMMON_TEXT.dash}
+      rowKey={(row) =>
+        row.empId ||
+        `${row.employeeNumber}:${row.name}:${row.contractorNumber}:${row.startDate}`
+      }
+      requiredDataFailure={requiredDataFailure}
+      onRetryRequiredData={lookups.reload}
+    />
+  )
+
+  if (requiredDataFailure) return reportPage
+
   return (
     <ResourceState
       resource={lookups}
@@ -273,33 +312,7 @@ export default function EmployeeReportPage() {
       empty="Employee report filters are unavailable."
       isEmpty={() => false}
     >
-      {(options) => {
-        const report = insight(options)
-        return (
-          <InsightReport
-            variant="employee-report"
-            title={T.title}
-            heading={I.heading}
-            breadcrumb={T.breadcrumb}
-            resourceKey="hr-contractor-employees"
-            list={list}
-            validate={validate}
-            empty={I.empty}
-            initial={INITIAL}
-            fields={report.fields}
-            columns={COLUMNS}
-            cards={report.cards}
-            groups={startGroups}
-            summary={summary}
-            defaultSort={{ key: 'employee_number', order: 'asc' }}
-            numberOf={(row) => row.employeeNumber || row.name || COMMON_TEXT.dash}
-            rowKey={(row) =>
-              row.empId ||
-              `${row.employeeNumber}:${row.name}:${row.contractorNumber}:${row.startDate}`
-            }
-          />
-        )
-      }}
+      {() => reportPage}
     </ResourceState>
   )
 }

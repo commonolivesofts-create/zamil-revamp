@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useLayoutEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
@@ -9,6 +9,8 @@ import { checkSearch, fieldProps } from '../adminForms.js'
 import { USER_SORTS, displayName, readUserFilters, userListQuery } from '../adminModel.js'
 
 import { formatInstant } from '../adminFeedback.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import { securityAdminService } from '../securityAdminService.js'
 import { useResource } from '../useAdminData.js'
 import '@/styles/report-table.css'
@@ -206,6 +208,7 @@ export default function UserDirectory({
   searchPlaceholder,
   compactReportTable = false,
   provisionAction = null,
+  onGlobalFailure,
 
   // NEW:
   // Enable horizontal scroll arrows on selected directory pages.
@@ -295,6 +298,23 @@ export default function UserDirectory({
       return totals
     },
   )
+  const globalSummaryFailure =
+    summary.status === 'error' &&
+    (isGlobalDataLoadFailure(summary.error) || summary.error?.code === 'ABORTED')
+  const globalUsersFailure =
+    users.status === 'error' &&
+    (isGlobalDataLoadFailure(users.error) || users.error?.code === 'ABORTED')
+  const globalDirectoryFailure = globalUsersFailure || (dashboard && globalSummaryFailure)
+  const reloadUsers = users.reload
+  const reloadSummary = summary.reload
+  const retryGlobalDirectoryFailure = useCallback(() => {
+    if (globalUsersFailure) reloadUsers()
+    if (dashboard && globalSummaryFailure) reloadSummary()
+  }, [dashboard, globalSummaryFailure, globalUsersFailure, reloadSummary, reloadUsers])
+
+  useLayoutEffect(() => {
+    onGlobalFailure?.(globalDirectoryFailure, retryGlobalDirectoryFailure)
+  }, [globalDirectoryFailure, onGlobalFailure, retryGlobalDirectoryFailure])
 
   // ====================================================
   // NEW: HORIZONTAL SCROLL MODE
@@ -888,6 +908,20 @@ export default function UserDirectory({
         </div>
       </header>
 
+      {globalDirectoryFailure ? (
+        <div
+          className="zrv-global-error-slot zrv-global-error-slot--card"
+          role="region"
+          aria-label="Account data"
+        >
+          <GlobalErrorScreen
+            inline
+            onRetry={retryGlobalDirectoryFailure}
+            retryAll={false}
+          />
+        </div>
+      ) : (
+        <>
       {/* ======================================
           ACCOUNT SUMMARY CARDS
          ====================================== */}
@@ -924,7 +958,7 @@ export default function UserDirectory({
 
       {/* Summary loading error */}
 
-      {summary.status === 'error' && (
+      {summary.status === 'error' && !globalSummaryFailure && (
         <p className="zrv-ua-notice" role="alert">
           Account summary is unavailable.
           <button type="button" className="zrv-admin-link" onClick={summary.reload}>
@@ -961,6 +995,8 @@ export default function UserDirectory({
 
         {accountsTable}
       </Panel>
+        </>
+      )}
     </>
   )
 }

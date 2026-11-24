@@ -2174,6 +2174,16 @@
   max-width: 1440px;
   gap: 12px;
 }
+.zrv-account-global-error {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: min(60vh, 36rem);
+  place-items: center;
+}
+.zrv-account-global-error .zrv-global-error-slot {
+  min-height: min(48vh, 30rem);
+}
 .zrv-password-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

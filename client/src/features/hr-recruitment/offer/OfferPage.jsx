@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
 import { HR_RECRUITMENT_ACTIONS as ACTIONS } from '../hrRecruitmentActions.js'
 import { COMMON_TEXT, OFFER_TEXT as T } from '../hrRecruitmentText.js'
@@ -69,11 +70,12 @@ export default function OfferPage() {
       load={service.getById}
       loadLookups={(signal) => service.getLookups({ signal })}
     >
-      {({ lookups, lookupStatus, reloadLookups, record, editorKey }) => (
+      {({ lookups, lookupStatus, lookupGlobalError, reloadLookups, record, editorKey }) => (
         <OfferEditor
           key={editorKey}
           lookups={lookups}
           lookupStatus={lookupStatus}
+          lookupGlobalError={lookupGlobalError}
           reloadLookups={reloadLookups}
           record={record}
         />
@@ -82,7 +84,7 @@ export default function OfferPage() {
   )
 }
 
-function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord }) {
+function OfferEditor({ lookups, lookupStatus, lookupGlobalError, reloadLookups, record: savedRecord }) {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const permissions = usePermissions()
@@ -170,6 +172,10 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
       <p className="zrv-admin-state" role="status">
         Loading offer options…
       </p>
+    ) : lookupGlobalError ? (
+      <div className="zrv-global-error-slot">
+        <GlobalErrorScreen inline onRetry={reloadLookups} retryAll={false} />
+      </div>
     ) : lookupStatus === 'error' || lookups.lookupErrors?.length ? (
       <div className="zrv-admin-state zrv-admin-state--error" role="alert">
         <p>
@@ -591,6 +597,7 @@ function OfferEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord
         }
         onDismissFeedback={editor.dismiss}
         lookupNotice={lookupNotice}
+        lookupBlocking={lookupGlobalError}
         locked={locked}
         pending={editor.pending}
         focusError={editor.focusError}

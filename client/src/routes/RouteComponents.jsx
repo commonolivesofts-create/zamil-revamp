@@ -1,6 +1,6 @@
-import { lazy, Suspense } from 'react'
-import { Outlet, ScrollRestoration, useLocation, useRouteError } from 'react-router'
-import StartupLoading from '@/components/feedback/StartupLoading.jsx'
+import { lazy } from 'react'
+import { Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import { findAppRoute } from '@/config/appNavigation.js'
 import { orvexaDemoRoutes } from '@/config/orvexaRoutes.js'
 import { templateDemosAvailable } from '@/config/authRouting.js'
@@ -217,9 +217,6 @@ export const AccessUnavailablePage = lazy(() =>
 export const NotFoundPage = lazy(() =>
   import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.NotFoundPage })),
 )
-export const ErrorPage = lazy(() =>
-  import('@/pages/PhasePages.jsx').then((mod) => ({ default: mod.RouteErrorPage })),
-)
 
 function RouteAnnouncement() {
   const { pathname } = useLocation()
@@ -259,10 +256,24 @@ export function RouterShell() {
 }
 
 export function RouteErrorBoundary() {
-  const error = useRouteError()
-  return (
-    <Suspense fallback={<StartupLoading />}>
-      <ErrorPage error={error} />
-    </Suspense>
-  )
+  const location = useLocation()
+  const navigate = useNavigate()
+  const retry = () =>
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: { ...location.state, __routeRetry: Date.now() },
+    })
+  return <GlobalErrorScreen inline onRetry={retry} />
+}
+
+export function RouteContentErrorBoundary() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const retry = () => {
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: { ...location.state, __routeRetry: Date.now() },
+    })
+  }
+  return <GlobalErrorScreen inline onRetry={retry} />
 }

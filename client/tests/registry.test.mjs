@@ -1017,7 +1017,7 @@ const EXTERNAL_HUBS = [
     href: null,
     label: 'Expense Hub',
     icon: 'wallet-cards',
-    section: 'finance',
+    section: HR,
     implemented: false,
   },
 ]
@@ -1143,6 +1143,23 @@ test('the derived routes, sections and permission names match the active modules
     SECURITY_RESOURCES.flatMap((r) => r.actions.map((a) => `${SA}.${r.code}:${a}`)),
   )
   assert.deepEqual(registeredModules.find((module) => module.code === 'COMMON').resources, [])
+})
+
+test('Expense Hub is listed in HR and keeps its configured external destination', () => {
+  const expenseHub = registry.entries.find((entry) => entry.id === 'expense-hub')
+  assert.equal(expenseHub.section, HR)
+  assert.equal(expenseHub.type, 'external')
+  assert.deepEqual(expenseHub.href, { env: 'VITE_EXTERNAL_EXPENSE_HUB' })
+  assert.equal(
+    appRoutes.some((route) => route.id === 'expense-hub'),
+    false,
+  )
+  assert.equal(
+    resolveExternalHref(expenseHub.href, {
+      VITE_EXTERNAL_EXPENSE_HUB: 'https://expense.example.com/',
+    }),
+    'https://expense.example.com/',
+  )
 })
 
 test('every implemented internal route has exactly one React Router entry with the same path, and back', async () => {
