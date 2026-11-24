@@ -1,5 +1,6 @@
 // npm run db:ping — proves wallet, credentials and network for ADW (and EBS when enabled),
 // and that the attendance tables are present. Prints names only, never credentials.
+import '../threads';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +24,7 @@ const TABLES = [
 ];
 
 const config = loadConfig(process.env, root);
-const db = new OracleDb({ adw: config.adw, ebs: config.ebs });
+const db = new OracleDb({ adw: config.adw, ebs: config.ebs }, config.oracleClientLibDir);
 try {
   const [info] = await db.query(
     'adw',
