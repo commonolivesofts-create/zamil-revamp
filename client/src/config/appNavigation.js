@@ -47,12 +47,16 @@ export function resolveNavigationEntries(entries, env = buildEnv) {
   return Object.freeze(
     entries.map((entry) => {
       if (entry.type !== 'external') {
-        return entry.enabledBy && !isFeatureEnabled(entry.enabledBy, env)
-          ? Object.freeze({ ...entry, implemented: false })
-          : entry
+        if (!entry.enabledBy || isFeatureEnabled(entry.enabledBy, env)) return entry
+        const switchedOff = { ...entry, implemented: false }
+        if (entry.order !== undefined)
+          Object.defineProperty(switchedOff, 'order', { value: entry.order })
+        return Object.freeze(switchedOff)
       }
       const href = resolveExternalHref(entry.href, env)
-      return Object.freeze({ ...entry, href, implemented: entry.implemented && href !== null })
+      const resolved = { ...entry, href, implemented: entry.implemented && href !== null }
+      if (entry.order !== undefined) Object.defineProperty(resolved, 'order', { value: entry.order })
+      return Object.freeze(resolved)
     }),
   )
 }

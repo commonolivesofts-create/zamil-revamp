@@ -394,7 +394,6 @@ export function buildRegistry(modules, groups) {
       label: entry.title,
       icon: entry.icon,
       section: entry.group,
-      order: entry.order,
       ...(entry.subgroup && { subgroup: entry.subgroup }),
       ...(permission && { permission }),
       ...(alsoRequires.length && { alsoRequires }),
@@ -404,6 +403,7 @@ export function buildRegistry(modules, groups) {
       ...(entry.enabledBy && { enabledBy: entry.enabledBy }),
       ...(entry.hidden && { nav: false }),
     }
+    Object.defineProperty(route, 'order', { value: entry.order })
     entries.push({ route, sort: [groupIndex.get(entry.group), entry.order] })
   }
   for (const module of modules) {
