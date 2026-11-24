@@ -54,6 +54,23 @@
   align-items: stretch;
 }
 
+.zrv-roles-page .zrv-roles-error-state {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: min(60vh, 36rem);
+  place-items: center;
+}
+
+.zrv-roles-page .zrv-roles-error-state .zrv-global-error-slot {
+  min-height: min(48vh, 30rem);
+}
+
+.zrv-roles-page .zrv-roles-detail-panel > .zrv-admin-state {
+  margin: 0;
+  padding: 14px 16px;
+}
+
 /* PANELS */
 
 .zrv-roles-page .zrv-roles-list-panel,
@@ -858,6 +875,10 @@
 
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
+}
+
+.zrv-roles-page button.zrv-roles-create > svg {
+  color: #fff !important;
 }
 
 /* 11. Granted Permissions area */

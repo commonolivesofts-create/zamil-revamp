@@ -157,6 +157,18 @@
   align-items: stretch;
 }
 
+.zrv-role-permissions-page .zrv-rp-error-state {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: min(60vh, 36rem);
+  place-items: center;
+}
+
+.zrv-role-permissions-page .zrv-rp-error-state .zrv-global-error-slot {
+  min-height: min(48vh, 30rem);
+}
+
 /* PANELS */
 
 .zrv-role-permissions-page .zrv-rp-roles-panel,

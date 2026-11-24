@@ -1,7 +1,10 @@
 import { useEffect, useId, useRef } from 'react'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import ContentSkeleton from '@/components/feedback/ContentSkeleton.jsx'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import { describeFailure } from '../adminFeedback.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import { isApiUnavailableOwner } from '@/services/api/apiEvents.js'
 import '@/styles/security-admin.css'
 import '@/styles/security-admin-tables.css'
 
@@ -132,6 +135,25 @@ export function ResourceState({
     )
   }
   if (resource.status === 'error') {
+    // A current resource should never surface an abort as a user-facing
+    // cancellation message: useResource discards requests cancelled by its own
+    // lifecycle. If an active required-data load still reports ABORTED, present
+    // the shared recovery state and let Retry issue that resource again.
+    if (resource.error?.code === 'ABORTED') {
+      return (
+        <div className="zrv-global-error-slot">
+          <GlobalErrorScreen inline onRetry={resource.reload} retryAll={false} />
+        </div>
+      )
+    }
+    if (isGlobalDataLoadFailure(resource.error)) {
+      if (!isApiUnavailableOwner(resource.resourceKey)) return null
+      return (
+        <div className="zrv-global-error-slot">
+          <GlobalErrorScreen inline onRetry={resource.reload} retryAll={false} />
+        </div>
+      )
+    }
     const failure = describeFailure(resource.error)
     return (
       <div className="zrv-admin-state zrv-admin-state--error" role="alert">

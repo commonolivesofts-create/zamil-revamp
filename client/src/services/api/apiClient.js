@@ -1,6 +1,6 @@
 // Relative imports keep this module loadable by the Node-native tests.
 import { apiConfig } from '../../config/apiConfig.js'
-import { emitApiUnauthorized } from './apiEvents.js'
+import { emitApiUnavailable, emitApiUnauthorized } from './apiEvents.js'
 import { csrfStore as defaultCsrfStore } from './csrfStore.js'
 
 export const CSRF_HEADER = 'X-CSRF-Token'
@@ -59,6 +59,16 @@ export class ApiError extends Error {
     this.requestId = requestId
     this.retryAfterSeconds = retryAfterSeconds
   }
+}
+
+export function isGlobalDataLoadFailure(error) {
+  return (
+    error?.code === 'NETWORK_ERROR' ||
+    error?.code === 'TIMEOUT' ||
+    error?.code === 'INVALID_RESPONSE' ||
+    error?.status >= 500 ||
+    (error instanceof Error && !error.code && !error.status && error.name !== 'AbortError')
+  )
 }
 
 // True when a state-changing request may or may not have been applied: the
@@ -306,6 +316,7 @@ export function createApiClient({
   baseUrl,
   timeoutMs = 15000,
   onUnauthorized = () => {},
+  onUnavailable = () => {},
   fetchImpl = fetch,
   csrfStore = null,
 }) {
@@ -399,16 +410,26 @@ export function createApiClient({
     // GET is safe to repeat. Mutations deliberately keep the single-attempt
     // behavior so a lost response can never apply a write twice. Callers with
     // their own bounded retry policy can disable these transport-level retries.
-    if (method !== 'GET' || options.retryRead === false) return requestOnce(path, options)
-    for (let attempt = 0; ; attempt += 1) {
-      try {
-        return await requestOnce(path, options)
-      } catch (error) {
-        const delay = READ_RETRY_DELAYS_MS[attempt]
-        if (delay === undefined || !isRetryableReadError(error) || options.signal?.aborted)
-          throw error
-        await waitForRetry(delay, options.signal)
+    try {
+      if (method !== 'GET' || options.retryRead === false) return await requestOnce(path, options)
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          return await requestOnce(path, options)
+        } catch (error) {
+          const delay = READ_RETRY_DELAYS_MS[attempt]
+          if (delay === undefined || !isRetryableReadError(error) || options.signal?.aborted)
+            throw error
+          await waitForRetry(delay, options.signal)
+        }
       }
+    } catch (error) {
+      if (method === 'GET' && isGlobalDataLoadFailure(error)) {
+        // Retrying is exposed only as an explicit user action. Never repeat a
+        // failed write automatically; the user may choose to submit it again.
+        const retry = () => request(path, { ...options, signal: undefined })
+        onUnavailable(error, retry)
+      }
+      throw error
     }
   }
 
@@ -427,5 +448,6 @@ export const apiClient = createApiClient({
   baseUrl: apiConfig.baseUrl,
   timeoutMs: apiConfig.timeoutMs,
   onUnauthorized: emitApiUnauthorized,
+  onUnavailable: emitApiUnavailable,
   csrfStore: defaultCsrfStore,
 })

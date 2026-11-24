@@ -93,7 +93,7 @@ export default defineModule({
       title: 'Training Hub',
       icon: 'graduation-cap',
       group: 'human-resources',
-      order: 999,
+      order: 510,
     },
     {
       id: 'expense-hub',
@@ -101,8 +101,8 @@ export default defineModule({
       href: { env: 'VITE_EXTERNAL_EXPENSE_HUB' },
       title: 'Expense Hub',
       icon: 'wallet-cards',
-      group: 'finance',
-      order: 10,
+      group: 'human-resources',
+      order: 520,
     },
   ],
 })

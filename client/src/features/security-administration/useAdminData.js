@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useEffectEvent, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import usePermissions from '@/features/access/usePermissions.js'
 import { createLatestRequest, createSubmissionGuard } from './adminRequests.js'
 import { describeFailure } from './adminFeedback.js'
+import { clearApiUnavailable, emitApiUnavailable, subscribeApiRetry } from '@/services/api/apiEvents.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
 
 // Loads data for `key` (null = nothing to load). A new key or reload() aborts
 // the previous request; a late response never replaces a newer one. While the
@@ -10,6 +12,7 @@ import { describeFailure } from './adminFeedback.js'
 // Returns { status: idle | loading | ready | error, data, error, refreshing, reload }.
 export function useResource(key, load) {
   const [request] = useState(createLatestRequest)
+  const loadRef = useRef(load)
   const [version, setVersion] = useState(0)
   const [result, setResult] = useState({
     base: null,
@@ -22,16 +25,32 @@ export function useResource(key, load) {
   const requestKey = key === null ? null : `${key}#${version}`
 
   useEffect(() => {
+    loadRef.current = load
+  }, [load])
+
+  useEffect(() => {
     if (requestKey === null) return undefined
     const { signal, isCurrent } = request.start()
     Promise.resolve()
       .then(() => fetchData(signal))
       .then(
         (data) => {
-          if (isCurrent()) setResult({ base: key, requestKey, status: 'ready', data, error: null })
+          if (isCurrent()) {
+            setResult({ base: key, requestKey, status: 'ready', data, error: null })
+            clearApiUnavailable(key)
+          }
         },
         (error) => {
-          if (isCurrent()) setResult({ base: key, requestKey, status: 'error', data: null, error })
+          if (isCurrent()) {
+            setResult({ base: key, requestKey, status: 'error', data: null, error })
+            if (isGlobalDataLoadFailure(error)) {
+              emitApiUnavailable(
+                error,
+                () => loadRef.current(new AbortController().signal),
+                { placement: 'resource', resourceKey: key },
+              )
+            }
+          }
         },
       )
     return () => request.cancel()
@@ -39,12 +58,15 @@ export function useResource(key, load) {
 
   const reload = useCallback(() => setVersion((value) => value + 1), [])
 
+  useEffect(() => subscribeApiRetry(reload), [reload])
+
   if (requestKey === null)
-    return { status: 'idle', data: null, error: null, refreshing: false, reload }
-  if (result.requestKey === requestKey) return { ...result, refreshing: false, reload }
+    return { status: 'idle', data: null, error: null, refreshing: false, reload, resourceKey: key }
+  if (result.requestKey === requestKey)
+    return { ...result, refreshing: false, reload, resourceKey: key }
   if (result.base === key && result.status === 'ready')
-    return { ...result, refreshing: true, reload }
-  return { status: 'loading', data: null, error: null, refreshing: false, reload }
+    return { ...result, refreshing: true, reload, resourceKey: key }
+  return { status: 'loading', data: null, error: null, refreshing: false, reload, resourceKey: key }
 }
 
 // Runs one state-changing operation at a time and reports its outcome.

@@ -1329,6 +1329,10 @@ export const OFFER_TEXT = Object.freeze({
     probation: Object.freeze({
       en: 'Probationary Period',
       ar: 'فترة التجربة',
+      default: Object.freeze({
+        en: '3 months with the possibility to be extend to 6 Months.',
+        ar: 'ثلاثة أشهر مع قابلية تمديدها إلى ستة أشهر.',
+      }),
       picks: Object.freeze([
         Object.freeze(['3 months', '٣ أشهر']),
         Object.freeze(['6 months', '٦ أشهر']),

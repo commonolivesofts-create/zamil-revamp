@@ -6,6 +6,8 @@ import useAuth from '@/features/auth/useAuth.js'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import usePermissions from '@/features/access/usePermissions.js'
 import { ConfirmDialog } from '@/features/security-administration/components/AdminUi.jsx'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
 import { COMMON_TEXT, REQUISITION_TEXT as T } from '../hrRecruitmentText.js'
 import { attachmentsSupported, hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { businessToday, enDate } from '../shared/hrFormat.js'
@@ -57,11 +59,12 @@ export default function RequisitionPage() {
       load={service.getById}
       loadLookups={(signal) => service.getLookups({ signal })}
     >
-      {({ lookups, lookupStatus, reloadLookups, record, editorKey }) => (
+      {({ lookups, lookupStatus, lookupGlobalError, reloadLookups, record, editorKey }) => (
         <RequisitionEditor
           key={editorKey}
           lookups={lookups}
           lookupStatus={lookupStatus}
+          lookupGlobalError={lookupGlobalError}
           reloadLookups={reloadLookups}
           record={record}
         />
@@ -72,7 +75,7 @@ export default function RequisitionPage() {
 
 const nameOf = (options, id) => options.find((option) => option.id === id)?.name ?? ''
 
-function RequisitionEditor({ lookups, lookupStatus, reloadLookups, record: savedRecord }) {
+function RequisitionEditor({ lookups, lookupStatus, lookupGlobalError, reloadLookups, record: savedRecord }) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const permissions = usePermissions()
@@ -105,6 +108,14 @@ function RequisitionEditor({ lookups, lookupStatus, reloadLookups, record: saved
   const budget = useResource(budgetName ? `hr-requisition-budget:${budgetName}` : null, (signal) =>
     service.getBudget(budgetName, { signal }),
   )
+  const budgetGlobalError =
+    budget.status === 'error' &&
+    (isGlobalDataLoadFailure(budget.error) || budget.error?.code === 'ABORTED')
+  const blockingDataError = lookupGlobalError || budgetGlobalError
+  const retryFailedLookups = () => {
+    if (lookupGlobalError) reloadLookups()
+    if (budgetGlobalError) budget.reload()
+  }
   const progress = requisitionProgress(form)
   const fieldIssues = requisitionFieldIssues(form)
   const firstProblemStep = Math.min(
@@ -144,6 +155,10 @@ function RequisitionEditor({ lookups, lookupStatus, reloadLookups, record: saved
   const lookupNotice =
     lookupStatus === 'loading' ? (
       <ContentSkeleton variant="inline" label="Preparing form options" />
+    ) : blockingDataError ? (
+      <div className="zrv-global-error-slot">
+        <GlobalErrorScreen inline onRetry={retryFailedLookups} retryAll={false} />
+      </div>
     ) : lookupStatus === 'error' || lookupErrors.length ? (
       <div className="zrv-admin-state zrv-admin-state--error" role="alert">
         <p>
@@ -450,6 +465,7 @@ function RequisitionEditor({ lookups, lookupStatus, reloadLookups, record: saved
         feedbackMode="toast"
         onDismissFeedback={editor.dismiss}
         lookupNotice={lookupNotice}
+        lookupBlocking={blockingDataError}
         locked={locked}
         pending={editor.pending}
         pendingMessage={saving ? 'Saving personnel requisition' : null}

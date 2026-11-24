@@ -337,15 +337,15 @@ function RecordChangeEditor({ lookups, record }) {
   const leave = (path) => (editor.dirty && !locked ? setDialog({ path }) : navigate(path))
 
   const tools = [
-    { icon: 'house', label: C.home, onClick: () => leave('/dashboard') },
-    { icon: 'file-plus', label: T.tools.newRequest, onClick: () => leave(RECORD_CHANGE_BASE) },
+    { icon: 'printer', label: C.print, onClick: () => window.print() },
     {
       icon: 'layers',
       label: T.tools.requests,
       onClick: () => leave(ES_PATHS.recordChangeRequests),
     },
+    { icon: 'file-plus', label: T.tools.newRequest, onClick: () => leave(RECORD_CHANGE_BASE) },
+    { icon: 'house', label: C.home, onClick: () => leave('/dashboard') },
     { icon: 'save', label: C.save, onClick: save, disabled: locked || editor.pending },
-    { icon: 'printer', label: C.print, onClick: () => window.print() },
   ]
   const filled =
     [employee, form.effectiveDate, revised?.positionCode].filter(Boolean).length +

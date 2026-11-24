@@ -189,19 +189,20 @@ function RewardEditor({ requestor, initial }) {
     )
   }
 
-  const startNew = () => navigate(FORM_PATHS.reward)
+  const leave = (path) => (editor.dirty && !locked ? setDialog({ path }) : navigate(path))
   const tools = [
     { icon: 'printer', label: C.print, onClick: () => window.print() },
     {
       icon: 'chart-column',
       label: 'View report',
-      onClick: () => navigate(FORM_PATHS.rewardReport),
+      onClick: () => leave(FORM_PATHS.rewardReport),
     },
     {
       icon: 'file-plus',
       label: 'New nomination',
-      onClick: () => (editor.dirty && !locked ? setDialog('new') : startNew()),
+      onClick: () => leave(FORM_PATHS.reward),
     },
+    { icon: 'house', label: C.home, onClick: () => leave('/dashboard') },
   ]
   const doneSteps = [
     Boolean(form.department && employee && form.activityDate && !duplicate),
@@ -562,11 +563,12 @@ function RewardEditor({ requestor, initial }) {
           </>
         )}
       </RecruitmentShell>
-      {dialog === 'new' && (
+      {dialog?.path && (
         <NewFormDialog
           onConfirm={() => {
+            const { path } = dialog
             setDialog(null)
-            startNew()
+            navigate(path)
           }}
           onClose={() => setDialog(null)}
         />

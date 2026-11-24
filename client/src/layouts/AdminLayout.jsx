@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { Link, Outlet, useLocation } from 'react-router'
 
@@ -11,6 +11,14 @@ import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import useOrvexaLayout from '@/hooks/useOrvexaLayout.js'
 import useAuth from '@/features/auth/useAuth.js'
 import RouteLoading from '@/components/feedback/RouteLoading.jsx'
+import AppErrorBoundary from '@/app/AppErrorBoundary.jsx'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
+import {
+  clearApiUnavailable,
+  getApiUnavailableError,
+  notifyApiRetryCompleted,
+  subscribeApiUnavailable,
+} from '@/services/api/apiEvents.js'
 
 import { NavigationRevealProvider } from '@/components/navigation/NavigationRevealContext.jsx'
 
@@ -27,9 +35,34 @@ export default function AdminLayout() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
   const [notice, setNotice] = useState(null)
+  const [contentReloadKey, setContentReloadKey] = useState(0)
+  const [retryingContent, setRetryingContent] = useState(false)
+  const apiUnavailable = useSyncExternalStore(
+    subscribeApiUnavailable,
+    getApiUnavailableError,
+    () => null,
+  )
 
   const noticeTimer = useRef(null)
   const mobileWasOpen = useRef(false)
+
+  const retryContent = async () => {
+    if (retryingContent) return
+    if (apiUnavailable?.retry) {
+      setRetryingContent(true)
+      try {
+        await apiUnavailable.retry()
+      } catch {
+        setRetryingContent(false)
+        return
+      }
+      clearApiUnavailable()
+      notifyApiRetryCompleted()
+      setRetryingContent(false)
+      return
+    }
+    setContentReloadKey((key) => key + 1)
+  }
 
   // -------------------------------------------------------
   // Dashboard HR Shortcut -> Sidebar Reveal
@@ -93,11 +126,12 @@ export default function AdminLayout() {
   // -------------------------------------------------------
   useEffect(() => {
     document.body.dataset.activePage = location.pathname.split('/').pop()
+    clearApiUnavailable()
 
     return () => {
       delete document.body.dataset.activePage
     }
-  }, [location.pathname])
+  }, [location.pathname, location.search])
 
   // -------------------------------------------------------
   // Existing mobile sidebar focus management
@@ -287,9 +321,22 @@ export default function AdminLayout() {
 
           {/* Existing route content */}
           <main id="main-content" className="px-3 py-5 sm:px-5 lg:px-6" tabIndex={-1}>
-            <Suspense key={location.pathname} fallback={<RouteLoading />}>
-              <Outlet />
-            </Suspense>
+            <AppErrorBoundary
+              key={contentReloadKey}
+              inline
+              onRetry={() => setContentReloadKey((key) => key + 1)}
+            >
+              <div className="zrv-main-route-content">
+                <Suspense key={`${location.pathname}:${location.key}`} fallback={<RouteLoading />}>
+                  <Outlet />
+                </Suspense>
+              </div>
+            </AppErrorBoundary>
+            {apiUnavailable && apiUnavailable.placement !== 'resource' && (
+              <div className="zrv-global-error-region">
+                <GlobalErrorScreen inline onRetry={retryContent} isRetrying={retryingContent} />
+              </div>
+            )}
           </main>
         </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import usePermissions from '@/features/access/usePermissions.js'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
@@ -14,11 +14,12 @@ import {
 } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { RecruitmentShell } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
 import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { LETTERS_BREADCRUMB, SALARY_CERTIFICATE_PATHS as PATHS } from '../employeeServicesPaths.js'
 import '@/styles/hr-employee-services.css'
 import '@/styles/hr-employee-services-forms.css'
-import { warmEmployeeList } from '../shared/employeeList.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import '@/styles/hr-salary-certificate.css'
 import {
@@ -99,17 +100,19 @@ function CertificateEditor({ initial }) {
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
   const [employeeLoading, setEmployeeLoading] = useState(false)
+  const [failedEmployee, setFailedEmployee] = useState(null)
   const employeeRequest = useRef(0)
-  // The employee numbers load with the form (and when the language changes), so opening the
-  // field lists them without a request.
-  useEffect(() => {
-    warmEmployeeList(service, { lang: form.language })
-  }, [form.language])
   const lang = LANGUAGES[form.language]
   const canWrite = allowed(form.language, record ? 'UPDATE' : 'CREATE')
   const locked = Boolean(record && record.status !== 'DRAFT') || !canWrite
   const approvers = useResource(`hr-salary-cert-approvers:${form.language}`, (signal) =>
     service.approvers(form.language, { signal }),
+  )
+  const employees = useResource(`hr-salary-cert-employees:${form.language}`, (signal) =>
+    service.preloadEmployees({ lang: form.language, signal }),
+  )
+  const requiredDataFailure = [employees, approvers].find(
+    (resource) => resource.status === 'error' && isGlobalDataLoadFailure(resource.error),
   )
   const approverList = approvers.status === 'ready' ? approvers.data : []
   const approver = approverList.find((item) => item.name === form.approvalName)
@@ -140,6 +143,7 @@ function CertificateEditor({ initial }) {
   }
   const selectEmployee = async (item) => {
     const request = ++employeeRequest.current
+    setFailedEmployee(null)
     clear('employee')
     setEmployeeLoading(true)
     try {
@@ -147,6 +151,11 @@ function CertificateEditor({ initial }) {
       if (request === employeeRequest.current) patch({ employee: details })
     } catch (error) {
       if (request !== employeeRequest.current) return
+      if (isGlobalDataLoadFailure(error)) {
+        patch({ employee: null })
+        setFailedEmployee(item)
+        return
+      }
       const message =
         error?.code === 'IDENTITY_REQUIRED'
           ? 'This employee has no ID / passport number in the master.'
@@ -276,6 +285,20 @@ function CertificateEditor({ initial }) {
         focusError={editor.focusError}
         feedback={editor.feedback}
         onDismissFeedback={editor.dismiss}
+        lookupBlocking={Boolean(requiredDataFailure || failedEmployee)}
+        lookupNotice={
+          requiredDataFailure || failedEmployee ? (
+            <GlobalErrorScreen
+              inline
+              retryAll={false}
+              onRetry={() =>
+                requiredDataFailure
+                  ? requiredDataFailure.reload()
+                  : selectEmployee(failedEmployee)
+              }
+            />
+          ) : null
+        }
         steps={steps}
         step={step}
         onStep={goToSection}

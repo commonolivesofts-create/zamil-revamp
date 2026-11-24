@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { hrRecruitmentServices } from '../hrRecruitmentService.js'
+import { getApiUnavailableError, subscribeApiRetry } from '@/services/api/apiEvents.js'
 import { INTERVIEW_TEXT } from '../hrRecruitmentText.js'
 import { businessToday, initials } from '../shared/hrFormat.js'
 import { CreateEmploymentOffer } from './CreateEmploymentOffer.jsx'
@@ -887,6 +888,7 @@ export default function InterviewComparisonPage() {
   const ids = useMemo(() => comparisonIds(key), [key])
   const [state, setState] = useState({ status: 'loading', records: [], error: '' })
   const [version, setVersion] = useState(0)
+  useEffect(() => subscribeApiRetry(() => setVersion((value) => value + 1)), [])
   const [hidden, setHidden] = useState(() => new Set())
   const [activeColumn, setActiveColumn] = useState(null)
   const [focus, setFocus] = useState([])
@@ -1005,6 +1007,7 @@ export default function InterviewComparisonPage() {
   }
 
   if (state.status === 'error') {
+    if (getApiUnavailableError()) return <div className="zrv-hr zrv-ix" />
     return (
       <div className="zrv-hr zrv-ix">
         <div className="zrv-ix-state" role="alert">

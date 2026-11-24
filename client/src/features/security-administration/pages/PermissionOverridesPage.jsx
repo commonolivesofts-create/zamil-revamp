@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react'
 import '@/styles/security-permission-overrides.css'
 
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
@@ -7,6 +8,8 @@ import UserDirectory from '../components/UserDirectory.jsx'
 
 import { securityAdminService } from '../securityAdminService.js'
 import { useResource } from '../useAdminData.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 
 // Existing account API filters are reused.
 // All statistics represent system-wide account counts
@@ -141,8 +144,20 @@ function SummaryCard({ title, icon, value, percentageValue, color }) {
 
 export default function PermissionOverridesPage() {
   const statistics = useResource('permission-overrides:account-statistics', loadAccountStatistics)
+  const globalStatisticsFailure =
+    statistics.status === 'error' &&
+    (isGlobalDataLoadFailure(statistics.error) || statistics.error?.code === 'ABORTED')
 
   const data = statistics.status === 'ready' ? statistics.data : null
+  const [retryDirectory, setRetryDirectory] = useState(null)
+  const reportDirectoryFailure = useCallback((failed, retry) => {
+    setRetryDirectory(failed ? () => retry : null)
+  }, [])
+  const pageDataFailure = globalStatisticsFailure || Boolean(retryDirectory)
+  const retryPageData = () => {
+    if (globalStatisticsFailure) statistics.reload()
+    retryDirectory?.()
+  }
 
   const values = {
     total: data?.total ?? null,
@@ -160,8 +175,9 @@ export default function PermissionOverridesPage() {
       >
         {/* FOUR ACCOUNT SUMMARY CARDS */}
 
-        <section className="zrv-po-summary" aria-label="Account statistics">
-          <div className="zrv-po-summary__grid">
+        <div hidden={pageDataFailure}>
+          <section className="zrv-po-summary" aria-label="Account statistics">
+            <div className="zrv-po-summary__grid">
             {SUMMARY_CARDS.map((card) => {
               const value = values[card.id]
 
@@ -181,9 +197,9 @@ export default function PermissionOverridesPage() {
                 />
               )
             })}
-          </div>
+            </div>
 
-          {statistics.status === 'error' && (
+          {statistics.status === 'error' && !globalStatisticsFailure ? (
             <div className="zrv-po-summary__error" role="alert">
               <span>Account statistics could not be loaded.</span>
 
@@ -191,19 +207,26 @@ export default function PermissionOverridesPage() {
                 Retry
               </button>
             </div>
-          )}
-        </section>
+          ) : null}
+          </section>
 
         {/* EXISTING USER DIRECTORY */}
 
-        <section className="zrv-po-directory" aria-label="Manage account permission overrides">
-          <UserDirectory
-            rowLink={(user) => `/security/permission-overrides/${user.userId}`}
-            rowAction="Manage overrides"
-            compactReportTable
-            searchPlaceholder="Search by Employee Number, Username, or Name..."
-          />
-        </section>
+          <section className="zrv-po-directory" aria-label="Manage account permission overrides">
+            <UserDirectory
+              rowLink={(user) => `/security/permission-overrides/${user.userId}`}
+              rowAction="Manage overrides"
+              compactReportTable
+              searchPlaceholder="Search by Employee Number, Username, or Name..."
+              onGlobalFailure={reportDirectoryFailure}
+            />
+          </section>
+        </div>
+        {pageDataFailure && (
+          <div className="zrv-global-error-slot zrv-global-error-slot--card">
+            <GlobalErrorScreen inline onRetry={retryPageData} retryAll={false} />
+          </div>
+        )}
       </AdminPage>
     </div>
   )

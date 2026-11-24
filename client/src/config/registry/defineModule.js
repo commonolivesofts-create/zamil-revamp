@@ -403,6 +403,7 @@ export function buildRegistry(modules, groups) {
       ...(entry.enabledBy && { enabledBy: entry.enabledBy }),
       ...(entry.hidden && { nav: false }),
     }
+    Object.defineProperty(route, 'order', { value: entry.order })
     entries.push({ route, sort: [groupIndex.get(entry.group), entry.order] })
   }
   for (const module of modules) {

@@ -226,15 +226,16 @@ function IdeaEditor({ lookups, initial }) {
       { success: (result) => `Idea ${result.idNo} saved as draft; feasibility recalculated.` },
     )
   }
-  const startNew = () => navigate(FORM_PATHS.idea)
+  const leave = (path) => (editor.dirty && !locked ? setDialog({ path }) : navigate(path))
   const tools = [
     { icon: 'printer', label: C.print, onClick: () => window.print() },
-    { icon: 'chart-column', label: 'Report', onClick: () => navigate(FORM_PATHS.ideaReport) },
+    { icon: 'chart-column', label: 'Report', onClick: () => leave(FORM_PATHS.ideaReport) },
     {
       icon: 'file-plus',
       label: 'New idea',
-      onClick: () => (editor.dirty && !locked ? setDialog('new') : startNew()),
+      onClick: () => leave(FORM_PATHS.idea),
     },
+    { icon: 'house', label: C.home, onClick: () => leave('/dashboard') },
   ]
   const doneSteps = [
     Boolean(
@@ -536,11 +537,12 @@ function IdeaEditor({ lookups, initial }) {
           )}
         </section>
       </RecruitmentShell>
-      {dialog === 'new' && (
+      {dialog?.path && (
         <NewFormDialog
           onConfirm={() => {
+            const { path } = dialog
             setDialog(null)
-            startNew()
+            navigate(path)
           }}
           onClose={() => setDialog(null)}
         />

@@ -9,12 +9,13 @@ import { RecruitmentLoader } from '@/features/hr-recruitment/shared/components/R
 import { HrField } from '@/features/hr-recruitment/shared/components/RecruitmentInputs.jsx'
 import { EmployeePicker } from '@/features/hr-recruitment/shared/components/EmployeePicker.jsx'
 import { RecruitmentShell } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
 import { ES_COMMON_TEXT as C } from '../hrEmployeeServicesText.js'
 import { LETTERS_BREADCRUMB, WARNING_LETTER_PATHS as PATHS } from '../employeeServicesPaths.js'
 import '@/styles/hr-employee-services.css'
 import '@/styles/hr-employee-services-forms.css'
 import '@/styles/hr-warning-letter.css'
-import { warmEmployeeList } from '../shared/employeeList.js'
 import { NO_IDENTIFY } from '../shared/useEmployeeServicesUser.js'
 import {
   REASONS,
@@ -57,9 +58,10 @@ export default function WarningLetterPage() {
       title={TITLE}
       param="letterId"
       load={service.getById}
-      loadLookups={(signal) => {
-        // Opening Emp# lists employees without a request.
-        warmEmployeeList(service, { signal })
+      loadLookups={async (signal) => {
+        // Employee numbers are required to use the form, so let the loader
+        // replace the form with its shared error state if this request fails.
+        await service.preloadEmployees({ signal })
         return {}
       }}
     >
@@ -82,6 +84,7 @@ function LetterEditor({ initial }) {
   const [errors, setErrors] = useState({})
   const [dialog, setDialog] = useState(null)
   const [language, setLanguage] = useState('en')
+  const [failedEmployee, setFailedEmployee] = useState(null)
   const employeeRequest = useRef(0)
   const locked = !permissions.can(`${RESOURCE}:${record ? 'UPDATE' : 'CREATE'}`)
   const employee = form.employee
@@ -111,13 +114,18 @@ function LetterEditor({ initial }) {
   // Legacy get_employee_details: name, division, position and the next warning number.
   const selectEmployee = async (item) => {
     const request = ++employeeRequest.current
+    setFailedEmployee(null)
     clear('employee')
     try {
       const details = await service.employee(item.employeeNumber)
       if (request === employeeRequest.current) patch({ employee: details })
-    } catch {
+    } catch (error) {
       if (request !== employeeRequest.current) return
       patch({ employee: null })
+      if (isGlobalDataLoadFailure(error)) {
+        setFailedEmployee(item)
+        return
+      }
       setErrors((current) => ({
         ...current,
         employee: 'The employee details could not be loaded. Try again.',
@@ -251,6 +259,16 @@ function LetterEditor({ initial }) {
         focusError={editor.focusError}
         feedback={editor.feedback}
         onDismissFeedback={editor.dismiss}
+        lookupBlocking={Boolean(failedEmployee)}
+        lookupNotice={
+          failedEmployee ? (
+            <GlobalErrorScreen
+              inline
+              retryAll={false}
+              onRetry={() => selectEmployee(failedEmployee)}
+            />
+          ) : null
+        }
         steps={[
           [SECTIONS[0], employee ? employee.employeeNo : 'Choose employee'],
           [SECTIONS[1], hasReason ? `${reasonCount} ticked` : 'At least one'],
