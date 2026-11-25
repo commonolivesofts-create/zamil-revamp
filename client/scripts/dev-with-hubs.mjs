@@ -27,7 +27,7 @@ const selectedAppEnv = String(
 const appEnv = selectedAppEnv === 'test' ? 'test' : 'development'
 const childEnv = { ...process.env, APP_ENV: appEnv }
 const windows = process.platform === 'win32'
-const npm = windows ? 'npm.cmd' : 'npm'
+const npmCli = process.env.npm_execpath
 const viteCli = path.join(clientRoot, 'node_modules', 'vite', 'bin', 'vite.js')
 const children = []
 let stopping = false
@@ -87,6 +87,10 @@ if (!existsSync(viteCli)) {
   console.error('[dev] Vite is not installed in client/. Run npm install in client/ first.')
   process.exit(1)
 }
+if (!npmCli) {
+  console.error('[dev] Start this launcher with `npm run dev` so it can locate the npm CLI.')
+  process.exit(1)
+}
 
 // The Attendance rebuild starts only once installed, so a fresh checkout still runs the rest.
 const attendanceRoot = path.join(repoRoot, 'attendance')
@@ -103,9 +107,9 @@ if (!withAttendance) {
 }
 
 start('Zamil web', process.execPath, [viteCli], clientRoot)
-start('TrainingHub', npm, ['run', 'dev'], path.join(repoRoot, 'traininghub'))
-start('ExpenseHub', npm, ['run', 'dev'], path.join(repoRoot, 'expensehub'))
-if (withAttendance) start('Attendance', npm, ['run', 'dev'], attendanceRoot)
+start('TrainingHub', process.execPath, [npmCli, 'run', 'dev'], path.join(repoRoot, 'traininghub'))
+start('ExpenseHub', process.execPath, [npmCli, 'run', 'dev'], path.join(repoRoot, 'expensehub'))
+if (withAttendance) start('Attendance', process.execPath, [npmCli, 'run', 'dev'], attendanceRoot)
 
 process.on('SIGINT', () => stopAll(0))
 process.on('SIGTERM', () => stopAll(0))

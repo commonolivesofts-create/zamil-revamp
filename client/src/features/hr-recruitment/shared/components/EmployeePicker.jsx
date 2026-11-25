@@ -58,13 +58,11 @@ export function EmployeePicker({
   const failedToLoad =
     open && !loading && results.status === 'error' && !isGlobalDataLoadFailure(results.error)
   const fieldLoadingLabel = loadingLabel ?? `Loading ${fieldLabel} options…`
-  const fieldStatus = loading
+  const fieldStatus = waitingForOptions
     ? fieldLoadingLabel
-    : pendingSearch || (open && results.status === 'loading')
-      ? `Loading ${fieldLabel} options…`
-      : failedToLoad
-        ? `Couldn’t load ${fieldLabel} options.`
-        : ''
+    : failedToLoad
+      ? `Couldn’t load ${fieldLabel} options.`
+      : ''
 
   const clearBlurTimer = () => {
     if (blurTimer.current !== null) {
@@ -81,19 +79,24 @@ export function EmployeePicker({
       const rect = controlRef.current?.getBoundingClientRect()
       if (!rect) return
       const theme = window.getComputedStyle(controlRef.current)
-      const below = window.innerHeight - rect.bottom - 12
-      const above = rect.top - 12
+      const viewportWidth = window.innerWidth
+      const maxWidth = Math.max(0, viewportWidth - 16)
+      const width = Math.min(rect.width, maxWidth)
+      const left = Math.max(8, Math.min(rect.left, viewportWidth - width - 8))
+      const below = Math.max(0, window.innerHeight - rect.bottom - 12)
+      const above = Math.max(0, rect.top - 12)
       const openUp = below < 180 && above > below
+      const availableHeight = openUp ? above : below
       setPopupStyle({
         '--zrv-hr-accent': theme.getPropertyValue('--zrv-hr-accent'),
         '--zrv-hr-accent-text': theme.getPropertyValue('--zrv-hr-accent-text'),
         '--zrv-hr-shadow': theme.getPropertyValue('--zrv-hr-shadow'),
         fontFamily: theme.fontFamily,
         position: 'fixed',
-        left: rect.left,
-        width: rect.width,
-        zIndex: 2147483647,
-        maxHeight: Math.max(100, Math.min(280, openUp ? above : below)),
+        left,
+        width,
+        zIndex: 30,
+        maxHeight: Math.min(280, availableHeight),
         ...(openUp ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
       })
     }
@@ -169,7 +172,7 @@ export function EmployeePicker({
           role="combobox"
           className={`ux-input zrv-hr-input${value?.employeeNumber && !open ? ' zrv-hr-combo__selected' : ''}`}
           autoComplete="off"
-          placeholder={placeholder}
+          placeholder={waitingForOptions && !query ? 'Loading options…' : placeholder}
           aria-expanded={open}
           aria-controls={listId}
           aria-autocomplete="list"
@@ -213,17 +216,8 @@ export function EmployeePicker({
             id={listId}
             role="listbox"
             aria-label={label}
+            hidden={waitingForOptions || failedToLoad}
           >
-            {waitingForOptions && (
-              <li className="zrv-hr-combo__none" role="presentation">
-                {fieldStatus}
-              </li>
-            )}
-            {!waitingForOptions && results.status === 'error' && (
-              <li className="zrv-hr-combo__none" role="presentation">
-                {PICKER_TEXT.failed}
-              </li>
-            )}
             {visibleMatches.map((employee, index) => (
               <li
                 key={`${employee.employeeId}-${index}`}

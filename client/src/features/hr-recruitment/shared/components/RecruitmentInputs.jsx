@@ -753,19 +753,24 @@ export function SearchableLookup({
       const rect = controlRef.current?.getBoundingClientRect()
       if (!rect) return
       const theme = window.getComputedStyle(controlRef.current)
-      const below = window.innerHeight - rect.bottom - 12
-      const above = rect.top - 12
+      const viewportWidth = window.innerWidth
+      const maxWidth = Math.max(0, viewportWidth - 16)
+      const width = Math.min(rect.width, maxWidth)
+      const left = Math.max(8, Math.min(rect.left, viewportWidth - width - 8))
+      const below = Math.max(0, window.innerHeight - rect.bottom - 12)
+      const above = Math.max(0, rect.top - 12)
       const openUp = below < 180 && above > below
+      const availableHeight = openUp ? above : below
       setPopupStyle({
         '--zrv-hr-accent': theme.getPropertyValue('--zrv-hr-accent'),
         '--zrv-hr-accent-text': theme.getPropertyValue('--zrv-hr-accent-text'),
         '--zrv-hr-shadow': theme.getPropertyValue('--zrv-hr-shadow'),
         fontFamily: theme.fontFamily,
         position: 'fixed',
-        left: rect.left,
-        width: rect.width,
-        zIndex: 10000,
-        maxHeight: Math.max(100, Math.min(280, openUp ? above : below)),
+        left,
+        width,
+        zIndex: 30,
+        maxHeight: Math.min(280, availableHeight),
         ...(openUp ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
       })
     }
@@ -825,7 +830,7 @@ export function SearchableLookup({
           role="combobox"
           className="ux-input zrv-hr-input"
           autoComplete="off"
-          placeholder={loading ? 'Loading options...' : placeholder}
+          placeholder={busy && !displayedValue ? 'Loading options...' : placeholder}
           value={displayedValue}
           aria-expanded={open}
           aria-controls={listId}
@@ -891,6 +896,7 @@ export function SearchableLookup({
             id={listId}
             role="listbox"
             aria-label="Available options"
+            hidden={busy}
           >
             {visibleMatches.map((option, index) => (
               <li
@@ -912,11 +918,6 @@ export function SearchableLookup({
                 {option.code === value && <OrvexaIcon name="check" size={15} />}
               </li>
             ))}
-            {busy && (
-              <li className="zrv-hr-search-select__empty" role="presentation">
-                {statusText}
-              </li>
-            )}
             {!busy && !matches.length && (
               <li className="zrv-hr-search-select__empty" role="presentation">
                 {noResults}

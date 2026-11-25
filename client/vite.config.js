@@ -1,5 +1,8 @@
 import { fileURLToPath, URL } from 'node:url'
 import process from 'node:process'
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import { parseEnv } from 'node:util'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -47,6 +50,19 @@ export function trainingHubProxy(target = 'http://127.0.0.1:7383') {
 // silently moving to another port, which would break those links.
 export const DEV_PORT = 7382
 
+function loadServerAppEnv(mode) {
+  const serverEnvDir = fileURLToPath(new URL('../server', import.meta.url))
+  const serverEnv = {}
+  for (const name of ['.env', '.env.local', `.env.${mode}`, `.env.${mode}.local`]) {
+    const file = path.join(serverEnvDir, name)
+    if (!existsSync(file)) continue
+    const parsed = parseEnv(readFileSync(file, 'utf8'))
+    if (parsed.APP_ENV !== undefined) serverEnv.APP_ENV = parsed.APP_ENV
+    if (parsed.app_env !== undefined) serverEnv.app_env = parsed.app_env
+  }
+  return serverEnv
+}
+
 export function resolveAppEnv({ processEnv, clientEnv, serverEnv }) {
   return String(
     processEnv.APP_ENV ??
@@ -63,7 +79,7 @@ export function resolveAppEnv({ processEnv, clientEnv, serverEnv }) {
 
 function configureEnvironment(config, { mode }) {
   const env = loadEnv(mode, process.cwd(), '')
-  const serverEnv = loadEnv(mode, fileURLToPath(new URL('../server', import.meta.url)), '')
+  const serverEnv = loadServerAppEnv(mode)
   const appEnv = resolveAppEnv({ processEnv: process.env, clientEnv: env, serverEnv })
   // TRAINING_HUB_API_ORIGIN (client/.env, not exposed to the browser) overrides
   // where TrainingHub's API listens; it defaults to its local port 7383.

@@ -594,6 +594,8 @@ function RequisitionEditor({ lookups, lookupStatus, lookupGlobalError, reloadLoo
                   maxLength={150}
                   error={errors.jobTitle}
                   required
+                  loading={lookupStatus === 'loading'}
+                  loadingLabel="Loading job titles…"
                   placeholder={T.placeholders.jobTitle}
                 />
               </HrField>
