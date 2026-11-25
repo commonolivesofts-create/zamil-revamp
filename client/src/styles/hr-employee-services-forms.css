@@ -619,11 +619,36 @@
   gap: 10px;
   margin: 0 0 8px;
 }
+/* Same heading language as the shared .zrv-hr-subh used by the recruitment
+   forms: a brand marker and a hairline rule, so section heads read as headers
+   rather than field labels in every form design. The row can also hold a pill
+   or required counter, so the heading grows and the rule fills the gap. */
 .zrv-hr-esf-sectionhead h2 {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
   margin: 0;
-  font-size: 14px;
+  color: var(--zrv-hr-accent-text);
+  font-size: 16px;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+.zrv-hr-esf-sectionhead h2::before {
+  content: '';
+  flex: none;
+  width: 3px;
+  height: 1.05em;
+  border-radius: 999px;
+  background: var(--zrv-hr-accent);
+}
+.zrv-hr-esf-sectionhead h2::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
 }
 .zrv-hr-esf-sectionhead h2 .zrv-hr-req {
   margin-left: 2px;
