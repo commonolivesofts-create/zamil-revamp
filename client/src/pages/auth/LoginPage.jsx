@@ -43,6 +43,12 @@ export default function LoginPage() {
   const [errorReference, setErrorReference] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
 
+  // A transient sign-in failure sets the `service_recovering` notice while also
+  // throwing the same outage as the form error ("The application server could
+  // not be reached..."). The notice only describes the background session
+  // re-check, so showing both is redundant. Show one clear, actionable message.
+  const visibleNotice = error ? null : notice
+
   useEffect(() => {
     if (
       (previousStatus.current === 'error' && status !== 'error') ||
@@ -142,11 +148,11 @@ export default function LoginPage() {
               secure session.
             </p>
           )}
-          {notice === 'password_changed' ? (
+          {visibleNotice === 'password_changed' ? (
             <AnimatedSecurityShield success />
-          ) : notice && notices[notice] ? (
+          ) : visibleNotice && notices[visibleNotice] ? (
             <p className="zrv-auth-feedback" role="status">
-              {notices[notice]}
+              {notices[visibleNotice]}
             </p>
           ) : null}
           {status === 'error' && (

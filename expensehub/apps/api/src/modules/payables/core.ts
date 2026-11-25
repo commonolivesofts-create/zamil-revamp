@@ -511,10 +511,17 @@ export async function pollInvoiceStatus(
 
   const invoices = new Map<number, FusionInvoice>();
   const failures: string[] = [];
+  // A single invoice missing in Fusion is a Finance exception, not a reason to abort the whole
+  // hourly poll: other reports still need their status updated. Keep systemic errors fatal.
+  const missing: Array<{ ref: InvoiceRef; invoiceId: number }> = [];
   const fetch = async (invoiceId: number, ref: InvoiceRef) => {
     try {
       invoices.set(invoiceId, await deps.fusion.getInvoice(invoiceId, ref));
     } catch (err) {
+      if (err instanceof FusionError && err.httpStatus === 404) {
+        missing.push({ ref, invoiceId });
+        return;
+      }
       failures.push(`${ref.refType} ${ref.refId}: ${message(err)}`);
     }
   };
@@ -568,6 +575,25 @@ export async function pollInvoiceStatus(
       return applyQuickPayOutcome(r, row, outcome, at);
     });
     if (did) changed++;
+  }
+
+  for (const item of missing) {
+    const flag = `Invoice ${item.invoiceId} not found in Fusion`;
+    await deps.data.withTransaction(async (r) => {
+      if (item.ref.refType === 'REPORT') {
+        const report = await r.reports.get(Number(item.ref.refId));
+        if (report && report.syncError !== flag) {
+          await r.reports.update(report.reportId, { syncError: flag }, { actorId: null });
+          changed++;
+        }
+      } else {
+        const row = await r.quickPayInvoices.get(Number(item.ref.refId));
+        if (row && row.syncError !== flag) {
+          await r.quickPayInvoices.update(row.qpInvoiceId, { syncError: flag }, { actorId: null });
+          changed++;
+        }
+      }
+    });
   }
 
   if (failures.length)

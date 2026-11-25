@@ -333,6 +333,22 @@ describe('INT-09 status (INTEGRATION §6)', () => {
     });
   });
 
+  it('a missing Fusion invoice flags the report without failing the whole poll', async () => {
+    const ctx = await setup();
+    const report = await readyReport(ctx);
+    await send(ctx, [report.reportId]);
+    const invoiceId = (await item(ctx, report.reportId)).fusionInvoiceId!;
+    ctx.fusion.failNext('getInvoice', 404);
+    const agent = await finance(ctx);
+    const run = (await agent.post('/api/v1/payables/refresh-status').set(H).send({}).expect(200))
+      .body;
+    expect(run).toMatchObject({ status: 'OK' });
+    expect(await item(ctx, report.reportId)).toMatchObject({
+      status: 'INVOICED',
+      syncError: `Invoice ${invoiceId} not found in Fusion`,
+    });
+  });
+
   it('auto-advance: each status poll moves the invoice one step (D-36)', async () => {
     const ctx = await setup();
     const report = await readyReport(ctx);
