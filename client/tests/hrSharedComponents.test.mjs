@@ -155,9 +155,12 @@ test('EmployeePicker options: tight variant and a separate cache-key prefix', as
   assert.match(
     picker,
     /const waitingForOptions = loading \|\| \(open && \(pendingSearch \|\| results\.status === ["']loading["']\)\)/,
-    'loading is visible in the result list',
+    'loading is detected for the field status and placeholder',
   )
-  assert.match(picker, /\{waitingForOptions && \([\s\S]*?\{fieldStatus\}/)
+  assert.match(picker, /placeholder=\{waitingForOptions && !query \? ["']Loading options…["'] : placeholder\}/)
+  assert.match(picker, /hidden=\{waitingForOptions \|\| failedToLoad\}/)
+  assert.match(picker, /className=\{\s*fieldStatus\s*\? `zrv-hr-field-loading/)
+  assert.doesNotMatch(picker, /waitingForOptions && \(\s*<li/)
   assert.match(
     picker,
     /useResource\(\s*open\s*\?\s*`\$\{cacheKey\}:\$\{search\.toLowerCase\(\)\}`\s*:\s*null,/,
@@ -170,8 +173,19 @@ test('EmployeePicker options: tight variant and a separate cache-key prefix', as
   // Listbox semantics are unchanged in both variants.
   assert.match(picker, /role="combobox"/)
   assert.match(picker, /role="listbox"/)
+  assert.match(picker, /const viewportWidth = window\.innerWidth/)
+  assert.match(picker, /zIndex: 30/)
+  assert.match(picker, /maxHeight: Math\.min\(280, availableHeight\)/)
   const css = await read(CSS)
   assert.match(css, /\.zrv-hr-combo--tight \.zrv-hr-combo__list\s*\{\s*left:\s*0;\s*\}/)
+  const inputs = await read(`${SHARED}RecruitmentInputs.jsx`)
+  assert.match(inputs, /placeholder=\{busy && !displayedValue \? 'Loading options\.\.\.' : placeholder\}/)
+  assert.match(inputs, /hidden=\{busy\}/)
+  assert.match(inputs, /className="zrv-hr-field-loading" role="status" aria-live="polite"/)
+  assert.match(inputs, /const viewportWidth = window\.innerWidth/)
+  assert.match(inputs, /zIndex: 30/)
+  assert.match(inputs, /maxHeight: Math\.min\(280, availableHeight\)/)
+  assert.doesNotMatch(inputs, /\{busy && \(\s*<li/)
 })
 
 test('EmployeePicker cancels a delayed blur when the field is reopened', async () => {
