@@ -11,6 +11,8 @@ import { cellText, downloadCsv, loadAllRows, printPdf } from '../reportExport.js
 import { ReportPager } from './ReportPager.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
 import { COMMON_TEXT, INSIGHT_TEXT as T } from '../../hrRecruitmentText.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
 import { businessToday } from '../hrFormat.js'
 import { Card } from './InsightCards.jsx'
 import { clampRange } from '../insightDates.js'
@@ -184,6 +186,8 @@ export function InsightReport({
   denseTable = false,
   // Bump to reload the report after a bulk action performed by the page.
   reloadToken = 0,
+  requiredDataFailure = false,
+  onRetryRequiredData,
   closeInDetail = false,
   resizableDrawer = false,
   breadcrumb = COMMON_TEXT.breadcrumb,
@@ -221,7 +225,9 @@ export function InsightReport({
   ).length
 
   const records = useResource(
-    `${resourceKey}:${reloadToken}:${JSON.stringify({ query, sort, page })}`,
+    requiredDataFailure
+      ? null
+      : `${resourceKey}:${reloadToken}:${JSON.stringify({ query, sort, page })}`,
     async (signal) => ({
       ...(await list(
         {
@@ -237,7 +243,9 @@ export function InsightReport({
     }),
   )
   const overview = useResource(
-    `${resourceKey}:overview:${reloadToken}:${JSON.stringify(query)}:${today}`,
+    requiredDataFailure
+      ? null
+      : `${resourceKey}:overview:${reloadToken}:${JSON.stringify(query)}:${today}`,
     (signal) => {
       const { count, countIn } = counter(list, signal, countRequestGate.current)
       return Promise.all(
@@ -254,7 +262,9 @@ export function InsightReport({
     },
   )
   const breakdown = useResource(
-    groups.length ? `${resourceKey}:breakdown:${reloadToken}:${JSON.stringify(query)}` : null,
+    !requiredDataFailure && groups.length
+      ? `${resourceKey}:breakdown:${reloadToken}:${JSON.stringify(query)}`
+      : null,
     async (signal) => {
       const { count } = counter(list, signal, countRequestGate.current)
       return Promise.all(
@@ -267,6 +277,11 @@ export function InsightReport({
         ),
       )
     },
+  )
+  const hasGlobalDataFailure = requiredDataFailure || [records, overview, breakdown].some(
+    (resource) =>
+      resource.status === 'error' &&
+      (resource.error?.code === 'ABORTED' || isGlobalDataLoadFailure(resource.error)),
   )
 
   useEffect(() => () => window.clearTimeout(closeTimer.current), [])
@@ -292,6 +307,22 @@ export function InsightReport({
   const refresh = () => {
     onRefresh?.()
     for (const resource of [records, overview, breakdown]) resource.reload()
+  }
+  const retryFailedData = () => {
+    if (requiredDataFailure) {
+      onRetryRequiredData?.()
+      return
+    }
+    const failedResources = [records, overview, breakdown].filter(
+      (resource) =>
+        resource.status === 'error' &&
+        (resource.error?.code === 'ABORTED' || isGlobalDataLoadFailure(resource.error)),
+    )
+    if (failedResources.length) {
+      for (const resource of failedResources) resource.reload()
+      return
+    }
+    refresh()
   }
   const setDraftValue = (key) => (event) => {
     setDraft((current) => ({ ...current, [key]: event.target.value }))
@@ -532,6 +563,12 @@ export function InsightReport({
           )}
         </div>
       </header>
+      {hasGlobalDataFailure ? (
+        <div className="zrv-global-error-slot zrv-global-error-slot--card">
+          <GlobalErrorScreen inline onRetry={retryFailedData} retryAll={false} />
+        </div>
+      ) : (
+        <>
       {exportError && (
         <p className="zrv-ir-error" role="alert">
           {exportError}{' '}
@@ -622,54 +659,54 @@ export function InsightReport({
         </div>
       </div>
 
-      <section
-        className="zrv-ir-overview"
-        aria-label={T.overview}
-        aria-busy={overview.status !== 'ready' || undefined}
-      >
-        {overview.status === 'error' ? (
-          <p className="zrv-ir-error zrv-ir-overview__error" role="alert">
-            {T.unavailable}{' '}
-            <button type="button" onClick={overview.reload}>
-              {T.refresh}
-            </button>
-          </p>
-        ) : (
-          cards.map((card, index) => (
-            <div key={card.key} className="zrv-ir-overview__slot">
-              {card.render(overview.data?.[index], ctx)}
-            </div>
-          ))
-        )}
-        {groups.length > 0 && (
-          <div className="zrv-ir-overview__slot">
-            <Card index={cards.length} icon="list-filter" label={T.breakdown} theme="primary">
-              {breakdown.status === 'error' ? (
-                <p className="zrv-ir-error" role="alert">
-                  {T.breakdownUnavailable}{' '}
-                  <button type="button" onClick={breakdown.reload}>
-                    {T.refresh}
-                  </button>
-                </p>
-              ) : (
-                <div className="zrv-ir-breaks">
-                  {groups.map((group, index) => (
-                    <Breakdown
-                      key={group.key}
-                      group={group}
-                      counts={breakdown.data?.[index]}
-                      isActive={isActive}
-                      onPick={select}
-                    />
-                  ))}
+          <section
+            className="zrv-ir-overview"
+            aria-label={T.overview}
+            aria-busy={overview.status !== 'ready' || undefined}
+          >
+            {overview.status === 'error' ? (
+              <p className="zrv-ir-error zrv-ir-overview__error" role="alert">
+                {T.unavailable}{' '}
+                <button type="button" onClick={overview.reload}>
+                  {T.refresh}
+                </button>
+              </p>
+            ) : (
+              cards.map((card, index) => (
+                <div key={card.key} className="zrv-ir-overview__slot">
+                  {card.render(overview.data?.[index], ctx)}
                 </div>
-              )}
-            </Card>
-          </div>
-        )}
-      </section>
+              ))
+            )}
+            {groups.length > 0 && (
+              <div className="zrv-ir-overview__slot">
+                <Card index={cards.length} icon="list-filter" label={T.breakdown} theme="primary">
+                  {breakdown.status === 'error' ? (
+                    <p className="zrv-ir-error" role="alert">
+                      {T.breakdownUnavailable}{' '}
+                      <button type="button" onClick={breakdown.reload}>
+                        {T.refresh}
+                      </button>
+                    </p>
+                  ) : (
+                    <div className="zrv-ir-breaks">
+                      {groups.map((group, index) => (
+                        <Breakdown
+                          key={group.key}
+                          group={group}
+                          counts={breakdown.data?.[index]}
+                          isActive={isActive}
+                          onPick={select}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </div>
+            )}
+          </section>
 
-      <div className="zrv-ir-main">
+          <div className="zrv-ir-main">
         <section className="zrv-ir-card zrv-ir-stream" aria-labelledby={`${id}-heading`}>
           <header className="zrv-ir-card__head">
             <h2 id={`${id}-heading`}>{heading}</h2>
@@ -853,7 +890,7 @@ export function InsightReport({
             )}
           </ResourceState>
         </section>
-      </div>
+          </div>
 
       {selected && (
         <Summary
@@ -884,6 +921,8 @@ export function InsightReport({
           closing={closing}
           onClose={close}
         />
+      )}
+        </>
       )}
     </div>
   )

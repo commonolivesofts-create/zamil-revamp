@@ -3,7 +3,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { ebsDescriptor, loadConfig } from '../config';
 import { EBS_ADW_MIRROR, EBS_DIRECT } from '../db/ebsSource';
-import { isUnreachable } from '../db/oracle';
+import { isThinUnsupported, isUnreachable } from '../db/oracle';
 import { AppError } from '../lib/errors';
 import { H, scriptedDb, signIn, testApp } from '../test-utils';
 import {
@@ -50,6 +50,25 @@ describe('EBS connection (same setup as CI3)', () => {
   it('is off without a host, and needs the account when a host is set', () => {
     expect(loadConfig(baseEnv, '/root').ebs).toBeNull();
     expect(() => loadConfig({ ...baseEnv, EBS_DB_HOST: 'h' }, '/root')).toThrow(/EBS_DB_USERNAME/);
+  });
+
+  it('uses the Oracle Instant Client folder from ORACLE_CLIENT_LIB_DIR (thick mode for EBS)', () => {
+    expect(
+      loadConfig({ ...baseEnv, ORACLE_CLIENT_LIB_DIR: 'D:/ic' }, '/root').oracleClientLibDir,
+    ).toBe('D:/ic');
+  });
+
+  it('recognises the thin-driver limits that thick mode fixes (EBS password type)', () => {
+    expect(
+      isThinUnsupported({
+        code: 'NJS-116',
+        message: 'NJS-116: password verifier type 0x939 is not supported',
+      }),
+    ).toBe(true);
+    expect(isThinUnsupported(new Error('NJS-138: connections to this database version'))).toBe(
+      true,
+    );
+    expect(isThinUnsupported(new Error('ORA-00942: table or view does not exist'))).toBe(false);
   });
 
   it('tells network failures (VPN off) apart from SQL errors', () => {

@@ -204,10 +204,20 @@ test('interview payload keeps API field names, scores and required assessment an
   assert.equal(validateInterview(blankInterview(TODAY)).valid, false)
 })
 
-test('employment offer starts empty, validates API-required values and serializes bilingual benefits', () => {
+test('employment offer applies the default probation terms and serializes bilingual benefits', () => {
   const blank = blankOffer(TODAY)
   assert.equal(blank.offerDate, TODAY)
   assert.deepEqual(Object.keys(blank.benefits).sort(), [...BENEFIT_KEYS].sort())
+  assert.deepEqual(blank.benefits.probation, {
+    en: '3 months with the possibility to be extend to 6 Months.',
+    ar: 'ثلاثة أشهر مع قابلية تمديدها إلى ستة أشهر.',
+    linked: false,
+  })
+  assert.deepEqual(offerPayload(blank).benefits.probation, {
+    en: '3 months with the possibility to be extend to 6 Months.',
+    ar: 'ثلاثة أشهر مع قابلية تمديدها إلى ستة أشهر.',
+    autoArabic: false,
+  })
   assert.equal(validateOffer(blank).valid, false)
   const payload = offerPayload({
     ...blank,

@@ -1,6 +1,11 @@
 /* Workflow Manager screens. Builds on security-admin.css (zrv-admin-*), the
    Orvexa theme tokens and existing ux-* / btn-* classes; nothing global changes. */
 
+.zwf-register-action,
+.zwf-register-action * {
+  color: #fff !important;
+}
+
 .zwf-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));

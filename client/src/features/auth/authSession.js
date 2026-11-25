@@ -422,6 +422,18 @@ export function createAuthSession({
     return avatarUrl
   }
 
+  async function checkSession({ signal } = {}) {
+    const current = requireSession()
+    try {
+      const user = await service.getCurrentUser({ signal, retryRead: false })
+      if (snapshot !== current) throw supersededError()
+      return user
+    } catch (error) {
+      if (error?.status === 401 && snapshot === current) handleUnauthorized()
+      throw error
+    }
+  }
+
   async function startMfaReplacement({ signal } = {}) {
     const current = requireSession()
     const material = await service.startMfaReplacement({ signal })
@@ -602,6 +614,7 @@ export function createAuthSession({
     restore,
     updateProfileImage,
     removeProfileImage,
+    checkSession,
     signIn,
     signOut,
     cancelMfa,

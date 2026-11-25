@@ -4,6 +4,8 @@ import '@/styles/security-permission-catalog.css'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import HorizontalTableScroll from '@/components/ui/HorizontalTableScroll.jsx'
 import usePermissions from '@/features/access/usePermissions.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
 
 import { fieldProps } from '../adminForms.js'
 import { filterCatalog, flattenCatalog } from '../adminModel.js'
@@ -127,6 +129,9 @@ export default function PermissionCatalogPage() {
   const manage = can(SECURITY_ACTIONS.PERMISSION_CATALOG_MANAGE)
 
   const catalog = useResource('catalog', (signal) => securityAdminService.getCatalog({ signal }))
+  const globalCatalogFailure =
+    catalog.status === 'error' &&
+    (isGlobalDataLoadFailure(catalog.error) || catalog.error?.code === 'ABORTED')
 
   const action = useAdminAction()
 
@@ -254,6 +259,7 @@ export default function PermissionCatalogPage() {
           <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
         )}
 
+        <div hidden={globalCatalogFailure}>
         {/* FOUR SUMMARY CARDS */}
 
         <section className="zrv-pc-summary" aria-label="Permission catalog statistics">
@@ -597,6 +603,12 @@ export default function PermissionCatalogPage() {
             )}
           </ResourceState>
         </section>
+        </div>
+        {globalCatalogFailure && (
+          <div className="zrv-global-error-slot zrv-global-error-slot--card">
+            <GlobalErrorScreen inline onRetry={catalog.reload} retryAll={false} />
+          </div>
+        )}
 
         {/* EXISTING CREATE DIALOG */}
 

@@ -20,6 +20,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     session: { secret: 'x'.repeat(48), secure: false },
     adw: { user: 'u', password: 'p', connectString: 'c', poolMin: 0, poolMax: 1 },
     ebs: null,
+    oracleClientLibDir: null,
     ebsSource: 'ebs',
     auth: {
       zamil: {

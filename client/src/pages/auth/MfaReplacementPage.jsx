@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { formatClockTime } from '@/features/auth/authenticatorQr.js'
@@ -6,13 +6,19 @@ import { AuthenticatorSetup, MfaCodeInput } from '@/features/auth/MfaFields.jsx'
 import { RecruitmentHeader } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import useFocusWhenEnabled from '@/features/auth/focusWhenEnabled.js'
 import useAuth from '@/features/auth/useAuth.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
+import { clearApiUnavailable, emitApiUnavailable } from '@/services/api/apiEvents.js'
 import '@/styles/auth.css'
 
 // Replaces the enrolled authenticator from a signed-in session. The backend
 // decides eligibility (MFA verified on this session within 5 minutes). On
 // success it revokes every session, so the user must sign in again.
+const SESSION_RESOURCE_KEY = 'account-authenticator-session'
+
 export default function MfaReplacementPage() {
-  const { status, session, startMfaReplacement, confirmMfaReplacement, signOut } = useAuth()
+  const { status, session, checkSession, startMfaReplacement, confirmMfaReplacement, signOut } =
+    useAuth()
   const inputRef = useRef(null)
   const [material, setMaterial] = useState(null)
   const [starting, setStarting] = useState(false)
@@ -21,8 +27,50 @@ export default function MfaReplacementPage() {
   const [error, setError] = useState(null)
   const [fieldError, setFieldError] = useState('')
   const [notice, setNotice] = useState('')
+  const [globalFailure, setGlobalFailure] = useState(null)
+  const [checkingSession, setCheckingSession] = useState(status === 'authenticated')
   const preview = status === 'preview'
   const focusLater = useFocusWhenEnabled(pending)
+
+  const verifyConnection = useCallback(
+    async (signal) => {
+      setCheckingSession(true)
+      try {
+        await checkSession({ signal })
+        if (!signal?.aborted) {
+          clearApiUnavailable(SESSION_RESOURCE_KEY)
+          setGlobalFailure(null)
+          setError(null)
+        }
+      } catch (failure) {
+        if (!signal?.aborted) {
+          if (isGlobalDataLoadFailure(failure)) {
+            emitApiUnavailable(
+              failure,
+              () => checkSession({ signal: new AbortController().signal }),
+              { placement: 'resource', resourceKey: SESSION_RESOURCE_KEY },
+            )
+            setGlobalFailure({ action: 'verify' })
+          } else if (failure?.code !== 'ABORTED') {
+            setGlobalFailure(null)
+            setError(failure)
+          }
+        }
+      } finally {
+        if (!signal?.aborted) setCheckingSession(false)
+      }
+    },
+    [checkSession],
+  )
+
+  useEffect(() => {
+    if (status !== 'authenticated') return undefined
+    const controller = new AbortController()
+    Promise.resolve().then(() => {
+      if (!controller.signal.aborted) void verifyConnection(controller.signal)
+    })
+    return () => controller.abort()
+  }, [status, verifyConnection])
 
   // Setup material is discarded when its confirmation window closes.
   useEffect(() => {
@@ -49,10 +97,39 @@ export default function MfaReplacementPage() {
     setStarting(true)
     try {
       setMaterial(await startMfaReplacement())
+      setGlobalFailure(null)
     } catch (failure) {
-      if (failure?.code !== 'ABORTED') setError(failure)
+      if (isGlobalDataLoadFailure(failure)) setGlobalFailure({ action: 'start' })
+      else {
+        setGlobalFailure(null)
+        if (failure?.code !== 'ABORTED') setError(failure)
+      }
     } finally {
       setStarting(false)
+    }
+  }
+
+  const confirmCode = async (submittedCode) => {
+    if (pending) return
+    setError(null)
+    setFieldError('')
+    setPending(true)
+    try {
+      // Success signs this browser out; the route guard then shows sign-in.
+      await confirmMfaReplacement(submittedCode)
+      setGlobalFailure(null)
+    } catch (failure) {
+      if (isGlobalDataLoadFailure(failure)) {
+        setGlobalFailure({ action: 'confirm', code: submittedCode })
+      } else {
+        setGlobalFailure(null)
+        setCode('')
+        if (failure?.code === 'MFA_REPLACEMENT_CONFLICT') setMaterial(null)
+        if (failure?.code !== 'ABORTED') setError(failure)
+        focusLater(inputRef)
+      }
+    } finally {
+      setPending(false)
     }
   }
 
@@ -64,26 +141,20 @@ export default function MfaReplacementPage() {
       inputRef.current?.focus()
       return
     }
-    setFieldError('')
-    setError(null)
-    setPending(true)
-    try {
-      // Success signs this browser out; the route guard then shows sign-in.
-      await confirmMfaReplacement(code)
-    } catch (failure) {
-      setCode('')
-      if (failure?.code === 'MFA_REPLACEMENT_CONFLICT') setMaterial(null)
-      if (failure?.code !== 'ABORTED') setError(failure)
-      focusLater(inputRef)
-    } finally {
-      setPending(false)
-    }
+    return confirmCode(code)
+  }
+
+  const retryGlobalFailure = () => {
+    if (globalFailure?.action === 'verify') return verifyConnection()
+    if (globalFailure?.action === 'start') return start()
+    if (globalFailure?.action === 'confirm') return confirmCode(globalFailure.code)
   }
 
   const cancel = () => {
     setMaterial(null)
     setCode('')
     setError(null)
+    setGlobalFailure(null)
   }
 
   const needsRecentMfa = error?.code === 'MFA_RECENT_VERIFICATION_REQUIRED'
@@ -105,6 +176,18 @@ export default function MfaReplacementPage() {
           }
         />
       </div>
+      {globalFailure ? (
+        <div className="zrv-account-global-error">
+          <div className="zrv-global-error-slot zrv-global-error-slot--card">
+            <GlobalErrorScreen
+              inline
+              onRetry={retryGlobalFailure}
+              isRetrying={checkingSession || starting || pending}
+              retryAll={false}
+            />
+          </div>
+        </div>
+      ) : (
       <div className="zrv-authenticator-page-layout zrv-account-layout--authenticator">
         <div className="zrv-authenticator-page-main">
           <div className="ux-panel-body">
@@ -262,6 +345,7 @@ export default function MfaReplacementPage() {
           </Link>
         </aside>
       </div>
+      )}
     </section>
   )
 }

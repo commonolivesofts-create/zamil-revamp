@@ -13,6 +13,8 @@ import {
   ResourceState,
 } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import { ActivationDialog, ActiveBadge, ReadinessBadge } from '../components/WorkflowUi.jsx'
 import { formReadiness } from '../smartMappingModel.js'
 import useWorkflowAction from '../useWorkflowAction.js'
@@ -50,6 +52,17 @@ export default function FormRegistryPage() {
   const modules = useResource('wf-modules', (signal) =>
     workflowManagerService.listModules({ signal }),
   )
+  const formsFailed =
+    forms.status === 'error' &&
+    (isGlobalDataLoadFailure(forms.error) || forms.error?.code === 'ABORTED')
+  const modulesFailed =
+    modules.status === 'error' &&
+    (isGlobalDataLoadFailure(modules.error) || modules.error?.code === 'ABORTED')
+  const pageDataFailure = formsFailed || modulesFailed
+  const retryPageData = () => {
+    if (formsFailed) forms.reload()
+    if (modulesFailed) modules.reload()
+  }
   const action = useWorkflowAction()
   const [toggle, setToggle] = useState(null)
 
@@ -83,7 +96,7 @@ export default function FormRegistryPage() {
       description="Forms that can receive approval workflows, and how ready each one is. A form is ready once its business data has been prepared and approved."
       actions={
         can(WORKFLOW_ACTIONS.FORMS_CREATE) && (
-          <Link className="btn-primary" to={PATHS.newForm}>
+          <Link className="btn-primary zwf-register-action" to={PATHS.newForm}>
             <OrvexaIcon name="plus" className="size-4" /> Register form
           </Link>
         )
@@ -93,6 +106,12 @@ export default function FormRegistryPage() {
         <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
       )}
       <Panel>
+        {pageDataFailure ? (
+          <div className="zrv-global-error-slot">
+            <GlobalErrorScreen inline onRetry={retryPageData} retryAll={false} />
+          </div>
+        ) : (
+          <>
         <form
           className="zrv-admin-toolbar"
           onSubmit={submitSearch}
@@ -174,11 +193,11 @@ export default function FormRegistryPage() {
             </button>
           </div>
         </form>
-        {modules.status === 'error' && (
+        {modules.status === 'error' ? (
           <p className="zrv-admin-hint" role="alert">
             The module list could not be loaded; the module filter shows only the current selection.
           </p>
-        )}
+        ) : null}
 
         <ResourceState
           resource={forms}
@@ -266,6 +285,8 @@ export default function FormRegistryPage() {
             </>
           )}
         </ResourceState>
+          </>
+        )}
       </Panel>
 
       {toggle && (

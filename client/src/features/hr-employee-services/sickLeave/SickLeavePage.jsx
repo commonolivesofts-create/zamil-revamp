@@ -1,8 +1,15 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import usePermissions from '@/features/access/usePermissions.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import { fieldProps } from '@/features/security-administration/adminForms.js'
 import { useResource } from '@/features/security-administration/useAdminData.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import {
+  clearApiUnavailable,
+  emitApiUnavailable,
+  getApiUnavailableError,
+} from '@/services/api/apiEvents.js'
 import { businessToday, enDate } from '@/features/hr-recruitment/shared/hrFormat.js'
 import { useRecruitmentForm } from '@/features/hr-recruitment/shared/useRecruitmentForm.js'
 import { NewFormDialog } from '@/features/hr-recruitment/shared/components/RecruitmentDialogs.jsx'
@@ -30,7 +37,6 @@ import {
   stepOfErrors,
   validateSickLeave,
 } from './sickLeaveModel.js'
-import { warmEmployeeList } from '../shared/employeeList.js'
 import { sickLeaveDemo, sickLeaveService } from './sickLeaveService.js'
 import PreviewLanguageSwitch from '../shared/PreviewLanguageSwitch.jsx'
 import SickLeavePreview from './SickLeavePreview.jsx'
@@ -47,6 +53,7 @@ const FILE_TEXT = Object.freeze({
 })
 const monthStart = (iso) => `${iso.slice(0, 7)}-01`
 const monthEnd = (iso) => addDays(`${addDays(`${iso.slice(0, 7)}-28`, 4).slice(0, 7)}-01`, -1)
+const employeeDetailsKey = (employeeNumber) => `sick-leave-employee-details:${employeeNumber}`
 
 export default function SickLeavePage() {
   return (
@@ -60,13 +67,14 @@ export default function SickLeavePage() {
       param="leaveId"
       load={sickLeaveService.getById}
       loadLookups={async (signal) => {
-        // Opening Emp# lists employees without a request.
-        warmEmployeeList(sickLeaveService, { signal })
         if (sickLeaveDemo) return { halfDays: true }
+        // Employee choices are required to use the form, so don't render the
+        // editor until this request has succeeded.
+        await sickLeaveService.preloadEmployees({ signal })
         try {
           return await sickLeaveService.capabilities({ signal })
         } catch (error) {
-          if (signal?.aborted) throw error
+          if (signal?.aborted || isGlobalDataLoadFailure(error)) throw error
           return { halfDays: false }
         }
       }}
@@ -114,6 +122,10 @@ function SickLeaveEditor({ initial, halfDaysSupported }) {
   const [dialog, setDialog] = useState(null)
   const [showFormats, setShowFormats] = useState(false)
   const [language, setLanguage] = useState('en')
+  const [employeeLoadFailure, setEmployeeLoadFailure] = useState(null)
+  const [employeeLookupFailed, setEmployeeLookupFailed] = useState(false)
+  const [retryingEmployee, setRetryingEmployee] = useState(false)
+  const [retryingEmployeeLookup, setRetryingEmployeeLookup] = useState(false)
   // Files picked but not uploaded yet (kept outside the form's saved-state tracking).
   const [newFiles, setNewFiles] = useState([])
   const employeeRequest = useRef(0)
@@ -161,17 +173,83 @@ function SickLeaveEditor({ initial, halfDaysSupported }) {
   }
   const selectEmployee = async (item) => {
     const request = ++employeeRequest.current
+    setEmployeeLoadFailure(null)
     patch({ employee: item })
     clear('employee')
     try {
       const details = await sickLeaveService.employeeDetails(item.employeeNumber)
-      if (request === employeeRequest.current) patch({ employee: details })
-    } catch {
-      if (request === employeeRequest.current)
+      if (request === employeeRequest.current) {
+        patch({ employee: details })
+        clearApiUnavailable(employeeDetailsKey(item.employeeNumber))
+      }
+    } catch (error) {
+      if (request !== employeeRequest.current) return
+      if (isGlobalDataLoadFailure(error)) {
+        setEmployeeLoadFailure(item)
+        emitApiUnavailable(
+          error,
+          () => sickLeaveService.employeeDetails(item.employeeNumber),
+          { placement: 'resource', resourceKey: employeeDetailsKey(item.employeeNumber) },
+        )
+      } else {
         setErrors((current) => ({
           ...current,
           employee: 'The employee details could not be loaded. Try again.',
         }))
+      }
+    }
+  }
+  const handleEmployeeLookupError = useCallback((failed) => {
+    setEmployeeLookupFailed(failed)
+  }, [])
+
+  const retryEmployeeLookup = async () => {
+    if (retryingEmployeeLookup) return
+    const unavailable = getApiUnavailableError()
+    if (!unavailable?.retry || unavailable.placement !== 'resource') return
+    setRetryingEmployeeLookup(true)
+    try {
+      await unavailable.retry()
+      clearApiUnavailable(unavailable.resourceKey)
+      setEmployeeLookupFailed(false)
+    } catch (error) {
+      emitApiUnavailable(error, unavailable.retry, {
+        placement: 'resource',
+        resourceKey: unavailable.resourceKey,
+      })
+    } finally {
+      setRetryingEmployeeLookup(false)
+    }
+  }
+
+  const retryEmployeeDetails = async () => {
+    if (!employeeLoadFailure || retryingEmployee) return
+    setRetryingEmployee(true)
+    try {
+      const details = await sickLeaveService.employeeDetails(employeeLoadFailure.employeeNumber)
+      patch({ employee: details })
+      setEmployeeLoadFailure(null)
+      clearApiUnavailable(employeeDetailsKey(employeeLoadFailure.employeeNumber))
+    } catch (error) {
+      if (isGlobalDataLoadFailure(error)) {
+        emitApiUnavailable(
+          error,
+          () => sickLeaveService.employeeDetails(employeeLoadFailure.employeeNumber),
+          {
+            placement: 'resource',
+            resourceKey: employeeDetailsKey(employeeLoadFailure.employeeNumber),
+          },
+        )
+      } else {
+        setEmployeeLoadFailure(null)
+        clearApiUnavailable(employeeDetailsKey(employeeLoadFailure.employeeNumber))
+        setErrors((current) => ({
+          ...current,
+          employee: 'The employee details could not be loaded. Try again.',
+        }))
+      }
+    } finally {
+      setRetryingEmployee(false)
     }
   }
 
@@ -233,15 +311,16 @@ function SickLeaveEditor({ initial, halfDaysSupported }) {
     )
   }
 
-  const startNew = () => navigate(FORM_PATHS.sickLeave)
+  const leave = (path) => (editor.dirty && !locked ? setDialog({ path }) : navigate(path))
   const tools = [
     { icon: 'printer', label: C.print, onClick: () => window.print() },
-    { icon: 'chart-column', label: 'Report', onClick: () => navigate(FORM_PATHS.sickLeaveReport) },
+    { icon: 'chart-column', label: 'Report', onClick: () => leave(FORM_PATHS.sickLeaveReport) },
     {
       icon: 'file-plus',
       label: 'New request',
-      onClick: () => (editor.dirty && !locked ? setDialog('new') : startNew()),
+      onClick: () => leave(FORM_PATHS.sickLeave),
     },
+    { icon: 'house', label: C.home, onClick: () => leave('/dashboard') },
   ]
   const fromHint = record ? undefined : `Up to ${BACK_DAYS} days back`
   const commentsHint = `${form.comments.length} / ${COMMENTS_MAX}`
@@ -252,6 +331,10 @@ function SickLeaveEditor({ initial, halfDaysSupported }) {
     hasFile,
     Boolean(form.comments.trim()),
   ]
+  const othersGlobalFailure =
+    others.status === 'error' && isGlobalDataLoadFailure(others.error)
+  const blockingEmployeeFailure =
+    Boolean(employeeLoadFailure) || employeeLookupFailed || othersGlobalFailure
 
   return (
     <>
@@ -270,6 +353,30 @@ function SickLeaveEditor({ initial, halfDaysSupported }) {
         focusError={editor.focusError}
         feedback={editor.feedback}
         onDismissFeedback={editor.dismiss}
+        lookupBlocking={blockingEmployeeFailure}
+        lookupNotice={
+          blockingEmployeeFailure ? (
+            <div className="zrv-global-error-slot">
+              {employeeLoadFailure ? (
+                <GlobalErrorScreen
+                  inline
+                  onRetry={retryEmployeeDetails}
+                  isRetrying={retryingEmployee}
+                  retryAll={false}
+                />
+              ) : employeeLookupFailed ? (
+                <GlobalErrorScreen
+                  inline
+                  onRetry={retryEmployeeLookup}
+                  isRetrying={retryingEmployeeLookup}
+                  retryAll={false}
+                />
+              ) : (
+                <GlobalErrorScreen inline onRetry={others.reload} />
+              )}
+            </div>
+          ) : null
+        }
         steps={SECTIONS.map((name, index) => [
           name,
           index === 1 && hasFile
@@ -316,6 +423,7 @@ function SickLeaveEditor({ initial, halfDaysSupported }) {
               value={form.employee}
               error={errors.employee}
               cacheKey="hr-sick-leave-employees"
+              onGlobalError={handleEmployeeLookupError}
               placeholder="Type employee number or name…"
               searchService={(term, options) => sickLeaveService.searchEmployees(term, options)}
               onPick={selectEmployee}
@@ -492,11 +600,12 @@ function SickLeaveEditor({ initial, halfDaysSupported }) {
           </section>
         </div>
       </RecruitmentShell>
-      {dialog === 'new' && (
+      {dialog?.path && (
         <NewFormDialog
           onConfirm={() => {
+            const { path } = dialog
             setDialog(null)
-            startNew()
+            navigate(path)
           }}
           onClose={() => setDialog(null)}
         />

@@ -12,7 +12,8 @@ import {
 import useFocusWhenEnabled from '@/features/auth/focusWhenEnabled.js'
 import useAuth from '@/features/auth/useAuth.js'
 import usePasswordPolicy from '@/features/auth/usePasswordPolicy.js'
-import { isOutcomeUnknown } from '@/services/api/apiClient.js'
+import { isGlobalDataLoadFailure, isOutcomeUnknown } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import { RecruitmentHeader } from '@/features/hr-recruitment/shared/components/RecruitmentShell.jsx'
 import '@/styles/auth.css'
 
@@ -27,7 +28,7 @@ export default function ChangePasswordPage() {
     error: policyError,
     loading: policyLoading,
     retry: retryPolicy,
-  } = usePasswordPolicy()
+  } = usePasswordPolicy({ resourceKey: 'account-password-policy' })
   const alertRef = useRef(null)
   const currentRef = useRef(null)
   const newRef = useRef(null)
@@ -38,7 +39,15 @@ export default function ChangePasswordPage() {
   const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
+  const [retryingPolicy, setRetryingPolicy] = useState(false)
   const preview = status === 'preview'
+  const policyGlobalFailure =
+    Boolean(policyError) &&
+    (isGlobalDataLoadFailure(policyError) || policyError?.code === 'ABORTED')
+  const retryGlobalPolicy = () => {
+    setRetryingPolicy(true)
+    retryPolicy()
+  }
   const focusLater = useFocusWhenEnabled(pending)
   const rules = policy ? policyRules(policy) : []
   const metRules = rules.filter((rule) => rule.met(newPassword)).length
@@ -135,6 +144,18 @@ export default function ChangePasswordPage() {
           breadcrumb={['Account']}
         />
       </div>
+      {policyGlobalFailure || (retryingPolicy && policyLoading) ? (
+        <div className="zrv-account-global-error">
+          <div className="zrv-global-error-slot zrv-global-error-slot--card">
+            <GlobalErrorScreen
+              inline
+              onRetry={retryGlobalPolicy}
+              isRetrying={retryingPolicy && policyLoading}
+              retryAll={false}
+            />
+          </div>
+        </div>
+      ) : (
       <div className="zrv-password-layout">
         <section className="zrv-password-form-card zrv-hr-stage" aria-label="Change password">
           {preview ? (
@@ -154,7 +175,7 @@ export default function ChangePasswordPage() {
                   Loading password requirements…
                 </p>
               )}
-              {policyError && (
+              {policyError && !policyGlobalFailure && (
                 <>
                   <p className="zrv-auth-feedback zrv-auth-feedback--error" role="alert">
                     The password requirements could not be loaded, so a new password cannot be
@@ -275,6 +296,7 @@ export default function ChangePasswordPage() {
           </div>
         </aside>
       </div>
+      )}
     </div>
   )
 }

@@ -88,6 +88,7 @@ import {
   NotFoundPage,
   RouterShell,
   RouteErrorBoundary,
+  RouteContentErrorBoundary,
 } from '@/routes/RouteComponents.jsx'
 import { LegacyEmployeeServicesRedirect } from '@/routes/LegacyEmployeeServicesRedirect.jsx'
 
@@ -151,6 +152,7 @@ export const router = createBrowserRouter([
                 // Each application page names its entry in config/appNavigation.js;
                 // AppRouteAccess applies that entry's permission requirements.
                 element: <AppRouteAccess />,
+                errorElement: <RouteContentErrorBoundary />,
                 children: implementedOnly([
                   {
                     path: 'dashboard',

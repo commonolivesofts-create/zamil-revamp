@@ -5,6 +5,8 @@ import { hrRecruitmentServices } from '../hrRecruitmentService.js'
 import { OfferLetter } from './OfferLetter.jsx'
 import { OfferReportActions } from './OfferReportActions.jsx'
 import { offerFormFromRecord } from './offerModel.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import { subscribeApiRetry } from '@/services/api/apiEvents.js'
 
 // A report row opens this in the summary drawer: the saved offer letter
 // filled exactly as the form's live preview shows it, with the same language
@@ -16,6 +18,7 @@ export function OfferPreview({ row, onClose }) {
   const [letter, setLetter] = useState({ status: 'loading' })
   const letterReady = letter?.status === 'ready'
   const letterError = letter?.status === 'error'
+  const globalFailure = letterError && isGlobalDataLoadFailure(letter.error)
 
   const loadLetter = useCallback(
     async (signal) => {
@@ -23,13 +26,14 @@ export function OfferPreview({ row, onClose }) {
         const record = await hrRecruitmentServices.offers.getById(row.offerId, { signal })
         if (!signal?.aborted) setLetter({ status: 'ready', data: record })
         return record
-      } catch {
-        if (!signal?.aborted) setLetter({ status: 'error' })
+      } catch (error) {
+        if (!signal?.aborted) setLetter({ status: 'error', error })
         return null
       }
     },
     [row.offerId],
   )
+  useEffect(() => subscribeApiRetry(() => void loadLetter()), [loadLetter])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -38,8 +42,8 @@ export function OfferPreview({ row, onClose }) {
       .then((record) => {
         if (!controller.signal.aborted) setLetter({ status: 'ready', data: record })
       })
-      .catch(() => {
-        if (!controller.signal.aborted) setLetter({ status: 'error' })
+      .catch((error) => {
+        if (!controller.signal.aborted) setLetter({ status: 'error', error })
       })
     return () => controller.abort()
   }, [row.offerId])
@@ -85,7 +89,7 @@ export function OfferPreview({ row, onClose }) {
       </div>
       {letterReady ? (
         <OfferLetter form={offerFormFromRecord(letter.data)} language={language} />
-      ) : letterError ? (
+      ) : globalFailure ? null : letterError ? (
         <div className="zrv-admin-state zrv-admin-state--error" role="alert">
           <p>{T.report.preview.failed}</p>
           <button

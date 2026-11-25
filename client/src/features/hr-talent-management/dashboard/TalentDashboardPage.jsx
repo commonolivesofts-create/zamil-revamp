@@ -22,6 +22,9 @@ import {
   yearsUpTo,
 } from './talentDashboardModel.js'
 import { trainingHub } from './trainingHubClient.js'
+import { getApiUnavailableError } from '@/services/api/apiEvents.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import {
   ActionList,
   AreaCard,
@@ -316,6 +319,13 @@ export default function TalentDashboardPage() {
   const failed = [appraisals, rewards, appraisalTrend, rewardTrend].filter(
     (resource) => resource.status === 'error',
   )
+  const failedGlobal = failed.filter((resource) => isGlobalDataLoadFailure(resource.error))
+  const hubGlobalFailure = hubFailed && isGlobalDataLoadFailure(hub.error)
+  const hasGlobalDataFailure = failedGlobal.length > 0 || hubGlobalFailure
+  const retryGlobalData = () => {
+    failedGlobal.forEach((resource) => resource.reload())
+    if (hubGlobalFailure) hub.reload()
+  }
   const skillsPerPosition =
     mx === undefined ? undefined : mx.profiled ? Math.round(mx.skills / mx.profiled) : null
   const seatFill = percentOf(ct?.taken, ct?.capacity)
@@ -419,7 +429,7 @@ export default function TalentDashboardPage() {
               {U.titleLead} <em>{U.titleAccent}</em>
             </h1>
             <p>{U.subtitle}</p>
-            {anything && pulse.length > 0 && (
+            {!hasGlobalDataFailure && anything && pulse.length > 0 && (
               <ul className="td-pulse" aria-label={U.pulse.label}>
                 {pulse.map((item) => (
                   <li key={item.key}>
@@ -442,20 +452,24 @@ export default function TalentDashboardPage() {
               {U.updated(clock(refreshed.at))}
             </p>
           </div>
-          {anything && index.parts.length > 0 && (
+          {!hasGlobalDataFailure && anything && index.parts.length > 0 && (
             <IndexGauge value={index.value} parts={index.parts} labels={U.index} />
           )}
         </div>
       </header>
-      {anything && <Ticker items={scorecard} label={U.ticker} />}
+      {!hasGlobalDataFailure && anything && <Ticker items={scorecard} label={U.ticker} />}
 
-      {!anything ? (
+      {hasGlobalDataFailure ? (
+        <div className="zrv-global-error-slot">
+          <GlobalErrorScreen inline onRetry={retryGlobalData} />
+        </div>
+      ) : !anything ? (
         <p className="td-notice" role="status">
           {T.noAccess}
         </p>
       ) : (
         <>
-          {failed.length > 0 && (
+          {failed.length > 0 && !getApiUnavailableError() ? (
             <div className="td-notice td-notice--error" role="alert">
               <OrvexaIcon name="circle-alert" size={18} />
               <p>{U.someFailed}</p>
@@ -463,8 +477,8 @@ export default function TalentDashboardPage() {
                 {T.hub.retry}
               </button>
             </div>
-          )}
-          {hubFailed && (
+          ) : null}
+          {hubFailed && (signedOut || !getApiUnavailableError()) ? (
             <div className="td-notice" role="alert">
               <OrvexaIcon name="plug-zap" size={18} />
               <p>{signedOut ? T.hub.signedOut : T.hub.unavailable}</p>
@@ -479,7 +493,7 @@ export default function TalentDashboardPage() {
                 </a>
               )}
             </div>
-          )}
+          ) : null}
 
           <div className="td-bento">
             {can.appraisals && (

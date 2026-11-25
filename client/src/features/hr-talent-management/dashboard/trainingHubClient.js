@@ -4,6 +4,8 @@
 // forward the same path to TrainingHub's /api/v1. TrainingHub authorises every
 // request itself; without its own session it signs the user in from the Zamil
 // session (POST /auth/sso), exactly as the TrainingHub web app does.
+import { emitApiUnavailable } from '../../../services/api/apiEvents.js'
+
 export const TRAINING_HUB_API_BASE = '/training-hub-api'
 // TrainingHub rejects unsafe requests without its application header.
 const APP_HEADER = Object.freeze({ 'X-Requested-With': 'TrainingHub' })
@@ -20,6 +22,7 @@ export class TrainingHubError extends Error {
 export function createTrainingHubClient({
   fetch: send = (...args) => globalThis.fetch(...args),
   base = TRAINING_HUB_API_BASE,
+  onUnavailable = emitApiUnavailable,
 } = {}) {
   async function request(method, path, { signal } = {}) {
     let response
@@ -32,7 +35,11 @@ export function createTrainingHubClient({
       })
     } catch (error) {
       if (error?.name === 'AbortError') throw error
-      throw new TrainingHubError('TrainingHub cannot be reached.', { code: 'UNAVAILABLE' })
+      const unavailable = new TrainingHubError('TrainingHub cannot be reached.', {
+        code: 'UNAVAILABLE',
+      })
+      if (method === 'GET') onUnavailable(unavailable, () => request(method, path))
+      throw unavailable
     }
     if (response.status === 401)
       throw new TrainingHubError('Not signed in to TrainingHub.', {
@@ -45,18 +52,25 @@ export function createTrainingHubClient({
         status: 403,
       })
     // A proxy without a running TrainingHub answers 404/502/503/504.
-    if (!response.ok)
-      throw new TrainingHubError('TrainingHub is unavailable.', {
+    if (!response.ok) {
+      const unavailable = new TrainingHubError('TrainingHub is unavailable.', {
         code: 'UNAVAILABLE',
         status: response.status,
       })
+      if (method === 'GET' && (response.status >= 500 || response.status === 404)) {
+        onUnavailable(unavailable, () => request(method, path))
+      }
+      throw unavailable
+    }
     try {
       return await response.json()
     } catch {
-      throw new TrainingHubError('TrainingHub returned an unexpected response.', {
+      const unavailable = new TrainingHubError('TrainingHub returned an unexpected response.', {
         code: 'UNAVAILABLE',
         status: response.status,
       })
+      if (method === 'GET') onUnavailable(unavailable, () => request(method, path))
+      throw unavailable
     }
   }
 

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import PreviewLanguageSwitch from './PreviewLanguageSwitch.jsx'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import { subscribeApiRetry } from '@/services/api/apiEvents.js'
 // The reports are lazily loaded routes and do not go through the form pages,
 // so the paper styles must load with these previews too.
 import '@/styles/hr-employee-services-forms.css'
@@ -38,6 +40,7 @@ export function LetterReportPreview({
   }, [load])
   const ready = record.status === 'ready'
   const isFailed = record.status === 'error'
+  const globalFailure = isFailed && isGlobalDataLoadFailure(record.error)
 
   const loadInto = useCallback(
     (controller) => {
@@ -48,7 +51,7 @@ export function LetterReportPreview({
         })
         .catch((error) => {
           if (!controller.signal.aborted)
-            setRecord({ status: 'error', message: error?.message || failed })
+            setRecord({ status: 'error', message: error?.message || failed, error })
         })
     },
     [failed],
@@ -69,6 +72,17 @@ export function LetterReportPreview({
     setRecord({ status: 'loading' })
     loadInto(controller)
   }
+  useEffect(
+    () =>
+      subscribeApiRetry(() => {
+        inflight.current?.abort()
+        const controller = new AbortController()
+        inflight.current = controller
+        setRecord({ status: 'loading' })
+        loadInto(controller)
+      }),
+    [loadInto],
+  )
 
   const saved = ready ? record.data : null
   return (
@@ -91,7 +105,7 @@ export function LetterReportPreview({
       </div>
       {ready ? (
         paper(saved, language)
-      ) : isFailed ? (
+      ) : globalFailure ? null : isFailed ? (
         <div className="zrv-admin-state zrv-admin-state--error" role="alert">
           <p>{record.message || failed}</p>
           <button type="button" className="btn-secondary" onClick={retry}>

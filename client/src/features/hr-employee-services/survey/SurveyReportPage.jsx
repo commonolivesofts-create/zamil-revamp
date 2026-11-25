@@ -3,6 +3,8 @@ import { Link } from 'react-router'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 import { ResourceState } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
 import {
   Card,
   Foot,
@@ -35,6 +37,13 @@ const CHARTS = Object.freeze([
 ])
 const BLANK = Object.freeze({ age: ALL, jobLevel: ALL, department: ALL, experience: ALL })
 const pct = (value) => `${Number(value).toFixed(value % 1 ? 1 : 0)}%`
+const isGlobalLoadError = (resource) =>
+  resource.status === 'error' &&
+  (resource.error?.code === 'ABORTED' || isGlobalDataLoadFailure(resource.error))
+
+function retryGlobalFailures(resources) {
+  resources.filter(isGlobalLoadError).forEach((resource) => resource.reload())
+}
 
 // Answers as 100 % stacked bars, one per group (each group's four answers sum to 100).
 export function StackedBars({ chart, label }) {
@@ -100,6 +109,8 @@ export default function SurveyReportPage() {
   )
   const filters = useResource('hr-survey-filters', (signal) => surveyService.filters({ signal }))
   const ready = questions.status === 'ready' && filters.status === 'ready'
+  const initialResources = [questions, filters]
+  const initialGlobalFailure = initialResources.some(isGlobalLoadError)
   return (
     <div className="zrv-hr zrv-hr--survey zrv-hr--compact zrv-ir">
       <header className="zrv-ir-head">
@@ -124,7 +135,15 @@ export default function SurveyReportPage() {
           </button>
         </div>
       </header>
-      {ready ? (
+      {initialGlobalFailure ? (
+        <div className="zrv-global-error-slot zrv-global-error-slot--card">
+          <GlobalErrorScreen
+            inline
+            onRetry={() => retryGlobalFailures(initialResources)}
+            retryAll={false}
+          />
+        </div>
+      ) : ready ? (
         <SurveyReport questions={questions.data} filters={filters.data} />
       ) : (
         <section className="zrv-ir-card zrv-hr-sv-pad">
@@ -179,6 +198,20 @@ function SurveyReport({ questions, filters }) {
       : null,
     (signal) => surveyService.yearwise(applied.question, yearsApplied, { signal }),
   )
+
+  const reportResources = [options, distribution, category, yearwise]
+  const reportGlobalFailure = reportResources.some(isGlobalLoadError)
+  if (reportGlobalFailure) {
+    return (
+      <div className="zrv-global-error-slot zrv-global-error-slot--card">
+        <GlobalErrorScreen
+          inline
+          onRetry={() => retryGlobalFailures(reportResources)}
+          retryAll={false}
+        />
+      </div>
+    )
+  }
 
   const question = questions.find((item) => item.key === applied.question)
   const draftQuestion = questions.find((item) => item.key === draft.question)

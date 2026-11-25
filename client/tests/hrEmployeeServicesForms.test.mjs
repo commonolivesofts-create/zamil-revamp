@@ -1029,7 +1029,7 @@ test('sidebar: personal status change, sick leave and ideas appear in Employee S
   )
 })
 
-test('sidebar: HR pages use sub-groups, TrainingHub pages sit in Talent Management and the hub stays a standalone link', async () => {
+test('sidebar: HR pages use sub-groups and both hub links are standalone after Reports', async () => {
   for (const entry of registry.entries.filter(
     (item) => item.section === 'human-resources' && item.type !== 'external',
   )) {
@@ -1065,11 +1065,19 @@ test('sidebar: HR pages use sub-groups, TrainingHub pages sit in Talent Manageme
         'hr-talent-management',
         { env: 'VITE_EXTERNAL_TRAINING_HUB', path: '/team' },
       ],
-      ['attendance-system', undefined, { env: 'VITE_EXTERNAL_ATTENDANCE_SYSTEM' }],
       ['training-hub', undefined, { env: 'VITE_EXTERNAL_TRAINING_HUB' }],
+      ['expense-hub', undefined, { env: 'VITE_EXTERNAL_EXPENSE_HUB' }],
+      ['attendance-system', undefined, { env: 'VITE_EXTERNAL_ATTENDANCE_SYSTEM' }],
     ],
-    'TrainingHub pages are reused from Talent Management; the hub link stays standalone',
+    'hub links remain standalone and are ordered after the Reports subgroup',
   )
+  const lastReportOrder = Math.max(
+    ...registry.entries
+      .filter((item) => item.section === 'human-resources' && item.subgroup === 'hr-reports')
+      .map((item) => item.order),
+  )
+  assert.ok(registry.entries.find((item) => item.id === 'training-hub').order > lastReportOrder)
+  assert.ok(registry.entries.find((item) => item.id === 'expense-hub').order > lastReportOrder)
   // The forms listed in each flyout (record and report pages are hidden).
   const listed = (subgroup) =>
     registry.entries

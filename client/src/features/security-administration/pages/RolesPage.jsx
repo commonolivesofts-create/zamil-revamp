@@ -12,6 +12,8 @@ import { PAGE_SIZE } from '../adminModel.js'
 import { SECURITY_ACTIONS } from '../securityActions.js'
 import { securityAdminService } from '../securityAdminService.js'
 import { useAdminAction, useResource } from '../useAdminData.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 
 import {
   ActiveBadge,
@@ -106,6 +108,9 @@ export default function RolesPage() {
   const roles = useResource(`roles:${page}`, (signal) =>
     securityAdminService.listRoles({ page, limit: PAGE_SIZE }, { signal }),
   )
+  const rolesGlobalError =
+    roles.status === 'error' &&
+    (isGlobalDataLoadFailure(roles.error) || roles.error?.code === 'ABORTED')
 
   const action = useAdminAction()
 
@@ -188,6 +193,13 @@ export default function RolesPage() {
           <Feedback feedback={action.feedback} onDismiss={() => action.setFeedback(null)} />
         )}
 
+        {rolesGlobalError ? (
+          <div className="zrv-roles-error-state">
+            <div className="zrv-global-error-slot zrv-global-error-slot--card">
+              <GlobalErrorScreen inline onRetry={roles.reload} retryAll={false} />
+            </div>
+          </div>
+        ) : (
         <div className="zrv-admin-split zrv-roles-layout">
           {/* LEFT PANEL - ALL ROLES */}
 
@@ -525,6 +537,7 @@ export default function RolesPage() {
             )}
           </Panel>
         </div>
+        )}
 
         {/* EXISTING CREATE ROLE DIALOG */}
 

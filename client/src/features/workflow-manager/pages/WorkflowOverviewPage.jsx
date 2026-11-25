@@ -7,6 +7,8 @@ import {
   ResourceState,
 } from '@/features/security-administration/components/AdminUi.jsx'
 import { useResource } from '@/features/security-administration/useAdminData.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 import { ReadinessBadge } from '../components/WorkflowUi.jsx'
 import { formReadiness } from '../smartMappingModel.js'
 import { PAGE_SIZE, PATHS, WORKFLOW_ACTIONS } from '../workflowManagerModel.js'
@@ -72,6 +74,15 @@ export default function WorkflowOverviewPage() {
       { signal },
     ),
   )
+  const failed = (resource) =>
+    resource.status === 'error' &&
+    (isGlobalDataLoadFailure(resource.error) || resource.error?.code === 'ABORTED')
+  const formsFailed = failed(forms)
+  const overviewFailed = failed(overview)
+  const retryFailedData = () => {
+    if (formsFailed) forms.reload()
+    if (overviewFailed) overview.reload()
+  }
 
   const tasks = [
     can(WORKFLOW_ACTIONS.FORMS_CREATE) && {
@@ -100,6 +111,12 @@ export default function WorkflowOverviewPage() {
       title="Workflow Manager"
       description="Set up approval workflows for Zamil business forms. A form is ready for workflows once its business data has been prepared and approved."
     >
+      {formsFailed || overviewFailed ? (
+        <div className="zrv-global-error-slot zrv-global-error-slot--card">
+          <GlobalErrorScreen inline onRetry={retryFailedData} retryAll={false} />
+        </div>
+      ) : (
+        <>
       {canForms && (
         <Panel
           title="Business forms"
@@ -179,6 +196,8 @@ export default function WorkflowOverviewPage() {
           </>
         )}
       </ResourceState>
+        </>
+      )}
 
       {tasks.length > 0 && (
         <Panel title="What you can do" description="Only tasks your permissions allow are listed.">

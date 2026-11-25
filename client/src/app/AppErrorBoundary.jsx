@@ -1,5 +1,5 @@
 import { Component } from 'react'
-import PageState from '@/components/feedback/PageState.jsx'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 
 // React error boundaries currently require a class component without an added dependency.
 export default class AppErrorBoundary extends Component {
@@ -17,15 +17,7 @@ export default class AppErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
-      return (
-        <PageState
-          kind="error"
-          title="Something went wrong"
-          description="This part of the application could not be displayed. Reload to try again."
-          actionLabel="Reload application"
-          onAction={() => window.location.reload()}
-        />
-      )
+      return <GlobalErrorScreen onRetry={this.props.onRetry} inline={this.props.inline} />
     }
 
     return this.props.children

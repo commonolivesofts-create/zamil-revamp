@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react'
 import OrvexaIcon from '@/components/icons/OrvexaIcon.jsx'
 
 import { AdminPage } from '../components/AdminUi.jsx'
@@ -5,6 +6,8 @@ import UserDirectory from '../components/UserDirectory.jsx'
 
 import { securityAdminService } from '../securityAdminService.js'
 import { useResource } from '../useAdminData.js'
+import { isGlobalDataLoadFailure } from '@/services/api/apiClient.js'
+import GlobalErrorScreen from '@/components/feedback/GlobalErrorScreen.jsx'
 
 import '@/styles/security-user-roles.css'
 
@@ -173,8 +176,16 @@ export default function UserRolesPage() {
   // Existing statistics resource.
 
   const statistics = useResource('user-roles:account-statistics', loadRoleStatistics)
+  const globalStatisticsFailure =
+    statistics.status === 'error' &&
+    (isGlobalDataLoadFailure(statistics.error) || statistics.error?.code === 'ABORTED')
 
   const loading = statistics.status === 'loading'
+  const [retryDirectory, setRetryDirectory] = useState(null)
+  const reportDirectoryFailure = useCallback((failed, retry) => {
+    setRetryDirectory(failed ? () => retry : null)
+  }, [])
+  const pageDataFailure = globalStatisticsFailure || Boolean(retryDirectory)
 
   const data = statistics.status === 'ready' ? statistics.data : null
 
@@ -185,6 +196,10 @@ export default function UserRolesPage() {
     active: data?.active ?? 0,
     enrolled: data?.enrolled ?? 0,
     locked: data?.locked ?? 0,
+  }
+  const retryPageData = () => {
+    if (globalStatisticsFailure) statistics.reload()
+    retryDirectory?.()
   }
 
   return (
@@ -198,7 +213,8 @@ export default function UserRolesPage() {
             FOUR ACCOUNT SUMMARY CARDS
            ====================================== */}
 
-        <section className="zrv-user-roles-summary" aria-label="Account statistics">
+        <div hidden={pageDataFailure}>
+          <section className="zrv-user-roles-summary" aria-label="Account statistics">
           <div className="zrv-user-roles-summary__grid">
             {SUMMARY_CARDS.map((card) => {
               const value = summaryValues[card.id]
@@ -222,7 +238,7 @@ export default function UserRolesPage() {
 
           {/* Statistics error */}
 
-          {statistics.status === 'error' && (
+          {statistics.status === 'error' && !globalStatisticsFailure ? (
             <div className="zrv-user-roles-summary__error" role="alert">
               <span>Account statistics could not be loaded.</span>
 
@@ -230,21 +246,28 @@ export default function UserRolesPage() {
                 Retry
               </button>
             </div>
-          )}
-        </section>
+          ) : null}
+          </section>
 
         {/* ======================================
             EXISTING EMPLOYEE DIRECTORY
            ====================================== */}
 
-        <div className="zrv-user-roles-directory">
-          <UserDirectory
-            rowLink={(user) => `/security/user-roles/${user.userId}`}
-            rowAction="Manage roles"
-            compactReportTable
-            searchPlaceholder="Search by Employee Number, Username, or Name..."
-          />
+          <div className="zrv-user-roles-directory">
+            <UserDirectory
+              rowLink={(user) => `/security/user-roles/${user.userId}`}
+              rowAction="Manage roles"
+              compactReportTable
+              searchPlaceholder="Search by Employee Number, Username, or Name..."
+              onGlobalFailure={reportDirectoryFailure}
+            />
+          </div>
         </div>
+        {pageDataFailure && (
+          <div className="zrv-global-error-slot zrv-global-error-slot--card">
+            <GlobalErrorScreen inline onRetry={retryPageData} retryAll={false} />
+          </div>
+        )}
       </AdminPage>
     </div>
   )

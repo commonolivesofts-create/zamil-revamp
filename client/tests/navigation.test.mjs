@@ -448,7 +448,10 @@ test('Ctrl+J no longer opens the demo console', async () => {
 
 test('application routes are guarded by the shared configuration; demos stay preview-only', async () => {
   const router = (await read('../src/app/router.jsx')).replace(/\s+/g, ' ')
-  assert.match(router, /element: <AppRouteAccess \/>,\s*children: implementedOnly\(\[/)
+  assert.match(
+    router,
+    /element: <AppRouteAccess \/>,\s*errorElement: <RouteContentErrorBoundary \/>,\s*children: implementedOnly\(\[/,
+  )
   assert.match(
     router,
     /const implementedOnly = \(routes\) => routes\.filter\(\(route\) => implementedRouteIds\.has\(route\.handle\.routeId\)\)/,

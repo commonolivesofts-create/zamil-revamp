@@ -180,55 +180,65 @@ function CollapsibleSection({ section, isOpen, panelOpen = isOpen, isActive, onT
 // -----------------------------------------------------
 function SectionItems({ section, currentRoute, flyout, onFlyout, onNavigate }) {
   const direct = section.items.filter((item) => !item.subgroup)
-
   const groups = (section.subgroups ?? [])
     .map((subgroup) => ({
       subgroup,
       items: section.items.filter((item) => item.subgroup === subgroup.id),
     }))
     .filter((group) => group.items.length)
+  const entries = [
+    ...direct.map((item) => ({ type: 'direct', item, order: item.order ?? 0 })),
+    ...groups.map((group, index) => ({
+      type: 'group',
+      ...group,
+      order: group.subgroup.order ?? (index + 1) * 100,
+    })),
+  ].sort((a, b) => a.order - b.order)
 
   return (
     <>
-      {direct.map((item) =>
-        item.type === 'external' ? (
-          <ExternalSidebarLink key={item.id} item={item} onNavigate={onNavigate} />
-        ) : (
-          <SidebarLink
-            key={item.id}
-            to={item.path}
-            icon={item.icon}
-            label={item.label}
-            end={false}
-            onNavigate={onNavigate}
+      {entries.map((entry) => {
+        if (entry.type === 'direct') {
+          const { item } = entry
+          return item.type === 'external' ? (
+            <ExternalSidebarLink key={item.id} item={item} onNavigate={onNavigate} />
+          ) : (
+            <SidebarLink
+              key={item.id}
+              to={item.path}
+              icon={item.icon}
+              label={item.label}
+              end={false}
+              onNavigate={onNavigate}
+            />
+          )
+        }
+        const { subgroup, items } = entry
+        return (
+          <SidebarSubgroupButton
+            key={subgroup.id}
+            subgroup={subgroup}
+            items={items}
+            current={
+              currentRoute?.subgroup === subgroup.id
+                ? (items.find((item) => item.id === currentRoute.id) ?? currentRoute)
+                : null
+            }
+            open={flyout?.subgroupId === subgroup.id}
+            onToggle={(anchor, focusOnOpen) =>
+              onFlyout(
+                flyout?.subgroupId === subgroup.id
+                  ? null
+                  : {
+                      subgroupId: subgroup.id,
+                      anchor,
+                      focusOnOpen,
+                    },
+              )
+            }
           />
-        ),
-      )}
-
-      {groups.map(({ subgroup, items }) => (
-        <SidebarSubgroupButton
-          key={subgroup.id}
-          subgroup={subgroup}
-          items={items}
-          current={
-            currentRoute?.subgroup === subgroup.id
-              ? (items.find((item) => item.id === currentRoute.id) ?? currentRoute)
-              : null
-          }
-          open={flyout?.subgroupId === subgroup.id}
-          onToggle={(anchor, focusOnOpen) =>
-            onFlyout(
-              flyout?.subgroupId === subgroup.id
-                ? null
-                : {
-                    subgroupId: subgroup.id,
-                    anchor,
-                    focusOnOpen,
-                  },
-            )
-          }
-        />
-      ))}
+        )
+      })}
     </>
   )
 }
@@ -384,7 +394,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
     document.addEventListener('pointerdown', onOutsidePointerDown, true)
     return () => document.removeEventListener('pointerdown', onOutsidePointerDown, true)
-  }, [flyout?.subgroupId, closeFlyout])
+  }, [flyout, closeFlyout])
 
   const toggleDomain = (sectionId) => {
     clearNavigationReveal()

@@ -108,6 +108,7 @@ export function RecruitmentShell({
   feedback,
   onDismissFeedback,
   lookupNotice,
+  lookupBlocking = false,
   ticket,
   steps,
   step,
@@ -245,14 +246,13 @@ export function RecruitmentShell({
           </div>
         </div>
 
-        {feedbackMode === 'toast' ? (
-          <RecruitmentToast feedback={feedback} onDismiss={onDismissFeedback} />
-        ) : (
-          <Feedback feedback={feedback} onDismiss={onDismissFeedback} />
-        )}
-        {lookupNotice}
-        {ticket}
-        {banner}
+        {!lookupBlocking &&
+          (feedbackMode === 'toast' ? (
+            <RecruitmentToast feedback={feedback} onDismiss={onDismissFeedback} />
+          ) : (
+            <Feedback feedback={feedback} onDismiss={onDismissFeedback} />
+          ))}
+        <div hidden={lookupBlocking}>{ticket}{banner}</div>
 
         <nav
           className="zrv-hr-track"
@@ -295,13 +295,17 @@ export function RecruitmentShell({
         </nav>
       </div>
 
-      <div className="zrv-hr-body">
+      {lookupBlocking ? (
+        <div className="zrv-admin-panel zrv-hr-error-panel">{lookupNotice}</div>
+      ) : (
+        <div className="zrv-hr-body">
         <form
           className="zrv-hr-stage"
           noValidate
           onSubmit={(event) => event.preventDefault()}
           ref={stageRef}
         >
+          {lookupNotice}
           {locked && (
             <p className="zrv-hr-locked">
               <OrvexaIcon name="lock" size={15} /> {COMMON_TEXT.readOnly}
@@ -355,7 +359,8 @@ export function RecruitmentShell({
           )}
         </form>
         {side && <aside className="zrv-hr-side">{side}</aside>}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

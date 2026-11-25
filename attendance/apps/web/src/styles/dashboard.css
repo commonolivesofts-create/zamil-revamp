@@ -1,0 +1,1201 @@
+/* Attendance dashboard — "attendance pulse" (zat-pulse-*).
+   Base colours come from the Orvexa template tokens (--primary greens, --surface-*, --text,
+   --muted, --gc-glass, --gc-shadow-soft). Accents are the same five hues the Talent
+   Management dashboard uses (green, sky, violet, amber, rose), with its dark-mode values,
+   so the HR dashboards read as one family. */
+
+.zat-report {
+  --zp-1: var(--primary);
+  --zp-2: var(--primary-2);
+  --zp-3: var(--gc-mint, color-mix(in srgb, var(--primary) 60%, var(--surface-solid)));
+  --zp-4: color-mix(in srgb, var(--primary) 30%, var(--surface-solid));
+  --zp-green: #0f9f75;
+  --zp-sky: #0284c7;
+  --zp-violet: #7c3aed;
+  --zp-amber: #c98a12;
+  --zp-rose: #e11d48;
+  --zp-watch: var(--zp-amber);
+  --zp-watch-text: var(--amber-text, var(--zp-amber));
+  --zp-alert: var(--zp-rose);
+  --zp-alert-text: var(--danger-text, var(--zp-rose));
+  --zp-tint: var(--glow, color-mix(in srgb, var(--primary) 10%, transparent));
+  --zp-card: var(--surface-solid);
+  --zp-glass: var(--gc-glass, var(--surface-solid));
+  --zp-shadow: var(--gc-shadow-soft, 0 6px 20px -14px rgb(0 0 0 / 25%));
+}
+
+html.dark .zat-report {
+  --zp-green: #2dd4a0;
+  --zp-sky: #38bdf8;
+  --zp-violet: #a78bfa;
+  --zp-amber: #f4c95d;
+  --zp-rose: #fb7185;
+  --zp-watch-text: var(--zp-amber);
+  --zp-alert-text: var(--zp-rose);
+}
+
+/* Tones used by components (--c main, --c2 lighter companion). */
+.zat-t-teal {
+  --c: var(--zp-green);
+  --c2: color-mix(in srgb, var(--zp-green) 55%, var(--zp-sky));
+}
+.zat-t-indigo {
+  --c: var(--primary);
+  --c2: var(--zp-3);
+}
+.zat-t-sky {
+  --c: var(--zp-sky);
+  --c2: color-mix(in srgb, var(--zp-sky) 55%, var(--zp-green));
+}
+.zat-t-violet {
+  --c: var(--zp-violet);
+  --c2: color-mix(in srgb, var(--zp-violet) 60%, var(--zp-sky));
+}
+.zat-t-amber {
+  --c: var(--zp-amber);
+  --c2: color-mix(in srgb, var(--zp-amber) 60%, var(--zp-rose));
+}
+.zat-t-rose {
+  --c: var(--zp-rose);
+  --c2: color-mix(in srgb, var(--zp-rose) 60%, var(--zp-violet));
+}
+.zat-t-g3 {
+  --c: var(--zp-3);
+  --c2: var(--zp-4);
+}
+.zat-t-g4 {
+  --c: var(--zp-4);
+  --c2: var(--zp-4);
+}
+.zat-t-muted {
+  --c: color-mix(in srgb, var(--muted) 45%, var(--surface-solid));
+  --c2: var(--c);
+}
+
+.zat-pulse .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.zat-pulse {
+  display: grid;
+  gap: 16px;
+}
+
+/* ============ Hero band ============ */
+/* Deep-to-light green gradient built from the template green (--primary), white text, glass
+   stat panels. Continuous motion: drifting gradient, floating light orbs, a periodic light
+   sweep, shimmering meters and a soft wave across the day strip. */
+.zat-report {
+  --zp-hero-deep: color-mix(in srgb, var(--primary) 52%, #03140d);
+  --zp-hero-mid: color-mix(in srgb, var(--primary) 88%, #03140d);
+  --zp-hero-light: color-mix(in srgb, var(--primary) 62%, #d9f7e6);
+}
+
+html.dark .zat-report {
+  --zp-hero-deep: color-mix(in srgb, var(--primary) 30%, #020a07);
+  --zp-hero-mid: color-mix(in srgb, var(--primary) 55%, #04140d);
+  --zp-hero-light: color-mix(in srgb, var(--primary) 70%, #0d2a1f);
+}
+
+.zat-pulse-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px 32px;
+  padding: 24px 26px 20px;
+  border-radius: 22px;
+  color: #fff;
+  background: linear-gradient(
+    120deg,
+    var(--zp-hero-deep) 0%,
+    var(--zp-hero-mid) 38%,
+    var(--zp-hero-light) 72%,
+    var(--zp-hero-mid) 100%
+  );
+  background-size: 240% 240%;
+  box-shadow:
+    0 18px 40px -22px color-mix(in srgb, var(--primary) 70%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 14%);
+  overflow: hidden;
+  isolation: isolate;
+  animation:
+    zp-rise 0.5s ease both,
+    zp-hero-flow 16s ease-in-out infinite alternate;
+}
+
+/* Fine dot texture, fading out to the right. */
+.zat-pulse-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(rgb(255 255 255 / 18%) 1px, transparent 1.2px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(100deg, #000 0%, transparent 60%);
+  opacity: 0.55;
+}
+
+/* Light sweep every few seconds. */
+.zat-pulse-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -40%;
+  width: 40%;
+  z-index: -1;
+  background: linear-gradient(100deg, transparent 0%, rgb(255 255 255 / 14%) 50%, transparent 100%);
+  transform: skewX(-18deg);
+  animation: zp-sweep 7s ease-in-out infinite 1.2s;
+}
+
+/* Two floating light orbs. */
+.zat-pulse-hero__glow {
+  position: absolute;
+  inset: -55% -6% auto auto;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  z-index: -1;
+  background: radial-gradient(circle, rgb(255 255 255 / 22%), transparent 62%);
+  filter: blur(4px);
+  animation: zp-orb-a 12s ease-in-out infinite alternate;
+}
+
+.zat-pulse-hero__glow::after {
+  content: '';
+  position: absolute;
+  top: 120%;
+  left: -95%;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--zp-hero-light) 70%, #fff 30%),
+    transparent 65%
+  );
+  opacity: 0.45;
+  animation: zp-orb-b 15s ease-in-out infinite alternate;
+}
+
+.zat-pulse-hero__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 5px 12px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #fff;
+  background: rgb(255 255 255 / 12%);
+  backdrop-filter: blur(8px);
+}
+
+.zat-pulse-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fcd679;
+  box-shadow: 0 0 10px #fcd679;
+}
+
+.zat-pulse-dot.is-ready {
+  background: #b5f5d0;
+  box-shadow: 0 0 10px #b5f5d0;
+}
+
+.zat-pulse-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: zp-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.zat-pulse-hero h2 {
+  margin: 14px 0 6px;
+  font-size: clamp(22px, 2.4vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 18%);
+}
+
+.zat-pulse-hero h2 span[aria-hidden] {
+  display: inline-block;
+  margin: 0 10px;
+  color: rgb(255 255 255 / 70%);
+  animation: zp-nudge 2.6s ease-in-out infinite;
+}
+
+.zat-pulse-hero__sub {
+  margin: 0;
+  font-size: 13px;
+  color: rgb(255 255 255 / 78%);
+}
+
+.zat-pulse-hero__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.zat-pulse-hero__stats > div {
+  position: relative;
+  padding: 14px 16px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgb(255 255 255 / 18%), rgb(255 255 255 / 6%));
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.zat-pulse-hero__stats > div:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(160deg, rgb(255 255 255 / 24%), rgb(255 255 255 / 9%));
+}
+
+.zat-pulse-hero__stats dt {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(255 255 255 / 82%);
+}
+
+.zat-pulse-hero__stats dd {
+  margin: 4px 0 10px;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.zat-pulse-hero__stats small {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: rgb(255 255 255 / 75%);
+}
+
+.zat-pulse-meter {
+  position: relative;
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 18%);
+  overflow: hidden;
+}
+
+.zat-pulse-meter i {
+  position: relative;
+  display: block;
+  width: var(--w);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #c8f7dc, #fff);
+  overflow: hidden;
+  animation: zp-grow 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both 0.2s;
+}
+
+.zat-pulse-meter i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 45%, transparent),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: zp-shimmer 2.8s ease-in-out infinite 1.4s;
+}
+
+.zat-pulse-heat {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 3px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zat-pulse-heat__cell {
+  flex: 1;
+  height: 10px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 16%);
+  transform-origin: bottom;
+  transition: transform 0.15s ease;
+  animation:
+    zp-pop 0.4s ease both,
+    zp-wave 4.5s ease-in-out infinite;
+  animation-delay: calc(0.3s + var(--i) * 15ms), calc(1.2s + var(--i) * 90ms);
+}
+
+.zat-pulse-heat__cell.is-l1 {
+  background: #ffb4a8;
+}
+.zat-pulse-heat__cell.is-l2 {
+  background: #ffd98a;
+}
+.zat-pulse-heat__cell.is-l3 {
+  background: rgb(214 250 228 / 70%);
+}
+.zat-pulse-heat__cell.is-l4 {
+  background: #e6fdef;
+}
+
+.zat-pulse-heat__cell:hover {
+  transform: scaleY(1.7);
+}
+
+@keyframes zp-hero-flow {
+  0% {
+    background-position: 0% 40%;
+  }
+  100% {
+    background-position: 100% 60%;
+  }
+}
+
+@keyframes zp-sweep {
+  0% {
+    left: -40%;
+  }
+  55%,
+  100% {
+    left: 130%;
+  }
+}
+
+@keyframes zp-orb-a {
+  to {
+    transform: translate(-70px, 40px) scale(1.08);
+  }
+}
+
+@keyframes zp-orb-b {
+  to {
+    transform: translate(90px, -30px) scale(0.92);
+  }
+}
+
+@keyframes zp-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes zp-wave {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes zp-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zat-pulse-hero,
+  .zat-pulse-hero::after,
+  .zat-pulse-hero__glow,
+  .zat-pulse-hero__glow::after,
+  .zat-pulse-meter i::after,
+  .zat-pulse-hero h2 span[aria-hidden] {
+    animation: none !important;
+  }
+
+  .zat-pulse-hero::after {
+    display: none;
+  }
+}
+
+/* ============ KPI cards ============ */
+.zat-pulse-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.zat-pulse-kpi {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  align-content: start;
+  gap: 4px;
+  min-height: 160px;
+  padding: 16px 16px 44px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--c) 9%, transparent), transparent 58%),
+    var(--zp-card);
+  box-shadow: var(--zp-shadow);
+  overflow: hidden;
+  animation: zp-rise 0.45s ease both;
+  animation-delay: calc(0.1s + var(--i) * 60ms);
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.zat-pulse-kpi::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--c), var(--c2));
+}
+
+.zat-pulse-kpi:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--c) 30%, var(--line));
+}
+
+.zat-pulse-kpi header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zat-pulse-kpi h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.zat-pulse-kpi__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--c), var(--c2));
+  box-shadow: 0 6px 14px -8px var(--c);
+}
+
+.zat-pulse-kpi__value {
+  margin: 6px 0 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.zat-pulse-kpi__note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.zat-pulse-spark {
+  position: absolute;
+  inset: auto 0 0;
+  display: block;
+  width: 100%;
+  height: 34px;
+  color: var(--c);
+  opacity: 0.9;
+}
+
+.zat-pulse-spark__line {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ============ Rows and panels ============ */
+.zat-pulse-row {
+  display: grid;
+  gap: 16px;
+}
+
+.zat-pulse-row--wide {
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+}
+
+.zat-pulse-row--thirds {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.zat-pulse-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--zp-card);
+  box-shadow: var(--zp-shadow);
+  animation: zp-rise 0.5s ease both 0.25s;
+}
+
+.zat-pulse-panel__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.zat-pulse-panel__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: var(--c, var(--primary));
+  background: color-mix(in srgb, var(--c, var(--primary)) 14%, transparent);
+}
+
+.zat-pulse-panel h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.zat-pulse-panel__head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.zat-pulse-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin: auto 0;
+  padding: 26px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ============ Area chart ============ */
+.zat-pulse-chart {
+  margin: 0;
+}
+
+.zat-pulse-chart__scroll {
+  overflow-x: auto;
+}
+
+.zat-pulse-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.zat-pulse-stop-a {
+  stop-color: var(--zp-green);
+}
+
+.zat-pulse-stop-b {
+  stop-color: var(--zp-sky);
+}
+
+.zat-pulse-axis line {
+  stroke: var(--line);
+  stroke-dasharray: 2 5;
+}
+
+.zat-pulse-axis text,
+.zat-pulse-axis__x {
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+.zat-pulse-area {
+  animation: zp-fade 0.9s ease both 0.4s;
+}
+
+.zat-pulse-line {
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: zp-draw 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards 0.2s;
+}
+
+.zat-pulse-point rect {
+  fill: transparent;
+}
+
+.zat-pulse-point circle {
+  fill: var(--zp-card);
+  stroke: var(--zp-1);
+  stroke-width: 2;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    r 0.15s ease;
+}
+
+.zat-pulse-point:hover circle {
+  opacity: 1;
+}
+
+.zat-pulse-point:hover rect {
+  fill: color-mix(in srgb, var(--zp-1) 7%, transparent);
+}
+
+.zat-pulse-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.zat-pulse-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zat-pulse-key::before {
+  content: '';
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.zat-pulse-key--rate::before {
+  background: linear-gradient(90deg, var(--zp-1), var(--zp-2));
+}
+
+.zat-pulse-keys__range {
+  margin-left: auto;
+}
+
+.zat-pulse-keys b {
+  color: var(--text);
+}
+
+/* ============ Checklist timeline ============ */
+.zat-pulse-steps {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 0 4px;
+  list-style: none;
+}
+
+.zat-pulse-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 12px;
+  align-items: center;
+  animation: zp-slide 0.4s ease both;
+  animation-delay: calc(0.35s + var(--i) * 70ms);
+}
+
+.zat-pulse-steps li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 34px;
+  bottom: -14px;
+  left: 11px;
+  width: 2px;
+  background: linear-gradient(var(--line), transparent);
+}
+
+.zat-pulse-steps__mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: var(--surface-solid);
+  z-index: 1;
+}
+
+.is-done .zat-pulse-steps__mark {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.is-open .zat-pulse-steps__mark {
+  color: var(--zp-watch-text);
+  background: color-mix(in srgb, var(--zp-watch) 16%, transparent);
+}
+
+.zat-pulse-steps a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--text);
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.zat-pulse-steps a:hover,
+.zat-pulse-steps a:focus-visible {
+  background: var(--surface-2);
+}
+
+.zat-pulse-steps b {
+  display: block;
+  font-size: 13px;
+}
+
+.zat-pulse-steps small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.zat-pulse-steps strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.is-open .zat-pulse-steps strong {
+  color: var(--zp-watch-text);
+}
+
+/* ============ Leave mix ============ */
+.zat-pulse-mix {
+  display: grid;
+  gap: 14px;
+}
+
+.zat-pulse-mix__total {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.zat-pulse-mix__total b {
+  font-size: 26px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.zat-pulse-mix__bar {
+  display: flex;
+  gap: 3px;
+  height: 14px;
+}
+
+.zat-pulse-mix__bar i {
+  width: var(--w);
+  min-width: 4px;
+  border-radius: 6px;
+  background: var(--c);
+  transform-origin: left;
+  animation: zp-grow-x 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.35s + var(--i) * 90ms);
+}
+
+.zat-pulse-mix__list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zat-pulse-mix__list li {
+  display: grid;
+  grid-template-columns: 10px 1fr auto 40px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.zat-pulse-mix__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--c);
+}
+
+.zat-pulse-mix__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.zat-pulse-mix__list b {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.zat-pulse-mix__list small {
+  text-align: right;
+  color: var(--muted);
+}
+
+/* ============ Rankings ============ */
+.zat-pulse-rank {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zat-pulse-rank li {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 12px;
+  align-items: center;
+  animation: zp-slide 0.4s ease both;
+  animation-delay: calc(0.35s + var(--i) * 70ms);
+}
+
+.zat-pulse-rank__avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 13%, transparent);
+}
+
+.zat-pulse-rank li:first-child .zat-pulse-rank__avatar {
+  color: var(--surface-solid);
+  background: var(--c);
+}
+
+.zat-pulse-rank__who {
+  min-width: 0;
+}
+
+.zat-pulse-rank__who > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.zat-pulse-rank__who b {
+  overflow: hidden;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.zat-pulse-rank__who span {
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.zat-pulse-rank__who span small,
+.zat-pulse-rank__who > small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.zat-pulse-rank__track {
+  display: block;
+  height: 5px;
+  margin: 5px 0 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.zat-pulse-rank__track i {
+  display: block;
+  width: var(--w);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--c2), var(--c));
+  transform-origin: left;
+  animation: zp-grow-x 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both 0.45s;
+}
+
+/* ============ Department tiles ============ */
+.zat-pulse-depts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zat-pulse-depts li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  isolation: isolate;
+  animation: zp-rise 0.4s ease both;
+  animation-delay: calc(0.3s + var(--i) * 25ms);
+}
+
+.zat-pulse-depts__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--zp-1) 16%, transparent),
+    color-mix(in srgb, var(--zp-2) 10%, transparent)
+  );
+  z-index: -1;
+  transform-origin: left;
+  animation: zp-grow-x 1s cubic-bezier(0.2, 0.8, 0.2, 1) both 0.4s;
+}
+
+.zat-pulse-depts__name {
+  overflow: hidden;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.zat-pulse-depts__count {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: none;
+}
+
+.zat-pulse-depts__count b {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.zat-pulse-depts__count small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.zat-pulse-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: center;
+  align-self: center;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--zp-2);
+  background: var(--zp-card);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.zat-pulse-more:hover,
+.zat-pulse-more:focus-visible {
+  background: var(--surface-2);
+}
+
+.zat-pulse-spin {
+  animation: zp-spin 0.9s linear infinite;
+}
+
+/* ============ Motion ============ */
+@keyframes zp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes zp-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+
+@keyframes zp-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes zp-pop {
+  from {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+}
+
+@keyframes zp-grow {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes zp-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes zp-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes zp-ping {
+  75%,
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+@keyframes zp-drift {
+  from {
+    background-position:
+      0 0,
+      0% 50%;
+  }
+  to {
+    background-position:
+      0 0,
+      100% 50%;
+  }
+}
+
+@keyframes zp-float {
+  to {
+    transform: translate(-40px, 30px);
+  }
+}
+
+@keyframes zp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zat-pulse *,
+  .zat-pulse *::before,
+  .zat-pulse *::after,
+  .zat-pulse-hero,
+  .zat-pulse-spin {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .zat-pulse-line {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ============ Responsive ============ */
+@media (max-width: 1280px) {
+  .zat-pulse-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .zat-pulse-row--wide {
+    grid-template-columns: 1fr;
+  }
+
+  .zat-pulse-row--thirds {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zat-pulse-row--thirds > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 860px) {
+  .zat-pulse-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .zat-pulse-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zat-pulse-row--thirds {
+    grid-template-columns: 1fr;
+  }
+
+  .zat-pulse-keys__range {
+    margin-left: 0;
+  }
+
+  .zat-pulse-chart svg {
+    min-width: 560px;
+  }
+}
+
+@media (max-width: 480px) {
+  .zat-pulse-hero {
+    padding: 18px 16px 14px;
+  }
+
+  .zat-pulse-hero__stats,
+  .zat-pulse-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .zat-pulse-heat {
+    gap: 2px;
+  }
+}
