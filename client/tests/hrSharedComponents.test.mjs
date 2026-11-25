@@ -10,6 +10,7 @@ import { titleWords } from '../src/features/hr-recruitment/shared/hrFormat.js'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 const SHARED = '../src/features/hr-recruitment/shared/components/'
 const CSS = '../src/styles/hr-recruitment.css'
+const ESF_CSS = '../src/styles/hr-employee-services-forms.css'
 
 test('titleWords: one group per word; the animation index counts the spaces, as before', () => {
   assert.deepEqual(titleWords('Personnel Record Change'), [
@@ -157,7 +158,10 @@ test('EmployeePicker options: tight variant and a separate cache-key prefix', as
     /const waitingForOptions = loading \|\| \(open && \(pendingSearch \|\| results\.status === ["']loading["']\)\)/,
     'loading is detected for the field status and placeholder',
   )
-  assert.match(picker, /placeholder=\{waitingForOptions && !query \? ["']Loading options…["'] : placeholder\}/)
+  assert.match(
+    picker,
+    /placeholder=\{waitingForOptions && !query \? ["']Loading options…["'] : placeholder\}/,
+  )
   assert.match(picker, /hidden=\{waitingForOptions \|\| failedToLoad\}/)
   assert.match(picker, /className=\{\s*fieldStatus\s*\? `zrv-hr-field-loading/)
   assert.doesNotMatch(picker, /waitingForOptions && \(\s*<li/)
@@ -179,7 +183,10 @@ test('EmployeePicker options: tight variant and a separate cache-key prefix', as
   const css = await read(CSS)
   assert.match(css, /\.zrv-hr-combo--tight \.zrv-hr-combo__list\s*\{\s*left:\s*0;\s*\}/)
   const inputs = await read(`${SHARED}RecruitmentInputs.jsx`)
-  assert.match(inputs, /placeholder=\{busy && !displayedValue \? 'Loading options\.\.\.' : placeholder\}/)
+  assert.match(
+    inputs,
+    /placeholder=\{busy && !displayedValue \? 'Loading options\.\.\.' : placeholder\}/,
+  )
   assert.match(inputs, /hidden=\{busy\}/)
   assert.match(inputs, /className="zrv-hr-field-loading" role="status" aria-live="polite"/)
   assert.match(inputs, /const viewportWidth = window\.innerWidth/)
@@ -223,4 +230,62 @@ test('requisition replacement uses its live-search employee picker', async () =>
   )
   assert.match(source, /cacheKey="requisition-replacement-employees"/)
   assert.match(source, /service\.searchReplacementEmployees\(query, options\)/)
+})
+
+test('form section headings share one header style, not an input-label style', async () => {
+  const css = await read(CSS)
+  const heading = css.match(/\.zrv-hr-subh\s*\{([^}]*)\}/)?.[1] ?? ''
+  assert.match(heading, /display:\s*flex/)
+  assert.match(heading, /color:\s*var\(--zrv-hr-accent-text\)/)
+  assert.match(heading, /font-size:\s*16px/)
+  assert.match(heading, /font-weight:\s*800/)
+  assert.match(heading, /letter-spacing:\s*-0\.025em/)
+  assert.match(css, /\.zrv-hr-subh::before\s*\{[^}]*background:\s*var\(--zrv-hr-accent\)/)
+  assert.match(css, /\.zrv-hr-subh::after\s*\{[^}]*background:\s*var\(--line\)/)
+  // The dense-form override may tighten spacing, but must not drop any form's
+  // heading back to the 13px input-label size it used to have.
+  const dense = css.match(/:is\([^)]*\)\s*\.zrv-hr-subh\s*\{([^}]*)\}/)?.[1] ?? ''
+  assert.ok(dense, 'the dense-form spacing override exists')
+  assert.doesNotMatch(dense, /font-size/)
+
+  // Recruitment and employee-services forms use the same shared class.
+  for (const page of [
+    'hr-recruitment/interview/InterviewPage.jsx',
+    'hr-recruitment/offer/OfferPage.jsx',
+    'hr-recruitment/orientation/OrientationPage.jsx',
+    'hr-employee-services/clearance/ClearancePage.jsx',
+    'hr-employee-services/recordChange/RecordChangePage.jsx',
+    'hr-employee-services/performance/AppraisalPage.jsx',
+    'hr-employee-services/charter/CharterPage.jsx',
+    'hr-employee-services/businessVisaLetter/BusinessVisaLetterPage.jsx',
+    'hr-employee-services/touristVisa/TouristVisaPage.jsx',
+    'hr-employee-services/warningLetter/WarningLetterPage.jsx',
+  ]) {
+    const source = await read(`../src/features/${page}`)
+    assert.match(source, /<h3 className="zrv-hr-subh(?: zrv-hr-mt)?">/, page)
+  }
+
+  // Employee-services forms use a second shared head (with a pill/counter in
+  // the same row); it must carry the same header scale and theme accents.
+  const esf = await read(ESF_CSS)
+  const esfHeading = esf.match(/\.zrv-hr-esf-sectionhead h2\s*\{([^}]*)\}/)?.[1] ?? ''
+  assert.match(esfHeading, /display:\s*flex/)
+  assert.match(esfHeading, /color:\s*var\(--zrv-hr-accent-text\)/)
+  assert.match(esfHeading, /font-size:\s*16px/)
+  assert.match(esfHeading, /font-weight:\s*800/)
+  assert.match(esfHeading, /letter-spacing:\s*-0\.025em/)
+  assert.match(
+    esf,
+    /\.zrv-hr-esf-sectionhead h2::before\s*\{[^}]*background:\s*var\(--zrv-hr-accent\)/,
+  )
+  assert.match(esf, /\.zrv-hr-esf-sectionhead h2::after\s*\{[^}]*background:\s*var\(--line\)/)
+  for (const page of [
+    'hr-employee-services/salaryCertificate/SalaryCertificatePage.jsx',
+    'hr-employee-services/touristVisa/TouristVisaPage.jsx',
+    'hr-employee-services/businessVisa/BusinessVisaPage.jsx',
+    'hr-employee-services/sickLeave/SickLeavePage.jsx',
+  ]) {
+    const source = await read(`../src/features/${page}`)
+    assert.match(source, /<div className="zrv-hr-esf-sectionhead">\s*<h2>/, page)
+  }
 })
