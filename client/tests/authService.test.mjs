@@ -131,6 +131,19 @@ test('logout accepts 204 and sends the session CSRF token', async () => {
   assert.equal(calls[0].init.body, undefined)
 })
 
+test('keepalive uses the authenticated CSRF-protected endpoint and reports expired sessions', async () => {
+  const { service, calls, csrfStore, unauthorizedCount } = setup(() => noContent())
+  csrfStore.setSessionToken(SESSION_TOKEN)
+  await service.keepalive()
+  assert.equal(calls[0].url, '/api/v1/auth/session/keepalive')
+  assert.equal(calls[0].init.method, 'POST')
+  assert.equal(calls[0].init.headers.get('X-CSRF-Token'), SESSION_TOKEN)
+
+  const expired = setup(() => failure(401, 'UNAUTHENTICATED', 'Authentication is required'))
+  await assert.rejects(expired.service.keepalive(), { status: 401 })
+  assert.equal(expired.unauthorizedCount(), 1)
+})
+
 test('password recovery requests use the backend contract (replaces the pre-Batch C stub)', async () => {
   const { service, calls } = setup(() =>
     success(
@@ -162,6 +175,7 @@ test('auth configuration uses fixed endpoints and never enables preview outside 
     currentUser: '/auth/me',
     profileImage: '/auth/me/profile-image',
     csrf: '/auth/csrf',
+    keepalive: '/auth/session/keepalive',
     logout: '/auth/logout',
     mfaVerify: '/auth/mfa/verify',
     mfaEnrollment: '/auth/mfa/enrollment',

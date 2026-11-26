@@ -81,6 +81,14 @@ export function createAuthService({ client }) {
       return readCsrfToken(data)
     },
 
+    async keepalive({ signal } = {}) {
+      await client.post(authEndpoints.keepalive, undefined, {
+        csrf: 'session',
+        signal,
+        responseType: 'void',
+      })
+    },
+
     // 204 on success; requires the session CSRF token.
     async logout({ signal } = {}) {
       await client.post(authEndpoints.logout, undefined, {

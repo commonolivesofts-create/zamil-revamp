@@ -1,6 +1,6 @@
 // Relative imports keep this module loadable by the Node-native tests.
 import { apiConfig } from '../../config/apiConfig.js'
-import { emitApiUnavailable, emitApiUnauthorized } from './apiEvents.js'
+import { emitApiActivity, emitApiUnavailable, emitApiUnauthorized } from './apiEvents.js'
 import { csrfStore as defaultCsrfStore } from './csrfStore.js'
 
 export const CSRF_HEADER = 'X-CSRF-Token'
@@ -389,7 +389,9 @@ export function createApiClient({
         if (response.status === 401 && notifyUnauthorized) onUnauthorized()
         throw error
       }
-      return await parseSuccess(response, responseType)
+      const result = await parseSuccess(response, responseType)
+      if (notifyUnauthorized) emitApiActivity()
+      return result
     } catch (error) {
       if (error instanceof ApiError) throw error
       if (controller.signal.aborted) {

@@ -199,6 +199,13 @@ export function createAuthRouter({
   });
   router.get('/csrf', validate({ query: emptyQuerySchema }), authenticate, controller.getCsrfToken);
   router.post(
+    '/session/keepalive',
+    validate({ query: emptyQuerySchema, body: emptyBodySchema }),
+    authenticate,
+    requireCsrfToken,
+    controller.keepalive,
+  );
+  router.post(
     '/logout',
     validate({ query: emptyQuerySchema }),
     authenticate,
