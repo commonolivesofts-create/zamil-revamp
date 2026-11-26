@@ -3,9 +3,25 @@
 const unauthorizedListeners = new Set()
 const unavailableListeners = new Set()
 const retryListeners = new Set()
+const activityListeners = new Set()
 let globalUnavailableError = null
 const resourceUnavailableErrors = new Map()
 let unavailableNotificationScheduled = false
+
+export function subscribeApiActivity(listener) {
+  activityListeners.add(listener)
+  return () => activityListeners.delete(listener)
+}
+
+export function emitApiActivity() {
+  for (const listener of activityListeners) {
+    try {
+      listener(Date.now())
+    } catch {
+      // Activity bookkeeping must not affect a completed API request.
+    }
+  }
+}
 
 export function subscribeApiUnauthorized(listener) {
   unauthorizedListeners.add(listener)

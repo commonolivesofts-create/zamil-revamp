@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ApiError, createApiClient } from '../src/services/api/apiClient.js'
 import { createCsrfStore } from '../src/services/api/csrfStore.js'
+import { subscribeApiActivity } from '../src/services/api/apiEvents.js'
 import {
   REQUEST_ID,
   failure,
@@ -46,6 +47,23 @@ test('success envelopes resolve to data, pagination and request ID', async () =>
     requestId: REQUEST_ID,
   })
   assert.ok(Object.isFrozen(result))
+})
+
+test('successful authenticated API requests publish activity for keepalive suppression', async () => {
+  const observed = []
+  const unsubscribe = subscribeApiActivity((at) => observed.push(at))
+  try {
+    const { client } = setup(() => success({ id: '1' }))
+    await client.get('/users/1')
+    assert.equal(observed.length, 1)
+    assert.ok(Number.isFinite(observed[0]))
+
+    const anonymous = setup(() => success({ accepted: true }))
+    await anonymous.client.post('/auth/login', {}, { notifyUnauthorized: false })
+    assert.equal(observed.length, 1)
+  } finally {
+    unsubscribe()
+  }
 })
 
 test('paginated envelopes keep validated pagination metadata', async () => {

@@ -124,6 +124,12 @@ export function createAuthController({
       sendSuccess(res, { token: req.auth.csrfToken, headerName: CSRF_HEADER });
     },
 
+    keepalive(_req, res) {
+      // authenticate middleware has validated and, when due, touched the existing session.
+      // It never changes expires_at, so the absolute session lifetime remains fixed.
+      res.status(204).end();
+    },
+
     async logout(req, res) {
       await sessionService.logout(req.auth, requestContext(req));
       res.clearCookie(cookieConfig.name, cookieOptions);

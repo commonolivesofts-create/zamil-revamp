@@ -1,4 +1,4 @@
-﻿openapi: 3.1.0
+openapi: 3.1.0
 info:
   title: Zamil Digitalization API
   version: 2.1.0
@@ -657,6 +657,36 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/session/keepalive:
+    post:
+      operationId: keepalive
+      tags: [Authentication]
+      summary: Refresh session idle activity
+      description: >-
+        Touches the authenticated database session when due to prevent idle timeout
+        while the user is actively interacting with the application. Requires the
+        session cookie and `X-CSRF-Token` header. Does not extend the fixed 8-hour
+        absolute expiration and cannot revive an expired session.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: Session activity recorded or already current.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/CsrfRejected'
         '500':
           $ref: '#/components/responses/InternalError'
         '503':
