@@ -6,7 +6,7 @@ import {
 } from '../../../database/oracle.js';
 import { AppError } from '../../../shared/errors/AppError.js';
 import * as defaultRepository from './transferRequest.repository.js';
-import { DEPARTMENTS, PLANTS } from './transferRequest.validation.js';
+import { PLANTS } from './transferRequest.validation.js';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const dateValid = (value) => {
@@ -37,21 +37,44 @@ export function createTransferRequestService({
       throw fail('EMP_NOT_FOUND', 'current.empName', 'Employee was not found');
     const employee = await repository.findEmployeeDetails(connection, current.empName);
     if (!employee) throw fail('EMP_NOT_FOUND', 'current.empName', 'Employee was not found');
+    const assignments = await repository.listOrganizationAssignments(connection);
+    const same = (left, right) =>
+      String(left ?? '')
+        .trim()
+        .toLocaleUpperCase() ===
+      String(right ?? '')
+        .trim()
+        .toLocaleUpperCase();
     if (
       !required(transfer.jobTitle) ||
-      !(await repository.listJobs(connection)).some((x) => x.name === transfer.jobTitle)
+      !assignments.some((item) => same(item.JOB_NAME, transfer.jobTitle))
     ) {
       throw fail('JOB_TITLE_INVALID', 'transfer.jobTitle', 'Job title is invalid');
     }
-    if (!DEPARTMENTS.includes(transfer.dept))
+    if (!assignments.some((item) => same(item.DEPARTMENT_NAME, transfer.dept)))
       throw fail('DEPT_INVALID', 'transfer.dept', 'Department is invalid');
-    const sectionIsDepartment = transfer.section === transfer.dept;
     if (
       !required(transfer.section) ||
-      (!sectionIsDepartment &&
-        !(await repository.listSections(connection)).some((x) => x.name === transfer.section))
+      !assignments.some(
+        (item) =>
+          same(item.DEPARTMENT_NAME, transfer.dept) && same(item.SECTION_NAME, transfer.section),
+      )
     ) {
       throw fail('SECTION_INVALID', 'transfer.section', 'Section is invalid');
+    }
+    if (
+      !assignments.some(
+        (item) =>
+          same(item.JOB_NAME, transfer.jobTitle) &&
+          same(item.DEPARTMENT_NAME, transfer.dept) &&
+          same(item.SECTION_NAME, transfer.section),
+      )
+    ) {
+      throw fail(
+        'ORG_MAPPING_INVALID',
+        'transfer.jobTitle',
+        'Job title is not mapped to the selected department and section',
+      );
     }
     if (!dateValid(transfer.effectiveDate))
       throw fail(
@@ -212,9 +235,56 @@ export function createTransferRequestService({
         if (!result) throw notFound('Employee not found');
         return result;
       }),
-    jobs: () => read((c) => repository.listJobs(c)),
-    sections: () => read((c) => repository.listSections(c)),
-    departments: async () => DEPARTMENTS,
+    jobs: () =>
+      read(async (c) =>
+        (await repository.listOrganizationAssignments(c)).map((item) => ({
+          jobId: String(item.JOB_ID),
+          name: item.JOB_NAME,
+          departmentId: String(item.DEPARTMENT_ID),
+          departmentName: item.DEPARTMENT_NAME,
+          sectionId: String(item.SECTION_ID),
+          sectionName: item.SECTION_NAME,
+        })),
+      ),
+    sections: () =>
+      read(async (c) => {
+        const assignments = await repository.listOrganizationAssignments(c);
+        return [
+          ...new Map(
+            assignments.map((item) => [
+              String(item.SECTION_ID),
+              {
+                sectionId: String(item.SECTION_ID),
+                name: item.SECTION_NAME,
+              },
+            ]),
+          ).values(),
+        ].sort((a, b) => a.name.localeCompare(b.name));
+      }),
+    departments: () =>
+      read(async (c) => {
+        const assignments = await repository.listOrganizationAssignments(c);
+        const departments = new Map();
+        for (const item of assignments) {
+          const id = String(item.DEPARTMENT_ID);
+          let department = departments.get(id);
+          if (!department) {
+            department = { departmentId: id, name: item.DEPARTMENT_NAME, sections: new Map() };
+            departments.set(id, department);
+          }
+          department.sections.set(String(item.SECTION_ID), {
+            sectionId: String(item.SECTION_ID),
+            name: item.SECTION_NAME,
+          });
+        }
+        return [...departments.values()]
+          .map((item) => ({
+            departmentId: item.departmentId,
+            name: item.name,
+            sections: [...item.sections.values()].sort((a, b) => a.name.localeCompare(b.name)),
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      }),
     directors: () => read((c) => repository.listDirectors(c)),
     bloodTypes: () => read((c) => repository.listBloodTypes(c)),
     requestor: (actor) => read((c) => repository.findRequestor(c, actor.employeeNumber)),

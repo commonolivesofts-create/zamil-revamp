@@ -46,7 +46,7 @@ import {
   transferMoves,
   transferPayload,
   validateTransfer,
-  withDestination,
+  withDestinationJob,
   withTransferEmployee,
 } from './transferModel.js'
 
@@ -126,21 +126,8 @@ function TransferEditor({ lookups, record, user }) {
   const doc = lookups.transferDocument
   const nameIn = (list, code) => list.find((item) => item.code === code)?.name ?? ''
   const departmentName = (code) => nameIn(lookups.departments, code)
-  // The API exposes the organization section list globally, without mapping sections to
-  // departments. Use the exact server values and dedupe them before showing the selector.
-  const allSections = [
-    ...new Map(
-      [
-        ...lookups.departments.map((item) => item.departmentSection).filter(Boolean),
-        ...lookups.departments.flatMap((item) => item.sections ?? []),
-      ].map((item) => [item.name.toLocaleLowerCase(), item]),
-    ).values(),
-  ]
-  const sectionOptions = form.to.departmentCode
-    ? sectionsOf(lookups.departments, form.to.departmentCode)
-    : []
   const sectionName = (departmentCode, code) =>
-    nameIn(sectionsOf(lookups.departments, departmentCode), code) || nameIn(allSections, code)
+    nameIn(sectionsOf(lookups.departments, departmentCode), code)
   const jobName = (code) => nameIn(lookups.jobTitles, code)
   const director = lookups.directors.find((item) => item.directorId === form.directorId) ?? null
   const asOption = (item) => ({
@@ -213,18 +200,9 @@ function TransferEditor({ lookups, record, user }) {
     return { items: items.map(asLookupOption) }
   }
   const searchBloodTypes = searchLookup(bloodPickerOptions)
-  const pickDestination = (key, code) => {
-    const department =
-      key === 'departmentCode' ? lookups.departments.find((item) => item.code === code) : null
-    const matchingSection =
-      department?.departmentSection ??
-      (department &&
-        allSections.find(
-          (item) =>
-            item.name.trim().toLocaleLowerCase() === department.name.trim().toLocaleLowerCase(),
-        ))
-    patch((state) => ({ to: withDestination(state.to, key, code, matchingSection?.code ?? '') }))
-    clear(key, 'to', ...(key === 'departmentCode' ? ['sectionCode'] : []))
+  const pickDestinationJob = (job) => {
+    patch((state) => ({ to: withDestinationJob(state.to, job) }))
+    clear('jobTitleCode', 'departmentCode', 'sectionCode', 'to')
   }
 
   const clear = (...keys) =>
@@ -235,15 +213,14 @@ function TransferEditor({ lookups, record, user }) {
     set(key)(eventOrValue)
     clear(key)
   }
-  // The picker lists names; the employee's snapshot (job title, section, blood type, joining
-  // date) is fetched once for the picked employee and fills the move.
+  // The picker searches by employee number or name; fetch the snapshot by the unique number.
   const pickEmployee = async (person) => {
     const request = ++employeeRequest.current
     patch({ employee: person })
     clear('employee', 'to', 'effectiveDate')
     setEmployeeLoading(true)
     try {
-      const details = await service.employee(person.name)
+      const details = await service.employee(person.employeeNumber || person.name)
       if (request !== employeeRequest.current) return
       patch((state) => withTransferEmployee({ ...state, employee: details }, details))
     } catch {
@@ -255,7 +232,13 @@ function TransferEditor({ lookups, record, user }) {
   }
 
   const check = (submit) => {
-    const problems = validateTransfer(form, employee, lookups.departments, { submit })
+    const problems = validateTransfer(
+      form,
+      employee,
+      lookups.departments,
+      { submit },
+      lookups.jobTitles,
+    )
     setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
     if (!problems.length) return true
     editor.reject(
@@ -268,7 +251,7 @@ function TransferEditor({ lookups, record, user }) {
   // Continue checks the open step only; later steps stay locked until this one is done.
   const continueStep = () => {
     const problems = problemsInStep(
-      validateTransfer(form, employee, lookups.departments, { submit: true }),
+      validateTransfer(form, employee, lookups.departments, { submit: true }, lookups.jobTitles),
       step,
     )
     setErrors(Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])))
@@ -562,81 +545,70 @@ function TransferEditor({ lookups, record, user }) {
               </div>
               <div className="zrv-hr-es-col zrv-hr-is-to">
                 <span className="zrv-hr-es-col__h">{T.moveStep.transferTo}</span>
-                <HrField
-                  id="tr-jobTitleCode"
-                  label={T.moveStep.jobTitle}
-                  required
-                  error={errors.jobTitleCode}
-                  hint={!lookups.jobTitles.length ? 'No job titles are available.' : undefined}
-                >
-                  <SearchableLookup
+                <div className="zrv-hr-grid zrv-hr-es-org-row">
+                  <HrField
                     id="tr-jobTitleCode"
-                    value={form.to.jobTitleCode}
-                    options={lookups.jobTitles}
-                    onChange={(option) => pickDestination('jobTitleCode', option.code)}
-                    disabled={!lookups.jobTitles.length}
-                    placeholder={
-                      lookups.jobTitles.length ? T.moveStep.suggestJob : 'No job titles available'
-                    }
+                    label={T.moveStep.jobTitle}
                     required
                     error={errors.jobTitleCode}
-                    noResults="No matching job titles"
-                  />
-                </HrField>
-                <HrField
-                  id="tr-departmentCode"
-                  label={T.moveStep.department}
-                  required
-                  error={errors.departmentCode}
-                  hint={!lookups.departments.length ? 'No departments are available.' : undefined}
-                >
-                  <SearchableLookup
-                    id="tr-departmentCode"
-                    value={form.to.departmentCode}
-                    options={lookups.departments}
-                    onChange={(option) => pickDestination('departmentCode', option.code)}
-                    disabled={!lookups.departments.length}
-                    placeholder={
-                      lookups.departments.length
-                        ? T.moveStep.suggestDepartment
-                        : 'No departments available'
+                    hint={
+                      !lookups.jobTitles.length ? 'No mapped job titles are available.' : undefined
                     }
+                  >
+                    <SearchableLookup
+                      id="tr-jobTitleCode"
+                      value={form.to.jobTitleCode}
+                      options={lookups.jobTitles.map((item) => ({
+                        ...item,
+                        description: [item.departmentName, item.sectionName]
+                          .filter(Boolean)
+                          .join(' | '),
+                      }))}
+                      onChange={pickDestinationJob}
+                      disabled={!lookups.jobTitles.length}
+                      placeholder={
+                        lookups.jobTitles.length ? T.moveStep.suggestJob : 'No job titles available'
+                      }
+                      required
+                      error={errors.jobTitleCode}
+                      noResults="No mapped job titles found"
+                    />
+                  </HrField>
+                  <HrField
+                    id="tr-departmentCode"
+                    label={T.moveStep.department}
                     required
                     error={errors.departmentCode}
-                    noResults="No matching departments"
-                  />
-                </HrField>
-                <HrField
-                  id="tr-sectionCode"
-                  label={T.moveStep.section}
-                  required
-                  error={errors.sectionCode}
-                  hint={
-                    !form.to.departmentCode
-                      ? 'Select a department to fill its section automatically.'
-                      : !sectionOptions.length
-                        ? 'No sections are available.'
-                        : undefined
-                  }
-                >
-                  <SearchableLookup
+                  >
+                    <SearchableLookup
+                      id="tr-departmentCode"
+                      value={form.to.departmentCode}
+                      customValue={departmentName(form.to.departmentCode)}
+                      options={[]}
+                      disabled
+                      placeholder="Populated from Job Title"
+                      required
+                      error={errors.departmentCode}
+                    />
+                  </HrField>
+                  <HrField
                     id="tr-sectionCode"
-                    value={form.to.sectionCode}
-                    options={sectionOptions}
-                    onChange={(option) => pickDestination('sectionCode', option.code)}
-                    disabled={!form.to.departmentCode || !sectionOptions.length}
-                    placeholder={
-                      !form.to.departmentCode
-                        ? 'Choose a department first'
-                        : sectionOptions.length
-                          ? T.moveStep.suggestSection
-                          : 'No sections available'
-                    }
+                    label={T.moveStep.section}
                     required
                     error={errors.sectionCode}
-                    noResults="No matching sections"
-                  />
-                </HrField>
+                  >
+                    <SearchableLookup
+                      id="tr-sectionCode"
+                      value={form.to.sectionCode}
+                      customValue={sectionName(form.to.departmentCode, form.to.sectionCode)}
+                      options={[]}
+                      disabled
+                      placeholder="Populated from Job Title"
+                      required
+                      error={errors.sectionCode}
+                    />
+                  </HrField>
+                </div>
               </div>
             </div>
             {errors.to && (

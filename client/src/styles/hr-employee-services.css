@@ -461,6 +461,15 @@
   border-radius: 18px;
   background: var(--zrv-hr-soft);
 }
+.zrv-hr-es-org-row {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (max-width: 420px) {
+  .zrv-hr-es-org-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .zrv-hr-es-col.zrv-hr-is-to {
   border-color: color-mix(in srgb, var(--zrv-hr-accent) 45%, var(--line));
   background: linear-gradient(

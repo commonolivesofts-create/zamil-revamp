@@ -171,18 +171,29 @@ function RecordChangeEditor({ lookups, record }) {
     ? { ...employee.current, familyStatusCode: form.currentFamilyStatus ?? '' }
     : null
   const revised = form.revised
-  const positionOptions = [...lookups.positions]
-  for (const candidate of [
-    { code: current?.positionCode, name: current?.positionName },
-    { code: revised?.positionCode, name: revised?.positionName },
-  ]) {
-    if (
-      candidate.code &&
-      candidate.name &&
-      !positionOptions.some((item) => item.code === candidate.code)
-    )
-      positionOptions.push(candidate)
-  }
+  const normalizeOrg = (value) =>
+    String(value ?? '')
+      .toLocaleLowerCase()
+      .replace(/\b(department|section)\b/g, '')
+      .replace(/[^a-z0-9]/g, '')
+  const hasPositionMappings = lookups.positions.some(
+    (item) => item.departmentName && item.sectionName,
+  )
+  const mappedPositions = hasPositionMappings
+    ? lookups.positions.filter(
+        (item) =>
+          normalizeOrg(item.departmentName) === normalizeOrg(employee?.departmentName) &&
+          normalizeOrg(item.sectionName) === normalizeOrg(employee?.sectionName),
+      )
+    : lookups.positions
+  const positionOptions = [...new Map(mappedPositions.map((item) => [item.code, item])).values()]
+  const currentPosition = { code: current?.positionCode, name: current?.positionName }
+  if (
+    currentPosition.code &&
+    currentPosition.name &&
+    !positionOptions.some((item) => item.code === currentPosition.code)
+  )
+    positionOptions.push(currentPosition)
   const options = { ...lookups, positions: positionOptions }
   const locked = isRecordChangeLocked(saved?.status) || !canSave
   const errors = { ...editor.fieldErrors, ...localErrors }
@@ -268,7 +279,7 @@ function RecordChangeEditor({ lookups, record }) {
   }, [prefillEmployee, record, form.employee, searchParams])
 
   const check = () => {
-    const problems = validateRecordChange(form, employee)
+    const problems = validateRecordChange(form, employee, positionOptions)
     setLocalErrors(
       Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])),
     )
@@ -283,7 +294,7 @@ function RecordChangeEditor({ lookups, record }) {
   }
   // Continue checks the open step only; later steps stay locked until this one is done.
   const continueStep = () => {
-    const problems = problemsInStep(validateRecordChange(form, employee), step)
+    const problems = problemsInStep(validateRecordChange(form, employee, positionOptions), step)
     setLocalErrors(
       Object.fromEntries(problems.map((problem) => [problem.field, messageOf(problem)])),
     )
@@ -545,9 +556,17 @@ function RecordChangeEditor({ lookups, record }) {
               id={id}
               value={revised[key]}
               error={errors[key]}
-              disabled={locked}
+              disabled={locked || (key === 'positionCode' && !employee)}
               required
-              options={options[label[key]].map((item) => ({ code: item.code, name: item.name }))}
+              customValue={key === 'positionCode' ? revised.positionName : ''}
+              options={options[label[key]].map((item) => ({
+                code: item.code,
+                name: item.name,
+                description:
+                  key === 'positionCode' && item.departmentName && item.sectionName
+                    ? `${item.departmentName} | ${item.sectionName}`
+                    : '',
+              }))}
               onChange={(option) => setRevised(key, option.code)}
               placeholder={C.select}
               maxLength={200}

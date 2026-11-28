@@ -467,10 +467,21 @@ export const createPersonalStatusRepository = () => {
 
   const positions = async (connection) => {
     const result = await connection.execute(
-      `SELECT DISTINCT
-         POSITION_NAME AS "name"
-       FROM XX_DIGI_EMP_MASTER
-       WHERE POSITION_NAME IS NOT NULL
+      `SELECT DISTINCT POSITION_NAME AS "name",
+              DEPARTMENT AS "departmentName", DIVISION AS "sectionName"
+         FROM XX_DIGI_EMP_MASTER
+        WHERE CURRENT_EMP_FLAG = 'Y'
+          AND POSITION_NAME IS NOT NULL
+          AND DEPARTMENT IS NOT NULL
+          AND DIVISION IS NOT NULL
+       UNION
+       SELECT DISTINCT JOB_TITLE AS "name",
+              DEPARTMENT AS "departmentName", DIVISION AS "sectionName"
+         FROM XX_DIGI_EMP_MASTER
+        WHERE CURRENT_EMP_FLAG = 'Y'
+          AND JOB_TITLE IS NOT NULL
+          AND DEPARTMENT IS NOT NULL
+          AND DIVISION IS NOT NULL
        ORDER BY 1`,
       {},
       options,
@@ -481,14 +492,17 @@ export const createPersonalStatusRepository = () => {
 
   // A known position: one of the datalist (POSITION_NAME) or a job title, which is what the
   // legacy auto-fill puts in the revised position (JOB_TITLE AS JOB_NAME).
-  const positionExists = async (connection, name) => {
+  const positionExists = async (connection, name, { department, section } = {}) => {
     const result = await connection.execute(
       `SELECT 1 FOUND
        FROM XX_DIGI_EMP_MASTER
-       WHERE (UPPER(TRIM(POSITION_NAME)) = UPPER(TRIM(:name))
+       WHERE CURRENT_EMP_FLAG = 'Y'
+         AND DEPARTMENT = :department
+         AND DIVISION = :section
+         AND (UPPER(TRIM(POSITION_NAME)) = UPPER(TRIM(:name))
               OR UPPER(TRIM(JOB_TITLE)) = UPPER(TRIM(:name)))
          AND ROWNUM = 1`,
-      { name },
+      { name, department, section },
       options,
     );
 

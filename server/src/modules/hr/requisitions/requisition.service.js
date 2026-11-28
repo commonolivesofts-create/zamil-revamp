@@ -55,6 +55,28 @@ export function createRequisitionService({
       );
     }
   };
+  const validateOrganization = async (connection, body) => {
+    const valid =
+      body.deptId &&
+      body.sectionId &&
+      body.jobId &&
+      (await repository.requisitionOrganizationMatch(connection, {
+        departmentId: body.deptId,
+        departmentName: body.deptName,
+        sectionId: body.sectionId,
+        sectionName: body.sectionName,
+        jobId: body.jobId,
+        jobName: body.jobName,
+      }));
+    if (!valid) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', [
+        {
+          field: 'jobId',
+          message: 'Job title is not mapped to the selected department and section',
+        },
+      ]);
+    }
+  };
   const actionsFor = (header) => {
     const status = header.ticketStatus || 'Open';
     if (status === 'Open') return ['hold', 'cancel'];
@@ -149,8 +171,18 @@ export function createRequisitionService({
       const attachments = await read((connection) =>
         repository.listAttachments(connection, requisitionId),
       );
+      const section =
+        header.deptId && header.jobId
+          ? await read((connection) =>
+              repository.findRequisitionSection(connection, {
+                departmentId: header.deptId,
+                jobId: header.jobId,
+              }),
+            )
+          : null;
       return {
         ...header,
+        ...(section ?? { sectionId: '', sectionName: '' }),
         attachments,
         recruitmentActions:
           isHr && header.requisitionStatus === 'Approved' ? actionsFor(header) : [],
@@ -216,6 +248,7 @@ export function createRequisitionService({
       rejectFormStatus(body);
 
       const { requisitionId } = await withTransaction(POOLS.LOW, async (connection) => {
+        await validateOrganization(connection, body);
         // REQUESTED_BY/REQUESTER_NAME are server-set from the employee master (§3.2), never body.
         const requestor = await repository.findRequestor(connection, actor.employeeNumber);
         if (!requestor) {
@@ -283,6 +316,7 @@ export function createRequisitionService({
       const uploaded = normalizeFiles(files);
 
       await withTransaction(POOLS.LOW, async (connection) => {
+        await validateOrganization(connection, body);
         const values = {
           jobId: emptyToNull(body.jobId),
           jobName: body.jobName,
@@ -391,14 +425,19 @@ export function createRequisitionService({
 
     // --- Lookups (README §8) --------------------------------------------------------------------
 
-    async jobTitles() {
-      const rows = await read((connection) => repository.listJobTitles(connection));
+    async jobTitles({ departmentId, sectionId } = {}) {
+      const rows = await read((connection) =>
+        departmentId && sectionId
+          ? repository.listJobTitlesForOrganization(connection, departmentId, sectionId)
+          : repository.listJobTitles(connection),
+      );
       return rows.map((row) => ({
-        jobId: row.JOB_ID,
+        jobId: String(row.JOB_ID),
         name: row.NAME,
-        ...(row.DEPARTMENT_ID === null || row.DEPARTMENT_ID === undefined
-          ? {}
-          : { departmentId: String(row.DEPARTMENT_ID) }),
+        departmentId: String(row.DEPARTMENT_ID),
+        departmentName: row.DEPARTMENT_NAME,
+        sectionId: row.SECTION_ID,
+        sectionName: row.SECTION_NAME,
       }));
     },
 
@@ -413,6 +452,17 @@ export function createRequisitionService({
     async departments() {
       const rows = await read((connection) => repository.listDepartments(connection));
       return rows.map((row) => ({ deptId: row.ORGANIZATION_ID, name: row.NAME }));
+    },
+
+    async sections(departmentId) {
+      const rows = await read(async (connection) => {
+        const departments = await repository.listDepartments(connection);
+        const selected = departments.find(
+          (row) => String(row.ORGANIZATION_ID) === String(departmentId),
+        );
+        return selected ? repository.listSections(connection, departmentId, selected.NAME) : [];
+      });
+      return rows.map((row) => ({ sectionId: row.SECTION, name: row.SECTION }));
     },
 
     async replacementFor(actor, search = '') {

@@ -52,17 +52,22 @@ export const blankTransfer = (today, companyCode) => ({
 export function withTransferEmployee(form, employee) {
   return {
     ...form,
-    to: { jobTitleCode: employee.jobTitleCode, departmentCode: '', sectionCode: '' },
+    to: {
+      jobTitleCode: employee.jobTitleCode,
+      departmentCode: employee.departmentCode,
+      sectionCode: employee.sectionCode,
+    },
     bloodType: form.bloodType || employee.bloodType || '',
   }
 }
 
 // Choosing a department resets its section, or seeds the matching section when
 // the organization uses the department name as its section name.
-export const withDestination = (to, key, value, matchingSectionCode = '') => ({
+export const withDestinationJob = (to, job) => ({
   ...to,
-  [key]: value,
-  ...(key === 'departmentCode' ? { sectionCode: matchingSectionCode } : {}),
+  jobTitleCode: job.code,
+  departmentCode: job.departmentCode,
+  sectionCode: job.sectionCode,
 })
 
 // Request body: only the requester's answers. Number, status, requester,
@@ -88,7 +93,7 @@ export function transferPayload(form, employee) {
 // Problems as { field, code, step } in step order (0 move, 1 details).
 // The server requires all persisted fields even on drafts; final review also
 // requires that the destination changes at least one of job, department or section.
-export function validateTransfer(form, employee, departments, { submit }) {
+export function validateTransfer(form, employee, departments, { submit }, jobTitles = []) {
   const problems = []
   const add = (field, code, step) => problems.push({ field, code, step })
   const { to } = form
@@ -108,6 +113,17 @@ export function validateTransfer(form, employee, departments, { submit }) {
     !sectionsOf(departments, to.departmentCode).some((item) => item.code === to.sectionCode)
   )
     add('sectionCode', 'notInDepartment', 0)
+  if (
+    jobTitles.length &&
+    to.jobTitleCode &&
+    !jobTitles.some(
+      (item) =>
+        item.code === to.jobTitleCode &&
+        item.departmentCode === to.departmentCode &&
+        item.sectionCode === to.sectionCode,
+    )
+  )
+    add('jobTitleCode', 'notMapped', 0)
   if (
     submit &&
     employee &&

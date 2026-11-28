@@ -22,6 +22,8 @@ export const REQUISITION_VALIDATION_FIELDS = Object.freeze(
       ['jobName', 'jobTitle', 0, 'Job title'],
       ['deptId', 'departmentId', 0, 'Department'],
       ['deptName', 'departmentId', 0, 'Department'],
+      ['sectionId', 'sectionId', 0, 'Section'],
+      ['sectionName', 'sectionId', 0, 'Section'],
       ['dateNeeded', 'neededDate', 0, 'Needed date'],
       ['requestDate', 'requestDate', 0, 'Request date'],
       ['remark', 'remark', 0, 'Remark'],
@@ -57,6 +59,8 @@ export function blankRequisition(today = '') {
     jobTitle: '',
     departmentId: '',
     departmentName: '',
+    sectionId: '',
+    sectionName: '',
     neededDate: today,
     remark: '',
     reason: '',
@@ -88,6 +92,8 @@ export function requisitionFormFromRecord(record, today = '') {
     jobTitle: record.jobTitle,
     departmentId: record.departmentId ?? '',
     departmentName: record.departmentName,
+    sectionId: record.sectionId ?? '',
+    sectionName: record.sectionName ?? '',
     neededDate: record.neededDate || today,
     remark: record.remark,
     reason: record.reason,
@@ -120,6 +126,8 @@ export function requisitionPayload(form) {
     jobName: normalizeShortText(form.jobTitle),
     deptId: form.departmentId,
     deptName: normalizeShortText(form.departmentName),
+    sectionId: form.sectionId,
+    sectionName: normalizeShortText(form.sectionName),
     dateNeeded: form.neededDate,
     reasonOfReq: reason === 'REPLACEMENT' ? 'Replacement' : reason === 'ADDITION' ? 'Addition' : '',
     replacementFor: reason === 'REPLACEMENT' ? normalizeShortText(form.replacementFor) : '',
@@ -148,6 +156,7 @@ export function requisitionFieldIssues(form) {
   }
   check(0, 'jobTitle', 'Job title', form.jobTitle, 150)
   check(0, 'departmentId', 'Department', form.departmentName, 150)
+  check(0, 'sectionId', 'Section', form.sectionName, 150)
   check(0, 'remark', 'Remark', form.remark, 1000, true)
   if (form.reason === 'REPLACEMENT')
     check(1, 'replacementFor', 'Replacement for', form.replacementFor, 1000)
@@ -173,13 +182,18 @@ export function requisitionChecks(form) {
   const label = REQUISITION_TEXT.checks
   const addition = form.reason === 'ADDITION'
   const checks = [
-    { step: 0, key: 'jobTitle', ok: Boolean(form.jobTitle.trim()) },
-    // The backend accepts a free-text department name with a nullable ID.
+    { step: 0, key: 'jobTitle', ok: Boolean(form.jobId && form.jobTitle.trim()) },
     {
       step: 0,
       key: 'departmentId',
       label: label.department,
-      ok: Boolean(form.departmentName.trim()),
+      ok: Boolean(form.departmentId && form.departmentName.trim()),
+    },
+    {
+      step: 0,
+      key: 'sectionId',
+      label: 'Section',
+      ok: Boolean(form.sectionId && form.sectionName.trim()),
     },
     { step: 0, key: 'neededDate', ok: Boolean(form.neededDate) },
     { step: 1, key: 'reason', ok: REASONS.includes(form.reason) },

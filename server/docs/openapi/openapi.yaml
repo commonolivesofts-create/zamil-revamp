@@ -4904,9 +4904,19 @@ paths:
       tags: [HR Requisitions]
       summary: Job-title lookup
       description: >-
-        Distinct XX_DIGI_EMP_MASTER job id / title pairs for the form datalist
-        (README Â§8.1), ordered by id descending. Requires `HR.REQUISITIONS:VIEW`.
-        No query parameters are accepted.
+        Distinct current XX_DIGI_EMP_MASTER job id / title pairs. When both organization
+        query parameters are supplied, results are scoped to the selected department and
+        section; without them the legacy unfiltered list is returned. Requires
+        `HR.REQUISITIONS:VIEW`.
+      parameters:
+        - name: departmentId
+          in: query
+          required: false
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+        - name: sectionId
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 150 }
       security:
         - sessionCookie: []
       responses:
@@ -5022,7 +5032,7 @@ paths:
       tags: [HR Requisitions]
       summary: Department lookup
       description: >-
-        Distinct XX_DIGI_DEPT_MASTER organization id / name pairs for the form
+        Distinct current XX_DIGI_EMP_MASTER organization id / DEPARTMENT name pairs for the form
         datalist (README Â§8.3), ordered by id. Requires `HR.REQUISITIONS:VIEW`.
         No query parameters are accepted.
       security:
@@ -5044,6 +5054,49 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/RequisitionDepartment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/hr/requisitions/lookups/sections:
+    get:
+      operationId: listRequisitionSections
+      tags: [HR Requisitions]
+      summary: Department sections lookup
+      description: >-
+        Current employee-master mappings where DEPARTMENT equals the selected department
+        and COST_CENTER contains the section. Requires `HR.REQUISITIONS:VIEW`.
+      parameters:
+        - name: departmentId
+          in: query
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,18}$' }
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          required: [sectionId, name]
+                          properties:
+                            sectionId: { type: string }
+                            name: { type: string }
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -6124,10 +6177,13 @@ paths:
     get:
       operationId: listPersonnelRecordChangePositions
       tags: [HR Personnel Record Changes]
-      summary: List revised position names
+      summary: List positions with their employee department and section mapping
       security: [{ sessionCookie: [] }]
       responses:
-        '200': { description: Distinct position names ordered ascending. }
+        '200':
+          {
+            description: 'Current position and job-title assignments with department and division mapping.',
+          }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AccessDenied' }
   /api/v1/hr/personnel-record-changes/lookups/employees/{empNo}:
@@ -6314,12 +6370,12 @@ paths:
     get:
       operationId: listTransferRequestEmployees
       tags: [HR Transfer Requests]
-      summary: List employee names for the transfer form
+      summary: List current employee names and numbers for the transfer form
       security: [{ sessionCookie: [] }]
       responses:
         '200':
           {
-            description: Employee names,
+            description: Current employees with employee numbers and names for searching,
             content:
               {
                 application/json:
@@ -6332,7 +6388,7 @@ paths:
     get:
       operationId: getTransferRequestEmployeeDetails
       tags: [HR Transfer Requests]
-      summary: Resolve a current employee name to current form fields
+      summary: Resolve a current employee by name or employee number to current form fields
       security: [{ sessionCookie: [] }]
       parameters: [{ name: name, in: path, required: true, schema: { type: string } }]
       responses:
@@ -6352,12 +6408,12 @@ paths:
     get:
       operationId: listTransferRequestJobs
       tags: [HR Transfer Requests]
-      summary: List job titles
+      summary: List mapped job titles
       security: [{ sessionCookie: [] }]
       responses:
         '200':
           {
-            description: Job titles,
+            description: 'Current employee-master job assignments, including department and section mappings.',
             content:
               {
                 application/json:
@@ -6370,12 +6426,12 @@ paths:
     get:
       operationId: listTransferRequestSections
       tags: [HR Transfer Requests]
-      summary: List organization sections
+      summary: List mapped organization sections
       security: [{ sessionCookie: [] }]
       responses:
         '200':
           {
-            description: Sections,
+            description: 'Current employee-master section values.',
             content:
               {
                 application/json:
@@ -6388,12 +6444,12 @@ paths:
     get:
       operationId: listTransferRequestDepartments
       tags: [HR Transfer Requests]
-      summary: List supported transfer departments
+      summary: List mapped transfer departments and sections
       security: [{ sessionCookie: [] }]
       responses:
         '200':
           {
-            description: Departments,
+            description: 'Departments with their mapped sections from current employee assignments.',
             content:
               {
                 application/json:
@@ -12672,9 +12728,15 @@ components:
               budgetedSalary,
             ]
           properties:
-            jobTitle: { type: string }
-            dept: { type: string }
-            section: { type: string }
+            jobTitle:
+              type: string
+              description: Must be mapped to the department and section in the current employee master.
+            dept:
+              type: string
+              description: Department name from the current employee-master assignment.
+            section:
+              type: string
+              description: Cost center from the current employee-master assignment.
             effectiveDate: { type: string, format: date }
             bloodType: { type: string }
             superiorNo: { type: [string, integer] }
@@ -14574,7 +14636,18 @@ components:
         is 'Replacement' and `reason` when it is 'Addition'. Empty text and id
         fields store NULL (the legacy literal 'null' quirk of Â§9 is deliberately not
         reproduced). Recruitment status is server-owned and starts Open for every creator.
-      required: [requestDate, jobName, deptName, dateNeeded, reasonOfReq]
+      required:
+        [
+          requestDate,
+          jobId,
+          jobName,
+          deptId,
+          deptName,
+          sectionId,
+          sectionName,
+          dateNeeded,
+          reasonOfReq,
+        ]
       properties:
         requestDate:
           type: string
@@ -14590,6 +14663,12 @@ components:
           type: [string, 'null']
           description: Departments lookup id; empty stores NULL.
         deptName:
+          type: string
+          maxLength: 150
+        sectionId:
+          type: [string, 'null']
+          description: COST_CENTER value selected from the mapped sections lookup.
+        sectionName:
           type: string
           maxLength: 150
         dateNeeded:
@@ -14651,7 +14730,7 @@ components:
         Full-replace update payload (README Â§5.1) â€” RequisitionWrite without
         requestDate, which is frozen after insert and rejected here as an unknown
         field. Recruitment status is read-only and rejected in form payloads.
-      required: [jobName, deptName, dateNeeded, reasonOfReq]
+      required: [jobId, jobName, deptId, deptName, sectionId, sectionName, dateNeeded, reasonOfReq]
       properties:
         jobId:
           type: [string, 'null']
@@ -14663,6 +14742,12 @@ components:
           type: [string, 'null']
           description: Departments lookup id; empty stores NULL.
         deptName:
+          type: string
+          maxLength: 150
+        sectionId:
+          type: [string, 'null']
+          description: COST_CENTER value selected from the mapped sections lookup.
+        sectionName:
           type: string
           maxLength: 150
         dateNeeded:
@@ -14747,6 +14832,7 @@ components:
         - requestDate
         - jobName
         - deptName
+        - sectionName
         - dateNeeded
         - reasonOfReq
         - ticketStatus
@@ -14779,6 +14865,12 @@ components:
           type: [string, 'null']
         deptName:
           type: string
+        sectionId:
+          type: [string, 'null']
+          description: Inferred from the current job assignment; legacy table has no section column.
+        sectionName:
+          type: string
+          description: Inferred from the current job assignment; legacy table has no section column.
         dateNeeded:
           type: string
           description: Legacy 'DD-Mon-YY' form.
@@ -14910,7 +15002,7 @@ components:
           $ref: '#/components/schemas/ResponseMeta'
     RequisitionJobTitle:
       type: object
-      required: [jobId, name]
+      required: [jobId, name, departmentId, departmentName, sectionId, sectionName]
       properties:
         jobId:
           type: string
@@ -14918,7 +15010,16 @@ components:
           type: string
         departmentId:
           type: string
-          description: Present only when all current employees with this job ID belong to one department.
+          description: Organization ID from the current employee-master assignment.
+        departmentName:
+          type: string
+          description: Department name from the current employee-master assignment.
+        sectionId:
+          type: string
+          description: Cost center from the current employee-master assignment.
+        sectionName:
+          type: string
+          description: Section label corresponding to the cost center.
     RequisitionDepartment:
       type: object
       required: [deptId, name]

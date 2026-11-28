@@ -82,7 +82,14 @@ test('requisition steps unlock in order, including conditional budget requiremen
   Object.assign(form, { diploma: 'yes', gccExp: '0 - 2', workExp: '2 - 5', skills: 'Inspection' })
   // Completing later fields cannot skip Position.
   assert.equal(requisitionProgress(form).unlockedStep, 0)
-  Object.assign(form, { jobTitle: 'Inspector', departmentName: 'Quality' })
+  Object.assign(form, {
+    jobId: '12',
+    jobTitle: 'Inspector',
+    departmentId: '4',
+    departmentName: 'Quality',
+    sectionId: '41',
+    sectionName: 'Quality Section',
+  })
   assert.equal(requisitionProgress(form).unlockedStep, 1)
   Object.assign(form, {
     reason: 'ADDITION',
@@ -137,6 +144,8 @@ test('requisition starts blank with today as needed date and maps answers to bac
     jobTitle: ' Inspector ',
     departmentId: '4',
     departmentName: ' Quality ',
+    sectionId: '41',
+    sectionName: ' Quality Section ',
     reason: 'REPLACEMENT',
     replacementFor: 'Employee A',
     additionReason: 'ignored',
@@ -160,6 +169,8 @@ test('requisition starts blank with today as needed date and maps answers to bac
     jobName: 'Inspector',
     deptId: '4',
     deptName: 'Quality',
+    sectionId: '41',
+    sectionName: 'Quality Section',
     dateNeeded: TODAY,
     reasonOfReq: 'Replacement',
     replacementFor: 'Employee A',
@@ -281,8 +292,21 @@ test('all recruitment services use the supplied API client and validate path IDs
   const client = {
     get: async (path, options) => {
       calls.push(['GET', path, options])
-      if (path.endsWith('/job-titles')) return { data: [{ jobId: '1', name: 'Inspector' }] }
+      if (path.endsWith('/job-titles'))
+        return {
+          data: [
+            {
+              jobId: '1',
+              name: 'Inspector',
+              departmentId: '2',
+              departmentName: 'Quality',
+              sectionId: '3',
+              sectionName: 'Quality Section',
+            },
+          ],
+        }
       if (path.endsWith('/departments')) return { data: [{ deptId: '2', name: 'Quality' }] }
+      if (path.endsWith('/sections')) return { data: [{ sectionId: '3', name: 'Quality Section' }] }
       if (path.endsWith('/replacement-for')) return { data: ['Employee A'] }
       if (path.endsWith('/capabilities')) return { data: { canManageTicket: false } }
       throw new Error(`Unexpected lookup: ${path}`)
@@ -292,7 +316,31 @@ test('all recruitment services use the supplied API client and validate path IDs
   assert.equal(services.client, client)
   const lookups = await services.requisitions.getLookups()
   assert.equal(lookups.requester, '')
-  assert.deepEqual(lookups.jobs, [{ id: '1', name: 'Inspector' }])
+  assert.deepEqual(lookups.jobs, [
+    {
+      id: '1',
+      name: 'Inspector',
+      departmentId: '2',
+      departmentName: 'Quality',
+      sectionId: '3',
+      sectionName: 'Quality Section',
+    },
+  ])
+  assert.deepEqual(await services.requisitions.getSections('2'), [
+    { id: '3', name: 'Quality Section' },
+  ])
+  assert.deepEqual(await services.requisitions.getJobs('2', '3'), [
+    {
+      id: '1',
+      name: 'Inspector',
+      departmentId: '2',
+      departmentName: 'Quality',
+      sectionId: '3',
+      sectionName: 'Quality Section',
+    },
+  ])
+  assert.deepEqual(calls[4][2].params, { departmentId: '2' })
+  assert.deepEqual(calls[5][2].params, { departmentId: '2', sectionId: '3' })
   assert.deepEqual(
     calls.map((call) => call[1]),
     [
@@ -300,6 +348,8 @@ test('all recruitment services use the supplied API client and validate path IDs
       '/hr/requisitions/lookups/departments',
       '/hr/requisitions/lookups/replacement-for',
       '/hr/requisitions/lookups/capabilities',
+      '/hr/requisitions/lookups/sections',
+      '/hr/requisitions/lookups/job-titles',
     ],
   )
   assert.throws(

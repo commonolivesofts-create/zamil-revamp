@@ -21,20 +21,6 @@ const optionalText = (max) => Joi.string().trim().max(max).pattern(CONTROLS).all
 
 export const PLANTS = Object.freeze(['Zamil Plastic Non-Food', 'Zamil Plastic Food']);
 
-export const DEPARTMENTS = Object.freeze([
-  'Sales Department',
-  'Planning Department',
-  'Warehouse Department',
-  'Production Department',
-  'Maintenance Department',
-  'Technical Department',
-  'Quality Department',
-  'HR Department',
-  'Finance Department',
-  'IT Department',
-  'Purchasing Department',
-]);
-
 export const emptyQuerySchema = Joi.object({});
 export const emptyBodySchema = Joi.object({});
 export const headerIdParams = Joi.object({

@@ -258,43 +258,53 @@ function createTransferRequestService({ client }) {
   let requestor = null
   const codeFor = (prefix, name) => transferCode(prefix, name)
   const findName = (items, code) => items.find((item) => item.code === code)?.name ?? ''
-  const employeeFromApi = (data, name = data.empName) => {
-    // Legacy semantics (CI3 getEmpDetails2 + trans_form.php): the master stores a single
-    // organisation name; Department is that name with "Section" stripped and Section is the
-    // full name. The API may send deptName only, or a saved row's dept/section pair, so
-    // accept every shape and fall back to deptName for the section.
-    const deptName = textValue(data.deptName).trim()
-    const savedDept = textValue(data.department ?? data.dept).trim()
-    // A saved row's C_SECTION can be empty while C_DEPT holds the stripped name; the
-    // full section name is that name with "Section" restored.
-    const sectionName =
-      textValue(data.section).trim() || deptName || (savedDept ? `${savedDept} Section` : '')
-    const departmentName = savedDept || deptName.replace(/\s*Section\s*$/i, '').trim()
-    const jobTitle = textValue(data.jobTitle).trim()
-    const normalizeOrg = (value) =>
+  const mappedJobCode = (item) =>
+    codeFor('JOB', [item.jobId, item.departmentId, item.sectionId].join('|'))
+  const sameOrg = (left, right) => {
+    const normalize = (value) =>
       String(value ?? '')
-        .toLowerCase()
+        .toLocaleLowerCase()
         .replace(/\b(department|section)\b/g, '')
         .replace(/[^a-z0-9]/g, '')
-    const normalizedDepartment = normalizeOrg(departmentName)
+    return normalize(left) === normalize(right)
+  }
+  const employeeFromApi = (data, name = data.empName) => {
+    // Use the current employee-master assignment when it is available. Saved legacy rows
+    // still provide their stored department/section names and are resolved against that map.
+    const deptName = textValue(data.deptName).trim()
+    const savedDept = textValue(data.department ?? data.dept).trim()
+    const sectionName =
+      textValue(data.section).trim() ||
+      textValue(data.sectionName).trim() ||
+      deptName ||
+      (savedDept ? `${savedDept} Section` : '')
+    const departmentName = savedDept || deptName.replace(/\s*Section\s*$/i, '').trim()
+    const jobTitle = textValue(data.jobTitle).trim()
     const departments = lookups?.departments ?? []
-    const department =
-      departments.find((item) => item.name === departmentName) ??
-      departments.find((item) => normalizeOrg(item.name) === normalizedDepartment) ??
-      departments.find(
-        (item) => normalizedDepartment && normalizeOrg(item.name).includes(normalizedDepartment),
-      )
+    const department = departments.find(
+      (item) =>
+        sameOrg(item.name, departmentName) &&
+        (!data.departmentId || item.departmentId === String(data.departmentId)),
+    )
+    const section = department?.sections.find((item) => sameOrg(item.name, sectionName))
+    const mappedJob = lookups?.jobTitles.find(
+      (item) =>
+        sameOrg(item.name, jobTitle) &&
+        sameOrg(item.departmentName, departmentName) &&
+        sameOrg(item.sectionName, sectionName) &&
+        (!data.jobId || item.jobId === String(data.jobId)),
+    )
     return Object.freeze({
       employeeId: textValue(data.personId ?? data.empNo),
       employeeNumber: textValue(data.empNo),
       name: textValue(name) || textValue(data.empNo),
       nationality: '',
-      departmentCode: department?.code ?? codeFor('DEPT', departmentName),
+      departmentCode: department?.code ?? '',
       departmentName: department?.name ?? departmentName,
-      sectionCode: codeFor('SECTION', sectionName),
+      sectionCode: section?.code ?? '',
       sectionName,
       startDate: textValue(data.dateOfJoining),
-      jobTitleCode: jobTitle ? codeFor('JOB', jobTitle) : '',
+      jobTitleCode: mappedJob?.code ?? '',
       bloodType: null,
       current: Object.freeze({
         positionCode: jobTitle ? codeFor('JOB', jobTitle) : '',
@@ -310,36 +320,35 @@ function createTransferRequestService({ client }) {
       }),
     })
   }
-  const apiEmployee = async (name, { signal } = {}) => {
+  const apiEmployee = async (employee, { signal } = {}) => {
     const { data } = await client.get(
-      `${TRANSFER_REQUESTS_BASE}/lookups/employees/${encodeURIComponent(name)}`,
+      `${TRANSFER_REQUESTS_BASE}/lookups/employees/${encodeURIComponent(employee)}`,
       { signal },
     )
-    return employeeFromApi({ ...data, empName: name }, name)
+    return employeeFromApi(data, data.empName || employee)
   }
   const ensureLookups = async (signal) => {
     if (lookups) return lookups
-    const [jobs, sections, departments, directors, bloodTypes, requestors] = await Promise.all([
+    const [jobs, departments, directors, bloodTypes, requestors] = await Promise.all([
       client.get(`${TRANSFER_REQUESTS_BASE}/lookups/jobs`, { signal }),
-      client.get(`${TRANSFER_REQUESTS_BASE}/lookups/sections`, { signal }),
       client.get(`${TRANSFER_REQUESTS_BASE}/lookups/departments`, { signal }),
       client.get(`${TRANSFER_REQUESTS_BASE}/lookups/directors`, { signal }),
       client.get(`${TRANSFER_REQUESTS_BASE}/lookups/blood-types`, { signal }),
       client.get(`${TRANSFER_REQUESTS_BASE}/lookups/requestor`, { signal }),
     ])
-    const sectionOptions = (sections.data ?? []).map((item) =>
-      Object.freeze({ code: codeFor('SECTION', item.name), name: item.name }),
-    )
-    const departmentOptions = (departments.data ?? []).map((name) => {
-      // Some departments are also the employee's section (for example, IT
-      // Department). Include that exact value as a valid section choice.
-      const departmentSection = Object.freeze({ code: codeFor('SECTION', name), name })
+    const departmentOptions = (departments.data ?? []).map((item) => {
+      const name = String(item.name ?? '')
+      const sections = (item.sections ?? []).map((section) =>
+        Object.freeze({
+          code: codeFor('SECTION', section.sectionId ?? section.name),
+          name: String(section.name ?? ''),
+        }),
+      )
       return Object.freeze({
-        code: codeFor('DEPT', name),
+        code: codeFor('DEPT', item.departmentId ?? name),
+        departmentId: String(item.departmentId ?? ''),
         name,
-        departmentSection,
-        // The API exposes a global section list with no department association.
-        sections: Object.freeze([...sectionOptions, departmentSection]),
+        sections: Object.freeze(sections),
       })
     })
     // Blood types are a fixed set; accept whatever shape the lookup returns and fall back
@@ -365,9 +374,21 @@ function createTransferRequestService({ client }) {
       familyStatuses: Object.freeze([]),
       departments: Object.freeze(departmentOptions),
       jobTitles: Object.freeze(
-        (jobs.data ?? []).map((item) =>
-          Object.freeze({ code: codeFor('JOB', item.name), name: item.name }),
-        ),
+        (jobs.data ?? []).map((item) => {
+          const departmentCode = codeFor('DEPT', item.departmentId)
+          const sectionCode = codeFor('SECTION', item.sectionId)
+          return Object.freeze({
+            code: mappedJobCode(item),
+            jobId: String(item.jobId),
+            name: item.name,
+            departmentId: String(item.departmentId),
+            departmentName: item.departmentName,
+            departmentCode,
+            sectionId: String(item.sectionId),
+            sectionName: item.sectionName,
+            sectionCode,
+          })
+        }),
       ),
       directors: Object.freeze(
         (directors.data ?? []).map((item) =>
@@ -392,8 +413,8 @@ function createTransferRequestService({ client }) {
     return lookups
   }
   const getLookups = async ({ signal } = {}) => ensureLookups(signal)
-  // Every employee name, loaded with the form; the picker narrows them without a request and
-  // the picked employee's snapshot is fetched once.
+  // Employee numbers and names, loaded with the form; the picker narrows locally and the
+  // selected employee's snapshot is fetched by the unique employee number.
   const loadNames = ({ signal } = {}) => {
     if (!employeeNames) {
       employeeNames = client
@@ -401,8 +422,16 @@ function createTransferRequestService({ client }) {
         .then(({ data }) =>
           Object.freeze(
             (data ?? [])
-              .map((item) => item.name)
-              .filter((name) => typeof name === 'string' && name.trim()),
+              .map((item) => ({
+                employeeId: String(item.empNo ?? item.employeeNumber ?? item.name ?? ''),
+                employeeNumber: String(item.empNo ?? item.employeeNumber ?? ''),
+                name: String(item.name ?? ''),
+                position: '',
+                section: '',
+                jobTitleCode: '',
+                bloodType: null,
+              }))
+              .filter((item) => item.employeeId && item.name),
           ),
         )
         .catch((error) => {
@@ -412,23 +441,17 @@ function createTransferRequestService({ client }) {
     }
     return employeeNames
   }
-  const employeeOption = (name) =>
-    Object.freeze({
-      employeeId: name,
-      employeeNumber: '',
-      name,
-      position: '',
-      section: '',
-      jobTitleCode: '',
-      bloodType: null,
-    })
   const searchEmployees = async (search = '', { signal } = {}) => {
     const term = String(search).trim().toLocaleLowerCase()
-    const names = await loadNames({ signal })
-    // Every name, as the legacy datalist had: opening the field lists the whole master in
-    // name order and typing narrows it without a request.
-    const matches = term ? names.filter((name) => name.toLocaleLowerCase().includes(term)) : names
-    return employeePage(matches.map(employeeOption))
+    const employees = await loadNames({ signal })
+    const matches = term
+      ? employees.filter(
+          (item) =>
+            item.name.toLocaleLowerCase().includes(term) ||
+            item.employeeNumber.toLocaleLowerCase().includes(term),
+        )
+      : employees
+    return employeePage(matches)
   }
   const makeRecord = async (data, { signal } = {}) => {
     await ensureLookups(signal)
@@ -463,9 +486,19 @@ function createTransferRequestService({ client }) {
       companyCode: codeFor('PLANT', data.plant),
       employee,
       to: Object.freeze({
-        jobTitleCode: transfer.jobTitle ? codeFor('JOB', transfer.jobTitle) : null,
-        departmentCode: transfer.dept ? codeFor('DEPT', transfer.dept) : null,
-        sectionCode: transfer.section ? codeFor('SECTION', transfer.section) : null,
+        jobTitleCode:
+          lookups.jobTitles.find(
+            (item) =>
+              sameOrg(item.name, transfer.jobTitle) &&
+              sameOrg(item.departmentName, transfer.dept) &&
+              sameOrg(item.sectionName, transfer.section),
+          )?.code ?? null,
+        departmentCode:
+          lookups.departments.find((item) => sameOrg(item.name, transfer.dept))?.code ?? null,
+        sectionCode:
+          lookups.departments
+            .find((item) => sameOrg(item.name, transfer.dept))
+            ?.sections.find((item) => sameOrg(item.name, transfer.section))?.code ?? null,
       }),
       effectiveDate: transfer.effectiveDate || null,
       bloodType: transfer.bloodType || null,
@@ -514,9 +547,9 @@ function createTransferRequestService({ client }) {
     preloadEmployees: (options) => loadNames(options),
     searchEmployees,
     // The auto-filled snapshot behind a name (also the transfer's "current" record).
-    async employee(name, { signal } = {}) {
+    async employee(employee, { signal } = {}) {
       await ensureLookups(signal)
-      return apiEmployee(name, { signal })
+      return apiEmployee(employee, { signal })
     },
     async list({ signal } = {}) {
       await ensureLookups(signal)
@@ -651,7 +684,14 @@ function createPersonalStatusRecordService({ client }) {
       positions = Object.freeze(
         positionResult.data
           .filter((item) => typeof item?.name === 'string' && item.name.trim())
-          .map((item) => Object.freeze({ code: positionCode(item.name), name: item.name })),
+          .map((item) =>
+            Object.freeze({
+              code: positionCode(item.name),
+              name: item.name,
+              departmentName: String(item.departmentName ?? ''),
+              sectionName: String(item.sectionName ?? ''),
+            }),
+          ),
       )
       // Every employee number in XX_DIGI_EMP_MASTER, as the legacy Emp# datalist had: loaded with
       // the form so opening Emp# lists them at once and typing narrows them without a request.

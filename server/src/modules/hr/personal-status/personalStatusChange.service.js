@@ -268,8 +268,13 @@ export const createPersonalStatusService = ({
       normalizedPosition(values.newPosition) &&
       normalizedPosition(values.newPosition) ===
         normalizedPosition(prefill?.old.position ?? currentPosition);
+    const organization = prefill ?? (await repository.master(connection, values.empNo));
+    const department = prefill?.department ?? organization?.DEPARTMENT_NAME;
+    const section = prefill?.section ?? organization?.DIVISION;
     const positionExists =
-      unchangedCurrentPosition || (await repository.positionExists(connection, values.newPosition));
+      unchangedCurrentPosition ||
+      (Boolean(department && section) &&
+        (await repository.positionExists(connection, values.newPosition, { department, section })));
 
     if (!positionExists) {
       throw new PersonalStatusError(400, 'POSITION_INVALID', 'Validation failed', [
