@@ -332,3 +332,36 @@ test('wrong credentials and transient failures stay distinguishable after one lo
   })
   assert.equal(network.code, 'NETWORK_ERROR')
 })
+
+test('a transient sign-in failure shows one message, not a notice plus the form error', async () => {
+  // Session check already failed (e.g. the backend is restarting), then the
+  // sign-in hits the same outage. The store sets `service_recovering` and the
+  // form receives the "could not be reached" error at the same time.
+  const ctx = setup((url) => {
+    if (url.endsWith('/auth/me') || url.endsWith('/auth/login')) return proxyBadGateway()
+    throw new Error(`unexpected request ${url}`)
+  })
+  await ctx.auth.restore()
+  assert.equal(ctx.auth.getSnapshot().status, 'error')
+
+  const signInError = await ctx.auth.signIn({ username: 'test.user', password: 'secret' }).then(
+    () => null,
+    (error) => error,
+  )
+  const state = ctx.auth.getSnapshot()
+  assert.equal(state.status, 'guest')
+  assert.equal(state.notice, 'service_recovering')
+  assert.equal(
+    signInError.message,
+    'The application server could not be reached. Try again in a moment.',
+  )
+  ctx.auth.stop()
+
+  // So the login page must not render the "Checking the connection again
+  // automatically" notice while that form error is visible.
+  const login = await readFile(new URL('../src/pages/auth/LoginPage.jsx', import.meta.url), 'utf8')
+  assert.match(login, /const visibleNotice = error \? null : notice/)
+  assert.match(login, /visibleNotice === 'password_changed'/)
+  assert.match(login, /visibleNotice && notices\[visibleNotice\]/)
+  assert.doesNotMatch(login, /: notice && notices\[notice\]/)
+})

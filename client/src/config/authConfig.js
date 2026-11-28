@@ -8,6 +8,7 @@ export const authEndpoints = Object.freeze({
   currentUser: '/auth/me',
   profileImage: '/auth/me/profile-image',
   csrf: '/auth/csrf',
+  keepalive: '/auth/session/keepalive',
   logout: '/auth/logout',
   mfaVerify: '/auth/mfa/verify',
   mfaEnrollment: '/auth/mfa/enrollment',

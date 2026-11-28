@@ -1355,11 +1355,35 @@
 .zrv-hr-reveal {
   animation: zrv-hr-reveal 0.5s var(--zrv-hr-ease) both;
 }
+/* Form section headings. Every HR form (recruitment and employee services)
+   shares this class through RecruitmentShell, so the hierarchy is global:
+   panel title > section heading > field label. It must read as a heading, not
+   as another input label: brand accent, a short marker and a hairline rule,
+   all from theme tokens so light and dark mode stay in step. */
 .zrv-hr-subh {
-  margin: 22px 0 12px;
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 24px 0 14px;
+  color: var(--zrv-hr-accent-text);
+  font-size: 16px;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+.zrv-hr-subh::before {
+  content: '';
+  flex: none;
+  width: 3px;
+  height: 1.05em;
+  border-radius: 999px;
+  background: var(--zrv-hr-accent);
+}
+.zrv-hr-subh::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
 }
 .zrv-hr-panel__head + .zrv-hr-subh {
   margin-top: 0;
@@ -5468,8 +5492,7 @@
     .zrv-hr--warning-letter
   )
   .zrv-hr-subh {
-  margin: 14px 0 8px;
-  font-size: 13px;
+  margin: 18px 0 10px;
 }
 :is(
     .zrv-hr--interview,

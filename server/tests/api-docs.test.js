@@ -29,6 +29,7 @@ describe('API documentation', () => {
       ['post', '/api/v1/auth/login', false],
       ['get', '/api/v1/auth/me', true],
       ['get', '/api/v1/auth/csrf', true],
+      ['post', '/api/v1/auth/session/keepalive', true],
       ['post', '/api/v1/auth/logout', true],
       ['post', '/api/v1/auth/mfa/enrollment', true],
       ['post', '/api/v1/auth/mfa/enrollment/confirm', true],

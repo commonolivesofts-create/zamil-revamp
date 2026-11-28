@@ -94,6 +94,34 @@ describe('authenticated session', () => {
     });
   });
 
+  describe('POST /api/v1/auth/session/keepalive', () => {
+    const keepalive = () =>
+      request(app).post('/api/v1/auth/session/keepalive').set('Cookie', cookie);
+
+    it('requires both the existing session and its synchronizer CSRF token', async () => {
+      assertUnauthenticated(
+        await request(app).post('/api/v1/auth/session/keepalive').set('X-CSRF-Token', csrfToken),
+      );
+      const rejected = await keepalive().expect(403);
+      assert.equal(rejected.body.error.code, 'CSRF_REJECTED');
+      assert.equal(session().revokedAt, null);
+    });
+
+    it('refreshes idle activity without changing the absolute expiration', async () => {
+      const expiresAt = session().expiresAt.getTime();
+      store.advance(2 * MINUTE_MS);
+      await keepalive().set('X-CSRF-Token', csrfToken).expect(204);
+      assert.equal(session().lastActivityAt.getTime(), store.now().getTime());
+      assert.equal(session().expiresAt.getTime(), expiresAt);
+    });
+
+    it('cannot revive a session after idle or absolute expiry', async () => {
+      store.advance(30 * MINUTE_MS);
+      assertUnauthenticated(await keepalive().set('X-CSRF-Token', csrfToken));
+      assert.equal(session().lastActivityAt.getTime(), store.now().getTime() - 30 * MINUTE_MS);
+    });
+  });
+
   describe('expiry', () => {
     it('slides the 30-minute idle timeout with activity', async () => {
       store.advance(29 * MINUTE_MS);
