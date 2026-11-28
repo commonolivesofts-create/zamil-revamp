@@ -48,6 +48,9 @@ function simulatedOracle() {
         return { rowsAffected: 1 };
       }
       if (/FROM XX_DIGI_LOOKUP_VALUES/i.test(text)) return { rows: [] };
+      if (/SELECT COUNT\(\*\) AS CNT FROM XX_DIGI_EMP_MASTER e/i.test(text)) {
+        return { rows: [{ CNT: 1 }] };
+      }
       if (/FROM XX_DIGI_EMP_MASTER/i.test(text)) {
         return {
           rows: [{ FULL_NAME: 'ZZTEST Person', EMAIL_ADDRESS: null, EMPLOYEE_NUMBER: '9' }],
@@ -101,7 +104,11 @@ describe('HR identity IDs under concurrent creates', () => {
       requestDate: '2026-11-02',
       dateNeeded: '2026-12-01',
       jobName: 'ZZTEST job',
+      jobId: '9',
       deptName: 'ZZTEST dept',
+      deptId: '9',
+      sectionId: '9',
+      sectionName: 'ZZTEST dept Section',
       reasonOfReq: 'Addition',
     };
     const files = [

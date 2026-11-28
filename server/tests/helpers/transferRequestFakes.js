@@ -5,12 +5,13 @@ export function installTransferRequests(store, { hrUserIds = [] } = {}) {
   const state = () => store.state.transferRequests;
   const repository = {
     async listEmployeeNames() {
-      return [{ name: 'Employee Example' }];
+      return [{ empNo: '4321', name: 'Employee Example' }];
     },
-    async findEmployeeDetails(_c, name) {
-      return name === 'Employee Example'
+    async findEmployeeDetails(_c, employee) {
+      return ['Employee Example', '4321'].includes(employee)
         ? {
             empNo: '4321',
+            empName: 'Employee Example',
             personId: '123',
             dateOfJoining: null,
             jobTitle: 'Operator',
@@ -18,11 +19,25 @@ export function installTransferRequests(store, { hrUserIds = [] } = {}) {
           }
         : null;
     },
-    async listJobs() {
-      return [{ name: 'Senior Operator' }];
-    },
-    async listSections() {
-      return [{ name: 'Maintenance Section' }];
+    async listOrganizationAssignments() {
+      return [
+        {
+          JOB_ID: '11',
+          JOB_NAME: 'Senior Operator',
+          DEPARTMENT_ID: '55',
+          DEPARTMENT_NAME: 'Maintenance Department',
+          SECTION_ID: 'Maintenance Section',
+          SECTION_NAME: 'Maintenance Section',
+        },
+        {
+          JOB_ID: '12',
+          JOB_NAME: 'Technician',
+          DEPARTMENT_ID: '56',
+          DEPARTMENT_NAME: 'Production Department',
+          SECTION_ID: 'Production Section',
+          SECTION_NAME: 'Production Section',
+        },
+      ];
     },
     async listDirectors() {
       return [{ name: 'Manager Example', empNo: '2280' }];

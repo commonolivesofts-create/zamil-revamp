@@ -218,7 +218,10 @@ export const RECORD_CHANGE_TEXT = Object.freeze({
       invalid: 'Enter a valid date',
     }),
     currentFamilyStatus: Object.freeze({ invalid: 'Choose Single or Married' }),
-    positionCode: Object.freeze({ required: 'Position is required' }),
+    positionCode: Object.freeze({
+      required: 'Position is required',
+      notMapped: 'Choose a position mapped to the selected employee department and section',
+    }),
     familyStatusCode: Object.freeze({ required: 'Family status is required' }),
     gradeCode: Object.freeze({ tooLong: 'Keep the grade to 50 characters or fewer' }),
     levelCode: Object.freeze({ tooLong: 'Keep the level to 50 characters or fewer' }),
@@ -368,7 +371,7 @@ export const TRANSFER_TEXT = Object.freeze({
     eyebrow: 'Step 01 · Move',
     title: 'Who is moving, and where?',
     manager: 'Department manager',
-    employee: 'Employee name',
+    employee: 'Employee name or number',
     company: 'Company',
     loading: 'Loading the employee’s record…',
     current: 'Current',
@@ -467,7 +470,10 @@ export const TRANSFER_TEXT = Object.freeze({
   errors: Object.freeze({
     employee: Object.freeze({ required: 'Choose the employee' }),
     employeeLookup: 'The employee details could not be loaded. Try again.',
-    jobTitleCode: Object.freeze({ required: 'Choose the new job title' }),
+    jobTitleCode: Object.freeze({
+      required: 'Choose the new job title',
+      notMapped: 'Choose a job title mapped to the selected department and section',
+    }),
     departmentCode: Object.freeze({ required: 'Choose the new department' }),
     sectionCode: Object.freeze({
       required: 'Choose the new section',

@@ -77,16 +77,25 @@ function mapHeader(r) {
 
 export async function listEmployeeNames(c) {
   return (
-    await rows(c, `SELECT DISTINCT FULL_NAME AS NAME FROM XX_DIGI_EMP_MASTER ORDER BY 1`)
-  ).map((r) => ({ name: r.NAME }));
+    await rows(
+      c,
+      `SELECT DISTINCT EMPLOYEE_NUMBER AS EMP_NO, FULL_NAME AS NAME
+         FROM XX_DIGI_EMP_MASTER
+        WHERE CURRENT_EMP_FLAG = 'Y'
+        ORDER BY NAME, EMP_NO`,
+      {},
+      ID_FETCH,
+    )
+  ).map((r) => ({ empNo: r.EMP_NO, name: r.NAME }));
 }
-export async function findEmployeeDetails(c, name) {
+export async function findEmployeeDetails(c, employee) {
   const [ids] = await rows(
     c,
-    `SELECT PERSON_ID, EMPLOYEE_NUMBER FROM XX_DIGI_EMP_MASTER
-    WHERE FULL_NAME = :name AND SYSDATE BETWEEN PAPF_EFFECTIVE_START_DATE AND PAPF_EFFECTIVE_END_DATE
+    `SELECT PERSON_ID, EMPLOYEE_NUMBER, FULL_NAME AS EMP_NAME FROM XX_DIGI_EMP_MASTER
+    WHERE (EMPLOYEE_NUMBER = :employee OR FULL_NAME = :employee)
+      AND SYSDATE BETWEEN PAPF_EFFECTIVE_START_DATE AND PAPF_EFFECTIVE_END_DATE
       AND CURRENT_EMP_FLAG = 'Y'`,
-    { name },
+    { employee },
     ID_FETCH,
   );
   if (!ids) return null;
@@ -100,43 +109,55 @@ export async function findEmployeeDetails(c, name) {
   const [job] = await rows(
     c,
     `SELECT JOB_TITLE AS NAME, JOB_ID FROM XX_DIGI_EMP_MASTER
-    WHERE PERSON_ID = :personId AND SYSDATE BETWEEN PAPF_EFFECTIVE_START_DATE AND PAPF_EFFECTIVE_END_DATE`,
+    WHERE PERSON_ID = :personId AND SYSDATE BETWEEN PAPF_EFFECTIVE_START_DATE AND PAPF_EFFECTIVE_END_DATE
+      AND CURRENT_EMP_FLAG = 'Y'`,
     { personId: ids.PERSON_ID },
+    { JOB_ID: ID },
   );
   const [dept] = await rows(
     c,
-    `SELECT DISTINCT ORGANIZATION_ID, ORGANIZATION_NAME AS NAME
+    `SELECT DISTINCT ORGANIZATION_ID, DEPARTMENT AS DEPARTMENT_NAME,
+            COST_CENTER AS SECTION_NAME
     FROM XX_DIGI_EMP_MASTER WHERE PERSON_ID = :personId
       AND TRUNC(SYSDATE) BETWEEN PAPF_EFFECTIVE_START_DATE AND PAPF_EFFECTIVE_END_DATE
       AND TRUNC(SYSDATE) BETWEEN PAAF_EFFECTIVE_START_DATE AND PAAF_EFFECTIVE_END_DATE
       AND CURRENT_EMP_FLAG = 'Y'`,
     { personId: ids.PERSON_ID },
+    { ORGANIZATION_ID: ID },
   );
   return {
     empNo: ids.EMPLOYEE_NUMBER,
+    empName: ids.EMP_NAME,
     personId: ids.PERSON_ID,
     dateOfJoining: hire?.START_DATE ?? null,
     jobTitle: job?.NAME ?? null,
-    deptName: dept?.NAME ?? null,
-    // Legacy split of the single organisation name: Department is it with "Section"
-    // stripped, Section is the full name (CI3 getEmpDetails2 -> trans_form.php).
-    department: dept?.NAME ? dept.NAME.replace('Section', '').trim() : null,
-    section: dept?.NAME ?? null,
+    jobId: job?.JOB_ID === null || job?.JOB_ID === undefined ? null : String(job.JOB_ID),
+    deptName: dept?.DEPARTMENT_NAME ?? null,
+    department: dept?.DEPARTMENT_NAME ?? null,
+    departmentId:
+      dept?.ORGANIZATION_ID === null || dept?.ORGANIZATION_ID === undefined
+        ? null
+        : String(dept.ORGANIZATION_ID),
+    section: dept?.SECTION_NAME ?? null,
   };
 }
-export async function listJobs(c) {
-  return (
-    await rows(c, `SELECT DISTINCT JOB_TITLE AS NAME FROM XX_DIGI_EMP_MASTER ORDER BY 1`)
-  ).map((r) => ({ name: r.NAME }));
-}
-export async function listSections(c) {
-  return (
-    await rows(
-      c,
-      `SELECT DISTINCT ORGANIZATION_NAME AS NAME FROM XX_DIGI_EMP_MASTER
-    WHERE UPPER(ORGANIZATION_NAME) LIKE '%SECTION%' ORDER BY 1`,
-    )
-  ).map((r) => ({ name: r.NAME }));
+export async function listOrganizationAssignments(c) {
+  return rows(
+    c,
+    `SELECT DISTINCT JOB_ID, JOB_TITLE AS JOB_NAME, ORGANIZATION_ID AS DEPARTMENT_ID,
+            DEPARTMENT AS DEPARTMENT_NAME, COST_CENTER AS SECTION_ID,
+            COST_CENTER AS SECTION_NAME
+       FROM XX_DIGI_EMP_MASTER
+      WHERE CURRENT_EMP_FLAG = 'Y'
+        AND JOB_ID IS NOT NULL
+        AND JOB_TITLE IS NOT NULL
+        AND ORGANIZATION_ID IS NOT NULL
+        AND DEPARTMENT IS NOT NULL
+        AND COST_CENTER IS NOT NULL
+      ORDER BY JOB_NAME, DEPARTMENT_NAME, SECTION_NAME`,
+    {},
+    { JOB_ID: ID, DEPARTMENT_ID: ID },
+  );
 }
 export async function listDirectors(c) {
   return (

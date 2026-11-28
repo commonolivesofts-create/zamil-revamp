@@ -34,10 +34,12 @@ export const attachmentParams = Joi.object({
 
 // README §9 validation rules shared by insert and update.
 const writeFields = {
-  jobId: nullableId,
+  jobId: nullableId.required(),
   jobName: dbText(150, { required: true }),
-  deptId: nullableId,
+  deptId: nullableId.required(),
   deptName: dbText(150, { required: true }),
+  sectionId: dbText(150, { required: true }),
+  sectionName: dbText(150, { required: true }),
   dateNeeded: date.required(),
   reasonOfReq: Joi.string().valid('Replacement', 'Addition').required(),
   replacementFor: Joi.when('reasonOfReq', {
@@ -122,6 +124,15 @@ export const budgetQuerySchema = Joi.object({ fullName: requiredText(200) });
 export const replacementForQuerySchema = Joi.object({
   search: Joi.string().trim().min(1).max(100).pattern(NO_CONTROL_CHARACTERS),
 });
+export const sectionsQuerySchema = Joi.object({
+  departmentId: Joi.string()
+    .pattern(/^[1-9][0-9]{0,18}$/)
+    .required(),
+});
+export const mappedJobsQuerySchema = Joi.object({
+  departmentId: Joi.string().pattern(/^[1-9][0-9]{0,18}$/),
+  sectionId: Joi.string().trim().min(1).max(150).pattern(NO_CONTROL_CHARACTERS),
+}).and('departmentId', 'sectionId');
 
 // Attachment policy (README §9): legacy extension allowlist plus the owner-approved
 // size cap (10 MB per file) and per-request count cap (10 files).

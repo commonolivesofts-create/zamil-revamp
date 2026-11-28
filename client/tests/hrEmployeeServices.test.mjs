@@ -78,7 +78,7 @@ import {
   transferMoves,
   transferPayload,
   validateTransfer,
-  withDestination,
+  withDestinationJob,
   withTransferEmployee,
 } from '../src/features/hr-employee-services/transfer/transferModel.js'
 import {
@@ -263,6 +263,19 @@ test('record change (legacy): position, family status and the six pay items are 
     codesOf(validateRecordChange(unchanged, employee)),
     [],
     'legacy saves and submits a request without changes',
+  )
+})
+
+test('record change rejects a position outside the selected employee department and section', () => {
+  const validPosition = employee.current.positionCode
+  const form = {
+    ...blankRecordChange('2026-10-29'),
+    effectiveDate: '2026-11-01',
+    revised: { ...editable(current), positionCode: 'UNMAPPED_POSITION' },
+  }
+  assert.deepEqual(
+    codesOf(validateRecordChange(form, employee, [{ code: validPosition, name: 'Current' }])),
+    ['positionCode:notMapped'],
   )
 })
 
@@ -568,7 +581,10 @@ test('contracts: employee with current record and record change shapes are check
 })
 
 test('personal status service uses its actual lookup, list and draft CRUD endpoints', async () => {
-  const position = { name: 'Operator' }
+  const position = [
+    { name: 'Operator', departmentName: 'Injection', sectionName: 'Production' },
+    { name: 'Supervisor', departmentName: 'Injection', sectionName: 'Production' },
+  ]
   const old = {
     position: 'Operator',
     basicSal: 5000,
@@ -613,7 +629,7 @@ test('personal status service uses its actual lookup, list and draft CRUD endpoi
     new: { position: old.position, maritalStatus: 'M' },
   }
   const { fetchImpl, calls } = recordingFetch((url, init) => {
-    if (url === '/api/v1/hr/personnel-record-changes/lookups/positions') return success([position])
+    if (url === '/api/v1/hr/personnel-record-changes/lookups/positions') return success(position)
     const employeeRows = [
       { empNo: '2172', name: 'Previous Request Employee', position: 'Head of IT', section: 'IT' },
       { empNo: '2558', name: 'Employee Example', position: 'Operator', section: 'Production' },
@@ -686,7 +702,7 @@ test('personal status service uses its actual lookup, list and draft CRUD endpoi
   const lookups = await services.recordChanges.getLookups()
   assert.deepEqual(
     lookups.positions.map((item) => item.name),
-    ['Operator'],
+    ['Operator', 'Supervisor'],
   )
   // Employees load with the form, so opening Emp# lists them without a request.
   assert.deepEqual(
@@ -1190,36 +1206,22 @@ const transferForm = (changes = {}) => ({
   ...changes,
 })
 
-test('transfer: section choices depend on the department and a matching section can be auto-selected', () => {
+test('transfer: selecting a mapped job title fills the matching department and section', () => {
   assert.deepEqual(
     sectionsOf(LOOKUPS.departments, 'HR').map((item) => item.code),
     ['HR_SECTION', 'RECRUITMENT', 'PAYROLL'],
   )
   assert.deepEqual(sectionsOf(LOOKUPS.departments, ''), [])
   assert.deepEqual(
-    withDestination(
-      { jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: 'PAYROLL' },
-      'departmentCode',
-      'SALES',
+    withDestinationJob(
+      { jobTitleCode: 'OLD_JOB', departmentCode: 'OLD_DEPARTMENT', sectionCode: 'OLD_SECTION' },
+      { code: 'MACHINE_OPERATOR', departmentCode: 'ASSEMBLY', sectionCode: 'ASSEMBLY_LINE_1' },
     ),
-    { jobTitleCode: 'PACKER', departmentCode: 'SALES', sectionCode: '' },
-  )
-  assert.deepEqual(
-    withDestination(
-      { jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: 'PAYROLL' },
-      'departmentCode',
-      'SALES',
-      'SALES_SECTION',
-    ),
-    { jobTitleCode: 'PACKER', departmentCode: 'SALES', sectionCode: 'SALES_SECTION' },
-  )
-  assert.equal(
-    withDestination(
-      { jobTitleCode: 'PACKER', departmentCode: 'HR', sectionCode: '' },
-      'sectionCode',
-      'PAYROLL',
-    ).departmentCode,
-    'HR',
+    {
+      jobTitleCode: 'MACHINE_OPERATOR',
+      departmentCode: 'ASSEMBLY',
+      sectionCode: 'ASSEMBLY_LINE_1',
+    },
   )
   const problems = validateTransfer(
     transferForm({
@@ -1230,6 +1232,21 @@ test('transfer: section choices depend on the department and a matching section 
     { submit: false },
   )
   assert.deepEqual(codesOf(problems), ['sectionCode:notInDepartment'])
+  const payroll = LOOKUPS.jobTitles.find((item) => item.name === 'Payroll Officer')
+  assert.deepEqual(
+    codesOf(
+      validateTransfer(
+        transferForm({
+          to: { jobTitleCode: payroll.code, departmentCode: 'SALES', sectionCode: 'SALES_SECTION' },
+        }),
+        employee,
+        LOOKUPS.departments,
+        { submit: false },
+        LOOKUPS.jobTitles,
+      ),
+    ),
+    ['jobTitleCode:notMapped'],
+  )
   // A section can be typed before the department; only a chosen department can contradict it.
   const early = validateTransfer(
     transferForm({
@@ -1260,9 +1277,13 @@ test('transfer: section choices depend on the department and a matching section 
   )
 })
 
-test('transfer: choosing the employee starts the new job title as now and prefills a known blood type', () => {
+test('transfer: choosing an employee preloads their mapped assignment and known blood type', () => {
   const form = withTransferEmployee(blankTransfer('2026-10-29', 'ZP_NON_FOOD'), employee)
-  assert.deepEqual(form.to, { jobTitleCode: 'HR_OFFICER', departmentCode: '', sectionCode: '' })
+  assert.deepEqual(form.to, {
+    jobTitleCode: 'HR_OFFICER',
+    departmentCode: 'HR',
+    sectionCode: 'HR_SECTION',
+  })
   assert.equal(form.bloodType, 'O+')
   assert.equal(
     withTransferEmployee(blankTransfer('2026-10-29', 'ZP_NON_FOOD'), DEMO_SERVICE_EMPLOYEES[1])
@@ -1480,25 +1501,61 @@ test('transfer API adapter maps transfer-request lookups, employee search, draft
   }
   const { fetchImpl, calls } = recordingFetch((url, init) => {
     if (url === '/api/v1/hr/transfer-requests/lookups/jobs')
-      return success([{ name: 'Operator' }, { name: 'Technician' }])
+      return success([
+        {
+          jobId: '20',
+          name: 'Operator',
+          departmentId: '70',
+          departmentName: 'Production Department',
+          sectionId: 'Production Section',
+          sectionName: 'Production Section',
+        },
+        {
+          jobId: '21',
+          name: 'Technician',
+          departmentId: '80',
+          departmentName: 'Maintenance Department',
+          sectionId: 'Maintenance Section',
+          sectionName: 'Maintenance Section',
+        },
+      ])
     if (url === '/api/v1/hr/transfer-requests/lookups/sections')
       return success([{ name: 'Production Section' }, { name: 'Maintenance Section' }])
     if (url === '/api/v1/hr/transfer-requests/lookups/departments')
-      return success(['Production Department', 'Maintenance Department'])
+      return success([
+        {
+          departmentId: '70',
+          name: 'Production Department',
+          sections: [{ sectionId: 'Production Section', name: 'Production Section' }],
+        },
+        {
+          departmentId: '80',
+          name: 'Maintenance Department',
+          sections: [{ sectionId: 'Maintenance Section', name: 'Maintenance Section' }],
+        },
+      ])
     if (url === '/api/v1/hr/transfer-requests/lookups/directors')
       return success([{ name: 'Sample Director', empNo: '900' }])
     if (url === '/api/v1/hr/transfer-requests/lookups/blood-types') return success([])
     if (url === '/api/v1/hr/transfer-requests/lookups/requestor')
       return success([{ empNo: '500', fullName: 'Signed-in User' }])
     if (url === '/api/v1/hr/transfer-requests/lookups/employees')
-      return success([{ name: 'Aaron Adams' }, { name: 'Sample Worker' }, { name: 'Zoe Zhang' }])
+      return success([
+        { empNo: '1100', name: 'Aaron Adams' },
+        { empNo: '2172', name: 'Sample Worker' },
+        { empNo: '3300', name: 'Zoe Zhang' },
+      ])
     if (url.startsWith('/api/v1/hr/transfer-requests/lookups/employees/'))
       return success({
         empNo: '2172',
         personId: '33',
         dateOfJoining: '2018-01-01',
+        jobId: '20',
         jobTitle: 'Operator',
-        deptName: 'Production Section',
+        deptName: 'Production Department',
+        department: 'Production Department',
+        departmentId: '70',
+        section: 'Production Section',
       })
     if (url === '/api/v1/hr/transfer-requests' && init.method === 'POST')
       return success({ headerId: '8', uuid: 'request-uuid' }, 201)
@@ -1542,6 +1599,8 @@ test('transfer API adapter maps transfer-request lookups, employee search, draft
     all.items.map((item) => item.name),
     ['Aaron Adams', 'Sample Worker', 'Zoe Zhang'],
   )
+  const byNumber = await transfers.searchEmployees('217')
+  assert.deepEqual(byNumber.items.map((item) => item.employeeNumber), ['2172'])
   assert.equal(
     calls.filter((call) => call.url === '/api/v1/hr/transfer-requests/lookups/employees').length,
     1,
@@ -1552,7 +1611,7 @@ test('transfer API adapter maps transfer-request lookups, employee search, draft
     found.items.map((item) => item.name),
     ['Sample Worker'],
   )
-  const employeeResult = await transfers.employee('Sample Worker')
+  const employeeResult = await transfers.employee('2172')
   assert.equal(employeeResult.employeeNumber, '2172')
   assert.equal(employeeResult.sectionName, 'Production Section')
   assert.equal(employeeResult.departmentName, 'Production Department')
@@ -1587,13 +1646,20 @@ test('transfer API adapter maps transfer-request lookups, employee search, draft
     changeSalary: 'No',
     budgetedSalary: 'Yes',
   })
-  // Free-typed section text (not in the master list) is sent to the server as typed.
+  // Invalid mapped pairs cannot be considered valid in the client-side form model.
   const freeForm = transferForm({ ...form, to: { ...form.to, sectionCode: 'Typed Free Section' } })
-  await transfers.save(null, transferPayload(freeForm, employeeResult), employeeResult)
-  const freePosted = JSON.parse(
-    calls.filter((call) => call.init.method === 'POST').at(-1).init.body,
+  assert.deepEqual(
+    codesOf(
+      validateTransfer(
+        freeForm,
+        employeeResult,
+        lookups.departments,
+        { submit: false },
+        lookups.jobTitles,
+      ),
+    ),
+    ['sectionCode:invalid', 'jobTitleCode:notMapped'],
   )
-  assert.equal(freePosted.transfer.section, 'Typed Free Section')
   const report = await transfers.list()
   assert.deepEqual(
     [report.items[0].transferNumber, report.items[0].employeeNumber, report.items[0].status],
@@ -1731,26 +1797,15 @@ test('transfer page: compact frame without the duplicate document banner, tight 
   )
   assert.match(page, /<RadioCards name="tr-salary-change"/)
   assert.match(page, /<RadioCards name="tr-budgeted"/)
-  // Destination choices are dropdowns backed by loaded lookup values.
-  assert.match(
-    page,
-    /<SearchableLookup id="tr-jobTitleCode" value=\{form\.to\.jobTitleCode\} options=\{lookups\.jobTitles\}/,
-  )
-  assert.match(
-    page,
-    /<SearchableLookup id="tr-departmentCode" value=\{form\.to\.departmentCode\} options=\{lookups\.departments\}/,
-  )
-  assert.match(page, /disabled=\{!lookups\.jobTitles\.length\}/)
-  assert.match(page, /disabled=\{!lookups\.departments\.length\}/)
-  assert.match(page, /onChange=\{\(option\) => pickDestination\('jobTitleCode', option\.code\)\}/)
-  assert.match(page, /onChange=\{\(option\) => pickDestination\('departmentCode', option\.code\)\}/)
-  assert.doesNotMatch(page, /suggest\('jobTitleCode'/, 'job title is no longer a datalist input')
-  assert.doesNotMatch(page, /suggest\('departmentCode'/, 'department is no longer a datalist input')
-  assert.match(
-    page,
-    /<SearchableLookup id="tr-sectionCode" value=\{form\.to\.sectionCode\} options=\{sectionOptions\}/,
-  )
-  assert.match(page, /disabled=\{!form\.to\.departmentCode \|\| !sectionOptions\.length\}/)
+  // The destination uses a searchable mapped job; department and section are populated from it.
+  assert.match(page, /className="zrv-hr-grid zrv-hr-es-org-row"/)
+  assert.ok(page.includes('value={form.to.jobTitleCode}'))
+  assert.ok(page.includes('onChange={pickDestinationJob}'))
+  assert.ok(page.includes('withDestinationJob(state.to, job)'))
+  assert.ok(page.includes('customValue={departmentName(form.to.departmentCode)}'))
+  assert.ok(page.includes('customValue={sectionName(form.to.departmentCode, form.to.sectionCode)}'))
+  assert.ok(page.includes('description: [item.departmentName, item.sectionName]'))
+  assert.equal(page.includes("pickDestination('departmentCode'"), false)
   // Blood type uses the same searchable picker UI as job title and department, listing all types.
   assert.match(
     page,

@@ -204,7 +204,7 @@ export function recordChangePayload(form, employee) {
 // Problems as { field, code } in step order: the legacy save rules (form.php `required`,
 // maxlength and the numeric filter). Legacy has no "something must change" or start-date rule.
 // Steps: 0 employee and effective date, 1 revised record, 2 remarks.
-export function validateRecordChange(form, employee) {
+export function validateRecordChange(form, employee, positionOptions) {
   const problems = []
   const add = (field, code, step) => problems.push({ field, code, step })
   if (!employee) add('employee', 'required', 0)
@@ -215,6 +215,12 @@ export function validateRecordChange(form, employee) {
   const revised = form.revised
   if (employee && revised) {
     if (!revised.positionCode) add('positionCode', 'required', 1)
+    else if (
+      positionOptions &&
+      revised.positionCode !== employee.current?.positionCode &&
+      !positionOptions.some((item) => item.code === revised.positionCode)
+    )
+      add('positionCode', 'notMapped', 1)
     if (!revised.familyStatusCode) add('familyStatusCode', 'required', 1)
     for (const key of PAY_KEYS) {
       if (!filled(revised[key])) add(key, 'required', 1)

@@ -63,7 +63,7 @@ export function createRequisitionController({ requisitionService }) {
     // --- Lookups (README §8) --------------------------------------------------------------------
 
     async jobTitles(req, res) {
-      sendSuccess(res, await requisitionService.jobTitles());
+      sendSuccess(res, await requisitionService.jobTitles(req.query));
     },
     async capabilities(req, res) {
       sendSuccess(res, await requisitionService.capabilities(req.auth));
@@ -73,6 +73,9 @@ export function createRequisitionController({ requisitionService }) {
     },
     async departments(req, res) {
       sendSuccess(res, await requisitionService.departments());
+    },
+    async sections(req, res) {
+      sendSuccess(res, await requisitionService.sections(req.query.departmentId));
     },
     async replacementFor(req, res) {
       sendSuccess(res, await requisitionService.replacementFor(req.auth, req.query.search));

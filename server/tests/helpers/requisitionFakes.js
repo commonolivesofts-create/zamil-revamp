@@ -300,14 +300,25 @@ export function installRequisitions(
     async listJobTitles() {
       const seen = new Map();
       for (const employee of store.state.empMaster) {
-        if (employee.jobId && !seen.has(String(employee.jobId))) {
-          seen.set(String(employee.jobId), {
+        if (
+          employee.jobId &&
+          employee.organizationId &&
+          employee.department &&
+          employee.costCenter
+        ) {
+          const key = [employee.jobId, employee.organizationId, employee.costCenter].join('|');
+          if (seen.has(key)) continue;
+          seen.set(key, {
             JOB_ID: String(employee.jobId),
             NAME: employee.jobTitle,
+            DEPARTMENT_ID: String(employee.organizationId),
+            DEPARTMENT_NAME: employee.department,
+            SECTION_ID: employee.costCenter,
+            SECTION_NAME: employee.costCenter,
           });
         }
       }
-      return [...seen.values()].sort((a, b) => Number(b.JOB_ID) - Number(a.JOB_ID));
+      return [...seen.values()].sort((a, b) => a.NAME.localeCompare(b.NAME));
     },
     async findRequestor(_c, employeeNumber) {
       const employee = store.state.empMaster.find((e) => e.employeeNumber === employeeNumber);
@@ -323,6 +334,78 @@ export function installRequisitions(
       return [...store.state.deptMaster]
         .sort((a, b) => Number(a.orgId) - Number(b.orgId))
         .map((dept) => ({ ORGANIZATION_ID: String(dept.orgId), NAME: dept.name }));
+    },
+    async listSections(_c, departmentId, departmentName) {
+      return [
+        ...new Map(
+          store.state.empMaster
+            .filter(
+              (employee) =>
+                String(employee.organizationId) === String(departmentId) &&
+                String(employee.department).toUpperCase() ===
+                  String(departmentName).toUpperCase() &&
+                employee.costCenter,
+            )
+            .map((employee) => [String(employee.costCenter), { SECTION: employee.costCenter }]),
+        ).values(),
+      ];
+    },
+    async listJobTitlesForOrganization(_c, departmentId, sectionId) {
+      const department = store.state.deptMaster.find(
+        (item) => String(item.orgId) === String(departmentId),
+      );
+      return store.state.empMaster
+        .filter(
+          (employee) =>
+            String(employee.organizationId) === String(departmentId) &&
+            String(employee.costCenter).toUpperCase() === String(sectionId).toUpperCase() &&
+            department &&
+            String(employee.department).toUpperCase() === department.name.toUpperCase(),
+        )
+        .map((employee) => ({
+          JOB_ID: String(employee.jobId),
+          NAME: employee.jobTitle,
+          DEPARTMENT_ID: String(employee.organizationId),
+          DEPARTMENT_NAME: employee.department,
+          SECTION_ID: employee.costCenter,
+          SECTION_NAME: employee.costCenter,
+        }))
+        .sort((a, b) => a.NAME.localeCompare(b.NAME));
+    },
+    async requisitionOrganizationMatch(
+      _c,
+      { departmentId, departmentName, sectionId, sectionName, jobId, jobName },
+    ) {
+      const department = store.state.deptMaster.find(
+        (item) => String(item.orgId) === String(departmentId),
+      );
+      return store.state.empMaster.some(
+        (employee) =>
+          String(employee.organizationId) === String(departmentId) &&
+          String(department.name).toUpperCase() === String(departmentName).toUpperCase() &&
+          String(employee.department).toUpperCase() === String(departmentName).toUpperCase() &&
+          String(employee.costCenter).toUpperCase() === String(sectionId).toUpperCase() &&
+          String(sectionName).toUpperCase() === String(sectionId).toUpperCase() &&
+          String(employee.jobId) === String(jobId) &&
+          String(employee.jobTitle).toUpperCase() === String(jobName).toUpperCase() &&
+          department,
+      );
+    },
+    async findRequisitionSection(_c, { departmentId, jobId }) {
+      const matches = [
+        ...new Map(
+          store.state.empMaster
+            .filter(
+              (employee) =>
+                String(employee.organizationId) === String(departmentId) &&
+                String(employee.jobId) === String(jobId),
+            )
+            .map((employee) => [String(employee.costCenter), employee]),
+        ).values(),
+      ];
+      return matches.length === 1
+        ? { sectionId: String(matches[0].costCenter), sectionName: matches[0].costCenter }
+        : null;
     },
     async listReplacementCandidates(_c, employeeNumber) {
       const requestor = store.state.empMaster.find((e) => e.employeeNumber === employeeNumber);

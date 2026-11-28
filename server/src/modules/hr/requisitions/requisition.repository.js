@@ -492,34 +492,101 @@ export async function createdByInScope(connection, { scopeUserId, createdBy }) {
 
 // --- Lookups (README §8) ------------------------------------------------------------------------
 
-/** Job titles for the datalist (§8.1). */
+/** Current title assignments with their Department/Section mapping (§8.1). */
 export async function listJobTitles(connection) {
   return rows(
     connection,
-    `WITH CURRENT_JOB_DEPARTMENTS AS (
-       SELECT JOB_ID,
-              MIN(ORGANIZATION_ID) AS DEPARTMENT_ID,
-              COUNT(DISTINCT ORGANIZATION_ID) AS DEPARTMENT_COUNT
-         FROM XX_DIGI_EMP_MASTER
-        WHERE CURRENT_EMP_FLAG = 'Y'
-          AND ORGANIZATION_ID IS NOT NULL
-        GROUP BY JOB_ID
-     )
-     SELECT jobs.JOB_ID,
-            jobs.JOB_TITLE AS NAME,
-            CASE WHEN departments.DEPARTMENT_COUNT = 1
-                 THEN departments.DEPARTMENT_ID
-            END AS DEPARTMENT_ID
-       FROM (
-         SELECT DISTINCT JOB_ID, JOB_TITLE
-           FROM XX_DIGI_EMP_MASTER
-       ) jobs
-       LEFT JOIN CURRENT_JOB_DEPARTMENTS departments
-         ON departments.JOB_ID = jobs.JOB_ID
-      ORDER BY jobs.JOB_ID DESC`,
+    `SELECT DISTINCT JOB_ID,
+            JOB_TITLE AS NAME,
+            ORGANIZATION_ID AS DEPARTMENT_ID,
+            DEPARTMENT AS DEPARTMENT_NAME,
+            COST_CENTER AS SECTION_ID,
+            COST_CENTER AS SECTION_NAME
+       FROM XX_DIGI_EMP_MASTER
+      WHERE CURRENT_EMP_FLAG = 'Y'
+        AND JOB_ID IS NOT NULL
+        AND ORGANIZATION_ID IS NOT NULL
+        AND DEPARTMENT IS NOT NULL
+        AND COST_CENTER IS NOT NULL
+      ORDER BY NAME, JOB_ID, DEPARTMENT_NAME, SECTION_NAME`,
     {},
-    { JOB_ID: ID },
+    { JOB_ID: ID, DEPARTMENT_ID: ID },
   );
+}
+
+/** Department/Section pairs come from the actual DEPARTMENT → COST_CENTER assignment mapping. */
+export async function listSections(connection, departmentId, departmentName) {
+  return rows(
+    connection,
+    `SELECT DISTINCT COST_CENTER AS SECTION
+       FROM XX_DIGI_EMP_MASTER
+      WHERE CURRENT_EMP_FLAG = 'Y'
+        AND ORGANIZATION_ID = :departmentId
+        AND UPPER(TRIM(DEPARTMENT)) = UPPER(TRIM(:departmentName))
+        AND COST_CENTER IS NOT NULL
+      ORDER BY SECTION`,
+    { departmentId, departmentName },
+  );
+}
+
+/** Current job assignments for the exact department and section organizations. */
+export async function listJobTitlesForOrganization(connection, departmentId, sectionId) {
+  return rows(
+    connection,
+    `SELECT DISTINCT JOB_ID,
+            JOB_TITLE AS NAME,
+            ORGANIZATION_ID AS DEPARTMENT_ID,
+            DEPARTMENT AS DEPARTMENT_NAME,
+            COST_CENTER AS SECTION_ID,
+            COST_CENTER AS SECTION_NAME
+       FROM XX_DIGI_EMP_MASTER
+      WHERE CURRENT_EMP_FLAG = 'Y'
+        AND JOB_ID IS NOT NULL
+        AND ORGANIZATION_ID = :departmentId
+        AND UPPER(TRIM(COST_CENTER)) = UPPER(TRIM(:sectionId))
+      ORDER BY NAME`,
+    { departmentId, sectionId },
+    { JOB_ID: ID, DEPARTMENT_ID: ID },
+  );
+}
+
+export async function requisitionOrganizationMatch(
+  connection,
+  { departmentId, departmentName, sectionId, sectionName, jobId, jobName },
+) {
+  const [row] = await rows(
+    connection,
+    `SELECT COUNT(*) AS CNT
+       FROM XX_DIGI_EMP_MASTER e
+      WHERE e.CURRENT_EMP_FLAG = 'Y'
+        AND e.ORGANIZATION_ID = :departmentId
+        AND UPPER(TRIM(e.DEPARTMENT)) = UPPER(TRIM(:departmentName))
+        AND UPPER(TRIM(e.COST_CENTER)) = UPPER(TRIM(:sectionId))
+        AND UPPER(TRIM(:sectionName)) = UPPER(TRIM(:sectionId))
+        AND e.JOB_ID = :jobId
+        AND UPPER(TRIM(e.JOB_TITLE)) = UPPER(TRIM(:jobName))`,
+    { departmentId, departmentName, sectionId, sectionName, jobId, jobName },
+  );
+  return Number(row?.CNT ?? 0) > 0;
+}
+
+/** A legacy requisition has no section column; restore it when its job maps to one section only. */
+export async function findRequisitionSection(connection, { departmentId, jobId }) {
+  const [row] = await rows(
+    connection,
+    `SELECT MIN(e.COST_CENTER) AS SECTION_ID,
+            MIN(e.COST_CENTER) AS SECTION_NAME
+       FROM XX_DIGI_EMP_MASTER e
+      WHERE e.CURRENT_EMP_FLAG = 'Y'
+        AND e.ORGANIZATION_ID = :departmentId
+        AND e.JOB_ID = :jobId
+      HAVING COUNT(DISTINCT e.COST_CENTER) = 1`,
+    { departmentId, jobId },
+    { SECTION_ID: ID },
+  );
+  return row?.SECTION_ID === null || row?.SECTION_ID === undefined
+    ? null
+    : { sectionId: String(row.SECTION_ID), sectionName: row.SECTION_NAME };
 }
 
 /** The logged-in requestor (§8.2). */
@@ -542,12 +609,15 @@ export async function findRequestor(connection, employeeNumber) {
     : null;
 }
 
-/** Departments for the datalist (§8.3). */
+/** Departments for the datalist (§8.3), using the employee-master organization mapping. */
 export async function listDepartments(connection) {
   return rows(
     connection,
-    `SELECT DISTINCT ORGANIZATION_ID, NAME
-       FROM XX_DIGI_DEPT_MASTER
+    `SELECT DISTINCT ORGANIZATION_ID, DEPARTMENT AS NAME
+       FROM XX_DIGI_EMP_MASTER
+      WHERE CURRENT_EMP_FLAG = 'Y'
+        AND ORGANIZATION_ID IS NOT NULL
+        AND DEPARTMENT IS NOT NULL
       ORDER BY 1`,
     {},
     { ORGANIZATION_ID: ID },

@@ -102,6 +102,8 @@ function requisitionRecord(data) {
     jobTitle: text(data.jobName),
     departmentId: text(data.deptId),
     departmentName: text(data.deptName),
+    sectionId: text(data.sectionId),
+    sectionName: text(data.sectionName),
     neededDate: legacyDate(data.dateNeeded),
     remark: text(data.remark),
     reason:
@@ -146,6 +148,8 @@ function requisitionBody(body, requestDate) {
     jobName: body.jobName,
     deptId: body.deptId || '',
     deptName: body.deptName,
+    sectionId: body.sectionId || '',
+    sectionName: body.sectionName,
     dateNeeded: body.dateNeeded,
     reasonOfReq: body.reasonOfReq,
     replacementFor: body.replacementFor || '',
@@ -584,7 +588,10 @@ function createBackendRequisitionService({ client }) {
             .map((item) => ({
               id: String(item.jobId ?? ''),
               name: String(item.name ?? ''),
-              ...(item.departmentId == null ? {} : { departmentId: String(item.departmentId) }),
+              departmentId: String(item.departmentId ?? ''),
+              departmentName: String(item.departmentName ?? ''),
+              sectionId: String(item.sectionId ?? ''),
+              sectionName: String(item.sectionName ?? ''),
             }))
             .filter((item) => item.name),
         ),
@@ -605,6 +612,27 @@ function createBackendRequisitionService({ client }) {
         }),
         lookupErrors,
       })
+    },
+    async getSections(departmentId, { signal } = {}) {
+      const { data } = await client.get(`${REQUISITIONS_BASE}/lookups/sections`, {
+        params: { departmentId },
+        signal,
+      })
+      return data.map((item) => ({ id: String(item.sectionId), name: String(item.name) }))
+    },
+    async getJobs(departmentId, sectionId, { signal } = {}) {
+      const { data } = await client.get(`${REQUISITIONS_BASE}/lookups/job-titles`, {
+        params: { departmentId, sectionId },
+        signal,
+      })
+      return data.map((item) => ({
+        id: String(item.jobId),
+        name: String(item.name),
+        departmentId: String(item.departmentId ?? ''),
+        departmentName: String(item.departmentName ?? ''),
+        sectionId: String(item.sectionId ?? ''),
+        sectionName: String(item.sectionName ?? ''),
+      }))
     },
     getById,
     async changeRecruitmentStatus(id, action, expectedStatus, reason = '') {

@@ -19,6 +19,7 @@ import { createAuthStore, testAuthConfig } from './helpers/authFakes.js';
 import { installRbac, signIn } from './helpers/rbacFakes.js';
 import { installRequisitions } from './helpers/requisitionFakes.js';
 import { createApp } from '../src/app.js';
+import * as requisitionRepository from '../src/modules/hr/requisitions/requisition.repository.js';
 
 const BASE = '/api/v1/hr/requisitions';
 
@@ -26,7 +27,11 @@ const BASE = '/api/v1/hr/requisitions';
 const BODY = {
   requestDate: '2026-10-25',
   jobName: 'Machine Operator',
+  jobId: '10',
+  deptId: '55',
   deptName: 'Production',
+  sectionId: 'Production Section',
+  sectionName: 'Production Section',
   dateNeeded: '2026-11-15',
   reasonOfReq: 'Addition',
   reason: 'New headcount for the line',
@@ -40,6 +45,40 @@ const asForm = (req, body = BODY) => {
 
 // PUT never carries requestDate (README §5.1: REQUEST_DATE is frozen).
 const PUT_BODY = Object.fromEntries(Object.entries(BODY).filter(([key]) => key !== 'requestDate'));
+
+it('queries the actual employee-master DEPARTMENT → COST_CENTER → JOB mapping', async () => {
+  const statements = [];
+  const connection = {
+    async execute(sql, binds) {
+      statements.push({ sql, binds });
+      if (/COST_CENTER AS SECTION/.test(sql)) return { rows: [{ SECTION: 'Development' }] };
+      if (/JOB_TITLE AS NAME/.test(sql)) return { rows: [{ JOB_ID: '7', NAME: 'Developer' }] };
+      if (/COUNT\(\*\) AS CNT/.test(sql)) return { rows: [{ CNT: 1 }] };
+      return { rows: [{ ORGANIZATION_ID: '4', NAME: 'IT' }] };
+    },
+  };
+
+  await requisitionRepository.listDepartments(connection);
+  await requisitionRepository.listSections(connection, '4', 'IT');
+  await requisitionRepository.listJobTitlesForOrganization(connection, '4', 'Development');
+  await requisitionRepository.requisitionOrganizationMatch(connection, {
+    departmentId: '4',
+    departmentName: 'IT',
+    sectionId: 'Development',
+    sectionName: 'Development',
+    jobId: '7',
+    jobName: 'Developer',
+  });
+
+  assert.match(statements[0].sql, /ORGANIZATION_ID, DEPARTMENT AS NAME/);
+  assert.match(statements[1].sql, /COST_CENTER AS SECTION/);
+  assert.deepEqual(statements[1].binds, { departmentId: '4', departmentName: 'IT' });
+  assert.match(statements[2].sql, /COST_CENTER/);
+  assert.deepEqual(statements[2].binds, { departmentId: '4', sectionId: 'Development' });
+  assert.match(statements[3].sql, /DEPARTMENT/);
+  assert.match(statements[3].sql, /COST_CENTER/);
+  assert.match(statements[3].sql, /JOB_ID/);
+});
 
 function setup() {
   const store = createAuthStore();
@@ -112,8 +151,20 @@ function setup() {
         supervisorName: 'Mona Manager',
         jobId: '10',
         jobTitle: 'Machine Operator',
+        organizationId: '55',
+        department: 'Production',
+        costCenter: 'Production Section',
         basicSalary: 8000,
         emailAddress: 'sam@example.com',
+      },
+      {
+        employeeNumber: '2003',
+        fullName: 'Forklift Operator',
+        jobId: '11',
+        jobTitle: 'Forklift Operator',
+        organizationId: '55',
+        department: 'Production',
+        costCenter: 'Production Section',
       },
       {
         userId: strangerUser.userId,
@@ -240,6 +291,20 @@ describe('requisition API', () => {
   });
 
   describe('insert (POST /)', () => {
+    it('rejects a job title from a different department or section', async () => {
+      const invalid = await send('post', '/', manager, {
+        ...BODY,
+        deptId: '70',
+        deptName: 'Warehouse',
+      });
+      assert.equal(invalid.status, 400);
+      assert.equal(invalid.body.error.details[0].field, 'jobId');
+      assert.match(
+        invalid.body.error.details[0].message,
+        /mapped to the selected department and section/,
+      );
+    });
+
     it('creates a Draft with server-set requestor, defaults and no literal nulls', async () => {
       const res = await send('post', '/', staff, BODY);
       assert.equal(res.status, 201, JSON.stringify(res.body));
@@ -486,6 +551,7 @@ describe('requisition API', () => {
       const id = f.seedRequisition({ createdBy: f.managerUser.userId });
       const res = await send('put', `/${id}`, manager, {
         ...PUT_BODY,
+        jobId: '11',
         jobName: 'Forklift Operator',
         budgeted: 'Y',
         skills: 'Forklift licence',
@@ -686,6 +752,7 @@ describe('requisition API', () => {
       const id = f.seedRequisition({ createdBy: f.hrUser.userId });
       const res = await asForm(upload('put', `/${id}`), {
         ...PUT_BODY,
+        jobId: '11',
         jobName: 'Forklift Operator',
       }).attach('files', Buffer.from('x'), 'extra.pdf');
       assert.equal(res.status, 200, JSON.stringify(res.body));
@@ -699,7 +766,7 @@ describe('requisition API', () => {
       f.store.requisitionStorage.failures.save = 1;
       const failed = await asForm(upload('put', `/${id}`), {
         ...PUT_BODY,
-        jobName: 'Should Not Persist',
+        jobName: 'Machine Operator',
       }).attach('files', Buffer.from('x'), 'never.pdf');
       assert.equal(failed.status, 500);
       const after = await get(`/${id}`, hr);
@@ -828,13 +895,51 @@ describe('requisition API', () => {
   });
 
   describe('lookups (README §8)', () => {
+    it('returns sections and job titles scoped to the selected department and section', async () => {
+      const sections = await get('/lookups/sections?departmentId=55');
+      assert.deepEqual(sections.body.data, [
+        { sectionId: 'Production Section', name: 'Production Section' },
+      ]);
+      const jobs = await get('/lookups/job-titles?departmentId=55&sectionId=Production%20Section');
+      assert.deepEqual(jobs.body.data, [
+        {
+          jobId: '11',
+          name: 'Forklift Operator',
+          departmentId: '55',
+          departmentName: 'Production',
+          sectionId: 'Production Section',
+          sectionName: 'Production Section',
+        },
+        {
+          jobId: '10',
+          name: 'Machine Operator',
+          departmentId: '55',
+          departmentName: 'Production',
+          sectionId: 'Production Section',
+          sectionName: 'Production Section',
+        },
+      ]);
+    });
+
     it('returns job titles and departments for the datalists', async () => {
       const jobs = await get('/lookups/job-titles');
       assert.deepEqual(jobs.body.data, [
-        { jobId: '40', name: 'HR Officer' },
-        { jobId: '30', name: 'Warehouse Supervisor' },
-        { jobId: '20', name: 'Production Manager' },
-        { jobId: '10', name: 'Machine Operator' }, // distinct by id, first row wins, ordered by id desc
+        {
+          jobId: '11',
+          name: 'Forklift Operator',
+          departmentId: '55',
+          departmentName: 'Production',
+          sectionId: 'Production Section',
+          sectionName: 'Production Section',
+        },
+        {
+          jobId: '10',
+          name: 'Machine Operator',
+          departmentId: '55',
+          departmentName: 'Production',
+          sectionId: 'Production Section',
+          sectionName: 'Production Section',
+        },
       ]);
       const depts = await get('/lookups/departments');
       assert.deepEqual(depts.body.data, [

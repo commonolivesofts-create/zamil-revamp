@@ -304,6 +304,7 @@ describe('API documentation', () => {
       ['get', '/lookups/requestor'],
       ['get', '/lookups/capabilities'],
       ['get', '/lookups/departments'],
+      ['get', '/lookups/sections'],
       ['get', '/lookups/replacement-for'],
       ['get', '/lookups/budget'],
       ['get', '/lookups/filter-options'],

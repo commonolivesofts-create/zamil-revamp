@@ -179,7 +179,14 @@ function createRepository() {
         .sort((a, b) => (BigInt(b.HEADER_ID) > BigInt(a.HEADER_ID) ? 1 : -1))[0] ?? null,
     master: async (_connection, empNo) =>
       MASTER[empNo]?.current === false ? null : (MASTER[empNo]?.row ?? null),
-    positionExists: async (_connection, name) => ['Operator', 'Supervisor', 'Clerk'].includes(name),
+    positionExists: async (_connection, name, { department, section } = {}) => {
+      const mappings = {
+        Operator: ['Injection', 'Production'],
+        Supervisor: ['Injection', 'Production'],
+        Clerk: ['Sales', 'Sales'],
+      };
+      return mappings[name]?.[0] === department && mappings[name]?.[1] === section;
+    },
     insert: async (_connection, values, userId) => {
       if (state.failures.insert) throw new Error('insert failed');
       state.calls.push({ insert: values });
@@ -269,7 +276,11 @@ function createRepository() {
         ? rows.filter((row) => `${row.empNo} ${row.name}`.toUpperCase().includes(term))
         : rows;
     },
-    positions: async () => [{ name: 'Operator' }, { name: 'Supervisor' }],
+    positions: async () => [
+      { name: 'Operator', departmentName: 'Injection', sectionName: 'Production' },
+      { name: 'Supervisor', departmentName: 'Injection', sectionName: 'Production' },
+      { name: 'Clerk', departmentName: 'Sales', sectionName: 'Sales' },
+    ],
   };
   return repo;
 }
@@ -439,6 +450,7 @@ describe('personal status change API', () => {
       [{ ...BODY, effectiveDate: '2026-02-30' }, 'EFFECTIVE_DATE_REQUIRED'],
       [{ ...BODY, empNo: '99999' }, 'EMP_NOT_FOUND'],
       [{ ...BODY, new: { ...BODY.new, position: 'Missing' } }, 'POSITION_INVALID'],
+      [{ ...BODY, new: { ...BODY.new, position: 'Clerk' } }, 'POSITION_INVALID'],
       [{ ...BODY, new: { ...BODY.new, position: ' ' } }, 'POSITION_INVALID'],
       [{ ...BODY, new: { ...BODY.new, position: 'x'.repeat(101) } }, 'POSITION_INVALID'],
       [{ ...BODY, new: { ...BODY.new, basicSal: -1 } }, 'ALLOWANCE_INVALID'],
@@ -487,7 +499,11 @@ describe('personal status change API', () => {
     assert.equal(result.body.data.new.total, 8000);
     assert.equal(f.personalStatusRepository.state.calls.at(-1).snapshot, false);
 
-    const moved = await send('put', '/653', session, { ...BODY, empNo: '12002' });
+    const moved = await send('put', '/653', session, {
+      ...BODY,
+      empNo: '12002',
+      new: { ...BODY.new, position: 'Clerk' },
+    });
     assert.equal(moved.status, 200);
     assert.equal(f.personalStatusRepository.state.calls.at(-1).snapshot, true);
     assert.equal(moved.body.data.empName, 'Second Example');
@@ -541,7 +557,7 @@ describe('personal status change API', () => {
   it('lists the legacy report columns with filters, pagination and bounds', async () => {
     f.personalStatusRepository.state.hrUsers.add(String(f.hrUser.userId));
     await create();
-    await create({ ...BODY, empNo: '12002' });
+    await create({ ...BODY, empNo: '12002', new: { ...BODY.new, position: 'Clerk' } });
     Object.assign(rows()[1], {
       STATUS: 'APPROVED',
       NEW_POSITION: 'Operator',
@@ -608,8 +624,9 @@ describe('personal status change API', () => {
     ]);
     assert.deepEqual((await get('/lookups/employees?search=nobody')).body.data, []);
     assert.deepEqual((await get('/lookups/positions')).body.data, [
-      { name: 'Operator' },
-      { name: 'Supervisor' },
+      { name: 'Operator', departmentName: 'Injection', sectionName: 'Production' },
+      { name: 'Supervisor', departmentName: 'Injection', sectionName: 'Production' },
+      { name: 'Clerk', departmentName: 'Sales', sectionName: 'Sales' },
     ]);
     const branchA = (await get('/lookups/employees/12001')).body.data;
     assert.equal(branchA.branch, 'employeeMaster');

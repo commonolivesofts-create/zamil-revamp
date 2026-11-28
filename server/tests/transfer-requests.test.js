@@ -210,14 +210,47 @@ describe('transfer request API', () => {
         filter === 'date_from=2026-12-01' ? 'Zamil Plastic Food' : 'Zamil Plastic Non-Food';
       assert.equal(filtered.body.data.rows[0].plant, expectedPlant, filter);
     }
-    assert.equal((await get('/lookups/employees')).body.data[0].name, 'Employee Example');
+    assert.deepEqual((await get('/lookups/employees')).body.data[0], {
+      empNo: '4321',
+      name: 'Employee Example',
+    });
     assert.equal((await get('/lookups/employees/Unknown')).status, 404);
-    assert.equal((await get('/lookups/departments')).body.data.length, 11);
-    assert.equal((await get('/lookups/jobs')).body.data[0].name, 'Senior Operator');
+    assert.equal((await get('/lookups/employees/4321')).body.data.empNo, '4321');
+    assert.deepEqual((await get('/lookups/departments')).body.data, [
+      {
+        departmentId: '55',
+        name: 'Maintenance Department',
+        sections: [{ sectionId: 'Maintenance Section', name: 'Maintenance Section' }],
+      },
+      {
+        departmentId: '56',
+        name: 'Production Department',
+        sections: [{ sectionId: 'Production Section', name: 'Production Section' }],
+      },
+    ]);
+    assert.deepEqual(
+      (await get('/lookups/jobs')).body.data.map(({ jobId, name }) => ({ jobId, name })),
+      [
+        { jobId: '11', name: 'Senior Operator' },
+        { jobId: '12', name: 'Technician' },
+      ],
+    );
     assert.equal((await get('/lookups/sections')).body.data[0].name, 'Maintenance Section');
     assert.equal((await get('/lookups/directors')).body.data[0].empNo, '2280');
     assert.equal((await get('/lookups/blood-types')).body.data[0].code, 'O+');
     assert.equal((await get('/lookups/requestor')).body.data[0].fullName, 'Requester Example');
+  });
+
+  it('rejects job titles paired with a different mapped department or section', async () => {
+    const created = await send('post', '', hr, BODY);
+    assert.equal(created.status, 201);
+    const invalid = structuredClone(BODY);
+    invalid.transfer.jobTitle = 'Technician';
+    const result = await send('put', `/${created.body.data.headerId}`, hr, invalid);
+    assert.equal(result.status, 400);
+    assert.equal(result.body.error.code, 'ORG_MAPPING_INVALID');
+    assert.equal(f.store.state.transferRequests.length, 1);
+    assert.equal(f.store.state.transferRequests[0].tJobTitle, 'Senior Operator');
   });
 
   it('returns 404 and blocks updates/deletes for Inprocess and Approved; allows Draft/Rejected delete', async () => {

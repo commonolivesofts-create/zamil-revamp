@@ -75,7 +75,13 @@ export default function RequisitionPage() {
 
 const nameOf = (options, id) => options.find((option) => option.id === id)?.name ?? ''
 
-function RequisitionEditor({ lookups, lookupStatus, lookupGlobalError, reloadLookups, record: savedRecord }) {
+function RequisitionEditor({
+  lookups,
+  lookupStatus,
+  lookupGlobalError,
+  reloadLookups,
+  record: savedRecord,
+}) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const permissions = usePermissions()
@@ -95,6 +101,8 @@ function RequisitionEditor({ lookups, lookupStatus, lookupGlobalError, reloadLoo
   const [showErrors, setShowErrors] = useState(false)
   const [saving, setSaving] = useState(false)
   const [furthestUnlocked, setFurthestUnlocked] = useState(0)
+  const jobs = lookups.jobs
+  const jobsLoading = lookupStatus === 'loading'
   const locked = isRequisitionLocked(record?.status) && !lookups.capabilities?.canManageTicket
   const canSave = record
     ? permissions.can(ACTIONS.REQUISITION_UPDATE)
@@ -150,7 +158,6 @@ function RequisitionEditor({ lookups, lookupStatus, lookupGlobalError, reloadLoo
   }
   const lead = leadTime(today, form.neededDate)
   const department = form.departmentName || nameOf(lookups.departments, form.departmentId)
-  const departmentsLoading = lookupStatus === 'loading'
   const lookupErrors = lookups.lookupErrors ?? []
   const lookupNotice =
     lookupStatus === 'loading' ? (
@@ -178,26 +185,16 @@ function RequisitionEditor({ lookups, lookupStatus, lookupGlobalError, reloadLoo
     form.totalPackage !== '' ? form.totalPackage : (budget.data?.totalPackage ?? '')
   const body = () => requisitionPayload({ ...form, totalPackage: packageValue })
   const updateJobTitle = (jobTitle, selectedJob = null) => {
-    const job =
-      selectedJob ??
-      lookups.jobs.find((item) => item.name.toLowerCase() === jobTitle.trim().toLowerCase())
-    const patch = { jobTitle, jobId: job?.id ?? '' }
-    if (job?.departmentId) {
-      const dept = lookups.departments.find((item) => item.id === job.departmentId)
-      patch.departmentId = dept?.id ?? ''
-      patch.departmentName = dept?.name ?? ''
-    } else if (job && form.jobId !== job.id) {
-      patch.departmentId = ''
-      patch.departmentName = ''
-    } else if (
-      !job &&
-      form.jobId &&
-      form.jobTitle.trim().toLowerCase() !== jobTitle.trim().toLowerCase()
-    ) {
-      patch.departmentId = ''
-      patch.departmentName = ''
-    }
-    editor.patch(patch)
+    const job = selectedJob ?? jobs.find((item) => item.name === jobTitle)
+    if (!job) return
+    editor.patch({
+      jobTitle: job.name,
+      jobId: String(job.jobId ?? job.id),
+      departmentId: job.departmentId,
+      departmentName: job.departmentName,
+      sectionId: job.sectionId,
+      sectionName: job.sectionName,
+    })
   }
 
   const save = async () => {
@@ -578,60 +575,80 @@ function RequisitionEditor({ lookups, lookupStatus, lookupGlobalError, reloadLoo
                   aria-readonly="true"
                 />
               </HrField>
-              <HrField id="rq-title" label={T.labels.jobTitle} required error={errors.jobTitle}>
-                <SearchableLookup
-                  id="rq-title"
-                  value={form.jobId}
-                  customValue={form.jobTitle}
-                  options={lookups.jobs.map((item) => ({
-                    code: item.id,
-                    id: item.id,
-                    name: item.name,
-                    departmentId: item.departmentId,
-                  }))}
-                  onChange={(option) => updateJobTitle(option.name, option)}
-                  onInputChange={updateJobTitle}
-                  maxLength={150}
-                  error={errors.jobTitle}
-                  required
-                  loading={lookupStatus === 'loading'}
-                  loadingLabel="Loading job titles…"
-                  placeholder={T.placeholders.jobTitle}
-                />
-              </HrField>
-              <HrField
-                id="rq-dept"
-                label={T.labels.department}
-                required
-                error={errors.departmentId}
-              >
-                <SearchableLookup
+              <div className="zrv-hr-grid zrv-hr-requisition-org-row">
+                <HrField
                   id="rq-dept"
-                  value={form.departmentId}
-                  disabled={departmentsLoading}
-                  loading={departmentsLoading}
-                  loadingLabel="Loading departments…"
-                  placeholder={
-                    departmentsLoading
-                      ? T.placeholders.loadingDepartments
-                      : T.placeholders.department
-                  }
-                  onChange={(dept) => {
-                    editor.patch({
-                      departmentId: dept?.id ?? '',
-                      departmentName: dept?.name ?? '',
-                    })
-                  }}
-                  options={lookups.departments.map((item) => ({
-                    code: item.id,
-                    id: item.id,
-                    name: item.name,
-                  }))}
+                  label={T.labels.department}
                   required
                   error={errors.departmentId}
-                  maxLength={150}
-                />
-              </HrField>
+                >
+                  <SearchableLookup
+                    id="rq-dept"
+                    value={form.departmentId}
+                    customValue={form.departmentName}
+                    disabled
+                    options={[]}
+                    placeholder="Populated from Job Title"
+                    required
+                    error={errors.departmentId}
+                  />
+                </HrField>
+                <HrField id="rq-section" label="Section" required error={errors.sectionId}>
+                  <SearchableLookup
+                    id="rq-section"
+                    value={form.sectionId}
+                    customValue={form.sectionName}
+                    disabled
+                    options={[]}
+                    placeholder="Populated from Job Title"
+                    error={errors.sectionId}
+                    required
+                  />
+                </HrField>
+                <HrField id="rq-title" label={T.labels.jobTitle} required error={errors.jobTitle}>
+                  <SearchableLookup
+                    id="rq-title"
+                    value={
+                      form.jobId && form.departmentId && form.sectionId
+                        ? JSON.stringify([form.jobId, form.departmentId, form.sectionId])
+                        : ''
+                    }
+                    customValue={form.jobTitle}
+                    options={jobs.map((item) => ({
+                      code: JSON.stringify([item.id, item.departmentId, item.sectionId]),
+                      id: item.id,
+                      jobId: item.id,
+                      departmentId: item.departmentId,
+                      departmentName: item.departmentName,
+                      sectionId: item.sectionId,
+                      sectionName: item.sectionName,
+                      name: item.name,
+                      description: [item.departmentName, item.sectionName]
+                        .filter(Boolean)
+                        .join(' | '),
+                    }))}
+                    onChange={(option) => updateJobTitle(option.name, option)}
+                    onInputChange={() => {
+                      if (form.jobId || form.jobTitle || form.departmentId || form.sectionId) {
+                        editor.patch({
+                          jobId: '',
+                          jobTitle: '',
+                          departmentId: '',
+                          departmentName: '',
+                          sectionId: '',
+                          sectionName: '',
+                        })
+                      }
+                    }}
+                    maxLength={150}
+                    error={errors.jobTitle}
+                    required
+                    searchPending={jobsLoading}
+                    noResults="No mapped job titles found"
+                    placeholder={T.placeholders.jobTitle}
+                  />
+                </HrField>
+              </div>
               <HrField
                 id="rq-need"
                 label={T.labels.neededDate}

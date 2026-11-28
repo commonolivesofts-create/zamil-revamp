@@ -32,6 +32,46 @@ const POSITIONS = options([
   'Warehouse Supervisor',
 ])
 
+// Fictional transfer-only assignments keep the local demo aligned with the live
+// Department → Section → Job Title selection behavior.
+const TRANSFER_ASSIGNMENTS = Object.freeze({
+  Packer: ['ASSEMBLY', 'PACKING', 'Assembly Department', 'Packing'],
+  'Machine Operator': ['ASSEMBLY', 'ASSEMBLY_LINE_1', 'Assembly Department', 'Assembly Line 1'],
+  'Line Supervisor': ['ASSEMBLY', 'ASSEMBLY_LINE_1', 'Assembly Department', 'Assembly Line 1'],
+  'Injection Operator': [
+    'INJECTION',
+    'INJECTION_HALL_A',
+    'Injection Department',
+    'Injection Hall A',
+  ],
+  'Moulding Technician': ['TOOL_ROOM', 'TOOL_ROOM', 'Tool Room Department', 'Tool Room'],
+  'Sales Coordinator': ['SALES', 'SALES_SECTION', 'Sales Department', 'Sales Section'],
+  'Sales Leader': ['SALES', 'KEY_ACCOUNTS', 'Sales Department', 'Key Accounts'],
+  'Sales Executive': ['SALES', 'KEY_ACCOUNTS', 'Sales Department', 'Key Accounts'],
+  'HR Officer': ['HR', 'HR_SECTION', 'HR Department', 'HR Section'],
+  'Senior HR Officer': ['HR', 'RECRUITMENT', 'HR Department', 'Recruitment'],
+  'Payroll Officer': ['HR', 'PAYROLL', 'HR Department', 'Payroll'],
+  Accountant: ['FINANCE', 'ACCOUNTS', 'Finance Department', 'Accounts'],
+  'Senior Accountant': ['FINANCE', 'TREASURY', 'Finance Department', 'Treasury'],
+  'Maintenance Technician': ['MAINTENANCE', 'MAINTENANCE', 'Maintenance Department', 'Maintenance'],
+  'Senior Maintenance Technician': [
+    'MAINTENANCE',
+    'UTILITIES',
+    'Maintenance Department',
+    'Utilities',
+  ],
+  Electrician: ['MAINTENANCE', 'MAINTENANCE', 'Maintenance Department', 'Maintenance'],
+  'Quality Inspector': ['QUALITY', 'QUALITY_CONTROL', 'Quality Department', 'Quality Control'],
+  'Quality Engineer': ['QUALITY', 'QUALITY_ASSURANCE', 'Quality Department', 'Quality Assurance'],
+  'Store Keeper': ['WAREHOUSE', 'RAW_MATERIALS', 'Warehouse Department', 'Raw Materials Store'],
+  'Warehouse Supervisor': [
+    'WAREHOUSE',
+    'FINISHED_GOODS',
+    'Warehouse Department',
+    'Finished Goods Store',
+  ],
+})
+
 export const DEMO_EMPLOYEE_SERVICES_LOOKUPS = Object.freeze({
   positions: POSITIONS,
   grades: options(['G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10']),
@@ -113,7 +153,20 @@ export const DEMO_EMPLOYEE_SERVICES_LOOKUPS = Object.freeze({
       name: sectionName,
     })),
   })),
-  jobTitles: POSITIONS,
+  jobTitles: POSITIONS.map((item) => {
+    const [departmentCode, sectionCode, departmentName, sectionName] =
+      TRANSFER_ASSIGNMENTS[item.name]
+    return Object.freeze({
+      ...item,
+      departmentCode,
+      departmentName,
+      sectionCode,
+      sectionName,
+      departmentId: departmentCode,
+      sectionId: sectionCode,
+      description: `${departmentName} | ${sectionName}`,
+    })
+  }),
   directors: [
     { directorId: 'D-1004', name: 'Sample Director A', area: 'Operations' },
     { directorId: 'D-1011', name: 'Sample Director B', area: 'Commercial' },

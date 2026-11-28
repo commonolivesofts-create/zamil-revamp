@@ -208,16 +208,26 @@ describe('personal status change repository', () => {
     assert.doesNotMatch(hr.calls[0].sql, /scopeUserId/);
   });
 
-  it('positions accept the datalist (POSITION_NAME) or a job title (the auto-filled default)', async () => {
+  it('positions are mapped to the employee department and section for both position names and job titles', async () => {
     const connection = mockConnection([{ rows: [{ FOUND: 1 }] }]);
     const repository = createPersonalStatusRepository();
-    assert.equal(await repository.positionExists(connection, 'Operator'), true);
+    assert.equal(
+      await repository.positionExists(connection, 'Operator', {
+        department: 'Injection',
+        section: 'Production',
+      }),
+      true,
+    );
+    assert.match(connection.calls[0].sql, /DEPARTMENT = :department/);
+    assert.match(connection.calls[0].sql, /DIVISION = :section/);
     assert.match(
       connection.calls[0].sql,
       /UPPER\(TRIM\(POSITION_NAME\)\) = UPPER\(TRIM\(:name\)\)/,
     );
     assert.match(connection.calls[0].sql, /UPPER\(TRIM\(JOB_TITLE\)\) = UPPER\(TRIM\(:name\)\)/);
     assert.equal(connection.calls[0].binds.name, 'Operator');
+    assert.equal(connection.calls[0].binds.department, 'Injection');
+    assert.equal(connection.calls[0].binds.section, 'Production');
   });
 
   it('HR check fails closed and same-department compares ORGANIZATION_ID', async () => {

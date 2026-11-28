@@ -17,6 +17,8 @@ import {
   requisitionIdParams,
   recruitmentActionSchema,
   replacementForQuerySchema,
+  sectionsQuerySchema,
+  mappedJobsQuerySchema,
   updateBodySchema,
 } from './requisition.validation.js';
 
@@ -87,10 +89,19 @@ export function createRequisitionRouter({
     validate({ query: emptyQuerySchema, body: countsBody }),
     controller.counts,
   );
-  router.get('/lookups/job-titles', ...read('VIEW'), controller.jobTitles);
+  router.get(
+    '/lookups/job-titles',
+    ...read('VIEW', { query: mappedJobsQuerySchema }),
+    controller.jobTitles,
+  );
   router.get('/lookups/requestor', ...read('VIEW'), controller.requestor);
   router.get('/lookups/capabilities', ...read('VIEW'), controller.capabilities);
   router.get('/lookups/departments', ...read('VIEW'), controller.departments);
+  router.get(
+    '/lookups/sections',
+    ...read('VIEW', { query: sectionsQuerySchema }),
+    controller.sections,
+  );
   router.get(
     '/lookups/replacement-for',
     ...read('VIEW', { query: replacementForQuerySchema }),

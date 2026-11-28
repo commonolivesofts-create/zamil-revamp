@@ -14,6 +14,48 @@ function connection(results = []) {
 }
 
 describe('transfer request Oracle repository', () => {
+  it('returns employee numbers with names and supports fetching a master row by number or name', async () => {
+    const list = connection([[{ EMP_NO: '4321', NAME: 'Employee Example' }]]);
+    assert.deepEqual(await repository.listEmployeeNames(list), [
+      { empNo: '4321', name: 'Employee Example' },
+    ]);
+    assert.match(list.calls[0].sql, /EMPLOYEE_NUMBER AS EMP_NO, FULL_NAME AS NAME/);
+    assert.match(list.calls[0].sql, /CURRENT_EMP_FLAG = 'Y'/);
+
+    const details = connection([
+      [{ PERSON_ID: '12', EMPLOYEE_NUMBER: '4321', EMP_NAME: 'Employee Example' }],
+      [{ START_DATE: '2020-01-01' }],
+      [{ NAME: 'Operator', JOB_ID: '20' }],
+      [{ ORGANIZATION_ID: '70', DEPARTMENT_NAME: 'IT', SECTION_NAME: 'Development' }],
+    ]);
+    const employee = await repository.findEmployeeDetails(details, '4321');
+    assert.equal(employee.empNo, '4321');
+    assert.equal(employee.empName, 'Employee Example');
+    assert.match(details.calls[0].sql, /EMPLOYEE_NUMBER = :employee OR FULL_NAME = :employee/);
+    assert.equal(details.calls[0].binds.employee, '4321');
+  });
+
+  it('returns only current employee-master job, department and cost-center assignments', async () => {
+    const c = connection([
+      [
+        {
+          JOB_ID: '12',
+          JOB_NAME: 'Technician',
+          DEPARTMENT_ID: '80',
+          DEPARTMENT_NAME: 'Maintenance',
+          SECTION_ID: 'Field Service',
+          SECTION_NAME: 'Field Service',
+        },
+      ],
+    ]);
+    const assignments = await repository.listOrganizationAssignments(c);
+    assert.equal(assignments[0].JOB_ID, '12');
+    assert.match(c.calls[0].sql, /CURRENT_EMP_FLAG = 'Y'/);
+    assert.match(c.calls[0].sql, /DEPARTMENT AS DEPARTMENT_NAME/);
+    assert.match(c.calls[0].sql, /COST_CENTER AS SECTION_NAME/);
+    assert.match(c.calls[0].sql, /ORGANIZATION_ID AS DEPARTMENT_ID/);
+  });
+
   it('binds every listing filter, scope, page and search input; uses COUNT and allowlisted ordering', async () => {
     const c = connection([[{ TOTAL: 1 }], [{ HEADER_ID: '1' }]]);
     const search = "%' OR 1=1 --";
